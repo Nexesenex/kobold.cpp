@@ -43,7 +43,7 @@ if (NOT MSVC)
 endif()
 
 # 3rd party libs
-option(LLAMA_CUBLAS                          "llama: use CUDA"                                OFF)
+option(LLAMA_CUBLAS                          "llama: use CUDA"                                ON)
 set(LLAMA_CUDA_MMQ_Y       "64" CACHE STRING "llama: y tile size for mmq CUDA kernels")
 set(LLAMA_CUDA_DMMV_X      "32" CACHE STRING "llama: x stride for dmmv CUDA kernels")
 set(LLAMA_CUDA_DMMV_Y       "1" CACHE STRING "llama: y block size for dmmv CUDA kernels")
