@@ -5071,7 +5071,7 @@ static void * ggml_cuda_pool_malloc(size_t size, size_t * actual_size) {
         b.size = 0;
         return ptr;
     }
-    if(worst_i!=-1 && !g_mul_mat_q) //no buffer that fits our needs, resize largest one to save memory (non mmq only)
+    if(worst_i!=-1) //no buffer that fits our needs, resize largest one to save memory
     {
         cuda_buffer& b = g_cuda_buffer_pool[id][worst_i];
         b.size = 0;
