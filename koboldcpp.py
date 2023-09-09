@@ -11,9 +11,9 @@ import argparse
 import json, sys, http.server, time, asyncio, socket, threading
 from concurrent.futures import ThreadPoolExecutor
 
-stop_token_max = 10
+stop_token_max = 96
 sampler_order_max = 7
-ban_token_max = 10
+ban_token_max = 96
 tensor_split_max = 16
 
 class load_model_inputs(ctypes.Structure):
