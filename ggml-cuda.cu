@@ -6746,7 +6746,7 @@ static void ggml_cuda_op_mul_mat(
                     GGML_ASSERT(false);
                 }
 
-                if (convert_src1_to_q8_1 && !(src1_on_device && src1_is_contiguous)) {
+                if (convert_src1_to_q8_1 && (src1->backend == GGML_BACKEND_CPU || (src1_on_device && !src1_is_contiguous))) {
                     quantize_row_q8_1_cuda(src1_ddf_i, src1_ddq_i, ne10, src1_ncols, src1_padded_col_size, 1,
                                            ne10, ne10*ne11, stream);
                     CUDA_CHECK(cudaGetLastError());
