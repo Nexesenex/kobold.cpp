@@ -11,9 +11,9 @@ import argparse
 import json, sys, http.server, time, asyncio, socket, threading
 from concurrent.futures import ThreadPoolExecutor
 
-stop_token_max = 10
+stop_token_max = 96
 sampler_order_max = 7
-ban_token_max = 10
+ban_token_max = 96
 tensor_split_max = 16
 
 class load_model_inputs(ctypes.Structure):
@@ -797,9 +797,9 @@ def show_new_gui():
         (lib_failsafe, "Failsafe Mode (Old CPU)")]
     openblas_option, clblast_option, cublas_option, hipblas_option, default_option, noavx2_option, failsafe_option = (opt if file_exists(lib) or (os.name == 'nt' and file_exists(opt + ".dll")) else None for lib, opt in lib_option_pairs)
     # slider data
-    blasbatchsize_values = ["-1", "32", "64", "128", "256", "512", "1024", "2048"]
-    blasbatchsize_text = ["Don't Batch BLAS","32","64","128","256","512","1024","2048"]
-    contextsize_text = ["512", "1024", "2048", "3072", "4096", "6144", "8192", "12288", "16384"]
+    blasbatchsize_values = ["-1", "32", "64", "96" ,"128", "160", "192", "224", "256", "288", "320", "352", "384", "416", "448", "480", "512", "576", "640", "704", "768", "896", "1024", "1280", "1536", "1792", "2048"]
+    blasbatchsize_text = ["Don't Batch BLAS","32","64","96","128","160","192","224","256","288","320","352","384","416","448","480","512","576","640","704","768","896","1024","1280","1536","1792","2048"]
+    contextsize_text = ["128" ,"256" ,"384" ,"512" ,"640" ,"768" ,"896" ,"1024" ,"1152" ,"1280" ,"1408" ,"1536" ,"1664" ,"1792" ,"1920" ,"2048" ,"2176" ,"2304" ,"2432" ,"2560" ,"2688" ,"2816" ,"2944" ,"3072" ,"3200" ,"3328" ,"3456" ,"3584" ,"3712" ,"3840" ,"3968" ,"4096" ,"4224" ,"4352" ,"4480" ,"4608" ,"4736" ,"4864" ,"4992" ,"5120" ,"5248" ,"5376" ,"5504" ,"5632" ,"5760" ,"5888" ,"6016" ,"6144" ,"6272" ,"6400" ,"6528" ,"6656" ,"6784" ,"6912" ,"7040" ,"7168" ,"7296" ,"7424" ,"7552" ,"7680" ,"7808" ,"7936" ,"8064" ,"8192" ,"8320" ,"8448" ,"8576" ,"8704" ,"8832" ,"8960" ,"9088" ,"9216" ,"9344" ,"9472" ,"9600" ,"9728" ,"9856" ,"9984" ,"10112" ,"10240" ,"10368" ,"10496" ,"10624" ,"10752" ,"10880" ,"11008" ,"11136" ,"11264" ,"11392" ,"11520" ,"11648" ,"11776" ,"11904" ,"12032" ,"12160" ,"12288" ,"12416" ,"12544" ,"12672" ,"12800" ,"12928" ,"13056" ,"13184" ,"13312" ,"13440" ,"13568" ,"13696" ,"13824" ,"13952" ,"14080" ,"14208" ,"14336" ,"14464" ,"14592" ,"14720" ,"14848" ,"14976" ,"15104" ,"15232" ,"15360" ,"15488" ,"15616" ,"15744" ,"15872" ,"16000" ,"16128" ,"16256" ,"16384" ,"16512" ,"16640" ,"16768" ,"16896" ,"17024" ,"17152" ,"17280" ,"17408" ,"17536" ,"17664" ,"17792" ,"17920" ,"18048" ,"18176" ,"18304" ,"18432" ,"18560" ,"18688" ,"18816" ,"18944" ,"19072" ,"19200" ,"19328" ,"19456" ,"19584" ,"19712" ,"19840" ,"19968" ,"20096" ,"20224" ,"20352" ,"20480" ,"20608" ,"20736" ,"20864" ,"20992" ,"21120" ,"21248" ,"21376" ,"21504" ,"21632" ,"21760" ,"21888" ,"22016" ,"22144" ,"22272" ,"22400" ,"22528" ,"22656" ,"22784" ,"22912" ,"23040" ,"23168" ,"23296" ,"23424" ,"23552" ,"23680" ,"23808" ,"23936" ,"24064" ,"24192" ,"24320" ,"24448" ,"24576" ,"24704" ,"24832" ,"24960" ,"25088" ,"25216" ,"25344" ,"25472" ,"25600" ,"25728" ,"25856" ,"25984" ,"26112" ,"26240" ,"26368" ,"26496" ,"26624" ,"26752" ,"26880" ,"27008" ,"27136" ,"27264" ,"27392" ,"27520" ,"27648" ,"27776" ,"27904" ,"28032" ,"28160" ,"28288" ,"28416" ,"28544" ,"28672" ,"28800" ,"28928" ,"29056" ,"29184" ,"29312" ,"29440" ,"29568" ,"29696" ,"29824" ,"29952" ,"30080" ,"30208" ,"30336" ,"30464" ,"30592" ,"30720" ,"30848" ,"30976" ,"31104" ,"31232" ,"31360" ,"31488" ,"31616" ,"31744" ,"31872" ,"32000" ,"32128" ,"32256" ,"32384" ,"32512" ,"32640" ,"32768"]
     runopts = [opt for lib, opt in lib_option_pairs if file_exists(lib)]
     antirunopts = [opt.replace("Use ", "") for lib, opt in lib_option_pairs if not (opt in runopts)]
     if not any(runopts):
@@ -1887,8 +1887,8 @@ if __name__ == '__main__':
     parser.add_argument("--blasthreads", help="Use a different number of threads during BLAS if specified. Otherwise, has the same value as --threads",metavar=('[threads]'), type=int, default=0)
     parser.add_argument("--psutil_set_threads", help="Experimental flag. If set, uses psutils to determine thread count based on physical cores.", action='store_true')
     parser.add_argument("--highpriority", help="Experimental flag. If set, increases the process CPU priority, potentially speeding up generation. Use caution.", action='store_true')
-    parser.add_argument("--contextsize", help="Controls the memory allocated for maximum context size, only change if you need more RAM for big contexts. (default 2048)", type=int,choices=[512,1024,2048,3072,4096,6144,8192,12288,16384], default=2048)
-    parser.add_argument("--blasbatchsize", help="Sets the batch size used in BLAS processing (default 512). Setting it to -1 disables BLAS mode, but keeps other benefits like GPU offload.", type=int,choices=[-1,32,64,128,256,512,1024,2048], default=512)
+    parser.add_argument("--contextsize", help="Controls the memory allocated for maximum context size, only change if you need more RAM for big contexts. (default 2048)", type=int, default=2048)
+    parser.add_argument("--blasbatchsize", help="Sets the batch size used in BLAS processing (default 512). Setting it to -1 disables BLAS mode, but keeps other benefits like GPU offload.", type=int, default=512)
     parser.add_argument("--ropeconfig", help="If set, uses customized RoPE scaling from configured frequency scale and frequency base (e.g. --ropeconfig 0.25 10000). Otherwise, uses NTK-Aware scaling set automatically based on context size. For linear rope, simply set the freq-scale and ignore the freq-base",metavar=('[rope-freq-scale]', '[rope-freq-base]'), default=[0.0, 10000.0], type=float, nargs='+')
     parser.add_argument("--stream", help="Uses streaming when generating tokens. Only for the Kobold Lite UI.", action='store_true')
     parser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently.", action='store_true')
