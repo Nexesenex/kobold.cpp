@@ -1,0 +1,5 @@
+cd /d "%~dp0"
+copy "P:\NVIDIAGPUCT\CUDA\v11.4\bin\cudart64_110.dll" .\ /Y
+copy "P:\NVIDIAGPUCT\CUDA\v11.4\bin\cublasLt64_11.dll" .\ /Y
+copy "P:\NVIDIAGPUCT\CUDA\v11.4\bin\cublas64_11.dll" .\ /Y
+PyInstaller --noconfirm --onefile --collect-all customtkinter --clean --console --icon ".\niko.ico" --add-data "./klite.embd;." --add-data "./koboldcpp_default.dll;." --add-data "./koboldcpp_openblas.dll;." --add-data "./koboldcpp_failsafe.dll;." --add-data "./koboldcpp_noavx2.dll;." --add-data "./libopenblas.dll;." --add-data "./koboldcpp_clblast.dll;." --add-data "./clblast.dll;." --add-data "./koboldcpp_cublas.dll;." --add-data "./cudart64_110.dll;." --add-data "./cublasLt64_11.dll;." --add-data "./cublas64_11.dll;." --add-data "./rwkv_vocab.embd;." --add-data "./rwkv_world_vocab.embd;." --add-data "./msvcp140.dll;." --add-data "./vcruntime140_1.dll;." "./koboldcpp.py" -n "koboldcpp_cuda.exe"
