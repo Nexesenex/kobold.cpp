@@ -5977,52 +5977,52 @@ inline void ggml_cuda_op_mul_mat_q(
     switch (src0->type) {
         case GGML_TYPE_Q4_0:
             ggml_mul_mat_q4_0_q8_1_cuda(
-                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, ne11, src1_padded_row_size, nrows_dst, nchannels,
+                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_ncols, src1_padded_row_size, nrows_dst, nchannels,
                 row_stride, channel_stride_x, channel_stride_y, stream);
             break;
         case GGML_TYPE_Q4_1:
             ggml_mul_mat_q4_1_q8_1_cuda(
-                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, ne11, src1_padded_row_size, nrows_dst, nchannels,
+                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_ncols, src1_padded_row_size, nrows_dst, nchannels,
                 row_stride, channel_stride_x, channel_stride_y, stream);
             break;
         case GGML_TYPE_Q5_0:
             ggml_mul_mat_q5_0_q8_1_cuda(
-                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, ne11, src1_padded_row_size, nrows_dst, nchannels,
+                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_ncols, src1_padded_row_size, nrows_dst, nchannels,
                 row_stride, channel_stride_x, channel_stride_y, stream);
             break;
         case GGML_TYPE_Q5_1:
             ggml_mul_mat_q5_1_q8_1_cuda(
-                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, ne11, src1_padded_row_size, nrows_dst, nchannels,
+                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_ncols, src1_padded_row_size, nrows_dst, nchannels,
                 row_stride, channel_stride_x, channel_stride_y, stream);
             break;
         case GGML_TYPE_Q8_0:
             ggml_mul_mat_q8_0_q8_1_cuda(
-                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, ne11, src1_padded_row_size, nrows_dst, nchannels,
+                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_ncols, src1_padded_row_size, nrows_dst, nchannels,
                 row_stride, channel_stride_x, channel_stride_y, stream);
             break;
         case GGML_TYPE_Q2_K:
             ggml_mul_mat_q2_K_q8_1_cuda(
-                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, ne11, src1_padded_row_size, nrows_dst, nchannels,
+                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_ncols, src1_padded_row_size, nrows_dst, nchannels,
                 row_stride, channel_stride_x, channel_stride_y, stream);
             break;
         case GGML_TYPE_Q3_K:
             ggml_mul_mat_q3_K_q8_1_cuda(
-                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, ne11, src1_padded_row_size, nrows_dst, nchannels,
+                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_ncols, src1_padded_row_size, nrows_dst, nchannels,
                 row_stride, channel_stride_x, channel_stride_y, stream);
             break;
         case GGML_TYPE_Q4_K:
             ggml_mul_mat_q4_K_q8_1_cuda(
-                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, ne11, src1_padded_row_size, nrows_dst, nchannels,
+                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_ncols, src1_padded_row_size, nrows_dst, nchannels,
                 row_stride, channel_stride_x, channel_stride_y, stream);
             break;
         case GGML_TYPE_Q5_K:
             ggml_mul_mat_q5_K_q8_1_cuda(
-                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, ne11, src1_padded_row_size, nrows_dst, nchannels,
+                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_ncols, src1_padded_row_size, nrows_dst, nchannels,
                 row_stride, channel_stride_x, channel_stride_y, stream);
             break;
         case GGML_TYPE_Q6_K:
             ggml_mul_mat_q6_K_q8_1_cuda(
-                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, ne11, src1_padded_row_size, nrows_dst, nchannels,
+                src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_ncols, src1_padded_row_size, nrows_dst, nchannels,
                 row_stride, channel_stride_x, channel_stride_y, stream);
             break;
         default:
