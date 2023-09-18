@@ -6919,7 +6919,7 @@ void ggml_cuda_mul_mat_nc(const ggml_tensor * src0, const ggml_tensor * src1, gg
                            nb11/sizeof(float), nb12/sizeof(float), main_stream);
 
     ggml_cuda_op_mul_mat_q<false>(src0, src1, dst, src0_ddq, nullptr, src1_ddq, dst_ddf,
-                                  0, ne01, ne10, src1_padded_col_size, main_stream);
+                                  0, ne01, ne11, src1_padded_col_size, main_stream);
     CUDA_CHECK(cudaGetLastError());
 
     ggml_cuda_pool_free(src1_ddq, as);
