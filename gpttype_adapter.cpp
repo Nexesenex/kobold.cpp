@@ -561,7 +561,6 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     {
         blasbatchsize = 8;
     }
-    params.memory_f16 = inputs.f16_kv;
     params.n_ctx = inputs.max_context_length;
 
     neox_ctx_v2.hparams.n_ctx  = neox_ctx_v3.hparams.n_ctx
@@ -757,7 +756,6 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         llama_ctx_params.n_ctx = inputs.max_context_length;
         //llama_ctx_paran_parts = -1;
         llama_ctx_params.seed = -1;
-        llama_ctx_params.f16_kv = inputs.f16_kv;
         llama_ctx_params.low_vram = inputs.low_vram;
         llama_ctx_params.mul_mat_q = inputs.use_mmq;
         llama_ctx_params.logits_all = false;
