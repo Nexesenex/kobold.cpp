@@ -12,6 +12,7 @@
 
 #define CL_TARGET_OPENCL_VERSION 110
 #include <clblast.h>
+#include <clblast_c.h>
 
 #if defined(_MSC_VER)
 #pragma warning(disable: 4244 4267) // possible loss of data
@@ -804,6 +805,7 @@ __kernel void KERNEL_NAME(__global TYPE* x, const int x_offset, __global TYPE* y
         if (err_ != CL_SUCCESS) {                                   \
             fprintf(stderr, "ggml_opencl: %s error %d at %s:%d\n",  \
                 #err, err_, __FILE__, __LINE__);                    \
+            fprintf(stderr, "You may be out of VRAM. Please check if you have enough.\n");\
             exit(1);                                                \
         }                                                           \
     } while (0)
@@ -814,6 +816,7 @@ __kernel void KERNEL_NAME(__global TYPE* x, const int x_offset, __global TYPE* y
         if (err_ != CLBlastSuccess) {                               \
             fprintf(stderr, "ggml_opencl: %s error %d at %s:%d\n",  \
                 #err, err_, __FILE__, __LINE__);                    \
+            fprintf(stderr, "You may be out of VRAM. Please check if you have enough.\n");\
             exit(1);                                                \
         }                                                           \
     } while (0)
@@ -988,6 +991,7 @@ void ggml_cl_init(void) {
             d->platform = p;
             CL_CHECK(clGetDeviceInfo(d->id, CL_DEVICE_NAME, sizeof(d->name), &d->name, NULL));
             CL_CHECK(clGetDeviceInfo(d->id, CL_DEVICE_TYPE, sizeof(d->type), &d->type, NULL));
+            printf("\nPlatform:%d Device:%d  - %s with %s",i,j,p->name,d->name);
 
             if (p->default_device == NULL && d->type == CL_DEVICE_TYPE_GPU) {
                 p->default_device = d;
@@ -998,6 +1002,8 @@ void ggml_cl_init(void) {
             default_device = p->default_device;
         }
     }
+
+    printf("\n\n");
 
     if (n_devices == 0) {
         fprintf(stderr, "ggml_opencl: could find any OpenCL devices.\n");
@@ -1096,6 +1102,8 @@ void ggml_cl_init(void) {
     // Check if ext_buffer contains cl_khr_fp16
     fp16_support = strstr(ext_buffer, "cl_khr_fp16") != NULL;
     fprintf(stderr, "ggml_opencl: device FP16 support: %s\n", fp16_support ? "true" : "false");
+    fp16_support = false;
+    printf("CL FP16 temporarily disabled pending further optimization.\n");
 
     cl_context_properties properties[] = {
         (intptr_t)CL_CONTEXT_PLATFORM, (intptr_t)platform, 0
@@ -1248,7 +1256,7 @@ static cl_kernel* ggml_get_dequantize_mul_mat_vec_cl(ggml_type type) {
 }
 
 // buffer pool for cl
-#define MAX_CL_BUFFERS 256
+#define MAX_CL_BUFFERS 400
 
 struct scoped_spin_lock {
     std::atomic_flag& lock;
@@ -1507,8 +1515,8 @@ static void ggml_cl_mul_mat_f32(const ggml_tensor * src0, const ggml_tensor * sr
 
                     // compute
                     cl_event ev_sgemm;
-                    clblast::StatusCode status = clblast::Gemm<cl_float>(clblast::Layout::kColMajor,
-                                                               clblast::Transpose::kYes, clblast::Transpose::kNo,
+                    clblast::StatusCode status = (clblast::StatusCode)CLBlastSgemm((CLBlastLayout)clblast::Layout::kColMajor,
+                                                               (CLBlastTranspose)clblast::Transpose::kYes, (CLBlastTranspose)clblast::Transpose::kNo,
                                                                ne01, ne11, ne10,
                                                                alpha,
                                                                d_X, x_offset, ne00,
@@ -1518,6 +1526,7 @@ static void ggml_cl_mul_mat_f32(const ggml_tensor * src0, const ggml_tensor * sr
                                                                &queue, &ev_sgemm);
 
                     if (status != clblast::StatusCode::kSuccess) {
+						printf("\nF32 Matmul Failed (%d): [dims: %ld,%ld,%ld,%ld] You may be out of VRAM. Please check if you have enough.\n",static_cast<int>(status),ne00,ne01,ne10,ne11);
                         GGML_ASSERT(false);
                     }
 
@@ -1628,8 +1637,8 @@ static void ggml_cl_mul_mat_f16(const ggml_tensor * src0, const ggml_tensor * sr
 
                     // compute
                     cl_event ev_sgemm;
-                    clblast::StatusCode status = clblast::Gemm<cl_half>(clblast::Layout::kColMajor,
-                                                               clblast::Transpose::kYes, clblast::Transpose::kNo,
+                    clblast::StatusCode status = (clblast::StatusCode)CLBlastHgemm((CLBlastLayout)clblast::Layout::kColMajor,
+                                                               (CLBlastTranspose)clblast::Transpose::kYes, (CLBlastTranspose)clblast::Transpose::kNo,
                                                                ne01, ne11, ne10,
                                                                alpha,
                                                                d_X, x_offset, ne00,
@@ -1639,6 +1648,7 @@ static void ggml_cl_mul_mat_f16(const ggml_tensor * src0, const ggml_tensor * sr
                                                                &queue, &ev_sgemm);
 
                     if (status != clblast::StatusCode::kSuccess) {
+						printf("\nF16 Matmul Failed (%d): [dims: %ld,%ld,%ld,%ld] You may be out of VRAM. Please check if you have enough.\n",static_cast<int>(status),ne00,ne01,ne10,ne11);
                         GGML_ASSERT(false);
                     }
 
@@ -1761,8 +1771,8 @@ static void ggml_cl_mul_mat_q_f32(const ggml_tensor * src0, const ggml_tensor * 
 
                         // compute
                         events.emplace_back();
-                        clblast::StatusCode status = clblast::Gemm<cl_float>(clblast::Layout::kColMajor,
-                                                                   clblast::Transpose::kYes, clblast::Transpose::kNo,
+                        clblast::StatusCode status = (clblast::StatusCode)CLBlastSgemm((CLBlastLayout)clblast::Layout::kColMajor,
+                                                                   (CLBlastTranspose)clblast::Transpose::kYes, (CLBlastTranspose)clblast::Transpose::kNo,
                                                                    ne01, ne11, ne10,
                                                                    alpha,
                                                                    d_X, 0, ne00,
@@ -1772,6 +1782,7 @@ static void ggml_cl_mul_mat_q_f32(const ggml_tensor * src0, const ggml_tensor * 
                                                                    &queue, events.data() + ev_idx++);
 
                         if (status != clblast::StatusCode::kSuccess) {
+							printf("\nQF32 Matmul Failed (%d): [dims: %ld,%ld,%ld,%ld] You may be out of VRAM. Please check if you have enough.\n",static_cast<int>(status),ne00,ne01,ne10,ne11);
                             GGML_ASSERT(false);
                         }
                     }

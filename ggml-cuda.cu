@@ -97,7 +97,7 @@
 // -  7B quantum model: +100-200 MB
 // - 13B quantum model: +200-400 MB
 //
-//#define GGML_CUDA_FORCE_MMQ
+#define GGML_CUDA_FORCE_MMQ
 
 // TODO: improve this to be correct for more hardware
 //       for example, currently fails for GeForce GTX 1660 which is TURING arch (> VOLTA) but does not have tensor cores
@@ -495,6 +495,7 @@ static int g_device_count = -1;
 static int g_main_device = 0;
 static int g_compute_capabilities[GGML_CUDA_MAX_DEVICES];
 static float g_tensor_split[GGML_CUDA_MAX_DEVICES] = {0};
+static bool g_mul_mat_q = false;
 
 static void * g_scratch_buffer = nullptr;
 static size_t g_scratch_size = 0; // disabled by default
@@ -5876,53 +5877,49 @@ static void * ggml_cuda_pool_malloc(size_t size, size_t * actual_size) {
     scoped_spin_lock lock(g_cuda_pool_lock);
     int id;
     CUDA_CHECK(cudaGetDevice(&id));
-#ifdef DEBUG_CUDA_MALLOC
-    int nnz = 0;
-    size_t max_size = 0, tot_size = 0;
-#endif
-    size_t best_diff = 1ull << 36;
-    int ibest = -1;
+
+    int best_i = -1;
+    size_t best_size = std::numeric_limits<size_t>::max(); //smallest unused buffer that fits our needs
+    int worst_i = -1;
+    size_t worst_size = 0; //largest unused buffer seen so far
+
     for (int i = 0; i < MAX_CUDA_BUFFERS; ++i) {
         cuda_buffer& b = g_cuda_buffer_pool[id][i];
-        if (b.ptr != nullptr) {
-#ifdef DEBUG_CUDA_MALLOC
-            ++nnz;
-            tot_size += b.size;
-            if (b.size > max_size) max_size = b.size;
-#endif
-            if (b.size >= size) {
-                size_t diff = b.size - size;
-                if (diff < best_diff) {
-                    best_diff = diff;
-                    ibest = i;
-                    if (!best_diff) {
-                        void * ptr = b.ptr;
-                        *actual_size = b.size;
-                        b.ptr = nullptr;
-                        b.size = 0;
-                        return ptr;
-                    }
-                }
-            }
+        if (b.size > 0 && b.size >= size && b.size < best_size)
+        {
+            best_i = i;
+            best_size = b.size;
+        }
+        if (b.size > 0 && b.size > worst_size)
+        {
+            worst_i = i;
+            worst_size = b.size;
         }
     }
-    if (ibest >= 0) {
-        cuda_buffer& b = g_cuda_buffer_pool[id][ibest];
+    if(best_i!=-1) //found the smallest buffer that fits our needs
+    {
+        cuda_buffer& b = g_cuda_buffer_pool[id][best_i];
         void * ptr = b.ptr;
         *actual_size = b.size;
         b.ptr = nullptr;
         b.size = 0;
         return ptr;
     }
-#ifdef DEBUG_CUDA_MALLOC
-    fprintf(stderr, "%s: %d buffers, max_size = %u MiB, tot_size = %u MiB, requested %u MiB\n", __func__, nnz,
-            (uint32_t)(max_size/1024/1024), (uint32_t)(tot_size/1024/1024), (uint32_t)(size/1024/1024));
-#endif
+    if(worst_i!=-1 && !g_mul_mat_q) //no buffer that fits our needs, resize largest one to save memory (non mmq only)
+    {
+        cuda_buffer& b = g_cuda_buffer_pool[id][worst_i];
+        b.size = 0;
+        void * ptr = b.ptr;
+        cudaFree(ptr);
+        b.ptr = ptr = nullptr;
+    }
     void * ptr;
+
     size_t look_ahead_size = (size_t) (1.05 * size);
     look_ahead_size = 256 * ((look_ahead_size + 255)/256);
     CUDA_CHECK(cudaMalloc((void **) &ptr, look_ahead_size));
     *actual_size = look_ahead_size;
+
     return ptr;
 }
 
@@ -5969,16 +5966,8 @@ void ggml_init_cublas() {
 
         GGML_ASSERT(g_device_count <= GGML_CUDA_MAX_DEVICES);
         int64_t total_vram = 0;
-#if defined(GGML_CUDA_FORCE_MMQ)
-        fprintf(stderr, "%s: GGML_CUDA_FORCE_MMQ:   yes\n", __func__);
-#else
-        fprintf(stderr, "%s: GGML_CUDA_FORCE_MMQ:   no\n", __func__);
-#endif
-#if defined(CUDA_USE_TENSOR_CORES)
-        fprintf(stderr, "%s: CUDA_USE_TENSOR_CORES: yes\n", __func__);
-#else
-        fprintf(stderr, "%s: CUDA_USE_TENSOR_CORES: no\n", __func__);
-#endif
+        fprintf(stderr, "%s: GGML_CUDA_FORCE_MMQ:   %s\n", __func__,"maybe");
+        fprintf(stderr, "%s: CUDA_USE_TENSOR_CORES: %s\n", __func__,"maybe");
         fprintf(stderr, "%s: found %d " GGML_CUDA_NAME " devices:\n", __func__, g_device_count);
         for (int id = 0; id < g_device_count; ++id) {
             cudaDeviceProp prop;
@@ -7711,8 +7700,11 @@ static void ggml_cuda_mul_mat(const ggml_tensor * src0, const ggml_tensor * src1
 
             // when tensor cores are available, use them for large batch size
             // ref: https://github.com/ggerganov/llama.cpp/pull/3776
-            if (use_tensor_cores && min_compute_capability >= CC_VOLTA && src1->ne[1] > MMQ_MAX_BATCH_SIZE) {
-                use_mul_mat_q = false;
+            if (min_compute_capability >= CC_VOLTA && src1->ne[1] > MMQ_MAX_BATCH_SIZE) {
+                if(!g_mul_mat_q)
+                {
+                    use_mul_mat_q = false;
+                }
             }
 
             if (use_mul_mat_q) {
@@ -8074,6 +8066,10 @@ void ggml_cuda_set_main_device(const int main_device) {
         CUDA_CHECK(cudaGetDeviceProperties(&prop, g_main_device));
         fprintf(stderr, "%s: using device %d (%s) as main device\n", __func__, g_main_device, prop.name);
     }
+}
+
+void ggml_cuda_set_mul_mat_q(const bool mul_mat_q) {
+    g_mul_mat_q = mul_mat_q;
 }
 
 void ggml_cuda_set_scratch_size(const size_t scratch_size) {

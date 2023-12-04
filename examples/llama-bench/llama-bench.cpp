@@ -19,6 +19,7 @@
 #include "ggml.h"
 #include "llama.h"
 #include "common.h"
+#include "build-info.h"
 #include "ggml-cuda.h"
 
 // utils

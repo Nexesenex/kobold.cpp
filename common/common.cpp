@@ -1,4 +1,5 @@
 #include "common.h"
+#include "build-info.h"
 #include "llama.h"
 
 #include <algorithm>

@@ -31,12 +31,6 @@
     fprintf(stderr, "%s: built with %s for %s\n", __func__, LLAMA_COMPILER, LLAMA_BUILD_TARGET);    \
 } while(0)
 
-// build info
-extern int LLAMA_BUILD_NUMBER;
-extern char const *LLAMA_COMMIT;
-extern char const *LLAMA_COMPILER;
-extern char const *LLAMA_BUILD_TARGET;
-
 //
 // CLI argument parsing
 //
@@ -72,6 +66,20 @@ struct gpt_params {
     int8_t  rope_scaling_type               = LLAMA_ROPE_SCALING_UNSPECIFIED; // TODO: better to be int32_t for alignment
                                                                               //       pinging @cebtenzzre
 
+    // sampling parameters
+    int32_t top_k             = 40;    // <= 0 to use vocab size
+    float   top_p             = 0.95f; // 1.0 = disabled
+    float   min_p             = 0.0f; // 0.0 = disabled
+    float   tfs_z             = 1.00f; // 1.0 = disabled
+    float   typical_p         = 1.00f; // 1.0 = disabled
+    float   temp              = 0.80f; // 1.0 = disabled
+    float   repeat_penalty    = 1.10f; // 1.0 = disabled
+    int32_t repeat_last_n     = 64;    // last n tokens to penalize (0 = disable penalty, -1 = context size)
+    float   frequency_penalty = 0.00f; // 0.0 = disabled
+    float   presence_penalty  = 0.00f; // 0.0 = disabled
+    int32_t mirostat          = 0;     // 0 = disabled, 1 = mirostat, 2 = mirostat 2.0
+    float   mirostat_tau      = 5.00f; // target entropy
+    float   mirostat_eta      = 0.10f; // learning rate
     // // sampling parameters
     struct llama_sampling_params sparams;
 

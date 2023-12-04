@@ -8,9 +8,10 @@
 #include "ggml-alloc.h"
 
 #ifdef GGML_USE_CUBLAS
-#  include "ggml-cuda.h"
-#elif defined(GGML_USE_CLBLAST)
-#  include "ggml-opencl.h"
+#include "ggml-cuda.h"
+#endif
+#if defined(GGML_USE_CLBLAST)
+#include "ggml-opencl.h"
 #endif
 
 #ifdef GGML_USE_METAL
@@ -920,6 +921,7 @@ struct llama_mmap {
             throw std::runtime_error(format("MapViewOfFile failed: %s", llama_format_win_err(error).c_str()));
         }
 
+        #ifndef USE_FAILSAFE
         if (prefetch) {
             // PrefetchVirtualMemory is only present on Windows 8 and above, so we dynamically load it
             BOOL (WINAPI *pPrefetchVirtualMemory) (HANDLE, ULONG_PTR, PWIN32_MEMORY_RANGE_ENTRY, ULONG);
@@ -939,6 +941,9 @@ struct llama_mmap {
                 }
             }
         }
+        #else
+        printf("\nPrefetchVirtualMemory skipped in compatibility mode.\n");
+        #endif
     }
 
     ~llama_mmap() {
@@ -1115,7 +1120,7 @@ static void ggml_offload_nop(struct ggml_tensor * tensor) {
     (void) tensor;
 }
 
-static std::string llama_token_to_piece(const struct llama_context * ctx, llama_token token) {
+static std::string llama_token_to_str(const struct llama_context * ctx, llama_token token) {
     std::vector<char> result(8, 0);
     const int n_tokens = llama_token_to_piece(llama_get_model(ctx), token, result.data(), result.size());
     if (n_tokens < 0) {
@@ -1375,10 +1380,15 @@ struct llama_vocab {
     id special_eot_id    = 32010;
 
     int find_bpe_rank(std::string token_left, std::string token_right) const {
-        GGML_ASSERT(token_left.find(" ") == std::string::npos);
-        GGML_ASSERT(token_left.find("\n") == std::string::npos);
-        GGML_ASSERT(token_right.find(" ") == std::string::npos);
-        GGML_ASSERT(token_right.find("\n") == std::string::npos);
+        // GGML_ASSERT(token_left.find(" ") == std::string::npos);
+        // GGML_ASSERT(token_left.find("\n") == std::string::npos);
+        // GGML_ASSERT(token_right.find(" ") == std::string::npos);
+        // GGML_ASSERT(token_right.find("\n") == std::string::npos);
+        //the above breaks gguf v1 falcons
+        replace_all(token_left,  " ",  "\u0120");
+        replace_all(token_left,  "\n", "\u010A");
+        replace_all(token_right, " ",  "\u0120");
+        replace_all(token_right, "\n", "\u010A");
 
         auto it = bpe_ranks.find(std::make_pair(token_left, token_right));
         if (it == bpe_ranks.end()) {
@@ -1856,6 +1866,7 @@ struct llama_model_loader {
 
         // determine file type based on the number of tensors for each quantization and print meta data
         // TODO: make optional
+        if(false) //disable this log for now
         {
             std::map<enum ggml_type, uint32_t> n_type;
 
@@ -2402,6 +2413,7 @@ static void llm_load_hparams(
 // TODO: This should probably be in llama.h
 static std::vector<llama_vocab::id> llama_tokenize_internal(const llama_vocab & vocab, std::string raw_text, bool bos, bool special = false);
 static llama_token llama_byte_to_token(const llama_vocab & vocab, uint8_t ch);
+static bool OldBPETokenizerMode = false;
 
 static void llm_load_vocab(
         llama_model_loader & ml,
@@ -2457,7 +2469,16 @@ static void llm_load_vocab(
 
             for (int i = 0; i < n_merges; i++) {
                 const std::string word = gguf_get_arr_str(ctx, merges_keyidx, i);
-                GGML_ASSERT(codepoints_from_utf8(word).size() > 0);
+                if (!OldBPETokenizerMode)
+                {
+                    auto validcodepoints = codepoints_from_utf8(word).size() > 0;
+                    GGML_ASSERT_CONTINUE(validcodepoints);
+                    if(!validcodepoints)
+                    {
+                        OldBPETokenizerMode = true;
+                        printf("\nFalling Back to older tokenizer...");
+                    }
+                }
 
                 std::string first;
                 std::string second;
@@ -2492,7 +2513,16 @@ static void llm_load_vocab(
 
     for (uint32_t i = 0; i < n_vocab; i++) {
         std::string word = gguf_get_arr_str(ctx, token_idx, i);
-        GGML_ASSERT(codepoints_from_utf8(word).size() > 0);
+       if (!OldBPETokenizerMode)
+        {
+            auto validcodepoints = codepoints_from_utf8(word).size() > 0;
+            GGML_ASSERT_CONTINUE(validcodepoints);
+            if(!validcodepoints)
+            {
+                OldBPETokenizerMode = true;
+                printf("\nFalling Back to older tokenizer...");
+            }
+        }
 
         vocab.token_to_id[word] = i;
 
@@ -2501,7 +2531,7 @@ static void llm_load_vocab(
         token_data.score = scores ? scores[i] : 0.0f;
         token_data.type  = toktypes ? (llama_token_type) toktypes[i] : LLAMA_TOKEN_TYPE_NORMAL;
     }
-    GGML_ASSERT(vocab.id_to_token.size() == vocab.token_to_id.size());
+    GGML_ASSERT_CONTINUE(vocab.id_to_token.size() == vocab.token_to_id.size());
 
     // determine the newline token: LLaMA "<0x0A>" == 10 == '\n', Falcon 193 == '\n'
     if (vocab.type == LLAMA_VOCAB_TYPE_SPM) {
@@ -2731,11 +2761,11 @@ static void llm_load_tensors(
             model.mlock_buf.grow_to(model.buf.size);
         }
 
-        struct ggml_init_params params = {
-            /*.mem_size   =*/ model.buf.size,
-            /*.mem_buffer =*/ model.buf.data,
-            /*.no_alloc   =*/ ml.use_mmap,
-        };
+        struct ggml_init_params params;
+        /*.mem_size   =*/ params.mem_size = model.buf.size;
+        /*.mem_buffer =*/ params.mem_buffer = model.buf.data;
+        /*.no_alloc   =*/ params.no_alloc = ml.use_mmap;
+
 
         model.ctx = ggml_init(params);
         if (!model.ctx) {
@@ -5629,7 +5659,7 @@ static int llama_decode_internal(
 
     GGML_ASSERT(n_tokens <= n_batch);
 
-    int n_threads = n_tokens == 1 ? cparams.n_threads : cparams.n_threads_batch;
+    int n_threads = n_tokens < 32 ? cparams.n_threads : cparams.n_threads_batch;
     GGML_ASSERT((!batch.token && batch.embd) || (batch.token && !batch.embd)); // NOLINT
 
     const int64_t t_start_us = ggml_time_us();
@@ -5726,6 +5756,8 @@ static int llama_decode_internal(
             ggml_cuda_assign_scratch_offset(node, (char*)node->data - (char *) lctx.buf_alloc.data);
         }
     }
+
+    ggml_cuda_set_mul_mat_q(cparams.mul_mat_q);
 
     // HACK: ggml-alloc may change the tensor backend when reusing a parent, so force output to be on the CPU here if needed
     if (!lctx.embedding.empty()) {
@@ -5886,11 +5918,11 @@ static uint8_t llama_token_to_byte(const llama_vocab& vocab, llama_token id) {
         return strtol(buf.c_str(), NULL, 16);
     }
     case LLAMA_VOCAB_TYPE_BPE: {
-        GGML_ASSERT(false);
+        GGML_ASSERT_CONTINUE(false);
         return unicode_to_bytes_bpe(token_data.text);
     }
     default:
-        GGML_ASSERT(false);
+        GGML_ASSERT_CONTINUE(false);
     }
 }
 
@@ -5905,7 +5937,7 @@ static llama_token llama_byte_to_token(const llama_vocab & vocab, uint8_t ch) {
         return vocab.token_to_id.at(bytes_to_unicode_bpe(ch));
     }
     default:
-        GGML_ASSERT(false);
+        GGML_ASSERT_CONTINUE(false);
     }
 }
 
@@ -6091,6 +6123,225 @@ struct llm_bigram_bpe {
     int rank;
     size_t size;
 };
+
+
+///// legacy functions for Falcon compatibility //////
+static llama_token llama_byte_to_token_old(const llama_vocab & vocab, uint8_t ch);
+
+static uint8_t llama_token_to_byte_old(const llama_vocab & vocab, llama_token id) {
+    GGML_ASSERT(llama_is_byte_token(vocab, id));
+    const auto& token_data = vocab.id_to_token.at(id);
+    auto buf = token_data.text.substr(3, 2);
+    return strtol(buf.c_str(), NULL, 16);
+}
+
+static llama_token llama_byte_to_token_old(const llama_vocab & vocab, uint8_t ch) {
+    char buf[7];
+    int result = snprintf(buf, sizeof(buf), "<0x%02X>", ch);
+    GGML_ASSERT(0 <= result && result < 7);
+    return vocab.token_to_id.at(buf);
+}
+
+int llama_token_to_piece_old(const struct llama_model * model, llama_token token, char * buf, int length) {
+    if (0 <= token && token < llama_n_vocab(model)) {
+        if (llama_is_normal_token(model->vocab, token)) {
+            std::string result = model->vocab.id_to_token[token].text;
+            if (llama_vocab_get_type(model->vocab) == LLAMA_VOCAB_TYPE_SPM) {
+                llama_unescape_whitespace(result);
+            }
+            if (length < (int) result.length()) {
+                return -result.length();
+            }
+            memcpy(buf, result.c_str(), result.length());
+            return result.length();
+        } else if (llama_is_unknown_token(model->vocab, token)) { // NOLINT
+            if (length < 3) {
+                return -3;
+            }
+            buf[0] = '\xe2';
+            buf[1] = '\x96';
+            buf[2] = '\x85';
+            return 3;
+        } else if (llama_is_control_token(model->vocab, token)) {
+            // do nothing
+        } else if (llama_is_byte_token(model->vocab, token)) {
+            if (length < 1) {
+                return -1;
+            }
+            buf[0] = llama_token_to_byte_old(model->vocab, token);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+struct llm_tokenizer_bpe_old {
+    llm_tokenizer_bpe_old(const llama_vocab & vocab): vocab(vocab) {}
+
+    void tokenize(const std::string & text, std::vector<llama_vocab::id> & output) {
+        int final_prev_index = -1;
+        auto word_collection = bpe_gpt2_preprocess_old(text);
+
+        symbols_final.clear();
+
+        for (auto & word : word_collection) {
+            work_queue = llm_bigram_bpe::queue();
+            symbols.clear();
+
+            int index = 0;
+            size_t offset = 0;
+
+            while (offset < word.size()) {
+                llm_symbol sym;
+                size_t char_len = std::min(word.size() - offset, (size_t) ::utf8_len(word[offset]));
+                sym.text = word.c_str() + offset;
+                sym.n = 1;
+                sym.n = char_len;
+                offset += sym.n;
+                sym.prev = index - 1;
+                sym.next = offset == word.size() ? -1 : index + 1;
+                index++;
+                symbols.emplace_back(sym);
+            }
+            for (size_t i = 1; i < symbols.size(); ++i) {
+                add_new_bigram(i - 1, i);
+            }
+
+            // build token(s)
+            while (!work_queue.empty()) {
+                auto bigram = work_queue.top();
+                work_queue.pop();
+
+                auto & left_symbol = symbols[bigram.left];
+                auto & right_symbol = symbols[bigram.right];
+
+                if (left_symbol.n == 0 || right_symbol.n == 0) {
+                    continue;
+                }
+                std::string left_token = std::string(left_symbol.text, left_symbol.n);
+                std::string right_token = std::string(right_symbol.text, right_symbol.n);
+                if (left_token + right_token != bigram.text) {
+                    continue;  // Skip this bigram if it's outdated
+                }
+
+                // merge the right sym into the left one
+                left_symbol.n += right_symbol.n;
+                right_symbol.n = 0;
+
+                // remove the right sym from the chain
+                left_symbol.next = right_symbol.next;
+                if (right_symbol.next >= 0) {
+                    symbols[right_symbol.next].prev = bigram.left;
+                }
+
+                add_new_bigram(left_symbol.prev, bigram.left);  // left side of current symbol
+                add_new_bigram(bigram.left, left_symbol.next);  // right side of current symbol
+            }
+
+            // add the fnished tokens to the final list keeping correct order for next and prev
+            for (auto & sym : symbols) {
+                if (sym.n > 0) {
+                    sym.prev = final_prev_index;
+                    sym.next = -1;
+                    if (final_prev_index != -1) {
+                        symbols_final[final_prev_index].next = symbols_final.size();
+                    }
+                    symbols_final.emplace_back(sym);
+                    final_prev_index = symbols_final.size() - 1;
+                }
+            }
+        }
+
+        symbols = symbols_final;
+
+        if (!symbols.empty()) {
+            for (int i = 0; i != -1; i = symbols[i].next) {
+                auto & symbol = symbols[i];
+                if (symbol.n == 0) {
+                    continue;
+                }
+
+                const std::string str = std::string(symbol.text, symbol.n);
+                const auto token = vocab.token_to_id.find(str);
+
+                if (token == vocab.token_to_id.end()) {
+                    for (auto j = str.begin(); j != str.end(); ++j) {
+                        std::string byte_str(1, *j);
+                        auto token_multibyte = vocab.token_to_id.find(byte_str);
+                        if (token_multibyte == vocab.token_to_id.end()) {
+                            try {
+                                llama_token token_byte = llama_byte_to_token_old(vocab, *j);
+                                output.push_back(token_byte);
+                            } catch (const std::out_of_range & err) {
+                                fprintf(stderr,"ERROR: byte not found in vocab: '%s'\n", byte_str.c_str());
+                            }
+                        } else {
+                            output.push_back((*token_multibyte).second);
+                        }
+                    }
+                } else {
+                    output.push_back((*token).second);
+                }
+            }
+        }
+    }
+
+private:
+    void add_new_bigram(int left, int right) {
+        if (left == -1 || right == -1) {
+            return;
+        }
+
+        std::string left_token  = std::string(symbols[left].text,  symbols[left].n);
+        std::string right_token = std::string(symbols[right].text, symbols[right].n);
+
+        int rank_found = -1;
+
+        rank_found = vocab.find_bpe_rank(left_token, right_token);
+
+        if (rank_found < 0) {
+            return;
+        }
+
+        llm_bigram_bpe bigram;
+
+        bigram.left  = left;
+        bigram.right = right;
+        bigram.text  = left_token + right_token;
+        bigram.size  = left_token.size() + right_token.size();
+        bigram.rank  = rank_found;
+
+        work_queue.push(bigram);
+    }
+
+    // probably not 100% correct
+    static std::vector<std::string> bpe_gpt2_preprocess_old(const std::string & text) {
+        std::vector<std::string> words;
+
+        // ref: https://github.com/openai/gpt-2/blob/a74da5d99abaaba920de8131d64da2862a8f213b/src/encoder.py#L53
+        const std::string pattern = R"('s|'t|'re|'ve|'m|'ll|'d| ?[[:alpha:]]+| ?[[:digit:]]+| ?[^\s[:alpha:][:digit:]]+|\s+(?!\S)|\s+)";
+        const std::regex re(pattern);
+
+        auto words_begin = std::sregex_iterator(text.begin(), text.end(), re);
+        auto words_end = std::sregex_iterator();
+        auto n_words = std::distance(words_begin, words_end);
+        words.reserve(n_words);
+        for (auto it = words_begin; it != words_end; ++it) {
+            words.push_back(it->str());
+        }
+        return words;
+
+    }
+
+    const llama_vocab & vocab;
+
+    std::vector<llm_symbol> symbols;
+    std::vector<llm_symbol> symbols_final;
+
+    llm_bigram_bpe::queue work_queue;
+};
+
+///// end legacy functions for Falcon //////
 
 struct llm_tokenizer_bpe {
     llm_tokenizer_bpe(const llama_vocab & vocab): vocab(vocab) {}
@@ -6564,8 +6815,17 @@ static std::vector<llama_vocab::id> llama_tokenize_internal(const llama_vocab & 
 #ifdef PRETOKENIZERDEBUG
                         fprintf(stderr,"TT: (%ld %ld %ld) '%s'\n", raw_text.length(), fragment.offset, fragment.length, raw_text.c_str());
 #endif
-                        llm_tokenizer_bpe tokenizer(vocab);
-                        tokenizer.tokenize(raw_text, output);
+                        if(OldBPETokenizerMode)
+                        {
+                            llm_tokenizer_bpe_old tokenizer(vocab);
+                            tokenizer.tokenize(raw_text, output);
+                        }
+                        else
+                        {
+                            llm_tokenizer_bpe tokenizer(vocab);
+                            tokenizer.tokenize(raw_text, output);
+                        }
+
                     }
                     else // if (fragment.type == FRAGMENT_BUFFER_VARIANT_TYPE_TOKEN)
                     {
@@ -7179,7 +7439,10 @@ void llama_sample_typical(struct llama_context * ctx, llama_token_data_array * c
 
     float entropy = 0.0f;
     for (size_t i = 0; i < candidates->size; ++i) {
-        entropy += -candidates->data[i].p * logf(candidates->data[i].p);
+        if(candidates->data[i].p>0)
+        {
+            entropy += -candidates->data[i].p * logf(candidates->data[i].p);
+        }
     }
 
     // Compute the absolute difference between negative log probability and entropy for each candidate
@@ -7311,7 +7574,7 @@ void llama_sample_grammar(struct llama_context * ctx, llama_token_data_array * c
 
     for (size_t i = 0; i < candidates->size; ++i) {
         const llama_token id    = candidates->data[i].id;
-        const std::string piece = llama_token_to_piece(ctx, id);
+        const std::string piece = llama_token_to_str(ctx, id);
         if (id == eos) {
             if (!allow_eos) {
                 candidates->data[i].logit = -INFINITY;
@@ -7523,7 +7786,7 @@ void llama_grammar_accept_token(struct llama_context * ctx, struct llama_grammar
         GGML_ASSERT(false);
     }
 
-    const std::string piece = llama_token_to_piece(ctx, token);
+    const std::string piece = llama_token_to_str(ctx, token);
 
     // Note terminating 0 in decoded string
     const auto   decoded     = decode_utf8(piece, grammar->partial_utf8);
@@ -8432,14 +8695,17 @@ static int llama_apply_lora_from_file_internal(
             offload_func_t offload_func               = ggml_offload_nop;
             offload_func_t offload_func_force_inplace = ggml_offload_nop;
 
-#ifdef GGML_USE_CUBLAS
+#if defined(GGML_USE_CUBLAS) || defined(GGML_USE_CLBLAST)
             if (dest_t->backend == GGML_BACKEND_GPU || dest_t->backend == GGML_BACKEND_GPU_SPLIT) {
                 if (dest_t->type != GGML_TYPE_F16) {
+                    printf("\nError: the simultaneous use of LoRAs and GPU acceleration is only supported for f16 models\n");
                     throw std::runtime_error(format(
                         "%s: error: the simultaneous use of LoRAs and GPU acceleration is only supported for f16 models. dest_t->type: %d", __func__, dest_t->type));
                 }
+#if defined(GGML_USE_CUBLAS)
                 offload_func = ggml_cuda_assign_buffers;
                 offload_func_force_inplace = ggml_cuda_assign_buffers_force_inplace;
+#endif
             }
 #endif // GGML_USE_CUBLAS
 
@@ -9582,6 +9848,16 @@ bool llama_save_session_file(struct llama_context * ctx, const char * path_sessi
     return true;
 }
 
+void printcache(struct llama_context * ctx)
+{
+    struct llama_kv_cache & cache = ctx->kv_self;
+    std::string vals = "\n";
+    for (int32_t i = 0; i < cache.size; ++i) {
+        vals += std::to_string(i) + "= pos:" + std::to_string(cache.cells[i].pos) + " delta:" + std::to_string(cache.cells[i].delta) +"\n";
+    }
+    printf("%s",vals.c_str());
+}
+
 int llama_eval(
         struct llama_context * ctx,
                  llama_token * tokens,
@@ -9777,6 +10053,11 @@ static std::string llama_decode_text(const std::string & text) {
 
 // does not write null-terminator to buf
 int llama_token_to_piece(const struct llama_model * model, llama_token token, char * buf, int length) {
+    if(OldBPETokenizerMode)
+    {
+        return llama_token_to_piece_old(model, token, buf, length);
+    }
+
     if (0 <= token && token < llama_n_vocab(model)) {
         switch (llama_vocab_get_type(model->vocab)) {
         case LLAMA_VOCAB_TYPE_SPM: {
@@ -9821,14 +10102,12 @@ int llama_token_to_piece(const struct llama_model * model, llama_token token, ch
             } else if (llama_is_control_token(model->vocab, token)) {
                 ;
             } else {
-                // TODO: for now we accept all unsupported token types,
-                // suppressing them like CONTROL tokens.
-                // GGML_ASSERT(false);
+                GGML_ASSERT_CONTINUE(false);
             }
             break;
         }
         default:
-            GGML_ASSERT(false);
+            LLAMA_LOG_WARN("%s: Unknown Tokenization Error 3\n", __func__);
         }
     }
     return 0;
