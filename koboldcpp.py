@@ -310,13 +310,13 @@ def generate(prompt, memory="", max_length=32, max_context_length=512, temperatu
     inputs.memory = memory.encode("UTF-8")
     if max_length >= max_context_length:
         max_length = max_context_length-1
-    inputs.max_context_length = max_context_length   # this will resize the context buffer if changed
     global showmaxctxwarning
     if max_context_length > maxctx:
         if showmaxctxwarning:
             print(f"\n(Warning! Request max_context_length={max_context_length} exceeds allocated context size of {maxctx}. It will be reduced to fit. Consider launching with increased --contextsize to avoid errors. This message will only show once per session.)")
             showmaxctxwarning = False
         max_context_length = maxctx
+    inputs.max_context_length = max_context_length   # this will resize the context buffer if changed
     inputs.max_length = max_length
     inputs.temperature = temperature
     inputs.top_k = top_k
@@ -394,7 +394,7 @@ maxhordelen = 256
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.52"
+KcppVersion = "1.52.1"
 showdebug = True
 showsamplerwarning = True
 showmaxctxwarning = True
@@ -686,7 +686,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
 Enter Prompt:<br>
 <textarea name="prompt" cols="60" rows="8" wrap="soft" placeholder="Enter Prompt Here">{prompt}</textarea>
 <hr>
-{status}<br>
+<b>{status}</b><br>
 <hr>
 <label>Gen. Amount</label> <input type="text" size="4" value="{max_length}" name="max_length"><br>
 <label>Temperature</label> <input type="text" size="4" value="{temperature}" name="temperature"><br>
@@ -1104,7 +1104,7 @@ def show_new_gui():
     keepforeground = ctk.IntVar()
     quietmode = ctk.IntVar(value=0)
 
-    lowvram_var = ctk.IntVar(value=1)
+    lowvram_var = ctk.IntVar()
     mmq_var = ctk.IntVar(value=1)
     blas_threads_var = ctk.StringVar()
     blas_size_var = ctk.IntVar()
@@ -1304,12 +1304,6 @@ def show_new_gui():
                     layerlimit = int(min(200,mem/sizeperlayer))
                 else:
                     layerlimit = 200 #assume full offload
-
-                if layerlimit>=200:
-                    lowvram_var.set(0)
-                else:
-                    lowvram_var.set(1)
-
                 old_gui_layers_untouched = gui_layers_untouched
                 gui_layers_zeroed = gpulayers_var.get()=="" or gpulayers_var.get()=="0"
                 if (gui_layers_untouched or gui_layers_zeroed) and layerlimit>0:
