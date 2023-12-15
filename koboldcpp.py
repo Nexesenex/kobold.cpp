@@ -1497,7 +1497,7 @@ def show_new_gui():
     # blas thread specifier
     makelabelentry(hardware_tab, "BLAS threads:" , blas_threads_var, 11, 50)
     # blas batch size
-    makeslider(quick_tab, "BLAS Batch Size (supported: -1,32,64,128,256,512,1024,2048):", blasbatchsize_text, blas_size_var, 0, len(blasbatchsize_text)-1, 12, set=4)
+    makeslider(hardware_tab, "BLAS Batch Size (supported: -1,32,64,128,256,512,1024,2048):", blasbatchsize_text, blas_size_var, 0, len(blasbatchsize_text)-1, 12, set=4)
     # force version
     makelabelentry(hardware_tab, "Force Version:" , version_var, 100, 50)
 
