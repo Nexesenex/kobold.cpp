@@ -99,7 +99,7 @@ static std::mutex concat_output_mtx;
 static std::string concat_output = "";
 static std::string concat_output_reader_copy = "";
 
-const int extra_context_handle_fragmentation = 80;
+const int extra_context_handle_fragmentation = 128;
 
 inline bool IsNanCheck(float f)
 {

@@ -123,3 +123,4 @@ conda/
 
 # Jetbrains idea folder
 .idea/
+oryx-build-commands.txt
