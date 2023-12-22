@@ -1050,7 +1050,7 @@ def show_new_gui():
 
     import customtkinter as ctk
     nextstate = 0 #0=exit, 1=launch
-    windowwidth = 540
+    windowwidth = 920
     windowheight = 500
     ctk.set_appearance_mode("dark")
     root = ctk.CTk()
@@ -1189,7 +1189,7 @@ def show_new_gui():
         temp.grid(row=row, column=column, padx=8, pady=1, stick="nw")
         return temp
 
-    def makeslider(parent, label, options, var, from_ , to,  row=0, width=160, height=10, set=0):
+    def makeslider(parent, label, options, var, from_ , to,  row=0, width=512, height=10, set=0):
         sliderLabel = makelabel(parent, options[set], row + 1, 1)
         makelabel(parent, label, row)
 
@@ -1478,7 +1478,7 @@ def show_new_gui():
     for idx, name, in enumerate(quick_boxes):
         makecheckbox(quick_tab, name, quick_boxes[name], int(idx/2) +20, idx%2)
     # context size
-    makeslider(quick_tab, "Context Size:", contextsize_text, context_var, 0, len(contextsize_text)-1, 30, set=3)
+    makeslider(quick_tab, "Context Size:", contextsize_text, context_var, 0, len(contextsize_text)-1, 30, set=15)
 
     # load model
     makefileentry(quick_tab, "Model:", "Select GGML Model File", model_var, 40, 170, onchoosefile=on_picked_model_file)
@@ -1534,7 +1534,7 @@ def show_new_gui():
         makecheckbox(tokens_tab, name, token_boxes[name], idx + 1)
 
     # context size
-    makeslider(tokens_tab, "Context Size:",contextsize_text, context_var, 0, len(contextsize_text)-1, 20, set=3)
+    makeslider(tokens_tab, "Context Size:",contextsize_text, context_var, 0, len(contextsize_text)-1, 20, set=15)
 
 
     customrope_scale_entry, customrope_scale_label = makelabelentry(tokens_tab, "RoPE Scale:", customrope_scale)
