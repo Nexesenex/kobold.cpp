@@ -875,8 +875,8 @@ Enter Prompt:<br>
 
         reqblocking = False
         muint = int(args.multiuser)
-        multiuserlimit = ((muint-1) if muint > 1 else 4)
-        #backwards compatibility for up to 5 concurrent requests, use default limit of 5 if multiuser set to 1
+        multiuserlimit = ((muint-1) if muint > 1 else 6)
+        #backwards compatibility for up to 7 concurrent requests, use default limit of 7 if multiuser set to 1
         if muint > 0 and requestsinqueue < multiuserlimit:
             reqblocking = True
             requestsinqueue += 1
@@ -1896,6 +1896,7 @@ def make_url_request(url, data, method='POST', headers={}):
 #A very simple and stripped down embedded horde worker with no dependencies
 def run_horde_worker(args, api_key, worker_name):
     from datetime import datetime
+    import random
     global friendlymodelname, maxhordectx, maxhordelen, exitcounter, punishcounter, modelbusy, session_starttime
     epurl = f"http://localhost:{args.port}"
     if args.host!="":
@@ -2001,6 +2002,8 @@ def run_horde_worker(args, api_key, worker_name):
         #do gen
         while exitcounter < 10:
             if not modelbusy.locked():
+                #horde gets a genkey to avoid KCPP overlap
+                current_payload['genkey'] = f"HORDEREQ_{random.randint(100, 999)}"
                 current_generation = make_url_request_horde(f'{epurl}/api/v1/generate', current_payload)
                 if current_generation:
                     break
