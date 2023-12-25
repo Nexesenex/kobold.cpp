@@ -70,6 +70,7 @@
 #define cudaMemcpy hipMemcpy
 #define cudaMemcpy2DAsync hipMemcpy2DAsync
 #define cudaMemcpyAsync hipMemcpyAsync
+#define cudaMemcpyPeerAsync hipMemcpyPeerAsync
 #define cudaMemcpyDeviceToDevice hipMemcpyDeviceToDevice
 #define cudaMemcpyDeviceToHost hipMemcpyDeviceToHost
 #define cudaMemcpyHostToDevice hipMemcpyHostToDevice
@@ -211,6 +212,28 @@ static __device__ __forceinline__ int __dp4a(const int a, const int b, int c) {
 
 static_assert(sizeof(half) == sizeof(ggml_fp16_t), "wrong fp16 size");
 
+[[noreturn]]
+static void ggml_cuda_error(const char * stmt, const char * func, const char * file, const int line, const char * msg) {
+    int id = -1; // in case cudaGetDevice fails
+    cudaGetDevice(&id);
+
+    fprintf(stderr, "CUDA error: %s\n", msg);
+    fprintf(stderr, "  current device: %d, in function %s at %s:%d\n", id, func, file, line);
+    fprintf(stderr, "  %s\n", stmt);
+    // abort with GGML_ASSERT to get a stack trace
+    GGML_ASSERT(!"CUDA error");
+}
+
+#define CUDA_CHECK_GEN(err, success, error_fn)                                      \
+     do {                                                                           \
+        auto err_ = (err);                                                          \
+        if (err_ != (success)) {                                                    \
+            ggml_cuda_error(#err, __func__, __FILE__, __LINE__, error_fn(err_));    \
+        }                                                                           \
+    } while (0)
+
+#define CUDA_CHECK(err) CUDA_CHECK_GEN(err, cudaSuccess, cudaGetErrorString)
+
 #if CUDART_VERSION >= 12000
     static const char * cublas_get_error_str(const cublasStatus_t err) {
         return cublasGetStatusString(err);
@@ -232,15 +255,8 @@ static_assert(sizeof(half) == sizeof(ggml_fp16_t), "wrong fp16 size");
     }
 #endif // CUDART_VERSION >= 12000
 
-[[noreturn]]
-static void ggml_cuda_error(const char * stmt, const char * func, const char * file, const int line, const char * msg) {
-    fprintf(stderr, "CUDA error: %s: %s\n", stmt, msg);
-    fprintf(stderr, "  in function %s at %s:%d\n", func, file, line);
-    GGML_ASSERT(!"CUDA error");
-}
+#define CUBLAS_CHECK(err) CUDA_CHECK_GEN(err, CUBLAS_STATUS_SUCCESS, cublas_get_error_str)
 
-#define CUDA_CHECK(err)   do { auto err_ = (err); if (err_ != cudaSuccess)           ggml_cuda_error(#err, __func__, __FILE__, __LINE__, cudaGetErrorString(err_));   } while (0)
-#define CUBLAS_CHECK(err) do { auto err_ = (err); if (err_ != CUBLAS_STATUS_SUCCESS) ggml_cuda_error(#err, __func__, __FILE__, __LINE__, cublas_get_error_str(err_)); } while (0)
 
 #if !defined(GGML_USE_HIPBLAS)
 static const char * cu_get_error_str(CUresult err) {
@@ -248,7 +264,7 @@ static const char * cu_get_error_str(CUresult err) {
     cuGetErrorString(err, &err_str);
     return err_str;
 }
-#define CU_CHECK(err)     do { auto err_ = (err); if (err_ != CUDA_SUCCESS)          ggml_cuda_error(#err, __func__, __FILE__, __LINE__, cu_get_error_str(err_));     } while (0)
+#define CU_CHECK(err) CUDA_CHECK_GEN(err, CUDA_SUCCESS, cu_get_error_str)
 #endif
 
 #if CUDART_VERSION >= 11100
@@ -537,7 +553,6 @@ struct cuda_device_capabilities {
 };
 
 static cuda_device_capabilities g_device_caps[GGML_CUDA_MAX_DEVICES] = { {0, false, 0} };
-
 
 static void * g_scratch_buffer = nullptr;
 static size_t g_scratch_size = 0; // disabled by default
@@ -4727,7 +4742,6 @@ static __global__ void mul_mat_p021_f16_f32(
 
         const int row_y = col_x;
 
-
         // y is not transposed but permuted
         const int iy = channel*nrows_y + row_y;
 
@@ -6649,7 +6663,6 @@ static void ggml_cuda_pool_free_leg(void * ptr, size_t size) {
 
 #if !defined(GGML_USE_HIPBLAS)
 // pool with virtual memory
-static std::vector<CUmemGenericAllocationHandle> g_cuda_pool_handles[GGML_CUDA_MAX_DEVICES];
 static CUdeviceptr g_cuda_pool_addr[GGML_CUDA_MAX_DEVICES] = {0};
 static size_t g_cuda_pool_used[GGML_CUDA_MAX_DEVICES] = {0};
 static const size_t CUDA_POOL_VMM_MAX_SIZE = 1ull << 36; // 64 GB
@@ -6689,6 +6702,9 @@ static void * ggml_cuda_pool_malloc_vmm(size_t size, size_t * actual_size) {
         // map at the end of the pool
         CU_CHECK(cuMemMap(g_cuda_pool_addr[id] + g_cuda_pool_size[id], reserve_size, 0, handle, 0));
 
+        // the memory allocation handle is no longer needed after mapping
+        CU_CHECK(cuMemRelease(handle));
+
         // set access
         CUmemAccessDesc access = {};
         access.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
@@ -6697,7 +6713,6 @@ static void * ggml_cuda_pool_malloc_vmm(size_t size, size_t * actual_size) {
         CU_CHECK(cuMemSetAccess(g_cuda_pool_addr[id] + g_cuda_pool_size[id], reserve_size, &access, 1));
 
         // add to the pool
-        g_cuda_pool_handles[id].push_back(handle);
         g_cuda_pool_size[id] += reserve_size;
 
         //printf("cuda pool[%d]: size increased to %llu MB (reserved %llu MB)\n",
@@ -6832,7 +6847,7 @@ void ggml_init_cublas() {
                 alloc_prop.type = CU_MEM_ALLOCATION_TYPE_PINNED;
                 alloc_prop.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
                 alloc_prop.location.id = id;
-                CU_CHECK(cuMemGetAllocationGranularity(&g_device_caps[id].vmm_granularity, &alloc_prop, CU_MEM_ALLOC_GRANULARITY_MINIMUM));
+                CU_CHECK(cuMemGetAllocationGranularity(&g_device_caps[id].vmm_granularity, &alloc_prop, CU_MEM_ALLOC_GRANULARITY_RECOMMENDED));
             }
 #endif // !defined(GGML_USE_HIPBLAS)
             g_device_caps[id].vmm = !!device_vmm;
@@ -7200,7 +7215,6 @@ inline void ggml_cuda_op_norm(
     (void) dst;
     (void) src1_dd;
 }
-
 
 inline void ggml_cuda_op_group_norm(
     const ggml_tensor * src0, const ggml_tensor * src1, ggml_tensor * dst,
@@ -7776,7 +7790,6 @@ inline void ggml_cuda_op_im2col(
     (void) src0_dd;
 }
 
-
 inline void ggml_cuda_op_sum_rows(
     const ggml_tensor * src0, const ggml_tensor * src1, ggml_tensor * dst,
     const float * src0_dd, const float * src1_dd, float * dst_dd, const cudaStream_t & main_stream) {
@@ -8187,13 +8200,13 @@ static void ggml_cuda_op_mul_mat(
                     if (id != g_main_device) {
                         if (convert_src1_to_q8_1) {
                             char * src1_ddq_i_source = src1_ddq[g_main_device] + src1_ddq_i_offset;
-                            CUDA_CHECK(cudaMemcpyAsync(src1_ddq_i, src1_ddq_i_source, src1_ncols*src1_padded_col_size*q8_1_ts/q8_1_bs,
-                                                    cudaMemcpyDeviceToDevice, stream));
+                            CUDA_CHECK(cudaMemcpyPeerAsync(src1_ddq_i, id, src1_ddq_i_source, g_main_device,
+                                                            src1_ncols*src1_padded_col_size*q8_1_ts/q8_1_bs, stream));
                         } else {
                             float * src1_ddf_i_source = (float *) src1_extra->data_device[g_main_device];
                             src1_ddf_i_source += (i0*ne11 + src1_col_0) * ne10;
-                            CUDA_CHECK(cudaMemcpyAsync(src1_ddf_i, src1_ddf_i_source, src1_ncols*ne10*sizeof(float),
-                                                    cudaMemcpyDeviceToDevice, stream));
+                            CUDA_CHECK(cudaMemcpyPeerAsync(src1_ddf_i, id, src1_ddf_i_source, g_main_device,
+                                                            src1_ncols*ne10*sizeof(float), stream));
                         }
                     }
                 } else if (src1->backend == GGML_BACKEND_CPU || (src1_on_device && !src1_is_contiguous)) {
