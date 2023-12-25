@@ -6841,7 +6841,7 @@ void ggml_init_cublas() {
 
             cudaDeviceProp prop;
             CUDA_CHECK(cudaGetDeviceProperties(&prop, id));
-            fprintf(stderr, "  Device %d: %s, compute capability %d.%d, VMM: %s\n", id, prop.name, prop.major, prop.minor, device_vmm ? "yes" : "no");
+            fprintf(stderr, "  Device %d: %s, compute capability %d.%d, VMM: %s, UVA: %s\n", id, prop.name, prop.major, prop.minor, device_vmm ? "yes" : "no", prop.unifiedAddressing ? "yes" : "no");
 
             g_tensor_split[id] = total_vram;
             total_vram += prop.totalGlobalMem;
@@ -8241,12 +8241,20 @@ static void ggml_cuda_op_mul_mat(
                         dhf_dst_i += src1_col_0*ne0 + row_low[id];
 
                         if (kind == cudaMemcpyDeviceToDevice && id != g_main_device) {
-                            // there is no cudaMemcpy2DPeerAsync so we need to copy each row separately
-                            for (int64_t i = 0; i < src1_ncols; ++i) {
-                                CUDA_CHECK(cudaMemcpyPeerAsync(dhf_dst_i + i*ne0, g_main_device,
-                                                                dst_dd_i + i*row_diff, id,
-                                                                row_diff*sizeof(float), stream));
-                            }
+                            //// there is no cudaMemcpy2DPeerAsync so we need to copy each row separately
+                            //for (int64_t i = 0; i < src1_ncols; ++i) {
+                            //    CUDA_CHECK(cudaMemcpyPeerAsync(dhf_dst_i + i*ne0, g_main_device,
+                            //                                    dst_dd_i + i*row_diff, id,
+                            //                                    row_diff*sizeof(float), stream));
+                            //}
+
+                            cudaMemcpy3DPeerParms p = {};
+                            p.dstDevice = g_main_device;
+                            p.dstPtr = make_cudaPitchedPtr(dhf_dst_i, ne0*sizeof(float), ne0, row_diff);
+                            p.srcDevice = id;
+                            p.srcPtr = make_cudaPitchedPtr(dst_dd_i, row_diff*sizeof(float), row_diff, src1_ncols);
+                            p.extent = make_cudaExtent(row_diff*sizeof(float), src1_ncols, 1);
+                            CUDA_CHECK(cudaMemcpy3DPeerAsync(&p, stream));
                         } else {
                             CUDA_CHECK(cudaMemcpy2DAsync(dhf_dst_i, ne0*sizeof(float), dst_dd_i, row_diff*sizeof(float),
                                                         row_diff*sizeof(float), src1_ncols, kind, stream));
