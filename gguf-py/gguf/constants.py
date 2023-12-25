@@ -120,7 +120,6 @@ class MODEL_TENSOR(IntEnum):
     FFN_GATE        = auto()
     FFN_DOWN        = auto()
     FFN_UP          = auto()
-    FFN_ACT         = auto()
     FFN_GATE_EXP    = auto()
     FFN_DOWN_EXP    = auto()
     FFN_UP_EXP      = auto()
@@ -170,7 +169,6 @@ TENSOR_NAMES: dict[MODEL_TENSOR, str] = {
     MODEL_TENSOR.FFN_GATE:        "blk.{bid}.ffn_gate",
     MODEL_TENSOR.FFN_DOWN:        "blk.{bid}.ffn_down",
     MODEL_TENSOR.FFN_UP:          "blk.{bid}.ffn_up",
-    MODEL_TENSOR.FFN_ACT:         "blk.{bid}.ffn",
     MODEL_TENSOR.FFN_GATE_EXP:    "blk.{bid}.ffn_gate.{xid}",
     MODEL_TENSOR.FFN_DOWN_EXP:    "blk.{bid}.ffn_down.{xid}",
     MODEL_TENSOR.FFN_UP_EXP:      "blk.{bid}.ffn_up.{xid}",
@@ -271,7 +269,6 @@ MODEL_TENSORS: dict[MODEL_ARCH, list[MODEL_TENSOR]] = {
         MODEL_TENSOR.FFN_NORM,
         MODEL_TENSOR.FFN_DOWN,
         MODEL_TENSOR.FFN_UP,
-        MODEL_TENSOR.FFN_ACT,
     ],
     MODEL_ARCH.GPTJ: [
         MODEL_TENSOR.TOKEN_EMBD,
