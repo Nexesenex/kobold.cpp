@@ -6829,19 +6829,6 @@ void ggml_init_cublas() {
         for (int id = 0; id < g_device_count; ++id) {
             int device_vmm = 0;
 
-#if !defined(GGML_USE_HIPBLAS)
-            CUdevice device;
-            CU_CHECK(cuDeviceGet(&device, id));
-            CU_CHECK(cuDeviceGetAttribute(&device_vmm, CU_DEVICE_ATTRIBUTE_VIRTUAL_MEMORY_MANAGEMENT_SUPPORTED, device));
-
-            if (device_vmm) {
-                CUmemAllocationProp alloc_prop = {};
-                alloc_prop.type = CU_MEM_ALLOCATION_TYPE_PINNED;
-                alloc_prop.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
-                alloc_prop.location.id = id;
-                CU_CHECK(cuMemGetAllocationGranularity(&g_device_caps[id].vmm_granularity, &alloc_prop, CU_MEM_ALLOC_GRANULARITY_RECOMMENDED));
-            }
-#endif // !defined(GGML_USE_HIPBLAS)
             g_device_caps[id].vmm = !!device_vmm;
 
             cudaDeviceProp prop;
