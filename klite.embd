@@ -6,7 +6,7 @@ It requires no dependencies, installation or setup.
 Just copy this single static HTML file anywhere and open it in a browser, or from a webserver.
 Please go to https://github.com/LostRuins/lite.koboldai.net for updates on Kobold Lite.
 Kobold Lite is under the AGPL v3.0 License unless otherwise exempted. Please do not remove this line.
-Current version: 100
+Current version: 103
 -Concedo
 -->
 
@@ -55,6 +55,10 @@ Current version: 100
 
 		body {
 			background-color: #303030;
+            background-image: none;
+            background-size: cover;
+            background-position: center center;
+            background-attachment: fixed;
 		}
 		.invert_colors
 		{
@@ -169,7 +173,6 @@ Current version: 100
 			height: 66vh;
 			display: flex;
 			vertical-align: bottom;
-			background-color: #262626;
 			color: #ffffff;
 			font-size: 12pt;
 			font-family: "Helvetica";
@@ -315,6 +318,11 @@ Current version: 100
 			display: inline;
 			width: 94px;
 			padding: 6px 3px;
+		}
+		.stopseqbox
+		{
+			display: inline;
+			width: calc(100% - 110px);
 		}
 
 		#popuptitlebar {
@@ -1156,6 +1164,22 @@ Current version: 100
 			width: 50px;
 		}
 
+		.inlinelabel {
+			color: #ffffff;
+			display: flex;
+			flex-flow: wrap;
+		}
+
+		.inlinelabel input
+		{
+    		border-radius: 4px;
+			background-color: #ffffff;
+			color:#555;
+			border:0px solid #ccc;
+			margin: 4px;
+		}
+
+
 
 		@media only screen and (max-width: 768px) {
 			.SideMenu.open {
@@ -1405,6 +1429,7 @@ Current version: 100
 		{
 			font-size:9pt;
 			padding-top: 2px;
+            text-shadow: 1px 1px 1px #000000;
 			/* font-style: italic; */
 		}
 
@@ -1628,6 +1653,20 @@ Current version: 100
 		background: #0b141a;
 	}
 
+	.gamescreenbgnormal
+	{
+		background-color: #262626;
+	}
+
+	.translucentbg
+	{
+		background-color: #00000066;
+	}
+	.transparentbg
+	{
+		background-color: #00000000;
+	}
+
 	.chat_sent_msg p {
 		font-size: 14px;
 		margin: 0;
@@ -1658,13 +1697,14 @@ Current version: 100
 	{
 		display: inline-block;
 		width: calc(100% - 84px);
-		background: #86868638 none repeat scroll 0 0;
+		background: #222222aa none repeat scroll 0 0;
 		margin-top: 8px;
 		margin-left: 2px;
 		border-radius: 16px;
 		padding-left: 10px;
 		padding-right: 10px;
 		padding-top: 7px;
+        border: 1px solid #bbbbbbaa;
 	}
 	.cht_inp_bg_inner
 	{
@@ -3294,6 +3334,7 @@ Current version: 100
 	var globalabortcontroller = null;
 	var passed_ai_warning_local = false;
 	var welcome = "";
+	var logitbiasdict = {};
 
 	var localsettings = {
 		my_api_key: "0000000000", //put here so it can be saved and loaded in persistent mode
@@ -3336,6 +3377,8 @@ Current version: 100
 		generate_images_model: "stable_diffusion", //"" is disabled and "*" is all, anything else is the model name pulled from stable horde
 		img_autogen: false,
 		img_allownsfw: true,
+		img_cfgscale: 7,
+		img_steps: 20,
 		save_images: true,
 		prompt_for_savename: false,
 		case_sensitive_wi: false,
@@ -3343,6 +3386,7 @@ Current version: 100
 		gui_type_chat: 1, //0=standard, 1=messenger, 2=aesthetic
 		gui_type_instruct: 0, //0=standard, 1=messenger, 2=aesthetic
 		multiline_replies: true,
+		multiline_replies_adventure: true,
 		allow_continue_chat: false,
 		idle_responses: 0,
 		idle_duration: 60,
@@ -3362,6 +3406,7 @@ Current version: 100
 		temperature: 0.7,
 		top_p: 0.92,
 		min_p: 0.00,
+		presence_penalty: 0.00,
 		sampler_seed: -1,
 		top_k: 100,
 		top_a: 0,
@@ -3385,6 +3430,7 @@ Current version: 100
 			top_k: defaultsettings.top_k,
 			top_p: defaultsettings.top_p,
 			min_p: defaultsettings.min_p,
+			presence_penalty: defaultsettings.presence_penalty,
 			top_a: defaultsettings.top_a,
 			typical: defaultsettings.typ_s,
 			tfs: defaultsettings.tfs_s,
@@ -3401,6 +3447,7 @@ Current version: 100
 			top_k: defaultsettings.top_k,
 			top_p: defaultsettings.top_p,
 			min_p: defaultsettings.min_p,
+			presence_penalty: defaultsettings.presence_penalty,
 			top_a: defaultsettings.top_a,
 			typical: defaultsettings.typ_s,
 			tfs: defaultsettings.tfs_s,
@@ -3409,7 +3456,7 @@ Current version: 100
 			rep_pen_slope: defaultsettings.rep_pen_slope,
 			sampler_order: [0, 1, 2, 3, 4, 5, 6]
 		},
-		{"preset":"Godlike","description":"Makes AI give a descriptive and sensual output.","temp":0.7,"genamt":120,"top_k":0,"top_p":0.5,"min_p":0.0,"top_a":0.75,"typical":0.19,"tfs":0.97,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,5,4,3,2,1,0]},{"preset":"Mayday","description":"Wacky plot, creativity from AI, crazy stories you want AI to weird out.","temp":1.05,"genamt":120,"top_k":0,"top_p":0.95,"min_p":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,0,1,2,3,4,5]},{"preset":"Good Winds","description":"Let AI direct the plot, but still stay logical.","temp":0.7,"genamt":120,"top_k":0,"top_p":1,"min_p":0.0,"top_a":0,"typical":1,"tfs":0.9,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,0,1,2,3,4,5]},{"preset":"Liminal Drift","description":"Drives coherent dialogue, responses, and behavior, sometimes surreal situations arise based on information already present in the story.","temp":0.66,"genamt":120,"top_k":0,"top_p":1,"min_p":0.0,"top_a":0.96,"typical":0.6,"tfs":1,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,4,5,1,0,2,3]},{"preset":"TavernAI","description":"Preset used in TavernAI.","temp":0.79,"genamt":120,"top_k":0,"top_p":0.9,"min_p":0.0,"top_a":0,"typical":1,"tfs":0.95,"rep_pen":1.19,"rep_pen_range":1024,"rep_pen_slope":0.9,"sampler_order":[6,0,1,2,3,4,5]},{"preset":"Storywriter 6B","description":"Optimized settings for relevant output.","genamt":120,"rep_pen":1.1,"rep_pen_range":2048,"rep_pen_slope":0.2,"sampler_order":[6,5,0,2,3,1,4],"temp":0.72,"tfs":1,"top_a":0,"top_k":0,"top_p":0.73,"min_p":0.0,"typical":1},{"preset":"Coherent Creativity 6B","description":"A good balance between coherence, creativity, and quality of prose.","genamt":120,"rep_pen":1.2,"rep_pen_range":2048,"rep_pen_slope":0,"sampler_order":[6,5,0,2,3,1,4],"temp":0.51,"tfs":0.99,"top_a":0,"top_k":0,"top_p":1,"min_p":0.0,"typical":1},{"preset":"Luna Moth 6B","description":"A great degree of creativity without losing coherency.","temp":1.5,"genamt":120,"top_k":85,"top_p":0.24,"min_p":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.1,"rep_pen_range":2048,"rep_pen_slope":0,"sampler_order":[6,5,0,2,3,1,4]},{"preset":"Pleasing Results 6B","description":"Expectable output with alternative context settings.","temp":0.44,"genamt":120,"top_k":0,"top_p":1,"min_p":0.0,"top_a":0,"typical":1,"tfs":0.9,"rep_pen":1.15,"rep_pen_range":2048,"rep_pen_slope":6.8,"sampler_order":[6,5,0,2,3,1,4]},{"preset":"Genesis 13B","description":"Stable and logical, but with scattered creativity.","temp":0.63,"genamt":120,"top_k":0,"top_p":0.98,"min_p":0.0,"top_a":0,"typical":1,"tfs":0.98,"rep_pen":1.05,"rep_pen_range":2048,"rep_pen_slope":0.1,"sampler_order":[6,2,0,3,5,1,4]},{"preset":"Basic Coherence 13B","description":"Keep things on track.","temp":0.59,"genamt":120,"top_k":0,"top_p":1,"min_p":0.0,"top_a":0,"typical":1,"tfs":0.87,"rep_pen":1.1,"rep_pen_range":2048,"rep_pen_slope":0.3,"sampler_order":[6,5,0,2,3,1,4]},{"preset":"Ouroboros 13B","description":"Versatile, conforms well to poems, lists, chat, etc.","temp":1.07,"genamt":120,"top_k":100,"top_p":1,"min_p":0.0,"top_a":0,"typical":1,"tfs":0.93,"rep_pen":1.05,"rep_pen_range":404,"rep_pen_slope":0.8,"sampler_order":[6,0,5,3,2,1,4]},{"preset":"Ace of Spades 13B","description":"Expressive, while still staying focused.","temp":1.15,"genamt":120,"top_k":0,"top_p":0.95,"min_p":0.0,"top_a":0,"typical":1,"tfs":0.8,"rep_pen":1.05,"rep_pen_range":2048,"rep_pen_slope":7,"sampler_order":[6,3,2,0,5,1,4]},{"preset":"Low Rider 13B","description":"Reliable, aimed at story development.","temp":0.94,"genamt":120,"top_k":12,"top_p":1,"min_p":0.0,"top_a":0,"typical":1,"tfs":0.94,"rep_pen":1.05,"rep_pen_range":2048,"rep_pen_slope":0.2,"sampler_order":[6,5,0,2,3,1,4]},{"preset":"Pro Writer 13B","description":"Optimal setting for readability, based on AI-powered mass statistical analysis of Euterpe output.","temp":1.35,"genamt":120,"top_k":0,"top_p":1,"min_p":0.0,"top_a":0,"typical":1,"tfs":0.69,"rep_pen":1.15,"rep_pen_range":2048,"rep_pen_slope":0.1,"sampler_order":[6,3,2,5,0,1,4]},{"preset":"Default 20B","description":"Good starting settings for NeoX 20B.","temp":0.6,"genamt":120,"top_k":0,"top_p":0.9,"min_p":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.04,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,0,1,2,3,4,5]},{"preset":"Min-P","description":"A good default for Min-P, only works on backends with min-p.","temp":1.25,"genamt":120,"top_k":0,"top_p":1,"min_p":0.1,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":320,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]}
+		{"preset":"Godlike","description":"Makes AI give a descriptive and sensual output.","temp":0.7,"genamt":120,"top_k":0,"top_p":0.5,"min_p":0.0,"presence_penalty":0.0,"top_a":0.75,"typical":0.19,"tfs":0.97,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,5,4,3,2,1,0]},{"preset":"Mayday","description":"Wacky plot, creativity from AI, crazy stories you want AI to weird out.","temp":1.05,"genamt":120,"top_k":0,"top_p":0.95,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,0,1,2,3,4,5]},{"preset":"Good Winds","description":"Let AI direct the plot, but still stay logical.","temp":0.7,"genamt":120,"top_k":0,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":0.9,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,0,1,2,3,4,5]},{"preset":"Liminal Drift","description":"Drives coherent dialogue, responses, and behavior, sometimes surreal situations arise based on information already present in the story.","temp":0.66,"genamt":120,"top_k":0,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"top_a":0.96,"typical":0.6,"tfs":1,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,4,5,1,0,2,3]},{"preset":"TavernAI","description":"Preset used in TavernAI.","temp":0.79,"genamt":120,"top_k":0,"top_p":0.9,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":0.95,"rep_pen":1.19,"rep_pen_range":1024,"rep_pen_slope":0.9,"sampler_order":[6,0,1,2,3,4,5]},{"preset":"Storywriter 6B","description":"Optimized settings for relevant output.","genamt":120,"rep_pen":1.1,"rep_pen_range":2048,"rep_pen_slope":0.2,"sampler_order":[6,5,0,2,3,1,4],"temp":0.72,"tfs":1,"top_a":0,"top_k":0,"top_p":0.73,"min_p":0.0,"presence_penalty":0.0,"typical":1},{"preset":"Coherent Creativity 6B","description":"A good balance between coherence, creativity, and quality of prose.","genamt":120,"rep_pen":1.2,"rep_pen_range":2048,"rep_pen_slope":0,"sampler_order":[6,5,0,2,3,1,4],"temp":0.51,"tfs":0.99,"top_a":0,"top_k":0,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"typical":1},{"preset":"Luna Moth 6B","description":"A great degree of creativity without losing coherency.","temp":1.5,"genamt":120,"top_k":85,"top_p":0.24,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.1,"rep_pen_range":2048,"rep_pen_slope":0,"sampler_order":[6,5,0,2,3,1,4]},{"preset":"Pleasing Results 6B","description":"Expectable output with alternative context settings.","temp":0.44,"genamt":120,"top_k":0,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":0.9,"rep_pen":1.15,"rep_pen_range":2048,"rep_pen_slope":6.8,"sampler_order":[6,5,0,2,3,1,4]},{"preset":"Genesis 13B","description":"Stable and logical, but with scattered creativity.","temp":0.63,"genamt":120,"top_k":0,"top_p":0.98,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":0.98,"rep_pen":1.05,"rep_pen_range":2048,"rep_pen_slope":0.1,"sampler_order":[6,2,0,3,5,1,4]},{"preset":"Basic Coherence 13B","description":"Keep things on track.","temp":0.59,"genamt":120,"top_k":0,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":0.87,"rep_pen":1.1,"rep_pen_range":2048,"rep_pen_slope":0.3,"sampler_order":[6,5,0,2,3,1,4]},{"preset":"Ouroboros 13B","description":"Versatile, conforms well to poems, lists, chat, etc.","temp":1.07,"genamt":120,"top_k":100,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":0.93,"rep_pen":1.05,"rep_pen_range":404,"rep_pen_slope":0.8,"sampler_order":[6,0,5,3,2,1,4]},{"preset":"Ace of Spades 13B","description":"Expressive, while still staying focused.","temp":1.15,"genamt":120,"top_k":0,"top_p":0.95,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":0.8,"rep_pen":1.05,"rep_pen_range":2048,"rep_pen_slope":7,"sampler_order":[6,3,2,0,5,1,4]},{"preset":"Low Rider 13B","description":"Reliable, aimed at story development.","temp":0.94,"genamt":120,"top_k":12,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":0.94,"rep_pen":1.05,"rep_pen_range":2048,"rep_pen_slope":0.2,"sampler_order":[6,5,0,2,3,1,4]},{"preset":"Pro Writer 13B","description":"Optimal setting for readability, based on AI-powered mass statistical analysis of Euterpe output.","temp":1.35,"genamt":120,"top_k":0,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":0.69,"rep_pen":1.15,"rep_pen_range":2048,"rep_pen_slope":0.1,"sampler_order":[6,3,2,5,0,1,4]},{"preset":"Default 20B","description":"Good starting settings for NeoX 20B.","temp":0.6,"genamt":120,"top_k":0,"top_p":0.9,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.04,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,0,1,2,3,4,5]},{"preset":"Min-P","description":"A good default for Min-P, only works on backends with min-p.","temp":1.25,"genamt":120,"top_k":0,"top_p":1,"min_p":0.1,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":320,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]}
 	];
 
 	function polyfills()
@@ -3537,6 +3584,7 @@ Current version: 100
 		try {
 			let loadedsettingsjson = localStorage.getItem(STORAGE_PREFIX + "settings");
 			let loadedstorycompressed = localStorage.getItem(STORAGE_PREFIX + "story");
+			let loadedbackgroundimg = localStorage.getItem(STORAGE_PREFIX + "bgimg");
 			if (loadedsettingsjson != null && loadedsettingsjson != "" && loadedstorycompressed != null && loadedstorycompressed != "") {
 				let loadedsettings = JSON.parse(loadedsettingsjson);
 				//see if persist is enabled
@@ -3559,6 +3607,13 @@ Current version: 100
 				{
 					//toggle persistence off to prevent it from turning on again
 					localsettings.persist_session = false;
+				}
+				if(loadedbackgroundimg && loadedbackgroundimg!="")
+				{
+					let selectedImg = `url('${loadedbackgroundimg}')`;
+					document.body.style.backgroundImage = selectedImg;
+					document.getElementById("gamescreen").classList.add("translucentbg");
+					document.getElementById("enhancedchatinterface").classList.add("transparentbg");
 				}
 				loadok = true;
 			} else {
@@ -4414,11 +4469,36 @@ Current version: 100
 		return gs;
 	}
 
+	function load_bgimg_button() {
+		document.getElementById('loadbgimg').click();
+	}
+	function load_bg_img(event) {
+		let input = event.target;
+		if (input.files.length > 0) {
+			let selectedImg = null;
+			selectedImg = input.files[0];
+			const objectURL = URL.createObjectURL(selectedImg);
+			compressImage(objectURL, (compressedImageURI, aspectratio)=>{
+				selectedImg = `url('${compressedImageURI}')`;
+				document.body.style.backgroundImage = selectedImg;
+				document.getElementById("gamescreen").classList.add("translucentbg");
+				document.getElementById("enhancedchatinterface").classList.add("transparentbg");
+				localStorage.setItem(STORAGE_PREFIX + "bgimg", compressedImageURI);
+			}, true, false, 1024, 0.5);
+		}
+	};
+	function clear_bg_img()
+	{
+		document.body.style.backgroundImage = "none";
+		document.getElementById("gamescreen").classList.remove("translucentbg");
+		document.getElementById("enhancedchatinterface").classList.remove("transparentbg");
+		localStorage.setItem(STORAGE_PREFIX + "bgimg", "");
+	}
+
 	function load_file_button()
 	{
 		document.getElementById('loadfileinput').click();
 	}
-
 	var tempfileurl = null;
 	var tempfileobj = generate_base_storyobj();
 	var newfilename = "";
@@ -4528,6 +4608,7 @@ Current version: 100
 		new_save_storyobj.anotestr = anote_strength;
 		new_save_storyobj.wisearchdepth = wi_searchdepth;
 		new_save_storyobj.wiinsertlocation = wi_insertlocation;
+		new_save_storyobj.logitbiasdict = JSON.parse(JSON.stringify(logitbiasdict));
 
 		if (export_settings) {
 			new_save_storyobj.savedsettings = JSON.parse(JSON.stringify(localsettings));
@@ -4742,6 +4823,9 @@ Current version: 100
 				}
 				if (storyobj.anotestr) {
 					anote_strength = storyobj.anotestr;
+				}
+				if (storyobj.logitbiasdict) {
+					logitbiasdict = storyobj.logitbiasdict;
 				}
 				if (storyobj.wisearchdepth) {
 					wi_searchdepth = storyobj.wisearchdepth;
@@ -5835,6 +5919,7 @@ Current version: 100
 			document.getElementById("quickstartcontainer").classList.contains("hidden") &&
 			document.getElementById("zoomedimgcontainer").classList.contains("hidden") &&
 			document.getElementById("groupselectcontainer").classList.contains("hidden") &&
+			document.getElementById("imagestylecontainer").classList.contains("hidden") &&
 			document.getElementById("advancedloadfile").classList.contains("hidden")
 		);
 	}
@@ -5854,6 +5939,7 @@ Current version: 100
 		document.getElementById("quickstartcontainer").classList.add("hidden");
 		document.getElementById("zoomedimgcontainer").classList.add("hidden");
 		document.getElementById("groupselectcontainer").classList.add("hidden");
+		document.getElementById("imagestylecontainer").classList.add("hidden");
 		document.getElementById("advancedloadfile").classList.add("hidden");
 	}
 
@@ -5863,13 +5949,17 @@ Current version: 100
 	}
 
 	var pendingstyle = "";
-	function selectStyle()
+	function selectImgStyle()
 	{
-		inputBox("Style tags to use for generating images:\n(E.g. Sketch, Realistic, Anime, 3D Render, Drawing)\n\n","Extra Image Styles",pendingstyle,"Default Style",()=>{
-			let userinput = getInputBoxValue();
-			pendingstyle = userinput;
-			console.log("Saved styles: " + pendingstyle);
-		},false);
+		document.getElementById("imagestylecontainer").classList.remove("hidden");
+		document.getElementById("imagestyleinput").value = pendingstyle;
+	}
+	function confirmImgStyle()
+	{
+		let userinput = document.getElementById("imagestyleinput").value;
+		pendingstyle = userinput;
+		console.log("Saved styles: " + pendingstyle);
+		document.getElementById("imagestylecontainer").classList.add("hidden");
 	}
 
 	var pendinggrammar = "";
@@ -5880,6 +5970,27 @@ Current version: 100
 			pendinggrammar = userinput;
 			console.log("Saved grammar: " + pendinggrammar);
 		},false,true);
+	}
+
+	var pendinglogitbias = {};
+	function set_logit_bias()
+	{
+		inputBox("Enter OpenAI-formatted logit bias dictionary. Each key is the integer token IDs and their values are the biases (-100.0 to 100.0)<br><a href='https://platform.openai.com/docs/api-reference/chat/create#chat-create-logit_bias' class='color_blueurl'>Input is a JSON object, reference here.</a><br>Leave blank to disable.<br>","Set Logit Biases",JSON.stringify(pendinglogitbias),"Enter JSON Object",()=>{
+			let userinput = getInputBoxValue().trim();
+			if(userinput=="")
+			{
+				pendinglogitbias = {};
+			}
+			else
+			{
+				try {
+					pendinglogitbias = JSON.parse(userinput);
+				} catch (e) {
+					msgbox("Your logit bias JSON dictionary was not correctly formatted!");
+				}
+			}
+
+		},true,true);
 	}
 
 	var msgboxOnDone = hide_msgbox;
@@ -6046,12 +6157,16 @@ Current version: 100
 			}
 		}
 
+		let oaiheaders = {
+			'Authorization': 'Bearer '+desired_oai_key,
+		};
+		if (!desired_oai_ep.toLowerCase().includes("api.mistral.ai")) {
+			oaiheaders["x-api-key"] = desired_oai_key;
+		}
+
 		fetch((desired_oai_ep + oai_models_endpoint), {
 			method: 'GET',
-			headers: {
-				'Authorization': 'Bearer '+desired_oai_key,
-				'x-api-key': desired_oai_key,
-			},
+			headers: oaiheaders,
 			referrerPolicy: 'no-referrer',
 		})
 		.then((response) => response.json())
@@ -7138,6 +7253,7 @@ Current version: 100
 		document.getElementById("instruct_starttag").value = localsettings.instruct_starttag;
 		document.getElementById("instruct_endtag").value = localsettings.instruct_endtag;
 		document.getElementById("min_p").value = localsettings.min_p;
+		document.getElementById("presence_penalty").value = localsettings.presence_penalty;
 		document.getElementById("sampler_seed").value = localsettings.sampler_seed;
 		document.getElementById("top_k").value = localsettings.top_k;
 		document.getElementById("top_a").value = localsettings.top_a;
@@ -7174,6 +7290,7 @@ Current version: 100
 			toggle_generate_images_mode(true);
 		}
 		document.getElementById("multiline_replies").checked = localsettings.multiline_replies;
+		document.getElementById("multiline_replies_adventure").checked = localsettings.multiline_replies_adventure;
 		document.getElementById("allow_continue_chat").checked = localsettings.allow_continue_chat;
 		document.getElementById("idle_responses").value = localsettings.idle_responses;
 		document.getElementById("idle_duration").value = localsettings.idle_duration;
@@ -7229,6 +7346,8 @@ Current version: 100
 		document.getElementById("tokenstreammode").value = localsettings.tokenstreammode;
 		document.getElementById("img_autogen").checked = localsettings.img_autogen;
 		document.getElementById("save_images").checked = localsettings.save_images;
+		document.getElementById("img_cfgscale").value = localsettings.img_cfgscale;
+		document.getElementById("img_steps").value = localsettings.img_steps;
 		document.getElementById("prompt_for_savename").checked = localsettings.prompt_for_savename;
 		document.getElementById("img_allownsfw").checked = localsettings.img_allownsfw;
 
@@ -7250,6 +7369,7 @@ Current version: 100
 			temp_changingpreset = true;
 			document.getElementById("temperature").value = document.getElementById("temperature_slide").value = found.temp;
 			document.getElementById("max_length").value = document.getElementById("max_length_slide").value = found.genamt;
+			document.getElementById("presence_penalty").value = found.presence_penalty;
 			document.getElementById("min_p").value = found.min_p;
 			document.getElementById("top_k").value = found.top_k;
 			document.getElementById("top_p").value = document.getElementById("top_p_slide").value = found.top_p;
@@ -7355,6 +7475,7 @@ Current version: 100
 			localsettings.gui_type_instruct = document.getElementById("gui_type").value;
 		}
 		localsettings.multiline_replies = (document.getElementById("multiline_replies").checked ? true : false);
+		localsettings.multiline_replies_adventure = (document.getElementById("multiline_replies_adventure").checked ? true : false);
 		localsettings.allow_continue_chat = (document.getElementById("allow_continue_chat").checked ? true : false);
 		localsettings.idle_responses = document.getElementById("idle_responses").value;
 		localsettings.idle_duration = document.getElementById("idle_duration").value;
@@ -7384,6 +7505,7 @@ Current version: 100
 		}
 		localsettings.sampler_seed = document.getElementById("sampler_seed").value;
 		localsettings.min_p = document.getElementById("min_p").value;
+		localsettings.presence_penalty = document.getElementById("presence_penalty").value;
 		localsettings.top_k = document.getElementById("top_k").value;
 		localsettings.top_a = document.getElementById("top_a").value;
 		localsettings.typ_s = document.getElementById("typ_s").value;
@@ -7413,6 +7535,17 @@ Current version: 100
 			document.getElementById("btn_genimg2").classList.remove("hidden");
 		}
 
+		localsettings.img_cfgscale = parseFloat(document.getElementById("img_cfgscale").value);
+		localsettings.img_steps = parseInt(document.getElementById("img_steps").value);
+		if(isNaN(localsettings.img_steps))
+		{
+			localsettings.img_steps = defaultsettings.img_steps;
+		}
+		if(isNaN(localsettings.img_cfgscale))
+		{
+			localsettings.img_cfgscale = defaultsettings.img_cfgscale;
+		}
+
 		if((localsettings.gui_type_chat!=0 && localsettings.opmode==3)||(localsettings.gui_type_instruct!=0 && localsettings.opmode==4))
 		{
 			//kick out of edit mode
@@ -7436,6 +7569,7 @@ Current version: 100
 		localsettings.rep_pen_slope = cleannum(localsettings.rep_pen_slope, 0, 20);
 		localsettings.top_p = cleannum(localsettings.top_p, 0.002, 1);
 		localsettings.min_p = cleannum(localsettings.min_p, 0.0, 1);
+		localsettings.presence_penalty = cleannum(localsettings.presence_penalty, -2, 2);
 		localsettings.top_k = cleannum(Math.floor(localsettings.top_k), 0, 300);
 		localsettings.top_a = cleannum(localsettings.top_a, 0, 1);
 		localsettings.typ_s = cleannum(localsettings.typ_s, 0, 1);
@@ -7642,7 +7776,7 @@ Current version: 100
 			selected_workers = [];
 			localsettings.opmode = 1;
 		}
-		restart_new_game();
+		restart_new_game(true, document.getElementById("keep_memory").checked);
 		hide_popups();
 	}
 
@@ -7653,6 +7787,7 @@ Current version: 100
 		anote_strength = document.getElementById("anote_strength").value;
 		extrastopseq = document.getElementById("extrastopseq").value;
 		newlineaftermemory = (document.getElementById("newlineaftermemory").checked?true:false);
+		logitbiasdict = pendinglogitbias;
 		hide_popups();
 		render_gametext();
 	}
@@ -7705,19 +7840,6 @@ Current version: 100
 		if(localsettings.sampler_seed>=1)
 		{
 			submit_payload.params.sampler_seed = localsettings.sampler_seed;
-		}
-
-		if((custom_kobold_endpoint != "" && is_using_kcpp_with_mirostat()))
-		{
-			if(localsettings.miro_type>0)
-			{
-				submit_payload.params.mirostat = localsettings.miro_type;
-				submit_payload.params.mirostat_tau = localsettings.miro_tau;
-				submit_payload.params.mirostat_eta = localsettings.miro_eta;
-			}
-
-			//also supports min_p, in that it wont crash, so add it on. it will be ignored if not found
-			submit_payload.params.min_p = localsettings.min_p;
 		}
 
 		//v2 api specific fields
@@ -7794,7 +7916,7 @@ Current version: 100
 		horde_poll_nearly_completed = false;
 	}
 
-	function restart_new_game(save = true) {
+	function restart_new_game(save = true, keep_memory = false) {
 		idle_timer = 0;
 		gametext_arr = [];
 		redo_arr = [];
@@ -7808,15 +7930,7 @@ Current version: 100
 		synchro_pending_stream = "";
 		waiting_for_autosummary = false;
 		last_reply_was_empty = false;
-		current_memory = "";
-		current_anote = "";
-		current_wi = [];
 		pending_context_preinjection = "";
-		extrastopseq = "";
-		anote_strength = 320;
-		wi_searchdepth = 0;
-		wi_insertlocation = 0;
-		current_anotetemplate = "[Author's note: <|>]";
 		document.getElementById("input_text").value = "";
 		document.getElementById("cht_inp").value = "";
 		chat_resize_input();
@@ -7825,9 +7939,21 @@ Current version: 100
 		localsettings.adventure_is_action = false;
 		prev_hl_chunk = null;
 		last_token_budget = "";
-		last_known_filename = "saved_story.json";
 		groupchat_removals = [];
 		welcome = "";
+		last_known_filename = "saved_story.json";
+		if (!keep_memory)
+		{
+			current_memory = "";
+			current_anote = "";
+			current_wi = [];
+			extrastopseq = "";
+			anote_strength = 320;
+			logitbiasdict = {};
+			wi_searchdepth = 0;
+			wi_insertlocation = 0;
+			current_anotetemplate = "[Author's note: <|>]";
+		}
 		render_gametext(save); //necessary to trigger an autosave to wipe out current story in case they exit browser after newgame.
 	}
 
@@ -7841,6 +7967,8 @@ Current version: 100
 			restart_new_game();
 			display_settings();
 			confirm_settings();
+			document.getElementById("keep_memory").checked = false;
+			clear_bg_img();
 		},null);
 
 	}
@@ -8569,19 +8697,6 @@ Current version: 100
 				submit_payload.params.sampler_seed = localsettings.sampler_seed;
 			}
 
-			if((custom_kobold_endpoint != "" && is_using_kcpp_with_mirostat()))
-			{
-				if(localsettings.miro_type>0)
-				{
-					submit_payload.params.mirostat = localsettings.miro_type;
-					submit_payload.params.mirostat_tau = localsettings.miro_tau;
-					submit_payload.params.mirostat_eta = localsettings.miro_eta;
-				}
-
-				//also supports min_p, in that it wont crash, so add it on. it will be ignored if not found
-				submit_payload.params.min_p = localsettings.min_p;
-			}
-
 			if((custom_kobold_endpoint != "" && is_using_kcpp_with_grammar()))
 			{
 				if(localsettings.grammar && localsettings.grammar!="")
@@ -8621,6 +8736,10 @@ Current version: 100
 		if (localsettings.opmode == 2) //stop on new action found
 		{
 			seqs = ["\n\> "];
+			if(!localsettings.multiline_replies_adventure)
+			{
+				seqs.push("\n");
+			}
 		}
 		if (localsettings.opmode == 3) //stop on selfname found
 		{
@@ -8668,6 +8787,26 @@ Current version: 100
 	function dispatch_submit_generation(submit_payload, input_was_empty) //if input is not empty, always unban eos
 	{
 		console.log(submit_payload);
+
+		//preprocess to add extra fields
+		if((custom_kobold_endpoint != "" && is_using_kcpp_with_mirostat()))
+		{
+			if(localsettings.miro_type>0)
+			{
+				submit_payload.params.mirostat = localsettings.miro_type;
+				submit_payload.params.mirostat_tau = localsettings.miro_tau;
+				submit_payload.params.mirostat_eta = localsettings.miro_eta;
+			}
+
+			//also supports min_p, in that it wont crash, so add it on. it will be ignored if not found
+			submit_payload.params.min_p = localsettings.min_p;
+		}
+		//presence pen and logit bias for OAI and newer kcpp
+		if((custom_kobold_endpoint != "" && is_using_kcpp_with_mirostat()) || custom_oai_endpoint!="")
+		{
+			submit_payload.params.presence_penalty = localsettings.presence_penalty;
+			submit_payload.params.logit_bias = JSON.parse(JSON.stringify(logitbiasdict));
+		}
 
 		startTimeTaken(); //timestamp start request
 
@@ -8723,8 +8862,14 @@ Current version: 100
 
 				let targetep = (custom_oai_endpoint + oai_submit_endpoint);
 
-				//original range between 1 and 3, scale to 0 and 2
-				let scaled_rep_pen = (submit_payload.params.rep_pen - 1.0);
+				let scaled_rep_pen = 0;
+				if(submit_payload.params.presence_penalty > 0)
+				{
+					scaled_rep_pen = submit_payload.params.presence_penalty;
+				}else{
+					//original range between 1 and 3, scale to 0 and 2
+					scaled_rep_pen = (submit_payload.params.rep_pen - 1.0);
+				}
 				//logit bias prevents <|endoftext|>
 				let oai_payload =
 				{
@@ -8733,6 +8878,10 @@ Current version: 100
 					"presence_penalty": scaled_rep_pen,
 					"temperature": submit_payload.params.temperature,
 					"top_p": submit_payload.params.top_p,
+				}
+				if(submit_payload.params.logit_bias && JSON.stringify(submit_payload.params.logit_bias) != '{}')
+				{
+					oai_payload.logit_bias = submit_payload.params.logit_bias;
 				}
 
 				if (document.getElementById("useoaichatcompl").checked) {
@@ -8750,7 +8899,12 @@ Current version: 100
 					}
 				}
 				else {
-					oai_payload.logit_bias = { "50256": -100 };
+					if(oai_payload.logit_bias)
+					{
+						oai_payload.logit_bias["50256"] = -100;
+					}else{
+						oai_payload.logit_bias = { "50256": -100 };
+					}
 					oai_payload.prompt = submit_payload.prompt;
 				}
 
@@ -8759,12 +8913,22 @@ Current version: 100
 					'Content-Type': 'application/json',
 					'Authorization': 'Bearer ' + custom_oai_key
 				};
+				// if(targetep.toLowerCase().includes("api.mistral.ai"))
+				// {
+				// 	//use cors proxy for mistral ai
+				// 	targetep = cors_proxy + "?" + targetep;
+				// }
+				if(!targetep.toLowerCase().includes("openrouter.ai") &&
+				!targetep.toLowerCase().includes("api.mistral.ai"))
+				{
+					oaiheaders["x-api-key"] = custom_oai_key;
+				}
+
 				if(targetep.toLowerCase().includes("openrouter.ai"))
 				{
 					oaiheaders["HTTP-Referer"] = "https://lite.koboldai.net";
-				}else{
-					oaiheaders["x-api-key"] = custom_oai_key;
 				}
+
 				fetch(targetep, {
 					method: 'POST',
 					headers: oaiheaders,
@@ -9169,11 +9333,11 @@ Current version: 100
 		let genimg_payload = {
 			"prompt": (sentence + " ### ugly, deformed, poorly, censor, blurry, lowres, malformed, watermark, duplicated, grainy, distorted, signature"),
 			"params": {
-				"cfg_scale": 7,
+				"cfg_scale": localsettings.img_cfgscale,
 				"sampler_name": "k_euler_a",
 				"height": 512,
 				"width": 512,
-				"steps": 20,
+				"steps": localsettings.img_steps,
 				"karras": false,
 				"n": 1,
 				"seed": "",
@@ -9382,6 +9546,15 @@ Current version: 100
 			{
 				splitresponse = gentxt.split("\n\> ");
 				gentxt = splitresponse[0];
+			}
+			if(!localsettings.multiline_replies_adventure)
+			{
+				let foundnl = gentxt.indexOf("\n");
+				if (foundnl != -1) //if found, truncate to it
+				{
+					splitresponse = gentxt.split("\n");
+					gentxt = splitresponse[0];
+				}
 			}
 		}
 
@@ -9609,10 +9782,10 @@ Current version: 100
 		}
 	}
 
-	function compressImage(inputDataUri, onDone, isJpeg=true) {
+	function compressImage(inputDataUri, onDone, isJpeg=true, fixedSize=true, maxSize=256, quality = 0.33) {
 		let img = document.createElement('img');
-		let wantedWidth = 256;
-		let wantedHeight = 256;
+		let wantedWidth = maxSize;
+		let wantedHeight = maxSize;
 
 		// When the event "onload" is triggered we can resize the image.
 		img.onload = function () {
@@ -9624,7 +9797,29 @@ Current version: 100
 			var origH = img.height;
 			var aspectratio = origW/origH;
 
-			// We set the dimensions at the wanted size.
+			// We set the dimensions at the wanted size for fixedsize.
+			if(!fixedSize)
+			{
+				//otherwise, we preserve the original ratio but scale them down to fit
+				let newwidth = maxSize;
+				let newheight = maxSize;
+				let scalef = 1;
+				if(origW>=origH)
+				{
+					newwidth = origW>maxSize?maxSize:origW;
+					scalef = newwidth/origW;
+					newheight = origH*scalef;
+				}
+				else
+				{
+					newheight = origH>maxSize?maxSize:origH;
+					scalef = newheight/origH;
+					newwidth = origW*scalef;
+				}
+				wantedWidth = newwidth;
+				wantedHeight = newheight;
+			}
+
 			canvas.width = wantedWidth;
 			canvas.height = wantedHeight;
 
@@ -9634,7 +9829,7 @@ Current version: 100
 			var dataURI = "";
 			if(isJpeg)
 			{
-				dataURI = canvas.toDataURL(`image/jpeg`, 0.33);
+				dataURI = canvas.toDataURL(`image/jpeg`, quality);
 			}
 			else
 			{
@@ -10747,6 +10942,7 @@ Current version: 100
 		document.getElementById("anote_strength").value = anote_strength;
 		document.getElementById("extrastopseq").value = extrastopseq;
 		document.getElementById("newlineaftermemory").checked = (newlineaftermemory?true:false);
+		pendinglogitbias = logitbiasdict;
 		if(custom_kobold_endpoint!="" || !is_using_custom_ep() )
 		{
 			document.getElementById("noextrastopseq").classList.add("hidden");
@@ -11113,7 +11309,7 @@ Current version: 100
 			this.rounded_bubbles = true;
 
 			this.you_portrait = null;
-			this.AI_portrait = niko_square;
+			this.AI_portrait = "default";
 
 			this.font_size = 12;
 			this.use_markdown = true;
@@ -11240,7 +11436,7 @@ Current version: 100
 
 		document.getElementById("reset-portrait").addEventListener('click', (e) => {
 			aestheticInstructUISettings.you_portrait = null;
-			aestheticInstructUISettings.AI_portrait = niko_square;
+			aestheticInstructUISettings.AI_portrait = "default";
 			document.getElementById('portrait_ratio_AI').value = 1.0;
 			document.getElementById('portrait_width_AI').value = 100;
 			document.getElementById('portrait_ratio_you').value = 1.0;
@@ -11436,7 +11632,7 @@ Current version: 100
 		let portraitsStyling = // Also, implement portraits as css classes. Now chat entries can reuse them instead of recreating them.
 		`<style>
 			.you-portrait-image`+classSuffixStr+` {margin: 10px 6px; background:url(`+ as.you_portrait +`); background-clip: content-box; background-position: 50% 50%; background-size: 100% 100%; background-origin: content-box; background-repeat: no-repeat; border:none;}
-			.AI-portrait-image`+classSuffixStr+` {margin: 10px 6px; background:url(`+ as.AI_portrait +`); background-clip: content-box; background-position: 50% 50%; background-size: 100% 100%; background-origin: content-box; background-repeat: no-repeat; border:none;}
+			.AI-portrait-image`+classSuffixStr+` {margin: 10px 6px; background:url(`+ (as.AI_portrait!="default"?as.AI_portrait:niko_square) +`); background-clip: content-box; background-position: 50% 50%; background-size: 100% 100%; background-origin: content-box; background-repeat: no-repeat; border:none;}
 		</style>
 		`;
 
@@ -11592,7 +11788,6 @@ Current version: 100
 									<input type="file" id="loadfileinput" accept="text/json,application/json,image/png,image/webp,.kaistory,.webp,.png,.json,.txt,*.*,*" onchange="load_file(event)" style="display:none;">
 									<a class="nav-link" href="#" onclick="display_saveloadcontainer()">Save / Load</a>
 								</li>
-
 								<li class="nav-item hidden" id="topbtn_settings">
 									<a class="nav-link" href="#" id="btn_settings"
 										onclick="display_settings()">Settings</a>
@@ -11615,7 +11810,7 @@ Current version: 100
 		</div>
 		<div id="normalinterface">
 		<div id="maineditbody" class="layer-container">
-			<div class="layer-bottom" id="gamescreen">
+			<div class="layer-bottom gamescreenbgnormal" id="gamescreen">
 				<span id="gametext" contenteditable="false" onclick="click_gametext()" onblur="merge_edit_field()">
 					<p id="tempgtloadtxt">Loading...</p>
 					<noscript><style>#tempgtloadtxt { display: none; } #gametext { white-space: normal!important; }</style><p>Sorry, Kobold Lite requires Javascript to function.</p></noscript>
@@ -11995,7 +12190,18 @@ Current version: 100
 			</div>
 			<div class="aidgpopuplistheader anotelabel">
 				Unsaved data will be lost.<br><br>
-				<div class="" title="If disabled, brings you back to the start page"><span style=" vertical-align: middle;">Keep AI Selected? </span> <input type="checkbox" id="keep_ai_selected" style=" vertical-align: top;" checked></div>
+				<div>
+					<div style="vertical-align: middle;">
+						<div title="If disabled, brings you back to the start page">
+							<span>Keep AI Selected? </span>
+							<input type="checkbox" id="keep_ai_selected" style=" vertical-align: top;" checked>
+						</div>
+						<div>
+							<span>Keep Memory and World Info? </span>
+							<input type="checkbox" id="keep_memory" style=" vertical-align: top;">
+						</div>
+					</div>
+				</div>
 				<br>
 			</div>
 			<div class="popupfooter">
@@ -12220,6 +12426,10 @@ Current version: 100
 							</div>
 						</div>
 						<div id="adventuresection2" class="settinglabel hidden" style="padding-top: 3px;">
+							<div class="settinglabel">
+								<div class="justifyleft settingsmall" title="Whether to allow multiple lines in AI responses.">Multiline Replies </div>
+								<input type="checkbox" id="multiline_replies_adventure" style="margin:0px 0 0;">
+							</div>
 						</div>
 						<div id="instructsection2" class="settinglabel hidden" style="padding-top: 3px;">
 							<div class="justifyleft settingsmall">Instruct Tag Preset <span class="helpicon">?<span class="helptext">Quickly select between common instruct tag formats. Different models are trained with different tags.</span></span></div>
@@ -12280,6 +12490,7 @@ Current version: 100
 								<tr>
 								<th title="Sampler Seed. -1 to Deactivate.">Seed</th>
 								<th title="Min-P Sampling. 0 to Deactivate.">Min-P</th>
+								<th title="Presence Penalty. 0 to Deactivate.">PrPen.</th>
 								</tr>
 								<tr>
 
@@ -12287,6 +12498,8 @@ Current version: 100
 								id="sampler_seed"></td>
 								<td><input class="" type="text" inputmode="decimal" placeholder="0" value="0"
 								id="min_p"></td>
+								<td><input class="" type="text" inputmode="decimal" placeholder="0" value="0"
+								id="presence_penalty"></td>
 								</tr>
 
 
@@ -12399,7 +12612,7 @@ Current version: 100
 								   <input type="checkbox" id="save_images" style="margin:0px 0 0;">
 								</div>
 								</td>
-								<td class="settingsmall"><a class="color_blueurl" href="#" onclick="selectStyle()">Style<br>🎨</a></td>
+								<td class="settingsmall"><a class="color_blueurl" href="#" onclick="selectImgStyle()">Style<br>🎨</a></td>
 								</tr>
 								</table>
 							</div>
@@ -12518,6 +12731,12 @@ Current version: 100
 								class="helptext">Inverts all colors, simple light mode</span></span></div>
 						   <input type="checkbox" id="invert_colors" style="margin:0px 0px 0px auto;">
 						</div>
+						<div class="settinglabel">
+							<input type="file" id="loadbgimg" accept="image/png,image/webp,.webp,.jpg,.jpeg,.png,*.*,*" onchange="load_bg_img(event)" style="display:none;">
+							<div class="justifyleft settingsmall">Background Img</div>
+							<button type="button" class="btn btn-primary bg_green" style="padding:2px 2px;margin:1px;font-size:10px;" onclick="load_bgimg_button()">Set</button>
+							<button type="button" class="btn btn-primary bg_red" style="padding:2px 2px;margin:1px;font-size:10px;" onclick="clear_bg_img()">Clear</button>
+						</div>
 					</div>
 
 				</div>
@@ -12585,8 +12804,8 @@ Current version: 100
 			<div class="justifyleft settinglabel">Extra Stopping Sequences <span class="helpicon">?<span
 				class="helptext">Triggers the text generator to stop generating early if this sequence appears, in addition to default stop sequences. If you want multiple sequences, separate them with the following delimiter: ||$||</span></span></div>
 				<div class="color_red hidden" id="noextrastopseq">Stop Sequences may be unavailable.</div>
-				<input class="form-control" type="text" placeholder="None" value="" id="extrastopseq">
-
+				<input class="form-control stopseqbox" type="text" placeholder="None" value="" id="extrastopseq">
+				<button type="button" class="btn btn-primary" style="width:104px;padding:6px 6px;margin-bottom: 4px;" id="btnlogitbias" onclick="set_logit_bias()">Logit Biases</button>
 			<br>
 			<div class="popupfooter">
 				<button type="button" class="btn btn-primary" onclick="confirm_memory()">OK</button>
@@ -12720,6 +12939,30 @@ Current version: 100
 			<div class="popupfooter">
 				<button type="button" class="bg_red btn btn-primary" style="width: 124px;" onclick="delete_curr_image();hide_popups();">Delete Image</button>
 				<button type="button" class="btn btn-primary" onclick="hide_popups()">Close</button>
+			</div>
+		</div>
+	</div>
+
+	<div class="popupcontainer flex hidden" id="imagestylecontainer">
+		<div class="popupbg flex"></div>
+		<div class="nspopup fixsize">
+			<div class="popuptitlebar">
+				<div class="popuptitletext">Image Generation Settings</div>
+			</div>
+			<div class="aidgpopuplistheader anotelabel">Style tags to use for generating images:<br>(E.g. Sketch, Realistic, Anime, 3D Render, Drawing)<br><br></div>
+			<input class="form-control" type="text" placeholder="Default Style" value="" id="imagestyleinput">
+
+			<div class="inlinelabel">
+				<div class="justifyleft" style="padding:4px">Number of Steps: </div>
+				<input type="text" inputmode="decimal" id="img_steps" style="width:60px">
+			</div>
+			<div class="inlinelabel">
+				<div class="justifyleft" style="padding:4px">Cfg. Scale: </div>
+				<input type="text" inputmode="decimal" id="img_cfgscale" style="width:60px">
+			</div>
+
+			<div class="popupfooter">
+				<button type="button" class="btn btn-primary" onclick="confirmImgStyle()">Ok</button>
 			</div>
 		</div>
 	</div>
