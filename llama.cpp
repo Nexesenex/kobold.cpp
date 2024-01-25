@@ -10005,7 +10005,7 @@ struct llama_context_params llama_context_default_params() {
         /*.yarn_orig_ctx               =*/ 0,
         /*.cb_eval                     =*/ nullptr,
         /*.cb_eval_user_data           =*/ nullptr,
-        /*.type_k                      =*/ GGML_TYPE_F16,
+        /*.type_k                      =*/ GGML_TYPE_Q8_0,
         /*.type_v                      =*/ GGML_TYPE_F16,
         /*.mul_mat_q                   =*/ true,
         /*.logits_all                  =*/ false,
