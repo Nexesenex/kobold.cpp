@@ -81,6 +81,7 @@ class generation_inputs(ctypes.Structure):
                 ("quiet", ctypes.c_bool),
                 ("dynatemp_range", ctypes.c_float),
                 ("dynatemp_exponent", ctypes.c_float),
+                ("smoothing_factor", ctypes.c_float),
                 ("logit_biases", logit_bias * logit_bias_max)]
 
 class generation_outputs(ctypes.Structure):
@@ -328,7 +329,7 @@ def load_model(model_filename):
     ret = handle.load_model(inputs)
     return ret
 
-def generate(prompt, memory="", max_length=32, max_context_length=512, temperature=0.7, top_k=100, top_a=0.0, top_p=0.92, min_p=0.0, typical_p=1.0, tfs=1.0, rep_pen=1.0, rep_pen_range=128, presence_penalty=0.0, mirostat=0, mirostat_tau=5.0, mirostat_eta=0.1, sampler_order=[6,0,1,3,4,2,5], seed=-1, stop_sequence=[], use_default_badwordsids=False, stream_sse=False, grammar='', grammar_retain_state=False, genkey='', trimstop=False, quiet=False, dynatemp_range=0.0, dynatemp_exponent=1.0, logit_biases={}):
+def generate(prompt, memory="", max_length=32, max_context_length=512, temperature=0.7, top_k=100, top_a=0.0, top_p=0.92, min_p=0.0, typical_p=1.0, tfs=1.0, rep_pen=1.0, rep_pen_range=128, presence_penalty=0.0, mirostat=0, mirostat_tau=5.0, mirostat_eta=0.1, sampler_order=[6,0,1,3,4,2,5], seed=-1, stop_sequence=[], use_default_badwordsids=False, stream_sse=False, grammar='', grammar_retain_state=False, genkey='', trimstop=False, quiet=False, dynatemp_range=0.0, dynatemp_exponent=1.0, smoothing_factor=0.0, logit_biases={}):
     global maxctx, args, currentusergenkey, totalgens, pendingabortkey
     inputs = generation_inputs()
     outputs = ctypes.create_unicode_buffer(ctypes.sizeof(generation_outputs))
@@ -359,6 +360,7 @@ def generate(prompt, memory="", max_length=32, max_context_length=512, temperatu
     inputs.quiet = quiet
     inputs.dynatemp_range = dynatemp_range
     inputs.dynatemp_exponent = dynatemp_exponent
+    inputs.smoothing_factor = smoothing_factor
     inputs.grammar = grammar.encode("UTF-8")
     inputs.grammar_retain_state = grammar_retain_state
     inputs.unban_tokens_rt = not use_default_badwordsids
@@ -588,6 +590,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 quiet=is_quiet,
                 dynatemp_range=genparams.get('dynatemp_range', 0.0),
                 dynatemp_exponent=genparams.get('dynatemp_exponent', 1.0),
+                smoothing_factor=genparams.get('smoothing_factor', 0.0),
                 logit_biases=genparams.get('logit_bias', {})
                 )
 
@@ -2588,7 +2591,6 @@ if __name__ == '__main__':
     parser.add_argument("--preloadstory", help="Configures a prepared story json save file to be hosted on the server, which frontends (such as Kobold Lite) can access over the API.", default="")
     parser.add_argument("--quiet", help="Enable quiet mode, which hides generation inputs and outputs in the terminal. Quiet mode is automatically enabled when running --hordeconfig.", action='store_true')
     parser.add_argument("--ssl", help="Allows all content to be served over SSL instead. A valid UNENCRYPTED SSL cert and key .pem files must be provided", metavar=('[cert_pem]', '[key_pem]'), nargs='+')
-
 
     # #deprecated hidden args. they do nothing. do not use
     # parser.add_argument("--psutil_set_threads", action='store_true', help=argparse.SUPPRESS)
