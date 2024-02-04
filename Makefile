@@ -9,7 +9,7 @@ TEST_TARGETS = \
 	tests/test-llama-grammar tests/test-grammar-parser tests/test-double-float tests/test-grad0 tests/test-opt \
 	tests/test-quantize-fns tests/test-quantize-perf tests/test-sampling tests/test-tokenizer-0-llama          \
 	tests/test-tokenizer-0-falcon tests/test-tokenizer-1-llama tests/test-tokenizer-1-bpe tests/test-rope      \
-	tests/test-backend-ops tests/test-autorelease
+	tests/test-backend-ops tests/test-model-load-cancel tests/test-autorelease
 
 # Code coverage output files
 COV_TARGETS = *.gcno tests/*.gcno *.gcda tests/*.gcda *.gcov tests/*.gcov lcov-report gcovr-report
@@ -109,6 +109,7 @@ MK_NVCCFLAGS  += -O3
 else
 MK_CFLAGS     += -O3
 MK_CXXFLAGS   += -O3
+MK_NVCCFLAGS  += -O3
 endif
 
 # clock_gettime came in POSIX.1b (1993)
@@ -365,7 +366,7 @@ ifdef LLAMA_CUBLAS
 	MK_CPPFLAGS  += -DGGML_USE_CUBLAS -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/x86_64-linux/include -I/usr/local/cuda/targets/aarch64-linux/include
 	MK_LDFLAGS   += -lcuda -lcublas -lculibos -lcudart -lcublasLt -lpthread -ldl -lrt -L/usr/local/cuda/lib64 -L/opt/cuda/lib64 -L$(CUDA_PATH)/targets/x86_64-linux/lib -L/usr/local/cuda/targets/aarch64-linux/lib -L/usr/lib/wsl/lib
 	OBJS         += ggml-cuda.o
-	MK_NVCCFLAGS  = -use_fast_math
+	MK_NVCCFLAGS += -use_fast_math
 ifndef JETSON_EOL_MODULE_DETECT
 	MK_NVCCFLAGS += --forward-unknown-to-host-compiler
 endif # JETSON_EOL_MODULE_DETECT
@@ -449,14 +450,24 @@ ggml-opencl.o: ggml-opencl.cpp ggml-opencl.h
 endif # LLAMA_CLBLAST
 
 ifdef LLAMA_VULKAN
-	CFLAGS  += -DGGML_USE_VULKAN -I./include/vulkan
-	CXXFLAGS  += -DGGML_USE_VULKAN -I./include/vulkan
-	LDFLAGS +=
+	MK_CPPFLAGS  += -DGGML_USE_VULKAN -I./include/vulkan
+	MK_LDFLAGS += 
 	OBJS    += ggml-vulkan.o
 
 ifdef LLAMA_VULKAN_CHECK_RESULTS
-	CFLAGS  += -DGGML_VULKAN_CHECK_RESULTS
-	CXXFLAGS  += -DGGML_VULKAN_CHECK_RESULTS
+	MK_CPPFLAGS  += -DGGML_VULKAN_CHECK_RESULTS
+endif
+
+ifdef LLAMA_VULKAN_DEBUG
+	MK_CPPFLAGS  += -DGGML_VULKAN_DEBUG
+endif
+
+ifdef LLAMA_VULKAN_VALIDATE
+	MK_CPPFLAGS  += -DGGML_VULKAN_VALIDATE
+endif
+
+ifdef LLAMA_VULKAN_RUN_TESTS
+	MK_CPPFLAGS  += -DGGML_VULKAN_RUN_TESTS
 endif
 
 ggml-vulkan.o: ggml-vulkan.cpp ggml-vulkan.h
@@ -542,8 +553,11 @@ $(info I CFLAGS:    $(CFLAGS))
 $(info I CXXFLAGS:  $(CXXFLAGS))
 $(info I NVCCFLAGS: $(NVCCFLAGS))
 $(info I LDFLAGS:   $(LDFLAGS))
-$(info I CC:        $(shell $(CC) --version | head -n 1))
-$(info I CXX:       $(shell $(CXX) --version | head -n 1))
+$(info I CC:        $(shell $(CC)   --version | head -n 1))
+$(info I CXX:       $(shell $(CXX)  --version | head -n 1))
+ifdef LLAMA_CUBLAS
+$(info I NVCC:      $(shell $(NVCC) --version | tail -n 1))
+endif # LLAMA_CUBLAS
 $(info )
 
 #
@@ -588,8 +602,11 @@ train.o: common/train.cpp common/train.h
 libllama.so: llama.o ggml.o $(OBJS)
 	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $^ $(LDFLAGS)
 
+libllama.a: llama.o ggml.o $(OBJS) $(COMMON_DEPS)
+	ar rcs libllama.a llama.o ggml.o $(OBJS) $(COMMON_DEPS)
+
 clean:
-	rm -vrf *.o tests/*.o *.so *.dll benchmark-matmult common/build-info.cpp *.dot $(COV_TARGETS) $(BUILD_TARGETS) $(TEST_TARGETS)
+	rm -vrf *.o tests/*.o *.so *.a *.dll benchmark-matmult common/build-info.cpp *.dot $(COV_TARGETS) $(BUILD_TARGETS) $(TEST_TARGETS)
 
 #
 # Examples
@@ -634,7 +651,7 @@ embedding: examples/embedding/embedding.cpp                   ggml.o llama.o $(C
 save-load-state: examples/save-load-state/save-load-state.cpp ggml.o llama.o $(COMMON_DEPS) $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 
-server: examples/server/server.cpp examples/server/httplib.h examples/server/json.hpp examples/server/index.html.hpp examples/server/index.js.hpp examples/server/completion.js.hpp examples/llava/clip.cpp examples/llava/clip.h common/stb_image.h ggml.o llama.o $(COMMON_DEPS) grammar-parser.o $(OBJS)
+server: examples/server/server.cpp examples/server/oai.hpp examples/server/utils.hpp examples/server/httplib.h examples/server/json.hpp examples/server/index.html.hpp examples/server/index.js.hpp examples/server/completion.js.hpp examples/llava/clip.cpp examples/llava/clip.h common/stb_image.h ggml.o llama.o $(COMMON_DEPS) grammar-parser.o $(OBJS)
 	$(CXX) $(CXXFLAGS) -Iexamples/server $(filter-out %.h,$(filter-out %.hpp,$^)) -o $@ $(LDFLAGS) $(LWINSOCK2) -Wno-cast-qual
 
 gguf: examples/gguf/gguf.cpp ggml.o $(OBJS)
@@ -763,5 +780,8 @@ tests/test-c.o: tests/test-c.c llama.h
 tests/test-backend-ops: tests/test-backend-ops.cpp ggml.o $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 
-tests/test-autorelease: tests/test-autorelease.cpp ggml.o llama.o $(COMMON_DEPS) $(OBJS)
+tests/test-model-load-cancel: tests/test-model-load-cancel.cpp ggml.o llama.o tests/get-model.cpp $(COMMON_DEPS) $(OBJS)
+	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
+
+tests/test-autorelease: tests/test-autorelease.cpp ggml.o llama.o tests/get-model.cpp $(COMMON_DEPS) $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)

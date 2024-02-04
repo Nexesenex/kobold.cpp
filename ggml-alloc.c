@@ -335,7 +335,9 @@ bool ggml_tallocr_is_measure(ggml_tallocr_t alloc) {
 }
 
 size_t ggml_tallocr_max_size(ggml_tallocr_t alloc) {
-    return alloc->max_size;
+    // FIXME: changes in the tensor sizes compared to the measure graph may cause allocations to fail
+    // to avoid this, we add a 10% margin to the buffer size
+    return alloc->max_size + alloc->max_size/10;
 }
 
 // graph allocator
@@ -789,7 +791,7 @@ static bool alloc_tensor_range(struct ggml_context * ctx,
         for (size_t i = 0; i < *n_buffers; i++) {
             ggml_backend_buffer_free(*buffers[i]);
         }
-        free(buffers);
+        free(*buffers);
         return false;
     }
 

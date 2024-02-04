@@ -38,7 +38,9 @@ size_t ggml_backend_buft_get_max_size(ggml_backend_buffer_type_t buft) {
 GGML_CALL size_t ggml_backend_buft_get_alloc_size(ggml_backend_buffer_type_t buft, struct ggml_tensor * tensor) {
     // get_alloc_size is optional, defaults to ggml_nbytes
     if (buft->iface.get_alloc_size) {
-        return buft->iface.get_alloc_size(buft, tensor);
+        size_t size = buft->iface.get_alloc_size(buft, tensor);
+        assert(size >= ggml_nbytes(tensor));
+        return size;
     }
     return ggml_nbytes(tensor);
 }
@@ -356,6 +358,11 @@ GGML_CALL static void ggml_backend_registry_init(void) {
     ggml_backend_cuda_reg_devices();
 #endif
 
+#ifdef GGML_USE_SYCL
+    extern void ggml_backend_sycl_reg_devices(void);
+    ggml_backend_sycl_reg_devices();
+#endif
+
 #ifdef GGML_USE_METAL
     extern GGML_CALL ggml_backend_t ggml_backend_reg_metal_init(const char * params, void * user_data);
     extern GGML_CALL ggml_backend_buffer_type_t ggml_backend_metal_buffer_type(void);
@@ -365,6 +372,11 @@ GGML_CALL static void ggml_backend_registry_init(void) {
 #ifdef GGML_USE_VULKAN
     extern GGML_CALL int ggml_backend_vk_reg_devices(void);
     ggml_backend_vk_reg_devices();
+#endif
+
+#ifdef GGML_USE_KOMPUTE
+    extern GGML_CALL void ggml_backend_kompute_reg_devices(void);
+    ggml_backend_kompute_reg_devices();
 #endif
 }
 
