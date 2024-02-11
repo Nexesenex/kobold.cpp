@@ -10318,7 +10318,7 @@ Current version: 111
 	//runs every second
 	var idle_timer = 0; //used in chat mode to send multi replies
 	var idle_triggered_counter = 0;
-	var idle_backoff_array = [15000,60000,300000,120000];
+	var idle_backoff_array = [15000,60000,300000,1200000];
 	function poll_background_tasks()
 	{
 		let idle_timer_max = 0;
@@ -10341,6 +10341,14 @@ Current version: 111
 			if (idle_timer > idle_timer_max) {
 				idle_timer = 0;
 				let nextcounter = ++idle_triggered_counter;
+				if(localsettings.opmode == 4)
+				{
+					if (!localsettings.placeholder_tags) {
+						pending_context_preinjection =  get_instruct_endtag(false);
+					} else {
+						pending_context_preinjection =  instructendplaceholder;
+					}
+				}
 				submit_generation();
 				idle_triggered_counter = nextcounter;
 			}
