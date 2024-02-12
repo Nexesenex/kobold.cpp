@@ -2537,7 +2537,7 @@ def main(launch_args,start_server=True):
         global libname
         start_server = False
         save_to_file = (args.benchmark!="stdout" and args.benchmark!="")
-        benchmaxctx =  (2048 if maxctx>2048 else maxctx)
+        benchmaxctx =  (196608 if maxctx>196608 else maxctx)
         benchlen = 100
         benchmodel = sanitize_string(os.path.splitext(os.path.basename(modelname))[0])
         if os.path.exists(args.benchmark) and os.path.getsize(args.benchmark) > 1000000:
