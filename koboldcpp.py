@@ -638,7 +638,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
         if data=="[DONE]":
             self.wfile.write(f'data: {data}'.encode())
         else:
-            self.wfile.write(f'data: {data}\r\n\r\n'.encode())
+            self.wfile.write(f'data: {data}\n\n'.encode())
         self.wfile.flush()
 
     async def send_kai_sse_event(self, data):
@@ -691,7 +691,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                     await asyncio.sleep(0.02) #this should keep things responsive
 
                 if streamDone:
-                    if api_format == 4:  # if oai chat, send last [DONE] message consistent with openai format
+                    if api_format == 4 or api_format == 3:  # if oai chat, send last [DONE] message consistent with openai format
                         await self.send_oai_sse_event('[DONE]')
                     break
         except Exception as ex:
@@ -1069,11 +1069,20 @@ Enter Prompt:<br>
 
 
 def RunServerMultiThreaded(addr, port, embedded_kailite = None, embedded_kcpp_docs = None):
-    global exitcounter
+    global exitcounter, sslvalid
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    if args.ssl and sslvalid:
+        import ssl
+        certpath = os.path.abspath(args.ssl[0])
+        keypath = os.path.abspath(args.ssl[1])
+        context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        context.load_cert_chain(certfile=certpath, keyfile=keypath)
+        sock = context.wrap_socket(sock, server_side=True)
+
     sock.bind((addr, port))
-    sock.listen(5)
+    numThreads = 12
+    sock.listen(numThreads)
 
     class Thread(threading.Thread):
         def __init__(self, i):
@@ -1083,19 +1092,12 @@ def RunServerMultiThreaded(addr, port, embedded_kailite = None, embedded_kcpp_do
             self.start()
 
         def run(self):
-            global exitcounter, sslvalid
+            global exitcounter
             handler = ServerRequestHandler(addr, port, embedded_kailite, embedded_kcpp_docs)
             with http.server.HTTPServer((addr, port), handler, False) as self.httpd:
                 try:
                     self.httpd.socket = sock
                     self.httpd.server_bind = self.server_close = lambda self: None
-
-                    if args.ssl and sslvalid:
-                        import ssl
-                        certpath = os.path.abspath(args.ssl[0])
-                        keypath = os.path.abspath(args.ssl[1])
-                        self.httpd.socket = ssl.wrap_socket(self.httpd.socket, keyfile=keypath, certfile=certpath, server_side=True)
-
                     self.httpd.serve_forever()
                 except (KeyboardInterrupt,SystemExit):
                     exitcounter = 999
@@ -1110,7 +1112,6 @@ def RunServerMultiThreaded(addr, port, embedded_kailite = None, embedded_kcpp_do
             exitcounter = 999
             self.httpd.server_close()
 
-    numThreads = 12
     threadArr = []
     for i in range(numThreads):
         threadArr.append(Thread(i))

@@ -919,7 +919,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     }
     else if(file_format==FileFormat::GGUF_GENERIC)
     {
-        llama_backend_init(false);
+        llama_backend_init();
 
         llama_model_params model_params = llama_model_default_params();
         llama_context_params llama_ctx_params = llama_context_default_params();

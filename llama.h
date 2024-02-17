@@ -113,6 +113,12 @@ extern "C" {
         LLAMA_ROPE_SCALING_MAX_VALUE   = LLAMA_ROPE_SCALING_YARN,
     };
 
+    enum llama_pooling_type {
+        LLAMA_POOLING_NONE = 0,
+        LLAMA_POOLING_MEAN = 1,
+        LLAMA_POOLING_CLS  = 2,
+    };
+
     enum llama_split_mode {
         LLAMA_SPLIT_NONE    = 0, // single GPU
         LLAMA_SPLIT_LAYER   = 1, // split layers and KV across GPUs
@@ -237,6 +243,7 @@ extern "C" {
         bool logits_all;  // the llama_eval() call computes all logits, not just the last one (DEPRECATED - set llama_batch.logits instead)
         bool embedding;   // embedding mode only
         bool offload_kqv; // whether to offload the KQV ops (including the KV cache) to GPU
+        bool do_pooling;  // whether to pool (sum) embedding results by sequence id (ignored if no pooling layer)
     };
 
     // model quantization parameters
@@ -306,7 +313,10 @@ extern "C" {
     // Initialize the llama + ggml backend
     // If numa is true, use NUMA optimizations
     // Call once at the start of the program
-    LLAMA_API void llama_backend_init(bool numa);
+    LLAMA_API void llama_backend_init(void);
+
+    //optional:
+    LLAMA_API void llama_numa_init(enum ggml_numa_strategy numa);
 
     // Call once at the end of the program - currently only used for MPI
     LLAMA_API void llama_backend_free(void);
@@ -630,6 +640,10 @@ extern "C" {
     // Get the embeddings for the input
     // shape: [n_embd] (1-dimensional)
     LLAMA_API float * llama_get_embeddings(struct llama_context * ctx);
+
+    // Get the embeddings for the ith sequence
+    // llama_get_embeddings(ctx) + i*n_embd
+    LLAMA_API float * llama_get_embeddings_ith(struct llama_context * ctx, int32_t i);
 
     //
     // Vocab

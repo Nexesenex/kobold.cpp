@@ -437,10 +437,6 @@ struct llama_server_context
         default_generation_settings_for_props["seed"] = -1;
 
         batch = llama_batch_init(n_ctx, 0, params.n_parallel);
-
-        // empty system prompt
-        system_prompt = "";
-        system_tokens.clear();
     }
 
     std::vector<llama_token> tokenize(const json & json_prompt, bool add_bos) const
@@ -677,6 +673,24 @@ struct llama_server_context
             }
         }
 
+        const auto &samplers_sequence = data.find("samplers");
+        if (samplers_sequence != data.end() && samplers_sequence->is_array())
+        {
+            std::vector<std::string> sampler_names;
+            for (const auto &sampler_name : *samplers_sequence)
+            {
+                if (sampler_name.is_string())
+                {
+                    sampler_names.emplace_back(sampler_name);
+                }
+            }
+            slot->sparams.samplers_sequence = sampler_types_from_names(sampler_names, false);
+        }
+        else
+        {
+            slot->sparams.samplers_sequence = default_sparams.samplers_sequence;
+        }
+
         if (multimodal)
         {
             const auto &images_data = data.find("image_data");
@@ -766,27 +780,30 @@ struct llama_server_context
     }
 
     void update_system_prompt() {
-        system_tokens = ::llama_tokenize(ctx, system_prompt, add_bos_token);
-
-        llama_batch_clear(batch);
-
         kv_cache_clear();
+        system_tokens.clear();
 
-        for (int i = 0; i < (int) system_tokens.size(); ++i)
-        {
-            llama_batch_add(batch, system_tokens[i], i, { 0 }, false);
-        }
+        if (!system_prompt.empty()) {
+            system_tokens = ::llama_tokenize(ctx, system_prompt, add_bos_token);
 
-        if (llama_decode(ctx, batch) != 0)
-        {
-            LOG_TEE("%s: llama_decode() failed\n", __func__);
-            return;
-        }
+            llama_batch_clear(batch);
 
-        // assign the system KV cache to all parallel sequences
-        for (int32_t i = 1; i < params.n_parallel; ++i)
-        {
-            llama_kv_cache_seq_cp(ctx, 0, i, 0, system_tokens.size());
+            for (int i = 0; i < (int)system_tokens.size(); ++i)
+            {
+                llama_batch_add(batch, system_tokens[i], i, { 0 }, false);
+            }
+
+            if (llama_decode(ctx, batch) != 0)
+            {
+                LOG_TEE("%s: llama_decode() failed\n", __func__);
+                return;
+            }
+
+            // assign the system KV cache to all parallel sequences
+            for (int32_t i = 1; i < params.n_parallel; ++i)
+            {
+                llama_kv_cache_seq_cp(ctx, 0, i, 0, system_tokens.size());
+            }
         }
 
         LOG_TEE("system prompt updated\n");
@@ -808,10 +825,8 @@ struct llama_server_context
         name_user      = sys_props.value("anti_prompt", "");
         name_assistant = sys_props.value("assistant_name", "");
 
-        if (slots.size() > 0)
-        {
-            notify_system_prompt_changed();
-        }
+
+        notify_system_prompt_changed();
     }
 
     static size_t find_stopping_strings(const std::string &text, const size_t last_token_size,
@@ -969,18 +984,31 @@ struct llama_server_context
             {
                 continue;
             }
-            clip_image_f32 * img_res = clip_image_f32_init();
-            if (!clip_image_preprocess(clp_ctx, img.img_data, img_res, /*pad2square =*/ true))
+            clip_image_f32_batch img_res_v;
+            img_res_v.size = 0;
+            img_res_v.data = nullptr;
+            if (!clip_image_preprocess(clp_ctx, img.img_data, img_res_v))
             {
                 LOG_TEE("Error processing the given image");
                 clip_free(clp_ctx);
+                clip_image_f32_batch_free(img_res_v);
                 return false;
             }
+            if (img_res_v.size == 0)
+            {
+                LOG_TEE("Error processing the given image");
+                return false;
+            }
+
+            // note: assumes only one image was returned by clip_image_preprocess
+            clip_image_f32 * img_res = img_res_v.data;
+
             img.image_tokens = clip_n_patches(clp_ctx);
             img.image_embedding = (float *)malloc(clip_embd_nbytes(clp_ctx));
             if (!img.image_embedding)
             {
                 LOG_TEE("Unable to allocate memory for image embeddings\n");
+                clip_image_f32_batch_free(img_res_v);
                 clip_free(clp_ctx);
                 return false;
             }
@@ -988,9 +1016,12 @@ struct llama_server_context
             if (!clip_image_encode(clp_ctx, params.n_threads, img_res, img.image_embedding))
             {
                 LOG_TEE("Unable to encode image\n");
+                clip_image_f32_batch_free(img_res_v);
                 return false;
             }
-            clip_image_f32_free(img_res);
+
+            clip_image_f32_batch_free(img_res_v);
+
             img.request_encode_image = false;
         }
 
@@ -1014,6 +1045,12 @@ struct llama_server_context
         const auto eos_bias = slot.sparams.logit_bias.find(llama_token_eos(model));
         const bool ignore_eos = eos_bias != slot.sparams.logit_bias.end() &&
                                 eos_bias->second < 0.0f && std::isinf(eos_bias->second);
+        std::vector<std::string> samplers_sequence;
+        for (const auto &sampler_type : slot.sparams.samplers_sequence)
+        {
+            samplers_sequence.emplace_back(sampler_type_to_name_string(sampler_type));
+        }
+
         return json {
             {"n_ctx",             slot.n_ctx},
             {"model",             params.model_alias},
@@ -1044,6 +1081,7 @@ struct llama_server_context
             {"logit_bias",        slot.sparams.logit_bias},
             {"n_probs",           slot.sparams.n_probs},
             {"grammar",           slot.sparams.grammar},
+            {"samplers",          samplers_sequence}
         };
     }
 
@@ -1840,7 +1878,10 @@ static void server_print_usage(const char *argv0, const gpt_params &params,
     {
         printf("  --no-mmap                 do not memory-map model (slower load but may reduce pageouts if not using mlock)\n");
     }
-    printf("  --numa                    attempt optimizations that help on some NUMA systems\n");
+    printf("  --numa TYPE               attempt optimizations that help on some NUMA systems\n");
+    printf("                              - distribute: spread execution evenly over all nodes\n");
+    printf("                              - isolate: only spawn threads on CPUs on the node that execution started on\n");
+    printf("                              - numactl: use the CPU map provided my numactl\n");
     if (llama_supports_gpu_offload()) {
         printf("  -ngl N, --n-gpu-layers N\n");
         printf("                            number of layers to store in VRAM\n");
@@ -2249,9 +2290,17 @@ static void server_params_parse(int argc, char **argv, server_params &sparams,
         {
             params.use_mmap = false;
         }
-        else if (arg == "--numa")
-        {
-            params.numa = true;
+        else if (arg == "--numa") {
+            if (++i >= argc) {
+                invalid_param = true;
+                break;
+            } else {
+                std::string value(argv[i]);
+                /**/ if (value == "distribute" || value == "" ) { params.numa = GGML_NUMA_STRATEGY_DISTRIBUTE; }
+                else if (value == "isolate") { params.numa = GGML_NUMA_STRATEGY_ISOLATE; }
+                else if (value == "numactl") { params.numa = GGML_NUMA_STRATEGY_NUMACTL; }
+                else { invalid_param = true; break; }
+            }
         }
         else if (arg == "--embedding")
         {
@@ -2482,7 +2531,8 @@ int main(int argc, char **argv)
         params.model_alias = params.model;
     }
 
-    llama_backend_init(params.numa);
+    llama_backend_init();
+    llama_numa_init(params.numa);
 
     LOG_INFO("build info", {{"build", LLAMA_BUILD_NUMBER},
                             {"commit", LLAMA_COMMIT}});
