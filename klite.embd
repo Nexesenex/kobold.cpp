@@ -6,7 +6,7 @@ It requires no dependencies, installation or setup.
 Just copy this single static HTML file anywhere and open it in a browser, or from a webserver.
 Please go to https://github.com/LostRuins/lite.koboldai.net for updates on Kobold Lite.
 Kobold Lite is under the AGPL v3.0 License unless otherwise exempted. Please do not remove this line.
-Current version: 113
+Current version: 114
 -Concedo
 -->
 
@@ -108,8 +108,7 @@ Current version: 113
 			line-height: normal;
 		}
 
-		body.connected #topmenu,
-		#topmenu.always-available {
+		body.connected #topmenu {
 			background-color: #337ab7;
 		}
 
@@ -298,7 +297,7 @@ Current version: 113
 		.anotetempbox
 		{
 			display: inline;
-			width: calc(100% - 98px);
+			width: 100%;
 		}
 		.anotetempscale
 		{
@@ -309,7 +308,7 @@ Current version: 113
 		.stopseqbox
 		{
 			display: inline;
-			width: calc(100% - 110px);
+			width: 100%;
 		}
 
 		#popuptitlebar {
@@ -1486,12 +1485,23 @@ Current version: 113
 		}
 		.storyimgfloat
 		{
+			width: fit-content;
 			float: right;
 			position: relative;
 			padding: 4px;
 		}
-		.storyimg
+		.storyimgside
 		{
+			display: inline-block;
+			width: fit-content;
+			text-align: center;
+			position: relative;
+			padding: 4px;
+			margin: 0 auto;
+		}
+		.storyimgcenter
+		{
+			width: fit-content;
 			text-align: center;
 			position: relative;
 			padding: 4px;
@@ -3410,6 +3420,7 @@ Current version: 113
 	var image_db = {}; //stores a dictionary of pending images
 	var interrogation_db = {};
 	var completed_imgs_meta = {}; //stores temp info on completed images like alt text
+	var img_hash_to_b64_lookup = {}; //used to revert imghash to b64. temporary storage
 	//key is ID, body is {done:false,queue:10,result:""}
 	var stablemodels = [{"name": "stable_diffusion","count": 1}]; //stored as {name,count}
 	var custom_kobold_endpoint = ""; //if set, does not use horde. Instead, attempts to use this sync endpoint
@@ -8334,6 +8345,24 @@ Current version: 113
 
 	}
 
+	function simplemodexample()
+	{
+		let simplemodscript = `// This mod changes your top menu to yellow color, then displays the current temperature setting as a popup\n\n`+
+		`document.getElementById("topmenu").style.backgroundColor = 'yellow';\nalert("Congrats, your top menu turned yellow. Also, your temperature was " + localsettings.temperature);`;
+		document.getElementById("inputboxcontainerinputarea").value = simplemodscript;
+	}
+	function apply_user_mod()
+	{
+		inputBox("Here, you can apply third-party mod scripts shared by other users.<br><br><span class='color_red'>Caution: This mod will have full access to your story and API keys, so only run third-party mods that you trust! For security, mods must always be manually applied every time.</span><br><br>Want to start modding? <a href='#' class='color_blueurl' onclick='simplemodexample()'>Click here</a> to load a simple example mod.","Apply Third-Party Mod","","Paste Mod Script Here",()=>{
+			let userinput = getInputBoxValue().trim();
+			if(userinput!="" && userinput.trim()!="")
+			{
+				var userModScript = new Function(userinput);
+				userModScript();
+			}
+		},true,true);
+	}
+
 	function clear_poll_flags()
 	{
 		pending_response_id = "";
@@ -9546,11 +9575,18 @@ Current version: 113
 					}
 				}
 				else {
-					if(oai_payload.logit_bias)
+					//apply custom logit bias for official OAI only
+
+					let needbaneos = (custom_oai_endpoint.toLowerCase().includes("api.openai.com") && determine_if_ban_eos(input_was_empty));
+
+					if(needbaneos)
 					{
-						oai_payload.logit_bias["50256"] = -100;
-					}else{
-						oai_payload.logit_bias = { "50256": -100 };
+						if(oai_payload.logit_bias)
+						{
+							oai_payload.logit_bias["50256"] = -100;
+						}else{
+							oai_payload.logit_bias = { "50256": -100 };
+						}
 					}
 					oai_payload.prompt = submit_payload.prompt;
 				}
@@ -10194,11 +10230,12 @@ Current version: 113
 	function update_clicked_image(imghash)
 	{
 		let savedmeta = completed_imgs_meta[imghash];
-		if(!savedmeta)
+		if(!savedmeta && imghash!="")
 		{
-			document.getElementById("zoomedimgdesc").innerText = "No Saved Data";
+			savedmeta = completed_imgs_meta[imghash] = {prompt:"", desc:"", enabled:false};
 		}
-		else
+
+		if(savedmeta)
 		{
 			let origprompt = (savedmeta.prompt?replaceAll(savedmeta.prompt,"\n"," ") : "No Saved Description");
 			origprompt = escapeHtml(origprompt);
@@ -10210,6 +10247,11 @@ Current version: 113
 			<br><button type="button" class="btn btn-primary" style="width: 140px; padding: 2px; margin: 3px; font-size:12px;" onclick="msgbox('`+origprompt+`','Original Prompt')">View Original Prompt</button>
 			`;
 		}
+		else
+		{
+			document.getElementById("zoomedimgdesc").innerText = "No Saved Data";
+		}
+
 	}
 	function click_image(target,imghash)
 	{
@@ -10246,11 +10288,12 @@ Current version: 113
 		}
 	}
 
-	function render_image_html(data, pend_txt = "", float=true) {
+	function render_image_html(data, pend_txt = "", float=true, center=false) {
 		var dim = (localsettings.opmode == 2 ? 160 : 200); //adventure mode has smaller pictures
-		let siclass = (float?"storyimgfloat":"storyimg");
+		let siclass = (float?"storyimgfloat":(center?"storyimgcenter":"storyimgside"));
 		let reinvertcolor = localsettings.invert_colors?" invert_colors":"";
 		let alttxt = "";
+		let suffix = ((float==false&&center==false)?"<br>":"");
 		if (!data || data == "") {
 			let waittime = "Unavailable";
 			if (image_db[pend_txt] != null) {
@@ -10261,13 +10304,13 @@ Current version: 113
 				console.log("Cannot render " + pend_txt);
 			}
 
-			return `<div class="`+siclass+reinvertcolor+`" contenteditable="false"><img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQc1tdhbWGkJ6jq62rZ4C8ybqmx5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wAARCAEAAQADASIAAhEBAxEB/8QAGQABAQEBAQEAAAAAAAAAAAAAAAEDAgQF/8QAIBABAAIBBQEBAQEAAAAAAAAAAAECEgMRMVKRIWFBof/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwD7AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABETPENNPT3je3jUHm22HpmInljqUx+xwDgAAAAAAAAAAAAAAAAAAAAAAAAABaxvaIRaztaJB6AAEmN4mFSZ2iZB5wAAAAAAAAAAAAAAAAAAAAAAAAAAAaaeptG1vWrzETMcSD0zMRyx1L5fI4cb7gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7rpzNd/HAAAAAAAAAAAAAAAAAAAAAAAAAAAAADTT09/s8Gnp7/Z4agONSmX2OXYDzDbUpl9jliAAAAAAAAAAAAAAAAAAAsVmd9o4KVm0/jeIiI2gHnGupp/2vjIAABpp6e/2TT09/s8NQAAAAHGpTL7HLsB5htqUy+xyxAAAAAAAAAAAAAAAWlZtP4UrNp/G8RFY2gCIiI2hQAZ6mn/a+NAHmaaenv8AZ4dzp1m2/wDjoAAAAAAAABxqUy+xy7AeYbalMvscsQAAAAAAAAAAFpWbT+FKzafxvEREbQBEREbQoAAAAAAAAAAAAAAAAAONSmX2OXYDzDbUpl9jliAAAAAAAtKzafxaVm0/jaIiI2gCIiI2hQAAAAAAAAAAAAAAAAAAAAAcalMvscuwHmG2pTL7HLEAAAAFi0xxMwZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6kzvyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/Z" width=` + dim + ` height=` + dim + ` style="border-radius: 6%;" title="`+alttxt+`" alt="` + pend_txt + `"><div class=\"loader2\"></div><div class=\"imagelabel\">` + waittime + `</div></div>`;
+			return `<div class="`+siclass+reinvertcolor+`" contenteditable="false"><img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQc1tdhbWGkJ6jq62rZ4C8ybqmx5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wAARCAEAAQADASIAAhEBAxEB/8QAGQABAQEBAQEAAAAAAAAAAAAAAAEDAgQF/8QAIBABAAIBBQEBAQEAAAAAAAAAAAECEgMRMVKRIWFBof/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwD7AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABETPENNPT3je3jUHm22HpmInljqUx+xwDgAAAAAAAAAAAAAAAAAAAAAAAAABaxvaIRaztaJB6AAEmN4mFSZ2iZB5wAAAAAAAAAAAAAAAAAAAAAAAAAAAaaeptG1vWrzETMcSD0zMRyx1L5fI4cb7gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7rpzNd/HAAAAAAAAAAAAAAAAAAAAAAAAAAAAADTT09/s8Gnp7/Z4agONSmX2OXYDzDbUpl9jliAAAAAAAAAAAAAAAAAAAsVmd9o4KVm0/jeIiI2gHnGupp/2vjIAABpp6e/2TT09/s8NQAAAAHGpTL7HLsB5htqUy+xyxAAAAAAAAAAAAAAAWlZtP4UrNp/G8RFY2gCIiI2hQAZ6mn/a+NAHmaaenv8AZ4dzp1m2/wDjoAAAAAAAABxqUy+xy7AeYbalMvscsQAAAAAAAAAAFpWbT+FKzafxvEREbQBEREbQoAAAAAAAAAAAAAAAAAONSmX2OXYDzDbUpl9jliAAAAAAAtKzafxaVm0/jaIiI2gCIiI2hQAAAAAAAAAAAAAAAAAAAAAcalMvscuwHmG2pTL7HLEAAAAFi0xxMwZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6ZW7T6gC5W7T6kzvyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/Z" width=` + dim + ` height=` + dim + ` style="border-radius: 6%;" title="`+alttxt+`" alt="` + pend_txt + `"><div class=\"loader2\"></div><div class=\"imagelabel\">` + waittime + `</div></div>` + suffix;
 		} else {
 			let imghash = cyrb_hash(data).trim();
 			if (completed_imgs_meta[imghash] != null) {
 				alttxt = completed_imgs_meta[imghash].prompt?escapeHtml(completed_imgs_meta[imghash].prompt):"";
 			}
-			return `<div class="`+siclass+reinvertcolor+`"><img src="` + data + `" width=` + dim + ` height=` + dim + ` title="`+alttxt+`" style="border-radius: 6%; cursor: pointer;" onclick="return click_image(this,\'`+imghash+`\');"></div>`;
+			return `<div class="`+siclass+reinvertcolor+`"><img src="` + data + `" width=` + dim + ` height=` + dim + ` title="`+alttxt+`" style="border-radius: 6%; cursor: pointer;" onclick="return click_image(this,\'`+imghash+`\');"></div>` + suffix;
 		}
 	}
 
@@ -10611,7 +10654,8 @@ Current version: 113
 							let newstr = "[<|d|" + img.result + "|d|>]";
 							console.log("Replacing with Image: " + matchstr);
 							gametext_arr[i] = gametext_arr[i].replace(matchstr, newstr);
-							completed_imgs_meta[cyrb_hash(img.result)] = {prompt:image_db[key].prompt, desc:"", enabled:false};
+							let metaid = cyrb_hash(img.result);
+							completed_imgs_meta[metaid] = {prompt:image_db[key].prompt, desc:"", enabled:false};
 							delete image_db[key];
 						}
 					}
@@ -10969,13 +11013,30 @@ Current version: 113
 		}
 	}
 
+	function unstash_image_placeholders(text)
+	{
+		return text.replace(/{{\[IMG_.{1,8}_REF\]}}/g, function (m) {
+			let imghash = m.substring(7, m.length - 7);
+			if(!imghash)
+			{
+				return m;
+			}
+			let unstash = img_hash_to_b64_lookup[imghash];
+			if(!unstash)
+			{
+				return m;
+			}
+			return unstash;
+		});
+	}
+
 	function merge_edit_field() {
 		if (gametext_arr.length > 0 && document.getElementById("allowediting").checked) {
-			let oldInnerText = concat_gametext(true, "\n","","");
+			let oldInnerText = concat_gametext(false, "","","");
 			let gametext_elem = document.getElementById("gametext");
-			let edited = gametext_elem.innerText;
+			let editedmatcher = unstash_image_placeholders(gametext_elem.innerText);
 
-			if (oldInnerText != edited) {
+			if (oldInnerText != editedmatcher) {
 				gametext_arr = [];
 				redo_arr = [];
 				last_reply_was_empty = false;
@@ -10984,7 +11045,7 @@ Current version: 113
 				redo_prev_text = "";
 
 				//stash images
-				gametext_elem.querySelectorAll('div.storyimg,div.storyimgfloat').forEach(
+				gametext_elem.querySelectorAll('div.storyimgcenter,div.storyimgside,div.storyimgfloat').forEach(
 					(el) => {
 						let chimg = el.getElementsByTagName("img")[0];
 						if(el && chimg)
@@ -10993,6 +11054,9 @@ Current version: 113
 						}
 					}
 				);
+
+				//replace b64 image placeholders
+				gametext_elem.innerHTML = unstash_image_placeholders(gametext_elem.innerHTML);
 
 				let editedChunks = []; //use to count chunk lengths before merging
 				gametext_elem.querySelectorAll('span.txtchunk').forEach(
@@ -11418,19 +11482,36 @@ Current version: 113
 				fulltxt += "<span class=\"color_yellow pending_text\">" + escapeHtml(pending_context_preinjection) + escapeHtml(synchro_pending_stream) + "</span>";
 			}
 
-			//handle images
-			fulltxt = fulltxt.replace(/\[<\|p\|.+?\|p\|>\]/g, function (m) {
-				// m here means the whole matched string
-				let inner = m.substring(5, m.length - 5);
-				inner = render_image_html("", inner);
-				return inner;
-			});
-			fulltxt = fulltxt.replace(/\[<\|d\|.+?\|d\|>\]/g, function (m) {
-				// m here means the whole matched string
-				let inner = m.substring(5, m.length - 5);
-				inner = render_image_html(inner, "");
-				return inner;
-			});
+			if(!inEditMode)
+			{
+				let floatimg = (localsettings.opmode!=4);
+
+				//handle images
+				fulltxt = fulltxt.replace(/\[<\|p\|.+?\|p\|>\]/g, function (m) {
+					// m here means the whole matched string
+					let inner = m.substring(5, m.length - 5);
+					inner = render_image_html("", inner,floatimg,false);
+					return inner;
+				});
+				fulltxt = fulltxt.replace(/\[<\|d\|.+?\|d\|>\]/g, function (m) {
+					// m here means the whole matched string
+					let inner = m.substring(5, m.length - 5);
+					inner = render_image_html(inner, "",floatimg,false);
+					return inner;
+				});
+			}
+			else
+			{
+				fulltxt = fulltxt.replace(/\[<\|p\|.+?\|p\|>\]/g, function (m) {
+					return `<span class=\"color_pink\">`+m+`</span>`;
+				});
+				fulltxt = fulltxt.replace(/\[<\|d\|.+?\|d\|>\]/g, function (m) {
+					let inner = m.substring(5, m.length - 5);
+					let imghash = cyrb_hash(inner);
+					img_hash_to_b64_lookup[imghash] = m;
+					return `<span class=\"color_pink\">{{[IMG_${imghash}_REF]}}</span>`;
+				});
+			}
 
 
 			fulltxt = fulltxt.replace(/(\r\n|\r|\n)/g, '<br>');
@@ -11642,11 +11723,12 @@ Current version: 113
 
 		for(var i=0;i<input.length;++i)
 		{
-			let tempfullsearchable = input[i];
-			var foundopponent = tempfullsearchable.match(othernamesregex);
-			var foundself = tempfullsearchable.match(mynameregex);
+			let tempfullsearchable = input[i]; //strip out images
+			let txtwithnoimages = tempfullsearchable.replace(/\[<\|.+?\|>\]/g, "");
+			var foundopponent = txtwithnoimages.match(othernamesregex);
+			var foundself = txtwithnoimages.match(mynameregex);
 
-			if(tempfullsearchable==null )
+			if(tempfullsearchable==null)
 			{
 				continue;
 			}
@@ -11710,13 +11792,13 @@ Current version: 113
 				curr.msg = curr.msg.replace(/\[<\|p\|.+?\|p\|>\]/g, function (m) {
 					// m here means the whole matched string
 					let inner = m.substring(5, m.length - 5);
-					inner = render_image_html("", inner,false);
+					inner = render_image_html("", inner,false,true);
 					return inner;
 				});
 				curr.msg = curr.msg.replace(/\[<\|d\|.+?\|d\|>\]/g, function (m) {
 					// m here means the whole matched string
 					let inner = m.substring(5, m.length - 5);
-					inner = render_image_html(inner, "",false);
+					inner = render_image_html(inner, "",false,true);
 					return inner;
 				});
 				curr.msg = curr.msg.replace(/\[<\|.+?\|>\]/g, ""); //remove normal comments too
@@ -12647,13 +12729,13 @@ Current version: 113
 		newbodystr = newbodystr.replace(/\[<\|p\|.+?\|p\|>\]/g, function (m) {
 			// m here means the whole matched string
 			let inner = m.substring(5, m.length - 5);
-			inner = render_image_html("", inner,false);
+			inner = render_image_html("", inner,false,true);
 			return inner;
 		});
 		newbodystr = newbodystr.replace(/\[<\|d\|.+?\|d\|>\]/g, function (m) {
 			// m here means the whole matched string
 			let inner = m.substring(5, m.length - 5);
-			inner = render_image_html(inner, "",false);
+			inner = render_image_html(inner, "",false,true);
 			return inner;
 		});
 		return portraitsStyling + newbodystr.replaceAll(/(\r\n|\r|\n)/g,'<br>'); // Finally, convert newlines to HTML format and return the stylized string.
@@ -13558,6 +13640,10 @@ Current version: 113
 								</table>
 							</div>
 							<div id="mirounsupporteddiv" class="color_red" style="font-weight:bold;padding:3px;font-size:12px">Mirostat Not Supported</div>
+							<div class="settinglabel">
+								<div class="justifyleft settingsmall">User Mods <span class="helpicon">?<span class="helptext">Allows you to load third-party user created mods (caution).</span></span></div>
+								<button id="loadusermod" type="button" class="btn btn-primary" style="padding:2px 3px;margin-top:2px;font-size:11px;" onclick="apply_user_mod()">Apply User Mod</button>
+							</div>
 						</div>
 					</div>
 
@@ -13850,6 +13936,7 @@ Current version: 113
 				</span>
 			</div>
 
+			<div style="display: flex; column-gap: 4px;">
 			<input class="form-control anotetempbox" type="text"
 				placeholder="(the &lt;|&gt; will be replaced with the Author's Note text)" value="" id="anotetemplate">
 				<select style="padding:4px;" class="anotetempscale form-control" id="anote_strength">
@@ -13858,13 +13945,15 @@ Current version: 113
 					<option value="160">Strong</option>
 					<option value="0">Immediate</option>
 				</select>
-			<br><br>
+			</div>
+			<br>
 			<div class="justifyleft settinglabel">Extra Stopping Sequences <span class="helpicon">?<span
 				class="helptext">Triggers the text generator to stop generating early if this sequence appears, in addition to default stop sequences. If you want multiple sequences, separate them with the following delimiter: ||$||</span></span></div>
 				<div class="color_red hidden" id="noextrastopseq">Stop Sequences may be unavailable.</div>
+				<div style="display: flex; column-gap: 4px; margin-bottom: 4px;">
 				<input class="form-control stopseqbox" type="text" placeholder="None" value="" id="extrastopseq">
-				<button type="button" class="btn btn-primary" style="width:104px;padding:6px 6px;margin-bottom: 4px;" id="btnlogitbias" onclick="set_logit_bias()">Logit Biases</button>
-			<br>
+				<button type="button" class="btn btn-primary" style="width:104px;padding:6px 6px;" id="btnlogitbias" onclick="set_logit_bias()">Logit Biases</button>
+			</div>
 			<div class="popupfooter">
 				<button type="button" class="btn btn-primary" onclick="confirm_memory()">OK</button>
 				<button type="button" class="btn btn-primary" onclick="hide_popups()">Cancel</button>

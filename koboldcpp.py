@@ -466,7 +466,7 @@ maxhordelen = 256
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.58"
+KcppVersion = "1.59"
 showdebug = True
 showsamplerwarning = True
 showmaxctxwarning = True
@@ -484,6 +484,7 @@ gui_layers_untouched = True
 runmode_untouched = True
 preloaded_story = None
 sslvalid = False
+nocertify = False
 start_time = time.time()
 
 class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -1216,6 +1217,7 @@ def show_new_gui():
     debugmode = ctk.IntVar()
     keepforeground = ctk.IntVar()
     quietmode = ctk.IntVar(value=0)
+    nocertifymode = ctk.IntVar(value=0)
 
     lowvram_var = ctk.IntVar()
     mmq_var = ctk.IntVar(value=1)
@@ -1520,6 +1522,13 @@ def show_new_gui():
     gpu_choice_var.trace("w", changed_gpu_choice_var)
     gpulayers_var.trace("w", changed_gpulayers)
 
+    def togglectxshift(a,b,c):
+        if contextshift.get()==0:
+            smartcontextbox.grid(row=1, column=0, padx=8, pady=1,  stick="nw")
+        else:
+            smartcontextbox.grid_forget()
+
+
     def changerunmode(a,b,c):
         global runmode_untouched
         runmode_untouched = False
@@ -1668,11 +1677,9 @@ def show_new_gui():
     # Tokens Tab
     tokens_tab = tabcontent["Tokens"]
     # tokens checkboxes
-    token_boxes = {"Use SmartContext":smartcontext, "Use ContextShift":contextshift}
-    token_boxes_tip = {"Use SmartContext":"Uses SmartContext. Now considered outdated and not recommended.\nCheck the wiki for more info.",
-    "Use ContextShift":"Uses Context Shifting to reduce reprocessing.\nRecommended. Check the wiki for more info."}
-    for idx, name, in enumerate(token_boxes):
-        makecheckbox(tokens_tab, name, token_boxes[name], idx + 1,tooltiptxt=token_boxes_tip[name])
+    smartcontextbox = makecheckbox(tokens_tab, "Use SmartContext", smartcontext, 1,tooltiptxt="Uses SmartContext. Now considered outdated and not recommended.\nCheck the wiki for more info.")
+    makecheckbox(tokens_tab, "Use ContextShift", contextshift, 2,tooltiptxt="Uses Context Shifting to reduce reprocessing.\nRecommended. Check the wiki for more info.", command=togglectxshift)
+    togglectxshift(1,1,1)
 
     # context size
     makeslider(tokens_tab, "Context Size:",contextsize_text, context_var, 0, len(contextsize_text)-1, 20, set=15,tooltip="What is the maximum context size to support. Model specific. You cannot exceed it.\nLarger contexts require more memory, and not all models support it.")
@@ -1709,6 +1716,7 @@ def show_new_gui():
     makecheckbox(network_tab, "Multiuser Mode", multiuser_var, 3,tooltiptxt="Allows requests by multiple different clients to be queued and handled in sequence.")
     makecheckbox(network_tab, "Remote Tunnel", remotetunnel, 3, 1,tooltiptxt="Creates a trycloudflare tunnel.\nAllows you to access koboldcpp from other devices over an internet URL.")
     makecheckbox(network_tab, "Quiet Mode", quietmode, 4,tooltiptxt="Prevents all generation related terminal output from being displayed.")
+    makecheckbox(network_tab, "NoCertify Mode (Insecure)", nocertifymode, 4, 1,tooltiptxt="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.")
 
     makefileentry(network_tab, "SSL Cert:", "Select SSL cert.pem file",ssl_cert_var, 5, width=130 ,filetypes=[("Unencrypted Certificate PEM", "*.pem")], singlerow=True,tooltiptxt="Select your unencrypted .pem SSL certificate file for https.\nCan be generated with OpenSSL.")
     makefileentry(network_tab, "SSL Key:", "Select SSL key.pem file", ssl_key_var, 7, width=130, filetypes=[("Unencrypted Key PEM", "*.pem")], singlerow=True,tooltiptxt="Select your unencrypted .pem SSL key file for https.\nCan be generated with OpenSSL.")
@@ -1760,6 +1768,7 @@ def show_new_gui():
         args.remotetunnel = remotetunnel.get()==1
         args.foreground = keepforeground.get()==1
         args.quiet = quietmode.get()==1
+        args.nocertify = nocertifymode.get()==1
 
         gpuchoiceidx = 0
         if gpu_choice_var.get()!="All":
@@ -1812,7 +1821,6 @@ def show_new_gui():
 
         args.ssl = None if (ssl_cert_var.get() == "" or ssl_key_var.get() == "") else ([ssl_cert_var.get(), ssl_key_var.get()])
 
-
         args.port_param = defaultport if port_var.get()=="" else int(port_var.get())
         args.host = host_var.get()
         args.multiuser = multiuser_var.get()
@@ -1836,6 +1844,7 @@ def show_new_gui():
         remotetunnel.set(1 if "remotetunnel" in dict and dict["remotetunnel"] else 0)
         keepforeground.set(1 if "foreground" in dict and dict["foreground"] else 0)
         quietmode.set(1 if "quiet" in dict and dict["quiet"] else 0)
+        nocertifymode.set(1 if "nocertify" in dict and dict["nocertify"] else 0)
         if "useclblast" in dict and dict["useclblast"]:
             if "noavx2" in dict and dict["noavx2"]:
                 if clblast_noavx2_option is not None:
@@ -2020,9 +2029,14 @@ def print_with_time(txt):
     print(f"{datetime.now().strftime('[%H:%M:%S]')} " + txt)
 
 def make_url_request(url, data, method='POST', headers={}):
-    import urllib.request
+    import urllib.request, ssl
+    global nocertify
     try:
         request = None
+        ssl_context = ssl.create_default_context()
+        if nocertify:
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
         if method=='POST':
             json_payload = json.dumps(data).encode('utf-8')
             request = urllib.request.Request(url, data=json_payload, headers=headers, method=method)
@@ -2030,7 +2044,7 @@ def make_url_request(url, data, method='POST', headers={}):
         else:
             request = urllib.request.Request(url, headers=headers, method=method)
         response_data = ""
-        with urllib.request.urlopen(request) as response:
+        with urllib.request.urlopen(request,context=ssl_context) as response:
             response_data = response.read().decode('utf-8')
             json_response = json.loads(response_data)
             return json_response
@@ -2429,6 +2443,10 @@ def main(launch_args,start_server=True):
         global maxctx
         maxctx = args.contextsize
 
+    if args.nocertify:
+        global nocertify
+        nocertify = True
+
     init_library() # Note: if blas does not exist and is enabled, program will crash.
     print("==========")
     time.sleep(1)
@@ -2664,6 +2682,7 @@ if __name__ == '__main__':
     parser.add_argument("--preloadstory", help="Configures a prepared story json save file to be hosted on the server, which frontends (such as Kobold Lite) can access over the API.", default="")
     parser.add_argument("--quiet", help="Enable quiet mode, which hides generation inputs and outputs in the terminal. Quiet mode is automatically enabled when running --hordeconfig.", action='store_true')
     parser.add_argument("--ssl", help="Allows all content to be served over SSL instead. A valid UNENCRYPTED SSL cert and key .pem files must be provided", metavar=('[cert_pem]', '[key_pem]'), nargs='+')
+    parser.add_argument("--nocertify", help="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.", action='store_true')
 
     # #deprecated hidden args. they do nothing. do not use
     # parser.add_argument("--psutil_set_threads", action='store_true', help=argparse.SUPPRESS)
