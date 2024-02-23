@@ -130,11 +130,12 @@ lib_clblast_noavx2 = pick_existant_file("koboldcpp_clblast_noavx2.dll","koboldcp
 lib_cublas = pick_existant_file("koboldcpp_cublas.dll","koboldcpp_cublas.so")
 lib_hipblas = pick_existant_file("koboldcpp_hipblas.dll","koboldcpp_hipblas.so")
 lib_vulkan = pick_existant_file("koboldcpp_vulkan.dll","koboldcpp_vulkan.so")
+lib_vulkan_noavx2 = pick_existant_file("koboldcpp_vulkan_noavx2.dll","koboldcpp_vulkan_noavx2.so")
 libname = ""
 
 def init_library():
     global handle, args, libname
-    global lib_default,lib_failsafe,lib_openblas,lib_noavx2,lib_clblast,lib_clblast_noavx2,lib_cublas,lib_hipblas,lib_vulkan
+    global lib_default,lib_failsafe,lib_openblas,lib_noavx2,lib_clblast,lib_clblast_noavx2,lib_cublas,lib_hipblas,lib_vulkan,lib_vulkan_noavx2
 
     libname = ""
     use_openblas = False # if true, uses OpenBLAS for acceleration. libopenblas.dll must exist in the same dir.
@@ -153,6 +154,12 @@ def init_library():
             else:
                 print("Attempting to use NoAVX2 CLBlast library for faster prompt ingestion. A compatible clblast will be required.")
                 use_clblast = True
+        elif (args.usevulkan is not None):
+            if not file_exists(lib_vulkan_noavx2):
+                print("Warning: NoAVX2 Vulkan library file not found. Non-BLAS library will be used.")
+            else:
+                print("Attempting to use NoAVX2 Vulkan library for faster prompt ingestion. A compatible Vulkan will be required.")
+                use_vulkan = True
         else:
             if not file_exists(lib_noavx2):
                 print("Warning: NoAVX2 library file not found. Failsafe library will be used.")
@@ -200,6 +207,8 @@ def init_library():
             libname = lib_failsafe
         elif use_clblast:
             libname = lib_clblast_noavx2
+        elif use_vulkan:
+            libname = lib_vulkan_noavx2
         else:
             libname = lib_noavx2
     else:
@@ -1188,9 +1197,10 @@ def show_new_gui():
         (lib_vulkan, "Use Vulkan"),
         (lib_default, "Use No BLAS"),
         (lib_clblast_noavx2, "CLBlast NoAVX2 (Old CPU)"),
+        (lib_vulkan_noavx2, "Vulkan NoAVX2 (Old CPU)"),
         (lib_noavx2, "NoAVX2 Mode (Old CPU)"),
         (lib_failsafe, "Failsafe Mode (Old CPU)")]
-    openblas_option, clblast_option, cublas_option, hipblas_option, vulkan_option, default_option, clblast_noavx2_option, noavx2_option, failsafe_option = (opt if file_exists(lib) or (os.name == 'nt' and file_exists(opt + ".dll")) else None for lib, opt in lib_option_pairs)
+    openblas_option, clblast_option, cublas_option, hipblas_option, vulkan_option, default_option, clblast_noavx2_option, vulkan_noavx2_option, noavx2_option, failsafe_option = (opt if file_exists(lib) or (os.name == 'nt' and file_exists(opt + ".dll")) else None for lib, opt in lib_option_pairs)
     # slider data
     blasbatchsize_values = ["-1", "32", "64", "128", "256", "512", "1024", "2048"]
     blasbatchsize_text = ["Don't Batch BLAS","32","64","128","256","512","1024","2048"]
@@ -1487,7 +1497,7 @@ def show_new_gui():
         # backend count label with the tooltip function
         nl = '\n'
         tooltxt = f"Number of backends you have built and available." + (f"\n\nMissing Backends: \n\n{nl.join(antirunopts)}" if len(runopts) != 6 else "")
-        num_backends_built = makelabel(parent, str(len(runopts)) + f"/8", 5, 2,tooltxt)
+        num_backends_built = makelabel(parent, str(len(runopts)) + f"/9", 5, 2,tooltxt)
         num_backends_built.grid(row=1, column=1, padx=195, pady=0)
         num_backends_built.configure(text_color="#00ff00")
 
@@ -1504,7 +1514,7 @@ def show_new_gui():
             try:
                 s = int(gpu_choice_var.get())-1
                 v = runopts_var.get()
-                if v == "Use Vulkan":
+                if v == "Use Vulkan" or v == "Vulkan NoAVX2 (Old CPU)":
                     quick_gpuname_label.configure(text=VKDevicesNames[s])
                     gpuname_label.configure(text=VKDevicesNames[s])
                 elif v == "Use CLBlast" or v == "CLBlast NoAVX2 (Old CPU)":
@@ -1533,12 +1543,12 @@ def show_new_gui():
         global runmode_untouched
         runmode_untouched = False
         index = runopts_var.get()
-        if index == "Use Vulkan" or index == "Use CLBlast" or index == "CLBlast NoAVX2 (Old CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
+        if index == "Use Vulkan" or index == "Vulkan NoAVX2 (Old CPU)" or index == "Use CLBlast" or index == "CLBlast NoAVX2 (Old CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
             quick_gpuname_label.grid(row=3, column=1, padx=75, sticky="W")
             gpuname_label.grid(row=3, column=1, padx=75, sticky="W")
             gpu_selector_label.grid(row=3, column=0, padx = 8, pady=1, stick="nw")
             quick_gpu_selector_label.grid(row=3, column=0, padx = 8, pady=1, stick="nw")
-            if index == "Use Vulkan" or index == "Use CLBlast" or index == "CLBlast NoAVX2 (Old CPU)":
+            if index == "Use Vulkan" or index == "Vulkan NoAVX2 (Old CPU)" or index == "Use CLBlast" or index == "CLBlast NoAVX2 (Old CPU)":
                 gpu_selector_box.grid(row=3, column=1, padx=8, pady=1, stick="nw")
                 quick_gpu_selector_box.grid(row=3, column=1, padx=8, pady=1, stick="nw")
                 if gpu_choice_var.get()=="All":
@@ -1573,7 +1583,7 @@ def show_new_gui():
             tensor_split_entry.grid_forget()
             splitmode_box.grid_forget()
 
-        if index == "Use Vulkan" or index == "Use CLBlast" or index == "CLBlast NoAVX2 (Old CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
+        if index == "Use Vulkan" or index == "Vulkan NoAVX2 (Old CPU)" or index == "Use CLBlast" or index == "CLBlast NoAVX2 (Old CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
             gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
             gpu_layers_entry.grid(row=6, column=1, padx=8, pady=1, stick="nw")
             quick_gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
@@ -1786,8 +1796,10 @@ def show_new_gui():
                 args.usecublas.append("mmq")
             if rowsplit_var.get()==1:
                 args.usecublas.append("rowsplit")
-        if runopts_var.get() == "Use Vulkan":
+        if runopts_var.get() == "Use Vulkan" or runopts_var.get() == "Vulkan NoAVX2 (Old CPU)":
             args.usevulkan = [int(gpuchoiceidx)]
+            if runopts_var.get() == "Vulkan NoAVX2 (Old CPU)":
+                args.noavx2 = True
         if gpulayers_var.get():
             args.gpulayers = int(gpulayers_var.get())
         if runopts_var.get()=="Use No BLAS":
@@ -1869,13 +1881,22 @@ def show_new_gui():
                         gpu_choice_var.set(str(g+1))
                         break
         elif "usevulkan" in dict:
-            if vulkan_option is not None:
-                runopts_var.set(vulkan_option)
-                gpu_choice_var.set("1")
-                for opt in range(0,4):
-                    if opt in dict["usevulkan"]:
-                        gpu_choice_var.set(str(opt+1))
-                        break
+            if "noavx2" in dict and dict["noavx2"]:
+                if vulkan_noavx2_option is not None:
+                    runopts_var.set(vulkan_noavx2_option)
+                    gpu_choice_var.set("1")
+                    for opt in range(0,4):
+                        if opt in dict["usevulkan"]:
+                            gpu_choice_var.set(str(opt+1))
+                            break
+            else:
+                if vulkan_option is not None:
+                    runopts_var.set(vulkan_option)
+                    gpu_choice_var.set("1")
+                    for opt in range(0,4):
+                        if opt in dict["usevulkan"]:
+                            gpu_choice_var.set(str(opt+1))
+                            break
 
         elif  "noavx2" in dict and "noblas" in dict and dict["noblas"] and dict["noavx2"]:
             if failsafe_option is not None:
@@ -2026,7 +2047,7 @@ def show_gui_msgbox(title,message):
 
 def print_with_time(txt):
     from datetime import datetime
-    print(f"{datetime.now().strftime('[%H:%M:%S]')} " + txt)
+    print(f"{datetime.now().strftime('[%H:%M:%S]')} " + txt, flush=True)
 
 def make_url_request(url, data, method='POST', headers={}):
     import urllib.request, ssl
@@ -2217,10 +2238,10 @@ def setuptunnel():
             tunnelrawlog = ""
             time.sleep(0.2)
             if os.name == 'nt':
-                print("Starting Cloudflare Tunnel for Windows, please wait...")
+                print("Starting Cloudflare Tunnel for Windows, please wait...", flush=True)
                 tunnelproc = subprocess.Popen(f"cloudflared.exe tunnel --url localhost:{args.port}", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
             else:
-                print("Starting Cloudflare Tunnel for Linux, please wait...")
+                print("Starting Cloudflare Tunnel for Linux, please wait...", flush=True)
                 tunnelproc = subprocess.Popen(f"./cloudflared-linux-amd64 tunnel --url http://localhost:{args.port}", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
             time.sleep(10)
             def tunnel_reader():
@@ -2238,14 +2259,14 @@ def setuptunnel():
                         print(f"Your remote Kobold API can be found at {tunneloutput}/api")
                         print(f"Your remote OpenAI Compatible API can be found at {tunneloutput}/v1")
                         print("======\n")
-                        print(f"Your remote tunnel is ready, please connect to {tunneloutput}")
+                        print(f"Your remote tunnel is ready, please connect to {tunneloutput}", flush=True)
                         return
 
             tunnel_reader_thread = threading.Thread(target=tunnel_reader)
             tunnel_reader_thread.start()
             time.sleep(5)
             if tunneloutput=="":
-                print(f"Error: Could not create cloudflare tunnel!\nMore Info:\n{tunnelrawlog}")
+                print(f"Error: Could not create cloudflare tunnel!\nMore Info:\n{tunnelrawlog}", flush=True)
             time.sleep(0.5)
             tunnelproc.wait()
 
@@ -2262,6 +2283,7 @@ def setuptunnel():
                 print("Downloading Cloudflare Tunnel for Linux...")
                 subprocess.run("curl -fL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared-linux-amd64", shell=True, capture_output=True, text=True, check=True, encoding='utf-8')
                 subprocess.run("chmod +x 'cloudflared-linux-amd64'", shell=True)
+        print("Attempting to start tunnel thread...", flush=True)
         tunnel_thread = threading.Thread(target=run_tunnel)
         tunnel_thread.start()
     except Exception as ex:
