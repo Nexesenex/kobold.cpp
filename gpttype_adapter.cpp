@@ -94,7 +94,8 @@ static int remaining_tokens = 0;
 static int stopper_unused_tokens = 0;
 static std::mutex concat_output_mtx;
 static std::string concat_output = "";
-static std::string concat_output_reader_copy = "";
+static std::string concat_output_reader_copy_poll = ""; //for streaming
+static std::string concat_output_reader_copy_res = ""; //for gen response
 static std::vector<logit_bias> logit_biases;
 
 const int extra_context_handle_fragmentation = 0;
@@ -666,7 +667,7 @@ void PurgeMissingTokens(llama_context * ctx, std::vector<int> &current_context_t
             //extract the unwanted tokens out from context and KV
             int diff = found - trimstart;
             llama_kv_cache_seq_rm(llama_ctx_v4, 0, trimstart, trimstart + diff);
-            llama_kv_cache_seq_shift(llama_ctx_v4, 0, trimstart + diff, -1, -diff);
+            llama_kv_cache_seq_add(llama_ctx_v4, 0, trimstart + diff, -1, -diff);
 
             for (size_t i = trimstart + diff; i < current_context_tokens.size() - 1; i++)
             {
@@ -947,7 +948,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         #if defined(GGML_USE_CLBLAST)
         if(file_format==FileFormat::GGUF_GENERIC && model_params.n_gpu_layers>0)
         {
-            if(file_format_meta.model_architecture == GGUFArch::FALCON)
+            if(file_format_meta.model_architecture == GGUFArch::ARCH_FALCON)
             {
                 printf("\nOpenCL does not support GPU Layer offloading for this model architecture! GPU Offload has been disabled.\n");
                 model_params.n_gpu_layers = 0;
@@ -1467,12 +1468,12 @@ const std::string & gpttype_get_pending_output()
     if(kcpp_params==nullptr)
     {
         printf("\nWarning: KCPP not initialized!\n");
-        return concat_output_reader_copy;
+        return concat_output_reader_copy_poll;
     }
     concat_output_mtx.lock();
-    concat_output_reader_copy = concat_output;
+    concat_output_reader_copy_poll = concat_output;
     concat_output_mtx.unlock();
-    return concat_output_reader_copy;
+    return concat_output_reader_copy_poll;
 }
 
 int GetThreadsToUse(bool blasmode)
@@ -1491,12 +1492,14 @@ int GetThreadsToUse(bool blasmode)
     return kcpp_params->n_threads;
 }
 
-generation_outputs gpttype_generate(const generation_inputs inputs, generation_outputs &output)
+generation_outputs gpttype_generate(const generation_inputs inputs)
 {
+    generation_outputs output;
+
     if(kcpp_params==nullptr)
     {
         printf("\nWarning: KCPP not initialized!\n");
-        snprintf(output.text, sizeof(output.text), "%s", "");
+        output.text = nullptr;
         output.status = 0;
         generation_finished = true;
         return output;
@@ -1509,7 +1512,8 @@ generation_outputs gpttype_generate(const generation_inputs inputs, generation_o
 
     concat_output_mtx.lock();
     concat_output = "";
-    concat_output_reader_copy = "";
+    concat_output_reader_copy_poll = "";
+    concat_output_reader_copy_res = "";
     concat_output_mtx.unlock();
     last_stop_reason = stop_reason::OUT_OF_TOKENS;
     stop_sequence.clear();
@@ -1895,7 +1899,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs, generation_o
             if (!evalres)
             {
                 fprintf(stderr, "\nFailed to predict at %d! Check your context buffer sizes!\n",n_past);
-                snprintf(output.text, sizeof(output.text), "%s", "");
+                output.text = nullptr;
                 output.status = 0;
                 generation_finished = true;
                 return output;
@@ -2030,7 +2034,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs, generation_o
                     printf("\n(EOS token triggered!)");
                 }
                 remaining_tokens = 0;
-                last_stop_reason = stop_reason::EOS_TOKEN;
+                last_stop_reason = stop_reason::EOS_TOKEN_HIT;
             }
 
             for (const auto &matched : stop_sequence)
@@ -2090,7 +2094,9 @@ generation_outputs gpttype_generate(const generation_inputs inputs, generation_o
     last_token_count = realnpredict;
     last_seed = kcpp_params->seed;
     total_gens += 1;
-    snprintf(output.text, sizeof(output.text), "%s", concat_output.c_str());
-
+    concat_output_mtx.lock();
+    concat_output_reader_copy_res = concat_output;
+    concat_output_mtx.unlock();
+    output.text = concat_output_reader_copy_res.c_str();
     return output;
 }
