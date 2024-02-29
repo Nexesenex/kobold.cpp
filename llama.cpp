@@ -1,8 +1,6 @@
 #define LLAMA_API_INTERNAL
 #include "llama.h"
 
-#include <iostream>
-
 #include "unicode.h"
 
 #include "ggml.h"
@@ -10,17 +8,14 @@
 #include "ggml-backend.h"
 
 #ifdef GGML_USE_CUBLAS
-#include "ggml-cuda.h"
-#endif
-#if defined(GGML_USE_CLBLAST)
-#include "ggml-opencl.h"
-#endif
-#if defined(GGML_USE_VULKAN)
+#  include "ggml-cuda.h"
+#elif defined(GGML_USE_CLBLAST)
+#  include "ggml-opencl.h"
+#elif defined(GGML_USE_VULKAN)
 #  include "ggml-vulkan.h"
 #elif defined(GGML_USE_SYCL)
 #  include "ggml-sycl.h"
-#endif
-#if defined(GGML_USE_KOMPUTE)
+#elif defined(GGML_USE_KOMPUTE)
 #   include "ggml-kompute.h"
 #endif
 
@@ -184,25 +179,6 @@ static std::string format(const char * fmt, ...) {
     va_end(ap2);
     va_end(ap);
     return std::string(buf.data(), size);
-}
-
-static bool clblast_offload_fallback_mode = false; //used when regular offload will segfault
-static int clblast_offload_fallback_layers = 0;
-static int layer_name_to_number(std::string inputString)
-{
-    size_t firstDotPosition = inputString.find('.');
-    int converted = -1;
-
-    if (firstDotPosition != std::string::npos) {
-        size_t secondDotPosition = inputString.find('.', firstDotPosition + 1);
-        if (secondDotPosition != std::string::npos) {
-            std::string numbersPortion = inputString.substr(firstDotPosition + 1, secondDotPosition - firstDotPosition - 1);
-            try{converted = std::stoi(numbersPortion);}
-            catch (const std::invalid_argument& e) {}
-            catch (const std::out_of_range& e) {}
-        }
-    }
-    return converted;
 }
 
 //
@@ -1201,7 +1177,6 @@ struct llama_mmap {
             throw std::runtime_error(format("MapViewOfFile failed: %s", llama_format_win_err(error).c_str()));
         }
 
-        #ifndef USE_FAILSAFE
         if (prefetch > 0) {
 #if _WIN32_WINNT >= 0x602
             // PrefetchVirtualMemory is only present on Windows 8 and above, so we dynamically load it
@@ -1225,9 +1200,6 @@ struct llama_mmap {
             throw std::runtime_error("PrefetchVirtualMemory unavailable");
 #endif
         }
-        #else
-        printf("\nPrefetchVirtualMemory skipped in compatibility mode.\n");
-        #endif
     }
 
     void unmap_fragment(size_t first, size_t last) {
@@ -1411,7 +1383,7 @@ struct llama_mlock {
 #endif
 };
 
-static std::string llama_token_to_str(const struct llama_context * ctx, llama_token token) {
+static std::string llama_token_to_piece(const struct llama_context * ctx, llama_token token) {
     std::vector<char> result(8, 0);
     const int n_tokens = llama_token_to_piece(llama_get_model(ctx), token, result.data(), result.size());
     if (n_tokens < 0) {
@@ -1829,16 +1801,12 @@ struct llama_vocab {
     id special_eot_id    = 32010;
 
     bool add_space_prefix = true;
-    int find_bpe_rank(std::string token_left, std::string token_right) const {
-        // GGML_ASSERT(token_left.find(" ") == std::string::npos);
-        // GGML_ASSERT(token_left.find("\n") == std::string::npos);
-        // GGML_ASSERT(token_right.find(" ") == std::string::npos);
-        // GGML_ASSERT(token_right.find("\n") == std::string::npos);
-        //the above breaks gguf v1 falcons
-        replace_all(token_left,  " ",  "\u0120");
-        replace_all(token_left,  "\n", "\u010A");
-        replace_all(token_right, " ",  "\u0120");
-        replace_all(token_right, "\n", "\u010A");
+
+    int find_bpe_rank(const std::string & token_left, const std::string & token_right) const {
+        GGML_ASSERT(token_left.find(' ') == std::string::npos);
+        GGML_ASSERT(token_left.find('\n') == std::string::npos);
+        GGML_ASSERT(token_right.find(' ') == std::string::npos);
+        GGML_ASSERT(token_right.find('\n') == std::string::npos);
 
         auto it = bpe_ranks.find(std::make_pair(token_left, token_right));
         if (it == bpe_ranks.end()) {
@@ -2575,7 +2543,6 @@ struct llama_model_loader {
 
         // determine file type based on the number of tensors for each quantization and print meta data
         // TODO: make optional
-        if(false) //disable this log for now
         {
             std::map<enum ggml_type, uint32_t> n_type;
 
@@ -2896,19 +2863,6 @@ struct llama_model_loader {
                 }
             }
 
-            #if defined(GGML_USE_CLBLAST)
-            if(clblast_offload_fallback_mode)
-            {
-                int layernum = layer_name_to_number(cur->name);
-                bool shouldoffload = (layernum>=0 && clblast_offload_fallback_layers>layernum);
-                if(shouldoffload)
-                {
-                    cur->backend = GGML_BACKEND_TYPE_GPU;
-                    ggml_cl_transform_tensor(cur->data, cur);
-                }
-            }
-            #endif
-
             size_done += ggml_nbytes(cur);
         }
 
@@ -2991,7 +2945,18 @@ static std::string llama_model_ftype_name(llama_ftype ftype) {
         case LLAMA_FTYPE_MOSTLY_IQ4_XS: return "IQ4_XS - 4.25 bpw";
         case LLAMA_FTYPE_MOSTLY_IQ3_S:  return "IQ3_S - 3.4375 bpw";
         case LLAMA_FTYPE_MOSTLY_IQ3_M:  return "IQ3_S mix - 3.66 bpw";
-
+        case LLAMA_FTYPE_MOSTLY_IQ1_LR: return "IQ3_S mix - 1.9x bpw";	
+        case LLAMA_FTYPE_MOSTLY_IQ2_SR: return "IQ3_S mix - 2.3x bpw";	
+        case LLAMA_FTYPE_MOSTLY_IQ2_MR: return "IQ3_S mix - 2.5x bpw";	
+        case LLAMA_FTYPE_MOSTLY_IQ2_LR: return "IQ3_S mix - 2.7x bpw";		
+        case LLAMA_FTYPE_MOSTLY_IQ3_SR: return "IQ3_S mix - 3.1x bpw";		
+        case LLAMA_FTYPE_MOSTLY_IQ3_MR: return "IQ3_S mix - 3.4x bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ3_LR: return "IQ3_S mix - 3.6x bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ4_XS0:return "IQ4_XS mix - 4.1x bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ4_XS1:return "IQ4_XS mix - 4.0x bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ4_XS2:return "IQ4_XS mix - 3.8x bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ4_XS3:return "IQ4_XS mix - 3.7x bpw";
+		
         default: return "unknown, may not work";
     }
 }
@@ -3380,7 +3345,6 @@ static void llm_load_hparams(
 // TODO: This should probably be in llama.h
 static std::vector<llama_vocab::id> llama_tokenize_internal(const llama_vocab & vocab, std::string raw_text, bool bos, bool special = false);
 static llama_token llama_byte_to_token(const llama_vocab & vocab, uint8_t ch);
-static bool OldBPETokenizerMode = false;
 
 static void llm_load_vocab(
         llama_model_loader & ml,
@@ -3441,16 +3405,7 @@ static void llm_load_vocab(
 
             for (int i = 0; i < n_merges; i++) {
                 const std::string word = gguf_get_arr_str(ctx, merges_keyidx, i);
-                if (!OldBPETokenizerMode)
-                {
-                    auto validcodepoints = codepoints_from_utf8(word).size() > 0;
-                    GGML_ASSERT_CONTINUE(validcodepoints);
-                    if(!validcodepoints)
-                    {
-                        OldBPETokenizerMode = true;
-                        printf("\nFalling Back to older tokenizer...");
-                    }
-                }
+                GGML_ASSERT(codepoints_from_utf8(word).size() > 0);
 
                 std::string first;
                 std::string second;
@@ -3495,16 +3450,7 @@ static void llm_load_vocab(
 
     for (uint32_t i = 0; i < n_vocab; i++) {
         std::string word = gguf_get_arr_str(ctx, token_idx, i);
-       if (!OldBPETokenizerMode)
-        {
-            auto validcodepoints = codepoints_from_utf8(word).size() > 0;
-            GGML_ASSERT_CONTINUE(validcodepoints);
-            if(!validcodepoints)
-            {
-                OldBPETokenizerMode = true;
-                printf("\nFalling Back to older tokenizer...");
-            }
-        }
+        GGML_ASSERT(codepoints_from_utf8(word).size() > 0);
 
         vocab.token_to_id[word] = i;
 
@@ -3513,7 +3459,7 @@ static void llm_load_vocab(
         token_data.score = scores ? scores[i] : 0.0f;
         token_data.type  = toktypes ? (llama_token_type) toktypes[i] : LLAMA_TOKEN_TYPE_NORMAL;
     }
-    GGML_ASSERT_CONTINUE(vocab.id_to_token.size() == vocab.token_to_id.size());
+    GGML_ASSERT(vocab.id_to_token.size() == vocab.token_to_id.size());
 
     // determine the newline token: LLaMA "<0x0A>" == 10 == '\n', Falcon 193 == '\n'
     if (vocab.type == LLAMA_VOCAB_TYPE_SPM) {
@@ -3752,14 +3698,7 @@ static bool llm_load_tensors(
     model.n_gpu_layers = n_gpu_layers;
 
     const int64_t n_layer     = hparams.n_layer;
-    int64_t i_gpu_start = std::max((int64_t) hparams.n_layer - n_gpu_layers, (int64_t) 0);
-
-    if(clblast_offload_fallback_mode)
-    {
-        printf("\nOpenCL GPU Offload Fallback...");
-        clblast_offload_fallback_layers = n_gpu_layers;
-        i_gpu_start = std::max((int64_t) hparams.n_layer, (int64_t) 0);
-    }
+    const int64_t i_gpu_start = std::max((int64_t) hparams.n_layer - n_gpu_layers, (int64_t) 0);
 
     // there is very little benefit to offloading the input layer, so always keep it on the CPU
     model.buft_input = llama_default_buffer_type_cpu(true);
@@ -3824,7 +3763,7 @@ static bool llm_load_tensors(
             };
         }
         // assign the output layer
-        if (n_gpu_layers > n_layer && !clblast_offload_fallback_mode) {
+        if (n_gpu_layers > n_layer) {
             model.buft_output = {
                 split_buft,
                 llama_default_buffer_type_offload(main_gpu)
@@ -4974,7 +4913,7 @@ static struct ggml_tensor * llm_build_kqv(
 
 #if defined(GGML_USE_VULKAN) || defined(GGML_USE_KOMPUTE)
 #pragma message("TODO: ALiBi support in ggml_soft_max_ext is not implemented for Vulkan, and Kompute")
-#pragma message("      Falling back to ggml_alibi(). Will become an error in Mar 2024. But koboldcpp will deal with it.")
+#pragma message("      Falling back to ggml_alibi(). Will become an error in Mar 2024")
 #pragma message("ref:  https://github.com/ggerganov/llama.cpp/pull/5488")
     if (hparams.f_max_alibi_bias > 0.0f) {
         kq = ggml_scale(ctx, kq, kq_scale);
@@ -7965,7 +7904,7 @@ static int llama_decode_internal(
 
     GGML_ASSERT(n_tokens <= n_batch);
 
-    int n_threads = n_tokens < 32 ? cparams.n_threads : cparams.n_threads_batch;
+    int n_threads = n_tokens == 1 ? cparams.n_threads : cparams.n_threads_batch;
     GGML_ASSERT((!batch.token && batch.embd) || (batch.token && !batch.embd)); // NOLINT
 
     const int64_t t_start_us = ggml_time_us();
@@ -8057,9 +7996,6 @@ static int llama_decode_internal(
         GGML_ASSERT(false);
     }
 
-    #if defined(GGML_USE_CUBLAS)
-    ggml_cuda_set_mul_mat_q(cparams.mul_mat_q);
-    #endif
     // LLAMA_LOG_INFO("graph build time: %.3f ms (%d nodes, %d leafs)\n", (ggml_time_us() - t_start_us)/1000.0, gf->n_nodes, gf->n_leafs);
 
     // for big prompts, if BLAS is enabled, it is better to use only one thread
@@ -8462,15 +8398,14 @@ static uint8_t llama_token_to_byte(const llama_vocab& vocab, llama_token id) {
         return strtol(buf.c_str(), NULL, 16);
     }
     case LLAMA_VOCAB_TYPE_BPE: {
-        GGML_ASSERT_CONTINUE(false);
+        GGML_ASSERT(false);
         return unicode_to_bytes_bpe(token_data.text);
     }
     case LLAMA_VOCAB_TYPE_WPM: {
         GGML_ASSERT(false);
     }
     default:
-        GGML_ASSERT_CONTINUE(false);
-        return 0;
+        GGML_ASSERT(false);
     }
 }
 
@@ -8492,8 +8427,7 @@ static llama_token llama_byte_to_token(const llama_vocab & vocab, uint8_t ch) {
             return vocab.token_to_id.at(bytes_to_unicode_bpe(ch));
         }
         default:
-            GGML_ASSERT_CONTINUE(false);
-            return 0;
+            GGML_ASSERT(false);
     }
 }
 
@@ -8680,225 +8614,6 @@ struct llm_bigram_bpe {
     int rank;
     size_t size;
 };
-
-
-///// legacy functions for Falcon compatibility //////
-static llama_token llama_byte_to_token_old(const llama_vocab & vocab, uint8_t ch);
-
-static uint8_t llama_token_to_byte_old(const llama_vocab & vocab, llama_token id) {
-    GGML_ASSERT(llama_is_byte_token(vocab, id));
-    const auto& token_data = vocab.id_to_token.at(id);
-    auto buf = token_data.text.substr(3, 2);
-    return strtol(buf.c_str(), NULL, 16);
-}
-
-static llama_token llama_byte_to_token_old(const llama_vocab & vocab, uint8_t ch) {
-    char buf[7];
-    int result = snprintf(buf, sizeof(buf), "<0x%02X>", ch);
-    GGML_ASSERT(0 <= result && result < 7);
-    return vocab.token_to_id.at(buf);
-}
-
-int llama_token_to_piece_old(const struct llama_model * model, llama_token token, char * buf, int length) {
-    if (0 <= token && token < llama_n_vocab(model)) {
-        if (llama_is_normal_token(model->vocab, token)) {
-            std::string result = model->vocab.id_to_token[token].text;
-            if (llama_vocab_get_type(model->vocab) == LLAMA_VOCAB_TYPE_SPM) {
-                llama_unescape_whitespace(result);
-            }
-            if (length < (int) result.length()) {
-                return -result.length();
-            }
-            memcpy(buf, result.c_str(), result.length());
-            return result.length();
-        } else if (llama_is_unknown_token(model->vocab, token)) { // NOLINT
-            if (length < 3) {
-                return -3;
-            }
-            buf[0] = '\xe2';
-            buf[1] = '\x96';
-            buf[2] = '\x85';
-            return 3;
-        } else if (llama_is_control_token(model->vocab, token)) {
-            // do nothing
-        } else if (llama_is_byte_token(model->vocab, token)) {
-            if (length < 1) {
-                return -1;
-            }
-            buf[0] = llama_token_to_byte_old(model->vocab, token);
-            return 1;
-        }
-    }
-    return 0;
-}
-
-struct llm_tokenizer_bpe_old {
-    llm_tokenizer_bpe_old(const llama_vocab & vocab): vocab(vocab) {}
-
-    void tokenize(const std::string & text, std::vector<llama_vocab::id> & output) {
-        int final_prev_index = -1;
-        auto word_collection = bpe_gpt2_preprocess_old(text);
-
-        symbols_final.clear();
-
-        for (auto & word : word_collection) {
-            work_queue = llm_bigram_bpe::queue();
-            symbols.clear();
-
-            int index = 0;
-            size_t offset = 0;
-
-            while (offset < word.size()) {
-                llm_symbol sym;
-                size_t char_len = std::min(word.size() - offset, (size_t) ::utf8_len(word[offset]));
-                sym.text = word.c_str() + offset;
-                sym.n = 1;
-                sym.n = char_len;
-                offset += sym.n;
-                sym.prev = index - 1;
-                sym.next = offset == word.size() ? -1 : index + 1;
-                index++;
-                symbols.emplace_back(sym);
-            }
-            for (size_t i = 1; i < symbols.size(); ++i) {
-                add_new_bigram(i - 1, i);
-            }
-
-            // build token(s)
-            while (!work_queue.empty()) {
-                auto bigram = work_queue.top();
-                work_queue.pop();
-
-                auto & left_symbol = symbols[bigram.left];
-                auto & right_symbol = symbols[bigram.right];
-
-                if (left_symbol.n == 0 || right_symbol.n == 0) {
-                    continue;
-                }
-                std::string left_token = std::string(left_symbol.text, left_symbol.n);
-                std::string right_token = std::string(right_symbol.text, right_symbol.n);
-                if (left_token + right_token != bigram.text) {
-                    continue;  // Skip this bigram if it's outdated
-                }
-
-                // merge the right sym into the left one
-                left_symbol.n += right_symbol.n;
-                right_symbol.n = 0;
-
-                // remove the right sym from the chain
-                left_symbol.next = right_symbol.next;
-                if (right_symbol.next >= 0) {
-                    symbols[right_symbol.next].prev = bigram.left;
-                }
-
-                add_new_bigram(left_symbol.prev, bigram.left);  // left side of current symbol
-                add_new_bigram(bigram.left, left_symbol.next);  // right side of current symbol
-            }
-
-            // add the fnished tokens to the final list keeping correct order for next and prev
-            for (auto & sym : symbols) {
-                if (sym.n > 0) {
-                    sym.prev = final_prev_index;
-                    sym.next = -1;
-                    if (final_prev_index != -1) {
-                        symbols_final[final_prev_index].next = symbols_final.size();
-                    }
-                    symbols_final.emplace_back(sym);
-                    final_prev_index = symbols_final.size() - 1;
-                }
-            }
-        }
-
-        symbols = symbols_final;
-
-        if (!symbols.empty()) {
-            for (int i = 0; i != -1; i = symbols[i].next) {
-                auto & symbol = symbols[i];
-                if (symbol.n == 0) {
-                    continue;
-                }
-
-                const std::string str = std::string(symbol.text, symbol.n);
-                const auto token = vocab.token_to_id.find(str);
-
-                if (token == vocab.token_to_id.end()) {
-                    for (auto j = str.begin(); j != str.end(); ++j) {
-                        std::string byte_str(1, *j);
-                        auto token_multibyte = vocab.token_to_id.find(byte_str);
-                        if (token_multibyte == vocab.token_to_id.end()) {
-                            try {
-                                llama_token token_byte = llama_byte_to_token_old(vocab, *j);
-                                output.push_back(token_byte);
-                            } catch (const std::out_of_range & err) {
-                                fprintf(stderr,"ERROR: byte not found in vocab: '%s'\n", byte_str.c_str());
-                            }
-                        } else {
-                            output.push_back((*token_multibyte).second);
-                        }
-                    }
-                } else {
-                    output.push_back((*token).second);
-                }
-            }
-        }
-    }
-
-private:
-    void add_new_bigram(int left, int right) {
-        if (left == -1 || right == -1) {
-            return;
-        }
-
-        std::string left_token  = std::string(symbols[left].text,  symbols[left].n);
-        std::string right_token = std::string(symbols[right].text, symbols[right].n);
-
-        int rank_found = -1;
-
-        rank_found = vocab.find_bpe_rank(left_token, right_token);
-
-        if (rank_found < 0) {
-            return;
-        }
-
-        llm_bigram_bpe bigram;
-
-        bigram.left  = left;
-        bigram.right = right;
-        bigram.text  = left_token + right_token;
-        bigram.size  = left_token.size() + right_token.size();
-        bigram.rank  = rank_found;
-
-        work_queue.push(bigram);
-    }
-
-    // probably not 100% correct
-    static std::vector<std::string> bpe_gpt2_preprocess_old(const std::string & text) {
-        std::vector<std::string> words;
-
-        // ref: https://github.com/openai/gpt-2/blob/a74da5d99abaaba920de8131d64da2862a8f213b/src/encoder.py#L53
-        const std::string pattern = R"('s|'t|'re|'ve|'m|'ll|'d| ?[[:alpha:]]+| ?[[:digit:]]+| ?[^\s[:alpha:][:digit:]]+|\s+(?!\S)|\s+)";
-        const std::regex re(pattern);
-
-        auto words_begin = std::sregex_iterator(text.begin(), text.end(), re);
-        auto words_end = std::sregex_iterator();
-        auto n_words = std::distance(words_begin, words_end);
-        words.reserve(n_words);
-        for (auto it = words_begin; it != words_end; ++it) {
-            words.push_back(it->str());
-        }
-        return words;
-
-    }
-
-    const llama_vocab & vocab;
-
-    std::vector<llm_symbol> symbols;
-    std::vector<llm_symbol> symbols_final;
-
-    llm_bigram_bpe::queue work_queue;
-};
-
-///// end legacy functions for Falcon //////
 
 struct llm_tokenizer_bpe {
     llm_tokenizer_bpe(const llama_vocab & vocab): vocab(vocab) {}
@@ -9568,18 +9283,8 @@ static std::vector<llama_vocab::id> llama_tokenize_internal(const llama_vocab & 
 #ifdef PRETOKENIZERDEBUG
                         LLAMA_LOG_WARN("TT: (%ld %ld %ld) '%s'\n", raw_text.length(), fragment.offset, fragment.length, raw_text.c_str());
 #endif
-
-                        if(OldBPETokenizerMode)
-                        {
-                            llm_tokenizer_bpe_old tokenizer(vocab);
-                            tokenizer.tokenize(raw_text, output);
-                        }
-                        else
-                        {
-                            llm_tokenizer_bpe tokenizer(vocab);
-                            tokenizer.tokenize(raw_text, output);
-                        }
-
+                        llm_tokenizer_bpe tokenizer(vocab);
+                        tokenizer.tokenize(raw_text, output);
                     } else { // if (fragment.type == FRAGMENT_BUFFER_VARIANT_TYPE_TOKEN)
                         output.push_back(fragment.token);
                     }
@@ -10290,10 +9995,7 @@ void llama_sample_typical(struct llama_context * ctx, llama_token_data_array * c
 
     float entropy = 0.0f;
     for (size_t i = 0; i < candidates->size; ++i) {
-        if(candidates->data[i].p>0)
-        {
-            entropy += -candidates->data[i].p * logf(candidates->data[i].p);
-        }
+        entropy += -candidates->data[i].p * logf(candidates->data[i].p);
     }
 
     // Compute the absolute difference between negative log probability and entropy for each candidate
@@ -10343,7 +10045,7 @@ void llama_sample_typical(struct llama_context * ctx, llama_token_data_array * c
     }
 }
 
-void llama_sample_entropy(struct llama_context * ctx, llama_token_data_array * candidates_p, float min_temp, float max_temp, float exponent_val, float smoothing_factor) {
+void llama_sample_entropy(struct llama_context * ctx, llama_token_data_array * candidates_p, float min_temp, float max_temp, float exponent_val) {
     const int64_t t_start_sample_us = ggml_time_us();
 
     // no need to do anything if there is only one (or zero) candidates
@@ -10371,6 +10073,15 @@ void llama_sample_entropy(struct llama_context * ctx, llama_token_data_array * c
     // Map the normalized entropy to the desired temperature range using the power function
     float dyn_temp = min_temp + (max_temp - min_temp) * powf(normalized_entropy, exponent_val);
 
+#ifdef DEBUG
+    LLAMA_LOG_INFO("Your text maxtemp value is: %f\n", max_temp);
+    LLAMA_LOG_INFO("Entropy: %f\n", entropy);
+    LLAMA_LOG_INFO("Max Possible Entropy: %f\n", max_entropy);
+    LLAMA_LOG_INFO("Normalized Entropy: %f\n", normalized_entropy);
+    LLAMA_LOG_INFO("Exponent: %f\n", exponent_val);
+    LLAMA_LOG_INFO("Dynamic Temperature (dyn_temp): %f\n", dyn_temp);
+#endif
+
     // Apply the dynamically calculated temperature scaling
     for (size_t i = 0; i < candidates_p->size; ++i) {
         candidates_p->data[i].logit /= dyn_temp;
@@ -10388,57 +10099,34 @@ void llama_sample_entropy(struct llama_context * ctx, llama_token_data_array * c
         candidates_p->data[i].p /= cum_sum_double; // Re-normalize the probabilities
     }
 
-    // Only apply smoothing if smoothing_factor is > 0. Do not change base implementation otherwise.
-    if (smoothing_factor > 0 && candidates_p->size > 1) {
-
-        llama_sample_softmax(ctx, candidates_p);
-        float h = candidates_p->data[0].logit; // Find the maximum logit for h to be added after the transformation
-        // Apply quadratic transformation using the smoothing_factor
-        for (size_t i = 0; i < candidates_p->size; ++i)
-        {
-            float logit_shifted = candidates_p->data[i].logit - h;
-            candidates_p->data[i].logit = -smoothing_factor * logit_shifted * logit_shifted + h;
-        }
-        llama_sample_softmax(ctx, candidates_p);
+#ifdef DEBUG
+    // Print the updated top 25 probabilities after temperature scaling
+    LLAMA_LOG_INFO("\nUpdated Top 25 Probabilities After Dynamic Temperature Scaling (in percentages):\n");
+    for (size_t i = 0; i < 25 && i < candidates_p->size; ++i) {
+        LLAMA_LOG_INFO("Token %zu: %f%%\n", i + 1, candidates_p->data[i].p * 100.0f);
     }
+#endif
 
     if (ctx) {
         ctx->t_sample_us += ggml_time_us() - t_start_sample_us;
     }
 }
 
-void llama_sample_temp(struct llama_context * ctx, llama_token_data_array * candidates_p, float temp, float smoothing_factor) {
+void llama_sample_temp(struct llama_context * ctx, llama_token_data_array * candidates_p, float temp) {
     const int64_t t_start_sample_us = ggml_time_us();
 
     for (size_t i = 0; i < candidates_p->size; ++i) {
         candidates_p->data[i].logit /= temp;
     }
 
-    // Only apply smoothing if smoothing_factor is > 0. Do not change base implementation otherwise.
-    if (smoothing_factor > 0 && candidates_p->size > 1) {
-
-        llama_sample_softmax(ctx, candidates_p);
-        float h = candidates_p->data[0].logit; // Find the maximum logit for h to be added after the transformation
-        // Apply quadratic transformation using the smoothing_factor
-        for (size_t i = 0; i < candidates_p->size; ++i)
-        {
-            float logit_shifted = candidates_p->data[i].logit - h;
-            candidates_p->data[i].logit = -smoothing_factor * logit_shifted * logit_shifted + h;
-        }
-        llama_sample_softmax(ctx, candidates_p);
-    }
-
     if (ctx) {
         ctx->t_sample_us += ggml_time_us() - t_start_sample_us;
     }
 }
 
-
-void llama_sample_temperature(struct llama_context * ctx, llama_token_data_array * candidates_p, float temp, float smoothing_factor) {
-    llama_sample_temp(ctx, candidates_p, temp, smoothing_factor);
+void llama_sample_temperature(struct llama_context * ctx, llama_token_data_array * candidates_p, float temp) {
+    llama_sample_temp(ctx, candidates_p, temp);
 }
-
-// The llama.cpp repetition penalty code goes unused in kobold's API
 
 void llama_sample_repetition_penalties(
             struct llama_context * ctx,
@@ -10508,7 +10196,7 @@ void llama_sample_grammar(struct llama_context * ctx, llama_token_data_array * c
 
     for (size_t i = 0; i < candidates->size; ++i) {
         const llama_token id    = candidates->data[i].id;
-        const std::string piece = llama_token_to_str(ctx, id);
+        const std::string piece = llama_token_to_piece(ctx, id);
         if (id == eos) {
             if (!allow_eos) {
                 candidates->data[i].logit = -INFINITY;
@@ -10740,7 +10428,7 @@ void llama_grammar_accept_token(struct llama_context * ctx, struct llama_grammar
         GGML_ASSERT(false);
     }
 
-    const std::string piece = llama_token_to_str(ctx, token);
+    const std::string piece = llama_token_to_piece(ctx, token);
 
     // Note terminating 0 in decoded string
     const auto   decoded     = decode_utf8(piece, grammar->partial_utf8);
@@ -11132,6 +10820,17 @@ static ggml_type get_k_quant_type(quantize_state_internal & qs, ggml_type new_ty
                  ftype == LLAMA_FTYPE_MOSTLY_IQ1_S   || ftype == LLAMA_FTYPE_MOSTLY_IQ2_S  || ftype == LLAMA_FTYPE_MOSTLY_IQ2_M) {
             new_type = GGML_TYPE_Q5_K;
         }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_LR  || ftype == LLAMA_FTYPE_MOSTLY_IQ2_SR || ftype == LLAMA_FTYPE_MOSTLY_IQ2_MR ||
+                 ftype == LLAMA_FTYPE_MOSTLY_IQ2_LR || ftype == LLAMA_FTYPE_MOSTLY_IQ3_SR) {
+            new_type = GGML_TYPE_IQ4_XS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_MR  || ftype == LLAMA_FTYPE_MOSTLY_IQ3_LR) {
+            new_type = GGML_TYPE_Q5_K;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS0 || ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS1 ||
+                 ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS2 || ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS3) {
+            new_type = GGML_TYPE_Q6_K;
+        }
         else if (new_type != GGML_TYPE_Q8_0) {
             new_type = GGML_TYPE_Q6_K;
         }
@@ -11145,6 +10844,15 @@ static ggml_type get_k_quant_type(quantize_state_internal & qs, ggml_type new_ty
         }
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXS) {
             new_type = GGML_TYPE_IQ3_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_LR || ftype == LLAMA_FTYPE_MOSTLY_IQ2_SR) {
+            new_type = GGML_TYPE_IQ2_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_MR || ftype == LLAMA_FTYPE_MOSTLY_IQ2_LR) {
+            new_type = GGML_TYPE_IQ3_XXS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_MR) {
+            new_type = GGML_TYPE_IQ3_XXS;
         }
     } else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_XXS || ftype == LLAMA_FTYPE_MOSTLY_IQ2_XS || ftype == LLAMA_FTYPE_MOSTLY_IQ1_S ||
                ftype == LLAMA_FTYPE_MOSTLY_IQ2_S || ftype == LLAMA_FTYPE_MOSTLY_IQ2_M) {
@@ -11170,6 +10878,36 @@ static ggml_type get_k_quant_type(quantize_state_internal & qs, ggml_type new_ty
                 else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_S || ftype == LLAMA_FTYPE_MOSTLY_IQ2_M) new_type = GGML_TYPE_IQ3_S;
             }
         }
+    } else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_LR ||  ftype == LLAMA_FTYPE_MOSTLY_IQ2_SR ||
+               ftype == LLAMA_FTYPE_MOSTLY_IQ2_MR ||  ftype == LLAMA_FTYPE_MOSTLY_IQ2_LR) {
+        if (name.find("attn_v.weight") != std::string::npos) {
+            if (qs.model.hparams.n_gqa() >= 4 || qs.model.hparams.n_expert >= 4) new_type = GGML_TYPE_IQ4_XS;
+            else new_type = ftype == LLAMA_FTYPE_MOSTLY_IQ1_LR || ftype == LLAMA_FTYPE_MOSTLY_IQ2_SR ||
+                 ftype == LLAMA_FTYPE_MOSTLY_IQ2_MR || ftype == LLAMA_FTYPE_MOSTLY_IQ2_LR ?
+			GGML_TYPE_IQ3_S : GGML_TYPE_IQ3_XXS;
+            ++qs.i_attention_wv;
+        }
+        else if (qs.model.hparams.n_expert == 8 && name.find("attn_k.weight") != std::string::npos) {
+            new_type = GGML_TYPE_IQ4_XS;
+        }
+        else if (name.find("ffn_down") != std::string::npos) {
+            if (qs.i_ffn_down < qs.n_ffn_down/8) {
+                new_type = ftype == LLAMA_FTYPE_MOSTLY_IQ1_LR || ftype == LLAMA_FTYPE_MOSTLY_IQ2_SR ||
+				ftype == LLAMA_FTYPE_MOSTLY_IQ2_MR || ftype == LLAMA_FTYPE_MOSTLY_IQ2_LR ?
+				GGML_TYPE_IQ3_XXS : GGML_TYPE_IQ2_S;
+            }
+            ++qs.i_ffn_down;
+        }
+        else if (name.find("attn_output.weight") != std::string::npos) {
+            if (qs.model.hparams.n_expert == 8) {
+                new_type = GGML_TYPE_Q5_K;
+            } else {
+                if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_LR) new_type = GGML_TYPE_IQ2_XXS;
+                else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_SR) new_type = GGML_TYPE_IQ2_XS;
+                else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_MR) new_type = GGML_TYPE_IQ2_S;
+                else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_LR) new_type = GGML_TYPE_IQ3_XXS;
+            }
+        }
     } else if (name.find("attn_v.weight") != std::string::npos) {
         if      (ftype == LLAMA_FTYPE_MOSTLY_Q2_K) {
             new_type = qs.model.hparams.n_gqa() >= 4 ? GGML_TYPE_Q4_K : GGML_TYPE_Q3_K;
@@ -11183,14 +10921,65 @@ static ggml_type get_k_quant_type(quantize_state_internal & qs, ggml_type new_ty
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_S && qs.model.hparams.n_gqa() >= 4) {
             new_type = GGML_TYPE_Q4_K;
         }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_S) {
+            new_type = GGML_TYPE_Q4_K;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_M && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_Q4_K;
+        }
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_M) {
             new_type = GGML_TYPE_Q4_K;
         }
-        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_S && qs.model.hparams.n_gqa() >= 4) {
-            new_type = GGML_TYPE_Q4_K;
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_LR && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_IQ2_XS;
         }
-        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_M) {
-            new_type = GGML_TYPE_Q4_K;
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_LR) {
+            new_type = GGML_TYPE_IQ2_XXS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_SR && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_IQ2_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_SR) {
+            new_type = GGML_TYPE_IQ2_XS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_MR && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_IQ3_XXS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_MR) {
+            new_type = GGML_TYPE_IQ2_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_LR && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_IQ3_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_LR) {
+            new_type = GGML_TYPE_IQ3_XXS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_SR && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_IQ4_XS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_SR) {
+            new_type = GGML_TYPE_IQ3_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_MR && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_Q5_K;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_MR) {
+            new_type = GGML_TYPE_IQ4_XS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_LR && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_Q5_K;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_LR) {
+            new_type = GGML_TYPE_IQ4_XS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS0 && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_Q5_K;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS1 && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_Q5_K;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS2 && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_Q5_K;
         }
         else if (ftype == LLAMA_FTYPE_MOSTLY_Q3_K_M) {
             new_type = qs.i_attention_wv < 2 ? GGML_TYPE_Q5_K : GGML_TYPE_Q4_K;
@@ -11228,12 +11017,78 @@ static ggml_type get_k_quant_type(quantize_state_internal & qs, ggml_type new_ty
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXS) {
             new_type = GGML_TYPE_IQ2_S;
         }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_LR && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_IQ2_XXS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_SR && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_IQ2_XS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_MR) {
+            new_type = GGML_TYPE_IQ2_XXS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_MR && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_IQ2_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_LR) {
+            new_type = GGML_TYPE_IQ2_XS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_LR && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_IQ3_XXS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_SR) {
+            new_type = GGML_TYPE_IQ2_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_SR && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_IQ3_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_MR) {
+            new_type = GGML_TYPE_IQ3_XXS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_MR && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_IQ4_XS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_LR && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_Q5_K;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS0 && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_Q5_K;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS1 || ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS2 || ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS3) {
+            new_type = GGML_TYPE_IQ3_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS1 && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_Q5_K;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS2 && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_Q5_K;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS3 && qs.model.hparams.n_gqa() >= 4) {
+            new_type = GGML_TYPE_Q5_K;
+        }
     } else if (name.find("attn_q.weight") != std::string::npos) {
         if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XS) {
             new_type = GGML_TYPE_IQ3_XXS;
         }
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXS) {
             new_type = GGML_TYPE_IQ2_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_MR) {
+            new_type = GGML_TYPE_IQ2_XXS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_LR) {
+            new_type = GGML_TYPE_IQ2_XS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_SR) {
+            new_type = GGML_TYPE_IQ2_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_MR  || ftype == LLAMA_FTYPE_MOSTLY_IQ3_LR) {
+            new_type = GGML_TYPE_IQ3_XXS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS0 || ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS1 || ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS2) {
+            new_type = GGML_TYPE_IQ3_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS3) {
+            new_type = GGML_TYPE_IQ3_XXS;
         }
     } else if (name.find("ffn_down") != std::string::npos) {
         auto info = layer_info(qs.i_ffn_down, qs.n_ffn_down, name.c_str());
@@ -11245,14 +11100,49 @@ static ggml_type get_k_quant_type(quantize_state_internal & qs, ggml_type new_ty
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXS && !qs.has_imatrix) {
             new_type = i_layer < n_layer/8 ? GGML_TYPE_Q4_K : GGML_TYPE_Q3_K;
         }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_S && (i_layer < n_layer/8 ||
+                    (qs.model.hparams.n_expert == 8 && use_more_bits(i_layer, n_layer)))) {
+            new_type = GGML_TYPE_Q4_K;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_M && (i_layer < n_layer/8 ||
+                    (qs.model.hparams.n_expert == 8 && use_more_bits(i_layer, n_layer)))) {
+            new_type = GGML_TYPE_Q4_K;
+        }
         else if (ftype == LLAMA_FTYPE_MOSTLY_Q3_K_M) {
             new_type = i_layer < n_layer/16 ? GGML_TYPE_Q5_K
                      : arch != LLM_ARCH_FALCON || use_more_bits(i_layer, n_layer) ? GGML_TYPE_Q4_K
                      : GGML_TYPE_Q3_K;
         }
-        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_M && (i_layer < n_layer/8 ||
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_LR && (i_layer < n_layer/8 ||
                     (qs.model.hparams.n_expert == 8 && use_more_bits(i_layer, n_layer)))) {
-            new_type = GGML_TYPE_Q4_K;
+            new_type = GGML_TYPE_IQ2_XXS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_SR && (i_layer < n_layer/8 ||
+                    (qs.model.hparams.n_expert == 8 && use_more_bits(i_layer, n_layer)))) {
+            new_type = GGML_TYPE_IQ2_XS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_MR && (i_layer < n_layer/8 ||
+                    (qs.model.hparams.n_expert == 8 && use_more_bits(i_layer, n_layer)))) {
+            new_type = GGML_TYPE_IQ2_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_LR && (i_layer < n_layer/8 ||
+                    (qs.model.hparams.n_expert == 8 && use_more_bits(i_layer, n_layer)))) {
+            new_type = GGML_TYPE_IQ3_XXS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_SR && (i_layer < n_layer/8 ||
+                    (qs.model.hparams.n_expert == 8 && use_more_bits(i_layer, n_layer)))) {
+            new_type = GGML_TYPE_IQ3_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_MR && (i_layer < n_layer/8 ||
+                    (qs.model.hparams.n_expert == 8 && use_more_bits(i_layer, n_layer)))) {
+            new_type = GGML_TYPE_IQ4_XS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_LR && (i_layer < n_layer/8 ||
+                   (qs.model.hparams.n_expert == 8 && use_more_bits(i_layer, n_layer)))) {
+            new_type = GGML_TYPE_IQ4_XS;
+        }
+        else if (i_layer < n_layer/8 && (ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS0 || ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS1) && !qs.has_imatrix) {
+            new_type = GGML_TYPE_Q5_K;
         }
         else if (ftype == LLAMA_FTYPE_MOSTLY_Q3_K_L) {
             new_type = arch == LLM_ARCH_FALCON ? GGML_TYPE_Q4_K : GGML_TYPE_Q5_K;
@@ -11289,12 +11179,24 @@ static ggml_type get_k_quant_type(quantize_state_internal & qs, ggml_type new_ty
                     ftype == LLAMA_FTYPE_MOSTLY_IQ3_M  || ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS) {
                     new_type = GGML_TYPE_Q5_K;
                 }
-            } else {
+                else if ( ftype == LLAMA_FTYPE_MOSTLY_IQ1_LR || ftype == LLAMA_FTYPE_MOSTLY_IQ2_SR ||
+                          ftype == LLAMA_FTYPE_MOSTLY_IQ2_MR || ftype == LLAMA_FTYPE_MOSTLY_IQ2_LR ||
+                          ftype == LLAMA_FTYPE_MOSTLY_IQ3_SR || ftype == LLAMA_FTYPE_MOSTLY_IQ3_MR || ftype == LLAMA_FTYPE_MOSTLY_IQ3_LR) {
+                          new_type = GGML_TYPE_IQ4_XS;
+                }
+            }else {
                 if      (ftype == LLAMA_FTYPE_MOSTLY_Q2_K   ) new_type = GGML_TYPE_Q3_K;
                 else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXS) new_type = GGML_TYPE_IQ3_S;
                 else if (ftype == LLAMA_FTYPE_MOSTLY_Q3_K_M ) new_type = GGML_TYPE_Q4_K;
                 else if (ftype == LLAMA_FTYPE_MOSTLY_Q3_K_L ) new_type = GGML_TYPE_Q5_K;
                 else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_M  ) new_type = GGML_TYPE_Q4_K;
+                else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_LR ) new_type = GGML_TYPE_IQ2_XS;
+                else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_SR ) new_type = GGML_TYPE_IQ2_XS;
+                else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_MR ) new_type = GGML_TYPE_IQ2_S;
+                else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_LR ) new_type = GGML_TYPE_IQ3_XXS;	
+                else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_SR ) new_type = GGML_TYPE_IQ3_S;
+                else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_MR ) new_type = GGML_TYPE_IQ4_XS;
+                else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_LR ) new_type = GGML_TYPE_IQ4_XS;
             }
         } else {
             if (ftype == LLAMA_FTYPE_MOSTLY_Q3_K_L) new_type = GGML_TYPE_Q4_K;
@@ -11303,6 +11205,24 @@ static ggml_type get_k_quant_type(quantize_state_internal & qs, ggml_type new_ty
     else if (name.find("attn_qkv.weight") != std::string::npos) {
         if (ftype == LLAMA_FTYPE_MOSTLY_Q3_K_M || ftype == LLAMA_FTYPE_MOSTLY_Q3_K_L || ftype == LLAMA_FTYPE_MOSTLY_IQ3_M) {
             new_type = GGML_TYPE_Q4_K;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_LR) {
+            new_type = GGML_TYPE_IQ2_XXS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_SR) {
+            new_type = GGML_TYPE_IQ2_XS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_MR) {
+            new_type = GGML_TYPE_IQ2_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_LR) {
+            new_type = GGML_TYPE_IQ3_XXS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_SR) {
+            new_type = GGML_TYPE_IQ3_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_MR || ftype == LLAMA_FTYPE_MOSTLY_IQ3_LR) {
+            new_type = GGML_TYPE_IQ4_XS;
         }
         else if (ftype == LLAMA_FTYPE_MOSTLY_Q4_K_M) new_type = GGML_TYPE_Q5_K;
         else if (ftype == LLAMA_FTYPE_MOSTLY_Q5_K_M) new_type = GGML_TYPE_Q6_K;
@@ -11313,6 +11233,30 @@ static ggml_type get_k_quant_type(quantize_state_internal & qs, ggml_type new_ty
         if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XS && (i_layer >= n_layer/8 && i_layer < 7*n_layer/8)) {
             new_type = GGML_TYPE_IQ3_XXS;
         }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_SR && (i_layer >= n_layer/8 && i_layer < 7*n_layer/8)) {
+            new_type = GGML_TYPE_IQ1_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_MR && (i_layer >= n_layer/8 && i_layer < 7*n_layer/8)) {
+            new_type = GGML_TYPE_IQ2_XXS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_LR && (i_layer >= n_layer/8 && i_layer < 7*n_layer/8)) {
+            new_type = GGML_TYPE_IQ2_XS;
+        }		
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_SR && (i_layer >= n_layer/8 && i_layer < 7*n_layer/8)) {
+            new_type = GGML_TYPE_IQ2_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_MR && (i_layer >= n_layer/8 && i_layer < 7*n_layer/8)) {
+            new_type = GGML_TYPE_IQ3_XXS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_LR) {
+            new_type = GGML_TYPE_IQ3_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS2 && (i_layer >= n_layer/8 && i_layer < 7*n_layer/8)) {
+            new_type = GGML_TYPE_IQ3_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS3) {
+            new_type = GGML_TYPE_IQ3_S;
+        }
         ++qs.i_ffn_gate;
     }
     else if (name.find("ffn_up") != std::string::npos) {
@@ -11320,6 +11264,30 @@ static ggml_type get_k_quant_type(quantize_state_internal & qs, ggml_type new_ty
         int i_layer = info.first, n_layer = info.second;
         if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XS && (i_layer >= n_layer/8 && i_layer < 7*n_layer/8)) {
             new_type = GGML_TYPE_IQ3_XXS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_SR && (i_layer >= n_layer/8 && i_layer < 7*n_layer/8)) {
+            new_type = GGML_TYPE_IQ1_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_MR && (i_layer >= n_layer/8 && i_layer < 7*n_layer/8)) {
+            new_type = GGML_TYPE_IQ2_XXS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_LR && (i_layer >= n_layer/8 && i_layer < 7*n_layer/8)) {
+            new_type = GGML_TYPE_IQ2_XS;
+        }		
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_SR && (i_layer >= n_layer/8 && i_layer < 7*n_layer/8)) {
+            new_type = GGML_TYPE_IQ2_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_MR && (i_layer >= n_layer/8 && i_layer < 7*n_layer/8)) {
+            new_type = GGML_TYPE_IQ3_XXS;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_LR) {
+            new_type = GGML_TYPE_IQ3_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS2 && (i_layer >= n_layer/8 && i_layer < 7*n_layer/8)) {
+            new_type = GGML_TYPE_IQ3_S;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS3) {
+            new_type = GGML_TYPE_IQ3_S;
         }
         ++qs.i_ffn_up;
     }
@@ -11339,7 +11307,7 @@ static ggml_type get_k_quant_type(quantize_state_internal & qs, ggml_type new_ty
     if (new_type == GGML_TYPE_Q2_K || new_type == GGML_TYPE_Q3_K || new_type == GGML_TYPE_Q4_K ||
         new_type == GGML_TYPE_Q5_K || new_type == GGML_TYPE_Q6_K || new_type == GGML_TYPE_IQ4_XS ||
         new_type == GGML_TYPE_IQ2_XS || new_type == GGML_TYPE_IQ2_XXS || new_type == GGML_TYPE_IQ2_S ||
-        new_type == GGML_TYPE_IQ3_XXS || ftype == LLAMA_FTYPE_MOSTLY_IQ1_S || new_type == GGML_TYPE_IQ3_S) {
+        new_type == GGML_TYPE_IQ3_XXS || new_type == GGML_TYPE_IQ1_S || new_type == GGML_TYPE_IQ3_S) {
         int nx = tensor->ne[0];
         int ny = tensor->ne[1];
         if (nx % QK_K != 0) {
@@ -11407,6 +11375,17 @@ static void llama_model_quantize_internal(const std::string & fname_inp, const s
         case LLAMA_FTYPE_MOSTLY_IQ4_XS:  quantized_type = GGML_TYPE_IQ4_XS;  break;
         case LLAMA_FTYPE_MOSTLY_IQ3_S:   quantized_type = GGML_TYPE_IQ3_S;   break;
         case LLAMA_FTYPE_MOSTLY_IQ3_M:   quantized_type = GGML_TYPE_IQ3_S;   break;
+        case LLAMA_FTYPE_MOSTLY_IQ1_LR:  quantized_type = GGML_TYPE_IQ1_S;   break;
+        case LLAMA_FTYPE_MOSTLY_IQ2_SR:  quantized_type = GGML_TYPE_IQ2_XXS; break;
+        case LLAMA_FTYPE_MOSTLY_IQ2_MR:  quantized_type = GGML_TYPE_IQ2_XS;  break;
+        case LLAMA_FTYPE_MOSTLY_IQ2_LR:  quantized_type = GGML_TYPE_IQ2_S;   break;
+        case LLAMA_FTYPE_MOSTLY_IQ3_SR:  quantized_type = GGML_TYPE_IQ3_XXS; break;		
+        case LLAMA_FTYPE_MOSTLY_IQ3_MR:  quantized_type = GGML_TYPE_IQ3_S;   break;
+        case LLAMA_FTYPE_MOSTLY_IQ3_LR:  quantized_type = GGML_TYPE_IQ3_S;   break;
+        case LLAMA_FTYPE_MOSTLY_IQ4_XS0: quantized_type = GGML_TYPE_IQ4_XS;  break;
+        case LLAMA_FTYPE_MOSTLY_IQ4_XS1: quantized_type = GGML_TYPE_IQ4_XS;  break;
+        case LLAMA_FTYPE_MOSTLY_IQ4_XS2: quantized_type = GGML_TYPE_IQ4_XS;  break;
+        case LLAMA_FTYPE_MOSTLY_IQ4_XS3: quantized_type = GGML_TYPE_IQ4_XS;  break;
 
         default: throw std::runtime_error(format("invalid output file type %d\n", ftype));
     }
@@ -11536,7 +11515,8 @@ static void llama_model_quantize_internal(const std::string & fname_inp, const s
         quantize &= !params->only_copy;
 
         // do not quantize expert gating tensors
-        quantize &= name != LLM_TN(model.arch)(LLM_TENSOR_FFN_GATE_INP, "weight");
+        // NOTE: can't use LLM_TN here because the layer number is not known
+        quantize &= name.find("ffn_gate_inp.weight") == std::string::npos;
 
         // do not quantize positional embeddings and token types (BERT)
         quantize &= name != LLM_TN(model.arch)(LLM_TENSOR_POS_EMBD,    "weight");
@@ -11577,17 +11557,6 @@ static void llama_model_quantize_internal(const std::string & fname_inp, const s
                                 int(it->second.size()), int(tensor->ne[0]), tensor->name);
                     }
                 }
-            }
-            if ((new_type == GGML_TYPE_IQ2_XXS ||
-                 new_type == GGML_TYPE_IQ2_XS  ||
-                 new_type == GGML_TYPE_IQ2_S   ||
-                 new_type == GGML_TYPE_IQ1_S   ||
-                (new_type == GGML_TYPE_Q2_K && params->ftype == LLAMA_FTYPE_MOSTLY_Q2_K_S && strcmp(tensor->name, "token_embd.weight") != 0)) && !imatrix) {
-                LLAMA_LOG_ERROR("\n\n============================================================\n");
-                LLAMA_LOG_ERROR("Missing importance matrix for tensor %s in a very low-bit quantization\n", tensor->name);
-                LLAMA_LOG_ERROR("The result will be garbage, so bailing out\n");
-                LLAMA_LOG_ERROR("============================================================\n\n");
-                throw std::runtime_error(format("Missing importance matrix for tensor %s in a very low-bit quantization", tensor->name));
             }
 
             float * f32_data;
@@ -12066,7 +12035,17 @@ struct llama_model_quantize_params llama_model_quantize_default_params() {
 }
 
 size_t llama_max_devices(void) {
-    return 16;
+#if defined(GGML_USE_METAL)
+    return 1;
+#elif defined(GGML_USE_CUBLAS)
+    return GGML_CUDA_MAX_DEVICES;
+#elif defined(GGML_USE_SYCL)
+    return GGML_SYCL_MAX_DEVICES;
+#elif defined(GGML_USE_VULKAN)
+    return GGML_VK_MAX_DEVICES;
+#else
+    return 1;
+#endif
 }
 
 bool llama_supports_mmap(void) {
@@ -13165,16 +13144,6 @@ bool llama_save_session_file(struct llama_context * ctx, const char * path_sessi
     return true;
 }
 
-void printcache(struct llama_context * ctx)
-{
-    struct llama_kv_cache & cache = ctx->kv_self;
-    std::string vals = "\n";
-    for (int32_t i = 0; i < cache.size; ++i) {
-        vals += std::to_string(i) + "= pos:" + std::to_string(cache.cells[i].pos) + " delta:" + std::to_string(cache.cells[i].delta) +"\n";
-    }
-    printf("%s",vals.c_str());
-}
-
 int llama_eval(
         struct llama_context * ctx,
                  llama_token * tokens,
@@ -13377,11 +13346,6 @@ static std::string llama_decode_text(const std::string & text) {
 
 // does not write null-terminator to buf
 int32_t llama_token_to_piece(const struct llama_model * model, llama_token token, char * buf, int32_t length) {
-    if(OldBPETokenizerMode)
-    {
-        return llama_token_to_piece_old(model, token, buf, length);
-    }
-
     if (0 <= token && token < llama_n_vocab(model)) {
         switch (llama_vocab_get_type(model->vocab)) {
         case LLAMA_VOCAB_TYPE_WPM:
@@ -13444,7 +13408,7 @@ int32_t llama_token_to_piece(const struct llama_model * model, llama_token token
             break;
         }
         default:
-            LLAMA_LOG_WARN("%s: Unknown Tokenization Error 3\n", __func__);
+            GGML_ASSERT(false);
         }
     }
     return 0;
