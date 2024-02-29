@@ -116,6 +116,20 @@ extern "C" {
         LLAMA_FTYPE_MOSTLY_IQ2_S         = 28, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_IQ2_M         = 29, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_IQ4_XS        = 30, // except 1d tensors
+        // Nexesenex custom quants
+        LLAMA_FTYPE_MOSTLY_IQ1_LR        = 56, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ2_XSR       = 63, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ2_SR        = 64, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ2_MR        = 65, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ2_LR        = 66, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ3_XSR       = 73, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ3_SR        = 74, // except 1d tensors		
+        LLAMA_FTYPE_MOSTLY_IQ3_MR        = 75, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ3_LR        = 76, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ4_XS0       = 82, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ4_XS1       = 83, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ4_XS2       = 84, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ4_XS3       = 85, // except 1d tensors
 
         LLAMA_FTYPE_GUESSED = 1024, // not specified in the model file
     };
