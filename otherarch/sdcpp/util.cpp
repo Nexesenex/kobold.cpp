@@ -12,6 +12,9 @@
 #include <vector>
 #include "preprocessing.hpp"
 
+#include <inttypes.h>
+#include <cinttypes>
+
 #if defined(__APPLE__) && defined(__MACH__)
 #include <sys/sysctl.h>
 #include <sys/types.h>
@@ -252,6 +255,22 @@ static sd_log_cb_t sd_log_cb = NULL;
 void* sd_log_cb_data         = NULL;
 
 #define LOG_BUFFER_SIZE 1024
+
+static bool do_log = true;
+void log_message(const char* format, ...) {
+    if (do_log) {
+        printf("\n");
+        va_list args;
+        va_start(args, format);
+        vprintf(format, args);
+        va_end(args);
+        fflush(stdout);
+    }
+}
+void set_log_message(bool log)
+{
+    do_log = log;
+}
 
 void log_printf(sd_log_level_t level, const char* file, int line, const char* format, ...) {
     va_list args;

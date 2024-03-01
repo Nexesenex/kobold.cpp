@@ -430,7 +430,7 @@ target_link_libraries(common2 PRIVATE ggml ${LLAMA_EXTRA_LIBS})
 set_target_properties(common2 PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(sdtype_adapter
-            sdtype_adapter.cpp)
+            otherarch/sdcpp/sdtype_adapter.cpp)
 target_include_directories(sdtype_adapter PUBLIC . ./otherarch ./otherarch/tools ./otherarch/sdcpp ./otherarch/sdcpp/thirdparty ./examples ./common)
 target_compile_features(sdtype_adapter PUBLIC cxx_std_11) # don't bump
 target_link_libraries(sdtype_adapter PRIVATE common2 ggml ${LLAMA_EXTRA_LIBS})

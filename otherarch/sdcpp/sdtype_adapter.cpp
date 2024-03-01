@@ -6,6 +6,9 @@
 #include <string>
 #include <vector>
 
+#include <inttypes.h>
+#include <cinttypes>
+
 #include "model_adapter.h"
 
 #include "stable-diffusion.cpp"
@@ -110,52 +113,108 @@ struct SDParams {
 //global static vars for SD
 static SDParams * sd_params = nullptr;
 static sd_ctx_t * sd_ctx = nullptr;
+static int sddebugmode = 0;
+static std::string recent_data = "";
 
-static void sd_logger_callback(enum sd_log_level_t level, const char* log, void* data) {
-    SDParams* params = (SDParams*)data;
-    if (!params->verbose && level <= SD_LOG_DEBUG) {
-        return;
+std::string base64_encode(const unsigned char* data, unsigned int data_length) {
+    const std::string base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string encoded;
+    encoded.reserve(((data_length + 2) / 3) * 4);
+    for (unsigned int i = 0; i < data_length; i += 3) {
+        unsigned int triple = (data[i] << 16) + (i + 1 < data_length ? data[i + 1] << 8 : 0) + (i + 2 < data_length ? data[i + 2] : 0);
+        encoded.push_back(base64_chars[(triple >> 18) & 0x3F]);
+        encoded.push_back(base64_chars[(triple >> 12) & 0x3F]);
+        if (i + 1 < data_length) {
+            encoded.push_back(base64_chars[(triple >> 6) & 0x3F]);
+        } else {
+            encoded.push_back('=');
+        }
+        if (i + 2 < data_length) {
+            encoded.push_back(base64_chars[triple & 0x3F]);
+        } else {
+            encoded.push_back('=');
+        }
     }
-    if (level <= SD_LOG_INFO) {
-        fputs(log, stdout);
-        fflush(stdout);
-    } else {
-        fputs(log, stderr);
-        fflush(stderr);
-    }
+    return encoded;
 }
 
+static std::string sdplatformenv, sddeviceenv, sdvulkandeviceenv;
 bool sdtype_load_model(const sd_load_model_inputs inputs) {
 
-    printf("\nImage Gen - Load Safetensors Image Model: %s\n",inputs.model_filename);
+    printf("\nImage Generation Init - Load Safetensors Model: %s\n",inputs.model_filename);
+
+    //duplicated from expose.cpp
+    int cl_parseinfo = inputs.clblast_info; //first digit is whether configured, second is platform, third is devices
+    std::string usingclblast = "GGML_OPENCL_CONFIGURED="+std::to_string(cl_parseinfo>0?1:0);
+    putenv((char*)usingclblast.c_str());
+    cl_parseinfo = cl_parseinfo%100; //keep last 2 digits
+    int platform = cl_parseinfo/10;
+    int devices = cl_parseinfo%10;
+    sdplatformenv = "GGML_OPENCL_PLATFORM="+std::to_string(platform);
+    sddeviceenv = "GGML_OPENCL_DEVICE="+std::to_string(devices);
+    putenv((char*)sdplatformenv.c_str());
+    putenv((char*)sddeviceenv.c_str());
+    std::string vulkan_info_raw = inputs.vulkan_info;
+    std::string vulkan_info_str = "";
+    for (size_t i = 0; i < vulkan_info_raw.length(); ++i) {
+        vulkan_info_str += vulkan_info_raw[i];
+        if (i < vulkan_info_raw.length() - 1) {
+            vulkan_info_str += ",";
+        }
+    }
+    if(vulkan_info_str=="")
+    {
+        vulkan_info_str = "0";
+    }
+    sdvulkandeviceenv = "GGML_VK_VISIBLE_DEVICES="+vulkan_info_str;
+    putenv((char*)sdvulkandeviceenv.c_str());
 
     sd_params = new SDParams();
     sd_params->model_path = inputs.model_filename;
-    sd_params->wtype = SD_TYPE_F16;
-    sd_params->n_threads = -1; //use physical cores
+    sd_params->wtype = (inputs.quant==0?SD_TYPE_F16:SD_TYPE_Q4_0);
+    sd_params->n_threads = inputs.threads; //if -1 use physical cores
     sd_params->input_path = ""; //unused
+    sd_params->batch_count = 1;
 
-    if(inputs.debugmode==1)
-    {
-        sd_set_log_callback(sd_logger_callback, (void*)sd_params);
-    }
+    sddebugmode = inputs.debugmode;
+
+    set_log_message(sddebugmode==1);
 
     bool vae_decode_only = false;
+    bool free_param = false;
+    if(inputs.debugmode==1)
+    {
+        printf("\nMODEL:%s\nVAE:%s\nTAESD:%s\nCNET:%s\nLORA:%s\nEMBD:%s\nVAE_DEC:%d\nVAE_TILE:%d\nFREE_PARAM:%d\nTHREADS:%d\nWTYPE:%d\nRNGTYPE:%d\nSCHED:%d\nCNETCPU:%d\n\n",
+        sd_params->model_path.c_str(),
+        sd_params->vae_path.c_str(),
+        sd_params->taesd_path.c_str(),
+        sd_params->controlnet_path.c_str(),
+        sd_params->lora_model_dir.c_str(),
+        sd_params->embeddings_path.c_str(),
+        vae_decode_only,
+        sd_params->vae_tiling,
+        free_param,
+        sd_params->n_threads,
+        sd_params->wtype,
+        sd_params->rng_type,
+        sd_params->schedule,
+        sd_params->control_net_cpu);
+    }
 
     sd_ctx = new_sd_ctx(sd_params->model_path.c_str(),
-                                  sd_params->vae_path.c_str(),
-                                  sd_params->taesd_path.c_str(),
-                                  sd_params->controlnet_path.c_str(),
-                                  sd_params->lora_model_dir.c_str(),
-                                  sd_params->embeddings_path.c_str(),
-                                  vae_decode_only,
-                                  sd_params->vae_tiling,
-                                  true,
-                                  sd_params->n_threads,
-                                  sd_params->wtype,
-                                  sd_params->rng_type,
-                                  sd_params->schedule,
-                                  sd_params->control_net_cpu);
+                        sd_params->vae_path.c_str(),
+                        sd_params->taesd_path.c_str(),
+                        sd_params->controlnet_path.c_str(),
+                        sd_params->lora_model_dir.c_str(),
+                        sd_params->embeddings_path.c_str(),
+                        vae_decode_only,
+                        sd_params->vae_tiling,
+                        free_param,
+                        sd_params->n_threads,
+                        sd_params->wtype,
+                        sd_params->rng_type,
+                        sd_params->schedule,
+                        sd_params->control_net_cpu);
 
     if (sd_ctx == NULL) {
         printf("\nError: KCPP SD Failed to create context!\n");
@@ -169,12 +228,12 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
 sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
 {
     sd_generation_outputs output;
+
     if(sd_ctx == nullptr || sd_params == nullptr)
     {
-        printf("\nError: KCPP SD is not initialized!\n");
-        output.data = nullptr;
+        printf("\nWarning: KCPP image generation not initialized!\n");
+        output.data = "";
         output.status = 0;
-        output.data_length = 0;
         return output;
     }
     uint8_t * input_image_buffer = NULL;
@@ -188,6 +247,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
     sd_params->seed = inputs.seed;
 
     printf("\nGenerating Image (%d steps)\n",inputs.sample_steps);
+    fflush(stdout);
     std::string sampler = inputs.sample_method;
 
     if(sampler=="euler a") //all lowercase
@@ -216,6 +276,23 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
     }
 
     if (sd_params->mode == TXT2IMG) {
+
+         if(sddebugmode==1)
+        {
+            printf("\nPROMPT:%s\nNPROMPT:%s\nCLPSKP:%d\nCFGSCLE:%f\nW:%d\nH:%d\nSM:%d\nSTEP:%d\nSEED:%d\nBATCH:%d\nCIMG:%d\nCSTR:%f\n\n",
+            sd_params->prompt.c_str(),
+            sd_params->negative_prompt.c_str(),
+            sd_params->clip_skip,
+            sd_params->cfg_scale,
+            sd_params->width,
+            sd_params->height,
+            sd_params->sample_method,
+            sd_params->sample_steps,
+            sd_params->seed,
+            sd_params->batch_count,
+            control_image,
+            sd_params->control_strength);
+        }
         results = txt2img(sd_ctx,
                           sd_params->prompt.c_str(),
                           sd_params->negative_prompt.c_str(),
@@ -251,31 +328,31 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
 
     if (results == NULL) {
         printf("\nKCPP SD generate failed!\n");
-        output.data = nullptr;
+        output.data = "";
         output.status = 0;
-        output.data_length = 0;
         return output;
     }
 
 
-    size_t last            = sd_params->output_path.find_last_of(".");
-    std::string dummy_name = last != std::string::npos ? sd_params->output_path.substr(0, last) : sd_params->output_path;
     for (int i = 0; i < sd_params->batch_count; i++) {
         if (results[i].data == NULL) {
             continue;
         }
-        std::string final_image_path = i > 0 ? dummy_name + "_" + std::to_string(i + 1) + ".png" : dummy_name + ".png";
-        stbi_write_png(final_image_path.c_str(), results[i].width, results[i].height, results[i].channel,
-                       results[i].data, 0, "Made By KoboldCpp");
-        printf("save result image to '%s'\n", final_image_path.c_str());
+
+        int out_data_len;
+        unsigned char * png = stbi_write_png_to_mem(results[i].data, 0, results[i].width, results[i].height, results[i].channel, &out_data_len, "");
+        if (png != NULL)
+        {
+            recent_data = base64_encode(png,out_data_len);
+            free(png);
+        }
+
         free(results[i].data);
         results[i].data = NULL;
     }
 
     free(results);
-
-    output.data = nullptr;
+    output.data = recent_data.c_str();
     output.status = 1;
-    output.data_length = 0;
     return output;
 }

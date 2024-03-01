@@ -427,12 +427,12 @@ void sample_temperature(llama_token_data_array * candidates_p, float temp, float
     {
         // Imitate greedy sampling
         temp = 0.00390625f; //cannot be zero else div0, this is 1/256
-        llama_sample_temperature(nullptr, candidates_p, temp, 0);
+        llama_sample_temp(nullptr, candidates_p, temp, 0);
         llama_sample_top_k(nullptr, candidates_p, 1, 1); //only want first candidate
     }
     else
     {
-        llama_sample_temperature(nullptr, candidates_p, temp, smoothing_factor);
+        llama_sample_temp(nullptr, candidates_p, temp, smoothing_factor);
     }
 }
 
@@ -1041,11 +1041,11 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
                 lora_base_arg = lora_base.c_str();
             }
 
-            int err = llama_apply_lora_from_file(llama_ctx_v4,
-                                                 lora_filename.c_str(),
-                                                 1.0f,
-                                                 lora_base_arg,
-                                                 kcpp_params->n_threads);
+            int err = llama_model_apply_lora_from_file(llamamodel,
+                                                       lora_filename.c_str(),
+                                                       1.0f,
+                                                       lora_base_arg,
+                                                       kcpp_params->n_threads);
             if (err != 0)
             {
                 fprintf(stderr, "%s: error: failed to apply lora adapter\n", __func__);
@@ -1435,7 +1435,7 @@ bool gpttype_generate_abort()
 {
     if(kcpp_params==nullptr)
     {
-        printf("\nWarning: KCPP not initialized!\n");
+        printf("\nWarning: KCPP text generation not initialized!\n");
     }
     stopper_unused_tokens = remaining_tokens;
     remaining_tokens = 0;
@@ -1447,7 +1447,7 @@ std::vector<int> gpttype_get_token_arr(const std::string & input)
     std::vector<int> toks;
     if(kcpp_params==nullptr)
     {
-        printf("\nWarning: KCPP not initialized!\n");
+        printf("\nWarning: KCPP text generation not initialized!\n");
         return toks;
     }
     if(debugmode==1)
@@ -1467,7 +1467,7 @@ const std::string & gpttype_get_pending_output()
 {
     if(kcpp_params==nullptr)
     {
-        printf("\nWarning: KCPP not initialized!\n");
+        printf("\nWarning: KCPP text generation not initialized!\n");
         return concat_output_reader_copy_poll;
     }
     concat_output_mtx.lock();
@@ -1498,7 +1498,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
     if(kcpp_params==nullptr)
     {
-        printf("\nWarning: KCPP not initialized!\n");
+        printf("\nWarning: KCPP text generation not initialized!\n");
         output.text = nullptr;
         output.status = 0;
         generation_finished = true;

@@ -95,6 +95,11 @@ class generation_outputs(ctypes.Structure):
 
 class sd_load_model_inputs(ctypes.Structure):
     _fields_ = [("model_filename", ctypes.c_char_p),
+                ("clblast_info", ctypes.c_int),
+                ("cublas_info", ctypes.c_int),
+                ("vulkan_info", ctypes.c_char_p),
+                ("threads", ctypes.c_int),
+                ("quant", ctypes.c_int),
                 ("debugmode", ctypes.c_int)]
 
 class sd_generation_inputs(ctypes.Structure):
@@ -107,7 +112,6 @@ class sd_generation_inputs(ctypes.Structure):
 
 class sd_generation_outputs(ctypes.Structure):
     _fields_ = [("status", ctypes.c_int),
-                ("data_length", ctypes.c_uint),
                 ("data", ctypes.c_char_p)]
 
 handle = None
@@ -279,46 +283,11 @@ def init_library():
     handle.sd_generate.argtypes = [sd_generation_inputs]
     handle.sd_generate.restype = sd_generation_outputs
 
-def load_model(model_filename):
-    global args
-    inputs = load_model_inputs()
-    inputs.model_filename = model_filename.encode("UTF-8")
-    inputs.max_context_length = maxctx #initial value to use for ctx, can be overwritten
-    inputs.threads = args.threads
-    inputs.low_vram = (True if (args.usecublas and "lowvram" in args.usecublas) else False)
-    inputs.use_mmq = (True if (args.usecublas and "mmq" in args.usecublas) else False)
-    inputs.use_rowsplit = (True if (args.usecublas and "rowsplit" in args.usecublas) else False)
-    inputs.vulkan_info = "0".encode("UTF-8")
-    inputs.blasthreads = args.blasthreads
-    inputs.use_mmap = (not args.nommap)
-    inputs.use_mlock = args.usemlock
-    inputs.lora_filename = "".encode("UTF-8")
-    inputs.lora_base = "".encode("UTF-8")
-    if args.lora:
-        inputs.lora_filename = args.lora[0].encode("UTF-8")
-        inputs.use_mmap = False
-        if len(args.lora) > 1:
-            inputs.lora_base = args.lora[1].encode("UTF-8")
-    inputs.use_smartcontext = args.smartcontext
-    inputs.use_contextshift = (0 if args.noshift else 1)
-    inputs.blasbatchsize = args.blasbatchsize
-    inputs.forceversion = args.forceversion
-    inputs.gpulayers = args.gpulayers
-    inputs.rope_freq_scale = args.ropeconfig[0]
-    if len(args.ropeconfig)>1:
-        inputs.rope_freq_base = args.ropeconfig[1]
-    else:
-        inputs.rope_freq_base = 10000
+def set_backend_props(inputs):
     clblastids = 0
     if args.useclblast:
         clblastids = 100 + int(args.useclblast[0])*10 + int(args.useclblast[1])
     inputs.clblast_info = clblastids
-
-    for n in range(tensor_split_max):
-        if args.tensor_split and n < len(args.tensor_split):
-            inputs.tensor_split[n] = float(args.tensor_split[n])
-        else:
-            inputs.tensor_split[n] = 0
 
     # we must force an explicit tensor split
     # otherwise the default will divide equally and multigpu crap will slow it down badly
@@ -356,6 +325,46 @@ def load_model(model_filename):
         inputs.vulkan_info = s.encode("UTF-8")
     else:
         inputs.vulkan_info = "0".encode("UTF-8")
+    return inputs
+
+def load_model(model_filename):
+    global args
+    inputs = load_model_inputs()
+    inputs.model_filename = model_filename.encode("UTF-8")
+    inputs.max_context_length = maxctx #initial value to use for ctx, can be overwritten
+    inputs.threads = args.threads
+    inputs.low_vram = (True if (args.usecublas and "lowvram" in args.usecublas) else False)
+    inputs.use_mmq = (True if (args.usecublas and "mmq" in args.usecublas) else False)
+    inputs.use_rowsplit = (True if (args.usecublas and "rowsplit" in args.usecublas) else False)
+    inputs.vulkan_info = "0".encode("UTF-8")
+    inputs.blasthreads = args.blasthreads
+    inputs.use_mmap = (not args.nommap)
+    inputs.use_mlock = args.usemlock
+    inputs.lora_filename = "".encode("UTF-8")
+    inputs.lora_base = "".encode("UTF-8")
+    if args.lora:
+        inputs.lora_filename = args.lora[0].encode("UTF-8")
+        inputs.use_mmap = False
+        if len(args.lora) > 1:
+            inputs.lora_base = args.lora[1].encode("UTF-8")
+    inputs.use_smartcontext = args.smartcontext
+    inputs.use_contextshift = (0 if args.noshift else 1)
+    inputs.blasbatchsize = args.blasbatchsize
+    inputs.forceversion = args.forceversion
+    inputs.gpulayers = args.gpulayers
+    inputs.rope_freq_scale = args.ropeconfig[0]
+    if len(args.ropeconfig)>1:
+        inputs.rope_freq_base = args.ropeconfig[1]
+    else:
+        inputs.rope_freq_base = 10000
+
+    for n in range(tensor_split_max):
+        if args.tensor_split and n < len(args.tensor_split):
+            inputs.tensor_split[n] = float(args.tensor_split[n])
+        else:
+            inputs.tensor_split[n] = 0
+
+    inputs = set_backend_props(inputs)
 
     inputs.executable_path = (getdirpath()+"/").encode("UTF-8")
     inputs.debugmode = args.debugmode
@@ -475,6 +484,18 @@ def sd_load_model(model_filename):
     inputs = sd_load_model_inputs()
     inputs.debugmode = args.debugmode
     inputs.model_filename = model_filename.encode("UTF-8")
+    thds = args.threads
+    quant = 0
+    if len(args.sdconfig) > 2:
+        sdt = int(args.sdconfig[2])
+        if sdt > 0:
+            thds = sdt
+    if len(args.sdconfig) > 3:
+        quant = (1 if args.sdconfig[3]=="quant" else 0)
+
+    inputs.threads = thds
+    inputs.quant = quant
+    inputs = set_backend_props(inputs)
     ret = handle.sd_load_model(inputs)
     return ret
 
@@ -487,11 +508,16 @@ def sd_generate(genparams):
     seed = genparams.get("seed", -1)
     sample_method = genparams.get("sampler_name", "euler a")
 
+    #clean vars
+    cfg_scale = (1 if cfg_scale < 1 else (20 if cfg_scale > 20 else cfg_scale))
+    sample_steps = (1 if sample_steps < 1 else (50 if sample_steps > 50 else sample_steps))
+
     #quick mode
     if args.sdconfig and len(args.sdconfig)>1 and args.sdconfig[1]=="quick":
         cfg_scale = 1
         sample_steps = 7
         sample_method = "dpm++ 2m karras"
+        print("Image generation set to Quick Mode (Low Quality). Step counts, sampler, and cfg scale are fixed.")
 
     inputs = sd_generation_inputs()
     inputs.prompt = prompt.encode("UTF-8")
@@ -1137,6 +1163,7 @@ Enter Prompt:<br>
                         print("Generate Image: The response could not be sent, maybe connection was terminated?")
                         time.sleep(0.2) #short delay
                     return
+
         finally:
             modelbusy.release()
 
@@ -1175,7 +1202,7 @@ def RunServerMultiThreaded(addr, port, embedded_kailite = None, embedded_kcpp_do
         sock = context.wrap_socket(sock, server_side=True)
 
     sock.bind((addr, port))
-    numThreads = 12
+    numThreads = 20
     sock.listen(numThreads)
 
     class Thread(threading.Thread):
@@ -1372,6 +1399,8 @@ def show_new_gui():
 
     sd_model_var = ctk.StringVar()
     sd_quick_var = ctk.IntVar(value=0)
+    sd_threads_var = ctk.StringVar(value=str(default_threads))
+    sd_quant_var = ctk.IntVar(value=0)
 
     def tabbuttonaction(name):
         for t in tabcontent:
@@ -1850,6 +1879,9 @@ def show_new_gui():
     images_tab = tabcontent["Image Gen"]
     makefileentry(images_tab, "Stable Diffusion Model (f16):", "Select Stable Diffusion Model File", sd_model_var, 1, filetypes=[("*.safetensors","*.safetensors")], tooltiptxt="Select a .safetensors Stable Diffusion model file on disk to be loaded.")
     makecheckbox(images_tab, "Quick Mode (Low Quality)", sd_quick_var, 4,tooltiptxt="Force optimal generation settings for speed.")
+    makelabelentry(images_tab, "Image threads:" , sd_threads_var, 6, 50,"How many threads to use during image generation.\nIf left blank, uses same value as threads.")
+    makecheckbox(images_tab, "Compress Weights (Slight Memory Saved)", sd_quant_var, 8,tooltiptxt="Quantizes the SD model weights to save memory. May degrade quality.")
+
 
     # launch
     def guilaunch():
@@ -1937,7 +1969,7 @@ def show_new_gui():
         else:
             args.hordeconfig = None if usehorde_var.get() == 0 else [horde_name_var.get(), horde_gen_var.get(), horde_context_var.get(), horde_apikey_var.get(), horde_workername_var.get()]
 
-        args.sdconfig = None if sd_model_var.get() == "" else [sd_model_var.get(), ("quick" if sd_quick_var.get()==1 else "normal")]
+        args.sdconfig = None if sd_model_var.get() == "" else [sd_model_var.get(), ("quick" if sd_quick_var.get()==1 else "normal"),(int(threads_var.get()) if sd_threads_var.get()=="" else int(sd_threads_var.get())),("quant" if sd_quant_var.get()==1 else "noquant")]
 
     def import_vars(dict):
         if "threads" in dict:
@@ -2066,10 +2098,14 @@ def show_new_gui():
                 horde_workername_var.set(dict["hordeconfig"][4])
                 usehorde_var.set("1")
 
-        if "sdconfig" in dict and dict["sdconfig"] and len(dict["sdconfig"]) > 1:
+        if "sdconfig" in dict and dict["sdconfig"] and len(dict["sdconfig"]) > 0:
             sd_model_var.set(dict["sdconfig"][0])
-            if len(dict["sdconfig"]) > 2:
+            if len(dict["sdconfig"]) > 1:
                 sd_quick_var.set(1 if dict["sdconfig"][1]=="quick" else 0)
+            if len(dict["sdconfig"]) > 2:
+                sd_threads_var.set(str(dict["sdconfig"][2]))
+            if len(dict["sdconfig"]) > 3:
+                sd_quant_var.set(str(dict["sdconfig"][3]))
 
     def save_config():
         file_type = [("KoboldCpp Settings", "*.kcpps")]
@@ -2342,6 +2378,9 @@ def setuptunnel():
             if os.name == 'nt':
                 print("Starting Cloudflare Tunnel for Windows, please wait...", flush=True)
                 tunnelproc = subprocess.Popen(f"cloudflared.exe tunnel --url localhost:{args.port}", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+            elif sys.platform=="darwin":
+                print("Starting Cloudflare Tunnel for MacOS, please wait...", flush=True)
+                tunnelproc = subprocess.Popen(f"./cloudflared tunnel --url http://localhost:{args.port}", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
             else:
                 print("Starting Cloudflare Tunnel for Linux, please wait...", flush=True)
                 tunnelproc = subprocess.Popen(f"./cloudflared-linux-amd64 tunnel --url http://localhost:{args.port}", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
@@ -2378,6 +2417,14 @@ def setuptunnel():
             else:
                 print("Downloading Cloudflare Tunnel for Windows...")
                 subprocess.run("curl -fL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe -o cloudflared.exe", shell=True, capture_output=True, text=True, check=True, encoding='utf-8')
+        elif sys.platform=="darwin":
+            if os.path.exists("cloudflared") and os.path.getsize("cloudflared") > 1000000:
+                print("Cloudflared file exists, reusing it...")
+            else:
+                print("Downloading Cloudflare Tunnel for MacOS...")
+                subprocess.run("curl -fL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-amd64.tgz -o cloudflared-darwin-amd64.tgz", shell=True, capture_output=True, text=True, check=True, encoding='utf-8')
+                subprocess.run("tar -xzf cloudflared-darwin-amd64.tgz", shell=True)
+                subprocess.run("chmod +x 'cloudflared'", shell=True)
         else:
             if os.path.exists("cloudflared-linux-amd64") and os.path.getsize("cloudflared-linux-amd64") > 1000000:
                 print("Cloudflared file exists, reusing it...")
@@ -2720,7 +2767,7 @@ def main(launch_args,start_server=True):
         benchprompt = "11111111"
         for i in range(0,10): #generate massive prompt
             benchprompt += benchprompt
-        result = generate(benchprompt,memory="",max_length=benchlen,max_context_length=benchmaxctx,use_default_badwordsids=True)
+        result = generate(benchprompt,memory="",max_length=benchlen,max_context_length=benchmaxctx,temperature=0.1,top_k=1,rep_pen=1,use_default_badwordsids=True)
         result = (result[:5] if len(result)>5 else "")
         resultok = (result=="11111")
         t_pp = float(handle.get_last_process_time())*float(benchmaxctx-benchlen)*0.001
@@ -2846,6 +2893,6 @@ if __name__ == '__main__':
     parser.add_argument("--quiet", help="Enable quiet mode, which hides generation inputs and outputs in the terminal. Quiet mode is automatically enabled when running --hordeconfig.", action='store_true')
     parser.add_argument("--ssl", help="Allows all content to be served over SSL instead. A valid UNENCRYPTED SSL cert and key .pem files must be provided", metavar=('[cert_pem]', '[key_pem]'), nargs='+')
     parser.add_argument("--nocertify", help="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.", action='store_true')
-    parser.add_argument("--sdconfig", help="Specify a stable diffusion safetensors model to enable image generation. If quick is specified, force optimal generation settings for speed.",metavar=('[sd_filename]', '[normal|quick]'), nargs='+')
+    parser.add_argument("--sdconfig", help="Specify a stable diffusion safetensors model to enable image generation. If quick is specified, force optimal generation settings for speed.",metavar=('[sd_filename]', '[normal|quick] [sd_threads] [quant|noquant]'), nargs='+')
 
     main(parser.parse_args(),start_server=True)
