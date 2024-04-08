@@ -742,7 +742,8 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                     genparams["prompt"] = messages_string
                     if len(images_added)>0:
                         genparams["images"] = images_added
-                    genparams["stop_sequence"] = [user_message_start.strip(),assistant_message_start.strip()]
+                    if len(genparams.get('stop_sequence', []))==0: #only set stop seq if it wont overwrite existing
+                        genparams["stop_sequence"] = [user_message_start.strip(),assistant_message_start.strip()]
                     genparams["trim_stop"] = True
 
             elif api_format==5:
@@ -2387,6 +2388,9 @@ def make_url_request(url, data, method='POST', headers={}):
     global nocertify
     try:
         request = None
+        ssl_cert_dir = os.environ.get('SSL_CERT_DIR')
+        if not ssl_cert_dir and not nocertify and os.name != 'nt':
+            os.environ['SSL_CERT_DIR'] = '/etc/ssl/certs'
         ssl_context = ssl.create_default_context()
         if nocertify:
             ssl_context.check_hostname = False
@@ -2720,6 +2724,31 @@ def loadconfigfile(filename):
         for key, value in config.items():
             setattr(args, key, value)
 
+
+def delete_old_pyinstaller():
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        return # not running from pyinstaller
+    if not base_path:
+        return
+
+    import time, os, shutil
+    selfdirpath = os.path.abspath(base_path)
+    temp_parentdir_path = os.path.abspath(os.path.join(base_path, '..'))
+    for dirname in os.listdir(temp_parentdir_path):
+        absdirpath = os.path.abspath(os.path.join(temp_parentdir_path, dirname))
+        if os.path.isdir(absdirpath) and os.path.basename(absdirpath).startswith('_MEI'): #only delete kobold pyinstallers
+            if absdirpath!=selfdirpath and (time.time() - os.path.getctime(absdirpath)) > 14400: # remove if older than 4 hours
+                kobold_itemcheck1 = os.path.join(absdirpath, 'koboldcpp_default.dll')
+                kobold_itemcheck2 = os.path.join(absdirpath, 'koboldcpp_default.so')
+                if os.path.exists(kobold_itemcheck1) or os.path.exists(kobold_itemcheck2):
+                    try:
+                        shutil.rmtree(absdirpath)
+                        print(f"Deleted orphaned pyinstaller dir: {absdirpath}")
+                    except Exception as e:
+                        print(f"Error deleting orphaned pyinstaller dir: {absdirpath}: {e}")
+
 def sanitize_string(input_string):
     # alphanumeric characters, dots, dashes, and underscores
     import re
@@ -2731,6 +2760,14 @@ def main(launch_args,start_server=True):
     args = launch_args
     embedded_kailite = None
     embedded_kcpp_docs = None
+
+    #perform some basic cleanup of old temporary directories
+    try:
+        delete_old_pyinstaller()
+    except Exception as e:
+        print(f"Error cleaning up orphaned pyinstaller dirs: {e}")
+
+
     if args.config and len(args.config)==1:
         if isinstance(args.config[0], str) and os.path.exists(args.config[0]):
            loadconfigfile(args.config[0])

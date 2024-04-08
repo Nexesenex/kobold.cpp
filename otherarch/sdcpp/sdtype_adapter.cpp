@@ -30,6 +30,9 @@
 #define STB_IMAGE_WRITE_STATIC
 #include "stb_image_write.h"
 
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include "stb_image_resize2.h"
+
 const char* rng_type_to_str[] = {
     "std_default",
     "cuda",
@@ -282,6 +285,10 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
     sd_image_t input_image = {0,0,0,nullptr};
     std::vector<uint8_t> image_buffer;
     int nx, ny, nc;
+    int img2imgW = inputs.width; //for img2img input
+    int img2imgH = inputs.height;
+    int img2imgC = 3; // Assuming RGB image
+    std::vector<uint8_t> resized_image_buf(img2imgW * img2imgH * img2imgC);
 
     if(!is_quiet)
     {
@@ -326,7 +333,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
 
         if(!is_quiet && sddebugmode==1)
         {
-            printf("\nTXT2IMG PROMPT:%s\nNPROMPT:%s\nCLPSKP:%d\nCFGSCLE:%f\nW:%d\nH:%d\nSM:%d\nSTEP:%d\nSEED:%d\nBATCH:%d\nCIMG:%d\nCSTR:%f\n\n",
+            printf("\nTXT2IMG PROMPT:%s\nNPROMPT:%s\nCLPSKP:%d\nCFGSCLE:%f\nW:%d\nH:%d\nSM:%d\nSTEP:%d\nSEED:%d\nBATCH:%d\nCIMG:%p\nCSTR:%f\n\n",
             sd_params->prompt.c_str(),
             sd_params->negative_prompt.c_str(),
             sd_params->clip_skip,
@@ -335,7 +342,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
             sd_params->height,
             sd_params->sample_method,
             sd_params->sample_steps,
-            sd_params->seed,
+            (int)sd_params->seed,
             sd_params->batch_count,
             control_image,
             sd_params->control_strength);
@@ -372,7 +379,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
 
         input_image_buffer = stbi_load_from_memory(image_buffer.data(), image_buffer.size(), &nx, &ny, &nc, 3);
 
-        if (nx < 64 || ny < 64 || nc!= 3) {
+        if (nx < 64 || ny < 64 || nx > 1024 || ny > 1024 || nc!= 3) {
             printf("\nKCPP SD: bad input image dimensions %d x %d!\n",nx,ny);
             output.data = "";
             output.status = 0;
@@ -385,14 +392,23 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
             return output;
         }
 
-        input_image.width = nx;
-        input_image.height = ny;
-        input_image.channel = nc;
-        input_image.data = input_image_buffer;
+        // Resize the image
+        unsigned char * resok = stbir_resize_uint8_linear(input_image_buffer, nx, ny, 0, resized_image_buf.data(), img2imgW, img2imgH, 0, (stbir_pixel_layout)img2imgC);
+        if (!resok) {
+            printf("\nKCPP SD: resize image failed!\n");
+            output.data = "";
+            output.status = 0;
+            return output;
+        }
+
+        input_image.width = img2imgW;
+        input_image.height = img2imgH;
+        input_image.channel = img2imgC;
+        input_image.data = resized_image_buf.data();
 
         if(!is_quiet && sddebugmode==1)
         {
-            printf("\nIMG2IMG PROMPT:%s\nNPROMPT:%s\nCLPSKP:%d\nCFGSCLE:%f\nW:%d\nH:%d\nSM:%d\nSTEP:%d\nSEED:%d\nBATCH:%d\nCIMG:%d\nSTR:%f\n\n",
+            printf("\nIMG2IMG PROMPT:%s\nNPROMPT:%s\nCLPSKP:%d\nCFGSCLE:%f\nW:%d\nH:%d\nSM:%d\nSTEP:%d\nSEED:%d\nBATCH:%d\nCIMG:%p\nSTR:%f\n\n",
             sd_params->prompt.c_str(),
             sd_params->negative_prompt.c_str(),
             sd_params->clip_skip,
@@ -401,7 +417,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
             sd_params->height,
             sd_params->sample_method,
             sd_params->sample_steps,
-            sd_params->seed,
+            (int)sd_params->seed,
             sd_params->batch_count,
             control_image,
             sd_params->strength);
