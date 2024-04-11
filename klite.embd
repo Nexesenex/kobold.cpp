@@ -7,7 +7,7 @@ Just copy this single static HTML file anywhere and open it in a browser, or fro
 Please go to https://github.com/LostRuins/lite.koboldai.net for updates on Kobold Lite.
 If you are submitting a pull request for Lite, PLEASE use the above repo, not the KoboldCpp one.
 Kobold Lite is under the AGPL v3.0 License unless otherwise exempted. Please do not remove this line.
-Current version: 129
+Current version: 130
 -Concedo
 -->
 
@@ -5963,9 +5963,6 @@ Current version: 129
 
 		localsettings.opmode = temp_scenario.opmode;
 
-		if(temp_scenario.opmode == 1)
-		{
-		}
 		if(temp_scenario.opmode == 2)
 		{
 
@@ -8473,6 +8470,10 @@ Current version: 129
 				document.getElementById('instruct_starttag').value = "\\n{{[INPUT]}}\\n";
 				document.getElementById('instruct_endtag').value = "\\n{{[OUTPUT]}}\\n";
 				break;
+			case "8": //CommandR
+				document.getElementById('instruct_starttag').value = "<|END_OF_TURN_TOKEN|>\\n<|START_OF_TURN_TOKEN|><|USER_TOKEN|>\\n";
+				document.getElementById('instruct_endtag').value = "<|END_OF_TURN_TOKEN|>\\n<|START_OF_TURN_TOKEN|><|CHATBOT_TOKEN|>\\n";
+				break;
 			default:
 				break;
 		}
@@ -10343,7 +10344,7 @@ Current version: 129
 						}
 					];
 				}
-				else if(mdlname=="gemini-pro" || mdlname=="gemini-1.5-pro-latest" || mdlname=="gemini-ultra")
+				else //assume gemini
 				{
 					if(localsettings.opmode==1)
 					{
@@ -11581,22 +11582,22 @@ Current version: 129
 		show_abort_button(false);
 		if (pending_response_id && pending_response_id != "-1" && pending_response_id != "")
 		{
-			if (poll_ticks_passed > (1/(poll_interval_base_text*0.001))) //1sec passed
+			if (poll_ticks_passed > (1/(poll_interval_base_text*0.001))) //show abort btn after 1 sec passed
 			{
 				show_abort_button(true);
 			}
 			if (poll_in_progress) {
 				console.log("Polling still in progress for id: " + pending_response_id);
 			}
-			else {
-
-				if (is_using_custom_ep()) {
-					//v1 api only needs to check if data was received and stored into local object
+			else
+			{
+				if (is_using_custom_ep())
+				{
 					poll_in_progress = true;
 					if (synchro_polled_response == null)
 					{
 						//still waiting, do nothing until next poll
-						console.log("v1 still awaiting reply");
+						console.log("sync request: still awaiting reply");
 						let polledstreaming = (determine_streaming_type()==2);
 						//only check once every 2 ticks if remote
 						if (polledstreaming && (localflag?true:(poll_ticks_passed%2==0)))
@@ -11638,7 +11639,7 @@ Current version: 129
 					}
 					if (synchro_polled_response != null)
 					{
-						console.log("v1 handle recv reply");
+						console.log("sync request: handle recv reply");
 						pending_response_id = "";
 						poll_in_progress = false;
 						let resp = synchro_polled_response;
@@ -11664,101 +11665,102 @@ Current version: 129
 					}
 				}
 				else {
-					//v2 api needs to constantly poll to see if response is done
-					console.log("v2 Polling started for pending id: " + pending_response_id);
+					//horde api needs to constantly poll to see if response is done
+					console.log("async request: started for pending id " + pending_response_id);
 					poll_in_progress = true;
 					fetch(pending_response_horde.polling_endpoint + "/" + pending_response_id)
-						.then(x => x.json())
-						.then(data => {
-							if (data.message != null || data.faulted == true || data.is_possible == false) {
-								//id not found, or other fault. give up.
-								console.log("Gave up on failed attempt");
-								clear_poll_flags();
-								render_gametext();
-								show_abort_button(false);
-								let errmsg = "Error encountered during text generation!\n";
-								if (data.message != null) {
-									errmsg += data.message;
-								}
-								if (data.faulted == true) {
-									errmsg += "Fault encountered during text generation.";
-								}
-								if (data.is_possible == false) {
-									errmsg += "No workers were able to generate text with your request.";
-								}
-								msgbox(errmsg);
-							}
-							else {
-								if (data.done == true) {
-
-									//complete, fetch final results. we wait 0.5s more as kudos may take time to calculate
-									setTimeout(() => {
-										console.log("fetching completed generation for " + pending_response_id);
-										fetch(pending_response_horde.output_endpoint + "/" + pending_response_id)
-											.then(x => x.json())
-											.then(data => {
-												console.log("Finished " + pending_response_id + ": " + JSON.stringify(data));
-												pending_response_id = "";
-												poll_in_progress = false;
-												horde_poll_nearly_completed = false;
-												if (data.generations != null && data.generations.length > 0) {
-													let gentxt = data.generations[0].text;
-													let genworker = data.generations[0].worker_name;
-													let genmdl = data.generations[0].model;
-													let genkudos = data.kudos;
-													if (waiting_for_autosummary) {
-														handle_incoming_autosummary(gentxt);
-													}
-													else {
-														last_reply_was_empty = (gentxt=="" || gentxt.trim()=="");
-														handle_incoming_text(gentxt, genworker, genmdl, genkudos);
-													}
-												}
-												render_gametext();
-												show_abort_button(false);
-											}).catch((error) => {
-												console.error('Error:', error);
-												clear_poll_flags();
-												render_gametext();
-												show_abort_button(false);
-												msgbox("Error encountered during text generation!");
-											});
-									}, 500);
-								}
-								else {
-									//still waiting, do nothing until next poll
-									poll_in_progress = false;
-									horde_poll_nearly_completed = false;
-									//depending on the queue_position, set loader color
-									let mtl = document.getElementById("maintxtloader");
-									if (mtl) {
-										mtl.classList.remove("greenloader");
-										mtl.classList.remove("redloader");
-										if (data.queue_position > 0) {
-											mtl.classList.add("redloader");
-										} else if (data.processing == 1 && data.queue_position == 0) {
-											mtl.classList.add("greenloader");
-											if(data.wait_time<5)
-											{
-												horde_poll_nearly_completed = true;
-											}
-										}
-										let oln = document.getElementById("outerloadernum");
-										if(oln)
-										{
-											oln.innerText = data.queue_position==0?"":data.queue_position;
-										}
-									}
-									console.log("Still awaiting " + pending_response_id + ": " + JSON.stringify(data));
-								}
-							}
-						}).catch((error) => {
-							console.error('Error:', error);
+					.then(x => x.json())
+					.then(data => {
+						if (data.message != null || data.faulted == true || data.is_possible == false) {
+							//id not found, or other fault. give up.
+							console.log("async request: gave up on failed attempt");
 							clear_poll_flags();
 							render_gametext();
 							show_abort_button(false);
-							msgbox("Error encountered during text generation!");
-						});
+							let errmsg = "Error encountered during text generation!\n";
+							if (data.message != null) {
+								errmsg += data.message;
+							}
+							if (data.faulted == true) {
+								errmsg += "Fault encountered during text generation.";
+							}
+							if (data.is_possible == false) {
+								errmsg += "No workers were able to generate text with your request.";
+							}
+							msgbox(errmsg);
+						}
+						else
+						{
+							if (data.done == true) {
+								//complete, fetch final results. we wait 0.5s more as kudos may take time to calculate
+								setTimeout(() => {
+									console.log("fetching completed generation for " + pending_response_id);
+									fetch(pending_response_horde.output_endpoint + "/" + pending_response_id)
+										.then(x => x.json())
+										.then(data => {
+											console.log("Finished " + pending_response_id + ": " + JSON.stringify(data));
+											pending_response_id = "";
+											poll_in_progress = false;
+											horde_poll_nearly_completed = false;
+											if (data.generations != null && data.generations.length > 0) {
+												let gentxt = data.generations[0].text;
+												let genworker = data.generations[0].worker_name;
+												let genmdl = data.generations[0].model;
+												let genkudos = data.kudos;
+												if (waiting_for_autosummary) {
+													handle_incoming_autosummary(gentxt);
+												}
+												else {
+													last_reply_was_empty = (gentxt=="" || gentxt.trim()=="");
+													handle_incoming_text(gentxt, genworker, genmdl, genkudos);
+												}
+											}
+											render_gametext();
+											show_abort_button(false);
+										}).catch((error) => {
+											console.error('Error:', error);
+											clear_poll_flags();
+											render_gametext();
+											show_abort_button(false);
+											msgbox("Error encountered during text generation!");
+										});
+								}, 500);
+							}
+							else
+							{
+								//still waiting, do nothing until next poll
+								poll_in_progress = false;
+								horde_poll_nearly_completed = false;
+								//depending on the queue_position, set loader color
+								let mtl = document.getElementById("maintxtloader");
+								if (mtl) {
+									mtl.classList.remove("greenloader");
+									mtl.classList.remove("redloader");
+									if (data.queue_position > 0) {
+										mtl.classList.add("redloader");
+									} else if (data.processing == 1 && data.queue_position == 0) {
+										mtl.classList.add("greenloader");
+										if(data.wait_time<5)
+										{
+											horde_poll_nearly_completed = true;
+										}
+									}
+									let oln = document.getElementById("outerloadernum");
+									if(oln)
+									{
+										oln.innerText = data.queue_position==0?"":data.queue_position;
+									}
+								}
+								console.log("Still awaiting " + pending_response_id + ": " + JSON.stringify(data));
+							}
+						}
+					}).catch((error) => {
+						console.error('Error:', error);
+						clear_poll_flags();
+						render_gametext();
+						show_abort_button(false);
+						msgbox("Error encountered during text generation!");
+					});
 				}
 			}
 		}
@@ -14036,7 +14038,6 @@ Current version: 129
 					<option value="text-bison-001" selected="selected">text-bison-001</option>
 					<option value="gemini-pro">gemini-pro</option>
 					<option value="gemini-1.5-pro-latest">gemini-1.5-pro-latest</option>
-					<option value="gemini-ultra">gemini-ultra</option>
 				</select>
 				<span class="color_green" style="font-weight: bold;">Please input Gemini or PaLM API Key.</span><br><br>
 				<input class="form-control" type="password" id="custom_palm_key" placeholder="PaLM/Gemini API Key" value="" onfocus="focus_api_keys()" onblur="blur_api_keys()"><br>
@@ -14356,6 +14357,7 @@ Current version: 129
 								<option value="5">Q & A</option>
 								<option value="6">ChatML</option>
 								<option value="7">KoboldAI Format</option>
+								<option value="8">CommandR</option>
 							</select>
 							<table class="settingsmall text-center" style="border-spacing: 3px 2px;	border-collapse: separate;">
 								<tr>

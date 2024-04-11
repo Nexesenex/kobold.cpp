@@ -622,7 +622,7 @@ maxhordelen = 256
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.62.1"
+KcppVersion = "1.62.2"
 showdebug = True
 showsamplerwarning = True
 showmaxctxwarning = True
@@ -744,6 +744,9 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                         genparams["images"] = images_added
                     if len(genparams.get('stop_sequence', []))==0: #only set stop seq if it wont overwrite existing
                         genparams["stop_sequence"] = [user_message_start.strip(),assistant_message_start.strip()]
+                    else:
+                        genparams["stop_sequence"].append(user_message_start.strip())
+                        genparams["stop_sequence"].append(assistant_message_start.strip())
                     genparams["trim_stop"] = True
 
             elif api_format==5:
