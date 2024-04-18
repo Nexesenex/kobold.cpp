@@ -34,7 +34,7 @@
 #include "examples/llava/llava.h"
 
 //const
-const int extra_context_handle_fragmentation = 80;
+const int extra_context_handle_fragmentation = 0;
 const int LLAVA_TOKEN_IDENTIFIER_A = -998; //alternate between both, changing when image changes
 const int LLAVA_TOKEN_IDENTIFIER_B = -999;
 
@@ -803,9 +803,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
                 float factor = file_format_meta.n_ctx_train/2048;
                 effectivenctx = effectivenctx/factor;
             }
-            rope_freq_base = (effectivenctx <= 2048 ? 10000.0f : (effectivenctx <= 3072 ? 26000.0f : (effectivenctx <= 4096 ? 32000.0f : (effectivenctx <= 6144 ? 54000.0f :
-            (effectivenctx <= 8192 ? 82684.0f : (effectivenctx <= 12288 ? 140000.0f : (effectivenctx <= 16384 ? 200000.0f : (effectivenctx <= 24576 ? 320000.0f : 440000.0f))))))));
-
+			rope_freq_base = (effectivenctx <= 2048 ? 10000.0f : (effectivenctx <= 2176 ? 10000.0f : (effectivenctx <= 2304 ? 11000.0f : (effectivenctx <= 2432 ? 12000.0f : (effectivenctx <= 2560 ? 13000.0f : (effectivenctx <= 2688 ? 14000.0f : (effectivenctx <= 2816 ? 15000.0f : (effectivenctx <= 2944 ? 16000.0f : (effectivenctx <= 3072 ? 17000.0f : (effectivenctx <= 3200 ? 18000.0f : (effectivenctx <= 3328 ? 19000.0f : (effectivenctx <= 3456 ? 20000.0f : (effectivenctx <= 3584 ? 21000.0f : (effectivenctx <= 3712 ? 22000.0f : (effectivenctx <= 3840 ? 23000.0f : (effectivenctx <= 3968 ? 24000.0f : (effectivenctx <= 4096 ? 25000.0f : (effectivenctx <= 4224 ? 26000.0f : (effectivenctx <= 4352 ? 27000.0f : (effectivenctx <= 4480 ? 28500.0f : (effectivenctx <= 4608 ? 30000.0f : (effectivenctx <= 4736 ? 31500.0f : (effectivenctx <= 4864 ? 33000.0f : (effectivenctx <= 4992 ? 34500.0f : (effectivenctx <= 5120 ? 36000.0f : (effectivenctx <= 5248 ? 38000.0f : (effectivenctx <= 5376 ? 40000.0f : (effectivenctx <= 5504 ? 42000.0f : (effectivenctx <= 5632 ? 44000.0f : (effectivenctx <= 5760 ? 46000.0f : (effectivenctx <= 5888 ? 48000.0f : (effectivenctx <= 6016 ? 51000.0f : (effectivenctx <= 6144 ? 54000.0f : (effectivenctx <= 6288 ? 57000.0f : (effectivenctx <= 6400 ? 61000.0f : (effectivenctx <= 8192 ? 82684.0f : (effectivenctx <= 8192 ? 82684.0f : (effectivenctx <= 12288 ? 140000.0f : (effectivenctx <= 16384 ? 200000.0f : (effectivenctx <= 24576 ? 320000.0f : 440000.0f))))))))))))))))))))))))))))))))))))))));
         }
 
         printf("Using automatic RoPE scaling. If the model has customized RoPE settings, they will be used directly instead!\n");
