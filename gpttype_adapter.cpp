@@ -803,7 +803,11 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
                 float factor = file_format_meta.n_ctx_train/2048;
                 effectivenctx = effectivenctx/factor;
             }
-			rope_freq_base = (effectivenctx <= 2048 ? 10000.0f : (effectivenctx <= 2176 ? 10000.0f : (effectivenctx <= 2304 ? 11000.0f : (effectivenctx <= 2432 ? 12000.0f : (effectivenctx <= 2560 ? 13000.0f : (effectivenctx <= 2688 ? 14000.0f : (effectivenctx <= 2816 ? 15000.0f : (effectivenctx <= 2944 ? 16000.0f : (effectivenctx <= 3072 ? 17000.0f : (effectivenctx <= 3200 ? 18000.0f : (effectivenctx <= 3328 ? 19000.0f : (effectivenctx <= 3456 ? 20000.0f : (effectivenctx <= 3584 ? 21000.0f : (effectivenctx <= 3712 ? 22000.0f : (effectivenctx <= 3840 ? 23000.0f : (effectivenctx <= 3968 ? 24000.0f : (effectivenctx <= 4096 ? 25000.0f : (effectivenctx <= 4224 ? 26000.0f : (effectivenctx <= 4352 ? 27000.0f : (effectivenctx <= 4480 ? 28500.0f : (effectivenctx <= 4608 ? 30000.0f : (effectivenctx <= 4736 ? 31500.0f : (effectivenctx <= 4864 ? 33000.0f : (effectivenctx <= 4992 ? 34500.0f : (effectivenctx <= 5120 ? 36000.0f : (effectivenctx <= 5248 ? 38000.0f : (effectivenctx <= 5376 ? 40000.0f : (effectivenctx <= 5504 ? 42000.0f : (effectivenctx <= 5632 ? 44000.0f : (effectivenctx <= 5760 ? 46000.0f : (effectivenctx <= 5888 ? 48000.0f : (effectivenctx <= 6016 ? 51000.0f : (effectivenctx <= 6144 ? 54000.0f : (effectivenctx <= 6288 ? 57000.0f : (effectivenctx <= 6400 ? 61000.0f : (effectivenctx <= 8192 ? 82684.0f : (effectivenctx <= 8192 ? 82684.0f : (effectivenctx <= 12288 ? 140000.0f : (effectivenctx <= 16384 ? 200000.0f : (effectivenctx <= 24576 ? 320000.0f : 440000.0f))))))))))))))))))))))))))))))))))))))));
+            float magic_multiplier = 8.0f;
+            float base_multiplier = effectivenctx*magic_multiplier;
+            float base_raw = 10000.0f;
+            rope_freq_base = (effectivenctx <= 2048 ? base_raw : base_multiplier);
+
         }
 
         printf("Using automatic RoPE scaling. If the model has customized RoPE settings, they will be used directly instead!\n");
@@ -1047,7 +1051,8 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         else
         {
             //if the model modifes rope in any way, use the model values. Otherwise, use our automatic ones
-            if(llamamodel->hparams.rope_freq_base_train!=10000.0f ||
+            //special exception for llama, which uses auto scale
+            if((llamamodel->hparams.rope_freq_base_train!=10000.0f && llamamodel->hparams.rope_freq_base_train!=500000.0f) ||
             llamamodel->hparams.rope_freq_scale_train!=1.0f ||
             llamamodel->hparams.rope_scaling_type_train==2)
             {
@@ -1055,6 +1060,8 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             }
             else
             {
+                float multiplier_rope_base = llamamodel->hparams.rope_freq_base_train/10000.0f;
+                rope_freq_base *= multiplier_rope_base;
                 llama_ctx_params.rope_freq_base = rope_freq_base;
                 llama_ctx_params.rope_freq_scale = rope_freq_scale;
                 printf("Automatic RoPE Scaling: Using (scale:%.3f, base:%.1f).\n", rope_freq_scale, rope_freq_base);

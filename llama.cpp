@@ -4558,6 +4558,13 @@ static bool llm_load_tensors(
 
     auto & hparams = model.hparams;
 
+#ifdef GGML_USE_SYCL
+    // disable MoE with SYCL until mul_mat_id is updated
+    if (hparams.n_expert > 0) {
+        n_gpu_layers = 0;
+    }
+#endif
+
     model.split_mode   = split_mode;
     model.main_gpu     = main_gpu;
     model.n_gpu_layers = n_gpu_layers;
@@ -4662,7 +4669,7 @@ static bool llm_load_tensors(
     size_t ctx_size = ggml_tensor_overhead()*(ml.n_tensors + 1); // +1 for models where tok_embd is duplicated as output
 
     // for moe merged tensors
-    ctx_size += ggml_tensor_overhead()*hparams.n_expert*n_layer;
+    ctx_size += ggml_tensor_overhead()*n_layer*3;
 
     std::map<ggml_backend_buffer_type_t, ggml_context *> ctx_map;
     for (auto & it : buft_layer_count) {
@@ -5254,7 +5261,13 @@ static bool llm_load_tensors(
                     // output
                     {
                         model.output_norm = ml.create_tensor(ctx_output,       tn(LLM_TENSOR_OUTPUT_NORM, "weight"), {n_embd});
-                        model.output      = ml.create_tensor(ctx_output_split, tn(LLM_TENSOR_OUTPUT,      "weight"), {n_embd, n_vocab});
+                        model.output      = ml.create_tensor(ctx_output_split, tn(LLM_TENSOR_OUTPUT,      "weight"), {n_embd, n_vocab}, false);
+                        // if output is NULL, init from the input tok embed
+                        if (model.output == NULL) {
+                            model.output = ml.create_tensor(ctx_output, tn(LLM_TENSOR_TOKEN_EMBD, "weight"), {n_embd, n_vocab});
+                            ml.n_created--; // artificial tensor
+                            ml.size_data += ggml_nbytes(model.output);
+                        }
                     }
 
                     for (int i = 0; i < n_layer; ++i) {
@@ -6194,14 +6207,16 @@ static struct ggml_tensor * llm_build_moe_ffn(
             ggml_reshape_3d(ctx, probs, 1, n_expert, n_tokens), selected_experts); // [1, n_expert_used, n_tokens]
     cb(weights, "ffn_moe_weights", il);
 
-    weights = ggml_reshape_2d(ctx, weights, n_expert_used, n_tokens);
-
     if (norm_w) {
+        weights = ggml_reshape_2d(ctx, weights, n_expert_used, n_tokens);
+
         ggml_tensor * weights_sum = ggml_sum_rows(ctx, weights); // [1, n_tokens]
         cb(weights_sum, "ffn_moe_weights_sum", il);
 
         weights = ggml_div(ctx, weights, weights_sum); // [n_expert_used, n_tokens]
         cb(weights, "ffn_moe_weights_norm", il);
+
+        weights = ggml_reshape_3d(ctx, weights, 1, n_expert_used, n_tokens);
     }
 
     cur = ggml_reshape_3d(ctx, cur, n_embd, 1, n_tokens);
@@ -6232,8 +6247,7 @@ static struct ggml_tensor * llm_build_moe_ffn(
     ggml_tensor * experts = ggml_mul_mat_id(ctx, down_exps, par, selected_experts); // [n_embd, n_expert_used, n_tokens]
     cb(experts, "ffn_moe_down", il);
 
-    experts = ggml_mul(ctx, experts,
-            ggml_reshape_3d(ctx, weights, 1, n_expert_used, n_tokens));
+    experts = ggml_mul(ctx, experts, weights);
 
     // aggregate experts
     ggml_tensor * moe_out = nullptr;
