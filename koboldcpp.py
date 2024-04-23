@@ -81,7 +81,8 @@ class generation_inputs(ctypes.Structure):
                 ("mirostat_eta", ctypes.c_float),
                 ("sampler_order", ctypes.c_int * sampler_order_max),
                 ("sampler_len", ctypes.c_int),
-                ("unban_tokens_rt", ctypes.c_bool),
+                ("allow_eos_token", ctypes.c_bool),
+                ("render_special", ctypes.c_bool),
                 ("stop_sequence", ctypes.c_char_p * stop_token_max),
                 ("stream_sse", ctypes.c_bool),
                 ("grammar", ctypes.c_char_p),
@@ -398,7 +399,7 @@ def load_model(model_filename):
     ret = handle.load_model(inputs)
     return ret
 
-def generate(prompt, memory="", images=[], max_length=32, max_context_length=512, temperature=0.7, top_k=100, top_a=0.0, top_p=0.92, min_p=0.0, typical_p=1.0, tfs=1.0, rep_pen=1.0, rep_pen_range=128, presence_penalty=0.0, mirostat=0, mirostat_tau=5.0, mirostat_eta=0.1, sampler_order=[6,0,1,3,4,2,5], seed=-1, stop_sequence=[], use_default_badwordsids=False, stream_sse=False, grammar='', grammar_retain_state=False, genkey='', trimstop=False, quiet=False, dynatemp_range=0.0, dynatemp_exponent=1.0, smoothing_factor=0.0, logit_biases={}):
+def generate(prompt, memory="", images=[], max_length=32, max_context_length=512, temperature=0.7, top_k=100, top_a=0.0, top_p=0.92, min_p=0.0, typical_p=1.0, tfs=1.0, rep_pen=1.0, rep_pen_range=128, presence_penalty=0.0, mirostat=0, mirostat_tau=5.0, mirostat_eta=0.1, sampler_order=[6,0,1,3,4,2,5], seed=-1, stop_sequence=[], use_default_badwordsids=False, stream_sse=False, grammar='', grammar_retain_state=False, genkey='', trimstop=False, quiet=False, dynatemp_range=0.0, dynatemp_exponent=1.0, smoothing_factor=0.0, logit_biases={}, render_special=False):
     global maxctx, args, currentusergenkey, totalgens, pendingabortkey
     inputs = generation_inputs()
     inputs.prompt = prompt.encode("UTF-8")
@@ -436,7 +437,8 @@ def generate(prompt, memory="", images=[], max_length=32, max_context_length=512
     inputs.smoothing_factor = smoothing_factor
     inputs.grammar = grammar.encode("UTF-8")
     inputs.grammar_retain_state = grammar_retain_state
-    inputs.unban_tokens_rt = not use_default_badwordsids
+    inputs.allow_eos_token = not use_default_badwordsids
+    inputs.render_special = render_special
     if mirostat in (1, 2):
         inputs.mirostat = mirostat
         inputs.mirostat_tau = mirostat_tau
@@ -606,6 +608,15 @@ def bring_terminal_to_foreground():
         ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 9)
         ctypes.windll.user32.SetForegroundWindow(ctypes.windll.kernel32.GetConsoleWindow())
 
+def string_contains_sequence_substring(inputstr,sequences):
+    if inputstr.strip()=="":
+        return False
+    for s in sequences:
+        if s.strip()=="":
+            continue
+        if s.strip() in inputstr.strip() or inputstr.strip() in s.strip():
+            return True
+    return False
 
 #################################################################
 ### A hacky simple HTTP server simulating a kobold api by Concedo
@@ -622,7 +633,7 @@ maxhordelen = 256
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.63"
+KcppVersion = "1.64"
 showdebug = True
 showsamplerwarning = True
 showmaxctxwarning = True
@@ -645,6 +656,93 @@ nocertify = False
 start_time = time.time()
 last_req_time = time.time()
 last_non_horde_req_time = time.time()
+
+def transform_genparams(genparams, api_format):
+    #alias all nonstandard alternative names for rep pen.
+    rp1 = genparams.get('repeat_penalty', 1.0)
+    rp2 = genparams.get('repetition_penalty', 1.0)
+    rp3 = genparams.get('rep_pen', 1.0)
+    rp_max = max(rp1,rp2,rp3)
+    genparams["rep_pen"] = rp_max
+
+    if api_format==1:
+        genparams["prompt"] = genparams.get('text', "")
+        genparams["top_k"] = int(genparams.get('top_k', 120))
+        genparams["max_length"] = genparams.get('max', 100)
+
+    elif api_format==3 or api_format==4:
+        genparams["max_length"] = genparams.get('max_tokens', 100)
+        presence_penalty = genparams.get('presence_penalty', genparams.get('frequency_penalty', 0.0))
+        genparams["presence_penalty"] = presence_penalty
+        # openai allows either a string or a list as a stop sequence
+        if isinstance(genparams.get('stop',[]), list):
+            genparams["stop_sequence"] = genparams.get('stop', [])
+        else:
+            genparams["stop_sequence"] = [genparams.get('stop')]
+
+        genparams["sampler_seed"] = genparams.get('seed', -1)
+        genparams["use_default_badwordsids"] = genparams.get('ignore_eos', False)
+        genparams["mirostat"] = genparams.get('mirostat_mode', 0)
+
+        if api_format==4:
+            # translate openai chat completion messages format into one big string.
+            messages_array = genparams.get('messages', [])
+            default_adapter = {} if chatcompl_adapter is None else chatcompl_adapter
+            adapter_obj = genparams.get('adapter', default_adapter)
+            messages_string = ""
+            system_message_start = adapter_obj.get("system_start", "\n### Instruction:\n")
+            system_message_end = adapter_obj.get("system_end", "")
+            user_message_start = adapter_obj.get("user_start", "\n### Instruction:\n")
+            user_message_end = adapter_obj.get("user_end", "")
+            assistant_message_start = adapter_obj.get("assistant_start", "\n### Response:\n")
+            assistant_message_end = adapter_obj.get("assistant_end", "")
+            images_added = []
+
+            for message in messages_array:
+                if message['role'] == "system":
+                    messages_string += system_message_start
+                elif message['role'] == "user":
+                    messages_string += user_message_start
+                elif message['role'] == "assistant":
+                    messages_string += assistant_message_start
+
+                # content can be a string or an array of objects
+                curr_content = message['content']
+                if isinstance(curr_content, str):
+                        messages_string += curr_content
+                elif isinstance(curr_content, list): #is an array
+                    for item in curr_content:
+                        if item['type']=="text":
+                                messages_string += item['text']
+                        elif item['type']=="image_url":
+                            if item['image_url'] and item['image_url']['url'] and item['image_url']['url'].startswith("data:image"):
+                                images_added.append(item['image_url']['url'].split(",", 1)[1])
+
+                if message['role'] == "system":
+                    messages_string += system_message_end
+                elif message['role'] == "user":
+                    messages_string += user_message_end
+                elif message['role'] == "assistant":
+                    messages_string += assistant_message_end
+
+            messages_string += assistant_message_start
+            genparams["prompt"] = messages_string
+            if len(images_added)>0:
+                genparams["images"] = images_added
+            if len(genparams.get('stop_sequence', []))==0: #only set stop seq if it wont overwrite existing
+                genparams["stop_sequence"] = [user_message_start.strip(),assistant_message_start.strip()]
+            else:
+                genparams["stop_sequence"].append(user_message_start.strip())
+                genparams["stop_sequence"].append(assistant_message_start.strip())
+            genparams["trim_stop"] = True
+
+    elif api_format==5:
+        firstimg = genparams.get('image', "")
+        genparams["images"] = [firstimg]
+        genparams["max_length"] = 32
+        genparams["prompt"] = "### Instruction: In one sentence, write a descriptive caption for this image.\n### Response:"
+
+    return genparams
 
 class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
     sys_version = ""
@@ -669,91 +767,8 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
         from datetime import datetime
         global friendlymodelname, chatcompl_adapter
         is_quiet = args.quiet
+
         def run_blocking(): #api format 1=basic,2=kai,3=oai,4=oai-chat
-
-            #alias all nonstandard alternative names for rep pen.
-            rp1 = genparams.get('repeat_penalty', 1.0)
-            rp2 = genparams.get('repetition_penalty', 1.0)
-            rp3 = genparams.get('rep_pen', 1.0)
-            rp_max = max(rp1,rp2,rp3)
-            genparams["rep_pen"] = rp_max
-
-            if api_format==1:
-                genparams["prompt"] = genparams.get('text', "")
-                genparams["top_k"] = int(genparams.get('top_k', 120))
-                genparams["max_length"] = genparams.get('max', 100)
-
-            elif api_format==3 or api_format==4:
-                genparams["max_length"] = genparams.get('max_tokens', 100)
-                presence_penalty = genparams.get('presence_penalty', genparams.get('frequency_penalty', 0.0))
-                genparams["presence_penalty"] = presence_penalty
-                # openai allows either a string or a list as a stop sequence
-                if isinstance(genparams.get('stop',[]), list):
-                    genparams["stop_sequence"] = genparams.get('stop', [])
-                else:
-                    genparams["stop_sequence"] = [genparams.get('stop')]
-
-                genparams["sampler_seed"] = genparams.get('seed', -1)
-                genparams["use_default_badwordsids"] = genparams.get('ignore_eos', False)
-                genparams["mirostat"] = genparams.get('mirostat_mode', 0)
-
-                if api_format==4:
-                    # translate openai chat completion messages format into one big string.
-                    messages_array = genparams.get('messages', [])
-                    default_adapter = {} if chatcompl_adapter is None else chatcompl_adapter
-                    adapter_obj = genparams.get('adapter', default_adapter)
-                    messages_string = ""
-                    system_message_start = adapter_obj.get("system_start", "\n### Instruction:\n")
-                    system_message_end = adapter_obj.get("system_end", "")
-                    user_message_start = adapter_obj.get("user_start", "\n### Instruction:\n")
-                    user_message_end = adapter_obj.get("user_end", "")
-                    assistant_message_start = adapter_obj.get("assistant_start", "\n### Response:\n")
-                    assistant_message_end = adapter_obj.get("assistant_end", "")
-                    images_added = []
-
-                    for message in messages_array:
-                        if message['role'] == "system":
-                            messages_string += system_message_start
-                        elif message['role'] == "user":
-                            messages_string += user_message_start
-                        elif message['role'] == "assistant":
-                            messages_string += assistant_message_start
-
-                        # content can be a string or an array of objects
-                        curr_content = message['content']
-                        if isinstance(curr_content, str):
-                             messages_string += curr_content
-                        elif isinstance(curr_content, list): #is an array
-                            for item in curr_content:
-                                if item['type']=="text":
-                                     messages_string += item['text']
-                                elif item['type']=="image_url":
-                                    if item['image_url'] and item['image_url']['url'] and item['image_url']['url'].startswith("data:image"):
-                                        images_added.append(item['image_url']['url'].split(",", 1)[1])
-
-                        if message['role'] == "system":
-                            messages_string += system_message_end
-                        elif message['role'] == "user":
-                            messages_string += user_message_end
-                        elif message['role'] == "assistant":
-                            messages_string += assistant_message_end
-
-                    messages_string += assistant_message_start
-                    genparams["prompt"] = messages_string
-                    if len(images_added)>0:
-                        genparams["images"] = images_added
-                    if len(genparams.get('stop_sequence', []))==0: #only set stop seq if it wont overwrite existing
-                        genparams["stop_sequence"] = [user_message_start.strip(),assistant_message_start.strip()]
-                    else:
-                        genparams["stop_sequence"].append(user_message_start.strip())
-                        genparams["stop_sequence"].append(assistant_message_start.strip())
-                    genparams["trim_stop"] = True
-
-            elif api_format==5:
-                    firstimg = genparams.get('image', "")
-                    genparams["images"] = [firstimg]
-                    genparams["max_length"] = 32
-                    genparams["prompt"] = "### Instruction: In one sentence, write a descriptive caption for this image.\n### Response:"
 
             #flag instance as non-idle for a while
             washordereq = genparams.get('genkey', '').startswith('HORDEREQ_')
@@ -793,7 +808,8 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 dynatemp_range=genparams.get('dynatemp_range', 0.0),
                 dynatemp_exponent=genparams.get('dynatemp_exponent', 1.0),
                 smoothing_factor=genparams.get('smoothing_factor', 0.0),
-                logit_biases=genparams.get('logit_bias', {})
+                logit_biases=genparams.get('logit_bias', {}),
+                render_special=genparams.get('render_special', False),
                 )
 
         recvtxt = ""
@@ -846,7 +862,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.wfile.write(f'data: {data}\n\n'.encode())
         self.wfile.flush()
 
-    async def handle_sse_stream(self, api_format):
+    async def handle_sse_stream(self, genparams, api_format):
         global friendlymodelname
         self.send_response(200)
         self.send_header("cache-control", "no-cache")
@@ -855,8 +871,10 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         current_token = 0
         incomplete_token_buffer = bytearray()
+        async_sleep_short = 0.02
         await asyncio.sleep(0.25) #anti race condition, prevent check from overtaking generate
         try:
+            tokenReserve = "" #keeps fully formed tokens that we cannot send out yet
             while True:
                 streamDone = handle.has_finished() #exit next loop on done
                 tokenStr = ""
@@ -876,19 +894,37 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                         tokenStr += tokenSeg
 
                 if tokenStr!="":
-                    if api_format == 4:  # if oai chat, set format to expected openai streaming response
-                        event_str = json.dumps({"id":"koboldcpp","object":"chat.completion.chunk","created":1,"model":friendlymodelname,"choices":[{"index":0,"finish_reason":"length","delta":{'role':'assistant','content':tokenStr}}]})
-                        await self.send_oai_sse_event(event_str)
-                    elif api_format == 3:  # non chat completions
-                        event_str = json.dumps({"id":"koboldcpp","object":"text_completion","created":1,"model":friendlymodelname,"choices":[{"index":0,"finish_reason":"length","text":tokenStr}]})
-                        await self.send_oai_sse_event(event_str)
+                    sseq = genparams.get('stop_sequence', [])
+                    trimstop = genparams.get('trim_stop', False)
+                    if trimstop and not streamDone and string_contains_sequence_substring(tokenStr,sseq):
+                        tokenReserve += tokenStr
+                        await asyncio.sleep(async_sleep_short) #if a stop sequence could trigger soon, do not send output
                     else:
-                        event_str = json.dumps({"token": tokenStr})
-                        await self.send_kai_sse_event(event_str)
-                    tokenStr = ""
+                        tokenStr = tokenReserve + tokenStr
+                        tokenReserve = ""
 
+                        #apply trimming if needed
+                        if trimstop:
+                            for trim_str in sseq:
+                                sindex = tokenStr.find(trim_str)
+                                if sindex != -1 and trim_str!="":
+                                    tokenStr = tokenStr[:sindex]
+
+                        if tokenStr!="":
+                            if api_format == 4:  # if oai chat, set format to expected openai streaming response
+                                event_str = json.dumps({"id":"koboldcpp","object":"chat.completion.chunk","created":1,"model":friendlymodelname,"choices":[{"index":0,"finish_reason":"length","delta":{'role':'assistant','content':tokenStr}}]})
+                                await self.send_oai_sse_event(event_str)
+                            elif api_format == 3:  # non chat completions
+                                event_str = json.dumps({"id":"koboldcpp","object":"text_completion","created":1,"model":friendlymodelname,"choices":[{"index":0,"finish_reason":"length","text":tokenStr}]})
+                                await self.send_oai_sse_event(event_str)
+                            else:
+                                event_str = json.dumps({"token": tokenStr})
+                                await self.send_kai_sse_event(event_str)
+                            tokenStr = ""
+                        else:
+                            await asyncio.sleep(async_sleep_short)
                 else:
-                    await asyncio.sleep(0.02) #this should keep things responsive
+                    await asyncio.sleep(async_sleep_short) #this should keep things responsive
 
                 if streamDone:
                     if api_format == 4 or api_format == 3:  # if oai chat, send last [DONE] message consistent with openai format
@@ -907,12 +943,14 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
         await asyncio.sleep(0.05)
 
 
-    async def handle_request(self, genparams, api_format, stream_flag):
+    async def handle_request(self, raw_genparams, api_format, stream_flag):
         tasks = []
+
+        genparams = transform_genparams(raw_genparams, api_format)
 
         try:
             if stream_flag:
-                tasks.append(self.handle_sse_stream(api_format))
+                tasks.append(self.handle_sse_stream(genparams, api_format))
 
             generate_task = asyncio.create_task(self.generate_text(genparams, api_format, stream_flag))
             tasks.append(generate_task)
@@ -2825,6 +2863,8 @@ def main(launch_args,start_server=True):
             exitcounter = 999
             ermsg = "Reason: " + str(ex) + "\nFile selection GUI unsupported.\ncustomtkinter python module required!\nPlease check command line: script.py --help"
             show_gui_msgbox("Warning, GUI failed to start",ermsg)
+            if args.skiplauncher:
+                print(f"Note: In order to use --skiplauncher, you need to specify a model with --model")
             time.sleep(3)
             sys.exit(2)
 
