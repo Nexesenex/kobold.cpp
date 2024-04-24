@@ -429,9 +429,15 @@ void sample_rep_pen(int n_ctx, int rep_pen_range, float rep_pen, float presence_
 
     const int64_t t_start_sample_us = ggml_time_us();
 
+    // Create a frequency map to count occurrences of each token in last_tokens
+    std::unordered_map<llama_token, int> token_count;
+    for (size_t i = 0; i < last_n_repeat; ++i) {
+        token_count[last_tokens[i]]++;
+    }
+
     for (size_t i = 0; i < candidates->size; ++i) {
-        const auto * token_iter = std::find(last_tokens, last_tokens + last_tokens_size, candidates->data[i].id);
-        if (token_iter == last_tokens + last_tokens_size) {
+        const auto token_iter = token_count.find(candidates->data[i].id);
+        if (token_iter == token_count.end()) {
             continue;
         }
 

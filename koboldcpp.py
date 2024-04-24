@@ -9,7 +9,7 @@
 # scenarios and everything Kobold and Kobold Lite have to offer.
 
 import ctypes
-import os
+import os, math
 import argparse
 import json, sys, http.server, time, asyncio, socket, threading
 from concurrent.futures import ThreadPoolExecutor
@@ -1503,15 +1503,50 @@ def show_new_gui():
 
     import customtkinter as ctk
     nextstate = 0 #0=exit, 1=launch
-    windowwidth = 920
-    windowheight = 500
+    original_windowwidth = 920
+    original_windowheight = 500
+    windowwidth = original_windowwidth
+    windowheight = original_windowheight
     ctk.set_appearance_mode("dark")
     root = ctk.CTk()
-    root.geometry(str(windowwidth) + "x" + str(windowheight))
+    root.geometry(f"{windowwidth}x{windowheight}")
     root.title("KoboldCpp v"+KcppVersion)
-    root.resizable(False,False)
+    root.resizable(True,True)
+
     gtooltip_box = None
     gtooltip_label = None
+
+    window_reference_width = None
+    window_reference_height = None
+    previous_event_width = None
+    previous_event_height = None
+    def on_resize(event):
+        if not event.widget.master:
+            nonlocal window_reference_width, window_reference_height, previous_event_width,previous_event_height
+            if not window_reference_width and not window_reference_height:
+                window_reference_width = event.width
+                window_reference_height = event.height
+                previous_event_width = window_reference_width
+                previous_event_height = window_reference_height
+            else:
+                new_width = event.width
+                new_height = event.height
+                incr_w = new_width/window_reference_width
+                incr_h = new_height/window_reference_height
+                smallratio = min(incr_w,incr_h)
+                smallratio = round(smallratio,2)
+                if new_width != previous_event_width or new_height!=previous_event_height:
+                    lastpos = root.geometry()
+                    lparr = lastpos.split('+', 1)
+                    lastpos = f"+{lparr[1]}" if (len(lparr)==2) else ""
+                    previous_event_width = new_width
+                    previous_event_height = new_height
+                    windowwidth = math.floor(original_windowwidth*smallratio)
+                    windowheight = math.floor(original_windowheight*smallratio)
+                    root.geometry(f"{windowwidth}x{windowheight}{lastpos}")
+                    ctk.set_widget_scaling(smallratio)
+
+    root.bind("<Configure>", on_resize)
 
     # trigger empty tooltip then remove it
     def show_tooltip(event, tooltip_text=None):
