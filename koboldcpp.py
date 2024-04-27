@@ -56,7 +56,6 @@ class load_model_inputs(ctypes.Structure):
                 ("gpulayers", ctypes.c_int),
                 ("rope_freq_scale", ctypes.c_float),
                 ("rope_freq_base", ctypes.c_float),
-                ("banned_tokens", ctypes.c_char_p * ban_token_max),
                 ("tensor_split", ctypes.c_float * tensor_split_max)]
 
 class generation_inputs(ctypes.Structure):
@@ -91,10 +90,12 @@ class generation_inputs(ctypes.Structure):
                 ("dynatemp_range", ctypes.c_float),
                 ("dynatemp_exponent", ctypes.c_float),
                 ("smoothing_factor", ctypes.c_float),
-                ("logit_biases", logit_bias * logit_bias_max)]
+                ("logit_biases", logit_bias * logit_bias_max),
+                ("banned_tokens", ctypes.c_char_p * ban_token_max)]
 
 class generation_outputs(ctypes.Structure):
     _fields_ = [("status", ctypes.c_int),
+                ("stopreason", ctypes.c_int),
                 ("text", ctypes.c_char_p)]
 
 class sd_load_model_inputs(ctypes.Structure):
@@ -390,16 +391,10 @@ def load_model(model_filename):
 
     inputs.executable_path = (getdirpath()+"/").encode("UTF-8")
     inputs.debugmode = args.debugmode
-    banned_tokens = args.bantokens
-    for n in range(ban_token_max):
-        if not banned_tokens or n >= len(banned_tokens):
-            inputs.banned_tokens[n] = "".encode("UTF-8")
-        else:
-            inputs.banned_tokens[n] = banned_tokens[n].encode("UTF-8")
     ret = handle.load_model(inputs)
     return ret
 
-def generate(prompt, memory="", images=[], max_length=32, max_context_length=512, temperature=0.7, top_k=100, top_a=0.0, top_p=0.92, min_p=0.0, typical_p=1.0, tfs=1.0, rep_pen=1.0, rep_pen_range=128, presence_penalty=0.0, mirostat=0, mirostat_tau=5.0, mirostat_eta=0.1, sampler_order=[6,0,1,3,4,2,5], seed=-1, stop_sequence=[], use_default_badwordsids=False, stream_sse=False, grammar='', grammar_retain_state=False, genkey='', trimstop=False, quiet=False, dynatemp_range=0.0, dynatemp_exponent=1.0, smoothing_factor=0.0, logit_biases={}, render_special=False):
+def generate(prompt, memory="", images=[], max_length=32, max_context_length=512, temperature=0.7, top_k=100, top_a=0.0, top_p=0.92, min_p=0.0, typical_p=1.0, tfs=1.0, rep_pen=1.0, rep_pen_range=128, presence_penalty=0.0, mirostat=0, mirostat_tau=5.0, mirostat_eta=0.1, sampler_order=[6,0,1,3,4,2,5], seed=-1, stop_sequence=[], use_default_badwordsids=False, stream_sse=False, grammar='', grammar_retain_state=False, genkey='', trimstop=False, quiet=False, dynatemp_range=0.0, dynatemp_exponent=1.0, smoothing_factor=0.0, logit_biases={}, render_special=False, banned_tokens=[]):
     global maxctx, args, currentusergenkey, totalgens, pendingabortkey
     inputs = generation_inputs()
     inputs.prompt = prompt.encode("UTF-8")
@@ -486,6 +481,12 @@ def generate(prompt, memory="", images=[], max_length=32, max_context_length=512
                 inputs.logit_biases[n] = logit_bias(-1, 0.0)
                 print(f"Skipped unparsable logit bias:{ex}")
 
+    for n in range(ban_token_max):
+        if not banned_tokens or n >= len(banned_tokens):
+            inputs.banned_tokens[n] = "".encode("UTF-8")
+        else:
+            inputs.banned_tokens[n] = banned_tokens[n].encode("UTF-8")
+
     currentusergenkey = genkey
     totalgens += 1
     #early exit if aborted
@@ -493,7 +494,7 @@ def generate(prompt, memory="", images=[], max_length=32, max_context_length=512
     if pendingabortkey!="" and pendingabortkey==genkey:
         print(f"\nDeferred Abort for GenKey: {pendingabortkey}")
         pendingabortkey = ""
-        return ""
+        return {"text":"","status":-1,"stopreason":-1}
     else:
         ret = handle.generate(inputs)
         outstr = ""
@@ -504,7 +505,7 @@ def generate(prompt, memory="", images=[], max_length=32, max_context_length=512
                 sindex = outstr.find(trim_str)
                 if sindex != -1 and trim_str!="":
                     outstr = outstr[:sindex]
-        return outstr
+        return {"text":outstr,"status":ret.status,"stopreason":ret.stopreason}
 
 
 def sd_load_model(model_filename):
@@ -656,6 +657,7 @@ nocertify = False
 start_time = time.time()
 last_req_time = time.time()
 last_non_horde_req_time = time.time()
+currfinishreason = "null"
 
 def transform_genparams(genparams, api_format):
     #alias all nonstandard alternative names for rep pen.
@@ -669,6 +671,10 @@ def transform_genparams(genparams, api_format):
         genparams["prompt"] = genparams.get('text', "")
         genparams["top_k"] = int(genparams.get('top_k', 120))
         genparams["max_length"] = genparams.get('max', 100)
+
+    elif api_format==2:
+        if "ignore_eos" in genparams and not ("use_default_badwordsids" in genparams):
+            genparams["use_default_badwordsids"] = genparams.get('ignore_eos', False)
 
     elif api_format==3 or api_format==4:
         genparams["max_length"] = genparams.get('max_tokens', 100)
@@ -765,8 +771,9 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     async def generate_text(self, genparams, api_format, stream_flag):
         from datetime import datetime
-        global friendlymodelname, chatcompl_adapter
+        global friendlymodelname, chatcompl_adapter, currfinishreason
         is_quiet = args.quiet
+        currfinishreason = "null"
 
         def run_blocking(): #api format 1=basic,2=kai,3=oai,4=oai-chat
 
@@ -810,15 +817,19 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 smoothing_factor=genparams.get('smoothing_factor', 0.0),
                 logit_biases=genparams.get('logit_bias', {}),
                 render_special=genparams.get('render_special', False),
+                banned_tokens=genparams.get('banned_tokens', []),
                 )
 
-        recvtxt = ""
+        genout = {"text":"","status":-1,"stopreason":-1}
         if stream_flag:
             loop = asyncio.get_event_loop()
             executor = ThreadPoolExecutor()
-            recvtxt = await loop.run_in_executor(executor, run_blocking)
+            genout = await loop.run_in_executor(executor, run_blocking)
         else:
-            recvtxt = run_blocking()
+            genout = run_blocking()
+
+        recvtxt = genout['text']
+        currfinishreason = ("length" if (genout['stopreason']!=1) else "stop")
 
         #flag instance as non-idle for a while
         washordereq = genparams.get('genkey', '').startswith('HORDEREQ_')
@@ -834,15 +845,15 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
         elif api_format==3:
             res = {"id": "cmpl-1", "object": "text_completion", "created": 1, "model": friendlymodelname,
             "usage": {"prompt_tokens": 100,"completion_tokens": 100,"total_tokens": 200},
-            "choices": [{"text": recvtxt, "index": 0, "finish_reason": "length"}]}
+            "choices": [{"text": recvtxt, "index": 0, "finish_reason": currfinishreason}]}
         elif api_format==4:
             res = {"id": "chatcmpl-1", "object": "chat.completion", "created": 1, "model": friendlymodelname,
             "usage": {"prompt_tokens": 100,"completion_tokens": 100,"total_tokens": 200},
-            "choices": [{"index": 0, "message":{"role": "assistant", "content": recvtxt,}, "finish_reason": "length"}]}
+            "choices": [{"index": 0, "message":{"role": "assistant", "content": recvtxt,}, "finish_reason": currfinishreason}]}
         elif api_format==5:
             res = {"caption": end_trim_to_sentence(recvtxt)}
         else:
-            res = {"results": [{"text": recvtxt}]}
+            res = {"results": [{"text": recvtxt, "finish_reason":currfinishreason}]}
 
         try:
             return res
@@ -863,7 +874,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.wfile.flush()
 
     async def handle_sse_stream(self, genparams, api_format):
-        global friendlymodelname
+        global friendlymodelname, currfinishreason
         self.send_response(200)
         self.send_header("cache-control", "no-cache")
         self.send_header("connection", "keep-alive")
@@ -877,6 +888,9 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
             tokenReserve = "" #keeps fully formed tokens that we cannot send out yet
             while True:
                 streamDone = handle.has_finished() #exit next loop on done
+                if streamDone:
+                    sr = handle.get_last_stop_reason()
+                    currfinishreason = ("length" if (sr!=1) else "stop")
                 tokenStr = ""
                 streamcount = handle.get_stream_count()
                 while current_token < streamcount:
@@ -893,32 +907,33 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                         incomplete_token_buffer.clear()
                         tokenStr += tokenSeg
 
-                if tokenStr!="":
+                if tokenStr!="" or streamDone:
                     sseq = genparams.get('stop_sequence', [])
                     trimstop = genparams.get('trim_stop', False)
                     if trimstop and not streamDone and string_contains_sequence_substring(tokenStr,sseq):
                         tokenReserve += tokenStr
                         await asyncio.sleep(async_sleep_short) #if a stop sequence could trigger soon, do not send output
                     else:
-                        tokenStr = tokenReserve + tokenStr
-                        tokenReserve = ""
-
-                        #apply trimming if needed
-                        if trimstop:
-                            for trim_str in sseq:
-                                sindex = tokenStr.find(trim_str)
-                                if sindex != -1 and trim_str!="":
-                                    tokenStr = tokenStr[:sindex]
-
                         if tokenStr!="":
+                            tokenStr = tokenReserve + tokenStr
+                            tokenReserve = ""
+
+                            #apply trimming if needed
+                            if trimstop:
+                                for trim_str in sseq:
+                                    sindex = tokenStr.find(trim_str)
+                                    if sindex != -1 and trim_str!="":
+                                        tokenStr = tokenStr[:sindex]
+
+                        if tokenStr!="" or streamDone:
                             if api_format == 4:  # if oai chat, set format to expected openai streaming response
-                                event_str = json.dumps({"id":"koboldcpp","object":"chat.completion.chunk","created":1,"model":friendlymodelname,"choices":[{"index":0,"finish_reason":"length","delta":{'role':'assistant','content':tokenStr}}]})
+                                event_str = json.dumps({"id":"koboldcpp","object":"chat.completion.chunk","created":1,"model":friendlymodelname,"choices":[{"index":0,"finish_reason":currfinishreason,"delta":{'role':'assistant','content':tokenStr}}]})
                                 await self.send_oai_sse_event(event_str)
                             elif api_format == 3:  # non chat completions
-                                event_str = json.dumps({"id":"koboldcpp","object":"text_completion","created":1,"model":friendlymodelname,"choices":[{"index":0,"finish_reason":"length","text":tokenStr}]})
+                                event_str = json.dumps({"id":"koboldcpp","object":"text_completion","created":1,"model":friendlymodelname,"choices":[{"index":0,"finish_reason":currfinishreason,"text":tokenStr}]})
                                 await self.send_oai_sse_event(event_str)
                             else:
-                                event_str = json.dumps({"token": tokenStr})
+                                event_str = json.dumps({"token": tokenStr, "finish_reason":currfinishreason})
                                 await self.send_kai_sse_event(event_str)
                             tokenStr = ""
                         else:
@@ -1607,7 +1622,7 @@ def show_new_gui():
     # slider data
     blasbatchsize_values = ["-1", "32", "64", "128", "256", "512", "1024", "2048"]
     blasbatchsize_text = ["Don't Batch BLAS","32","64","128","256","512","1024","2048"]
-    contextsize_text = ["128" ,"256" ,"384" ,"512" ,"640" ,"768" ,"896" ,"1024" ,"1152" ,"1280" ,"1408" ,"1536" ,"1664" ,"1792" ,"1920" ,"2048" ,"2176" ,"2304" ,"2432" ,"2560" ,"2688" ,"2816" ,"2944" ,"3072" ,"3200" ,"3328" ,"3456" ,"3584" ,"3712" ,"3840" ,"3968" ,"4096" ,"4224" ,"4352" ,"4480" ,"4608" ,"4736" ,"4864" ,"4992" ,"5120" ,"5248" ,"5376" ,"5504" ,"5632" ,"5760" ,"5888" ,"6016" ,"6144" ,"6272" ,"6400" ,"6528" ,"6656" ,"6784" ,"6912" ,"7040" ,"7168" ,"7296" ,"7424" ,"7552" ,"7680" ,"7808" ,"7936" ,"8064" ,"8192" ,"8320" ,"8448" ,"8576" ,"8704" ,"8832" ,"8960" ,"9088" ,"9216" ,"9344" ,"9472" ,"9600" ,"9728" ,"9856" ,"9984" ,"10112" ,"10240" ,"10368" ,"10496" ,"10624" ,"10752" ,"10880" ,"11008" ,"11136" ,"11264" ,"11392" ,"11520" ,"11648" ,"11776" ,"11904" ,"12032" ,"12160" ,"12288" ,"12416" ,"12544" ,"12672" ,"12800" ,"12928" ,"13056" ,"13184" ,"13312" ,"13440" ,"13568" ,"13696" ,"13824" ,"13952" ,"14080" ,"14208" ,"14336" ,"14464" ,"14592" ,"14720" ,"14848" ,"14976" ,"15104" ,"15232" ,"15360" ,"15488" ,"15616" ,"15744" ,"15872" ,"16000" ,"16128" ,"16256" ,"16384" ,"16512" ,"16640" ,"16768" ,"16896" ,"17024" ,"17152" ,"17280" ,"17408" ,"17536" ,"17664" ,"17792" ,"17920" ,"18048" ,"18176" ,"18304" ,"18432" ,"18560" ,"18688" ,"18816" ,"18944" ,"19072" ,"19200" ,"19328" ,"19456" ,"19584" ,"19712" ,"19840" ,"19968" ,"20096" ,"20224" ,"20352" ,"20480" ,"20608" ,"20736" ,"20864" ,"20992" ,"21120" ,"21248" ,"21376" ,"21504" ,"21632" ,"21760" ,"21888" ,"22016" ,"22144" ,"22272" ,"22400" ,"22528" ,"22656" ,"22784" ,"22912" ,"23040" ,"23168" ,"23296" ,"23424" ,"23552" ,"23680" ,"23808" ,"23936" ,"24064" ,"24192" ,"24320" ,"24448" ,"24576" ,"24704" ,"24832" ,"24960" ,"25088" ,"25216" ,"25344" ,"25472" ,"25600" ,"25728" ,"25856" ,"25984" ,"26112" ,"26240" ,"26368" ,"26496" ,"26624" ,"26752" ,"26880" ,"27008" ,"27136" ,"27264" ,"27392" ,"27520" ,"27648" ,"27776" ,"27904" ,"28032" ,"28160" ,"28288" ,"28416" ,"28544" ,"28672" ,"28800" ,"28928" ,"29056" ,"29184" ,"29312" ,"29440" ,"29568" ,"29696" ,"29824" ,"29952" ,"30080" ,"30208" ,"30336" ,"30464" ,"30592" ,"30720" ,"30848" ,"30976" ,"31104" ,"31232" ,"31360" ,"31488" ,"31616" ,"31744" ,"31872" ,"32000" ,"32128" ,"32256" ,"32384" ,"32512" ,"32640" ,"32768" ,"32896" ,"33024" ,"33152" , "33280" ,"33408" ,"33536" ,"33664" ,"33792" ,"33920" ,"34048" ,"34176" ,"34304" ,"34432" ,"34560" ,"34688" ,"34816" ,"34944" ,"35072" ,"35200" ,"35328" ,"35456" ,"35584" ,"35712" ,"35840" ,"35968" ,"36096" ,"36224" ,"36352" ,"36480" ,"36608" ,"36736" ,"36864" ,"36992" ,"37120" ,"37248" ,"37376" ,"37504" ,"37632" ,"37760" ,"37888" ,"38016" ,"38144" ,"38272" ,"38400" ,"38528" ,"38656" ,"38784" ,"38912" ,"39040" ,"39168" ,"39296" ,"39424" ,"39552" ,"39680" ,"39808" ,"39936" ,"40064" ,"40192" ,"40320" ,"40448" ,"40576" ,"40704" ,"40832" ,"40960" ,"41088" ,"41216" ,"41344" ,"41472" ,"41600" ,"41728" ,"41856" ,"41984" ,"42112" ,"42240" ,"42368" ,"42496" ,"42624" ,"42752" ,"42880" ,"43008" ,"43136" ,"43264" ,"43392" ,"43520" ,"43648" ,"43776" ,"43904" ,"44032" ,"44160" ,"44288" ,"44416" ,"44544" ,"44672" ,"44800" ,"44928" ,"45056" ,"45184" ,"45312" ,"45440" ,"45568" ,"45696" ,"45824" ,"45952" ,"46080" ,"46208" ,"46336" ,"46464" ,"46592" ,"46720" ,"46848" ,"46976" ,"47104" ,"47232" ,"47360" ,"47488" ,"47616" ,"47744" ,"47872" ,"48000" ,"48128" ,"48256" ,"48384" ,"48512" ,"48640" ,"48768" ,"48896" ,"49024" ,"49152" ,"49280" ,"49408" ,"49536" ,"49664" ,"49792" ,"49920" ,"50048" ,"50176" ,"50304" ,"50432" ,"50560" ,"50688" ,"50816" ,"50944" ,"51072" ,"51200" ,"51328" ,"51456" ,"51584" ,"51712" ,"51840" ,"51968" ,"52096" ,"52224" ,"52352" ,"52480" ,"52608" ,"52736" ,"52864" ,"52992" ,"53120" ,"53248" ,"53376" ,"53504" ,"53632" ,"53760" ,"53888" ,"54016" ,"54144" ,"54272" ,"54400" ,"54528" ,"54656" ,"54784" ,"54912" ,"55040" ,"55168" ,"55296" ,"55424" ,"55552" ,"55680" ,"55808" ,"55936" ,"56064" ,"56192" ,"56320" ,"56448" ,"56576" ,"56704" ,"56832" ,"56960" ,"57088" ,"57216" ,"57344" ,"57472" ,"57600" ,"57728" ,"57856" ,"57984" ,"58112" ,"58240" ,"58368" ,"58496" ,"58624" ,"58752" ,"58880" ,"59008" ,"59136" ,"59264" ,"59392" ,"59520" ,"59648" ,"59776" ,"59904" ,"60032" ,"60160" ,"60288" ,"60416" ,"60544" ,"60672" ,"60800" ,"60928" ,"61056" ,"61184" ,"61312" ,"61440" ,"61568" ,"61696" ,"61824" ,"61952" ,"62080" ,"62208" ,"62336" ,"62464" ,"62592" ,"62720" ,"62848" ,"62976" ,"63104" ,"63232" ,"63360" ,"63488" ,"63616" ,"63744" ,"63872" ,"64000" ,"64128" ,"64256" ,"64384" ,"64512" ,"64640" ,"64768" ,"64896" ,"65024" ,"65152" ,"65280" ,"65408" , "65536"]
+    contextsize_text = ["128" ,"256" ,"384" ,"512" ,"640" ,"768" ,"896" ,"1024" ,"1152" ,"1280" ,"1408" ,"1536" ,"1664" ,"1792" ,"1920" ,"2048" ,"2176" ,"2304" ,"2432" ,"2560" ,"2688" ,"2816" ,"2944" ,"3072" ,"3200" ,"3328" ,"3456" ,"3584" ,"3712" ,"3840" ,"3968" ,"4096" ,"4224" ,"4352" ,"4480" ,"4608" ,"4736" ,"4864" ,"4992" ,"5120" ,"5248" ,"5376" ,"5504" ,"5632" ,"5760" ,"5888" ,"6016" ,"6144" ,"6272" ,"6400" ,"6528" ,"6656" ,"6784" ,"6912" ,"7040" ,"7168" ,"7296" ,"7424" ,"7552" ,"7680" ,"7808" ,"7936" ,"8064" ,"8192" ,"8320" ,"8448" ,"8576" ,"8704" ,"8832" ,"8960" ,"9088" ,"9216" ,"9344" ,"9472" ,"9600" ,"9728" ,"9856" ,"9984" ,"10112" ,"10240" ,"10368" ,"10496" ,"10624" ,"10752" ,"10880" ,"11008" ,"11136" ,"11264" ,"11392" ,"11520" ,"11648" ,"11776" ,"11904" ,"12032" ,"12160" ,"12288" ,"12416" ,"12544" ,"12672" ,"12800" ,"12928" ,"13056" ,"13184" ,"13312" ,"13440" ,"13568" ,"13696" ,"13824" ,"13952" ,"14080" ,"14208" ,"14336" ,"14464" ,"14592" ,"14720" ,"14848" ,"14976" ,"15104" ,"15232" ,"15360" ,"15488" ,"15616" ,"15744" ,"15872" ,"16000" ,"16128" ,"16256" ,"16384" ,"16512" ,"16640" ,"16768" ,"16896" ,"17024" ,"17152" ,"17280" ,"17408" ,"17536" ,"17664" ,"17792" ,"17920" ,"18048" ,"18176" ,"18304" ,"18432" ,"18560" ,"18688" ,"18816" ,"18944" ,"19072" ,"19200" ,"19328" ,"19456" ,"19584" ,"19712" ,"19840" ,"19968" ,"20096" ,"20224" ,"20352" ,"20480" ,"20608" ,"20736" ,"20864" ,"20992" ,"21120" ,"21248" ,"21376" ,"21504" ,"21632" ,"21760" ,"21888" ,"22016" ,"22144" ,"22272" ,"22400" ,"22528" ,"22656" ,"22784" ,"22912" ,"23040" ,"23168" ,"23296" ,"23424" ,"23552" ,"23680" ,"23808" ,"23936" ,"24064" ,"24192" ,"24320" ,"24448" ,"24576" ,"24704" ,"24832" ,"24960" ,"25088" ,"25216" ,"25344" ,"25472" ,"25600" ,"25728" ,"25856" ,"25984" ,"26112" ,"26240" ,"26368" ,"26496" ,"26624" ,"26752" ,"26880" ,"27008" ,"27136" ,"27264" ,"27392" ,"27520" ,"27648" ,"27776" ,"27904" ,"28032" ,"28160" ,"28288" ,"28416" ,"28544" ,"28672" ,"28800" ,"28928" ,"29056" ,"29184" ,"29312" ,"29440" ,"29568" ,"29696" ,"29824" ,"29952" ,"30080" ,"30208" ,"30336" ,"30464" ,"30592" ,"30720" ,"30848" ,"30976" ,"31104" ,"31232" ,"31360" ,"31488" ,"31616" ,"31744" ,"31872" ,"32000" ,"32128" ,"32256" ,"32384" ,"32512" ,"32640" ,"32768" ,"32896" ,"33024" ,"33152" , "33280" ,"33408" ,"33536" ,"33664" ,"33792" ,"33920" ,"34048" ,"34176" ,"34304" ,"34432" ,"34560" ,"34688" ,"34816" ,"34944" ,"35072" ,"35200" ,"35328" ,"35456" ,"35584" ,"35712" ,"35840" ,"35968" ,"36096" ,"36224" ,"36352" ,"36480" ,"36608" ,"36736" ,"36864" ,"36992" ,"37120" ,"37248" ,"37376" ,"37504" ,"37632" ,"37760" ,"37888" ,"38016" ,"38144" ,"38272" ,"38400" ,"38528" ,"38656" ,"38784" ,"38912" ,"39040" ,"39168" ,"39296" ,"39424" ,"39552" ,"39680" ,"39808" ,"39936" ,"40064" ,"40192" ,"40320" ,"40448" ,"40576" ,"40704" ,"40832" ,"40960" ,"41088" ,"41216" ,"41344" ,"41472" ,"41600" ,"41728" ,"41856" ,"41984" ,"42112" ,"42240" ,"42368" ,"42496" ,"42624" ,"42752" ,"42880" ,"43008" ,"43136" ,"43264" ,"43392" ,"43520" ,"43648" ,"43776" ,"43904" ,"44032" ,"44160" ,"44288" ,"44416" ,"44544" ,"44672" ,"44800" ,"44928" ,"45056" ,"45184" ,"45312" ,"45440" ,"45568" ,"45696" ,"45824" ,"45952" ,"46080" ,"46208" ,"46336" ,"46464" ,"46592" ,"46720" ,"46848" ,"46976" ,"47104" ,"47232" ,"47360" ,"47488" ,"47616" ,"47744" ,"47872" ,"48000" ,"48128" ,"48256" ,"48384" ,"48512" ,"48640" ,"48768" ,"48896" ,"49024" ,"49152" ,"49280" ,"49408" ,"49536" ,"49664" ,"49792" ,"49920" ,"50048" ,"50176" ,"50304" ,"50432" ,"50560" ,"50688" ,"50816" ,"50944" ,"51072" ,"51200" ,"51328" ,"51456" ,"51584" ,"51712" ,"51840" ,"51968" ,"52096" ,"52224" ,"52352" ,"52480" ,"52608" ,"52736" ,"52864" ,"52992" ,"53120" ,"53248" ,"53376" ,"53504" ,"53632" ,"53760" ,"53888" ,"54016" ,"54144" ,"54272" ,"54400" ,"54528" ,"54656" ,"54784" ,"54912" ,"55040" ,"55168" ,"55296" ,"55424" ,"55552" ,"55680" ,"55808" ,"55936" ,"56064" ,"56192" ,"56320" ,"56448" ,"56576" ,"56704" ,"56832" ,"56960" ,"57088" ,"57216" ,"57344" ,"57472" ,"57600" ,"57728" ,"57856" ,"57984" ,"58112" ,"58240" ,"58368" ,"58496" ,"58624" ,"58752" ,"58880" ,"59008" ,"59136" ,"59264" ,"59392" ,"59520" ,"59648" ,"59776" ,"59904" ,"60032" ,"60160" ,"60288" ,"60416" ,"60544" ,"60672" ,"60800" ,"60928" ,"61056" ,"61184" ,"61312" ,"61440" ,"61568" ,"61696" ,"61824" ,"61952" ,"62080" ,"62208" ,"62336" ,"62464" ,"62592" ,"62720" ,"62848" ,"62976" ,"63104" ,"63232" ,"63360" ,"63488" ,"63616" ,"63744" ,"63872" ,"64000" ,"64128" ,"64256" ,"64384" ,"64512" ,"64640" ,"64768" ,"64896" ,"65024" ,"65280" ,"65536" ,"98304" ,"131072"]
     runopts = [opt for lib, opt in lib_option_pairs if file_exists(lib)]
     antirunopts = [opt.replace("Use ", "") for lib, opt in lib_option_pairs if not (opt in runopts)]
 
@@ -2291,7 +2306,7 @@ def show_new_gui():
                     if str(g) in dict["usecublas"]:
                         gpu_choice_var.set(str(g+1))
                         break
-        elif "usevulkan" in dict:
+        elif "usevulkan" in dict and dict['usevulkan'] is not None:
             if "noavx2" in dict and dict["noavx2"]:
                 if vulkan_noavx2_option is not None:
                     runopts_var.set(vulkan_noavx2_option)
@@ -3160,7 +3175,8 @@ def main(launch_args,start_server=True):
         benchprompt = "11111111"
         for i in range(0,10): #generate massive prompt
             benchprompt += benchprompt
-        result = generate(benchprompt,memory="",images=[],max_length=benchlen,max_context_length=benchmaxctx,temperature=0.1,top_k=1,rep_pen=1,use_default_badwordsids=True)
+        genout = generate(benchprompt,memory="",images=[],max_length=benchlen,max_context_length=benchmaxctx,temperature=0.1,top_k=1,rep_pen=1,use_default_badwordsids=True)
+        result = genout['text']
         result = (result[:5] if len(result)>5 else "")
         resultok = (result=="11111")
         t_pp = float(handle.get_last_process_time())*float(benchmaxctx-benchlen)*0.001
@@ -3213,7 +3229,9 @@ def run_in_queue(launch_args, input_queue, output_queue):
                 data = input_queue.get()
                 if data['command'] == 'generate':
                     (args, kwargs) = data['data']
-                output_queue.put({'command': 'generated text', 'data': generate(*args, **kwargs)})
+                genout = generate(*args, **kwargs)
+                result = genout['text']
+                output_queue.put({'command': 'generated text', 'data': result})
         time.sleep(0.2)
 
 def start_in_seperate_process(launch_args):
@@ -3261,7 +3279,7 @@ if __name__ == '__main__':
     compatgroup.add_argument("--noblas", help="Do not use OpenBLAS for accelerated prompt ingestion", action='store_true')
     parser.add_argument("--gpulayers", help="Set number of layers to offload to GPU when using GPU. Requires GPU.",metavar=('[GPU layers]'), nargs='?', const=1, type=int, default=0)
     parser.add_argument("--tensor_split", help="For CUDA and Vulkan only, ratio to split tensors across multiple GPUs, space-separated list of proportions, e.g. 7 3", metavar=('[Ratios]'), type=float, nargs='+')
-    parser.add_argument("--contextsize", help="Controls the memory allocated for maximum context size, only change if you need more RAM for big contexts. (default 2048). Supported values are [256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536]. IF YOU USE ANYTHING ELSE YOU ARE ON YOUR OWN.",metavar=('[256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536]'), type=check_range(int,256,262144), default=2048)
+    parser.add_argument("--contextsize", help="Controls the memory allocated for maximum context size, only change if you need more RAM for big contexts. (default 2048). Supported values are [256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072]. IF YOU USE ANYTHING ELSE YOU ARE ON YOUR OWN.",metavar=('[256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072]'), type=check_range(int,256,262144), default=2048)
     parser.add_argument("--ropeconfig", help="If set, uses customized RoPE scaling from configured frequency scale and frequency base (e.g. --ropeconfig 0.25 10000). Otherwise, uses NTK-Aware scaling set automatically based on context size. For linear rope, simply set the freq-scale and ignore the freq-base",metavar=('[rope-freq-scale]', '[rope-freq-base]'), default=[0.0, 10000.0], type=float, nargs='+')
     #more advanced params
     parser.add_argument("--blasbatchsize", help="Sets the batch size used in BLAS processing (default 512). Setting it to -1 disables BLAS mode, but keeps other benefits like GPU offload.", type=int, default=512)
@@ -3269,7 +3287,6 @@ if __name__ == '__main__':
     parser.add_argument("--lora", help="LLAMA models only, applies a lora file on top of model. Experimental.", metavar=('[lora_filename]', '[lora_base]'), nargs='+')
     parser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently.", action='store_true')
     parser.add_argument("--noshift", help="If set, do not attempt to Trim and Shift the GGUF context.", action='store_true')
-    parser.add_argument("--bantokens", help="You can manually specify a list of token SUBSTRINGS that the AI cannot use. This bans ALL instances of that substring.", metavar=('[token_substrings]'), nargs='+')
     parser.add_argument("--forceversion", help="If the model file format detection fails (e.g. rogue modified model) you can set this to override the detected format (enter desired version, e.g. 401 for GPTNeoX-Type2).",metavar=('[version]'), type=int, default=0)
     parser.add_argument("--nommap", help="If set, do not use mmap to load newer models", action='store_true')
     parser.add_argument("--usemlock", help="For Apple Systems. Force system to keep model in RAM rather than swapping or compressing", action='store_true')
