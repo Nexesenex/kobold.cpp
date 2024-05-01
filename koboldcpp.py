@@ -56,6 +56,7 @@ class load_model_inputs(ctypes.Structure):
                 ("gpulayers", ctypes.c_int),
                 ("rope_freq_scale", ctypes.c_float),
                 ("rope_freq_base", ctypes.c_float),
+                ("flash_attention", ctypes.c_bool),
                 ("tensor_split", ctypes.c_float * tensor_split_max)]
 
 class generation_inputs(ctypes.Structure):
@@ -372,6 +373,7 @@ def load_model(model_filename):
     inputs.mmproj_filename = args.mmproj.encode("UTF-8") if args.mmproj else "".encode("UTF-8")
     inputs.use_smartcontext = args.smartcontext
     inputs.use_contextshift = (0 if args.noshift else 1)
+    inputs.flash_attention = args.flashattention
     inputs.blasbatchsize = args.blasbatchsize
     inputs.forceversion = args.forceversion
     inputs.gpulayers = args.gpulayers
@@ -658,6 +660,7 @@ start_time = time.time()
 last_req_time = time.time()
 last_non_horde_req_time = time.time()
 currfinishreason = "null"
+using_gui_launcher = False
 
 def transform_genparams(genparams, api_format):
     #alias all nonstandard alternative names for rep pen.
@@ -1499,6 +1502,9 @@ def show_new_gui():
     from tkinter.filedialog import askopenfilename
     from tkinter.filedialog import asksaveasfile
 
+    global using_gui_launcher
+    using_gui_launcher = True
+
     # if args received, launch
     if len(sys.argv) != 1:
         import tkinter as tk
@@ -1658,6 +1664,7 @@ def show_new_gui():
     contextshift = ctk.IntVar(value=1)
     remotetunnel = ctk.IntVar(value=0)
     smartcontext = ctk.IntVar()
+    flashattention = ctk.IntVar(value=0)
     context_var = ctk.IntVar()
     customrope_var = ctk.IntVar()
     customrope_scale = ctk.StringVar(value="1.0")
@@ -1946,6 +1953,10 @@ def show_new_gui():
         else:
             smartcontextbox.grid_forget()
 
+    def guibench():
+        args.benchmark = "stdout"
+        launchbrowser.set(0)
+        guilaunch()
 
     def changerunmode(a,b,c):
         global runmode_untouched
@@ -2086,6 +2097,8 @@ def show_new_gui():
     makeslider(hardware_tab, "BLAS Batch Size:", blasbatchsize_text, blas_size_var, 0, 7, 16, set=5,tooltip="How many tokens to process at once per batch.\nLarger values use more memory.")
     # force version
     makelabelentry(hardware_tab, "Force Version:" , version_var, 100, 50,"If the autodetected version is wrong, you can change it here.\nLeave as 0 for default.")
+    ctk.CTkButton(hardware_tab , text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
+
 
     runopts_var.trace('w', changerunmode)
     changerunmode(1,1,1)
@@ -2103,7 +2116,6 @@ def show_new_gui():
     makeslider(tokens_tab, "Context Size:",contextsize_text, context_var, 0, len(contextsize_text)-1, 20, set=15,tooltip="What is the maximum context size to support. Model specific. You cannot exceed it.\nLarger contexts require more memory, and not all models support it.")
 
 
-
     customrope_scale_entry, customrope_scale_label = makelabelentry(tokens_tab, "RoPE Scale:", customrope_scale,tooltip="For Linear RoPE scaling. RoPE frequency scale.")
     customrope_base_entry, customrope_base_label = makelabelentry(tokens_tab, "RoPE Base:", customrope_base,tooltip="For NTK Aware Scaling. RoPE frequency base.")
     def togglerope(a,b,c):
@@ -2115,6 +2127,7 @@ def show_new_gui():
                 item.grid_forget()
     makecheckbox(tokens_tab,  "Custom RoPE Config", variable=customrope_var, row=22, command=togglerope,tooltiptxt="Override the default RoPE configuration with custom RoPE scaling.")
     togglerope(1,1,1)
+    makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28,tooltiptxt="Enable flash attention for GGUF models.")
     makefileentry(tokens_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 30,tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
 
     # Model Tab
@@ -2175,7 +2188,6 @@ def show_new_gui():
     makelabelentry(images_tab, "Image threads:" , sd_threads_var, 6, 50,"How many threads to use during image generation.\nIf left blank, uses same value as threads.")
     makecheckbox(images_tab, "Compress Weights (Saves Memory)", sd_quant_var, 8,tooltiptxt="Quantizes the SD model weights to save memory. May degrade quality.")
 
-
     # launch
     def guilaunch():
         if model_var.get() == "" and sd_model_var.get() == "":
@@ -2194,6 +2206,7 @@ def show_new_gui():
         args.highpriority = highpriority.get()==1
         args.nommap = disablemmap.get()==1
         args.smartcontext = smartcontext.get()==1
+        args.flashattention = flashattention.get()==1
         args.noshift = contextshift.get()==0
         args.remotetunnel = remotetunnel.get()==1
         args.foreground = keepforeground.get()==1
@@ -2278,6 +2291,7 @@ def show_new_gui():
         highpriority.set(1 if "highpriority" in dict and dict["highpriority"] else 0)
         disablemmap.set(1 if "nommap" in dict and dict["nommap"] else 0)
         smartcontext.set(1 if "smartcontext" in dict and dict["smartcontext"] else 0)
+        flashattention.set(1 if "flashattention" in dict and dict["flashattention"] else 0)
         contextshift.set(0 if "noshift" in dict and dict["noshift"] else 1)
         remotetunnel.set(1 if "remotetunnel" in dict and dict["remotetunnel"] else 0)
         keepforeground.set(1 if "foreground" in dict and dict["foreground"] else 0)
@@ -3219,6 +3233,11 @@ def main(launch_args,start_server=True):
     else:
         # Flush stdout for previous win32 issue so the client can see output.
         print(f"Server was not started, main function complete. Idling.", flush=True)
+        global using_gui_launcher
+        if using_gui_launcher:
+            print("===")
+            print("Press a key to exit", flush=True)
+            input()
 
 def run_in_queue(launch_args, input_queue, output_queue):
     main(launch_args, start_server=False)
@@ -3309,5 +3328,6 @@ if __name__ == '__main__':
     parser.add_argument("--password", help="Enter a password required to use this instance. This key will be required for all text endpoints. Image endpoints are not secured.", default=None)
     parser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
     parser.add_argument("--chatcompletionsadapter", help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="")
+    parser.add_argument("--flashattention", help="Enables flash attention (Experimental).", action='store_true')
 
     main(parser.parse_args(),start_server=True)

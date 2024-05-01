@@ -3651,6 +3651,7 @@ Current version: 136
 	var personal_notes = "";
 	var logitbiasdict = {};
 	var regexreplace_data = [];
+	var placeholder_tags_data = [];
 	const num_regex_rows = 4;
 
 	var localsettings = {
@@ -3739,7 +3740,7 @@ Current version: 136
 		passed_ai_warning: false, //used to store AI safety panel acknowledgement state
 		entersubmit: true, //enter sends the prompt
 
-		max_context_length: 1800,
+		max_context_length: (localflag?2048:1600),
 		max_length: 140,
 		auto_ctxlen: true,
 		auto_genamt: true,
@@ -5103,6 +5104,7 @@ Current version: 136
 		new_save_storyobj.personal_notes = personal_notes;
 		new_save_storyobj.logitbiasdict = JSON.parse(JSON.stringify(logitbiasdict));
 		new_save_storyobj.regexreplace_data = JSON.parse(JSON.stringify(regexreplace_data));
+		new_save_storyobj.placeholder_tags_data = JSON.parse(JSON.stringify(placeholder_tags_data));
 
 		if (export_settings) {
 			new_save_storyobj.savedsettings = JSON.parse(JSON.stringify(localsettings));
@@ -5276,6 +5278,7 @@ Current version: 136
 			let old_tokenbans = tokenbans;
 			let old_notes = personal_notes;
 			let old_regexreplace_data = regexreplace_data;
+			let old_placeholder_tags_data = placeholder_tags_data;
 
 			//determine if oldui file or newui file format
 			restart_new_game(false);
@@ -5363,6 +5366,10 @@ Current version: 136
 				if (storyobj.regexreplace_data) {
 					regexreplace_data = storyobj.regexreplace_data;
 				}
+				if(storyobj.placeholder_tags_data)
+				{
+					placeholder_tags_data = storyobj.placeholder_tags_data;
+				}
 			} else {
 				//v2 load
 				if(storyobj.prompt!="")
@@ -5389,6 +5396,7 @@ Current version: 136
 							let nwi = {
 								"key": itm.key[0],
 								"keysecondary": (itm.keysecondary.length > 0 ? itm.keysecondary[0] : ""),
+								"keyanti": (itm.keyanti.length > 0 ? itm.keyanti[0] : ""),
 								"content": itm.content,
 								"comment": itm.comment,
 								"folder": null,
@@ -5424,6 +5432,7 @@ Current version: 136
 					extrastopseq = old_extrastopseq;
 					regexreplace_data = old_regexreplace_data;
 					tokenbans = old_tokenbans;
+					placeholder_tags_data = old_placeholder_tags_data;
 				}
 
 				if (storyobj.savedsettings && storyobj.savedsettings != "")
@@ -5529,6 +5538,7 @@ Current version: 136
 			let nwi = {
 				"key": karr.join(","),
 				"keysecondary": "",
+				"keyanti": "",
 				"content": itm.entry,
 				"comment": "",
 				"folder": null,
@@ -5559,6 +5569,7 @@ Current version: 136
 			let nwi = {
 				"key": karr.join(","),
 				"keysecondary": ((ksarr && ksarr.length) > 0 ? ksarr.join(",") : ""),
+				"keyanti": "",
 				"content": itm.content,
 				"comment": itm.comment,
 				"folder": null,
@@ -5696,6 +5707,7 @@ Current version: 136
 			let nwi = {
 				"key": key,
 				"keysecondary": "",
+				"keyanti": "",
 				"content": itm.text,
 				"comment": "",
 				"folder": null,
@@ -5755,6 +5767,7 @@ Current version: 136
 								let nwi = {
 									"key": (keys ? keys : ""),
 									"keysecondary": "",
+									"keyanti": "",
 									"content": (entry ? entry : ""),
 									"comment": "",
 									"folder": null,
@@ -6756,7 +6769,7 @@ Current version: 136
 
 	function expand_tokens_section(targetid)
 	{
-		let tablist = ["expandregexreplace","expandtokenbans","expandlogitbias"];
+		let tablist = ["expandregexreplace","expandtokenbans","expandlogitbias","expandplaceholdertags"];
 
 		for(let i=0;i<tablist.length;++i)
 		{
@@ -7419,6 +7432,10 @@ Current version: 136
 											{
 												document.getElementById("max_context_length_slide").max = ep_maxctx;
 												document.getElementById("max_context_length_slide_label").innerText = ep_maxctx;
+												if(localflag && localsettings.max_context_length==2048 && ep_maxctx>2048)
+												{
+													localsettings.max_context_length = ep_maxctx;
+												}
 											}
 										}).catch(error => {
 											console.log("Failed to get true max ctx: " + error);
@@ -8557,6 +8574,28 @@ Current version: 136
 		}
 	}
 
+	function confirm_chat_and_instruct_tags()
+	{
+		localsettings.chatname = document.getElementById("chatname").value;
+		if (localsettings.chatname == null || localsettings.chatname == "") {
+			localsettings.chatname = "You";
+		}
+		let newopps = replaceAll(document.getElementById("chatopponent").value,"\n","||$||");
+		if(localsettings.chatopponent!=newopps)
+		{
+			groupchat_removals = [];
+		}
+		localsettings.chatopponent = newopps;
+		localsettings.instruct_starttag = document.getElementById("instruct_starttag").value;
+		if (localsettings.instruct_starttag == null || localsettings.instruct_starttag == "") {
+			localsettings.instruct_starttag = "\\n### Instruction:\\n";
+		}
+		localsettings.instruct_endtag = document.getElementById("instruct_endtag").value;
+		if (localsettings.instruct_endtag == null || localsettings.instruct_endtag == "") {
+			localsettings.instruct_endtag = "\\n### Response:\\n";
+		}
+	}
+
 	function confirm_settings() {
 		localsettings.max_context_length = document.getElementById("max_context_length").value;
 		localsettings.max_length = document.getElementById("max_length").value;
@@ -8607,24 +8646,7 @@ Current version: 136
 		localsettings.generate_images_model = document.getElementById("generate_images_model").value;
 		localsettings.generate_images_mode = document.getElementById("generate_images_mode").value;
 		localsettings.opmode = document.getElementById("opmode").value;
-		localsettings.chatname = document.getElementById("chatname").value;
-		if (localsettings.chatname == null || localsettings.chatname == "") {
-			localsettings.chatname = "You";
-		}
-		let newopps = replaceAll(document.getElementById("chatopponent").value,"\n","||$||");
-		if(localsettings.chatopponent!=newopps)
-		{
-			groupchat_removals = [];
-		}
-		localsettings.chatopponent = newopps;
-		localsettings.instruct_starttag = document.getElementById("instruct_starttag").value;
-		if (localsettings.instruct_starttag == null || localsettings.instruct_starttag == "") {
-			localsettings.instruct_starttag = "\\n### Instruction:\\n";
-		}
-		localsettings.instruct_endtag = document.getElementById("instruct_endtag").value;
-		if (localsettings.instruct_endtag == null || localsettings.instruct_endtag == "") {
-			localsettings.instruct_endtag = "\\n### Response:\\n";
-		}
+		confirm_chat_and_instruct_tags();
 		localsettings.sampler_seed = document.getElementById("sampler_seed").value;
 		localsettings.min_p = document.getElementById("min_p").value;
 		localsettings.dynatemp_range = document.getElementById("dynatemp_range").value;
@@ -8769,8 +8791,8 @@ Current version: 136
 				et = "<|END_OF_TURN_TOKEN|><|START_OF_TURN_TOKEN|><|CHATBOT_TOKEN|>";
 				break;
 			case "9": //llama 3 chat
-				st = "<|eot_id|><|start_header_id|>user<|end_header_id|>";
-				et = "<|eot_id|><|start_header_id|>assistant<|end_header_id|>";
+				st = "<|eot_id|><|start_header_id|>user<|end_header_id|>\\n\\n";
+				et = "<|eot_id|><|start_header_id|>assistant<|end_header_id|>\\n\\n";
 				break;
 			default:
 				break;
@@ -9014,6 +9036,32 @@ Current version: 136
 			}
 		}
 
+		localsettings.placeholder_tags = (document.getElementById("placeholder_tags2").checked?true:false);
+		//bit of a hack to save modified placeholders
+		document.getElementById("chatname").value = document.getElementById("placeholder_replace_hc0").value;
+		document.getElementById("chatopponent").value = document.getElementById("placeholder_replace_hc1").value;
+		document.getElementById("instruct_starttag").value = document.getElementById("placeholder_replace_hc2").value;
+		document.getElementById("instruct_endtag").value = document.getElementById("placeholder_replace_hc3").value;
+		confirm_chat_and_instruct_tags();
+		placeholder_tags_data = [];
+		for(let i=0;i<num_regex_rows;++i)
+		{
+			let v1 = "";
+			let v2 = "";
+			let box1 = document.getElementById("placeholder_pattern"+i);
+			let box2 = document.getElementById("placeholder_replace"+i);
+			if(!box1 || !box2)
+			{
+				break;
+			}
+			v1 = box1.value;
+			v2 = box2.value;
+			if(v1 && v2)
+			{
+				placeholder_tags_data.push({"p":v1,"r":v2});
+			}
+		}
+
 	}
 
 	function set_personal_notes()
@@ -9216,6 +9264,7 @@ Current version: 136
 			wi_insertlocation = 0;
 			current_anotetemplate = "[Author's note: <|>]";
 			regexreplace_data = [];
+			placeholder_tags_data = [];
 		}
 		render_gametext(save); //necessary to trigger an autosave to wipe out current story in case they exit browser after newgame.
 	}
@@ -9273,13 +9322,23 @@ Current version: 136
 
 	function replace_placeholders_direct(inputtxt)
 	{
-		inputtxt = replaceAll(inputtxt,"{{user}}",localsettings.chatname?localsettings.chatname:"You",true);
-		inputtxt = replaceAll(inputtxt,"{{char}}",localsettings.chatopponent?localsettings.chatopponent:defaultchatopponent,true);
 		inputtxt = replaceAll(inputtxt,instructstartplaceholder,get_instruct_starttag(false));
 		inputtxt = replaceAll(inputtxt,instructendplaceholder,get_instruct_endtag(false));
 		//failsafe to handle removing newline tags
 		inputtxt = replaceAll(inputtxt,instructstartplaceholder.trim(),get_instruct_starttag(false));
 		inputtxt = replaceAll(inputtxt,instructendplaceholder.trim(),get_instruct_endtag(false));
+
+		inputtxt = replaceAll(inputtxt,"{{user}}",localsettings.chatname?localsettings.chatname:"You",true);
+		inputtxt = replaceAll(inputtxt,"{{char}}",localsettings.chatopponent?localsettings.chatopponent:defaultchatopponent,true);
+
+		for(let i=0;i<placeholder_tags_data.length;++i)
+		{
+			if(placeholder_tags_data[i].p && placeholder_tags_data[i].r)
+			{
+				inputtxt = replaceAll(inputtxt,placeholder_tags_data[i].p,placeholder_tags_data[i].r);
+			}
+		}
+
 		return inputtxt;
 	}
 	function replace_placeholders(inputtxt)
@@ -9734,7 +9793,7 @@ Current version: 136
 					let xtts_payload = {
 						"text": text,
 						"speaker_wav": document.getElementById("xtts_voices").value,
-						"language": "EN"
+						"language": document.getElementById("xtts_lang").value.trim()
 					};
 					fetch(localsettings.saved_xtts_url + xtts_gen_endpoint, {
 						method: 'POST',
@@ -9766,7 +9825,7 @@ Current version: 136
 					formData.append("narrator_enabled", false);
 					formData.append("narrator_voice_gen", document.getElementById("xtts_voices").value);
 					formData.append("text_not_inside", "character"); // character or narrator, determines which to use
-					formData.append("language", "en");
+					formData.append("language", document.getElementById("xtts_lang").value.trim().toLowerCase());
 					formData.append("output_file_name", "audiofile"); // NOTE: file name only, with no extension and no dashes!
 					formData.append("output_file_timestamp", true);
 					formData.append("autoplay", false); //to play in browser
@@ -10178,25 +10237,50 @@ Current version: 136
 
 						//selective, but bad secondary key. treat as only 1 key
 						let invalidseckey = (wi.selective && (wi.keysecondary == "" || wi.keysecondary == null));
+						let invalidantikey = (wi.selective && (wi.keyanti == "" || wi.keyanti == null));
 
 						let wiks = wi.key.split(",");
 
-						if (!wi.selective || invalidseckey) {
+						if (!wi.selective || (invalidseckey && invalidantikey)) {
 							if (localsettings.case_sensitive_wi) {
 								shoulduse = wiks.some(k => wimatch_context.includes(k.trim()));
 							} else {
 								shoulduse = wiks.some(k => wimatch_context.includes(k.trim().toLowerCase()));
 							}
-						} else {
-							let wiks2 = wi.keysecondary.split(",");
+						}
+						else
+						{
+							let wikanti = [];
+							let wiks2 = [];
+							if(!invalidantikey)
+							{
+								wikanti = wi.keyanti.split(",");
+							}
+							if(!invalidseckey)
+							{
+								wiks2 = wi.keysecondary.split(",");
+							}
+							let t1=false, t2=false, t3=false;
 							if (localsettings.case_sensitive_wi) {
-								let t1 = wiks.some(k => wimatch_context.includes(k.trim()));
-								let t2 = wiks2.some(k => wimatch_context.includes(k.trim()));
-								shoulduse = (t1 && t2);
+								t1 = wiks.some(k => wimatch_context.includes(k.trim()));
+								t2 = wiks2.some(k => wimatch_context.includes(k.trim()));
+								t3 = wikanti.some(k => wimatch_context.includes(k.trim()));
 							} else {
-								let t1 = wiks.some(k => wimatch_context.includes(k.trim().toLowerCase()));
-								let t2 = wiks2.some(k => wimatch_context.includes(k.trim().toLowerCase()));
+								t1 = wiks.some(k => wimatch_context.includes(k.trim().toLowerCase()));
+								t2 = wiks2.some(k => wimatch_context.includes(k.trim().toLowerCase()));
+								t3 = wikanti.some(k => wimatch_context.includes(k.trim().toLowerCase()));
+							}
+							if(!invalidantikey && !invalidseckey) //all keys valid
+							{
+								shoulduse = (t1 && t2 && !t3);
+							}
+							else if(invalidantikey)
+							{
 								shoulduse = (t1 && t2);
+							}
+							else
+							{
+								shoulduse = (t1 && !t3);
 							}
 						}
 					}
@@ -13267,7 +13351,7 @@ Current version: 136
 		backup_wi();
 		update_wi();
 
-		//setup regex replacers
+		populate_placeholder_tags();
 		populate_regex_replacers();
 
 		if(is_using_custom_ep())
@@ -13328,19 +13412,77 @@ Current version: 136
 		}
 	}
 
+	function populate_placeholder_tags()
+	{
+		let regextablehtml = `
+		<tr>
+		<th>Placeholder <span class="helpicon">?<span class="helptext">The placeholder to match against</span></span></th>
+		<th>Replacement <span class="helpicon">?<span class="helptext">The text to substitude on display. Actual context is unchanged.</span></span></th>
+		</tr>`;
+		let regextable = document.getElementById("placeholder_replace_table");
+
+		let hardcoded1 = ["{{user}}","{{char}}","{{[INPUT]}}","{{[OUTPUT]}}"];
+		let hardcoded2 = [localsettings.chatname,localsettings.chatopponent,localsettings.instruct_starttag,localsettings.instruct_endtag];
+
+		for(let i=0;i<hardcoded1.length;++i)
+		{
+			regextablehtml += `
+			<tr>
+			<td>${hardcoded1[i]}</td>
+			<td><input class="settinglabel miniinput" type="text" placeholder="" value="${hardcoded2[i]}" id="placeholder_replace_hc${i}"></td>
+			</tr>
+			`;
+		}
+
+		for(let i=0;i<num_regex_rows;++i)
+		{
+			regextablehtml += `
+			<tr>
+			<td><input class="settinglabel miniinput" type="text" placeholder="(Inactive)" value="" id="placeholder_pattern${i}"></td>
+			<td><input class="settinglabel miniinput" type="text" placeholder="(Remove)" value="" id="placeholder_replace${i}"></td>
+			</tr>
+			`;
+		}
+
+		regextable.innerHTML = regextablehtml;
+
+		document.getElementById("placeholder_tags2").checked = localsettings.placeholder_tags;
+
+		for(let i=0;i<num_regex_rows;++i)
+		{
+			let a1 = document.getElementById("placeholder_pattern"+i);
+			let a2 = document.getElementById("placeholder_replace"+i);
+			if(a1 && a2)
+			{
+				if(i<placeholder_tags_data.length)
+				{
+					a1.value = placeholder_tags_data[i].p;
+					a2.value = placeholder_tags_data[i].r;
+				}
+				else
+				{
+					a1.value = a2.value = "";
+				}
+			}
+		}
+	}
+
 	function toggle_wi_sk(idx) {
 		var ce = current_wi[idx];
 		ce.selective = !ce.selective;
 		var tgt = document.getElementById("wiskt" + idx);
 		var tgt2 = document.getElementById("wikeysec" + idx);
+		var tgt3 = document.getElementById("wikeyanti" + idx);
 		if (ce.selective) {
 			tgt.classList.add("witoggleron");
 			tgt.classList.remove("witoggleroff");
 			tgt2.classList.remove("hidden");
+			tgt3.classList.remove("hidden");
 		} else {
 			tgt.classList.remove("witoggleron");
 			tgt.classList.add("witoggleroff");
 			tgt2.classList.add("hidden");
+			tgt3.classList.add("hidden");
 		}
 	}
 
@@ -13391,6 +13533,7 @@ Current version: 136
 		var ne = {
 			"key": "",
 			"keysecondary": "",
+			"keyanti": "",
 			"content": "",
 			"comment": "",
 			"folder": null,
@@ -13406,6 +13549,7 @@ Current version: 136
 		for (var i = 0; i < current_wi.length; ++i) {
 			current_wi[i].key = document.getElementById("wikey" + i).value;
 			current_wi[i].keysecondary = document.getElementById("wikeysec" + i).value;
+			current_wi[i].keyanti = document.getElementById("wikeyanti" + i).value;
 			current_wi[i].content = document.getElementById("wival" + i).value;
 			let prb = document.getElementById("wirng" + i).value;
 			current_wi[i].probability = (prb?prb:100);
@@ -13442,6 +13586,7 @@ Current version: 136
 			var winame = escapeHtml(curr.key);
 			var witxt = escapeHtml(curr.content);
 			var wisec = curr.keysecondary;
+			var wianti = curr.keyanti;
 			var wirngval = (curr.probability?curr.probability:100);
 
 			var ishidden = false;
@@ -13458,9 +13603,10 @@ Current version: 136
 			+`<button type="button" class="btn btn-primary wiarrowbtn" id="widown` + i + `" onclick="return down_wi(` + i + `)">▼</button></td>` +
 			`<td class="col-6 wiinputkeycol">
 			<input class="form-control wiinputkey" id="wikey`+ i + `" placeholder="Key(s)" value="` + winame + `">
-			<input class="form-control wiinputkey `+ (curr.selective ? `` : `hidden`) + `" id="wikeysec` + i + `" placeholder="Sec. Key(s)" value="` + wisec + `">` + `</td>
+			<input class="form-control wiinputkey `+ (curr.selective ? `` : `hidden`) + `" id="wikeysec` + i + `" placeholder="Sec. Key(s)" value="` + wisec + `">` + `
+			<input class="form-control wiinputkey `+ (curr.selective ? `` : `hidden`) + `" id="wikeyanti` + i + `" placeholder="Anti Key(s)" value="` + wianti + `">` + `</td>
 			<td class="col-10 wiinputvalcol">
-			<textarea class="form-control wiinputval" style="line-height:1.1" id="wival`+ i + `" placeholder="What To Remember" rows="3">` + witxt + `</textarea>
+			<textarea class="form-control wiinputval" style="line-height:1.1" id="wival`+ i + `" placeholder="What To Remember" rows="4">` + witxt + `</textarea>
 			</td>
 			<td>
 			<a id="wiskt`+ i + `" href="#" class=` + (curr.selective ? "witoggleron" : "witoggleroff") + ` title="Toggle Selective Key mode (if enabled, this world info entry will be included in memory only if at least one PRIMARY KEY and at least one SECONDARY KEY are both present in the story)" onclick="return toggle_wi_sk(` + i + `)">📑</a>
@@ -14099,14 +14245,10 @@ Current version: 136
 				input = input.replaceAll(othernamesregex, function(match) {
 					return "{{botplaceholder}}<p class='aui_nametag'>" + match.substring(0,match.length-2).trim() + "</p>";
 				});
-				// input = input.replaceAll(othernamesregex2, function(match) {
-				// 	return "{{botplaceholder}}<p class='aui_nametag'>" + match.substring(0,match.length-2).trim() + "</p>";
-				// });
 			}
 			else
 			{
 				input = input.replaceAll(othernamesregex, "{{botplaceholder}}");
-				//input = input.replaceAll(othernamesregex2, "{{botplaceholder}}");
 			}
 
 			you = "{{userplaceholder}}";
@@ -15193,7 +15335,8 @@ Current version: 136
 								<td><select class="form-control" id="xtts_voices" style="font-size:12px;height:20px;padding:0;margin:0px 0 0;">
 								<option value="female_calm" selected>female_calm</option><option value="female">female</option><option value="male">male</option>
 								</select></td>
-								</tr></table>
+								</tr><tr style="font-size:12px;padding:2px;margin:0px 0 0;"><td>Language </td><td><input class="settinglabel miniinput" type="text" value="EN" id="xtts_lang" style="margin-left:3px; height:18px; width: 40px; padding: 2px;"></td></tr>
+								</table>
 							</div>
 						</div>
 						<div class="settinglabel">
@@ -15450,19 +15593,19 @@ Current version: 136
 					<div style="color:#ffffff;">Enter OpenAI-formatted logit bias dictionary. Each key is the integer token IDs and their values are the biases (-100.0 to 100.0). Leave blank to disable.<br><a href='https://platform.openai.com/docs/api-reference/chat/create#chat-create-logit_bias' target='_blank' class='color_blueurl'>Input is a JSON object, reference here.</a><br></div>
 					<textarea class="form-control" style="line-height:1.1;margin-bottom: 4px;padding:3px" id="logitbiastxtarea" placeholder="" rows="5"></textarea>
 					<div style="display: flex; column-gap: 4px; margin-bottom: 4px;">
-					<input style="padding:2px" class="form-control stopseqbox inlineinput" inputmode="decimal" type="text" placeholder="Token ID" value="" id="newlogitbiasid">
-					<input style="padding:2px" class="form-control stopseqbox inlineinput" inputmode="decimal" type="text" placeholder="Bias Value" value="" id="newlogitbiasval">
+					<input style="padding:2px" class="form-control stopseqbox inlineinput" inputmode="numeric" type="text" placeholder="Token ID" value="" id="newlogitbiasid">
+					<input style="padding:2px" class="form-control stopseqbox inlineinput" inputmode="text" type="text" placeholder="Bias Value" value="" id="newlogitbiasval">
 					<button type="button" class="btn btn-primary" style="width:90px;padding:6px 6px;" onclick="add_logit_bias()">Add New</button>
 					</div>
 				</div>
 
-				<div style="padding:3px;" class="justifyleft settinglabel">Token Bans <span class="helpicon">?<span
+				<div style="padding:3px;" class="justifyleft settinglabel">Token Filter <span class="helpicon">?<span
 					class="helptext">Outright removal for ANY tokens containing a specific substring from model vocab. If you want multiple sequences, separate them with the following delimiter: ||$||</span></span>
 					<button type="button" class="btn btn-primary" style="font-size:12px;padding:2px 2px;" onclick="expand_tokens_section('expandtokenbans')">Expand Section</button>
 				</div>
 				<div id="expandtokenbans" class="hidden">
-					<div class="color_red hidden" id="notokenbans">Token bans may be unavailable.</div>
-					<div style="color:#ffffff;">Outright removal for ANY tokens containing a specific substring from model vocab. If you want multiple sequences, separate them with the following delimiter: ||$||<br></div>
+					<div class="color_red hidden" id="notokenbans">Token filter may be unavailable.</div>
+					<div style="color:#ffffff;">Outright removal for ANY tokens containing a specific substring from model vocab. If you want multiple sequences, separate them with the following delimiter: ||$||<br><em>Note: If you're trying to ban a specific token ID, you should use Logit Bias instead!</em><br></div>
 					<div style="display: flex; column-gap: 4px; margin-bottom: 4px;">
 					<input class="form-control stopseqbox inlineinput" type="text" placeholder="None" value="" id="tokenbans">
 					<button type="button" class="btn btn-primary" style="width:90px;padding:6px 6px;" onclick="add_token_ban()">Add New</button>
@@ -15478,14 +15621,26 @@ Current version: 136
 					</table>
 				</div>
 
+				<div style="padding:3px;" class="justifyleft settinglabel">Placeholder Tags <span class="helpicon">?<span
+					class="helptext">Configure automatic substitutions for placeholders in text.</span></span>
+					<button type="button" class="btn btn-primary" style="font-size:12px;padding:2px 2px;" onclick="expand_tokens_section('expandplaceholdertags')">Expand Section</button>
+				</div>
+				<div id="expandplaceholdertags" class="hidden">
+					<div class="settinglabel justifyleft">Stories can use placeholders like {{user}} and {{[INPUT]}} that require dynamic substitution. If disabled, uses plaintext tags verbatim.</div>
+					<div class="settinglabel">
+						<div class="justifyleft settingsmall">Enable Placeholder Tags <span class="helpicon">?<span
+							class="helptext">If enabled, uses placeholders that get swapped on submit. If disabled, uses plaintext verbatim.</span></span></div>
+					<input type="checkbox" id="placeholder_tags2">
+					</div>
+					<table id="placeholder_replace_table" class="settinglabel text-center" style="border-spacing: 3px 2px; border-collapse: separate;">
+					</table>
+				</div>
+
 				<!-- <div style="padding:3px;" class="justifyleft settinglabel">Repetition Exclusions <span class="helpicon">?<span
 					class="helptext">Configure specific tokens that will be excluded from repetition and presence penalties.</span></span>
 					<button type="button" class="btn btn-primary" style="font-size:12px;padding:2px 2px;" onclick="expand_tokens_section('')">Expand Section</button>
-				</div>
-				<div style="padding:3px;" class="justifyleft settinglabel">Placeholder Tags <span class="helpicon">?<span
-					class="helptext">Configure automatic substitutions for placeholders in text.</span></span>
-					<button type="button" class="btn btn-primary" style="font-size:12px;padding:2px 2px;" onclick="expand_tokens_section('')">Expand Section</button>
 				</div> -->
+
 			</div>
 
 			<div class="popupfooter">
