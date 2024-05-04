@@ -636,7 +636,7 @@ maxhordelen = 256
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.64"
+KcppVersion = "1.64.1"
 showdebug = True
 showsamplerwarning = True
 showmaxctxwarning = True
@@ -1502,16 +1502,14 @@ def show_new_gui():
     from tkinter.filedialog import askopenfilename
     from tkinter.filedialog import asksaveasfile
 
-    global using_gui_launcher
-    using_gui_launcher = True
-
     # if args received, launch
     if len(sys.argv) != 1:
         import tkinter as tk
         root = tk.Tk() #we dont want the useless window to be visible, but we want it in taskbar
         root.attributes("-alpha", 0)
         args.model_param = askopenfilename(title="Select ggml model .bin or .gguf file or .kcpps config")
-        root.destroy()
+        root.withdraw()
+        root.quit()
         if args.model_param and args.model_param!="" and args.model_param.lower().endswith('.kcpps'):
             loadconfigfile(args.model_param)
         if not args.model_param and not args.sdconfig:
@@ -1525,7 +1523,7 @@ def show_new_gui():
     import customtkinter as ctk
     nextstate = 0 #0=exit, 1=launch
     original_windowwidth = 920
-    original_windowheight = 500
+    original_windowheight = 600
     windowwidth = original_windowwidth
     windowheight = original_windowheight
     ctk.set_appearance_mode("dark")
@@ -1568,6 +1566,8 @@ def show_new_gui():
                     ctk.set_widget_scaling(smallratio)
 
     root.bind("<Configure>", on_resize)
+    global using_gui_launcher
+    using_gui_launcher = True
 
     # trigger empty tooltip then remove it
     def show_tooltip(event, tooltip_text=None):
@@ -1987,7 +1987,6 @@ def show_new_gui():
 
         if index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
             lowvram_box.grid(row=4, column=0, padx=8, pady=1,  stick="nw")
-            quick_lowvram_box.grid(row=4, column=0, padx=8, pady=1,  stick="nw")
             mmq_box.grid(row=4, column=1, padx=8, pady=1,  stick="nw")
             quick_mmq_box.grid(row=4, column=1, padx=8, pady=1,  stick="nw")
             splitmode_box.grid(row=5, column=1, padx=8, pady=1,  stick="nw")
@@ -1995,7 +1994,6 @@ def show_new_gui():
             tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
         else:
             lowvram_box.grid_forget()
-            quick_lowvram_box.grid_forget()
             mmq_box.grid_forget()
             quick_mmq_box.grid_forget()
             tensor_split_label.grid_forget()
@@ -2033,7 +2031,6 @@ def show_new_gui():
     quick_gpuname_label.grid(row=3, column=1, padx=75, sticky="W")
     quick_gpuname_label.configure(text_color="#ffff00")
     quick_gpu_layers_entry,quick_gpu_layers_label = makelabelentry(quick_tab,"GPU Layers:", gpulayers_var, 6, 50,"How many layers to offload onto the GPU.\nVRAM intensive, usage increases with model and context size.\nRequires some trial and error to find the best fit value.")
-    quick_lowvram_box = makecheckbox(quick_tab,  "Low VRAM (No KV offload)", lowvram_var, 4,0,tooltiptxt="Avoid offloading KV Cache or scratch buffers to VRAM.\nAllows more layers to fit, but may result in a speed loss.")
     quick_mmq_box = makecheckbox(quick_tab,  "Use QuantMatMul (mmq)", mmq_var, 4,1,tooltiptxt="Enable MMQ mode instead of CuBLAS for prompt processing. Read the wiki. Speed may vary.")
 
 
@@ -2195,7 +2192,8 @@ def show_new_gui():
             model_var.set(tmp)
         nonlocal nextstate
         nextstate = 1
-        root.destroy()
+        root.withdraw()
+        root.quit()
         pass
 
     def export_vars():
@@ -2501,7 +2499,8 @@ def show_gui_msgbox(title,message):
         root = tk.Tk()
         root.attributes("-alpha", 0)
         messagebox.showerror(title=title, message=message)
-        root.destroy()
+        root.withdraw()
+        root.quit()
     except Exception as ex2:
         pass
 
@@ -3186,8 +3185,8 @@ def main(launch_args,start_server=True):
         else:
             print(f"\nRunning benchmark (Not Saved)...")
 
-        benchprompt = "11111111"
-        for i in range(0,10): #generate massive prompt
+        benchprompt = "1111111111111111"
+        for i in range(0,12): #generate massive prompt
             benchprompt += benchprompt
         genout = generate(benchprompt,memory="",images=[],max_length=benchlen,max_context_length=benchmaxctx,temperature=0.1,top_k=1,rep_pen=1,use_default_badwordsids=True)
         result = genout['text']
@@ -3198,7 +3197,7 @@ def main(launch_args,start_server=True):
         s_pp = float(benchmaxctx-benchlen)/t_pp
         s_gen = float(benchlen)/t_gen
         datetimestamp = datetime.now(timezone.utc)
-        print(f"\nBenchmark Completed - Results:\n======")
+        print(f"\nBenchmark Completed - v{KcppVersion} Results:\n======")
         print(f"Timestamp: {datetimestamp}")
         print(f"Backend: {libname}")
         print(f"Layers: {args.gpulayers}")
@@ -3221,7 +3220,11 @@ def main(launch_args,start_server=True):
                     file.write(f"\n{datetimestamp},{libname},{args.gpulayers},{benchmodel},{benchmaxctx},{benchlen},{t_pp:.2f},{s_pp:.2f},{t_gen:.2f},{s_gen:.2f},{(t_pp+t_gen):.2f},{resultok},{result}")
             except Exception as e:
                 print(f"Error writing benchmark to file: {e}")
-
+        global using_gui_launcher
+        if using_gui_launcher and not save_to_file:
+            print("===")
+            print("Press ENTER key to exit.", flush=True)
+            input()
 
     if start_server:
         if args.remotetunnel:
@@ -3233,11 +3236,6 @@ def main(launch_args,start_server=True):
     else:
         # Flush stdout for previous win32 issue so the client can see output.
         print(f"Server was not started, main function complete. Idling.", flush=True)
-        global using_gui_launcher
-        if using_gui_launcher:
-            print("===")
-            print("Press a key to exit", flush=True)
-            input()
 
 def run_in_queue(launch_args, input_queue, output_queue):
     main(launch_args, start_server=False)
