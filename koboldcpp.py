@@ -2030,6 +2030,7 @@ def show_new_gui():
 
         if index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
             lowvram_box.grid(row=4, column=0, padx=8, pady=1,  stick="nw")
+            quick_lowvram_box.grid(row=4, column=0, padx=8, pady=1,  stick="nw")
             mmq_box.grid(row=4, column=1, padx=8, pady=1,  stick="nw")
             quick_mmq_box.grid(row=4, column=1, padx=8, pady=1,  stick="nw")
             splitmode_box.grid(row=5, column=1, padx=8, pady=1,  stick="nw")
@@ -2037,6 +2038,7 @@ def show_new_gui():
             tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
         else:
             lowvram_box.grid_forget()
+            quick_lowvram_box.grid_forget()
             mmq_box.grid_forget()
             quick_mmq_box.grid_forget()
             tensor_split_label.grid_forget()
@@ -2074,6 +2076,7 @@ def show_new_gui():
     quick_gpuname_label.grid(row=3, column=1, padx=75, sticky="W")
     quick_gpuname_label.configure(text_color="#ffff00")
     quick_gpu_layers_entry,quick_gpu_layers_label = makelabelentry(quick_tab,"GPU Layers:", gpulayers_var, 6, 50,"How many layers to offload onto the GPU.\nVRAM intensive, usage increases with model and context size.\nRequires some trial and error to find the best fit value.\n\nCommon values for total layers, accuracy not guaranteed.\n\nLlama/Mistral 7b/8b: 33\nSolar 10.7b/11b: 49\nLlama 13b: 41\nLlama 20b(stack): 63\nLlama/Yi 34b: 61\nMixtral 8x7b: 33\nLlama 70b: 81")
+    quick_lowvram_box = makecheckbox(quick_tab,  "Low VRAM (No KV offload)", lowvram_var, 4,0,tooltiptxt="Avoid offloading KV Cache or scratch buffers to VRAM.\nAllows more layers to fit, but may result in a speed loss.")
     quick_mmq_box = makecheckbox(quick_tab,  "Use QuantMatMul (mmq)", mmq_var, 4,1,tooltiptxt="Enable MMQ mode instead of CuBLAS for prompt processing. Read the wiki. Speed may vary.")
 
 
