@@ -82,6 +82,7 @@ struct generation_inputs
     const samplers sampler_order[KCPP_SAMPLER_MAX];
     const int sampler_len;
     const bool allow_eos_token;
+    const bool bypass_eos_token = false;
     const bool render_special;
     const char * stop_sequence[stop_token_max];
     const bool stream_sse;

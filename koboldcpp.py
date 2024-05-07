@@ -82,6 +82,7 @@ class generation_inputs(ctypes.Structure):
                 ("sampler_order", ctypes.c_int * sampler_order_max),
                 ("sampler_len", ctypes.c_int),
                 ("allow_eos_token", ctypes.c_bool),
+                ("bypass_eos_token", ctypes.c_bool),
                 ("render_special", ctypes.c_bool),
                 ("stop_sequence", ctypes.c_char_p * stop_token_max),
                 ("stream_sse", ctypes.c_bool),
@@ -396,7 +397,7 @@ def load_model(model_filename):
     ret = handle.load_model(inputs)
     return ret
 
-def generate(prompt, memory="", images=[], max_length=32, max_context_length=512, temperature=0.7, top_k=100, top_a=0.0, top_p=0.92, min_p=0.0, typical_p=1.0, tfs=1.0, rep_pen=1.0, rep_pen_range=128, presence_penalty=0.0, mirostat=0, mirostat_tau=5.0, mirostat_eta=0.1, sampler_order=[6,0,1,3,4,2,5], seed=-1, stop_sequence=[], use_default_badwordsids=False, stream_sse=False, grammar='', grammar_retain_state=False, genkey='', trimstop=False, quiet=False, dynatemp_range=0.0, dynatemp_exponent=1.0, smoothing_factor=0.0, logit_biases={}, render_special=False, banned_tokens=[]):
+def generate(prompt, memory="", images=[], max_length=32, max_context_length=512, temperature=0.7, top_k=100, top_a=0.0, top_p=0.92, min_p=0.0, typical_p=1.0, tfs=1.0, rep_pen=1.0, rep_pen_range=128, presence_penalty=0.0, mirostat=0, mirostat_tau=5.0, mirostat_eta=0.1, sampler_order=[6,0,1,3,4,2,5], seed=-1, stop_sequence=[], use_default_badwordsids=False, stream_sse=False, grammar='', grammar_retain_state=False, genkey='', trimstop=False, quiet=False, dynatemp_range=0.0, dynatemp_exponent=1.0, smoothing_factor=0.0, logit_biases={}, render_special=False, banned_tokens=[], bypass_eos_token=False):
     global maxctx, args, currentusergenkey, totalgens, pendingabortkey
     inputs = generation_inputs()
     inputs.prompt = prompt.encode("UTF-8")
@@ -435,6 +436,7 @@ def generate(prompt, memory="", images=[], max_length=32, max_context_length=512
     inputs.grammar = grammar.encode("UTF-8")
     inputs.grammar_retain_state = grammar_retain_state
     inputs.allow_eos_token = not use_default_badwordsids
+    inputs.bypass_eos_token = bypass_eos_token
     inputs.render_special = render_special
     if mirostat in (1, 2):
         inputs.mirostat = mirostat
@@ -636,7 +638,7 @@ maxhordelen = 256
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.64.1"
+KcppVersion = "1.65"
 showdebug = True
 showsamplerwarning = True
 showmaxctxwarning = True
@@ -654,6 +656,9 @@ gui_layers_untouched = True
 runmode_untouched = True
 preloaded_story = None
 chatcompl_adapter = None
+embedded_kailite = None
+embedded_kcpp_docs = None
+embedded_kcpp_sdui = None
 sslvalid = False
 nocertify = False
 start_time = time.time()
@@ -663,6 +668,7 @@ currfinishreason = "null"
 using_gui_launcher = False
 
 def transform_genparams(genparams, api_format):
+    #api format 1=basic,2=kai,3=oai,4=oai-chat,5=interrogate
     #alias all nonstandard alternative names for rep pen.
     rp1 = genparams.get('repeat_penalty', 1.0)
     rp2 = genparams.get('repetition_penalty', 1.0)
@@ -673,14 +679,14 @@ def transform_genparams(genparams, api_format):
     if api_format==1:
         genparams["prompt"] = genparams.get('text', "")
         genparams["top_k"] = int(genparams.get('top_k', 120))
-        genparams["max_length"] = genparams.get('max', 100)
+        genparams["max_length"] = genparams.get('max', 150)
 
     elif api_format==2:
         if "ignore_eos" in genparams and not ("use_default_badwordsids" in genparams):
             genparams["use_default_badwordsids"] = genparams.get('ignore_eos', False)
 
     elif api_format==3 or api_format==4:
-        genparams["max_length"] = genparams.get('max_tokens', 100)
+        genparams["max_length"] = genparams.get('max_tokens', (256 if api_format==4 else 150))
         presence_penalty = genparams.get('presence_penalty', genparams.get('frequency_penalty', 0.0))
         genparams["presence_penalty"] = presence_penalty
         # openai allows either a string or a list as a stop sequence
@@ -748,7 +754,7 @@ def transform_genparams(genparams, api_format):
     elif api_format==5:
         firstimg = genparams.get('image', "")
         genparams["images"] = [firstimg]
-        genparams["max_length"] = 32
+        genparams["max_length"] = 42
         genparams["prompt"] = "### Instruction: In one sentence, write a descriptive caption for this image.\n### Response:"
 
     return genparams
@@ -757,11 +763,9 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
     sys_version = ""
     server_version = "ConcedoLlamaForKoboldServer"
 
-    def __init__(self, addr, port, embedded_kailite, embedded_kcpp_docs):
+    def __init__(self, addr, port):
         self.addr = addr
         self.port = port
-        self.embedded_kailite = embedded_kailite
-        self.embedded_kcpp_docs = embedded_kcpp_docs
 
     def __call__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -791,7 +795,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 memory=genparams.get('memory', ""),
                 images=genparams.get('images', []),
                 max_context_length=genparams.get('max_context_length', maxctx),
-                max_length=genparams.get('max_length', 100),
+                max_length=genparams.get('max_length', 150),
                 temperature=genparams.get('temperature', 0.7),
                 top_k=genparams.get('top_k', 100),
                 top_a=genparams.get('top_a', 0.0),
@@ -821,6 +825,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 logit_biases=genparams.get('logit_bias', {}),
                 render_special=genparams.get('render_special', False),
                 banned_tokens=genparams.get('banned_tokens', []),
+                bypass_eos_token=genparams.get('bypass_eos', False),
                 )
 
         genout = {"text":"","status":-1,"stopreason":-1}
@@ -1088,6 +1093,7 @@ Enter Prompt:<br>
         self.wfile.write(finalhtml)
 
     def do_GET(self):
+        global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
         global maxctx, maxhordelen, friendlymodelname, KcppVersion, totalgens, preloaded_story, exitcounter, currentusergenkey, friendlysdmodelname, fullsdmodelpath, mmprojpath, password
         self.path = self.path.rstrip('/')
         response_body = None
@@ -1095,10 +1101,10 @@ Enter Prompt:<br>
 
         if self.path in ["", "/?"] or self.path.startswith(('/?','?')): #it's possible for the root url to have ?params without /
             content_type = 'text/html'
-            if self.embedded_kailite is None:
+            if embedded_kailite is None:
                 response_body = (f"Embedded Kobold Lite is not found.<br>You will have to connect via the main KoboldAI client, or <a href='https://lite.koboldai.net?local=1&port={self.port}'>use this URL</a> to connect.").encode()
             else:
-                response_body = self.embedded_kailite
+                response_body = embedded_kailite
 
         elif self.path in ["/noscript", "/noscript?"] or self.path.startswith(('/noscript?','noscript?')): #it's possible for the root url to have ?params without /
             self.noscript_webui()
@@ -1176,10 +1182,17 @@ Enter Prompt:<br>
 
         elif self.path=="/api" or self.path=="/docs" or self.path.startswith(('/api/?json=','/api?json=','/docs/?json=','/docs?json=')):
             content_type = 'text/html'
-            if self.embedded_kcpp_docs is None:
+            if embedded_kcpp_docs is None:
                 response_body = (f"KoboldCpp API is running!\n\nAPI usage reference can be found at the wiki: https://github.com/LostRuins/koboldcpp/wiki").encode()
             else:
-                response_body = self.embedded_kcpp_docs
+                response_body = embedded_kcpp_docs
+
+        elif self.path=="/sdui":
+            content_type = 'text/html'
+            if embedded_kcpp_sdui is None:
+                response_body = (f"KoboldCpp API is running, but KCPP SDUI is not loaded").encode()
+            else:
+                response_body = embedded_kcpp_sdui
 
         elif self.path=="/v1":
             content_type = 'text/html'
@@ -1438,8 +1451,9 @@ def is_port_in_use(portNum):
     except Exception as ex:
         return True
 
-def RunServerMultiThreaded(addr, port, embedded_kailite = None, embedded_kcpp_docs = None):
+def RunServerMultiThreaded(addr, port):
     global exitcounter, sslvalid
+    global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
     if is_port_in_use(port):
         print(f"Warning: Port {port} already appears to be in use by another program.")
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -1465,7 +1479,7 @@ def RunServerMultiThreaded(addr, port, embedded_kailite = None, embedded_kcpp_do
 
         def run(self):
             global exitcounter
-            handler = ServerRequestHandler(addr, port, embedded_kailite, embedded_kcpp_docs)
+            handler = ServerRequestHandler(addr, port)
             with http.server.HTTPServer((addr, port), handler, False) as self.httpd:
                 try:
                     self.httpd.socket = sock
@@ -2888,10 +2902,9 @@ def sanitize_string(input_string):
     return sanitized_string
 
 def main(launch_args,start_server=True):
-    global args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password
+    global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
+    global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password
     args = launch_args
-    embedded_kailite = None
-    embedded_kcpp_docs = None
 
     #perform some basic cleanup of old temporary directories
     try:
@@ -3007,6 +3020,13 @@ def main(launch_args,start_server=True):
         global nocertify
         nocertify = True
 
+    if args.gpulayers and args.gpulayers>0:
+        global libname, lib_default, lib_openblas, lib_failsafe, lib_noavx2
+        nogood = [lib_default,lib_openblas,lib_failsafe,lib_noavx2]
+        if libname in nogood and sys.platform!="darwin":
+            print("WARNING: GPU layers is set, but a GPU backend was not selected!")
+            pass
+
     init_library() # Note: if blas does not exist and is enabled, program will crash.
     print("==========")
     time.sleep(1)
@@ -3073,7 +3093,7 @@ def main(launch_args,start_server=True):
         print(args)
         # Flush stdout for win32 issue with regards to piping in terminals,
         # especially before handing over to C++ context.
-        print(f"==========\nLoading model: {modelname} \n[Threads: {args.threads}, BlasThreads: {args.blasthreads}, SmartContext: {args.smartcontext}, ContextShift: {not (args.noshift)}]", flush=True)
+        print(f"==========\nLoading model: {modelname}", flush=True)
         loadok = load_model(modelname)
         print("Load Text Model OK: " + str(loadok))
 
@@ -3128,8 +3148,17 @@ def main(launch_args,start_server=True):
         basepath = os.path.abspath(os.path.dirname(__file__))
         with open(os.path.join(basepath, "kcpp_docs.embd"), mode='rb') as f:
             embedded_kcpp_docs = f.read()
+            print("Embedded API docs loaded.")
     except Exception as e:
         print("Could not find Embedded KoboldCpp API docs.")
+
+    try:
+        basepath = os.path.abspath(os.path.dirname(__file__))
+        with open(os.path.join(basepath, "kcpp_sdui.embd"), mode='rb') as f:
+            embedded_kcpp_sdui = f.read()
+            print("Embedded SDUI loaded.")
+    except Exception as e:
+        print("Could not find Embedded SDUI.")
 
     if args.port_param!=defaultport:
         args.port = args.port_param
@@ -3150,6 +3179,8 @@ def main(launch_args,start_server=True):
     if not args.remotetunnel:
         print(f"Starting Kobold API on port {args.port} at {epurl}/api/")
         print(f"Starting OpenAI Compatible API on port {args.port} at {epurl}/v1/")
+        if args.sdconfig:
+            print(f"StableUI is available at {epurl}/sdui/")
 
     if args.launch:
         try:
@@ -3174,7 +3205,6 @@ def main(launch_args,start_server=True):
 
     if args.model_param and args.benchmark:
         from datetime import datetime, timezone
-        global libname
         start_server = False
         save_to_file = (args.benchmark!="stdout" and args.benchmark!="")
         benchmaxctx =  (16384 if maxctx>16384 else maxctx)
@@ -3235,7 +3265,7 @@ def main(launch_args,start_server=True):
         else:
             # Flush stdout for previous win32 issue so the client can see output.
             print(f"======\nPlease connect to custom endpoint at {epurl}", flush=True)
-        asyncio.run(RunServerMultiThreaded(args.host, args.port, embedded_kailite, embedded_kcpp_docs))
+        asyncio.run(RunServerMultiThreaded(args.host, args.port))
     else:
         # Flush stdout for previous win32 issue so the client can see output.
         print(f"Server was not started, main function complete. Idling.", flush=True)

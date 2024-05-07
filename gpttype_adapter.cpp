@@ -2205,7 +2205,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 lowestLogit = LowestLogit(logits);
             }
 
-            if (!inputs.allow_eos_token)
+            if (!inputs.allow_eos_token && !inputs.bypass_eos_token)
             {
                 // set the logit of the eos token to very low to avoid sampling it
                 logitsPtr[eosID] = lowestLogit;
@@ -2274,7 +2274,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 printf("]\n");
             }
 
-            if(inputs.allow_eos_token && (id==eosID || (id==eotID && id!=-1)))
+            if(!inputs.bypass_eos_token && inputs.allow_eos_token && (id==eosID || (id==eotID && id!=-1)))
             {
                 stopper_unused_tokens = remaining_tokens;
                 if(allow_regular_prints)
