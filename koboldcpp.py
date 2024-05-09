@@ -1542,7 +1542,7 @@ def show_new_gui():
     windowheight = original_windowheight
     ctk.set_appearance_mode("dark")
     root = ctk.CTk()
-    root.geometry(f"{windowwidth}x{windowheight}")
+    root.geometry(str(windowwidth) + "x" + str(windowheight))
     root.title("KoboldCpp v"+KcppVersion)
     root.resizable(True,True)
 
@@ -1571,12 +1571,14 @@ def show_new_gui():
                 if new_width != previous_event_width or new_height!=previous_event_height:
                     lastpos = root.geometry()
                     lparr = lastpos.split('+', 1)
-                    lastpos = f"+{lparr[1]}" if (len(lparr)==2) else ""
+                    lastpos = ("+"+str(lparr[1])) if (len(lparr)==2) else ""
                     previous_event_width = new_width
                     previous_event_height = new_height
                     windowwidth = math.floor(original_windowwidth*smallratio)
+                    windowwidth = max(256, min(1024, windowwidth))
                     windowheight = math.floor(original_windowheight*smallratio)
-                    root.geometry(f"{windowwidth}x{windowheight}{lastpos}")
+                    windowheight = max(256, min(1024, windowheight))
+                    root.geometry(str(windowwidth) + "x" + str(windowheight) + str(lastpos))
                     ctk.set_widget_scaling(smallratio)
 
     root.bind("<Configure>", on_resize)

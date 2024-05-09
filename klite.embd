@@ -3710,12 +3710,15 @@ Current version: 138
 		opmode: 4, //what mode are we in? 1=story, 2=adventure, 3=chat, 4=instruct
 		adventure_is_action: false, //in adventure mode, determine story or action
 		adventure_context_mod: true, //extra injection for adventure mode
+		chat_context_mod: true, //extra injection for chat mode
 		chatname: "You", //name to use in chat
 		chatopponent: defaultchatopponent,
 		instruct_starttag: "\\n### Instruction:\\n",
 		instruct_endtag: "\\n### Response:\\n",
+		instruct_sysprompt: "",
 		instruct_has_markdown: true,
 		placeholder_tags: true,
+		render_special_tags: false,
 		persist_session: true,
 		speech_synth: 0, //0 is disabled, 1000 is xtts
 		xtts_voice: "female_calm",
@@ -3750,6 +3753,7 @@ Current version: 138
 		allow_continue_chat: false,
 		inject_timestamps_chat: false,
 		inject_timestamps_instruct: false,
+		inject_chatnames_instruct: false,
 		inject_jailbreak_instruct: false,
 		idle_responses: 0,
 		idle_duration: 60,
@@ -6056,6 +6060,10 @@ Current version: 138
 					// is a URL, extract the character name
 					userinput = userinput.replace(/\/characters\//i, '/');
 					userinput = userinput.split(/chub\.ai\//i)[1].split("#")[0].split("?")[0];
+				} else if (userinput.match(/characterhub\.org\//i)) {
+					// is a URL, extract the character name
+					userinput = userinput.replace(/\/characters\//i, '/');
+					userinput = userinput.split(/characterhub\.org\//i)[1].split("#")[0].split("?")[0];
 				}
 				userinput = userinput.endsWith('/') ? userinput.slice(0, -1) : userinput;
 				if(userinput!="")
@@ -6075,7 +6083,7 @@ Current version: 138
 						"worldinfo": [],
 					};
 
-					document.getElementById("scenariodesc").innerText = "Loading scenario from Chub...";
+					document.getElementById("scenariodesc").innerText = "Loading scenario from CharacterHub / Chub...";
 					fetch("https://api.chub.ai/api/characters/download", {
 					method: 'POST',
 					headers: {
@@ -6128,14 +6136,14 @@ Current version: 138
 					});
 				}else{
 					temp_scenario = null;
-					document.getElementById("scenariodesc").innerText = "Error: User input is invalid\n\n Please ensure you have input a valid Chub AI URL or ID.";
+					document.getElementById("scenariodesc").innerText = "Error: User input is invalid\n\n Please ensure you have input a valid CharacterHub / ChubAI URL or ID.";
 				}
 			}
 		}
 
 		if(chubstr=="")
 		{
-			inputBox("Enter chub.ai prompt URL","Import from chub.ai","","https://chub.ai/characters/Anonymous/example-character", ()=>{
+			inputBox("Enter characterhub.org or chub.ai prompt URL","Import from characterhub.org / chub.ai","","https://characterhub.org/characters/Anonymous/example-character", ()=>{
 				let userinput = getInputBoxValue().trim();
 				loadchub(userinput);
 			},false);
@@ -6420,7 +6428,7 @@ Current version: 138
 		document.getElementById("quickstartcontainer").classList.remove("hidden");
 
 		let scenarios = `<button type="button" name="" class="scenarioitem purple btn btn-primary" onclick="get_aetherroom_scenario()">Import from<br>aetherroom.club</button>`+
-		`<button type="button" name="" class="scenarioitem purple btn btn-primary" onclick="get_chubai_scenario()">Import from<br>chub.ai</button>` +
+		`<button type="button" name="" class="scenarioitem purple btn btn-primary" onclick="get_chubai_scenario()">Import from<br>characterhub.org / chub.ai</button>` +
 		`<button type="button" name="" class="scenarioitem purple btn btn-primary" onclick="get_pygchat_scenario()">Import from<br>pygmalion.chat</button>`;
 		for(let i=0;i<scenario_db.length;++i)
 		{
@@ -8381,6 +8389,7 @@ Current version: 138
 		document.getElementById("trimsentences").checked = localsettings.trimsentences;
 		document.getElementById("trimwhitespace").checked = localsettings.trimwhitespace;
 		document.getElementById("compressnewlines").checked = localsettings.compressnewlines;
+		document.getElementById("render_special_tags").checked = localsettings.render_special_tags;
 		document.getElementById("eos_ban_mode").value = localsettings.eos_ban_mode;
 		document.getElementById("persist_session").checked = localsettings.persist_session;
 		document.getElementById("opmode").value = localsettings.opmode;
@@ -8388,6 +8397,8 @@ Current version: 138
 		document.getElementById("chatopponent").value = replaceAll(localsettings.chatopponent,"||$||","\n");
 		handle_bot_name_onchange();
 		document.getElementById("instruct_starttag").value = localsettings.instruct_starttag;
+		let sp = replaceAll(localsettings.instruct_sysprompt, "\n", "\\n");
+		document.getElementById("instruct_sysprompt").value = sp;
 		document.getElementById("instruct_endtag").value = localsettings.instruct_endtag;
 		document.getElementById("min_p").value = localsettings.min_p;
 		document.getElementById("dynatemp_range").value = localsettings.dynatemp_range;
@@ -8436,10 +8447,12 @@ Current version: 138
 		document.getElementById("allow_continue_chat").checked = localsettings.allow_continue_chat;
 		document.getElementById("inject_timestamps_chat").checked = localsettings.inject_timestamps_chat;
 		document.getElementById("inject_timestamps_instruct").checked = localsettings.inject_timestamps_instruct;
+		document.getElementById("inject_chatnames_instruct").checked = localsettings.inject_chatnames_instruct;
 		document.getElementById("inject_jailbreak_instruct").checked = localsettings.inject_jailbreak_instruct;
 		document.getElementById("idle_responses").value = localsettings.idle_responses;
 		document.getElementById("idle_duration").value = localsettings.idle_duration;
 		document.getElementById("adventure_context_mod").checked = localsettings.adventure_context_mod;
+		document.getElementById("chat_context_mod").checked = localsettings.chat_context_mod;
 		document.getElementById("instruct_has_markdown").checked = localsettings.instruct_has_markdown;
 		document.getElementById("placeholder_tags").checked = localsettings.placeholder_tags;
 		document.getElementById("run_in_background").checked = run_in_background;
@@ -8653,6 +8666,8 @@ Current version: 138
 		}
 		localsettings.chatopponent = newopps;
 		localsettings.instruct_starttag = document.getElementById("instruct_starttag").value;
+		localsettings.instruct_sysprompt = document.getElementById("instruct_sysprompt").value;
+		localsettings.instruct_sysprompt = replaceAll(localsettings.instruct_sysprompt, "\\n", "\n");
 		if (localsettings.instruct_starttag == null || localsettings.instruct_starttag == "") {
 			localsettings.instruct_starttag = "\\n### Instruction:\\n";
 		}
@@ -8678,6 +8693,7 @@ Current version: 138
 		localsettings.trimsentences = (document.getElementById("trimsentences").checked ? true : false);
 		localsettings.trimwhitespace = (document.getElementById("trimwhitespace").checked ? true : false);
 		localsettings.compressnewlines = (document.getElementById("compressnewlines").checked ? true : false);
+		localsettings.render_special_tags = (document.getElementById("render_special_tags").checked ? true : false);
 		localsettings.eos_ban_mode = document.getElementById("eos_ban_mode").value;
 		localsettings.persist_session = (document.getElementById("persist_session").checked ? true : false);
 		if(document.getElementById("opmode").value==1)
@@ -8701,10 +8717,12 @@ Current version: 138
 		localsettings.allow_continue_chat = (document.getElementById("allow_continue_chat").checked ? true : false);
 		localsettings.inject_timestamps_chat = (document.getElementById("inject_timestamps_chat").checked ? true : false);
 		localsettings.inject_timestamps_instruct = (document.getElementById("inject_timestamps_instruct").checked ? true : false);
+		localsettings.inject_chatnames_instruct = (document.getElementById("inject_chatnames_instruct").checked ? true : false);
 		localsettings.inject_jailbreak_instruct = (document.getElementById("inject_jailbreak_instruct").checked ? true : false);
 		localsettings.idle_responses = document.getElementById("idle_responses").value;
 		localsettings.idle_duration = document.getElementById("idle_duration").value;
 		localsettings.adventure_context_mod = (document.getElementById("adventure_context_mod").checked ? true : false);
+		localsettings.chat_context_mod = (document.getElementById("chat_context_mod").checked ? true : false);
 		localsettings.instruct_has_markdown = (document.getElementById("instruct_has_markdown").checked ? true : false);
 		localsettings.placeholder_tags = (document.getElementById("placeholder_tags").checked ? true : false);
 		run_in_background = (document.getElementById("run_in_background").checked ? true : false);
@@ -8955,12 +8973,21 @@ Current version: 138
 		if (document.getElementById('gui_type').value==2) { document.getElementById('btn_aesthetics').classList.remove('hidden'); }
 		else { document.getElementById('btn_aesthetics').classList.add('hidden'); }
 	}
+	function toggle_include_chatnames()
+	{
+		if (document.getElementById("inject_chatnames_instruct").checked) {
+			document.getElementById('chatinstructsharedsection2').classList.remove('hidden');
+		} else {
+			document.getElementById('chatinstructsharedsection2').classList.add('hidden');
+		}
+	}
 	function toggle_opmode() {
 
 		document.getElementById('chatnamesection1').classList.add('hidden');
 		document.getElementById('adventuresection1').classList.add('hidden');
 		document.getElementById('instructsection1').classList.add('hidden');
 		document.getElementById('chatnamesection2').classList.add('hidden');
+		document.getElementById('chatinstructsharedsection2').classList.add('hidden');
 		document.getElementById('adventuresection2').classList.add('hidden');
 		document.getElementById('instructsection2').classList.add('hidden');
 
@@ -8982,6 +9009,7 @@ Current version: 138
 			document.getElementById('gui_type').value = localsettings.gui_type_chat;
 			document.getElementById('chatnamesection1').classList.remove('hidden');
 			document.getElementById('chatnamesection2').classList.remove('hidden');
+			document.getElementById('chatinstructsharedsection2').classList.remove('hidden');
 			document.getElementById('uipicker_messenger').classList.remove('hidden');
 			document.getElementById('uipicker_aesthetic').classList.remove('hidden');
 		}
@@ -8990,6 +9018,7 @@ Current version: 138
 			document.getElementById('instructsection1').classList.remove('hidden');
 			document.getElementById('instructsection2').classList.remove('hidden');
 			document.getElementById('uipicker_aesthetic').classList.remove('hidden');
+			toggle_include_chatnames();
 		}
 
 		//deselect invalid
@@ -9973,10 +10002,15 @@ Current version: 138
 
 				if(newgen != "")
 				{
+					if(localsettings.inject_chatnames_instruct)
+					{
+						newgen = localsettings.chatname + ": " + newgen;
+					}
 					if(localsettings.inject_timestamps_instruct)
 					{
 						newgen = "["+(new Date().toLocaleTimeString([], {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'}))+"] " + newgen;
 					}
+
 					//append instruction for instruct mode
 
 					newgen = ist + newgen + iet;
@@ -10175,7 +10209,7 @@ Current version: 138
 					if(trimmed!=""){ co = trimmed; }
 				}
 
-				if (current_anote.length == 0 && current_memory.length == 0) {
+				if (localsettings.chat_context_mod && current_anote.length == 0 && current_memory.length == 0 && current_wi.length == 0) {
 					if (gametext_arr.length > 0 && gametext_arr[0].startsWith("\n" + me + ": ")) {
 						let injected = "[The following is an interesting chat message log between " + me + " and " + co + ".]\n\n" + localsettings.chatname + ": Hi.\n" + co + ": Hello.";
 						if(co=="")
@@ -10227,16 +10261,23 @@ Current version: 138
 
 			}
 
-			if (localsettings.opmode == 4) {
-
-				if(localsettings.inject_timestamps_instruct && pending_context_preinjection=="" && truncated_context!="")
+			if (localsettings.opmode == 4)
+			{
+				if (pending_context_preinjection == "" && truncated_context != "")
 				{
-					let endmatcher = (localsettings.placeholder_tags?instructendplaceholder:get_instruct_endtag(false));
-
-					if(truncated_context.toLowerCase().trim().endsWith(endmatcher.toLowerCase().trim()))
-					{
-						pending_context_preinjection += "["+(new Date().toLocaleTimeString([], {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'}))+"]";
+					let endmatcher = (localsettings.placeholder_tags ? instructendplaceholder : get_instruct_endtag(false));
+					if (truncated_context.toLowerCase().trim().endsWith(endmatcher.toLowerCase().trim())) {
+						if (localsettings.inject_timestamps_instruct) {
+							pending_context_preinjection += "[" + (new Date().toLocaleTimeString([], { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })) + "]";
+						}
+						if (localsettings.inject_chatnames_instruct && localsettings.chatopponent!="") {
+							if (localsettings.inject_timestamps_instruct) {
+								pending_context_preinjection += " ";
+							}
+							pending_context_preinjection += localsettings.chatopponent + ":";
+						}
 					}
+
 				}
 				truncated_context += pending_context_preinjection;
 			}
@@ -10258,7 +10299,13 @@ Current version: 138
 			//memory is allowed to be up to 0.8 times of ctx allowance, anote up to 0.6 times
 			let max_mem_len = Math.floor(max_allowed_characters*0.8);
 			let max_anote_len = Math.floor(max_allowed_characters*0.6);
-			let truncated_memory = substring_to_boundary(current_memory, max_mem_len);
+			let appendedsysprompt = "";
+			if(localsettings.opmode==4 && localsettings.instruct_sysprompt!="")
+			{
+				max_mem_len = Math.floor(max_allowed_characters*0.7);
+				appendedsysprompt = get_instruct_starttag(false)+" "+localsettings.instruct_sysprompt + "\n";
+			}
+			let truncated_memory = appendedsysprompt + substring_to_boundary(current_memory, max_mem_len);
 			if (truncated_memory != null && truncated_memory != "") {
 				if(newlineaftermemory)
 				{
@@ -10603,6 +10650,7 @@ Current version: 138
 			submit_payload.params.dynatemp_exponent = localsettings.dynatemp_exponent;
 			submit_payload.params.smoothing_factor = localsettings.smoothing_factor;
 			submit_payload.params.banned_tokens = get_token_bans();
+			submit_payload.params.render_special = localsettings.render_special_tags;
 		}
 		//presence pen and logit bias for OAI and newer kcpp
 		if((custom_kobold_endpoint != "" && is_using_kcpp_with_mirostat()) || custom_oai_endpoint!="")
@@ -12190,7 +12238,7 @@ Current version: 138
 			if (idle_timer > idle_timer_max) {
 				idle_timer = 0;
 				let nextcounter = ++idle_triggered_counter;
-				if(localsettings.opmode == 4)
+				if(localsettings.opmode == 4) //handle idle messages
 				{
 					if (!localsettings.placeholder_tags) {
 						pending_context_preinjection =  get_instruct_endtag(false);
@@ -12873,6 +12921,18 @@ Current version: 138
 
 				fulltxt = replaceAll(fulltxt, `%SpcStg%`, `<hr class="hr_instruct"><span class="color_cyan"><img src="`+human_square+`" style="height:38px;width:auto;padding:3px 6px 3px 3px;border-radius: 8%;"/>`);
 				fulltxt = replaceAll(fulltxt, `%SpcEtg%`, `</span><hr class="hr_instruct"><img src="`+niko_square+`" style="height:38px;width:auto;padding:3px 6px 3px 3px;border-radius: 8%;"/>`);
+				//apply stylization to time tags
+				if(localsettings.inject_timestamps_instruct && localsettings.instruct_has_markdown)
+				{
+					fulltxt = fulltxt.replace(/(\[\d{1,2}\/\d{1,2}\/\d{4}, \d{1,2}:\d{2} [AP]M\])/g, "$1\n");
+				}
+				if(localsettings.inject_chatnames_instruct && localsettings.instruct_has_markdown)
+				{
+					let m_name = localsettings.chatname + ": ";
+					let m_opp = localsettings.chatopponent + ": ";
+					fulltxt = replaceAll(fulltxt, m_name, `<b>` + escapeHtml(m_name) + `</b>`);
+					fulltxt = replaceAll(fulltxt, m_opp, `<b>` + escapeHtml(m_opp) + `</b>`);
+				}
 			}else{
 				fulltxt = replaceAll(fulltxt, get_instruct_starttag(true), `%SclStg%`+escapeHtml(get_instruct_starttag(true))+`%SpnEtg%`);
 				fulltxt = replaceAll(fulltxt, get_instruct_endtag(true), `%SclStg%`+escapeHtml(get_instruct_endtag(true))+`%SpnEtg%`);
@@ -13282,7 +13342,7 @@ Current version: 138
 		var charCode = event.keyCode || event.which;
 
 		if (!event.shiftKey && charCode == 13) {
-			let willsubmit = true;
+			let willsubmit = (document.getElementById("entersubmit").checked ? true : false);
 			let newgennotempty = (document.getElementById("cht_inp").value != "");
 			if (willsubmit) {
 				event.preventDefault();
@@ -13881,7 +13941,7 @@ Current version: 138
 	function impersonate_user()
 	{
 		hide_popups();
-		let willsubmit = (document.getElementById("entersubmit").checked ? true : false);
+		let willsubmit = (document.getElementById("btnsend").disabled ? false : true);
 		if (willsubmit) {
 			document.getElementById("input_text").value = "";
 			document.getElementById("cht_inp").value = "";
@@ -15149,50 +15209,51 @@ Current version: 138
 						</div>
 
 						<div id="chatnamesection1" class="settinglabel hidden" style="padding-top: 3px;">
+							<div class="settinglabel">
+							<div class="justifyleft settingsmall">Chat PrePrompt <span class="helpicon">?<span
+								class="helptext">Modifies the context, injecting tokens to improve chat quality for new chats.</span></span> </div>
+							<input type="checkbox" id="adventure_context_mod" style="margin:0px 0 0;">
+							</div>
+							<div class="settinglabel">
+								<div class="justifyleft settingsmall">Inject Timestamps <span class="helpicon">?<span
+									class="helptext">Injects timestamps into context, allowing the AI to have a sense of time.</span></span></div>
+								<input type="checkbox" id="inject_timestamps_chat" style="margin:0px 0 0;">
+							</div>
 						</div>
 						<div id="adventuresection1" class="settinglabel hidden" style="padding-top: 3px;">
 							<div class="settinglabel">
-							<div class="justifyleft settingsmall">Adventure Prompt <span class="helpicon">?<span
-								class="helptext">Modifies the context, injecting tokens to improve adventure quality for adventure mode.</span></span> </div>
-							<input type="checkbox" id="adventure_context_mod" style="margin:0px 0 0;">
+							<div class="justifyleft settingsmall">Adventure PrePrompt <span class="helpicon">?<span
+								class="helptext">Modifies the context, injecting tokens to improve adventure quality for new adventures.</span></span> </div>
+							<input type="checkbox" id="chat_context_mod" style="margin:0px 0 0;">
 							</div>
 						</div>
 						<div id="instructsection1" class="settinglabel hidden" style="padding-top: 3px;">
+							<div class="justifyleft settingsmall">Enable Markdown <span class="helpicon">?<span
+								class="helptext">Allows the UI to use markdown formatting such as quotes and code blocks.</span></span>
+								<input type="checkbox" id="instruct_has_markdown" style="margin:0px 0 0;">
+							</div>
+							<div class="settinglabel">
+								<div class="justifyleft settingsmall">Inject Timestamps <span class="helpicon">?<span
+									class="helptext">Injects timestamps into context, allowing the AI to have a sense of time.</span></span></div>
+								<input type="checkbox" id="inject_timestamps_instruct" style="margin:0px 0 0;">
+							</div>
+							<div class="settinglabel">
+								<div class="justifyleft settingsmall">Inject ChatNames <span class="helpicon">?<span
+									class="helptext">Appends chat names after every instruct tag, a hybrid chat mode.</span></span></div>
+								<input type="checkbox" id="inject_chatnames_instruct" style="margin:0px 0 0;" onchange="toggle_include_chatnames()">
+							</div>
+							<div class="settinglabel">
+								<div class="justifyleft settingsmall">Assistant Jailbreak <span class="helpicon">?<span
+									class="helptext">Automatically injects a jailbreak message after every query to make the AI more likely to obey you.</span></span></div>
+								<input type="checkbox" id="inject_jailbreak_instruct" style="margin:0px 0 0;">
+							</div>
 						</div>
-
 						</div>
 					</div>
 
 					<div class="settingitem">
 					<div class="settinglabel">
-						<div id="chatnamesection2" class="settinglabel hidden" style="padding-top: 3px;">
-							<table class="settingsmall text-center" style="border-spacing: 4px 2px;	border-collapse: separate;">
-								<tr>
-								<th>Your Name</th>
-								<th>AI Name <span class="helpicon">?<span class="helptext">The name of the person you want to chat with. Multiple opponents can be specified, creating a group chat, separate their names using multiple lines.</span></span></th>
-								</tr>
-								<tr>
-								<td style="vertical-align: top;"><input class="settinglabel miniinput" type="text" placeholder="(Enter Name)" value="" id="chatname" title="The name that you will be chatting as"></td>
-								<td style="vertical-align: top;"><textarea class="settinglabel miniinput" style="resize: none;overflow:hidden;" id="chatopponent" placeholder="(Auto)" rows="1" wrap="off" title="The name of the person you want to chat with" oninput="handle_bot_name_input()" onchange="handle_bot_name_onchange()"></textarea></td>
-								</tr>
-							  </table>
 
-							<div class="settinglabel">
-							<div class="justifyleft settingsmall">Multiline Replies <span class="helpicon">?<span
-								class="helptext">Whether to allow multiple lines in AI responses. Disable this if the AI starts generating rubbish.</span></span> </div>
-							<input type="checkbox" id="multiline_replies" style="margin:0px 0 0;">
-							</div>
-							<div class="settinglabel">
-							<div class="justifyleft settingsmall">Continue Bot Replies <span class="helpicon">?<span
-								class="helptext">Allow incomplete AI chat replies, which can be continued by pressing submit again. Not recommended for newbies.</span></span></div>
-							<input type="checkbox" id="allow_continue_chat" style="margin:0px 0 0;">
-							</div>
-							<div class="settinglabel">
-							<div class="justifyleft settingsmall">Inject Timestamps <span class="helpicon">?<span
-								class="helptext">Injects timestamps into context, allowing the AI to have a sense of time.</span></span></div>
-							<input type="checkbox" id="inject_timestamps_chat" style="margin:0px 0 0;">
-							</div>
-						</div>
 						<div id="adventuresection2" class="settinglabel hidden" style="padding-top: 3px;">
 							<div class="settinglabel">
 								<div class="justifyleft settingsmall">Multiline Replies <span class="helpicon">?<span
@@ -15214,6 +15275,10 @@ Current version: 138
 								<option value="8">CommandR</option>
 								<option value="9">Llama 3 Chat</option>
 							</select>
+							<div class="settingsmall miniinput" style="width:100%;padding:2px">
+							<div class="justifyleft settingsmall">Sys. Prompt <span class="helpicon">?<span class="helptext">A system pre-prompt sent at the very start to guide the AI behavior. Usually NOT needed.</span></span></div>
+							<input class="settinglabel miniinput" type="text" placeholder="(Optional)" value="" id="instruct_sysprompt">
+							</div>
 							<table class="settingsmall text-center" style="border-spacing: 3px 2px;	border-collapse: separate;">
 								<tr>
 									<th>Start Seq.<span class="helpicon">?<span class="helptext">The sequence to start an instruction prompt</span></span></th>
@@ -15224,19 +15289,29 @@ Current version: 138
 								<td><input class="settinglabel miniinput" type="text" placeholder="\\n### Response:\\n" value="" id="instruct_endtag" onchange="edit_instruct_tag_format()" title="The sequence to end an instruction prompt"></td>
 								</tr>
 							</table>
-
-							<div class="justifyleft settingsmall">Enable Markdown <span class="helpicon">?<span
-								class="helptext">Allows the UI to use markdown formatting such as quotes and code blocks.</span></span> </div>
-							<input type="checkbox" id="instruct_has_markdown" style="margin:0px 0 0;">
+						</div>
+						<div id="chatinstructsharedsection2" class="settinglabel hidden" style="padding-top: 3px;">
+							<table class="settingsmall text-center" style="border-spacing: 4px 2px;	border-collapse: separate;">
+								<tr>
+								<th>Your Name</th>
+								<th>AI Name <span class="helpicon">?<span class="helptext">Name of the person(s) you want to chat with. Multiple opponents can be specified, creating a group chat, separate their names using multiple lines.</span></span></th>
+								</tr>
+								<tr>
+								<td style="vertical-align: top;"><input class="settinglabel miniinput" style="height:18px;" type="text" placeholder="(Enter Name)" value="" id="chatname" title="The name that you will be chatting as"></td>
+								<td style="vertical-align: top;"><textarea class="settinglabel miniinput" style="resize: none;overflow:hidden;" id="chatopponent" placeholder="(Auto)" rows="1" wrap="off" title="The name of the person you want to chat with" oninput="handle_bot_name_input()" onchange="handle_bot_name_onchange()"></textarea></td>
+								</tr>
+							  </table>
+						</div>
+						<div id="chatnamesection2" class="settinglabel hidden" style="padding-top: 3px;">
 							<div class="settinglabel">
-								<div class="justifyleft settingsmall">Inject Timestamps <span class="helpicon">?<span
-									class="helptext">Injects timestamps into context, allowing the AI to have a sense of time.</span></span></div>
-								<input type="checkbox" id="inject_timestamps_instruct" style="margin:0px 0 0;">
+							<div class="justifyleft settingsmall">Multiline Replies <span class="helpicon">?<span
+								class="helptext">Whether to allow multiple lines in AI responses. Disable this if the AI starts generating rubbish.</span></span> </div>
+							<input type="checkbox" id="multiline_replies" style="margin:0px 0 0;">
 							</div>
 							<div class="settinglabel">
-								<div class="justifyleft settingsmall">Assistant Jailbreak <span class="helpicon">?<span
-									class="helptext">Automatically injects a jailbreak message after every query to make the AI more likely to obey you.</span></span></div>
-								<input type="checkbox" id="inject_jailbreak_instruct" style="margin:0px 0 0;">
+							<div class="justifyleft settingsmall">Continue Bot Replies <span class="helpicon">?<span
+								class="helptext">Allow incomplete AI chat replies, which can be continued by pressing submit again. Not recommended for newbies.</span></span></div>
+							<input type="checkbox" id="allow_continue_chat" style="margin:0px 0 0;">
 							</div>
 						</div>
 					</div>
@@ -15512,6 +15587,11 @@ Current version: 138
 							<div class="justifyleft settingsmall">Placeholder Tags <span class="helpicon">?<span
 								class="helptext">If enabled, uses universal {{user}} and {{[INPUT]}} placeholders that get swapped on submit. If disabled, uses plaintext chat or instruct tags verbatim.</span></span></div>
 						   <input type="checkbox" id="placeholder_tags" style="margin:0px 0px 0px auto;">
+						</div>
+						<div class="settinglabel">
+							<div class="justifyleft settingsmall">Render Sp.Tags <span class="helpicon">?<span
+								class="helptext">If enabled, renders special tags like EOS and padding tokens. Not recommended.</span></span></div>
+						   <input type="checkbox" id="render_special_tags" style="margin:0px 0px 0px auto;">
 						</div>
 						<div class="settinglabel">
 							<div class="justifyleft settingsmall">Run In Background <span class="helpicon">?<span
