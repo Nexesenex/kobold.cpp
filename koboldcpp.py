@@ -631,7 +631,8 @@ maxhordelen = 256
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.65"
+KcppVersion = "1.65b"
+LcppVersion = "b2836"
 showdebug = True
 showsamplerwarning = True
 showmaxctxwarning = True
@@ -1088,7 +1089,7 @@ Enter Prompt:<br>
 
     def do_GET(self):
         global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
-        global maxctx, maxhordelen, friendlymodelname, KcppVersion, totalgens, preloaded_story, exitcounter, currentusergenkey, friendlysdmodelname, fullsdmodelpath, mmprojpath, password
+        global maxctx, maxhordelen, friendlymodelname, KcppVersion, LcppVersion, totalgens, preloaded_story, exitcounter, currentusergenkey, friendlysdmodelname, fullsdmodelpath, mmprojpath, password
         self.path = self.path.rstrip('/')
         response_body = None
         content_type = 'application/json'
@@ -3243,7 +3244,7 @@ def main(launch_args,start_server=True):
         from datetime import datetime, timezone
         start_server = False
         save_to_file = (args.benchmark!="stdout" and args.benchmark!="")
-        benchmaxctx =  (16384 if maxctx>16384 else maxctx)
+        benchmaxctx =  (16484 if maxctx>16384 else maxctx)
         benchlen = 100
         benchmodel = sanitize_string(os.path.splitext(os.path.basename(modelname))[0])
         if os.path.exists(args.benchmark) and os.path.getsize(args.benchmark) > 1000000:
@@ -3266,11 +3267,15 @@ def main(launch_args,start_server=True):
         s_pp = float(benchmaxctx-benchlen)/t_pp
         s_gen = float(benchlen)/t_gen
         datetimestamp = datetime.now(timezone.utc)
-        print(f"\nBenchmark Completed - v{KcppVersion} Results:\n======")
+        print(f"\nBenchmark Completed - v{KcppVersion} based on LlamaCPP {LcppVersion} Results:\n======")
         print(f"Timestamp: {datetimestamp}")
         print(f"Backend: {libname}")
-        print(f"Layers: {args.gpulayers}")
         print(f"Model: {benchmodel}")
+        print(f"Threads: {args.threads}")
+        print(f"Layers: {args.gpulayers}")
+        print(f"BlasThreads: {args.blasthreads}")       
+        print(f"BlastBatchSize: {args.blasbatchsize}")
+        print(f"FlashAttention: {args.flashattention}")
         print(f"MaxCtx: {benchmaxctx}")
         print(f"GenAmount: {benchlen}\n-----")
         print(f"ProcessingTime: {t_pp:.2f}s")
@@ -3285,8 +3290,8 @@ def main(launch_args,start_server=True):
                 with open(args.benchmark, "a") as file:
                     file.seek(0, 2)
                     if file.tell() == 0: #empty file
-                        file.write(f"Timestamp,Backend,Layers,Model,MaxCtx,GenAmount,ProcessingTime,ProcessingSpeed,GenerationTime,GenerationSpeed,TotalTime,Coherent,Output")
-                    file.write(f"\n{datetimestamp},{libname},{args.gpulayers},{benchmodel},{benchmaxctx},{benchlen},{t_pp:.2f},{s_pp:.2f},{t_gen:.2f},{s_gen:.2f},{(t_pp+t_gen):.2f},{resultok},{result}")
+                        file.write(f"Datime,KCPP,LCPP,Backend,Model,Threads,Layers,BlasThreads,BBSize,FlashA,MaxCtx,GenNum,PPTime,PPSpeed,TGTime,TGSpeed,TotalTime,Coherence,Output")
+                    file.write(f"\n{datetimestamp},{KcppVersion},{LcppVersion},{libname},{benchmodel},{args.threads},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.flashattention},{benchmaxctx},{benchlen},{t_pp:.2f},{s_pp:.2f},{t_gen:.2f},{s_gen:.2f},{(t_pp+t_gen):.2f},{resultok},{result}")
             except Exception as e:
                 print(f"Error writing benchmark to file: {e}")
         global using_gui_launcher
