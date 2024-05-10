@@ -45,6 +45,7 @@ class load_model_inputs(ctypes.Structure):
                 ("mmproj_filename", ctypes.c_char_p),
                 ("use_mmap", ctypes.c_bool),
                 ("use_mlock", ctypes.c_bool),
+                ("use_smartcontext", ctypes.c_bool),
                 ("use_contextshift", ctypes.c_bool),
                 ("clblast_info", ctypes.c_int),
                 ("cublas_info", ctypes.c_int),
@@ -371,6 +372,7 @@ def load_model(model_filename):
             inputs.lora_base = args.lora[1].encode("UTF-8")
 
     inputs.mmproj_filename = args.mmproj.encode("UTF-8") if args.mmproj else "".encode("UTF-8")
+    inputs.use_smartcontext = args.smartcontext
     inputs.use_contextshift = (0 if args.noshift else 1)
     inputs.flash_attention = args.flashattention
     inputs.blasbatchsize = args.blasbatchsize
@@ -1669,6 +1671,7 @@ def show_new_gui():
     tensor_split_str_vars = ctk.StringVar(value="")
     rowsplit_var = ctk.IntVar()
 
+    smartcontext = ctk.IntVar()
     contextshift = ctk.IntVar(value=1)
     remotetunnel = ctk.IntVar(value=0)
     flashattention = ctk.IntVar(value=0)
@@ -1954,7 +1957,10 @@ def show_new_gui():
     gpulayers_var.trace("w", changed_gpulayers)
 
     def togglectxshift(a,b,c):
-        pass
+        if contextshift.get()==0:
+            smartcontextbox.grid(row=1, column=0, padx=8, pady=1,  stick="nw")
+        else:
+            smartcontextbox.grid_forget()
 
     def guibench():
         args.benchmark = "stdout"
@@ -2111,6 +2117,7 @@ def show_new_gui():
     # Tokens Tab
     tokens_tab = tabcontent["Tokens"]
     # tokens checkboxes
+    smartcontextbox = makecheckbox(tokens_tab, "Use SmartContext", smartcontext, 1,tooltiptxt="Uses SmartContext. Now considered outdated and not recommended.\nCheck the wiki for more info.")
     makecheckbox(tokens_tab, "Use ContextShift", contextshift, 2,tooltiptxt="Uses Context Shifting to reduce reprocessing.\nRecommended. Check the wiki for more info.", command=togglectxshift)
     togglectxshift(1,1,1)
 
@@ -2209,6 +2216,7 @@ def show_new_gui():
         args.highpriority = highpriority.get()==1
         args.nommap = disablemmap.get()==1
         args.flashattention = flashattention.get()==1
+        args.smartcontext = smartcontext.get()==1
         args.noshift = contextshift.get()==0
         args.remotetunnel = remotetunnel.get()==1
         args.foreground = keepforeground.get()==1
@@ -2304,6 +2312,7 @@ def show_new_gui():
         highpriority.set(1 if "highpriority" in dict and dict["highpriority"] else 0)
         disablemmap.set(1 if "nommap" in dict and dict["nommap"] else 0)
         flashattention.set(1 if "flashattention" in dict and dict["flashattention"] else 0)
+        smartcontext.set(1 if "smartcontext" in dict and dict["smartcontext"] else 0)
         contextshift.set(0 if "noshift" in dict and dict["noshift"] else 1)
         remotetunnel.set(1 if "remotetunnel" in dict and dict["remotetunnel"] else 0)
         keepforeground.set(1 if "foreground" in dict and dict["foreground"] else 0)
