@@ -12790,7 +12790,7 @@ struct llm_tokenizer_wpm {
                 continue;
             }
             code = unicode_tolower(code);
-            if (type == CODEPOINT_TYPE_WHITESPACE) {
+            if (type == CODEPOINT_TYPE_SEPARATOR) {
                 code = ' ';
             }
             std::string s = unicode_cpt_to_utf8(code);
@@ -15835,13 +15835,6 @@ struct llama_context * llama_new_context_with_model(
         cparams.flash_attn = false;
     }
 
-#ifdef GGML_USE_HIPBLAS
-    if (cparams.flash_attn) {
-        LLAMA_LOG_WARN("%s: flash_attn is not yet compatible with HIPBLAS builds - forcing off\n", __func__);
-        cparams.flash_attn = false;
-    }
-#endif
-
     if (params.seed == LLAMA_DEFAULT_SEED) {
         params.seed = time(NULL);
     }
@@ -18210,7 +18203,7 @@ struct llama_timings llama_get_timings(struct llama_context * ctx) {
         /*.t_eval_ms   =*/ 1e-3 * ctx->t_eval_us,
 
         /*.n_sample =*/ std::max(1, ctx->n_sample),
-        /*.n_p_eval =*/ std::max(1, ctx->n_p_eval),
+        /*.n_p_eval =*/ std::max(0, ctx->n_p_eval),
         /*.n_eval   =*/ std::max(1, ctx->n_eval),
     };
 
