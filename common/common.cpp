@@ -902,6 +902,10 @@ bool gpt_params_find_arg(int argc, char ** argv, const std::string & arg, gpt_pa
         params.interactive = true;
         return true;
     }
+    if (arg == "--interactive-specials") {
+        params.interactive_specials = true;
+        return true;
+    }
     if (arg == "--embedding") {
         params.embedding = true;
         return true;
@@ -1295,6 +1299,28 @@ bool gpt_params_find_arg(int argc, char ** argv, const std::string & arg, gpt_pa
     //     sparams.grammar = json_schema_to_grammar(json::parse(argv[i]));
     //     return true;
     // }
+    if (arg == "-th" || arg == "--token-healing") {
+        if (++i >= argc) {
+            invalid_param = true;
+            return true;
+        }
+        sparams.token_healing_enabled = true;
+        auto & th_type = sparams.token_healing_type;
+        auto & th_n_rollback = sparams.token_healing_n_rollback;
+        std::string value(argv[i]);
+        /**/ if (value    == "0" ) { sparams.token_healing_enabled = false; }
+        else if (value    == "1" ) { th_type = llama_token_healing_type::ROLLBACK_LAST; }
+        else if (value    == "d1") { th_type = llama_token_healing_type::DYNAMIC_ONCE; }
+        else if (value    == "d" ) { th_type = llama_token_healing_type::DYNAMIC_MULTI; }
+        else if (value[0] == 'r' ) {
+            th_type = llama_token_healing_type::ROLLBACK_MULTI;
+            th_n_rollback = std::stoi(value.substr(1));
+            if (th_n_rollback <= 0) {
+                sparams.token_healing_enabled = false;
+            }
+        } else { invalid_param = true; }
+        return true;
+    }
     if (arg == "--override-kv") {
         if (++i >= argc) {
             invalid_param = true;
@@ -1368,14 +1394,12 @@ bool gpt_params_parse_ex(int argc, char ** argv, gpt_params & params) {
         if (arg.compare(0, arg_prefix.size(), arg_prefix) == 0) {
             std::replace(arg.begin(), arg.end(), '_', '-');
         }
-
         if (!gpt_params_find_arg(argc, argv, arg, params, i, invalid_param)) {
             throw std::invalid_argument("error: unknown argument: " + arg);
         }
-    }
-
-    if (invalid_param) {
-        throw std::invalid_argument("error: invalid parameter for argument: " + arg);
+        if (invalid_param) {
+            throw std::invalid_argument("error: invalid parameter for argument: " + arg);
+        }
     }
 
     if (params.prompt_cache_all &&
@@ -1423,6 +1447,7 @@ void gpt_print_usage(int /*argc*/, char ** argv, const gpt_params & params) {
     printf("  -h, --help            show this help message and exit\n");
     printf("  --version             show version and build info\n");
     printf("  -i, --interactive     run in interactive mode\n");
+    printf("  --interactive-specials allow special tokens in user text, in interactive mode\n");
     printf("  --interactive-first   run in interactive mode and wait for input right away\n");
     printf("  -cnv, --conversation  run in conversation mode (does not print special tokens and suffix/prefix)\n");
     printf("  -ins, --instruct      run in instruction mode (use with Alpaca models)\n");
@@ -1488,6 +1513,9 @@ void gpt_print_usage(int /*argc*/, char ** argv, const gpt_params & params) {
     printf("  -j SCHEMA, --json-schema SCHEMA\n");
     printf("                        JSON schema to constrain generations (https://json-schema.org/), e.g. `{}` for any JSON object.\n");
     printf("                        For schemas w/ external $refs, use --grammar + example/json_schema_to_grammar.py instead\n");
+    printf("  -th {0,1,d1,d,r{N}}, --token-healing {0,1,d1,d,r{N}}\n");
+    printf("                        Token healing type. (default: 0, disabled)\n");
+    printf("                        1: replace one token, d1: replace longest suffix with one token, d: replace longest suffix, r{N}: roll back N tokens\n");
     printf("  --cfg-negative-prompt PROMPT\n");
     printf("                        negative prompt to use for guidance. (default: empty)\n");
     printf("  --cfg-negative-prompt-file FNAME\n");
@@ -2653,6 +2681,7 @@ void dump_non_result_info_yaml(FILE * stream, const gpt_params & params, const l
     dump_string_yaml_multiline(stream, "in_suffix", params.input_prefix.c_str());
     fprintf(stream, "instruct: %s # default: false\n", params.instruct ? "true" : "false");
     fprintf(stream, "interactive: %s # default: false\n", params.interactive ? "true" : "false");
+    fprintf(stream, "interactive_specials: %s # default: false\n", params.interactive_specials ? "true" : "false");
     fprintf(stream, "interactive_first: %s # default: false\n", params.interactive_first ? "true" : "false");
     fprintf(stream, "keep: %d # default: 0\n", params.n_keep);
     fprintf(stream, "logdir: %s # default: unset (no logging)\n", params.logdir.c_str());
