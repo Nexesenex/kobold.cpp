@@ -1,0 +1,20 @@
+digraph Tokens {
+
+	node [shape = circle, pos="0,0!"];
+	quot [shape = circle, pos="2,1!"];
+	star [shape = circle, pos="2,-1!"];
+	none -> none [label = "not\n (\" or *)"];
+	none -> quot [label = "\""];
+	none -> star [label = "*"];
+
+	quot -> none [label = "\""];
+	star -> none [label = "*"];
+
+	star -> star [label = "not\n (\" or *)"]
+	quot -> quot [label = "not\n (\" or *)"]
+
+
+	star -> quot [label = "*\""]
+	quot -> star [label = "\"*"]
+
+}
