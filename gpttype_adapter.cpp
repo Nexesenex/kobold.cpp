@@ -3080,6 +3080,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         printf("%s\n\n", RemoveBell(outstr).c_str());
     }
 
+    if (llama_ctx_v4) {
+        empcats_init(llama_ctx_v4, embd_inp, grammarstr);
+    }
+
     while (remaining_tokens > 0)
     {
         gpt_vocab::id id = 0;
