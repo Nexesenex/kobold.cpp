@@ -3199,7 +3199,8 @@ def main(launch_args,start_server=True):
         basepath = os.path.abspath(os.path.dirname(__file__))
         with open(os.path.join(basepath, "kcpp_sdui.embd"), mode='rb') as f:
             embedded_kcpp_sdui = f.read()
-            print("Embedded SDUI loaded.")
+            if args.sdmodel:
+                print("Embedded SDUI loaded.")
     except Exception as e:
         print("Could not find Embedded SDUI.")
 
