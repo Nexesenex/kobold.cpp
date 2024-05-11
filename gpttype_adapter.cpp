@@ -32,6 +32,7 @@
 #include "mpt_v3.cpp"
 #include "examples/llava/clip.h"
 #include "examples/llava/llava.h"
+#include "experimental/emphasis.h"
 
 //const
 const int extra_context_handle_fragmentation = 80;
@@ -2044,6 +2045,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         printf("%s\n\n", RemoveBell(outstr).c_str());
     }
 
+    if (llama_ctx_v4) {
+        empcats_init(llama_ctx_v4, embd_inp, grammarstr);
+    }
+
     while (remaining_tokens > 0)
     {
         gpt_vocab::id id = 0;
@@ -2222,9 +2227,17 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 }
             }
 
+            if (llama_ctx_v4) {
+                empcats_step_pre(llama_ctx_v4, logitsPtr);
+            }
+
             id = SampleLogits(logitsPtr, nctx, n_vocab, last_n_size, repeat_penalty, presence_penalty,
             top_k, top_a, top_p, min_p, typical_p, tfs_z, temp, rng,
             kcpp_params->mirostat, kcpp_params->mirostat_tau, kcpp_params->mirostat_eta, sampler_order, grammar, dynatemp_range, dynatemp_exponent, smoothing_factor);
+
+            if (llama_ctx_v4) {
+                empcats_step_post(llama_ctx_v4, id );
+            }
 
             if (grammar != nullptr) {
                 grammar_accept_token(file_format, n_vocab, grammar, id);
