@@ -631,8 +631,8 @@ maxhordelen = 256
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.65d"
-LcppVersion = "b2849+3"
+KcppVersion = "1.66a"
+LcppVersion = "b2876+1"
 showdebug = True
 showsamplerwarning = True
 showmaxctxwarning = True
@@ -3358,7 +3358,8 @@ if __name__ == '__main__':
         return range_checker
 
     print("***\nWelcome to KoboldCpp - Version " + KcppVersion) # just update version manually
-    print("***\nbased on LlamaCpp - Version " + LcppVersion) # just update version manually
+    print("***\nBased on LlamaCpp - Version " + LcppVersion) # just update version manually
+    print("***")
     # print("Python version: " + sys.version)
     parser = argparse.ArgumentParser(description='KoboldCpp Server')
     modelgroup = parser.add_mutually_exclusive_group() #we want to be backwards compatible with the unnamed positional args
