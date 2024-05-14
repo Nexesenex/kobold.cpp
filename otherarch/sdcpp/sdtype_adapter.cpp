@@ -160,7 +160,7 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
     if(inputs.taesd)
     {
         taesdpath = executable_path + "taesd.embd";
-        printf("With TAE SD VAE: %s\n",taesdpath);
+        printf("With TAE SD VAE: %s\n",taesdpath.c_str());
     }
     else if(inputs.vae_filename!="")
     {
@@ -245,6 +245,12 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
     if (sd_ctx == NULL) {
         printf("\nError: KCPP SD Failed to create context!\n");
         return false;
+    }
+
+    if(inputs.lora_filename!="" && inputs.lora_multiplier>0)
+    {
+        printf("\nApplying LoRA now...\n");
+        sd_ctx->sd->apply_lora_from_file(inputs.lora_filename,inputs.lora_multiplier);
     }
 
     return true;

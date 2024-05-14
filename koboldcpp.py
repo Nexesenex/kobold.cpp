@@ -2231,7 +2231,7 @@ def show_new_gui():
             sdvaeitem1.grid(row=14,column=0,padx=8,stick="nw")
             sdvaeitem2.grid(row=15,column=0,padx=8,stick="nw")
             sdvaeitem3.grid(row=15,column=1,stick="nw")
-    makecheckbox(images_tab, "Use TAE SD VAE", sd_vaeauto_var, 16,command=toggletaesd,tooltiptxt="Replace VAE with TAESD.")
+    makecheckbox(images_tab, "Use TAE SD (AutoFix Bad VAE)", sd_vaeauto_var, 16,command=toggletaesd,tooltiptxt="Replace VAE with TAESD. May fix bad VAE.")
 
     # launch
     def guilaunch():
@@ -3494,7 +3494,7 @@ if __name__ == '__main__':
     sdparsergroup.add_argument("--sdclamped", help="If specified, limit generation steps and resolution settings for shared use.", action='store_true')
     sdparsergroupvae = sdparsergroup.add_mutually_exclusive_group()
     sdparsergroupvae.add_argument("--sdvae", metavar=('[filename]'), help="Specify a stable diffusion safetensors VAE which replaces the one in the model.", default="")
-    sdparsergroupvae.add_argument("--sdvaeauto", help="Uses a built-in VAE via TAE SD, which is very fast.", action='store_true')
+    sdparsergroupvae.add_argument("--sdvaeauto", help="Uses a built-in VAE via TAE SD, which is very fast, and fixed bad VAEs.", action='store_true')
     sdparsergroup.add_argument("--sdlora", metavar=('[filename]'), help="Specify a stable diffusion LORA safetensors model to be applied.", default="")
     sdparsergroup.add_argument("--sdloramult", metavar=('[amount]'), help="Multiplier for the LORA model to be applied.", type=float, default=1.0)
 
