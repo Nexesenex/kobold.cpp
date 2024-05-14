@@ -150,7 +150,22 @@ std::string base64_encode(const unsigned char* data, unsigned int data_length) {
 static std::string sdplatformenv, sddeviceenv, sdvulkandeviceenv;
 bool sdtype_load_model(const sd_load_model_inputs inputs) {
 
+    executable_path = inputs.executable_path;
+    std::string taesdpath = "";
     printf("\nImageGen Init - Load Model: %s\n",inputs.model_filename);
+    if(inputs.lora_filename!="")
+    {
+        printf("With LoRA: %s at %f power\n",inputs.lora_filename,inputs.lora_multiplier);
+    }
+    if(inputs.taesd)
+    {
+        taesdpath = executable_path + "taesd.embd";
+        printf("With TAE SD VAE: %s\n",taesdpath);
+    }
+    else if(inputs.vae_filename!="")
+    {
+        printf("With Custom VAE: %s\n",inputs.vae_filename);
+    }
 
     //duplicated from expose.cpp
     int cl_parseinfo = inputs.clblast_info; //first digit is whether configured, second is platform, third is devices
@@ -184,6 +199,8 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
     sd_params->n_threads = inputs.threads; //if -1 use physical cores
     sd_params->input_path = ""; //unused
     sd_params->batch_count = 1;
+    sd_params->vae_path = inputs.vae_filename;
+    sd_params->taesd_path = taesdpath;
 
     sddebugmode = inputs.debugmode;
 
@@ -279,6 +296,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
     sd_params->width = inputs.width;
     sd_params->height = inputs.height;
     sd_params->strength = inputs.denoising_strength;
+    sd_params->clip_skip = inputs.clip_skip;
     sd_params->mode = (img2img_data==""?SDMode::TXT2IMG:SDMode::IMG2IMG);
 
     //for img2img

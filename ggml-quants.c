@@ -14,6 +14,12 @@
 #include <stdlib.h> // for qsort
 #include <stdio.h>  // for GGML_ASSERT
 
+#if defined(_MSC_VER)
+// disable "possible loss of data" to avoid warnings for hundreds of casts
+// we should just be careful :)
+#pragma warning(disable: 4244 4267)
+#endif
+
 #define UNUSED GGML_UNUSED
 
 #ifndef MM256_SET_M128I

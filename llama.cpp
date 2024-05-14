@@ -2835,6 +2835,11 @@ static void llama_kv_cache_defrag(struct llama_kv_cache & cache) {
     cache.do_defrag = true;
 }
 
+static uint32_t llama_kv_cache_get_padding(const struct llama_cparams & cparams) {
+    // the FA kernels require padding to avoid extra runtime boundary checks
+    return cparams.flash_attn ? 256u : 32u;
+}
+
 //
 // model loading and saving
 //
@@ -4477,7 +4482,9 @@ static void llm_load_vocab(
             } else if (
                     tokenizer_pre == "gpt-2"   ||
                     tokenizer_pre == "jina-es" ||
-                    tokenizer_pre == "jina-de") {
+                    tokenizer_pre == "jina-de" ||
+                    tokenizer_pre == "jina-v2-es" ||
+                    tokenizer_pre == "jina-v2-de") {
                 vocab.type_pre = LLAMA_VOCAB_PRE_TYPE_GPT2;
             } else if (
                     tokenizer_pre == "refact") {
@@ -11589,7 +11596,8 @@ static int llama_decode_internal(
                 // a heuristic, to avoid attending the full cache if it is not yet utilized
                 // after enough generations, the benefit from this heuristic disappears
                 // if we start defragmenting the cache, the benefit from this will be more important
-                kv_self.n = std::min(kv_self.size, std::max(256u, GGML_PAD(llama_kv_cache_cell_max(kv_self), 256)));
+                const uint32_t pad = llama_kv_cache_get_padding(cparams);
+                kv_self.n = std::min(kv_self.size, std::max(pad, GGML_PAD(llama_kv_cache_cell_max(kv_self), pad)));
                 //kv_self.n = llama_kv_cache_cell_max(kv_self);
             }
         }
@@ -13486,6 +13494,58 @@ static std::vector<llama_grammar_candidate> llama_grammar_reject_candidates(
     return rejects;
 }
 
+static bool llama_grammar_detect_left_recursion(
+        const std::vector<std::vector<llama_grammar_element>> & rules,
+        size_t                                                  rule_index,
+        std::vector<bool>                                     * rules_visited,
+        std::vector<bool>                                     * rules_in_progress,
+        std::vector<bool>                                     * rules_may_be_empty) {
+    if ((*rules_in_progress)[rule_index]) {
+        return true;
+    }
+
+    (*rules_in_progress)[rule_index] = true;
+
+    const std::vector<llama_grammar_element> & rule = rules[rule_index];
+
+    // First check if the rule might produce the empty string. This could be done combined with the second
+    // step but it's more readable as two steps.
+    bool at_rule_start = true;
+    for (size_t i = 0; i < rule.size(); i++) {
+        if (llama_grammar_is_end_of_sequence(&rule[i])) {
+            if (at_rule_start) {
+                (*rules_may_be_empty)[rule_index] = true;
+                break;
+            }
+            at_rule_start = true;
+        } else {
+            at_rule_start = false;
+        }
+    }
+
+    // Second, recurse into leftmost nonterminals (or next-leftmost as long as the previous nonterminal may
+    // be empty)
+    bool recurse_into_nonterminal = true;
+    for (size_t i = 0; i < rule.size(); i++) {
+        if (rule[i].type == LLAMA_GRETYPE_RULE_REF && recurse_into_nonterminal) {
+            if (llama_grammar_detect_left_recursion(rules, (size_t)rule[i].value, rules_visited, rules_in_progress, rules_may_be_empty)) {
+                return true;
+            }
+            if (!((*rules_may_be_empty)[(size_t)rule[i].value])) {
+                recurse_into_nonterminal = false;
+            }
+        } else if (llama_grammar_is_end_of_sequence(&rule[i])) {
+            recurse_into_nonterminal = true;
+        } else {
+            recurse_into_nonterminal = false;
+        }
+    }
+
+    (*rules_in_progress)[rule_index] = false;
+    (*rules_visited)[rule_index] = true;
+    return false;
+}
+
 //
 // grammar - external
 //
@@ -13503,6 +13563,19 @@ struct llama_grammar * llama_grammar_init(
             vec_rules[i].push_back(*pos);
         }
         vec_rules[i].push_back({LLAMA_GRETYPE_END, 0});
+    }
+
+    // Check for left recursion
+    std::vector<bool> rules_visited(n_rules);
+    std::vector<bool> rules_in_progress(n_rules);
+    std::vector<bool> rules_may_be_empty(n_rules);
+    for (size_t i = 0; i < n_rules; i++) {
+        if (rules_visited[i]) {
+            continue;
+        }
+        if (llama_grammar_detect_left_recursion(vec_rules, i, &rules_visited, &rules_in_progress, &rules_may_be_empty)) {
+            throw std::runtime_error(format("unsupported grammar, left recursion detected for nonterminal at index %zu", i));
+        }
     }
 
     // loop over alternates of start rule to build initial stacks
@@ -13527,6 +13600,9 @@ struct llama_grammar * llama_grammar_init(
         }
     } while (true);
 
+    // Important: vec_rules has to be moved here, not copied, because stacks contains
+    // pointers to elements of vec_rules. If vec_rules were copied into llama_grammar
+    // then the pointers would be invalidated when the local vec_rules goes out of scope.
     return new llama_grammar{ std::move(vec_rules), std::move(stacks), {} };
 }
 
@@ -15825,6 +15901,11 @@ struct llama_context * llama_new_context_with_model(
         return nullptr;
     }
 
+    if (params.flash_attn && model->arch == LLM_ARCH_GROK) {
+        LLAMA_LOG_WARN("%s: flash_attn is not compatible with Grok - forcing off\n", __func__);
+        params.flash_attn = false;
+    }
+
     llama_context * ctx = new llama_context(*model);
 
     const auto & hparams = model->hparams;
@@ -15848,7 +15929,7 @@ struct llama_context * llama_new_context_with_model(
     cparams.rope_freq_scale  = params.rope_freq_scale == 0.0f ? hparams.rope_freq_scale_train : params.rope_freq_scale;
 
     // this is necessary due to kv_self.n being padded later during inference
-    cparams.n_ctx            = GGML_PAD(cparams.n_ctx, 256);
+    cparams.n_ctx            = GGML_PAD(cparams.n_ctx, llama_kv_cache_get_padding(cparams));
 
     // with causal attention, the batch size is limited by the context size
     cparams.n_batch          = hparams.causal_attn ? std::min(cparams.n_ctx, params.n_batch) : params.n_batch;
@@ -15891,11 +15972,6 @@ struct llama_context * llama_new_context_with_model(
         } else {
             cparams.pooling_type = hparams.pooling_type;
         }
-    }
-
-    if (cparams.flash_attn && model->arch == LLM_ARCH_GROK) {
-        LLAMA_LOG_WARN("%s: flash_attn is not compatible with Grok - forcing off\n", __func__);
-        cparams.flash_attn = false;
     }
 
     if (params.seed == LLAMA_DEFAULT_SEED) {
@@ -16089,7 +16165,11 @@ struct llama_context * llama_new_context_with_model(
             ctx->buf_compute_meta.resize(ggml_tensor_overhead()*LLAMA_MAX_NODES + ggml_graph_overhead_custom(LLAMA_MAX_NODES, false));
 
             // enabling pipeline parallelism in the scheduler increases memory usage, so it is only done when necessary
-            bool pipeline_parallel = llama_get_device_count() > 1 && model->n_gpu_layers > (int)model->hparams.n_layer && model->split_mode == LLAMA_SPLIT_MODE_LAYER;
+            bool pipeline_parallel =
+                llama_get_device_count() > 1 &&
+                model->n_gpu_layers > (int)model->hparams.n_layer &&
+                model->split_mode == LLAMA_SPLIT_MODE_LAYER &&
+                params.offload_kqv;
 #ifndef GGML_USE_CUDA
             // pipeline parallelism requires support for async compute and events
             // currently this is only implemented in the CUDA backend
