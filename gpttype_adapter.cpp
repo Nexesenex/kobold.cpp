@@ -423,32 +423,49 @@ void sample_top_a(llama_token_data_array * candidates, float a, size_t min_keep)
     candidates->size = last_idx;
 }
 
-void sample_rep_pen(int n_ctx, int rep_pen_range, float rep_pen, float presence_penalty, llama_token_data_array * candidates_p)
+void sample_rep_pen(int n_ctx, int rep_pen_range, float rep_pen, float rep_pen_slope, float presence_penalty, llama_token_data_array * candidates_p)
 {
     auto last_n_repeat = std::min(std::min((int)last_n_tokens.size(), rep_pen_range), n_ctx);
 
     const llama_token * last_tokens =  last_n_tokens.data() + last_n_tokens.size() - last_n_repeat;
     size_t last_tokens_size = last_n_repeat;
     llama_token_data_array * candidates = candidates_p;
-    float penalty = rep_pen;
 
-    if (last_tokens_size == 0 || (penalty == 1.0f && presence_penalty==0)) {
+    if (last_tokens_size == 0 || (rep_pen == 1.0f && presence_penalty==0)) {
         return;
     }
 
     const int64_t t_start_sample_us = ggml_time_us();
 
     // Create a frequency map to count occurrences of each token in last_tokens
-    std::unordered_map<llama_token, int> token_count;
+    std::unordered_map<llama_token, int> token_count_near;
+    std::unordered_map<llama_token, int> token_count_far;
     for (size_t i = 0; i < last_n_repeat; ++i) {
-        token_count[last_tokens[i]]++;
+        if((i*2) >= last_n_repeat)
+        {
+            token_count_near[last_tokens[i]]++;
+        }
+        else
+        {
+            token_count_far[last_tokens[i]]++;
+        }
     }
 
+    float rep_pen_reduced = rep_pen;
+    if(rep_pen_reduced>1.0f)
+    {
+       rep_pen_reduced = 1.0f + ((rep_pen-1.0f)*rep_pen_slope);
+    }
     for (size_t i = 0; i < candidates->size; ++i) {
-        const auto token_iter = token_count.find(candidates->data[i].id);
-        if (token_iter == token_count.end()) {
+        const auto token_in_near = token_count_near.find(candidates->data[i].id);
+        const auto token_in_far = token_count_far.find(candidates->data[i].id);
+        bool in_near = (token_in_near != token_count_near.end());
+        bool in_far = (token_in_far != token_count_far.end());
+        if (!in_near && !in_far) {
             continue;
         }
+
+        float penalty = (in_near?rep_pen:rep_pen_reduced);
 
         // The academic publication that described this technique actually just only divided, but that would cause tokens with negative logits to become more likely, which is obviously wrong.
         // This is common fix for this problem, which is to multiply by the penalty instead of dividing.
@@ -520,7 +537,7 @@ void sample_grammar(FileFormat file_format, int32_t n_vocab, llama_token_data_ar
 
 }
 
-int SampleLogits(const float * logits, int n_ctx, int n_vocab, int rep_pen_range, float rep_pen, float presence_penalty, float top_k, float top_a, float top_p, float min_p, float typical_p, float tfs, float temp, std::mt19937 & rng,
+int SampleLogits(const float * logits, int n_ctx, int n_vocab, int rep_pen_range, float rep_pen, float rep_pen_slope, float presence_penalty, float top_k, float top_a, float top_p, float min_p, float typical_p, float tfs, float temp, std::mt19937 & rng,
 int mirostat, float mirostat_tau, float mirostat_eta, const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dynatemp_range, float dynatemp_exponent, float smoothing_factor)
 {
     int id = 0;
@@ -546,7 +563,7 @@ int mirostat, float mirostat_tau, float mirostat_eta, const std::vector<samplers
     {
         static float mirostat_mu = 2.0f * mirostat_tau;
         const int mirostat_m = 100;
-        sample_rep_pen(n_ctx, rep_pen_range, rep_pen, presence_penalty, &candidates_p);
+        sample_rep_pen(n_ctx, rep_pen_range, rep_pen, rep_pen_slope, presence_penalty, &candidates_p);
         sample_temperature(&candidates_p, temp, smoothing_factor);
         if (mirostat == 1)
         {
@@ -596,7 +613,7 @@ int mirostat, float mirostat_tau, float mirostat_eta, const std::vector<samplers
                     }
                     break;
                 case KCPP_SAMPLER_REP_PEN:
-                    sample_rep_pen(n_ctx, rep_pen_range, rep_pen, presence_penalty, &candidates_p);
+                    sample_rep_pen(n_ctx, rep_pen_range, rep_pen, rep_pen_slope, presence_penalty, &candidates_p);
                     break;
                 default:
                     printf("\nSampleLogits: Unknown Sampler : %d",sampler_order[i]);
@@ -1716,6 +1733,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     kcpp_params->tfs_z = inputs.tfs;
     kcpp_params->temp = inputs.temperature;
     kcpp_params->repeat_last_n = inputs.rep_pen_range;
+    kcpp_params->rep_pen_slope = inputs.rep_pen_slope;
     kcpp_params->repeat_penalty = inputs.rep_pen;
     kcpp_params->presence_penalty = inputs.presence_penalty;
     kcpp_params->mirostat = inputs.mirostat;
@@ -1752,6 +1770,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     if (kcpp_params->repeat_last_n < 1)
     {
         kcpp_params->repeat_last_n = 1;
+    }
+    if (kcpp_params->rep_pen_slope > 1 || kcpp_params->rep_pen_slope<=0)
+    {
+        kcpp_params->rep_pen_slope = 1;
     }
     if (kcpp_params->top_k < 1)
     {
@@ -2222,7 +2244,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 }
             }
 
-            id = SampleLogits(logitsPtr, nctx, n_vocab, last_n_size, repeat_penalty, presence_penalty,
+            id = SampleLogits(logitsPtr, nctx, n_vocab, last_n_size, repeat_penalty, kcpp_params->rep_pen_slope, presence_penalty,
             top_k, top_a, top_p, min_p, typical_p, tfs_z, temp, rng,
             kcpp_params->mirostat, kcpp_params->mirostat_tau, kcpp_params->mirostat_eta, sampler_order, grammar, dynatemp_range, dynatemp_exponent, smoothing_factor);
 

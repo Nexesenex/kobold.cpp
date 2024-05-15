@@ -75,6 +75,7 @@ struct generation_inputs
     const float tfs;
     const float rep_pen;
     const int rep_pen_range;
+    const float rep_pen_slope = 1.0f;
     const float presence_penalty = 0.0f;
     const int mirostat = 0;
     const float mirostat_eta;

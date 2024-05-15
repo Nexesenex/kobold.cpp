@@ -57,6 +57,9 @@ void calculate_alphas_cumprod(float* alphas_cumprod,
 
 /*=============================================== StableDiffusionGGML ================================================*/
 
+static std::string pending_apply_lora_fname = "";
+static float pending_apply_lora_power = 1.0f;
+
 class StableDiffusionGGML {
 public:
     ggml_backend_t backend    = NULL;  // general backend
@@ -86,6 +89,7 @@ public:
     std::string lora_model_dir;
     // lora_name => multiplier
     std::unordered_map<std::string, float> curr_lora_state;
+
 
     std::shared_ptr<Denoiser> denoiser = std::make_shared<CompVisDenoiser>();
 
@@ -400,6 +404,11 @@ public:
         int64_t t1 = ggml_time_ms();
         LOG_DEBUG("check is_using_v_parameterization_for_sd2, taking %.2fs", (t1 - t0) * 1.0f / 1000);
         return result < -1;
+    }
+
+    void set_pending_lora(const std::string& lora_path, float multiplier) {
+        pending_apply_lora_fname = lora_path;
+        pending_apply_lora_power = multiplier;
     }
 
     void apply_lora_from_file(const std::string& lora_path, float multiplier) {
@@ -1394,6 +1403,12 @@ sd_image_t* txt2img(sd_ctx_t* sd_ctx,
 
     int64_t t0 = ggml_time_ms();
     sd_ctx->sd->apply_loras(lora_f2m);
+    if(pending_apply_lora_fname!="" && pending_apply_lora_power>0)
+    {
+        printf("\nApplying LoRA now...\n");
+        sd_ctx->sd->apply_lora_from_file(pending_apply_lora_fname,pending_apply_lora_power);
+        pending_apply_lora_fname = "";
+    }
     int64_t t1 = ggml_time_ms();
     LOG_INFO("apply_loras completed, taking %.2fs", (t1 - t0) * 1.0f / 1000);
     struct ggml_init_params params;
@@ -1587,6 +1602,12 @@ sd_image_t* img2img(sd_ctx_t* sd_ctx,
     // load lora from file
     int64_t t0 = ggml_time_ms();
     sd_ctx->sd->apply_loras(lora_f2m);
+    if(pending_apply_lora_fname!="" && pending_apply_lora_power>0)
+    {
+        printf("\nApplying LoRA now...\n");
+        sd_ctx->sd->apply_lora_from_file(pending_apply_lora_fname,pending_apply_lora_power);
+        pending_apply_lora_fname = "";
+    }
     int64_t t1 = ggml_time_ms();
     LOG_INFO("apply_loras completed, taking %.2fs", (t1 - t0) * 1.0f / 1000);
 

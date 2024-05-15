@@ -152,19 +152,21 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
 
     executable_path = inputs.executable_path;
     std::string taesdpath = "";
+    std::string lorafilename = inputs.lora_filename;
+    std::string vaefilename = inputs.vae_filename;
     printf("\nImageGen Init - Load Model: %s\n",inputs.model_filename);
-    if(inputs.lora_filename!="")
+    if(lorafilename!="")
     {
-        printf("With LoRA: %s at %f power\n",inputs.lora_filename,inputs.lora_multiplier);
+        printf("With LoRA: %s at %f power\n",lorafilename.c_str(),inputs.lora_multiplier);
     }
     if(inputs.taesd)
     {
         taesdpath = executable_path + "taesd.embd";
         printf("With TAE SD VAE: %s\n",taesdpath.c_str());
     }
-    else if(inputs.vae_filename!="")
+    else if(vaefilename!="")
     {
-        printf("With Custom VAE: %s\n",inputs.vae_filename);
+        printf("With Custom VAE: %s\n",vaefilename.c_str());
     }
 
     //duplicated from expose.cpp
@@ -199,7 +201,7 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
     sd_params->n_threads = inputs.threads; //if -1 use physical cores
     sd_params->input_path = ""; //unused
     sd_params->batch_count = 1;
-    sd_params->vae_path = inputs.vae_filename;
+    sd_params->vae_path = vaefilename;
     sd_params->taesd_path = taesdpath;
 
     sddebugmode = inputs.debugmode;
@@ -247,10 +249,10 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
         return false;
     }
 
-    if(inputs.lora_filename!="" && inputs.lora_multiplier>0)
+    if(lorafilename!="" && inputs.lora_multiplier>0)
     {
-        printf("\nApplying LoRA now...\n");
-        sd_ctx->sd->apply_lora_from_file(inputs.lora_filename,inputs.lora_multiplier);
+        printf("\nSet pending LoRA...\n");
+        sd_ctx->sd->set_pending_lora(lorafilename,inputs.lora_multiplier);
     }
 
     return true;
