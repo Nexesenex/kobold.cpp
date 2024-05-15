@@ -1329,19 +1329,43 @@ struct test_upscale : public test_case {
     const ggml_type type;
     const std::array<int64_t, 4> ne;
     const int32_t scale_factor;
+    const bool transpose;
 
     std::string vars() override {
-        return VARS_TO_STR3(type, ne, scale_factor);
+        return VARS_TO_STR4(type, ne, scale_factor, transpose);
     }
 
     test_upscale(ggml_type type = GGML_TYPE_F32,
             std::array<int64_t, 4> ne = {512, 512, 3, 1},
-            int32_t scale_factor = 2)
-        : type(type), ne(ne), scale_factor(scale_factor) {}
+            int32_t scale_factor = 2, bool transpose = false)
+        : type(type), ne(ne), scale_factor(scale_factor), transpose(transpose) {}
 
     ggml_tensor * build_graph(ggml_context * ctx) override {
         ggml_tensor * a = ggml_new_tensor(ctx, type, 4, ne.data());
+        if (transpose) a = ggml_transpose(ctx, a);
         ggml_tensor * out = ggml_upscale(ctx, a, scale_factor);
+        return out;
+    }
+};
+
+// GGML_OP_UPSCALE (ext)
+struct test_upscale_ext : public test_case {
+    const ggml_type type;
+    const std::array<int64_t, 4> ne;
+    const std::array<int64_t, 4> ne_tgt;
+
+    std::string vars() override {
+        return VARS_TO_STR3(type, ne, ne_tgt);
+    }
+
+    test_upscale_ext(ggml_type type = GGML_TYPE_F32,
+            std::array<int64_t, 4> ne     = {2, 5,  7, 11},
+            std::array<int64_t, 4> ne_tgt = {5, 7, 11, 13})
+        : type(type), ne(ne), ne_tgt(ne_tgt) {}
+
+    ggml_tensor * build_graph(ggml_context * ctx) override {
+        ggml_tensor * a = ggml_new_tensor(ctx, type, 4, ne.data());
+        ggml_tensor * out = ggml_upscale_ext(ctx, a, ne_tgt[0], ne_tgt[1],ne_tgt[2], ne_tgt[3]);
         return out;
     }
 };
@@ -1487,25 +1511,27 @@ struct test_flash_attn_ext : public test_case {
     const int64_t kv; // kv size
     const int64_t nb; // batch size
 
+    const bool mask; // use mask
+
     const float max_bias; // ALiBi
 
     std::string vars() override {
-        return VARS_TO_STR5(hs, nh, kv, nb, max_bias);
+        return VARS_TO_STR6(hs, nh, kv, nb, mask, max_bias);
     }
 
     double max_nmse_err() override {
         return 5e-4;
     }
 
-    test_flash_attn_ext(int64_t hs = 128, int64_t nh = 32, int64_t kv = 96, int64_t nb = 8, float max_bias = 0.0f)
-        : hs(hs), nh(nh), kv(kv), nb(nb), max_bias(max_bias) {}
+    test_flash_attn_ext(int64_t hs = 128, int64_t nh = 32, int64_t kv = 96, int64_t nb = 8, bool mask = true, float max_bias = 0.0f)
+        : hs(hs), nh(nh), kv(kv), nb(nb), mask(mask), max_bias(max_bias) {}
 
     ggml_tensor * build_graph(ggml_context * ctx) override {
         ggml_tensor * q = ggml_new_tensor_4d(ctx, GGML_TYPE_F32, hs, nb, nh, 1);
         ggml_tensor * k = ggml_new_tensor_4d(ctx, GGML_TYPE_F16, hs, kv, nh, 1);
         ggml_tensor * v = ggml_new_tensor_4d(ctx, GGML_TYPE_F16, hs, kv, nh, 1);
-        ggml_tensor * mask = ggml_new_tensor_4d(ctx, GGML_TYPE_F16, kv, GGML_PAD(nb, GGML_KQ_MASK_PAD), 1, 1);
-        ggml_tensor * out = ggml_flash_attn_ext(ctx, q, k, v, mask, 1.0f/sqrtf(hs), max_bias);
+        ggml_tensor * m = mask ? ggml_new_tensor_4d(ctx, GGML_TYPE_F16, kv, GGML_PAD(nb, GGML_KQ_MASK_PAD), 1, 1) : nullptr;
+        ggml_tensor * out = ggml_flash_attn_ext(ctx, q, k, v, m, 1.0f/sqrtf(hs), max_bias);
         return out;
     }
 };
@@ -2167,6 +2193,8 @@ static bool test_backend(ggml_backend_t backend, test_mode mode, const char * op
 
     test_cases.emplace_back(new test_sum_rows());
     test_cases.emplace_back(new test_upscale());
+    test_cases.emplace_back(new test_upscale(GGML_TYPE_F32, { 512, 512, 3, 1 }, 2, true));
+    test_cases.emplace_back(new test_upscale_ext());
     test_cases.emplace_back(new test_group_norm());
     test_cases.emplace_back(new test_acc());
     test_cases.emplace_back(new test_pad());
@@ -2175,11 +2203,14 @@ static bool test_backend(ggml_backend_t backend, test_mode mode, const char * op
     test_cases.emplace_back(new test_leaky_relu());
 
     for (int hs : { 64, 80, 128, 256, }) {
-        for (float max_bias : {0.0f, 8.0f}) {
-            for (int nh : { 32, }) {
-                for (int kv : { 512, 1024, }) {
-                    for (int nb : { 1, 2, 4, 8, }) {
-                        test_cases.emplace_back(new test_flash_attn_ext(hs, nh, kv, nb, max_bias));
+        for (bool mask : { true, false } ) {
+            for (float max_bias : { 0.0f, 8.0f }) {
+                if (!mask && max_bias > 0.0f) continue;
+                for (int nh : { 32, }) {
+                    for (int kv : { 512, 1024, }) {
+                        for (int nb : { 1, 2, 4, 8, }) {
+                            test_cases.emplace_back(new test_flash_attn_ext(hs, nh, kv, nb, mask, max_bias));
+                        }
                     }
                 }
             }
