@@ -2220,9 +2220,24 @@ def show_new_gui():
     makefileentry(images_tab, "Stable Diffusion Model (safetensors/gguf):", "Select Stable Diffusion Model File", sd_model_var, 1, filetypes=[("*.safetensors *.gguf","*.safetensors *.gguf")], tooltiptxt="Select a .safetensors or .gguf Stable Diffusion model file on disk to be loaded.")
     makecheckbox(images_tab, "Clamped Mode (Limit Resolution)", sd_clamped_var, 4,tooltiptxt="Limit generation steps and resolution settings for shared use.")
     makelabelentry(images_tab, "Image Threads:" , sd_threads_var, 6, 50,"How many threads to use during image generation.\nIf left blank, uses same value as threads.")
-    makecheckbox(images_tab, "Compress Weights (Saves Memory)", sd_quant_var, 8,tooltiptxt="Quantizes the SD model weights to save memory. May degrade quality.")
-    makefileentry(images_tab, "Image LoRA:", "Select SD lora file",sd_lora_var, 10 ,filetypes=[("*.safetensors *.gguf", "*.safetensors *.gguf")],tooltiptxt="Select a .safetensors or .gguf SD LoRA model file to be loaded.")
-    makelabelentry(images_tab, "Image LoRA Multiplier:" , sd_loramult_var, 12, 50,"What mutiplier value to apply the SD LoRA with.")
+
+    sdloritem1,sdloritem2,sdloritem3 = makefileentry(images_tab, "Image LoRA (Must be non-quant):", "Select SD lora file",sd_lora_var, 10 ,filetypes=[("*.safetensors *.gguf", "*.safetensors *.gguf")],tooltiptxt="Select a .safetensors or .gguf SD LoRA model file to be loaded.")
+    sdloritem4,sdloritem5 = makelabelentry(images_tab, "Image LoRA Multiplier:" , sd_loramult_var, 12, 50,"What mutiplier value to apply the SD LoRA with.")
+    def togglesdquant(a,b,c):
+        if sd_quant_var.get()==1:
+            sdloritem1.grid_forget()
+            sdloritem2.grid_forget()
+            sdloritem3.grid_forget()
+            sdloritem4.grid_forget()
+            sdloritem5.grid_forget()
+        else:
+            sdloritem1.grid(row=10,column=0,padx=8,stick="nw")
+            sdloritem2.grid(row=11,column=0,padx=8,stick="nw")
+            sdloritem3.grid(row=11,column=1,stick="nw")
+            sdloritem4.grid(row=12,column=1,stick="nw")
+            sdloritem5.grid(row=12,column=0,padx=8,stick="nw")
+    makecheckbox(images_tab, "Compress Weights (Saves Memory)", sd_quant_var, 8,command=togglesdquant,tooltiptxt="Quantizes the SD model weights to save memory. May degrade quality.")
+
 
     sdvaeitem1,sdvaeitem2,sdvaeitem3 = makefileentry(images_tab, "Image VAE:", "Select SD VAE file",sd_vae_var, 14, filetypes=[("*.safetensors *.gguf", "*.safetensors *.gguf")],tooltiptxt="Select a .safetensors or .gguf SD VAE file to be loaded.")
     def toggletaesd(a,b,c):
@@ -2334,11 +2349,10 @@ def show_new_gui():
 
         if sd_model_var.get() != "":
             args.sdmodel = sd_model_var.get()
+
+        args.sdthreads = (0 if sd_threads_var.get()=="" else int(sd_threads_var.get()))
         if sd_clamped_var.get()==1:
             args.sdclamped = True
-        args.sdthreads = (0 if sd_threads_var.get()=="" else int(sd_threads_var.get()))
-        if sd_quant_var.get()==1:
-            args.sdquant = True
         if sd_vaeauto_var.get()==1:
             args.sdvaeauto = True
             args.sdvae = ""
@@ -2347,11 +2361,15 @@ def show_new_gui():
             args.sdvae = ""
             if sd_vae_var.get() != "":
                 args.sdvae = sd_vae_var.get()
-        if sd_lora_var.get() != "":
-            args.sdlora = sd_lora_var.get()
-            args.sdloramult = float(sd_loramult_var.get())
-        else:
+        if sd_quant_var.get()==1:
+            args.sdquant = True
             args.sdlora = ""
+        else:
+            if sd_lora_var.get() != "":
+                args.sdlora = sd_lora_var.get()
+                args.sdloramult = float(sd_loramult_var.get())
+            else:
+                args.sdlora = ""
 
     def import_vars(dict):
         dict = convert_outdated_args(dict)
@@ -3493,12 +3511,13 @@ if __name__ == '__main__':
     sdparsergroup = parser.add_argument_group('Image Generation Commands')
     sdparsergroup.add_argument("--sdmodel", metavar=('[filename]'), help="Specify a stable diffusion safetensors or gguf model to enable image generation.", default="")
     sdparsergroup.add_argument("--sdthreads", metavar=('[threads]'), help="Use a different number of threads for image generation if specified. Otherwise, has the same value as --threads.", type=int, default=0)
-    sdparsergroup.add_argument("--sdquant", help="If specified, loads the model quantized to save memory.", action='store_true')
     sdparsergroup.add_argument("--sdclamped", help="If specified, limit generation steps and resolution settings for shared use.", action='store_true')
     sdparsergroupvae = sdparsergroup.add_mutually_exclusive_group()
     sdparsergroupvae.add_argument("--sdvae", metavar=('[filename]'), help="Specify a stable diffusion safetensors VAE which replaces the one in the model.", default="")
     sdparsergroupvae.add_argument("--sdvaeauto", help="Uses a built-in VAE via TAE SD, which is very fast, and fixed bad VAEs.", action='store_true')
-    sdparsergroup.add_argument("--sdlora", metavar=('[filename]'), help="Specify a stable diffusion LORA safetensors model to be applied.", default="")
+    sdparsergrouplora = sdparsergroup.add_mutually_exclusive_group()
+    sdparsergrouplora.add_argument("--sdquant", help="If specified, loads the model quantized to save memory.", action='store_true')
+    sdparsergrouplora.add_argument("--sdlora", metavar=('[filename]'), help="Specify a stable diffusion LORA safetensors model to be applied. Cannot be used with quant models.", default="")
     sdparsergroup.add_argument("--sdloramult", metavar=('[amount]'), help="Multiplier for the LORA model to be applied.", type=float, default=1.0)
 
     deprecatedgroup = parser.add_argument_group('Deprecated Commands, DO NOT USE!')
