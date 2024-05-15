@@ -19294,8 +19294,8 @@ struct ggml_compute_state_shared {
 struct ggml_compute_state {
     ggml_thread_t thrd;
     int ith;
-    enum ggml_status ec;
     struct ggml_compute_state_shared * shared;
+    enum ggml_status ec;
 };
 
 static void ggml_graph_compute_perf_stats_node(struct ggml_tensor * node, const struct ggml_compute_state_shared * st) {
@@ -21851,8 +21851,8 @@ struct gguf_header {
 struct gguf_tensor_info {
     struct gguf_str name;
 
-    uint64_t ne[GGML_MAX_DIMS];
     uint32_t n_dims;
+    uint64_t ne[GGML_MAX_DIMS];
 
     enum ggml_type type;
 
