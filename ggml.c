@@ -67,6 +67,14 @@ static void atomic_store(atomic_int * ptr, LONG val) {
 static LONG atomic_load(atomic_int * ptr) {
     return InterlockedCompareExchange(ptr, 0, 0);
 }
+
+static LONG atomic_compare_exchange_weak(atomic_int * ptr, atomic_int* pcomparand, LONG exchange)
+{
+    LONG comparand = *pcomparand;
+    LONG ret = InterlockedCompareExchange(ptr, exchange, comparand);
+    return (ret == comparand);
+}
+
 static LONG atomic_fetch_add(atomic_int * ptr, LONG inc) {
     return InterlockedExchangeAdd(ptr, inc);
 }
@@ -100,6 +108,12 @@ static int sched_yield (void) {
     Sleep (0);
     return 0;
 }
+
+/* On windows we do not have semaphore.h we thus
+rely on active polling in the threadpool
+TODO: find better ? */
+#define GGML_THREADPOOL_ACTIVE_POLL
+
 #else
 #include <pthread.h>
 #include <stdatomic.h>
@@ -113,6 +127,68 @@ typedef void * thread_ret_t;
 #endif
 
 typedef pthread_t ggml_thread_t;
+
+// Implementing a persistent thread-pool
+
+#ifndef GGML_THREADPOOL_ACTIVE_POLL
+#include <semaphore.h>
+#endif
+
+#define GGML_THREAD_POOL_SIZE 512
+
+struct ggml_thread_pool_context {
+    /** Function to run */
+    void * (*fn)(void *);
+    /** Argument to pass*/
+    void * arg;
+    /** Return value */
+    void * ret;
+
+    /** At 1 if the thread is running*/
+    atomic_int executing;
+    /** Stop condition */
+    atomic_int running;
+#ifndef GGML_THREADPOOL_ACTIVE_POLL
+    /** Used to pause threads in POSIX systems */
+    sem_t sem;
+#endif
+    /** Used for identifying idle threads */
+    atomic_int flag;
+
+    /** Thread associated with this context */
+    ggml_thread_t thread;
+    /** Threads are created lazily using this flag */
+    short has_thread;
+};
+
+void ggml_thread_pool_context_init(struct ggml_thread_pool_context * ctx);
+
+/** Main structure for the thread pool*/
+struct ggml_thread_pool {
+    /** Each context is a lazily called thread */
+    struct ggml_thread_pool_context ctx[GGML_THREAD_POOL_SIZE];
+};
+
+/** Static instance of the GGML thread pool */
+static struct ggml_thread_pool __thp;
+
+/** This is the object representing a thread part of the threadpool*/
+typedef struct ggml_thread_pool_thread_s {
+    /** Id of the thread (offset in threadpool array) -1 if external */
+    int id;
+    /** Handle for threads created externally */
+    ggml_thread_t th;
+} ggml_thread_pool_thread_t;
+
+/** This is the mainloop for threads in the threadpool */
+static void * ggml_thread_pool_main(void * pctx);
+
+/** Called once to initialize the threadpool */
+void ggml_thread_pool_init(void);
+
+/* known_index is a recommendation to try a given thread ID it allows to limit locking contention */
+int ggml_thread_pool_create_thread(ggml_thread_pool_thread_t * th, void * (*fn)(void *), void * arg, int known_index);
+int ggml_thread_pool_join_thread(ggml_thread_pool_thread_t th, void **retval);
 
 #ifdef GGML_USE_CPU_HBM
 #include <hbwmalloc.h>
@@ -1579,7 +1655,7 @@ struct ggml_compute_state_shared {
 };
 
 struct ggml_compute_state {
-    ggml_thread_t thrd;
+    ggml_thread_pool_thread_t thrd;
     int ith;
     struct ggml_compute_state_shared* shared;
     enum ggml_status ec;
@@ -3130,6 +3206,7 @@ static inline int ggml_up(int n, int m) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+
 struct ggml_context * ggml_init(struct ggml_init_params params) {
     // make this function thread safe
     ggml_critical_section_start();
@@ -3139,6 +3216,7 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
     if (is_first_call) {
         // initialize time system (required on Windows)
         ggml_time_init();
+        ggml_thread_pool_init();
 
         // initialize GELU, Quick GELU, SILU and EXP F32 tables
         {
@@ -3248,6 +3326,7 @@ void ggml_free(struct ggml_context * ctx) {
 
     // make this function thread safe
     ggml_critical_section_start();
+
 
     bool found = false;
 
@@ -19305,6 +19384,130 @@ typedef int ggml_lock_t;
 
 #endif
 
+/* Thread Pool Implementation */
+
+void ggml_thread_pool_context_init(struct ggml_thread_pool_context * ctx) {
+    memset(ctx, 0, sizeof(struct ggml_thread_pool_context));
+
+    ctx->running = 1;
+    /* Initially no threads are created */
+    ctx->has_thread = 0;
+#ifndef GGML_THREADPOOL_ACTIVE_POLL
+    sem_init(&ctx->sem, 0, 0);
+#endif
+}
+
+static void * ggml_thread_pool_main(void * pctx) {
+    struct ggml_thread_pool_context * ctx = (struct ggml_thread_pool_context*)pctx;
+
+    while(ctx->running) {
+        /* Here we wait for start notification */
+#ifdef GGML_THREADPOOL_ACTIVE_POLL
+        /* Wait for run flag */
+        while(atomic_load(&ctx->executing) == 0) {
+            sched_yield();
+        }
+#else
+        sem_wait(&ctx->sem);
+#endif
+        ctx->ret = NULL;
+
+        if(ctx->fn) {
+            /* Call the actual function */
+            ctx->ret = (ctx->fn)(ctx->arg);
+        }
+
+        /* Flag done for join */
+        atomic_store(&ctx->executing, 0);
+
+    }
+
+    return NULL;
+}
+
+void ggml_thread_pool_init(void) {
+    int i = 0;
+
+    for(i = 0 ; i < GGML_THREAD_POOL_SIZE ; i++) {
+        /* Thread is running */
+        ggml_thread_pool_context_init(&__thp.ctx[i]);
+    }
+}
+
+int ggml_thread_pool_create_thread(ggml_thread_pool_thread_t * th, void * (*fn)(void *), void * arg, int known_index) {
+    /* Find a free thread */
+    int i = 0;
+
+    if(known_index < 0) {
+        known_index = 0;
+    }
+
+    assert(known_index < GGML_THREAD_POOL_SIZE);
+
+    for( i = known_index ; i < GGML_THREAD_POOL_SIZE + known_index; i++) {
+        int zero = 0;
+        int targ = i % GGML_THREAD_POOL_SIZE;
+        struct ggml_thread_pool_context * ctx = &__thp.ctx[targ];
+
+        if( atomic_compare_exchange_weak(&ctx->flag, &zero, 1) ) {
+            /* We have the thread */
+            ctx->fn = fn;
+            ctx->arg = arg;
+
+            /* Save ID*/
+            th->id = i;
+
+            atomic_store(&ctx->executing, 1);
+
+            /* Is this thread already created ? */
+            if(!ctx->has_thread) {
+                ggml_thread_create(&ctx->thread, NULL, ggml_thread_pool_main, &__thp.ctx[i]);
+                ctx->has_thread = 1;
+            }
+
+#ifndef GGML_THREADPOOL_ACTIVE_POLL
+            /* Signal start */
+            sem_post(&ctx->sem);
+#endif
+            return 0;
+        }
+    }
+
+    /* if we are here we failed to get from pool create a "normal" thread and flag it withj ID -1 for handling in join */
+    th->id = -1;
+    return ggml_thread_create(&th->th, NULL, fn, arg);
+}
+
+int ggml_thread_pool_join_thread(ggml_thread_pool_thread_t th, void **retval)
+{
+    /* Normal thread case */
+    if(th.id < 0) {
+        return ggml_thread_join(th.th, retval);
+    }
+
+    struct ggml_thread_pool_context * ctx = &__thp.ctx[th.id];
+
+    /* Thread must be taken */
+    assert(atomic_load(&ctx->flag) == 1);
+
+    while(atomic_load(&ctx->executing)) {
+        sched_yield();
+    }
+
+    /* Done executing if we are here*/
+    if(retval) {
+        *retval = ctx->ret;
+    }
+
+    ctx->fn = NULL;
+    ctx->arg = NULL;
+
+    /* Set the thread free */
+    atomic_store(&ctx->flag, 0);
+
+    return 0;
+}
+
 // Android's libc implementation "bionic" does not support setting affinity
 #if defined(__gnu_linux__)
 static void set_numa_thread_affinity(int thread_n) {
@@ -20061,13 +20264,13 @@ enum ggml_status ggml_graph_compute(struct ggml_cgraph * cgraph, struct ggml_cpl
     if (n_threads > 1) {
         for (int j = 1; j < n_threads; ++j) {
             workers[j] = (struct ggml_compute_state) {
-                .thrd   = 0,
+                .thrd   = {0},
                 .ith = j,
                 .shared = &state_shared,
                 .ec = GGML_STATUS_SUCCESS,
             };
 
-            const int rc = ggml_thread_create(&workers[j].thrd, NULL, ggml_graph_compute_thread, &workers[j]);
+            const int rc = ggml_thread_pool_create_thread(&workers[j].thrd, ggml_graph_compute_thread, &workers[j], j);
             GGML_ASSERT(rc == 0);
             UNUSED(rc);
         }
@@ -20090,7 +20293,7 @@ enum ggml_status ggml_graph_compute(struct ggml_cgraph * cgraph, struct ggml_cpl
     // join or kill thread pool
     if (n_threads > 1) {
         for (int j = 1; j < n_threads; j++) {
-            const int rc = ggml_thread_join(workers[j].thrd, NULL);
+            const int rc = ggml_thread_pool_join_thread(workers[j].thrd, NULL);
             GGML_ASSERT(rc == 0);
             if (workers[j].ec != GGML_STATUS_SUCCESS)
                 compute_status = workers[j].ec;
