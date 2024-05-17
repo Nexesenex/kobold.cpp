@@ -2296,6 +2296,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 printf("]\n");
             }
 
+            bool earlystopped = false;
             if(!inputs.bypass_eos_token && inputs.allow_eos_token && (id==eosID || (id==eotID && id!=-1)))
             {
                 stopper_unused_tokens = remaining_tokens;
@@ -2305,39 +2306,49 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 }
                 remaining_tokens = 0;
                 last_stop_reason = stop_reason::EOS_TOKEN_HIT;
+                earlystopped = true;
             }
 
-            for (const auto &matched : special_stop_sequence)
+            if(!earlystopped)
             {
-                if(id==matched)
+                for (const auto &matched : special_stop_sequence)
                 {
-                    stopper_unused_tokens = remaining_tokens;
-                    if(allow_regular_prints)
+                    if(id==matched)
                     {
-                        printf("\n(Special Stop Token Triggered! ID:%d)",matched);
+                        stopper_unused_tokens = remaining_tokens;
+                        if(allow_regular_prints)
+                        {
+                            printf("\n(Special Stop Token Triggered! ID:%d)",matched);
+                        }
+                        remaining_tokens = 0;
+                        last_stop_reason = stop_reason::EOS_TOKEN_HIT;
+                        earlystopped = true;
+                        break;
                     }
-                    remaining_tokens = 0;
-                    last_stop_reason = stop_reason::EOS_TOKEN_HIT;
-                    break;
                 }
             }
 
-            for (const auto &matched : stop_sequence)
+            if(!earlystopped)
             {
-                if (concat_output.find(matched) != std::string::npos)
+                for (const auto &matched : stop_sequence)
                 {
-                    stopper_unused_tokens = remaining_tokens;
-                    remaining_tokens = 0;
-                    if(allow_regular_prints)
+                    if (concat_output.find(matched) != std::string::npos)
                     {
-                        auto match_clean = matched;
-                        replace_all(match_clean, "\n", "\\n");
-                        printf("\n(Stop sequence triggered: %s)", match_clean.c_str());
+                        stopper_unused_tokens = remaining_tokens;
+                        remaining_tokens = 0;
+                        if(allow_regular_prints)
+                        {
+                            auto match_clean = matched;
+                            replace_all(match_clean, "\n", "\\n");
+                            printf("\n(Stop sequence triggered: %s)", match_clean.c_str());
+                        }
+                        last_stop_reason = stop_reason::CUSTOM_STOPPER;
+                        earlystopped = true;
+                        break;
                     }
-                    last_stop_reason = stop_reason::CUSTOM_STOPPER;
-                    break;
                 }
             }
+
             fflush(stdout);
         }
         else
