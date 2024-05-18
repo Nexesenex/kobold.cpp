@@ -150,7 +150,24 @@ std::string base64_encode(const unsigned char* data, unsigned int data_length) {
 static std::string sdplatformenv, sddeviceenv, sdvulkandeviceenv;
 bool sdtype_load_model(const sd_load_model_inputs inputs) {
 
+    executable_path = inputs.executable_path;
+    std::string taesdpath = "";
+    std::string lorafilename = inputs.lora_filename;
+    std::string vaefilename = inputs.vae_filename;
     printf("\nImageGen Init - Load Model: %s\n",inputs.model_filename);
+    if(lorafilename!="")
+    {
+        printf("With LoRA: %s at %f power\n",lorafilename.c_str(),inputs.lora_multiplier);
+    }
+    if(inputs.taesd)
+    {
+        taesdpath = executable_path + "taesd.embd";
+        printf("With TAE SD VAE: %s\n",taesdpath.c_str());
+    }
+    else if(vaefilename!="")
+    {
+        printf("With Custom VAE: %s\n",vaefilename.c_str());
+    }
 
     //duplicated from expose.cpp
     int cl_parseinfo = inputs.clblast_info; //first digit is whether configured, second is platform, third is devices
@@ -184,6 +201,8 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
     sd_params->n_threads = inputs.threads; //if -1 use physical cores
     sd_params->input_path = ""; //unused
     sd_params->batch_count = 1;
+    sd_params->vae_path = vaefilename;
+    sd_params->taesd_path = taesdpath;
 
     sddebugmode = inputs.debugmode;
 
@@ -228,6 +247,13 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
     if (sd_ctx == NULL) {
         printf("\nError: KCPP SD Failed to create context!\n");
         return false;
+    }
+
+    if(lorafilename!="" && inputs.lora_multiplier>0)
+    {
+        printf("\nApply LoRA...\n");
+       // sd_ctx->sd->set_pending_lora(lorafilename,inputs.lora_multiplier);
+        sd_ctx->sd->apply_lora_from_file(lorafilename,inputs.lora_multiplier);
     }
 
     return true;
@@ -279,6 +305,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
     sd_params->width = inputs.width;
     sd_params->height = inputs.height;
     sd_params->strength = inputs.denoising_strength;
+    sd_params->clip_skip = inputs.clip_skip;
     sd_params->mode = (img2img_data==""?SDMode::TXT2IMG:SDMode::IMG2IMG);
 
     //for img2img

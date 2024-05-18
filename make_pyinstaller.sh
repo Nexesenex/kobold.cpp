@@ -4,6 +4,8 @@ pyinstaller --noconfirm --onefile --clean --console --collect-all customtkinter 
 --add-data "./klite.embd:." \
 --add-data "./kcpp_docs.embd:." \
 --add-data "./kcpp_sdui.embd:." \
+--add-data "./taesd.embd:." \
+--add-data "./taesd_xl.embd:." \
 --add-data "./koboldcpp_default.so:." \
 --add-data "./koboldcpp_openblas.so:." \
 --add-data "./koboldcpp_failsafe.so:." \
