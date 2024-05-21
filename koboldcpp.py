@@ -3086,6 +3086,23 @@ def main(launch_args,start_server=True):
             print(f"Warning: Chat Completions Adapter {args.chatcompletionsadapter} invalid or not found.")
 
 
+    if args.model_param and args.model_param!="":
+        if args.model_param.endswith("?download=true"):
+            args.model_param = args.model_param.replace("?download=true","")
+        if (args.model_param.startswith("http://") or args.model_param.startswith("https://")) and (args.model_param.endswith(".gguf") or args.model_param.endswith(".bin")):
+            import subprocess
+            mdlfilename = os.path.basename(args.model_param)
+            #check if file already exists
+            if mdlfilename:
+                if not os.path.exists(mdlfilename):
+                    print(f"Downloading model from external URL at {args.model_param}")
+                    subprocess.run(f"curl -fL {args.model_param} -o {mdlfilename}", shell=True, capture_output=True, text=True, check=True, encoding='utf-8')
+                    print(f"Download {mdlfilename} completed...", flush=True)
+                    args.model_param = mdlfilename
+                else:
+                    print(f"Model file {mdlfilename} already exists, not redownloading.")
+                    args.model_param = mdlfilename
+
     # sanitize and replace the default vanity name. remember me....
     if args.model_param and args.model_param!="":
         newmdldisplayname = os.path.basename(args.model_param)

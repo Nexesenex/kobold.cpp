@@ -1576,6 +1576,18 @@ const std::string & gpttype_get_pending_output()
     return concat_output_reader_copy_poll;
 }
 
+bool VecContainsIntVal(const std::vector<int> & vec, const int val)
+{
+    for (const auto &matched : vec)
+    {
+        if (val == matched)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 int GetThreadsToUse(bool blasmode)
 {
     if (blasmode)
@@ -2262,9 +2274,13 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
             // decrement remaining sampling budget
             --remaining_tokens;
 
-            for (auto id : embd)
+            for (auto eid : embd)
             {
-                std::string tokenizedstr = FileFormatTokenizeID(id, file_format, inputs.render_special);
+                std::string tokenizedstr = FileFormatTokenizeID(eid, file_format, inputs.render_special);
+                if(!inputs.render_special && (eid==eosID || (eid==eotID && eid!=-1) || VecContainsIntVal(special_stop_sequence,id))) //extra filter to avoid unwanted special tokens
+                {
+                    tokenizedstr = ""; //prevent render
+                }
                 if(stream_sse)
                 {
                     generated_tokens.push_back(tokenizedstr);
@@ -2302,7 +2318,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 stopper_unused_tokens = remaining_tokens;
                 if(allow_regular_prints)
                 {
-                    printf("\n(EOS token triggered!)");
+                    printf("\n(EOS token triggered! ID:%d)",id);
                 }
                 remaining_tokens = 0;
                 last_stop_reason = stop_reason::EOS_TOKEN_HIT;
