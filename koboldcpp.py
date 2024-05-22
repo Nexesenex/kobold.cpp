@@ -3482,6 +3482,7 @@ if __name__ == '__main__':
     if os.cpu_count()!=None and os.cpu_count()>1:
         physical_core_limit = int(os.cpu_count()/2)
     default_threads = (physical_core_limit if physical_core_limit<=3 else max(3,physical_core_limit-1))
+    default_threads = (8 if default_threads > 8 else default_threads) #there is zero reason to exceed 8 threads by default. this helps avoid e-cores.
     parser.add_argument("--threads", metavar=('[threads]'), help="Use a custom number of threads if specified. Otherwise, uses an amount based on CPU cores", type=int, default=default_threads)
     compatgroup = parser.add_mutually_exclusive_group()
     compatgroup.add_argument("--usecublas", help="Use CuBLAS for GPU Acceleration. Requires CUDA. Select lowvram to not allocate VRAM scratch buffer. Enter a number afterwards to select and use 1 GPU. Leaving no number will use all GPUs. For hipBLAS binaries, please check YellowRoseCx rocm fork.", nargs='*',metavar=('[lowvram|normal] [main GPU ID] [mmq] [rowsplit]'), choices=['normal', 'lowvram', '0', '1', '2', '3', 'mmq', 'rowsplit'])
