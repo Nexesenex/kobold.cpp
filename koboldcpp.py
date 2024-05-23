@@ -3086,6 +3086,23 @@ def main(launch_args,start_server=True):
             print(f"Warning: Chat Completions Adapter {args.chatcompletionsadapter} invalid or not found.")
 
 
+    if args.model_param and args.model_param!="":
+        if args.model_param.endswith("?download=true"):
+            args.model_param = args.model_param.replace("?download=true","")
+        if (args.model_param.startswith("http://") or args.model_param.startswith("https://")) and (args.model_param.endswith(".gguf") or args.model_param.endswith(".bin")):
+            import subprocess
+            mdlfilename = os.path.basename(args.model_param)
+            #check if file already exists
+            if mdlfilename:
+                if not os.path.exists(mdlfilename):
+                    print(f"Downloading model from external URL at {args.model_param}")
+                    subprocess.run(f"curl -fL {args.model_param} -o {mdlfilename}", shell=True, capture_output=True, text=True, check=True, encoding='utf-8')
+                    print(f"Download {mdlfilename} completed...", flush=True)
+                    args.model_param = mdlfilename
+                else:
+                    print(f"Model file {mdlfilename} already exists, not redownloading.")
+                    args.model_param = mdlfilename
+
     # sanitize and replace the default vanity name. remember me....
     if args.model_param and args.model_param!="":
         newmdldisplayname = os.path.basename(args.model_param)
@@ -3465,6 +3482,7 @@ if __name__ == '__main__':
     if os.cpu_count()!=None and os.cpu_count()>1:
         physical_core_limit = int(os.cpu_count()/2)
     default_threads = (physical_core_limit if physical_core_limit<=3 else max(3,physical_core_limit-1))
+    default_threads = (8 if default_threads > 8 else default_threads) #there is zero reason to exceed 8 threads by default. this helps avoid e-cores.
     parser.add_argument("--threads", metavar=('[threads]'), help="Use a custom number of threads if specified. Otherwise, uses an amount based on CPU cores", type=int, default=default_threads)
     compatgroup = parser.add_mutually_exclusive_group()
     compatgroup.add_argument("--usecublas", help="Use CuBLAS for GPU Acceleration. Requires CUDA. Select lowvram to not allocate VRAM scratch buffer. Enter a number afterwards to select and use 1 GPU. Leaving no number will use all GPUs. For hipBLAS binaries, please check YellowRoseCx rocm fork.", nargs='*',metavar=('[lowvram|normal] [main GPU ID] [mmq] [rowsplit]'), choices=['normal', 'lowvram', '0', '1', '2', '3', 'mmq', 'rowsplit'])

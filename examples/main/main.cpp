@@ -61,9 +61,9 @@ static void write_logfile(
         return;
     }
 
-    const std::string timestamp = get_sortable_timestamp();
+    const std::string timestamp = string_get_sortable_timestamp();
 
-    const bool success = create_directory_with_parents(params.logdir);
+    const bool success = fs_create_directory_with_parents(params.logdir);
     if (!success) {
         fprintf(stderr, "%s: warning: failed to create logdir %s, cannot write logfile\n",
                 __func__, params.logdir.c_str());
@@ -81,7 +81,7 @@ static void write_logfile(
     fprintf(logfile, "binary: main\n");
     char model_desc[128];
     llama_model_desc(model, model_desc, sizeof(model_desc));
-    dump_non_result_info_yaml(logfile, params, ctx, timestamp, input_tokens, model_desc);
+    yaml_dump_non_result_info(logfile, params, ctx, timestamp, input_tokens, model_desc);
 
     fprintf(logfile, "\n");
     fprintf(logfile, "######################\n");
@@ -89,8 +89,8 @@ static void write_logfile(
     fprintf(logfile, "######################\n");
     fprintf(logfile, "\n");
 
-    dump_string_yaml_multiline(logfile, "output", output.c_str());
-    dump_vector_int_yaml(logfile, "output_tokens", output_tokens);
+    yaml_dump_string_multiline(logfile, "output", output.c_str());
+    yaml_dump_vector_int(logfile, "output_tokens", output_tokens);
 
     llama_dump_timing_info_yaml(logfile, ctx);
     fclose(logfile);
@@ -182,7 +182,7 @@ int main(int argc, char ** argv) {
 
     std::mt19937 rng(params.seed);
     if (params.random_prompt) {
-        params.prompt = gpt_random_prompt(rng);
+        params.prompt = string_random_prompt(rng);
     }
 
     LOG("%s: llama backend init\n", __func__);
@@ -220,7 +220,7 @@ int main(int argc, char ** argv) {
     // print system information
     {
         LOG_TEE("\n");
-        LOG_TEE("%s\n", get_system_info(params).c_str());
+        LOG_TEE("%s\n", gpt_params_get_system_info(params).c_str());
     }
 
     std::string path_session = params.path_prompt_cache;
@@ -486,12 +486,12 @@ int main(int argc, char ** argv) {
     LOG_TEE("\n\n");
 
     if (params.interactive) {
-        const char *control_message;
+        const char * control_message;
         if (params.multiline_input) {
-            control_message = " - To return control to LLaMa, end your input with '\\'.\n"
+            control_message = " - To return control to the AI, end your input with '\\'.\n"
                               " - To return control without starting a new line, end your input with '/'.\n";
         } else {
-            control_message = " - Press Return to return control to LLaMa.\n"
+            control_message = " - Press Return to return control to the AI.\n"
                               " - To return control without starting a new line, end your input with '/'.\n"
                               " - If you want to submit another line, end your input with '\\'.\n";
         }
@@ -723,7 +723,7 @@ int main(int argc, char ** argv) {
 
             const llama_token id = llama_sampling_sample(ctx_sampling, ctx, ctx_guidance);
 
-            llama_sampling_accept(ctx_sampling, ctx, id, true);
+            llama_sampling_accept(ctx_sampling, ctx, id, /* apply_grammar= */ true);
 
             LOG("last: %s\n", LOG_TOKENS_TOSTR_PRETTY(ctx, ctx_sampling->prev).c_str());
 
@@ -744,7 +744,7 @@ int main(int argc, char ** argv) {
 
                 // push the prompt in the sampling context in order to apply repetition penalties later
                 // for the prompt, we don't apply grammar rules
-                llama_sampling_accept(ctx_sampling, ctx, embd_inp[n_consumed], false);
+                llama_sampling_accept(ctx_sampling, ctx, embd_inp[n_consumed], /* apply_grammar= */ false);
 
                 ++n_consumed;
                 if ((int) embd.size() >= params.n_batch) {
@@ -905,7 +905,7 @@ int main(int argc, char ** argv) {
                         embd_inp.insert(embd_inp.end(), cml_pfx.begin(), cml_pfx.end());
                     }
                     if (params.escape) {
-                        process_escapes(buffer);
+                        string_process_escapes(buffer);
                     }
 
                     const auto line_pfx = ::llama_tokenize(ctx, params.input_prefix, false, true);

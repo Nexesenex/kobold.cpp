@@ -428,6 +428,8 @@ set_target_properties(ggml_v3 PROPERTIES POSITION_INDEPENDENT_CODE ON)
 add_library(common2
             common/common.cpp
             common/common.h
+            common/sampling.cpp
+            common/sampling.h
             common/grammar-parser.h
             common/grammar-parser.cpp
             examples/llava/llava.cpp
