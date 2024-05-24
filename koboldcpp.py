@@ -3825,10 +3825,13 @@ def main(launch_args,start_server=True):
         print(f"Timestamp: {datetimestamp}")
         print(f"Backend: {libname}")
         print(f"Model: {benchmodel}")
+        print(f"NoAVX2: {args.noavx2}")        
         print(f"Threads: {args.threads}")
+        print(f"HighPriority: {args.highpriority}")        
         print(f"Layers: {args.gpulayers}")
+        print(f"Tensor_Split: {args.tensor_split}")
         print(f"BlasThreads: {args.blasthreads}")       
-        print(f"BlastBatchSize: {args.blasbatchsize}")
+        print(f"BlasBatchSize: {args.blasbatchsize}")
         print(f"FlashAttention: {args.flashattention}")
         print(f"MaxCtx: {benchmaxctx}")
         print(f"GenAmount: {benchlen}\n-----")
@@ -3844,8 +3847,8 @@ def main(launch_args,start_server=True):
                 with open(args.benchmark, "a") as file:
                     file.seek(0, 2)
                     if file.tell() == 0: #empty file
-                        file.write(f"Datime,KCPP,LCPP,Backend,Model,Threads,Layers,BlasThreads,BBSize,FlashA,MaxCtx,GenNum,PPTime,PPSpeed,TGTime,TGSpeed,TotalTime,Coherence,Output")
-                    file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{benchmodel},{args.threads},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.flashattention},{benchmaxctx},{benchlen},{t_pp:.2f},{s_pp:.2f},{t_gen:.2f},{s_gen:.2f},{(t_pp+t_gen):.2f},{resultok},{result}")
+                        file.write(f"Datime,KCPP,LCPP,Backend,Model,NoAVX2,Thrd,HighP,Layers,BlasThrd,BBSize,FlashA,MaxCtx,GenNum,PPTime,PPSpeed,TGTime,TGSpeed,TotalTime,Coher,Output,TenSplit")
+                    file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{benchmodel},{args.noavx2},{args.threads},{args.highpriority},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.flashattention},{benchmaxctx},{benchlen},{t_pp:.2f},{s_pp:.2f},{t_gen:.2f},{s_gen:.2f},{(t_pp+t_gen):.2f},{resultok},{result},{args.tensor_split}")
             except Exception as e:
                 print(f"Error writing benchmark to file: {e}")
         global using_gui_launcher
