@@ -11,6 +11,7 @@
 import ctypes
 import os, math
 import argparse
+import platform
 import json, sys, http.server, time, asyncio, socket, threading
 from concurrent.futures import ThreadPoolExecutor
 
@@ -357,6 +358,12 @@ def end_trim_to_sentence(input_text):
         return input_text[:last + 1].strip()
     return input_text.strip()
 
+def tryparseint(value):
+    try:
+        return int(value)
+    except ValueError:
+        return value
+
 def load_model(model_filename):
     global args
     inputs = load_model_inputs()
@@ -554,13 +561,13 @@ def sd_generate(genparams):
     init_images = ("" if (not init_images_arr or len(init_images_arr)==0 or not init_images_arr[0]) else init_images_arr[0])
     denoising_strength = genparams.get("denoising_strength", 0.6)
     cfg_scale = genparams.get("cfg_scale", 5)
-    sample_steps = genparams.get("steps", 20)
-    width = genparams.get("width", 512)
-    height = genparams.get("height", 512)
-    seed = genparams.get("seed", -1)
+    sample_steps = tryparseint(genparams.get("steps", 20))
+    width = tryparseint(genparams.get("width", 512))
+    height = tryparseint(genparams.get("height", 512))
+    seed = tryparseint(genparams.get("seed", -1))
     sample_method = genparams.get("sampler_name", "k_euler_a")
     is_quiet = True if args.quiet else False
-    clip_skip = genparams.get("clip_skip", -1)
+    clip_skip = tryparseint(genparams.get("clip_skip", -1))
 
     #clean vars
     width = width - (width%64)
@@ -706,7 +713,7 @@ def transform_genparams(genparams, api_format):
         else:
             genparams["stop_sequence"] = [genparams.get('stop')]
 
-        genparams["sampler_seed"] = genparams.get('seed', -1)
+        genparams["sampler_seed"] = tryparseint(genparams.get('seed', -1))
         genparams["use_default_badwordsids"] = genparams.get('ignore_eos', False)
         genparams["mirostat"] = genparams.get('mirostat_mode', 0)
 
@@ -822,7 +829,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 mirostat_tau=genparams.get('mirostat_tau', 5.0),
                 mirostat_eta=genparams.get('mirostat_eta', 0.1),
                 sampler_order=genparams.get('sampler_order', [6,0,1,3,4,2,5]),
-                seed=genparams.get('sampler_seed', -1),
+                seed=tryparseint(genparams.get('sampler_seed', -1)),
                 stop_sequence=genparams.get('stop_sequence', []),
                 use_default_badwordsids=genparams.get('use_default_badwordsids', False),
                 stream_sse=stream_flag,
@@ -2252,7 +2259,7 @@ def show_new_gui():
             sdvaeitem1.grid(row=14,column=0,padx=8,stick="nw")
             sdvaeitem2.grid(row=15,column=0,padx=8,stick="nw")
             sdvaeitem3.grid(row=15,column=1,stick="nw")
-    makecheckbox(images_tab, "Use TAE SD (AutoFix Bad VAE)", sd_vaeauto_var, 16,command=toggletaesd,tooltiptxt="Replace VAE with TAESD. May fix bad VAE.")
+    makecheckbox(images_tab, "Use TAE SD (AutoFix Broken VAE)", sd_vaeauto_var, 16,command=toggletaesd,tooltiptxt="Replace VAE with TAESD. May fix bad VAE.")
 
     # launch
     def guilaunch():
@@ -2908,7 +2915,6 @@ def setuptunnel(has_sd):
 
 def unload_libs():
     global handle
-    import platform
     OS = platform.system()
     dll_close = None
     if OS == "Windows":  # pragma: Windows
@@ -3482,7 +3488,9 @@ if __name__ == '__main__':
     if os.cpu_count()!=None and os.cpu_count()>1:
         physical_core_limit = int(os.cpu_count()/2)
     default_threads = (physical_core_limit if physical_core_limit<=3 else max(3,physical_core_limit-1))
-    default_threads = (8 if default_threads > 8 else default_threads) #there is zero reason to exceed 8 threads by default. this helps avoid e-cores.
+    processor = platform.processor()
+    if 'Intel' in processor:
+        default_threads = (8 if default_threads > 8 else default_threads) #this helps avoid e-cores.
     parser.add_argument("--threads", metavar=('[threads]'), help="Use a custom number of threads if specified. Otherwise, uses an amount based on CPU cores", type=int, default=default_threads)
     compatgroup = parser.add_mutually_exclusive_group()
     compatgroup.add_argument("--usecublas", help="Use CuBLAS for GPU Acceleration. Requires CUDA. Select lowvram to not allocate VRAM scratch buffer. Enter a number afterwards to select and use 1 GPU. Leaving no number will use all GPUs. For hipBLAS binaries, please check YellowRoseCx rocm fork.", nargs='*',metavar=('[lowvram|normal] [main GPU ID] [mmq] [rowsplit]'), choices=['normal', 'lowvram', '0', '1', '2', '3', 'mmq', 'rowsplit'])

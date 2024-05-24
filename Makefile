@@ -534,16 +534,16 @@ clean:
 	rm -vrf ggml-cuda/*.o
 
 # useful tools
-main: examples/main/main.cpp common/sampling.cpp build-info.h ggml.o llama.o console.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
+main: examples/main/main.cpp build-info.h ggml.o llama.o console.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 	@echo '====  Run ./main -h for help.  ===='
 sdmain: otherarch/sdcpp/util.cpp otherarch/sdcpp/main.cpp otherarch/sdcpp/stable-diffusion.cpp otherarch/sdcpp/upscaler.cpp otherarch/sdcpp/model.cpp otherarch/sdcpp/thirdparty/zip.c build-info.h ggml.o llama.o console.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
-imatrix: examples/imatrix/imatrix.cpp common/sampling.cpp build-info.h ggml.o llama.o console.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
+imatrix: examples/imatrix/imatrix.cpp build-info.h ggml.o llama.o console.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 gguf: examples/gguf/gguf.cpp build-info.h ggml.o llama.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
-gguf-split: examples/gguf-split/gguf-split.cpp ggml.o llama.o common/sampling.cpp build-info.h llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
+gguf-split: examples/gguf-split/gguf-split.cpp ggml.o llama.o build-info.h llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 
 
