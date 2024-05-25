@@ -1,4 +1,4 @@
-name: CI
+name: CI-Nex
 
 on:
   workflow_dispatch: # allows manual triggering
