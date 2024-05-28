@@ -801,7 +801,7 @@ requestsinqueue = 0
 defaultport = 5001
 KcppVersion = "1.68V"
 LcppVersion = "b3235"
-ReleaseDate = "2024/05/28"
+ReleaseDate = "2024/06/27"
 showdebug = True
 showsamplerwarning = True
 showmaxctxwarning = True
@@ -3904,7 +3904,7 @@ if __name__ == '__main__':
             return f
         return range_checker
 
-    print("***\nWelcome to KoboldCpp Frankenstein Fork - Version " + KcppVersion) # just update version manually
+    print("***\nWelcome to KoboldCpp Frankenstein Fork - Rebased Version " + KcppVersion) # just update version manually
     print("***\nBased on LlamaCpp - Version " + LcppVersion) # just update LlamaCPP version manually
     print("***\nRelease date: " + ReleaseDate) # just update date manually
     print("***")
