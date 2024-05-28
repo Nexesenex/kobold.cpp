@@ -275,6 +275,8 @@ def init_library():
         os.add_dll_directory(dir_path)
         os.add_dll_directory(abs_path)
         os.add_dll_directory(os.getcwd())
+        if libname == lib_cublas and "CUDA_PATH" in os.environ:
+            os.add_dll_directory(os.path.join(os.environ["CUDA_PATH"], "bin"))
         if libname == lib_hipblas and "HIP_PATH" in os.environ:
             os.add_dll_directory(os.path.join(os.environ["HIP_PATH"], "bin"))
             if args.debugmode == 1:
@@ -2081,11 +2083,13 @@ def show_new_gui():
     quick_mmq_box = makecheckbox(quick_tab,  "Use QuantMatMul (mmq)", mmq_var, 4,1,tooltiptxt="Enable MMQ mode instead of CuBLAS for prompt processing. Read the wiki. Speed may vary.")
 
     # quick boxes
-    quick_boxes = {"Launch Browser": launchbrowser , "Disable MMAP":disablemmap,"Use ContextShift":contextshift,"Remote Tunnel":remotetunnel}
+    quick_boxes = {"Launch Browser": launchbrowser , "Disable MMAP":disablemmap,"Use ContextShift":contextshift,"Remote Tunnel":remotetunnel,"Use FlashAttention":flashattention,"Quiet Mode":quietmode}
     quick_boxes_desc = {"Launch Browser": "Launches your default browser after model loading is complete",
     "Disable MMAP":"Avoids using mmap to load models if enabled",
     "Use ContextShift":"Uses Context Shifting to reduce reprocessing.\nRecommended. Check the wiki for more info.",
-    "Remote Tunnel":"Creates a trycloudflare tunnel.\nAllows you to access koboldcpp from other devices over an internet URL."}
+    "Remote Tunnel":"Creates a trycloudflare tunnel.\nAllows you to access koboldcpp from other devices over an internet URL.",
+    "Use FlashAttention":"Enable flash attention for GGUF models.",
+    "Quiet Mode":"Prevents all generation related terminal output from being displayed."}
     for idx, name, in enumerate(quick_boxes):
         makecheckbox(quick_tab, name, quick_boxes[name], int(idx/2) +20, idx%2,tooltiptxt=quick_boxes_desc[name])
     # context size
