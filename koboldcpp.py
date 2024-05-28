@@ -655,9 +655,9 @@ maxhordelen = 256
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.66.1"
+KcppVersion = "1.66.1c"
 LcppVersion = "b3019"
-ReleaseDate = "2024/05/28"
+ReleaseDate = "2024/05/29"
 showdebug = True
 showsamplerwarning = True
 showmaxctxwarning = True
@@ -3474,7 +3474,7 @@ if __name__ == '__main__':
             return f
         return range_checker
 
-    print("***\nWelcome to KoboldCpp Frankenstein Fork - Version " + KcppVersion) # just update version manually
+    print("***\nWelcome to KoboldCpp Frankenstein Fork - Rebased Version " + KcppVersion) # just update version manually
     print("***\nBased on LlamaCpp - Version " + LcppVersion) # just update LlamaCPP version manually
     print("***\nRelease date: " + ReleaseDate) # just update date manually
     print("***")
