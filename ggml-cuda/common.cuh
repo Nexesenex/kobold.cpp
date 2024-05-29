@@ -151,7 +151,7 @@
 // -  7B quantum model: +100-200 MB
 // - 13B quantum model: +200-400 MB
 //
-//#define GGML_CUDA_FORCE_MMQ
+#define GGML_CUDA_FORCE_MMQ
 
 // TODO: improve this to be correct for more hardware
 //       for example, currently fails for GeForce GTX 1660 which is TURING arch (> VOLTA) but does not have tensor cores
