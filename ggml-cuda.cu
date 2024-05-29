@@ -2,6 +2,8 @@
 #include "ggml.h"
 #include "ggml-backend-impl.h"
 
+static bool g_mul_mat_q = false;
+
 #include "ggml-cuda/common.cuh"
 #include "ggml-cuda/acc.cuh"
 #include "ggml-cuda/arange.cuh"
@@ -152,16 +154,16 @@ static ggml_cuda_device_info ggml_cuda_init() {
     GGML_ASSERT(info.device_count <= GGML_CUDA_MAX_DEVICES);
 
     int64_t total_vram = 0;
-#if defined(GGML_CUDA_FORCE_MMQ)
-    GGML_CUDA_LOG_INFO("%s: GGML_CUDA_FORCE_MMQ:   yes\n", __func__);
-#else
-    GGML_CUDA_LOG_INFO("%s: GGML_CUDA_FORCE_MMQ:   no\n", __func__);
-#endif
-#if defined(CUDA_USE_TENSOR_CORES)
-    GGML_CUDA_LOG_INFO("%s: CUDA_USE_TENSOR_CORES: yes\n", __func__);
-#else
-    GGML_CUDA_LOG_INFO("%s: CUDA_USE_TENSOR_CORES: no\n", __func__);
-#endif
+//#if defined(GGML_CUDA_FORCE_MMQ)
+//    GGML_CUDA_LOG_INFO("%s: GGML_CUDA_FORCE_MMQ:   yes\n", __func__);
+//#else
+//    GGML_CUDA_LOG_INFO("%s: GGML_CUDA_FORCE_MMQ:   no\n", __func__);
+//#endif
+//#if defined(CUDA_USE_TENSOR_CORES)
+//    GGML_CUDA_LOG_INFO("%s: CUDA_USE_TENSOR_CORES: yes\n", __func__);
+//#else
+//    GGML_CUDA_LOG_INFO("%s: CUDA_USE_TENSOR_CORES: no\n", __func__);
+//#endif
     GGML_CUDA_LOG_INFO("%s: found %d " GGML_CUDA_NAME " devices:\n", __func__, info.device_count);
     for (int id = 0; id < info.device_count; ++id) {
         int device_vmm = 0;
@@ -244,19 +246,19 @@ struct ggml_cuda_pool_leg : public ggml_cuda_pool {
     }
 
     void * alloc(size_t size, size_t * actual_size) override {
-#ifdef DEBUG_CUDA_MALLOC
-        int nnz = 0;
-        size_t max_size = 0;
-#endif
+//#ifdef DEBUG_CUDA_MALLOC
+//        int nnz = 0;
+//        size_t max_size = 0;
+//#endif
         size_t best_diff = 1ull << 36;
         int ibest = -1;
         for (int i = 0; i < MAX_BUFFERS; ++i) {
             ggml_cuda_buffer& b = buffer_pool[i];
             if (b.ptr != nullptr) {
-#ifdef DEBUG_CUDA_MALLOC
-                ++nnz;
-                if (b.size > max_size) max_size = b.size;
-#endif
+//#ifdef DEBUG_CUDA_MALLOC
+//                ++nnz;
+//                if (b.size > max_size) max_size = b.size;
+//#endif
                 if (b.size >= size) {
                     size_t diff = b.size - size;
                     if (diff < best_diff) {
@@ -288,10 +290,10 @@ struct ggml_cuda_pool_leg : public ggml_cuda_pool {
         CUDA_CHECK(ggml_cuda_device_malloc(&ptr, look_ahead_size, device));
         *actual_size = look_ahead_size;
         pool_size += look_ahead_size;
-#ifdef DEBUG_CUDA_MALLOC
-        GGML_CUDA_LOG_INFO("%s[%d]: %d buffers, max_size = %u MB, pool_size = %u MB, requested %u MB\n", __func__, device, nnz,
-                           (uint32_t)(max_size / 1024 / 1024), (uint32_t)(pool_size / 1024 / 1024), (uint32_t)(size / 1024 / 1024));
-#endif
+//#ifdef DEBUG_CUDA_MALLOC
+//        GGML_CUDA_LOG_INFO("%s[%d]: %d buffers, max_size = %u MB, pool_size = %u MB, requested %u MB\n", __func__, device, nnz,
+//                           (uint32_t)(max_size / 1024 / 1024), (uint32_t)(pool_size / 1024 / 1024), (uint32_t)(size / 1024 / 1024));
+//#endif
         return ptr;
     }
 
@@ -1963,9 +1965,14 @@ static void ggml_cuda_mul_mat(ggml_backend_cuda_context & ctx, const ggml_tensor
 
     const bool fp16_performance_good = min_compute_capability >= CC_RDNA1;
 
-#ifdef CUDA_USE_TENSOR_CORES
-    use_mul_mat_q = use_mul_mat_q && min_compute_capability < CC_RDNA3;
-#endif // CUDA_USE_TENSOR_CORES
+//#ifdef CUDA_USE_TENSOR_CORES
+//    use_mul_mat_q = use_mul_mat_q && min_compute_capability < CC_RDNA3;
+//#endif // CUDA_USE_TENSOR_CORES
+
+    if(!g_mul_mat_q)
+    {
+        use_mul_mat_q = use_mul_mat_q && min_compute_capability < CC_RDNA3;
+    }
 
 #else
 
@@ -1976,11 +1983,16 @@ static void ggml_cuda_mul_mat(ggml_backend_cuda_context & ctx, const ggml_tensor
     use_mul_mat_vec_q = use_mul_mat_vec_q && min_compute_capability >= MIN_CC_DP4A;
     use_mul_mat_q     = use_mul_mat_q     && min_compute_capability >= MIN_CC_DP4A;
 
-#ifdef CUDA_USE_TENSOR_CORES
+//#ifdef CUDA_USE_TENSOR_CORES
     // when tensor cores are available, use them for large batch size
     // ref: https://github.com/ggerganov/llama.cpp/pull/3776
-    use_mul_mat_q     = use_mul_mat_q     && (!fp16_performance_good || src1->ne[1] <= MMQ_MAX_BATCH_SIZE);
-#endif // CUDA_USE_TENSOR_CORES
+//    use_mul_mat_q     = use_mul_mat_q     && (!fp16_performance_good || src1->ne[1] <= MMQ_MAX_BATCH_SIZE);
+//#endif // CUDA_USE_TENSOR_CORES
+
+    if(!g_mul_mat_q)
+    {
+        use_mul_mat_q = use_mul_mat_q     && (!fp16_performance_good || src1->ne[1] <= MMQ_MAX_BATCH_SIZE);
+    }
 
 #endif // defined(GGML_USE_HIPBLAS) && defined(__HIP_PLATFORM_AMD__)
 
@@ -1988,6 +2000,8 @@ static void ggml_cuda_mul_mat(ggml_backend_cuda_context & ctx, const ggml_tensor
 #ifndef GGML_CUDA_FORCE_DMMV
     use_dequantize_mul_mat_vec = use_dequantize_mul_mat_vec && !use_mul_mat_vec_q;
 #endif // GGML_CUDA_FORCE_DMMV
+
+    const bool use_tensor_cores = fp16_performance_good && !g_mul_mat_q;
 
     // debug helpers
     //printf("src0: %8d %8d %8d %8d\n", src0->ne[0], src0->ne[1], src0->ne[2], src0->ne[3]);
@@ -2207,6 +2221,10 @@ static void ggml_cuda_mul_mat_id(ggml_backend_cuda_context & ctx, ggml_tensor * 
             }
         }
     }
+}
+
+void ggml_cuda_set_mul_mat_q(const bool mul_mat_q) {
+    g_mul_mat_q = mul_mat_q;
 }
 
 static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct ggml_tensor * dst) {
