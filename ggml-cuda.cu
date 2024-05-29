@@ -2,8 +2,6 @@
 #include "ggml.h"
 #include "ggml-backend-impl.h"
 
-static bool g_mul_mat_q = false;
-
 #include "ggml-cuda/common.cuh"
 #include "ggml-cuda/acc.cuh"
 #include "ggml-cuda/arange.cuh"
@@ -154,16 +152,16 @@ static ggml_cuda_device_info ggml_cuda_init() {
     GGML_ASSERT(info.device_count <= GGML_CUDA_MAX_DEVICES);
 
     int64_t total_vram = 0;
-// #if defined(GGML_CUDA_FORCE_MMQ)
-//     GGML_CUDA_LOG_INFO("%s: GGML_CUDA_FORCE_MMQ:   yes\n", __func__);
-// #else
-//     GGML_CUDA_LOG_INFO("%s: GGML_CUDA_FORCE_MMQ:   no\n", __func__);
-// #endif
-// #if defined(CUDA_USE_TENSOR_CORES)
-//     GGML_CUDA_LOG_INFO("%s: CUDA_USE_TENSOR_CORES: yes\n", __func__);
-// #else
-//     GGML_CUDA_LOG_INFO("%s: CUDA_USE_TENSOR_CORES: no\n", __func__);
-// #endif
+#if defined(GGML_CUDA_FORCE_MMQ)
+    GGML_CUDA_LOG_INFO("%s: GGML_CUDA_FORCE_MMQ:   yes\n", __func__);
+#else
+    GGML_CUDA_LOG_INFO("%s: GGML_CUDA_FORCE_MMQ:   no\n", __func__);
+#endif
+#if defined(CUDA_USE_TENSOR_CORES)
+    GGML_CUDA_LOG_INFO("%s: CUDA_USE_TENSOR_CORES: yes\n", __func__);
+#else
+    GGML_CUDA_LOG_INFO("%s: CUDA_USE_TENSOR_CORES: no\n", __func__);
+#endif
     GGML_CUDA_LOG_INFO("%s: found %d " GGML_CUDA_NAME " devices:\n", __func__, info.device_count);
     for (int id = 0; id < info.device_count; ++id) {
         int device_vmm = 0;
@@ -246,45 +244,43 @@ struct ggml_cuda_pool_leg : public ggml_cuda_pool {
     }
 
     void * alloc(size_t size, size_t * actual_size) override {
-        int best_i = -1;
-        size_t best_size = std::numeric_limits<size_t>::max(); //smallest unused buffer that fits our needs
-        int worst_i = -1;
-        size_t worst_size = 0; //largest unused buffer seen so far
-
+#ifdef DEBUG_CUDA_MALLOC
+        int nnz = 0;
+        size_t max_size = 0;
+#endif
+        size_t best_diff = 1ull << 36;
+        int ibest = -1;
         for (int i = 0; i < MAX_BUFFERS; ++i) {
             ggml_cuda_buffer& b = buffer_pool[i];
-            if (b.size > 0 && b.size >= size && b.size < best_size)
-            {
-                best_i = i;
-                best_size = b.size;
-            }
-            if (b.size > 0 && b.size > worst_size)
-            {
-                worst_i = i;
-                worst_size = b.size;
+            if (b.ptr != nullptr) {
+#ifdef DEBUG_CUDA_MALLOC
+                ++nnz;
+                if (b.size > max_size) max_size = b.size;
+#endif
+                if (b.size >= size) {
+                    size_t diff = b.size - size;
+                    if (diff < best_diff) {
+                        best_diff = diff;
+                        ibest = i;
+                        if (!best_diff) {
+                            void * ptr = b.ptr;
+                            *actual_size = b.size;
+                            b.ptr = nullptr;
+                            b.size = 0;
+                            return ptr;
+                        }
+                    }
+                }
             }
         }
-
-        if(best_i!=-1) //found the smallest buffer that fits our needs
-        {
-            ggml_cuda_buffer& b = buffer_pool[best_i];
+        if (ibest >= 0) {
+            ggml_cuda_buffer& b = buffer_pool[ibest];
             void * ptr = b.ptr;
             *actual_size = b.size;
             b.ptr = nullptr;
             b.size = 0;
             return ptr;
         }
-        if(worst_i!=-1 && !g_mul_mat_q) //no buffer that fits our needs, resize largest one to save memory (non mmq only)
-        {
-            ggml_cuda_buffer& b = buffer_pool[worst_i];
-            b.size = 0;
-            void * ptr = b.ptr;
-            ggml_cuda_set_device(device);
-            cudaFree(ptr);
-            pool_size -= size;
-            b.ptr = ptr = nullptr;
-        }
-
         void * ptr;
         size_t look_ahead_size = (size_t) (1.05 * size);
         look_ahead_size = 256 * ((look_ahead_size + 255)/256);
@@ -292,6 +288,10 @@ struct ggml_cuda_pool_leg : public ggml_cuda_pool {
         CUDA_CHECK(ggml_cuda_device_malloc(&ptr, look_ahead_size, device));
         *actual_size = look_ahead_size;
         pool_size += look_ahead_size;
+#ifdef DEBUG_CUDA_MALLOC
+        GGML_CUDA_LOG_INFO("%s[%d]: %d buffers, max_size = %u MB, pool_size = %u MB, requested %u MB\n", __func__, device, nnz,
+                           (uint32_t)(max_size / 1024 / 1024), (uint32_t)(pool_size / 1024 / 1024), (uint32_t)(size / 1024 / 1024));
+#endif
         return ptr;
     }
 
@@ -1963,10 +1963,9 @@ static void ggml_cuda_mul_mat(ggml_backend_cuda_context & ctx, const ggml_tensor
 
     const bool fp16_performance_good = min_compute_capability >= CC_RDNA1;
 
-    if(!g_mul_mat_q)
-    {
-        use_mul_mat_q = use_mul_mat_q && min_compute_capability < CC_RDNA3;
-    }
+#ifdef CUDA_USE_TENSOR_CORES
+    use_mul_mat_q = use_mul_mat_q && min_compute_capability < CC_RDNA3;
+#endif // CUDA_USE_TENSOR_CORES
 
 #else
 
@@ -1977,10 +1976,11 @@ static void ggml_cuda_mul_mat(ggml_backend_cuda_context & ctx, const ggml_tensor
     use_mul_mat_vec_q = use_mul_mat_vec_q && min_compute_capability >= MIN_CC_DP4A;
     use_mul_mat_q     = use_mul_mat_q     && min_compute_capability >= MIN_CC_DP4A;
 
-    if(!g_mul_mat_q)
-    {
-        use_mul_mat_q = use_mul_mat_q     && (!fp16_performance_good || src1->ne[1] <= MMQ_MAX_BATCH_SIZE);
-    }
+#ifdef CUDA_USE_TENSOR_CORES
+    // when tensor cores are available, use them for large batch size
+    // ref: https://github.com/ggerganov/llama.cpp/pull/3776
+    use_mul_mat_q     = use_mul_mat_q     && (!fp16_performance_good || src1->ne[1] <= MMQ_MAX_BATCH_SIZE);
+#endif // CUDA_USE_TENSOR_CORES
 
 #endif // defined(GGML_USE_HIPBLAS) && defined(__HIP_PLATFORM_AMD__)
 
@@ -1988,8 +1988,6 @@ static void ggml_cuda_mul_mat(ggml_backend_cuda_context & ctx, const ggml_tensor
 #ifndef GGML_CUDA_FORCE_DMMV
     use_dequantize_mul_mat_vec = use_dequantize_mul_mat_vec && !use_mul_mat_vec_q;
 #endif // GGML_CUDA_FORCE_DMMV
-
-    const bool use_tensor_cores = fp16_performance_good && !g_mul_mat_q;
 
     // debug helpers
     //printf("src0: %8d %8d %8d %8d\n", src0->ne[0], src0->ne[1], src0->ne[2], src0->ne[3]);
@@ -1999,13 +1997,13 @@ static void ggml_cuda_mul_mat(ggml_backend_cuda_context & ctx, const ggml_tensor
     //printf("src0 is contiguous %d, transposed %d, type = %s, name = %s\n", ggml_is_contiguous(src0), ggml_is_transposed(src0), ggml_type_name(src0->type), src0->name);
     //printf("src1 is contiguous %d, transposed %d, type = %s, name = %s\n", ggml_is_contiguous(src1), ggml_is_transposed(src1), ggml_type_name(src1->type), src1->name);
 
-    if (!split && !use_tensor_cores && src0->type == GGML_TYPE_F16 && ggml_is_permuted(src0) && ggml_is_permuted(src1) && src1->ne[1] == 1) {
+    if (!split && !fp16_performance_good && src0->type == GGML_TYPE_F16 && ggml_is_permuted(src0) && ggml_is_permuted(src1) && src1->ne[1] == 1) {
         // KQ single-batch
         ggml_cuda_mul_mat_vec_p021(ctx, src0, src1, dst);
-    } else if (!split && !use_tensor_cores && src0->type == GGML_TYPE_F16 && !ggml_is_contiguous(src0) && !ggml_is_transposed(src1) && src1->ne[1] == 1) {
+    } else if (!split && !fp16_performance_good && src0->type == GGML_TYPE_F16 && !ggml_is_contiguous(src0) && !ggml_is_transposed(src1) && src1->ne[1] == 1) {
         // KQV single-batch
         ggml_cuda_mul_mat_vec_nc(ctx, src0, src1, dst);
-    } else if (!split && src0->type == GGML_TYPE_F16 && (src1->type == GGML_TYPE_F16 || use_tensor_cores) && !ggml_is_transposed(src0) && !ggml_is_transposed(src1) && src1->ne[2]*src1->ne[3] > 1) {
+    } else if (!split && src0->type == GGML_TYPE_F16 && (src1->type == GGML_TYPE_F16 || fp16_performance_good) && !ggml_is_transposed(src0) && !ggml_is_transposed(src1) && src1->ne[2]*src1->ne[3] > 1) {
         // KQ + KQV multi-batch
         ggml_cuda_mul_mat_batched_cublas(ctx, src0, src1, dst);
     } else if (use_dequantize_mul_mat_vec) {
@@ -2209,10 +2207,6 @@ static void ggml_cuda_mul_mat_id(ggml_backend_cuda_context & ctx, ggml_tensor * 
             }
         }
     }
-}
-
-void ggml_cuda_set_mul_mat_q(const bool mul_mat_q) {
-    g_mul_mat_q = mul_mat_q;
 }
 
 static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct ggml_tensor * dst) {
