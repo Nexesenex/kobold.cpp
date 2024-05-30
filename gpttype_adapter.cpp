@@ -44,6 +44,9 @@ std::string executable_path = "";
 std::string lora_filename = "";
 std::string lora_base = "";
 std::string mmproj_filename = "";
+//std::string override_kv = "";
+//std::string cache_type_k = "";
+//std::string cache_type_v = "";
 bool generation_finished;
 float last_process_time = 0;
 float last_eval_time = 0;
@@ -861,6 +864,9 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     useSmartContext = inputs.use_smartcontext;
     useContextShift = inputs.use_contextshift;
     debugmode = inputs.debugmode;
+//    kcpp_params->override_kv = inputs.override_kv;
+//    kcpp_params->cache_type_k = inputs.cache_type_k;
+//    kcpp_params->cache_type_v = inputs.cache_type_v;
 
     auto clamped_max_context_length = inputs.max_context_length;
 
@@ -1163,8 +1169,11 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         }
 
         llama_ctx_params.flash_attn = kcpp_params->flash_attn;
-        llama_ctx_params.type_k = (inputs.quant_k>1?GGML_TYPE_Q4_0:(inputs.quant_k==1?GGML_TYPE_Q8_0:GGML_TYPE_F16));
-        llama_ctx_params.type_v = (inputs.quant_v>1?GGML_TYPE_Q4_0:(inputs.quant_v==1?GGML_TYPE_Q8_0:GGML_TYPE_F16));
+        llama_ctx_params.type_k = (inputs.quant_k==6?GGML_TYPE_Q4_0:(inputs.quant_k==5?GGML_TYPE_Q4_1:(inputs.quant_k==4?GGML_TYPE_Q5_1:(inputs.quant_k==3?GGML_TYPE_Q5_1:(inputs.quant_k==2?GGML_TYPE_Q8_0:(inputs.quant_k==1?GGML_TYPE_Q8_0:GGML_TYPE_F16))))));
+        llama_ctx_params.type_v = (inputs.quant_k==6?GGML_TYPE_Q4_0:(inputs.quant_k==5?GGML_TYPE_Q4_0:(inputs.quant_k==4?GGML_TYPE_Q4_0:(inputs.quant_v==3?GGML_TYPE_Q5_0:(inputs.quant_v==2?GGML_TYPE_Q5_1:(inputs.quant_v==1?GGML_TYPE_Q8_0:GGML_TYPE_F16))))));
+//        llama_ctx_params.override_kv = kcpp_params->override_kv;
+//        llama_ctx_params.cache_type_k = kcpp_params->cache_type_k;
+//        llama_ctx_params.cache_type_v = kcpp_params->cache_type_v;
         llama_ctx_v4 = llama_new_context_with_model(llamamodel, llama_ctx_params);
 
         if (llama_ctx_v4 == NULL)
