@@ -35,6 +35,9 @@ extern "C"
         lora_filename = inputs.lora_filename;
         lora_base = inputs.lora_base;
         mmproj_filename = inputs.mmproj_filename;
+//        override_kv = inputs.override_kv;
+//        cache_type_k = inputs.cache_type_k;
+//        cache_type_v = inputs.cache_type_v;
 
         int forceversion = inputs.forceversion;
 

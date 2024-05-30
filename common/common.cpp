@@ -847,6 +847,30 @@ bool gpt_params_find_arg(int argc, char ** argv, const std::string & arg, gpt_pa
         params.lora_base = argv[i];
         return true;
     }
+//    if (arg == "--override-kv") {
+//        if (++i >= argc) {
+//            invalid_param = true;
+//            return true;
+//        }
+//        params.override_kv = argv[i];
+//        return true;
+//    }
+//    if (arg == "--cache-type-k") {
+//        if (++i >= argc) {
+//            invalid_param = true;
+//            return true;
+//        }
+//        params.k_cache = argv[i];
+//        return true;
+//    }
+//    if (arg == "--cache-type-v") {
+//        if (++i >= argc) {
+//            invalid_param = true;
+//            return true;
+//        }
+//        params.v_cache = argv[i];
+//        return true;
+//    }
     if (arg == "--control-vector") {
         if (++i >= argc) {
             invalid_param = true;
