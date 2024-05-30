@@ -46,6 +46,9 @@ class load_model_inputs(ctypes.Structure):
                 ("lora_filename", ctypes.c_char_p),
                 ("lora_base", ctypes.c_char_p),
                 ("mmproj_filename", ctypes.c_char_p),
+#                ("override_kv", ctypes.c_char_p),
+#                ("cache_type_k", ctypes.c_char_p),
+#                ("cache_type_v", ctypes.c_char_p),
                 ("use_mmap", ctypes.c_bool),
                 ("use_mlock", ctypes.c_bool),
                 ("use_smartcontext", ctypes.c_bool),
@@ -451,6 +454,9 @@ def load_model(model_filename):
     inputs.blasthreads = args.blasthreads
     inputs.use_mmap = (not args.nommap)
     inputs.use_mlock = args.usemlock
+#    inputs.override_kv = "".encode("UTF-8")
+#    inputs.cache_type_k = "".encode("UTF-8")
+#    inputs.cache_type_v = "".encode("UTF-8")
     inputs.lora_filename = "".encode("UTF-8")
     inputs.lora_base = "".encode("UTF-8")
     if args.lora:
@@ -2021,6 +2027,10 @@ def show_new_gui():
     lora_base_var = ctk.StringVar()
     preloadstory_var = ctk.StringVar()
     mmproj_var = ctk.StringVar()
+    
+#    override_kv_var = ctk.StringVar()
+#    cache_type_k_var = ctk.StringVar()
+#    cache_type_v_var = ctk.StringVar()
 
     port_var = ctk.StringVar(value=defaultport)
     host_var = ctk.StringVar(value="")
@@ -2430,8 +2440,10 @@ def show_new_gui():
     quick_gpuname_label.grid(row=3, column=1, padx=75, sticky="W")
     quick_gpuname_label.configure(text_color="#ffff00")
     quick_gpu_layers_entry,quick_gpu_layers_label = makelabelentry(quick_tab,"GPU Layers:", gpulayers_var, 6, 50,tooltip="How many layers to offload onto the GPU.\nVRAM intensive, usage increases with model and context size.\nRequires some trial and error to find the best fit value.\n\nCommon values for total layers, accuracy not guaranteed.\n\nLlama/Mistral 7b/8b: 33\nSolar 10.7b/11b: 49\nLlama 13b: 41\nLlama 20b(stack): 63\nLlama/Yi 34b: 61\nMixtral 8x7b: 33\nLlama 70b: 81")
-    quick_lowvram_box = makecheckbox(quick_tab,  "Low VRAM (No KV offload)", lowvram_var, 4,0,tooltiptxt="Avoid offloading KV Cache or scratch buffers to VRAM.\nAllows more layers to fit, but may result in a speed loss.")
-    quick_mmq_box = makecheckbox(quick_tab,  "Use QuantMatMul (mmq)", mmq_var, 4,1,tooltiptxt="Enable MMQ mode instead of CuBLAS for prompt processing. Read the wiki. Speed may vary.")
+    quick_lowvram_box = makecheckbox(quick_tab, "Low VRAM (No KV offload)", lowvram_var, 4,0,tooltiptxt="Avoid offloading KV Cache or scratch buffers to VRAM.\nAllows more layers to fit, but may result in a speed loss.")
+    quick_mmq_box = makecheckbox(quick_tab, "Use QuantMatMul (mmq)", mmq_var, 4,1,tooltiptxt="Enable MMQ mode instead of CuBLAS for prompt processing. Read the wiki. Speed may vary.")
+#    makelabelentry(quick_tab, "K Cache config", cache_type_k_var, 1, 200, "Override the default f16 Key cache with quantized cache like q8_0, q5_1, q5_0, q4_1, or q4_0.")
+#    makelabelentry(quick_tab, "V Cache config", cache_type_v_var, 1, 200, "Override the default f16 Value cache with quantized cache like q8_0, q5_1, q5_0, q4_1, or q4_0.")
 
     # quick boxes
     quick_boxes = {"Launch Browser": launchbrowser , "Disable MMAP":disablemmap,"Use ContextShift":contextshift,"Remote Tunnel":remotetunnel,"Use FlashAttention":flashattention,"Quiet Mode":quietmode}
@@ -2526,7 +2538,7 @@ def show_new_gui():
     makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, command=toggleflashattn,  tooltiptxt="Enable flash attention for GGUF models.")
     noqkvlabel = makelabel(tokens_tab,"Requirments Not Met",31,0,"Requires FlashAttention ENABLED and ContextShift DISABLED.")
     noqkvlabel.configure(text_color="#ff5555")
-    qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 2, 30, set=0,tooltip="Enable quantization of KV cache.\nRequires FlashAttention and disables ContextShift.")
+    qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 6, 30, set=0,tooltip="Enable quantization of KV cache.\nRequires FlashAttention and disables ContextShift.")
     makefileentry(tokens_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 32, width=250, filetypes=[("JSON Adapter", "*.json")], tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
     def pickpremadetemplate():
         initialDir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'kcpp_adapters')
@@ -2547,6 +2559,7 @@ def show_new_gui():
     makefileentry(model_tab, "Lora Base:", "Select Lora Base File", lora_base_var, 5,width=280,tooltiptxt="Select an optional F16 GGML LoRA base file to use.\nLeave blank to skip.")
     makefileentry(model_tab, "LLaVA mmproj:", "Select LLaVA mmproj File", mmproj_var, 7,width=280,tooltiptxt="Select a mmproj file to use for LLaVA.\nLeave blank to skip.")
     makefileentry(model_tab, "Preloaded Story:", "Select Preloaded Story File", preloadstory_var, 9,width=280,tooltiptxt="Select an optional KoboldAI JSON savefile \nto be served on launch to any client.")
+#    makelabelentry(model_tab, "Opt. model metadata KV override:", override_kv_var, 1, 200, "Supersede metadata of a model, like Epislon _ e.g : llama.attention.layer_norm_rms_epsilon=float:1e5, 1.25e5, 3e6, etc.")
 
     # Network Tab
     network_tab = tabcontent["Network"]
@@ -2723,6 +2736,10 @@ def show_new_gui():
         args.lora = None if lora_var.get() == "" else ([lora_var.get()] if lora_base_var.get()=="" else [lora_var.get(), lora_base_var.get()])
         args.preloadstory = None if preloadstory_var.get() == "" else preloadstory_var.get()
         args.mmproj = None if mmproj_var.get() == "" else mmproj_var.get()
+        
+#        args.cache_type_k = None if cache_type_k_var.get() == "" else cache_type_k_var.get()
+#        args.cache_type_v = None if cache_type_v_var.get() == "" else cache_type_v_var.get()
+#        args.override_kv = None if override_kv_var.get() == "" else override_kv_var.get()
 
         args.ssl = None if (ssl_cert_var.get() == "" or ssl_key_var.get() == "") else ([ssl_cert_var.get(), ssl_key_var.get()])
         args.password = None if (password_var.get() == "") else (password_var.get())
@@ -2826,7 +2843,7 @@ def show_new_gui():
                             gpu_choice_var.set(str(opt+1))
                             break
 
-        elif  "noavx2" in dict and "noblas" in dict and dict["noblas"] and dict["noavx2"]:
+        elif "noavx2" in dict and "noblas" in dict and dict["noblas"] and dict["noavx2"]:
             if failsafe_option is not None:
                 runopts_var.set(failsafe_option)
         elif "noavx2" in dict and dict["noavx2"]:
@@ -2874,6 +2891,10 @@ def show_new_gui():
                 lora_var.set(dict["lora"][0])
 
         mmproj_var.set(dict["mmproj"] if ("mmproj" in dict and dict["mmproj"]) else "")
+        
+#        cache_type_k_var.set(dict["cache_type_k"] if ("cache_type_k" in dict and dict["cache_type_k"]) else "")
+#        cache_type_v_var.set(dict["cache_type_v"] if ("cache_type_v" in dict and dict["cache_type_v"]) else "")
+#        override_kv_var.set(dict["override_kv"] if ("override_kv" in dict and dict["override_kv"]) else "")
 
         ssl_cert_var.set("")
         ssl_key_var.set("")
@@ -3833,6 +3854,7 @@ def main(launch_args,start_server=True):
         print(f"BlasThreads: {args.blasthreads}")       
         print(f"BlasBatchSize: {args.blasbatchsize}")
         print(f"FlashAttention: {args.flashattention}")
+        print(f"KV_cache: {args.quantkv}")
         print(f"MaxCtx: {benchmaxctx}")
         print(f"GenAmount: {benchlen}\n-----")
         print(f"ProcessingTime: {t_pp:.3f}s")
@@ -3932,7 +3954,7 @@ if __name__ == '__main__':
     compatgroup.add_argument("--usevulkan", help="Use Vulkan for GPU Acceleration. Can optionally specify GPU Device ID (e.g. --usevulkan 0).", metavar=('[Device ID]'), nargs='*', type=int, default=None)
     compatgroup.add_argument("--useclblast", help="Use CLBlast for GPU Acceleration. Must specify exactly 2 arguments, platform ID and device ID (e.g. --useclblast 1 0).", type=int, choices=range(0,9), nargs=2)
     compatgroup.add_argument("--noblas", help="Do not use any accelerated prompt ingestion", action='store_true')
-    parser.add_argument("--contextsize", help="Controls the memory allocated for maximum context size, only change if you need more RAM for big contexts. (default 4096). Supported values are [256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072]. IF YOU USE ANYTHING ELSE YOU ARE ON YOUR OWN.",metavar=('[256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072]'), type=check_range(int,256,262144), default=4096)
+    parser.add_argument("--contextsize", help="Controls the memory allocated for maximum context size, only change if you need more RAM for big contexts. (default 4096). Supported values are [256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072,262144]. IF YOU USE ANYTHING ELSE YOU ARE ON YOUR OWN.",metavar=('[256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072,262144]'), type=check_range(int,256,262144), default=4096)
     parser.add_argument("--gpulayers", help="Set number of layers to offload to GPU when using GPU. Requires GPU.",metavar=('[GPU layers]'), nargs='?', const=1, type=int, default=0)
     parser.add_argument("--tensor_split", help="For CUDA and Vulkan only, ratio to split tensors across multiple GPUs, space-separated list of proportions, e.g. 7 3", metavar=('[Ratios]'), type=float, nargs='+')
 
@@ -3959,11 +3981,14 @@ if __name__ == '__main__':
     advparser.add_argument("--ssl", help="Allows all content to be served over SSL instead. A valid UNENCRYPTED SSL cert and key .pem files must be provided", metavar=('[cert_pem]', '[key_pem]'), nargs='+')
     advparser.add_argument("--nocertify", help="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.", action='store_true')
     advparser.add_argument("--mmproj", help="Select a multimodal projector file for LLaVA.", default="")
+#    advparser.add_argument("--override_kv", help="Supersede metadata of a model, like Epislon (e.g : llama.attention.layer_norm_rms_epsilon=float:1e5, 1.25e5, 3e6, etc)", metavar=('[override_kv]'), nargs='+')
+#    advparser.add_argument("--cache_type_k", help="Quantize the key cache, to lower the memory footprint of the context.", metavar=('[cache_type_k]'), nargs='+')
+#    advparser.add_argument("--cache_type_v", help="Quantize the value cache, to lower the memory footprint of the context.", metavar=('[cache_type_v]'), nargs='+')  
     advparser.add_argument("--password", help="Enter a password required to use this instance. This key will be required for all text endpoints. Image endpoints are not secured.", default=None)
     advparser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
     advparser.add_argument("--chatcompletionsadapter", help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="")
     advparser.add_argument("--flashattention", help="Enables flash attention.", action='store_true')
-    advparser.add_argument("--quantkv", help="Sets the KV cache data type quantization, 0=f16, 1=q8, 2=q4. Requires Flash Attention, and disables context shifting.",metavar=('[quantization level 0/1/2]'), type=int, choices=[0,1,2], default=0)
+    advparser.add_argument("--quantkv", help="Sets the KV cache data type quantization, 0=F16 (16 BPW), 1=q8_0 (8.5 BPW), 2=Kq8_0-Vq5_1 (7.25BPW), 3=Kq5_1-Vq5_0 (5.75BPW), 4=Kq5_1-Vq4_0 (5.25BPW), 5=Kq4_1-Vq4_0 (4.75BPW), 6=Q4_0 (4.5BPW). Requires Flash Attention, and disables context shifting.",metavar=('[quantization level 0/1/2/3/4/5/6]'), type=int, choices=[0,1,2,3,4,5,6], default=0)
     advparser.add_argument("--forceversion", help="If the model file format detection fails (e.g. rogue modified model) you can set this to override the detected format (enter desired version, e.g. 401 for GPTNeoX-Type2).",metavar=('[version]'), type=int, default=0)
     advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated. Not recommended.", action='store_true')
     advparser.add_argument("--unpack", help="Extracts the file contents of the KoboldCpp binary into a target directory.", metavar=('destination'), type=str, default="")
