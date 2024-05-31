@@ -142,26 +142,6 @@ struct sd_generation_outputs
     int status = -1;
     const char * data = "";
 };
-struct whisper_load_model_inputs
-{
-    const char * model_filename;
-    const char * executable_path;
-    const int clblast_info = 0;
-    const int cublas_info = 0;
-    const char * vulkan_info;
-    const int debugmode = 0;
-};
-struct whisper_generation_inputs
-{
-    const char * prompt;
-    const char * audio_data;
-    const bool quiet = false;
-};
-struct whisper_generation_outputs
-{
-    int status = -1;
-    const char * text = "";
-};
 
 extern std::string executable_path;
 extern std::string lora_filename;
