@@ -613,7 +613,7 @@ def sd_generate(genparams):
     return outstr
 
 def utfprint(str):
-    maxlen = 25000
+    maxlen = 20000
     strlength = len(str)
     if strlength > maxlen: #limit max output len
         str = str[:maxlen] + f"... (+{strlength-maxlen} chars)"
@@ -656,9 +656,9 @@ maxhordelen = 256
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.66.1e"
-LcppVersion = "b3052"
-ReleaseDate = "2024/05/30"
+KcppVersion = "1.67a"
+LcppVersion = "b3063"
+ReleaseDate = "2024/06/31"
 showdebug = True
 showsamplerwarning = True
 showmaxctxwarning = True
@@ -1656,7 +1656,7 @@ def show_new_gui():
 
     tabs = ctk.CTkFrame(root, corner_radius = 0, width=windowwidth, height=windowheight-50)
     tabs.grid(row=0, stick="nsew")
-    tabnames= ["Quick Launch", "Hardware", "Tokens", "Model Files", "Network", "Horde Worker","Image Gen"]
+    tabnames= ["Quick Launch", "Hardware", "Tokens", "Model Files", "Network", "Horde Worker","Image Gen","Audio"]
     navbuttons = {}
     navbuttonframe = ctk.CTkFrame(tabs, width=100, height=int(tabs.cget("height")))
     navbuttonframe.grid(row=0, column=0, padx=2,pady=2)
@@ -1759,6 +1759,8 @@ def show_new_gui():
     sd_clamped_var = ctk.IntVar(value=0)
     sd_threads_var = ctk.StringVar(value=str(default_threads))
     sd_quant_var = ctk.IntVar(value=0)
+
+    whisper_model_var = ctk.StringVar()
 
     def tabbuttonaction(name):
         for t in tabcontent:
@@ -2284,9 +2286,13 @@ def show_new_gui():
             sdvaeitem3.grid(row=15,column=1,stick="nw")
     makecheckbox(images_tab, "Use TAE SD (AutoFix Broken VAE)", sd_vaeauto_var, 16,command=toggletaesd,tooltiptxt="Replace VAE with TAESD. May fix bad VAE.")
 
+    # audio tab
+    audio_tab = tabcontent["Audio"]
+    makefileentry(audio_tab, "Whisper Model:", "Select Whisper .bin Model File", whisper_model_var, 1, filetypes=[("*.bin","*.bin")], tooltiptxt="Select a Whisper .bin model file on disk to be loaded.")
+
     # launch
     def guilaunch():
-        if model_var.get() == "" and sd_model_var.get() == "":
+        if model_var.get() == "" and sd_model_var.get() == "" and whisper_model_var.get() == "":
             tmp = askopenfilename(title="Select ggml model .bin or .gguf file")
             model_var.set(tmp)
         nonlocal nextstate
@@ -2402,6 +2408,9 @@ def show_new_gui():
                 args.sdloramult = float(sd_loramult_var.get())
             else:
                 args.sdlora = ""
+
+        if whisper_model_var.get() != "":
+            args.whispermodel = whisper_model_var.get()
 
     def import_vars(dict):
         dict = convert_outdated_args(dict)
@@ -2541,6 +2550,8 @@ def show_new_gui():
         sd_lora_var.set(dict["sdlora"] if ("sdlora" in dict and dict["sdlora"]) else "")
         sd_loramult_var.set(str(dict["sdloramult"]) if ("sdloramult" in dict and dict["sdloramult"]) else "1.0")
 
+        whisper_model_var.set(dict["whispermodel"] if ("whispermodel" in dict and dict["whispermodel"]) else "")
+
     def save_config():
         file_type = [("KoboldCpp Settings", "*.kcpps")]
         filename = asksaveasfile(filetypes=file_type, defaultextension=file_type)
@@ -2593,7 +2604,7 @@ def show_new_gui():
     if nextstate==0:
         exitcounter = 999
         print("Exiting by user request.")
-        time.sleep(3)
+        time.sleep(2)
         sys.exit(0)
     else:
         # processing vars

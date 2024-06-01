@@ -532,7 +532,7 @@
                             "description": "Successful request"
                          }
                       },
-                      "summary": "Retrieve the current model string",
+                      "summary": "Retrieve the current model string.",
                       "tags": [
                          "api/v1"
                       ]
@@ -873,6 +873,50 @@
                          }
                       },
                       "summary": "Aborts the currently ongoing text generation.",
+                      "tags": [
+                         "api/extra"
+                      ]
+                   }
+                },
+                "/api/extra/transcribe": {
+                   "post": {
+                      "description": "Uses Whisper to perform a Speech-To-Text transcription.",
+                      "requestBody": {
+                         "content": {
+                            "application/json": {
+                               "example": {
+                                  "prompt": "",
+                                  "audio_data": "base64_wav_data",
+                               },
+                               "schema": {
+                                  "properties": {
+                                     "audio_data": {
+                                        "type": "string",
+                                        "description": "Base64 respresentation of a 16-bit 16kHz wave file to be transcribed to text."
+                                     }
+                                  },
+                                  "type": "object"
+                               }
+                            }
+                         },
+                         "required": true
+                      },
+                      "responses": {
+                         "200": {
+                            "content": {
+                               "application/json": {
+                                  "example": {
+                                     "text": "Hello world"
+                                  },
+                                  "schema": {
+                                     "$ref": "#/components/schemas/ValueResult"
+                                  }
+                               }
+                            },
+                            "description": "Successful request"
+                         }
+                      },
+                      "summary": "Uses Whisper to perform a Speech-To-Text transcription.",
                       "tags": [
                          "api/extra"
                       ]

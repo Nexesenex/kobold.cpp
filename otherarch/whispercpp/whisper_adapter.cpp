@@ -230,7 +230,7 @@ whisper_generation_outputs whispertype_generate(const whisper_generation_inputs 
     wparams.print_timestamps = false;
     wparams.print_special    = false;
     wparams.translate        = false;
-    wparams.language         = "en";
+    wparams.language         = "auto";
     wparams.detect_language  = false;
     wparams.n_threads        = 4;
     wparams.n_max_text_ctx   = wparams.n_max_text_ctx;
