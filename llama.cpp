@@ -2041,8 +2041,8 @@ struct llama_kv_cache {
     // computed before each graph build
     uint32_t n = 0;
 
-    ggml_type type_k = GGML_TYPE_F16;
-    ggml_type type_v = GGML_TYPE_F16;
+    ggml_type type_k = GGML_TYPE_f16;
+    ggml_type type_v = GGML_TYPE_f16;
 
     std::vector<llama_kv_cell> cells;
 
@@ -16025,8 +16025,8 @@ struct llama_context_params llama_context_default_params() {
         /*.defrag_thold                =*/ -1.0f,
         /*.cb_eval                     =*/ nullptr,
         /*.cb_eval_user_data           =*/ nullptr,
-        /*.type_k                      =*/ GGML_TYPE_F16,
-        /*.type_v                      =*/ GGML_TYPE_F16,
+        /*.type_k                      =*/ GGML_TYPE_Q8_0,
+        /*.type_v                      =*/ GGML_TYPE_Q8_0,
         /*.logits_all                  =*/ false,
         /*.embeddings                  =*/ false,
         /*.offload_kqv                 =*/ true,
