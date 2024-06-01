@@ -3591,7 +3591,7 @@ def main(launch_args,start_server=True):
         from datetime import datetime, timezone
         start_server = False
         save_to_file = (args.benchmark!="stdout" and args.benchmark!="")
-        benchmaxctx =  (16484 if maxctx>16384 else maxctx)
+        benchmaxctx = (maxctx - 100)
         benchlen = 100
         benchmodel = sanitize_string(os.path.splitext(os.path.basename(modelname))[0])
         if os.path.exists(args.benchmark) and os.path.getsize(args.benchmark) > 1000000:
@@ -3621,6 +3621,8 @@ def main(launch_args,start_server=True):
         print(f"NoAVX2: {args.noavx2}")        
         print(f"Threads: {args.threads}")
         print(f"HighPriority: {args.highpriority}")        
+        print(f"NoBlas: {args.noblas}")  
+        print(f"Cublas_Args: {args.usecublas}")       
         print(f"Layers: {args.gpulayers}")
         print(f"Tensor_Split: {args.tensor_split}")
         print(f"BlasThreads: {args.blasthreads}")       
@@ -3640,8 +3642,8 @@ def main(launch_args,start_server=True):
                 with open(args.benchmark, "a") as file:
                     file.seek(0, 2)
                     if file.tell() == 0: #empty file
-                        file.write(f"Datime,KCPP,LCPP,Backend,Model,NoAVX2,Thrd,HighP,Layers,BlasThrd,BBSize,FlashA,MaxCtx,GenNum,PPTime,PPSpeed,TGTime,TGSpeed,TotalTime,Coher,Output,TenSplit")
-                    file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{benchmodel},{args.noavx2},{args.threads},{args.highpriority},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.flashattention},{benchmaxctx},{benchlen},{t_pp:.2f},{s_pp:.2f},{t_gen:.2f},{s_gen:.2f},{(t_pp+t_gen):.2f},{resultok},{result},{args.tensor_split}")
+                        file.write(f"Datime,KCPP,LCPP,Backend,Model,NoAVX2,Thrd,HighP,NoBlas,Layers,BlasThrd,BBSize,FlashA,MaxCtx,GenNum,PPTime,PPSpeed,TGTime,TGSpeed,TotalTime,Coher,Output,Tensor1,Split2,Cublas1,Argument2,Argument3")
+                    file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{benchmodel},{args.noavx2},{args.threads},{args.highpriority},{args.noblas},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.flashattention},{benchmaxctx},{benchlen},{t_pp:.2f},{s_pp:.2f},{t_gen:.2f},{s_gen:.2f},{(t_pp+t_gen):.2f},{resultok},{result},{args.tensor_split},,{args.usecublas},,")
             except Exception as e:
                 print(f"Error writing benchmark to file: {e}")
         global using_gui_launcher
