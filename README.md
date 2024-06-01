@@ -64,7 +64,7 @@ when you can't use the precompiled binary directly, we provide an automated buil
 - Note: Many OSX users have found that the using Accelerate is actually faster than OpenBLAS. To try, you may wish to run with `--noblas` and compare speeds.
 
 ### Arch Linux Packages
-There are some community made AUR packages (Maintained by @AlpinDale) available: [CUBLAS](https://aur.archlinux.org/packages/koboldcpp-cuda), and [HIPBLAS](https://aur.archlinux.org/packages/koboldcpp-hipblas). They are intended for users with NVIDIA GPUs, and users with a supported AMD GPU. Note that these packages may be outdated, and it's probably better to use official KoboldCpp binaries.
+There are some community made AUR packages available: [CUBLAS](https://aur.archlinux.org/packages/koboldcpp-cuda), and [HIPBLAS](https://aur.archlinux.org/packages/koboldcpp-hipblas). They are intended for users with NVIDIA GPUs, and users with a supported AMD GPU. Note that these packages may be outdated, and it's probably better to use official KoboldCpp binaries.
 
 ## Compiling on Windows
 - You're encouraged to use the .exe released, but if you want to compile your binaries from source at Windows, the easiest way is:
