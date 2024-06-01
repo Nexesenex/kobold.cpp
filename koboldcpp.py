@@ -3418,6 +3418,8 @@ def main(launch_args,start_server=True):
         print(f"NoAVX2: {args.noavx2}")        
         print(f"Threads: {args.threads}")
         print(f"HighPriority: {args.highpriority}")        
+        print(f"NoBlas: {args.noblas}")  
+        print(f"Cublas_Args: {args.usecublas}")       
         print(f"Layers: {args.gpulayers}")
         print(f"Tensor_Split: {args.tensor_split}")
         print(f"BlasThreads: {args.blasthreads}")       
@@ -3439,8 +3441,8 @@ def main(launch_args,start_server=True):
                 with open(args.benchmark, "a") as file:
                     file.seek(0, 2)
                     if file.tell() == 0: #empty file
-                        file.write(f"Datime,KCPP,LCPP,Backend,Model,NoAVX2,Thrd,HighP,Layers,BlasThrd,BBSize,FlashA,CMaxCtx,GenNum,PPTime,PPSpeed,TGTime,TGSpeed,TotalTime,Coher,Output,TS_1,TS_2")
-                    file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{benchmodel},{args.noavx2},{args.threads},{args.highpriority},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.flashattention},{benchmaxctx},{benchlen},{t_pp:.2f},{s_pp:.2f},{t_gen:.2f},{s_gen:.2f},{(t_pp+t_gen):.2f},{resultok},{result},{args.tensor_split}")
+                        file.write(f"Datime,KCPP,LCPP,Backend,Model,NoAVX2,Thrd,HighP,NoBlas,Layers,BlasThrd,BBSize,FlashA,MaxCtx,GenNum,PPTime,PPSpeed,TGTime,TGSpeed,TotalTime,Coher,Output,Tensor,Split,CublasArguments")
+                    file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{benchmodel},{args.noavx2},{args.threads},{args.highpriority},{args.noblas},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.flashattention},{benchmaxctx},{benchlen},{t_pp:.2f},{s_pp:.2f},{t_gen:.2f},{s_gen:.2f},{(t_pp+t_gen):.2f},{resultok},{result},{args.tensor_split},,{args.usecublas}")
             except Exception as e:
                 print(f"Error writing benchmark to file: {e}")
         global using_gui_launcher
