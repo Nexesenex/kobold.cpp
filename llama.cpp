@@ -16381,7 +16381,7 @@ struct llama_context_params llama_context_default_params() {
         /*.cb_eval                     =*/ nullptr,
         /*.cb_eval_user_data           =*/ nullptr,
         /*.type_k                      =*/ GGML_TYPE_Q8_0,
-        /*.type_v                      =*/ GGML_TYPE_Q5_1,
+        /*.type_v                      =*/ GGML_TYPE_Q8_0,
         /*.logits_all                  =*/ false,
         /*.embeddings                  =*/ false,
         /*.offload_kqv                 =*/ true,
