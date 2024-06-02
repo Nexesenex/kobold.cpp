@@ -1,3 +1,4 @@
+#include <cstdint>
 #pragma once
 
 const int stop_token_max = 16;
