@@ -221,6 +221,15 @@ extern "C"
         return sdtype_generate(inputs);
     }
 
+    bool whisper_load_model(const whisper_load_model_inputs inputs)
+    {
+        return whispertype_load_model(inputs);
+    }
+    whisper_generation_outputs whisper_generate(const whisper_generation_inputs inputs)
+    {
+        return whispertype_generate(inputs);
+    }
+
     const char * new_token(int idx) {
         if (generated_tokens.size() <= idx || idx < 0) return nullptr;
 

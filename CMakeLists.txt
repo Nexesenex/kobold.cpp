@@ -70,6 +70,8 @@ add_compile_definitions(LOG_DISABLE_LOGS)
 
 file(GLOB GGML_SOURCES_CUDA "ggml-cuda/*.cu")
 list(APPEND GGML_SOURCES_CUDA "ggml-cuda.cu")
+file(GLOB SRCS "ggml-cuda/template-instances/fattn-wmma*.cu")
+list(APPEND GGML_SOURCES_CUDA ${SRCS})
 set(GGML_V3_CUDA_SOURCES otherarch/ggml_v3-cuda.cu otherarch/ggml_v3-cuda.h)
 set(GGML_V2_CUDA_SOURCES otherarch/ggml_v2-cuda.cu otherarch/ggml_v2-cuda.h)
 set(GGML_V2_LEGACY_CUDA_SOURCES otherarch/ggml_v2-cuda-legacy.cu otherarch/ggml_v2-cuda-legacy.h)
@@ -241,17 +243,27 @@ if (LLAMA_HIPBLAS)
         message(STATUS "HIP and hipBLAS found")
         file(GLOB GGML_SOURCES_ROCM "ggml-cuda/*.cu")
         list(APPEND GGML_SOURCES_ROCM "ggml-cuda.cu")
+        file(GLOB SRCS "ggml-cuda/template-instances/fattn-wmma*.cu")
+        list(APPEND GGML_SOURCES_ROCM ${SRCS})
         add_compile_definitions(GGML_USE_HIPBLAS GGML_USE_CUDA SD_USE_CUBLAS)
         add_library(ggml-rocm OBJECT ${GGML_SOURCES_CUDA})
         if (LLAMA_CUDA_FORCE_DMMV)
             target_compile_definitions(ggml-rocm PUBLIC GGML_CUDA_FORCE_DMMV)
         endif()
+
+        file(GLOB SRCS "ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu")
+        list(APPEND GGML_SOURCES_ROCM ${SRCS})
+        file(GLOB SRCS "ggml-cuda/template-instances/fattn-vec*q8_0-q8_0.cu")
+        list(APPEND GGML_SOURCES_ROCM ${SRCS})
+        file(GLOB SRCS "ggml-cuda/template-instances/fattn-vec*f16-f16.cu")
+        list(APPEND GGML_SOURCES_ROCM ${SRCS})
+
+        # only build minimal quants required for fattn quant kv
         target_compile_definitions(ggml-rocm PUBLIC GGML_CUDA_DMMV_X=${LLAMA_CUDA_DMMV_X})
         target_compile_definitions(ggml-rocm PUBLIC GGML_CUDA_MMV_Y=${LLAMA_CUDA_MMV_Y})
         target_compile_definitions(ggml-rocm PUBLIC K_QUANTS_PER_ITERATION=${LLAMA_CUDA_KQUANTS_ITER})
         set_source_files_properties(${GGML_SOURCES_ROCM} PROPERTIES LANGUAGE CXX)
         target_link_libraries(ggml-rocm PUBLIC hip::device hip::host roc::rocblas roc::hipblas)
-
 
         add_library(ggml-v2-rocm OBJECT ${GGML_V2_CUDA_SOURCES})
         if (LLAMA_CUDA_FORCE_DMMV)
@@ -282,9 +294,6 @@ if (LLAMA_HIPBLAS)
         target_compile_definitions(ggml-v2-legacy-rocm PUBLIC K_QUANTS_PER_ITERATION=${LLAMA_CUDA_KQUANTS_ITER})
         set_source_files_properties(otherarch/ggml_v2-cuda-legacy.cu PROPERTIES LANGUAGE CXX)
         target_link_libraries(ggml-v2-legacy-rocm PUBLIC hip::device hip::host roc::rocblas roc::hipblas)
-
-
-
 
         if (LLAMA_STATIC)
             message(FATAL_ERROR "Static linking not supported for HIP/ROCm")
@@ -539,6 +548,13 @@ target_compile_features(sdtype_adapter PUBLIC cxx_std_11) # don't bump
 target_link_libraries(sdtype_adapter PRIVATE common2 ggml ${LLAMA_EXTRA_LIBS})
 set_target_properties(sdtype_adapter PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+add_library(whisper_adapter
+            otherarch/whispercpp/whisper_adapter.cpp)
+target_include_directories(whisper_adapter PUBLIC . ./otherarch ./otherarch/tools ./otherarch/whispercpp ./examples ./common)
+target_compile_features(whisper_adapter PUBLIC cxx_std_11) # don't bump
+target_link_libraries(whisper_adapter PRIVATE common2 ggml ${LLAMA_EXTRA_LIBS})
+set_target_properties(whisper_adapter PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 add_library(gpttype_adapter
             gpttype_adapter.cpp)
 target_include_directories(gpttype_adapter PUBLIC . ./otherarch ./otherarch/tools ./otherarch/sdcpp ./otherarch/sdcpp/thirdparty ./examples ./common)
@@ -554,7 +570,7 @@ if (LLAMA_CUBLAS)
     set_target_properties(${TARGET} PROPERTIES PREFIX "")
     set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME "koboldcpp_cublas")
     set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-    target_link_libraries(${TARGET} PUBLIC Threads::Threads ggml ggml_v1 ggml_v2 ggml_v3 common2 gpttype_adapter sdtype_adapter ${LLAMA_EXTRA_LIBS})
+    target_link_libraries(${TARGET} PUBLIC Threads::Threads ggml ggml_v1 ggml_v2 ggml_v3 common2 gpttype_adapter whisper_adapter sdtype_adapter ${LLAMA_EXTRA_LIBS})
     target_compile_features(${TARGET} PRIVATE cxx_std_11)
 endif()
 
@@ -566,7 +582,7 @@ if (LLAMA_HIPBLAS)
     set_target_properties(${TARGET} PROPERTIES PREFIX "")
     set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME "koboldcpp_hipblas")
     set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-    target_link_libraries(${TARGET} PUBLIC Threads::Threads ggml ggml_v1 ggml_v2 ggml_v3 common2 gpttype_adapter sdtype_adapter ${LLAMA_EXTRA_LIBS})
+    target_link_libraries(${TARGET} PUBLIC Threads::Threads ggml ggml_v1 ggml_v2 ggml_v3 common2 gpttype_adapter whisper_adapter sdtype_adapter ${LLAMA_EXTRA_LIBS})
     target_compile_features(${TARGET} PRIVATE cxx_std_11)
 endif()
 
