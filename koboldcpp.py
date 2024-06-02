@@ -3504,7 +3504,7 @@ def main(launch_args,start_server=True):
         from datetime import datetime, timezone
         start_server = False
         save_to_file = (args.benchmark!="stdout" and args.benchmark!="")
-        benchmaxctx = (maxctx - 100)
+        benchmaxctx = (maxctx - 256)
         benchlen = 100
         benchmodel = sanitize_string(os.path.splitext(os.path.basename(modelname))[0])
         if os.path.exists(args.benchmark) and os.path.getsize(args.benchmark) > 1000000:
@@ -3555,8 +3555,8 @@ def main(launch_args,start_server=True):
                 with open(args.benchmark, "a") as file:
                     file.seek(0, 2)
                     if file.tell() == 0: #empty file
-                        file.write(f"Datime,KCPP,LCPP,Backend,Model,NoAVX2,Thrd,HighP,NoBlas,Layers,BlasThrd,BBSize,FlashA,MaxCtx,GenNum,PPTime,PPSpeed,TGTime,TGSpeed,TotalTime,Coher,Output,Tensor1,Split2,Cublas1,Argument2,Argument3")
-                    file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{benchmodel},{args.noavx2},{args.threads},{args.highpriority},{args.noblas},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.flashattention},{benchmaxctx},{benchlen},{t_pp:.2f},{s_pp:.2f},{t_gen:.2f},{s_gen:.2f},{(t_pp+t_gen):.2f},{resultok},{result},{args.tensor_split},,{args.usecublas},,")
+                        file.write(f"Datime,KCPP,LCPP,Backend,Model,NoAVX2,Thrd,HighP,NoBlas,Cublas1,Argument2,Argument3,Layers,Tensor1,Split2,BlasThrd,BBSize,FlashA,MaxCtx,GenNum,PPTime,PPSpeed,TGTime,TGSpeed,TotalTime,Coher,Output")
+                    file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{benchmodel},{args.noavx2},{args.threads},{args.highpriority},{args.noblas},{args.usecublas},,,{args.gpulayers},{args.tensor_split},,{args.blasthreads},{args.blasbatchsize},{args.flashattention},{benchmaxctx},{benchlen},{t_pp:.2f},{s_pp:.2f},{t_gen:.2f},{s_gen:.2f},{(t_pp+t_gen):.2f},{resultok},{result}")
             except Exception as e:
                 print(f"Error writing benchmark to file: {e}")
         global using_gui_launcher
