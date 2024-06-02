@@ -2118,8 +2118,8 @@ struct llama_kv_cache {
     // computed before each graph build
     uint32_t n = 0;
 
-    ggml_type type_k = GGML_TYPE_f16;
-    ggml_type type_v = GGML_TYPE_f16;
+    ggml_type type_k = GGML_TYPE_F16;
+    ggml_type type_v = GGML_TYPE_F16;
 
     std::vector<llama_kv_cell> cells;
 

@@ -191,8 +191,8 @@ struct gpt_params {
     bool warmup            = true;  // warmup run
     bool check_tensors     = false; // validate tensor data
 
-    std::string cache_type_k = "F16"; // KV cache data type for the K
-    std::string cache_type_v = "F16"; // KV cache data type for the V
+    std::string cache_type_k = "f16"; // KV cache data type for the K
+    std::string cache_type_v = "f16"; // KV cache data type for the V
 
     // multimodal models (see examples/llava)
     std::string mmproj = "";        // path to multimodal projector
