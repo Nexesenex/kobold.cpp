@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 
 const int stop_token_max = 16;
 const int ban_token_max = 16;
@@ -57,6 +58,8 @@ struct load_model_inputs
     const float rope_freq_base = 10000.0f;
     const bool flash_attention = false;
     const float tensor_split[tensor_split_max];
+    const int quant_k = 0;
+    const int quant_v = 0;
 };
 struct generation_inputs
 {
@@ -141,6 +144,26 @@ struct sd_generation_outputs
 {
     int status = -1;
     const char * data = "";
+};
+struct whisper_load_model_inputs
+{
+    const char * model_filename;
+    const char * executable_path;
+    const int clblast_info = 0;
+    const int cublas_info = 0;
+    const char * vulkan_info;
+    const int debugmode = 0;
+};
+struct whisper_generation_inputs
+{
+    const char * prompt;
+    const char * audio_data;
+    const bool quiet = false;
+};
+struct whisper_generation_outputs
+{
+    int status = -1;
+    const char * text = "";
 };
 
 extern std::string executable_path;

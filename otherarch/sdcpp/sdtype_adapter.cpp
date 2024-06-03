@@ -31,7 +31,7 @@
 #include "stb_image_write.h"
 
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
-#include "stb_image_resize2.h"
+#include "stb_image_resize.h"
 
 const char* rng_type_to_str[] = {
     "std_default",
@@ -420,7 +420,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
         }
 
         // Resize the image
-        unsigned char * resok = stbir_resize_uint8_linear(input_image_buffer, nx, ny, 0, resized_image_buf.data(), img2imgW, img2imgH, 0, (stbir_pixel_layout)img2imgC);
+        int resok = stbir_resize_uint8(input_image_buffer, nx, ny, 0, resized_image_buf.data(), img2imgW, img2imgH, 0, img2imgC);
         if (!resok) {
             printf("\nKCPP SD: resize image failed!\n");
             output.data = "";
