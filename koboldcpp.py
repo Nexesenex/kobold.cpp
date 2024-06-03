@@ -59,7 +59,9 @@ class load_model_inputs(ctypes.Structure):
                 ("rope_freq_scale", ctypes.c_float),
                 ("rope_freq_base", ctypes.c_float),
                 ("flash_attention", ctypes.c_bool),
-                ("tensor_split", ctypes.c_float * tensor_split_max)]
+                ("tensor_split", ctypes.c_float * tensor_split_max),
+                ("quant_k", ctypes.c_int),
+                ("quant_v", ctypes.c_int)]
 
 class generation_inputs(ctypes.Structure):
     _fields_ = [("seed", ctypes.c_int),
@@ -293,10 +295,15 @@ def init_library():
         os.add_dll_directory(dir_path)
         os.add_dll_directory(abs_path)
         os.add_dll_directory(os.getcwd())
+        if libname == lib_cublas and "CUDA_PATH" in os.environ:
+            newpath = os.path.join(os.environ["CUDA_PATH"], "bin")
+            if os.path.exists(newpath):
+                os.add_dll_directory(newpath)
         if libname == lib_hipblas and "HIP_PATH" in os.environ:
-            os.add_dll_directory(os.path.join(os.environ["HIP_PATH"], "bin"))
-            if args.debugmode == 1:
-                print(f"HIP/ROCm SDK at {os.environ['HIP_PATH']} included in .DLL load path")
+            newpath = os.path.join(os.environ["HIP_PATH"], "bin")
+            if os.path.exists(newpath):
+                os.add_dll_directory(newpath)
+
     handle = ctypes.CDLL(os.path.join(dir_path, libname))
 
     handle.load_model.argtypes = [load_model_inputs]
@@ -411,6 +418,12 @@ def load_model(model_filename):
     inputs.use_smartcontext = args.smartcontext
     inputs.use_contextshift = (0 if args.noshift else 1)
     inputs.flash_attention = args.flashattention
+    if args.quantkv>0:
+        inputs.quant_k = inputs.quant_v = args.quantkv
+        inputs.flash_attention = True
+        inputs.use_contextshift = 0
+    else:
+        inputs.quant_k = inputs.quant_v = 0
     inputs.blasbatchsize = args.blasbatchsize
     inputs.forceversion = args.forceversion
     inputs.gpulayers = args.gpulayers
@@ -1776,6 +1789,7 @@ def show_new_gui():
     contextsize_text = ["128" ,"256" ,"384" ,"512" ,"640" ,"768" ,"896" ,"1024" ,"1152" ,"1280" ,"1408" ,"1536" ,"1664" ,"1792" ,"1920" ,"2048" ,"2176" ,"2304" ,"2432" ,"2560" ,"2688" ,"2816" ,"2944" ,"3072" ,"3200" ,"3328" ,"3456" ,"3584" ,"3712" ,"3840" ,"3968" ,"4096" ,"4224" ,"4352" ,"4480" ,"4608" ,"4736" ,"4864" ,"4992" ,"5120" ,"5248" ,"5376" ,"5504" ,"5632" ,"5760" ,"5888" ,"6016" ,"6144" ,"6272" ,"6400" ,"6528" ,"6656" ,"6784" ,"6912" ,"7040" ,"7168" ,"7296" ,"7424" ,"7552" ,"7680" ,"7808" ,"7936" ,"8064" ,"8192" ,"8320" ,"8448" ,"8576" ,"8704" ,"8832" ,"8960" ,"9088" ,"9216" ,"9344" ,"9472" ,"9600" ,"9728" ,"9856" ,"9984" ,"10112" ,"10240" ,"10368" ,"10496" ,"10624" ,"10752" ,"10880" ,"11008" ,"11136" ,"11264" ,"11392" ,"11520" ,"11648" ,"11776" ,"11904" ,"12032" ,"12160" ,"12288" ,"12416" ,"12544" ,"12672" ,"12800" ,"12928" ,"13056" ,"13184" ,"13312" ,"13440" ,"13568" ,"13696" ,"13824" ,"13952" ,"14080" ,"14208" ,"14336" ,"14464" ,"14592" ,"14720" ,"14848" ,"14976" ,"15104" ,"15232" ,"15360" ,"15488" ,"15616" ,"15744" ,"15872" ,"16000" ,"16128" ,"16256" ,"16384" ,"16512" ,"16640" ,"16768" ,"16896" ,"17024" ,"17152" ,"17280" ,"17408" ,"17536" ,"17664" ,"17792" ,"17920" ,"18048" ,"18176" ,"18304" ,"18432" ,"18560" ,"18688" ,"18816" ,"18944" ,"19072" ,"19200" ,"19328" ,"19456" ,"19584" ,"19712" ,"19840" ,"19968" ,"20096" ,"20224" ,"20352" ,"20480" ,"20608" ,"20736" ,"20864" ,"20992" ,"21120" ,"21248" ,"21376" ,"21504" ,"21632" ,"21760" ,"21888" ,"22016" ,"22144" ,"22272" ,"22400" ,"22528" ,"22656" ,"22784" ,"22912" ,"23040" ,"23168" ,"23296" ,"23424" ,"23552" ,"23680" ,"23808" ,"23936" ,"24064" ,"24192" ,"24320" ,"24448" ,"24576" ,"24704" ,"24832" ,"24960" ,"25088" ,"25216" ,"25344" ,"25472" ,"25600" ,"25728" ,"25856" ,"25984" ,"26112" ,"26240" ,"26368" ,"26496" ,"26624" ,"26752" ,"26880" ,"27008" ,"27136" ,"27264" ,"27392" ,"27520" ,"27648" ,"27776" ,"27904" ,"28032" ,"28160" ,"28288" ,"28416" ,"28544" ,"28672" ,"28800" ,"28928" ,"29056" ,"29184" ,"29312" ,"29440" ,"29568" ,"29696" ,"29824" ,"29952" ,"30080" ,"30208" ,"30336" ,"30464" ,"30592" ,"30720" ,"30848" ,"30976" ,"31104" ,"31232" ,"31360" ,"31488" ,"31616" ,"31744" ,"31872" ,"32000" ,"32128" ,"32256" ,"32384" ,"32512" ,"32640" ,"32768" ,"32896" ,"33024" ,"33152" , "33280" ,"33408" ,"33536" ,"33664" ,"33792" ,"33920" ,"34048" ,"34176" ,"34304" ,"34432" ,"34560" ,"34688" ,"34816" ,"34944" ,"35072" ,"35200" ,"35328" ,"35456" ,"35584" ,"35712" ,"35840" ,"35968" ,"36096" ,"36224" ,"36352" ,"36480" ,"36608" ,"36736" ,"36864" ,"36992" ,"37120" ,"37248" ,"37376" ,"37504" ,"37632" ,"37760" ,"37888" ,"38016" ,"38144" ,"38272" ,"38400" ,"38528" ,"38656" ,"38784" ,"38912" ,"39040" ,"39168" ,"39296" ,"39424" ,"39552" ,"39680" ,"39808" ,"39936" ,"40064" ,"40192" ,"40320" ,"40448" ,"40576" ,"40704" ,"40832" ,"40960" ,"41088" ,"41216" ,"41344" ,"41472" ,"41600" ,"41728" ,"41856" ,"41984" ,"42112" ,"42240" ,"42368" ,"42496" ,"42624" ,"42752" ,"42880" ,"43008" ,"43136" ,"43264" ,"43392" ,"43520" ,"43648" ,"43776" ,"43904" ,"44032" ,"44160" ,"44288" ,"44416" ,"44544" ,"44672" ,"44800" ,"44928" ,"45056" ,"45184" ,"45312" ,"45440" ,"45568" ,"45696" ,"45824" ,"45952" ,"46080" ,"46208" ,"46336" ,"46464" ,"46592" ,"46720" ,"46848" ,"46976" ,"47104" ,"47232" ,"47360" ,"47488" ,"47616" ,"47744" ,"47872" ,"48000" ,"48128" ,"48256" ,"48384" ,"48512" ,"48640" ,"48768" ,"48896" ,"49024" ,"49152" ,"49280" ,"49408" ,"49536" ,"49664" ,"49792" ,"49920" ,"50048" ,"50176" ,"50304" ,"50432" ,"50560" ,"50688" ,"50816" ,"50944" ,"51072" ,"51200" ,"51328" ,"51456" ,"51584" ,"51712" ,"51840" ,"51968" ,"52096" ,"52224" ,"52352" ,"52480" ,"52608" ,"52736" ,"52864" ,"52992" ,"53120" ,"53248" ,"53376" ,"53504" ,"53632" ,"53760" ,"53888" ,"54016" ,"54144" ,"54272" ,"54400" ,"54528" ,"54656" ,"54784" ,"54912" ,"55040" ,"55168" ,"55296" ,"55424" ,"55552" ,"55680" ,"55808" ,"55936" ,"56064" ,"56192" ,"56320" ,"56448" ,"56576" ,"56704" ,"56832" ,"56960" ,"57088" ,"57216" ,"57344" ,"57472" ,"57600" ,"57728" ,"57856" ,"57984" ,"58112" ,"58240" ,"58368" ,"58496" ,"58624" ,"58752" ,"58880" ,"59008" ,"59136" ,"59264" ,"59392" ,"59520" ,"59648" ,"59776" ,"59904" ,"60032" ,"60160" ,"60288" ,"60416" ,"60544" ,"60672" ,"60800" ,"60928" ,"61056" ,"61184" ,"61312" ,"61440" ,"61568" ,"61696" ,"61824" ,"61952" ,"62080" ,"62208" ,"62336" ,"62464" ,"62582" , "62720" ,"62976" ,"63232" ,"63488" ,"64000" ,"64512" ,"65024" ,"65536" ,"73728", "81920" ,"90112", "98304" ,"106496", "114688" ,"122880", "131072" ,"147456" ,"163840" ,"180224" ,"196608" ,"212992" ,"229376" ,"245760" ,"262144"]
     runopts = [opt for lib, opt in lib_option_pairs if file_exists(lib)]
     antirunopts = [opt.replace("Use ", "") for lib, opt in lib_option_pairs if not (opt in runopts)]
+    quantkv_text = ["F16 (Off)","8-Bit","4-Bit"]
 
     if not any(runopts):
         exitcounter = 999
@@ -1800,6 +1814,7 @@ def show_new_gui():
 
     lowvram_var = ctk.IntVar()
     mmq_var = ctk.IntVar(value=1)
+    quantkv_var = ctk.IntVar(value=0)
     blas_threads_var = ctk.StringVar()
     blas_size_var = ctk.IntVar()
     version_var = ctk.StringVar(value="0")
@@ -1852,7 +1867,7 @@ def show_new_gui():
                 tabcontent[t].grid(row=0, column=0)
                 navbuttons[t].configure(fg_color="#6f727b")
             else:
-                tabcontent[t].grid_forget()
+                tabcontent[t].grid_remove()
                 navbuttons[t].configure(fg_color="transparent")
 
     # Dynamically create tabs + buttons based on values of [tabnames]
@@ -1891,7 +1906,7 @@ def show_new_gui():
 
     def makeslider(parent, label, options, var, from_ , to,  row=0, width=512, height=10, set=0, tooltip=""):
         sliderLabel = makelabel(parent, options[set], row + 1, 1)
-        makelabel(parent, label, row,0,tooltip)
+        titleLabel = makelabel(parent, label, row,0,tooltip)
 
         def sliderUpdate(a,b,c):
             sliderLabel.configure(text = options[int(var.get())])
@@ -1899,7 +1914,7 @@ def show_new_gui():
         slider = ctk.CTkSlider(parent, from_=from_, to=to, variable = var, width = width, height=height, border_width=5,number_of_steps=len(options) - 1)
         slider.grid(row=row+1,  column=0, padx = 8, stick="w")
         slider.set(set)
-        return slider
+        return slider, sliderLabel, titleLabel
 
 
     def makelabelentry(parent, text, var, row=0, width= 50,tooltip=""):
@@ -2099,9 +2114,29 @@ def show_new_gui():
 
     def togglectxshift(a,b,c):
         if contextshift.get()==0:
-            smartcontextbox.grid(row=1, column=0, padx=8, pady=1,  stick="nw")
+            smartcontextbox.grid()
         else:
-            smartcontextbox.grid_forget()
+            smartcontextbox.grid_remove()
+
+        if contextshift.get()==0 and flashattention.get()==1:
+            qkvslider.grid()
+            qkvlabel.grid()
+            noqkvlabel.grid_remove()
+        else:
+            qkvslider.grid_remove()
+            qkvlabel.grid_remove()
+            noqkvlabel.grid()
+
+    def toggleflashattn(a,b,c):
+        if contextshift.get()==0 and flashattention.get()==1:
+            qkvslider.grid()
+            qkvlabel.grid()
+            noqkvlabel.grid_remove()
+        else:
+            qkvslider.grid_remove()
+            qkvlabel.grid_remove()
+            noqkvlabel.grid()
+
 
     def guibench():
         args.benchmark = "stdout"
@@ -2126,14 +2161,14 @@ def show_new_gui():
                 CUDA_gpu_selector_box.grid(row=3, column=1, padx=8, pady=1, stick="nw")
                 CUDA_quick_gpu_selector_box.grid(row=3, column=1, padx=8, pady=1, stick="nw")
         else:
-            quick_gpuname_label.grid_forget()
-            gpuname_label.grid_forget()
-            gpu_selector_label.grid_forget()
-            gpu_selector_box.grid_forget()
-            CUDA_gpu_selector_box.grid_forget()
-            quick_gpu_selector_label.grid_forget()
-            quick_gpu_selector_box.grid_forget()
-            CUDA_quick_gpu_selector_box.grid_forget()
+            quick_gpuname_label.grid_remove()
+            gpuname_label.grid_remove()
+            gpu_selector_label.grid_remove()
+            gpu_selector_box.grid_remove()
+            CUDA_gpu_selector_box.grid_remove()
+            quick_gpu_selector_label.grid_remove()
+            quick_gpu_selector_box.grid_remove()
+            CUDA_quick_gpu_selector_box.grid_remove()
 
         if index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
             lowvram_box.grid(row=4, column=0, padx=8, pady=1,  stick="nw")
@@ -2158,10 +2193,10 @@ def show_new_gui():
             quick_gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
             quick_gpu_layers_entry.grid(row=6, column=1, padx=8, pady=1, stick="nw")
         else:
-            gpu_layers_label.grid_forget()
-            gpu_layers_entry.grid_forget()
-            quick_gpu_layers_label.grid_forget()
-            quick_gpu_layers_entry.grid_forget()
+            gpu_layers_label.grid_remove()
+            gpu_layers_entry.grid_remove()
+            quick_gpu_layers_label.grid_remove()
+            quick_gpu_layers_entry.grid_remove()
         changed_gpu_choice_var()
 
 
@@ -2185,7 +2220,6 @@ def show_new_gui():
     quick_gpu_layers_entry,quick_gpu_layers_label = makelabelentry(quick_tab,"GPU Layers:", gpulayers_var, 6, 50,"How many layers to offload onto the GPU.\nVRAM intensive, usage increases with model and context size.\nRequires some trial and error to find the best fit value.\n\nCommon values for total layers, accuracy not guaranteed.\n\nLlama/Mistral 7b/8b: 33\nSolar 10.7b/11b: 49\nLlama 13b: 41\nLlama 20b(stack): 63\nLlama/Yi 34b: 61\nMixtral 8x7b: 33\nLlama 70b: 81")
     quick_lowvram_box = makecheckbox(quick_tab,  "Low VRAM (No KV offload)", lowvram_var, 4,0,tooltiptxt="Avoid offloading KV Cache or scratch buffers to VRAM.\nAllows more layers to fit, but may result in a speed loss.")
     quick_mmq_box = makecheckbox(quick_tab,  "Use QuantMatMul (mmq)", mmq_var, 4,1,tooltiptxt="Enable MMQ mode instead of CuBLAS for prompt processing. Read the wiki. Speed may vary.")
-
 
     # quick boxes
     quick_boxes = {"Launch Browser": launchbrowser , "Disable MMAP":disablemmap,"Use ContextShift":contextshift,"Remote Tunnel":remotetunnel,"Use FlashAttention":flashattention,"Quiet Mode":quietmode}
@@ -2262,7 +2296,7 @@ def show_new_gui():
     # tokens checkboxes
     smartcontextbox = makecheckbox(tokens_tab, "Use SmartContext", smartcontext, 1,tooltiptxt="Uses SmartContext. Now considered outdated and not recommended.\nCheck the wiki for more info.")
     makecheckbox(tokens_tab, "Use ContextShift", contextshift, 2,tooltiptxt="Uses Context Shifting to reduce reprocessing.\nRecommended. Check the wiki for more info.", command=togglectxshift)
-    togglectxshift(1,1,1)
+
 
     # context size
     makeslider(tokens_tab, "Context Size:",contextsize_text, context_var, 0, len(contextsize_text)-1, 20, set=15,tooltip="What is the maximum context size to support. Model specific. You cannot exceed it.\nLarger contexts require more memory, and not all models support it.")
@@ -2276,11 +2310,16 @@ def show_new_gui():
             if customrope_var.get() == 1:
                 item.grid(row=23 + int(idx/2), column=idx%2, padx=8, stick="nw")
             else:
-                item.grid_forget()
+                item.grid_remove()
     makecheckbox(tokens_tab,  "Custom RoPE Config", variable=customrope_var, row=22, command=togglerope,tooltiptxt="Override the default RoPE configuration with custom RoPE scaling.")
+    makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, command=toggleflashattn,  tooltiptxt="Enable flash attention for GGUF models.")
+    noqkvlabel = makelabel(tokens_tab,"Requirments Not Met",31,0,"Requires FlashAttention ENABLED and ContextShift DISABLED.")
+    noqkvlabel.configure(text_color="#ff5555")
+    qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 2, 30, set=0,tooltip="Enable quantization of KV cache.\nRequires FlashAttention and disables ContextShift.")
+    makefileentry(tokens_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 32,tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
     togglerope(1,1,1)
-    makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28,tooltiptxt="Enable flash attention for GGUF models.")
-    makefileentry(tokens_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 30,tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
+    toggleflashattn(1,1,1)
+    togglectxshift(1,1,1)
 
     # Model Tab
     model_tab = tabcontent["Model Files"]
@@ -2321,11 +2360,11 @@ def show_new_gui():
         labels = [horde_name_label, horde_gen_label, horde_context_label, horde_apikey_label, horde_workername_label]
         for idx, item in enumerate([horde_name_entry, horde_gen_entry, horde_context_entry, horde_apikey_entry, horde_workername_entry]):
             if usehorde_var.get() == 1:
-                item.grid(row=20 + idx, column = 1, padx=8, pady=1, stick="nw")
-                labels[idx].grid(row=20 + idx, padx=8, pady=1, stick="nw")
+                item.grid()
+                labels[idx].grid()
             else:
-                item.grid_forget()
-                labels[idx].grid_forget()
+                item.grid_remove()
+                labels[idx].grid_remove()
         if usehorde_var.get()==1 and (horde_name_var.get()=="koboldcpp" or horde_name_var.get()=="") and model_var.get()!="":
             basefile = os.path.basename(model_var.get())
             horde_name_var.set(sanitize_string(os.path.splitext(basefile)[0]))
@@ -2344,30 +2383,30 @@ def show_new_gui():
     sdloritem4,sdloritem5 = makelabelentry(images_tab, "Image LoRA Multiplier:" , sd_loramult_var, 12, 50,"What mutiplier value to apply the SD LoRA with.")
     def togglesdquant(a,b,c):
         if sd_quant_var.get()==1:
-            sdloritem1.grid_forget()
-            sdloritem2.grid_forget()
-            sdloritem3.grid_forget()
-            sdloritem4.grid_forget()
-            sdloritem5.grid_forget()
+            sdloritem1.grid_remove()
+            sdloritem2.grid_remove()
+            sdloritem3.grid_remove()
+            sdloritem4.grid_remove()
+            sdloritem5.grid_remove()
         else:
-            sdloritem1.grid(row=10,column=0,padx=8,stick="nw")
-            sdloritem2.grid(row=11,column=0,padx=8,stick="nw")
-            sdloritem3.grid(row=11,column=1,stick="nw")
-            sdloritem4.grid(row=12,column=1,stick="nw")
-            sdloritem5.grid(row=12,column=0,padx=8,stick="nw")
+            sdloritem1.grid()
+            sdloritem2.grid()
+            sdloritem3.grid()
+            sdloritem4.grid()
+            sdloritem5.grid()
     makecheckbox(images_tab, "Compress Weights (Saves Memory)", sd_quant_var, 8,command=togglesdquant,tooltiptxt="Quantizes the SD model weights to save memory. May degrade quality.")
 
 
     sdvaeitem1,sdvaeitem2,sdvaeitem3 = makefileentry(images_tab, "Image VAE:", "Select SD VAE file",sd_vae_var, 14, filetypes=[("*.safetensors *.gguf", "*.safetensors *.gguf")],tooltiptxt="Select a .safetensors or .gguf SD VAE file to be loaded.")
     def toggletaesd(a,b,c):
         if sd_vaeauto_var.get()==1:
-            sdvaeitem1.grid_forget()
-            sdvaeitem2.grid_forget()
-            sdvaeitem3.grid_forget()
+            sdvaeitem1.grid_remove()
+            sdvaeitem2.grid_remove()
+            sdvaeitem3.grid_remove()
         else:
-            sdvaeitem1.grid(row=14,column=0,padx=8,stick="nw")
-            sdvaeitem2.grid(row=15,column=0,padx=8,stick="nw")
-            sdvaeitem3.grid(row=15,column=1,stick="nw")
+            sdvaeitem1.grid()
+            sdvaeitem2.grid()
+            sdvaeitem3.grid()
     makecheckbox(images_tab, "Use TAE SD (AutoFix Broken VAE)", sd_vaeauto_var, 16,command=toggletaesd,tooltiptxt="Replace VAE with TAESD. May fix bad VAE.")
 
     # audio tab
@@ -2399,6 +2438,10 @@ def show_new_gui():
         args.foreground = keepforeground.get()==1
         args.quiet = quietmode.get()==1
         args.nocertify = nocertifymode.get()==1
+        if contextshift.get()==0 and flashattention.get()==1:
+            args.quantkv = quantkv_var.get()
+        else:
+            args.quantkv = 0
 
         gpuchoiceidx = 0
         if gpu_choice_var.get()!="All":
@@ -2514,6 +2557,8 @@ def show_new_gui():
         keepforeground.set(1 if "foreground" in dict and dict["foreground"] else 0)
         quietmode.set(1 if "quiet" in dict and dict["quiet"] else 0)
         nocertifymode.set(1 if "nocertify" in dict and dict["nocertify"] else 0)
+        if "quantkv" in dict:
+            quantkv_var.set(dict["quantkv"])
         if "useclblast" in dict and dict["useclblast"]:
             if "noavx2" in dict and dict["noavx2"]:
                 if clblast_noavx2_option is not None:
@@ -3166,6 +3211,11 @@ def main(launch_args,start_server=True):
     if args.model_param and args.model_param!="" and args.model_param.lower().endswith('.kcpps'):
         loadconfigfile(args.model_param)
 
+    #prevent quantkv from being used without flash attn
+    if args.quantkv and args.quantkv>0 and not args.flashattention:
+        print("Error: Using --quantkv requires --flashattention")
+        sys.exit(1)
+
     if not args.model_param:
         args.model_param = args.model
 
@@ -3670,9 +3720,10 @@ if __name__ == '__main__':
     advparser.add_argument("--password", help="Enter a password required to use this instance. This key will be required for all text endpoints. Image endpoints are not secured.", default=None)
     advparser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
     advparser.add_argument("--chatcompletionsadapter", help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="")
-    advparser.add_argument("--flashattention", help="Enables flash attention (Experimental).", action='store_true')
+    advparser.add_argument("--flashattention", help="Enables flash attention.", action='store_true')
+    advparser.add_argument("--quantkv", help="Sets the KV cache data type quantization, 0=f16, 1=q8, 2=q4. Requires Flash Attention, and disables context shifting.",metavar=('[quantization level 0/1/2]'), type=int, choices=[0,1,2], default=0)
     advparser.add_argument("--forceversion", help="If the model file format detection fails (e.g. rogue modified model) you can set this to override the detected format (enter desired version, e.g. 401 for GPTNeoX-Type2).",metavar=('[version]'), type=int, default=0)
-    advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Not recommended.", action='store_true')
+    advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated. Not recommended.", action='store_true')
 
     hordeparsergroup = parser.add_argument_group('Horde Worker Commands')
     hordeparsergroup.add_argument("--hordemodelname", metavar=('[name]'), help="Sets your AI Horde display model name.", default="")
