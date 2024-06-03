@@ -1795,7 +1795,8 @@ def show_new_gui():
     contextsize_text = ["128" ,"256" ,"384" ,"512" ,"640" ,"768" ,"896" ,"1024" ,"1152" ,"1280" ,"1408" ,"1536" ,"1664" ,"1792" ,"1920" ,"2048" ,"2176" ,"2304" ,"2432" ,"2560" ,"2688" ,"2816" ,"2944" ,"3072" ,"3200" ,"3328" ,"3456" ,"3584" ,"3712" ,"3840" ,"3968" ,"4096" ,"4224" ,"4352" ,"4480" ,"4608" ,"4736" ,"4864" ,"4992" ,"5120" ,"5248" ,"5376" ,"5504" ,"5632" ,"5760" ,"5888" ,"6016" ,"6144" ,"6272" ,"6400" ,"6528" ,"6656" ,"6784" ,"6912" ,"7040" ,"7168" ,"7296" ,"7424" ,"7552" ,"7680" ,"7808" ,"7936" ,"8064" ,"8192" ,"8320" ,"8448" ,"8576" ,"8704" ,"8832" ,"8960" ,"9088" ,"9216" ,"9344" ,"9472" ,"9600" ,"9728" ,"9856" ,"9984" ,"10112" ,"10240" ,"10368" ,"10496" ,"10624" ,"10752" ,"10880" ,"11008" ,"11136" ,"11264" ,"11392" ,"11520" ,"11648" ,"11776" ,"11904" ,"12032" ,"12160" ,"12288" ,"12416" ,"12544" ,"12672" ,"12800" ,"12928" ,"13056" ,"13184" ,"13312" ,"13440" ,"13568" ,"13696" ,"13824" ,"13952" ,"14080" ,"14208" ,"14336" ,"14464" ,"14592" ,"14720" ,"14848" ,"14976" ,"15104" ,"15232" ,"15360" ,"15488" ,"15616" ,"15744" ,"15872" ,"16000" ,"16128" ,"16256" ,"16384" ,"16512" ,"16640" ,"16768" ,"16896" ,"17024" ,"17152" ,"17280" ,"17408" ,"17536" ,"17664" ,"17792" ,"17920" ,"18048" ,"18176" ,"18304" ,"18432" ,"18560" ,"18688" ,"18816" ,"18944" ,"19072" ,"19200" ,"19328" ,"19456" ,"19584" ,"19712" ,"19840" ,"19968" ,"20096" ,"20224" ,"20352" ,"20480" ,"20608" ,"20736" ,"20864" ,"20992" ,"21120" ,"21248" ,"21376" ,"21504" ,"21632" ,"21760" ,"21888" ,"22016" ,"22144" ,"22272" ,"22400" ,"22528" ,"22656" ,"22784" ,"22912" ,"23040" ,"23168" ,"23296" ,"23424" ,"23552" ,"23680" ,"23808" ,"23936" ,"24064" ,"24192" ,"24320" ,"24448" ,"24576" ,"24704" ,"24832" ,"24960" ,"25088" ,"25216" ,"25344" ,"25472" ,"25600" ,"25728" ,"25856" ,"25984" ,"26112" ,"26240" ,"26368" ,"26496" ,"26624" ,"26752" ,"26880" ,"27008" ,"27136" ,"27264" ,"27392" ,"27520" ,"27648" ,"27776" ,"27904" ,"28032" ,"28160" ,"28288" ,"28416" ,"28544" ,"28672" ,"28800" ,"28928" ,"29056" ,"29184" ,"29312" ,"29440" ,"29568" ,"29696" ,"29824" ,"29952" ,"30080" ,"30208" ,"30336" ,"30464" ,"30592" ,"30720" ,"30848" ,"30976" ,"31104" ,"31232" ,"31360" ,"31488" ,"31616" ,"31744" ,"31872" ,"32000" ,"32128" ,"32256" ,"32384" ,"32512" ,"32640" ,"32768" ,"32896" ,"33024" ,"33152" , "33280" ,"33408" ,"33536" ,"33664" ,"33792" ,"33920" ,"34048" ,"34176" ,"34304" ,"34432" ,"34560" ,"34688" ,"34816" ,"34944" ,"35072" ,"35200" ,"35328" ,"35456" ,"35584" ,"35712" ,"35840" ,"35968" ,"36096" ,"36224" ,"36352" ,"36480" ,"36608" ,"36736" ,"36864" ,"36992" ,"37120" ,"37248" ,"37376" ,"37504" ,"37632" ,"37760" ,"37888" ,"38016" ,"38144" ,"38272" ,"38400" ,"38528" ,"38656" ,"38784" ,"38912" ,"39040" ,"39168" ,"39296" ,"39424" ,"39552" ,"39680" ,"39808" ,"39936" ,"40064" ,"40192" ,"40320" ,"40448" ,"40576" ,"40704" ,"40832" ,"40960" ,"41088" ,"41216" ,"41344" ,"41472" ,"41600" ,"41728" ,"41856" ,"41984" ,"42112" ,"42240" ,"42368" ,"42496" ,"42624" ,"42752" ,"42880" ,"43008" ,"43136" ,"43264" ,"43392" ,"43520" ,"43648" ,"43776" ,"43904" ,"44032" ,"44160" ,"44288" ,"44416" ,"44544" ,"44672" ,"44800" ,"44928" ,"45056" ,"45184" ,"45312" ,"45440" ,"45568" ,"45696" ,"45824" ,"45952" ,"46080" ,"46208" ,"46336" ,"46464" ,"46592" ,"46720" ,"46848" ,"46976" ,"47104" ,"47232" ,"47360" ,"47488" ,"47616" ,"47744" ,"47872" ,"48000" ,"48128" ,"48256" ,"48384" ,"48512" ,"48640" ,"48768" ,"48896" ,"49024" ,"49152" ,"49280" ,"49408" ,"49536" ,"49664" ,"49792" ,"49920" ,"50048" ,"50176" ,"50304" ,"50432" ,"50560" ,"50688" ,"50816" ,"50944" ,"51072" ,"51200" ,"51328" ,"51456" ,"51584" ,"51712" ,"51840" ,"51968" ,"52096" ,"52224" ,"52352" ,"52480" ,"52608" ,"52736" ,"52864" ,"52992" ,"53120" ,"53248" ,"53376" ,"53504" ,"53632" ,"53760" ,"53888" ,"54016" ,"54144" ,"54272" ,"54400" ,"54528" ,"54656" ,"54784" ,"54912" ,"55040" ,"55168" ,"55296" ,"55424" ,"55552" ,"55680" ,"55808" ,"55936" ,"56064" ,"56192" ,"56320" ,"56448" ,"56576" ,"56704" ,"56832" ,"56960" ,"57088" ,"57216" ,"57344" ,"57472" ,"57600" ,"57728" ,"57856" ,"57984" ,"58112" ,"58240" ,"58368" ,"58496" ,"58624" ,"58752" ,"58880" ,"59008" ,"59136" ,"59264" ,"59392" ,"59520" ,"59648" ,"59776" ,"59904" ,"60032" ,"60160" ,"60288" ,"60416" ,"60544" ,"60672" ,"60800" ,"60928" ,"61056" ,"61184" ,"61312" ,"61440" ,"61568" ,"61696" ,"61824" ,"61952" ,"62080" ,"62208" ,"62336" ,"62464" ,"62582" , "62720" ,"62976" ,"63232" ,"63488" ,"64000" ,"64512" ,"65024" ,"65536" ,"73728", "81920" ,"90112", "98304" ,"106496", "114688" ,"122880", "131072" ,"147456" ,"163840" ,"180224" ,"196608" ,"212992" ,"229376" ,"245760" ,"262144"]
     runopts = [opt for lib, opt in lib_option_pairs if file_exists(lib)]
     antirunopts = [opt.replace("Use ", "") for lib, opt in lib_option_pairs if not (opt in runopts)]
-    quantkv_text = ["F16 (Off)","8-Bit","4-Bit"]
+    quantkv_values = ["0", "8080", "8051", "8050", "8041", "8040", "5151", "5150", "5141", "5140", "5040", "4140", "4040"]   
+    quantkv_text = ["F16 (Off)","8-Bit","K8-V5.1-Bit","K8-V5-Bit","K8-V4.1-Bit","K8-V4-Bit","5.1-Bit","K5.1-V5Bit","K5.1-V4.1-Bit","K5-V4.1-Bit","K5-V4-Bit","K4.1-V4-Bit","4-Bit"]
 
     if not any(runopts):
         exitcounter = 999
@@ -1820,7 +1821,7 @@ def show_new_gui():
 
     lowvram_var = ctk.IntVar()
     mmq_var = ctk.IntVar(value=1)
-    quantkv_var = ctk.IntVar(value=0)
+    quantkv_var = ctk.IntVar()
     blas_threads_var = ctk.StringVar()
     blas_size_var = ctk.IntVar()
     version_var = ctk.StringVar(value="0")
@@ -2327,7 +2328,7 @@ def show_new_gui():
     makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, command=toggleflashattn,  tooltiptxt="Enable flash attention for GGUF models.")
     noqkvlabel = makelabel(tokens_tab,"Requirments Not Met",31,0,"Requires FlashAttention ENABLED and ContextShift DISABLED.")
     noqkvlabel.configure(text_color="#ff5555")
-    qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 6, 30, set=0,tooltip="Enable quantization of KV cache.\nRequires FlashAttention and disables ContextShift.")
+    qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 12, 30, set=0,tooltip="Enable quantization of KV cache.\nRequires FlashAttention and disables ContextShift.")
     makefileentry(tokens_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 32,tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
     togglerope(1,1,1)
     toggleflashattn(1,1,1)
@@ -2452,7 +2453,7 @@ def show_new_gui():
         args.quiet = quietmode.get()==1
         args.nocertify = nocertifymode.get()==1
         if contextshift.get()==0 and flashattention.get()==1:
-            args.quantkv = quantkv_var.get()
+            args.quantkv = int(quantkv_values[int(quantkv_var.get())])
         else:
             args.quantkv = 0
 
@@ -3746,7 +3747,8 @@ if __name__ == '__main__':
     advparser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
     advparser.add_argument("--chatcompletionsadapter", help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="")
     advparser.add_argument("--flashattention", help="Enables flash attention.", action='store_true')
-    advparser.add_argument("--quantkv", help="Sets the KV cache data type quantization, 0=F16 (16 BPW), 1=q8_0 (8.5 BPW), 2=Kq8_0-Vq5_1 (7.25BPW), 3=Kq5_1-Vq5_0 (5.75BPW), 4=Kq5_1-Vq4_0 (5.25BPW), 5=Kq4_1-Vq4_0 (4.75BPW), 6=Q4_0 (4.5BPW). Requires Flash Attention, and disables context shifting.",metavar=('[quantization level 0/1/2/3/4/5/6]'), type=int, choices=[0,1,2,3,4,5,6], default=0)
+    advparser.add_argument("--quantkv", help="Sets the KV cache data type quantization, 0=F16 (16 BPW), 8080=q8_0 (8.5 BPW), 8051=Kq8_0-Vq5_1 (7.25BPW), 8050=Kq8_0-Vq5_0 (7BPW), 8041=Kq8_0-Vq4_1 (6.75BPW), 8040=Kq8_0-Vq4_0 (6.5BPW), 5151=Kq5_1-Vq5_1 (6BPW), 5150=Kq5_1-Vq5_0 (5.75BPW), 5141=Kq5_1-Vq4_1 (5.5BPW), 5140=Kq5_1-Vq4_0 (5.25BPW), 5040=Kq5_0-Vq4_0 (5BPW), 4140=Q4_0 (4.75BPW), 4040=Q4_0 (4.5BPW). Requires Flash Attention, and disables context shifting.",metavar=('[quantization level F16 -> 0,8080,8051,8050,8041,8040,5151,5150,5141,5140,5040,4140,4040]'), type=int, choices=[0,8080,8051,8050,8041,8040,5151,5150,5141,5140,5040,4140,4040], default=0)
+#metavar=('[quantization level 1616/8080/8051/8050/8041/8040/5151/5150/5141/5140/5040/4140/4040]'), type=int, choices=[1616,8080,8051,8050,8041,8040,5151,5150,5141,5140,5040,4140,4040], default=1616)
     advparser.add_argument("--forceversion", help="If the model file format detection fails (e.g. rogue modified model) you can set this to override the detected format (enter desired version, e.g. 401 for GPTNeoX-Type2).",metavar=('[version]'), type=int, default=0)
     advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated. Not recommended.", action='store_true')
 
