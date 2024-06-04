@@ -74,6 +74,7 @@ file(GLOB GGML_SOURCES_CUDA "ggml/src/ggml-cuda/*.cu")
 list(APPEND GGML_SOURCES_CUDA "ggml/src/ggml-cuda.cu")
 file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-wmma*.cu")
 list(APPEND GGML_SOURCES_CUDA ${SRCS})
+# For MMQ Refactor
 file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/mmq*.cu")
 list(APPEND GGML_SOURCES_CUDA ${SRCS})
 set(GGML_V3_CUDA_SOURCES otherarch/ggml_v3-cuda.cu otherarch/ggml_v3-cuda.h)
@@ -184,6 +185,7 @@ if (LLAMA_HIPBLAS)
         list(APPEND GGML_SOURCES_ROCM "ggml/src/ggml-cuda.cu")
         file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-wmma*.cu")
         list(APPEND GGML_SOURCES_ROCM ${SRCS})
+        # For MMQ Refactor
         file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/mmq*.cu")
         list(APPEND GGML_SOURCES_ROCM ${SRCS})
         add_compile_definitions(GGML_USE_HIPBLAS GGML_USE_CUDA SD_USE_CUBLAS)
@@ -192,12 +194,21 @@ if (LLAMA_HIPBLAS)
             target_compile_definitions(ggml-rocm PUBLIC GGML_CUDA_FORCE_DMMV)
         endif()
 
-        file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu")
-        list(APPEND GGML_SOURCES_ROCM ${SRCS})
-        file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-q8_0.cu")
-        list(APPEND GGML_SOURCES_ROCM ${SRCS})
-        file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*f16-f16.cu")
-        list(APPEND GGML_SOURCES_ROCM ${SRCS})
+        if (LLAMA_CUDA_FA_ALL_QUANTS)
+            # all quants necessary for Kobold CPP Frankenstein are included
+            # the other are deleted from the ggml_cuda templates directory
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            add_compile_definitions(GGML_CUDA_FA_ALL_QUANTS)
+        else ()
+            # only build minimal quants required for fattn quant kv
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-q8_0.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*f16-f16.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+        endif()
 
         # only build minimal quants required for fattn quant kv
         target_compile_definitions(ggml-rocm PUBLIC GGML_CUDA_DMMV_X=${LLAMA_CUDA_DMMV_X})
