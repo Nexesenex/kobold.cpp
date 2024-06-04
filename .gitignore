@@ -136,3 +136,5 @@ conda/
 
 # Jetbrains idea folder
 .idea/
+cublas64_12.dll
+cublasLt64_12.dll
