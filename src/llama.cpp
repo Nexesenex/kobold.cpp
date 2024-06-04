@@ -2732,6 +2732,17 @@ struct llama_model {
     }
 };
 
+// Object used to allow caching of GGML graph between tokens where possible.
+struct ggml_cached_graph {
+    bool is_active = false;
+    ggml_cgraph * gf;
+    size_t n;
+    ggml_backend_t backend_res;
+    ggml_backend_t backend_embd;
+    struct ggml_tensor * res;
+    struct ggml_tensor * embd;
+};
+
 struct llama_context {
     llama_context(const llama_model & model) : model(model), t_start_us(model.t_start_us), t_load_us(model.t_load_us) {}
     ~llama_context() {
@@ -2833,6 +2844,8 @@ struct llama_context {
 
     // control vectors
     struct llama_control_vector cvec;
+
+    struct ggml_cached_graph cached_graph;
 
     // lora adapters and scales
     std::unordered_map<struct llama_lora_adapter *, float> lora_adapters;
@@ -7923,7 +7936,9 @@ static void llm_build_kv_store(
     cb(k_cache_view, "k_cache_view", il);
 
     // note: storing RoPE-ed version of K in the KV cache
-    ggml_build_forward_expand(graph, ggml_cpy(ctx, k_cur, k_cache_view));
+    ggml_tensor * tmp = ggml_cpy(ctx, k_cur, k_cache_view);
+    tmp->kv_cache_flag = GGML_KV_CACHE_FLAG_K;
+    ggml_build_forward_expand(graph, tmp);
 
     assert(v_cur->ne[0] == n_embd_v_gqa && v_cur->ne[1] == n_tokens);
 
@@ -7941,8 +7956,9 @@ static void llm_build_kv_store(
         v_cur = ggml_transpose(ctx, v_cur);
     }
     cb(v_cache_view, "v_cache_view", il);
-
-    ggml_build_forward_expand(graph, ggml_cpy(ctx, v_cur, v_cache_view));
+    tmp=ggml_cpy(ctx, v_cur, v_cache_view);
+    tmp->kv_cache_flag = GGML_KV_CACHE_FLAG_V;
+    ggml_build_forward_expand(graph, tmp);
 }
 
 // do mat_mul, while optionally apply lora
@@ -14724,12 +14740,44 @@ static int llama_decode_internal(
         ggml_backend_sched_reset(lctx.sched);
         ggml_backend_sched_set_eval_callback(lctx.sched, lctx.cparams.cb_eval, lctx.cparams.cb_eval_user_data);
 
-        ggml_cgraph * gf = llama_build_graph(lctx, u_batch, false);
+        ggml_cgraph * gf;
+        // the output is always the last tensor in the graph
+        struct ggml_tensor * res;
+        struct ggml_tensor * embd;
+
+        bool n_has_changed_since_last_token = false;
+        if(lctx.cached_graph.n != kv_self.n) n_has_changed_since_last_token = true;
+        lctx.cached_graph.n = kv_self.n;
+
+        // Re-build graph only if graph caching is not possible
+        if(!ggml_use_cached_graph(lctx.sched) || n_has_changed_since_last_token) {
+
+        gf = llama_build_graph(lctx, u_batch, false);
+
+        // Set whether GGML graph caching is in use within GGML module, based on
+        // whether caching was activated here during the previous token
+        ggml_set_cached_graph(lctx.sched,lctx.cached_graph.is_active);
+
+        // Disable future graph caching in presence of env var,
+        // if there are multiple devices, if batch size is greater than 1,
+        // or if nsplits is not 2.
+        // TO DO enable graph caching for these cases
+        bool disable_cached_ggml_graph = (getenv("GGML_DISABLE_GRAPH_CACHING") != nullptr)
+            || (llama_get_device_count(model) > 1)
+            || (ggml_backend_sched_get_n_splits(lctx.sched) != 2);
+        for (int i = 0 ; i < gf->n_nodes; i++) {
+            if (gf->nodes[i]->op == GGML_OP_ADD && gf->nodes[i]->src[1] && gf->nodes[i]->src[1]->ne[1] > 1) {
+                disable_cached_ggml_graph = true;
+                break;
+            }
+        }
+
+        // Set whether graph caching should be used for future tokens
+        lctx.cached_graph.is_active=!disable_cached_ggml_graph;
 
         // the output is always the last tensor in the graph
-        struct ggml_tensor * res  = gf->nodes[gf->n_nodes - 1];
-        struct ggml_tensor * embd = gf->nodes[gf->n_nodes - 2];
-
+        res  = gf->nodes[gf->n_nodes - 1];
+        embd = gf->nodes[gf->n_nodes - 2];
         if (lctx.n_outputs == 0) {
             // no output
             res  = nullptr;
@@ -14745,9 +14793,64 @@ static int llama_decode_internal(
             embd = nullptr; // do not extract embeddings when not needed
             GGML_ASSERT(strcmp(res->name, "result_output") == 0 && "missing result_output tensor");
         }
+        lctx.cached_graph.res = res;
+        lctx.cached_graph.embd = embd;
         // LLAMA_LOG_INFO("graph build time: %.3f ms (%d nodes, %d leafs)\n", (ggml_time_us() - t_start_us)/1000.0, gf->n_nodes, gf->n_leafs);
 
         ggml_backend_sched_alloc_graph(lctx.sched, gf);
+
+        }
+        else {
+            gf = lctx.cached_graph.gf;
+            res = lctx.cached_graph.res;
+            embd = lctx.cached_graph.embd;
+        }
+        lctx.cached_graph.gf = gf;
+
+        if(ggml_use_cached_graph(lctx.sched)) {
+
+            // Temporarily store KV cache parameters that will need updated in cached graph.
+            const struct llama_hparams & hparams = model.hparams;
+            const int64_t  n_layer = hparams.n_layer;
+            const int64_t kv_head = kv_self.head;
+            std::vector<void *> kv_cache_ptrs;
+            std::vector<void *> k_cache_ptrs;
+            std::vector<void *> v_cache_ptrs;
+            for (int il = 0; il < n_layer; ++il) {
+                const int64_t n_embd_k_gqa = hparams.n_embd_k_gqa();
+                const int64_t n_embd_v_gqa = hparams.n_embd_v_gqa();
+                ggml_tensor * tmp_tensor =  kv_self.k_l[il];
+                size_t tmp_offset = (ggml_row_size(kv_self.k_l[il]->type, n_embd_k_gqa))*kv_head;
+                kv_cache_ptrs.push_back(static_cast<char*>(tmp_tensor->data) + tmp_offset);
+                k_cache_ptrs.push_back(static_cast<char*>(tmp_tensor->data) + tmp_offset);
+                tmp_tensor = kv_self.v_l[il];
+                if (cparams.flash_attn) {
+                    tmp_offset = (kv_head)*ggml_row_size(kv_self.v_l[il]->type, n_embd_v_gqa);
+                } else {
+                    tmp_offset = (kv_head)*ggml_element_size(kv_self.v_l[il]);
+                }
+                kv_cache_ptrs.push_back(static_cast<char*>(tmp_tensor->data) + tmp_offset);
+                v_cache_ptrs.push_back(static_cast<char*>(tmp_tensor->data) + tmp_offset);
+            }
+
+            // Update KV cache parameters in cached graph.
+            int k_count = 0;
+            int v_count = 0;
+            if(gf != nullptr && gf->nodes != nullptr){
+                for (int i = 0; i < gf->n_nodes; i++) {
+                    ggml_tensor * node = gf->nodes[i];
+                    if (node->op == GGML_OP_CPY) {
+                        if (node->kv_cache_flag == GGML_KV_CACHE_FLAG_K) {
+                            node->src[1]->data = k_cache_ptrs[k_count++];
+                        }
+                        if (node->kv_cache_flag == GGML_KV_CACHE_FLAG_V) {
+                            node->src[1]->data = v_cache_ptrs[v_count++];
+                        }
+                    }
+                }
+            }
+
+        }
 
         llama_set_inputs(lctx, u_batch);
 
@@ -14771,11 +14874,15 @@ static int llama_decode_internal(
         // extract logits
         if (res) {
             ggml_backend_t backend_res = ggml_backend_sched_get_tensor_backend(lctx.sched, res);
-            GGML_ASSERT(backend_res != nullptr);
-            GGML_ASSERT(lctx.logits != nullptr);
-
             float * logits_out = lctx.logits + n_outputs_prev*n_vocab;
             const int32_t n_outputs_new = lctx.n_outputs;
+            if(!ggml_use_cached_graph(lctx.sched))
+                lctx.cached_graph.backend_res = backend_res;
+            else
+                backend_res = lctx.cached_graph.backend_res;
+
+            GGML_ASSERT(backend_res != nullptr);
+            GGML_ASSERT(lctx.logits != nullptr);
 
             if (n_outputs_new) {
                 GGML_ASSERT( n_outputs_prev + n_outputs_new <= n_outputs);
@@ -14787,6 +14894,12 @@ static int llama_decode_internal(
         // extract embeddings
         if (embd) {
             ggml_backend_t backend_embd = ggml_backend_sched_get_tensor_backend(lctx.sched, embd);
+
+
+            if(!ggml_use_cached_graph(lctx.sched))
+                lctx.cached_graph.backend_embd = backend_embd;
+            else
+                backend_embd = lctx.cached_graph.backend_embd;
             GGML_ASSERT(backend_embd != nullptr);
 
             switch (cparams.pooling_type) {
