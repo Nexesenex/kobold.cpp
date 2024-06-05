@@ -3666,7 +3666,13 @@ def main(launch_args,start_server=True):
         print(args)
         # Flush stdout for win32 issue with regards to piping in terminals,
         # especially before handing over to C++ context.
-        print(f"==========\nLoading model: {modelname} \n[Threads: {args.threads}, BlasThreads: {args.blasthreads}, SmartContext: {args.smartcontext}, ContextShift: {not (args.noshift)}]", flush=True)
+        print(f"==========", flush=True)
+        print(f"==========\nLoading model: {modelname} \n[NoAVX2: {args.noavx2}, Threads: {args.threads}, HighPriority: {args.highpriority}, MMAP: {args.nommap}]", flush=True)
+        print(f"[NoBlas: {args.noblas}, Cublas_Args: {args.usecublas}, BlasThreads: {args.blasthreads}, BlasBatchSize: {args.blasbatchsize}]", flush=True)
+        print(f"[Layers: {args.gpulayers}, Tensor_Split: {args.tensor_split}, FlashAttention: {args.flashattention}, KV_cache: {args.quantkv}]", flush=True)
+        print(f"[Max_Context: {args.contextsize}, Rope Scale (Linear): {args.ropeconfig[0]}, Rope Base (NTK): {args.ropeconfig[1]}]", flush=True)        
+        print(f"[ContextShift: {args.noshift}, NoShift: {not (args.noshift)}, SmartContext: {args.smartcontext}]", flush=True)    
+        print(f"==========", flush=True)
         loadok = load_model(modelname)
         print("Load Text Model OK: " + str(loadok))
 
