@@ -1694,8 +1694,8 @@ def show_new_gui():
 
     import customtkinter as ctk
     nextstate = 0 #0=exit, 1=launch
-    original_windowwidth = 960
-    original_windowheight = 660
+    original_windowwidth = 930
+    original_windowheight = 620
     windowwidth = original_windowwidth
     windowheight = original_windowheight
     ctk.set_appearance_mode("dark")
@@ -2269,14 +2269,15 @@ def show_new_gui():
 #    makelabelentry(quick_tab, "V Cache config", cache_type_v_var, 1, 200, "Override the default f16 Value cache with quantized cache like q8_0, q5_1, q5_0, q4_1, or q4_0.")
 
     # quick boxes
-    quick_boxes = {"Launch Browser": launchbrowser,"Disable MMAP":disablemmap,"Use ContextShift":contextshift,"Remote Tunnel":remotetunnel,"Use FlashAttention":flashattention,"Quiet Mode":quietmode,"High Priority - disabled by default":highpriority}
+    quick_boxes = {"Launch Browser": launchbrowser,"Disable MMAP":disablemmap,"Use ContextShift":contextshift,"Use SmartContext":smartcontext,"Remote Tunnel":remotetunnel,"Use FlashAttention":flashattention,"Quiet Mode":quietmode,"High Priority - disabled by default":highpriority}
     quick_boxes_desc = {"Launch Browser": "Launches your default browser after model loading is complete",
-    "High Priority - disabled by default": "Increases the koboldcpp process priority.\nMay cause lag or slowdown instead. Not recommended.",
     "Disable MMAP":"Avoids using mmap to load models if enabled",
-    "Use ContextShift":"Uses Context Shifting to reduce reprocessing.\nRecommended. Check the wiki for more info.",
+    "Use ContextShift":"Uses Context Shifting to reduce reprocessing.\nRecommended.\nCheck the wiki for more info.",
+    "Use SmartContext":"Use Smart Context. Now considered outdated and not recommended.\nCheck the wiki for more info.",
     "Remote Tunnel":"Creates a trycloudflare tunnel.\nAllows you to access koboldcpp from other devices over an internet URL.",
     "Use FlashAttention":"Enable flash attention for GGUF models.",
-    "Quiet Mode":"Prevents all generation related terminal output from being displayed."}
+    "Quiet Mode":"Prevents all generation related terminal output from being displayed.",
+    "High Priority - disabled by default": "Increases the koboldcpp process priority.\nMay cause lag or slowdown instead. Not recommended."}
     for idx, name, in enumerate(quick_boxes):
         makecheckbox(quick_tab, name, quick_boxes[name], int(idx/2) +20, idx%2,tooltiptxt=quick_boxes_desc[name])
     # context size
