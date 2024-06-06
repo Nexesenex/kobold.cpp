@@ -2477,6 +2477,8 @@ def show_new_gui():
 
     # load model
     makefileentry(quick_tab, "Model:", "Select GGML Model File", model_var, 40, 280, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
+    
+    ctk.CTkButton(quick_tab , text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
 
     # Hardware Tab
     hardware_tab = tabcontent["Hardware"]
