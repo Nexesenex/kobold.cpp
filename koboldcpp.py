@@ -50,6 +50,7 @@ class load_model_inputs(ctypes.Structure):
 #                ("cache_type_v", ctypes.c_char_p),
                 ("use_mmap", ctypes.c_bool),
                 ("use_mlock", ctypes.c_bool),
+                ("use_direct_io", ctypes.c_bool),
                 ("use_smartcontext", ctypes.c_bool),
                 ("use_contextshift", ctypes.c_bool),
                 ("clblast_info", ctypes.c_int),
@@ -407,6 +408,7 @@ def load_model(model_filename):
     inputs.blasthreads = args.blasthreads
     inputs.use_mmap = (not args.nommap)
     inputs.use_mlock = args.usemlock
+    inputs.use_direct_io = args.usedirect_io
 #    inputs.override_kv = "".encode("UTF-8")
 #    inputs.cache_type_k = "".encode("UTF-8")
 #    inputs.cache_type_v = "".encode("UTF-8")
@@ -1813,6 +1815,7 @@ def show_new_gui():
     highpriority = ctk.IntVar()
     disablemmap = ctk.IntVar()
     usemlock = ctk.IntVar()
+    usedirect_io = ctk.IntVar()
     debugmode = ctk.IntVar()
     keepforeground = ctk.IntVar()
     quietmode = ctk.IntVar(value=0)
@@ -2282,11 +2285,12 @@ def show_new_gui():
     makelabelentry(hardware_tab, "Threads:" , threads_var, 11, 50,"How many threads to use.\nRecommended value is your CPU core count, defaults are usually OK.")
 
     # hardware checkboxes
-    hardware_boxes = {"Launch Browser": launchbrowser, "High Priority" : highpriority, "Disable MMAP":disablemmap, "Use mlock":usemlock, "Debug Mode":debugmode, "Keep Foreground":keepforeground}
+    hardware_boxes = {"Launch Browser": launchbrowser, "High Priority" : highpriority, "Disable MMAP":disablemmap, "Use mlock":usemlock, "Use Direct-I/O":usedirect_io, "Debug Mode":debugmode, "Keep Foreground":keepforeground}
     hardware_boxes_desc = {"Launch Browser": "Launches your default browser after model loading is complete",
     "High Priority": "Increases the koboldcpp process priority.\nMay cause lag or slowdown instead. Not recommended.",
     "Disable MMAP": "Avoids using mmap to load models if enabled",
     "Use mlock": "Enables mlock, preventing the RAM used to load the model from being paged out.",
+    "Use Direct-I/O": "Enables Direct-IO, accelerating the model loading time.",
     "Debug Mode": "Enables debug mode, with extra info printed to the terminal.",
     "Keep Foreground": "Bring KoboldCpp to the foreground every time there is a new generation."}
 
@@ -2444,6 +2448,7 @@ def show_new_gui():
     def export_vars():
         args.threads = int(threads_var.get())
         args.usemlock   = usemlock.get() == 1
+        args.usedirect_io   = usedirect_io.get() == 1
         args.debugmode  = debugmode.get()
         args.launch     = launchbrowser.get()==1
         args.highpriority = highpriority.get()==1
@@ -2569,6 +2574,7 @@ def show_new_gui():
         if "threads" in dict:
             threads_var.set(dict["threads"])
         usemlock.set(1 if "usemlock" in dict and dict["usemlock"] else 0)
+        usedirect_io.set(1 if "usedirect_io" in dict and dict["usedirect_io"] else 0)
         if "debugmode" in dict:
             debugmode.set(dict["debugmode"])
         launchbrowser.set(1 if "launch" in dict and dict["launch"] else 0)
@@ -3738,6 +3744,7 @@ if __name__ == '__main__':
     advparser.add_argument("--noshift", help="If set, do not attempt to Trim and Shift the GGUF context without reprocessing everything once the max context is reached. If you disable it (or need to use KV cache quantized), you can eventually use --smartcontext instead.", action='store_true')
     advparser.add_argument("--nommap", help="If set, do not use mmap to load newer models", action='store_true')
     advparser.add_argument("--usemlock", help="For Apple Systems. Force system to keep model in RAM rather than swapping or compressing", action='store_true')
+    advparser.add_argument("--usedirect_io", help="Accelerate the model loading time", action='store_true')
     advparser.add_argument("--noavx2", help="Do not use AVX2 instructions, a slower compatibility mode for older devices.", action='store_true')
     advparser.add_argument("--debugmode", help="Shows additional debug info in the terminal.", nargs='?', const=1, type=int, default=0)
     advparser.add_argument("--skiplauncher", help="Doesn't display or use the GUI launcher.", action='store_true')

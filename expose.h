@@ -45,6 +45,7 @@ struct load_model_inputs
     const char * mmproj_filename;
     const bool use_mmap;
     const bool use_mlock;
+    const bool use_direct_io;
     const bool use_smartcontext;
     const bool use_contextshift;
     const int clblast_info = 0;
