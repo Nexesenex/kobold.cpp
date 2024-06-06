@@ -271,6 +271,8 @@ whisper_generation_outputs whispertype_generate(const whisper_generation_inputs 
     if(!inputs.quiet)
     {
         printf("\nWhisper Transcribe Output: %s",whisper_output_text.c_str());
+    } else {
+        printf("\nWhisper Transcribe Done.");
     }
     output.text = whisper_output_text.c_str();
     output.status = 1;
