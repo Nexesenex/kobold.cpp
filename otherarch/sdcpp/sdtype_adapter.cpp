@@ -188,12 +188,11 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
             vulkan_info_str += ",";
         }
     }
-    if(vulkan_info_str=="")
+    if(vulkan_info_str!="")
     {
-        vulkan_info_str = "0";
+        sdvulkandeviceenv = "GGML_VK_VISIBLE_DEVICES="+vulkan_info_str;
+        putenv((char*)sdvulkandeviceenv.c_str());
     }
-    sdvulkandeviceenv = "GGML_VK_VISIBLE_DEVICES="+vulkan_info_str;
-    putenv((char*)sdvulkandeviceenv.c_str());
 
     sd_params = new SDParams();
     sd_params->model_path = inputs.model_filename;

@@ -71,13 +71,11 @@ extern "C"
                 vulkan_info_str += ",";
             }
         }
-        if(vulkan_info_str=="")
+        if(vulkan_info_str!="")
         {
-            vulkan_info_str = "0";
+            vulkandeviceenv = "GGML_VK_VISIBLE_DEVICES="+vulkan_info_str;
+            putenv((char*)vulkandeviceenv.c_str());
         }
-
-        vulkandeviceenv = "GGML_VK_VISIBLE_DEVICES="+vulkan_info_str;
-        putenv((char*)vulkandeviceenv.c_str());
 
         executable_path = inputs.executable_path;
 

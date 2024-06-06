@@ -368,15 +368,13 @@ def set_backend_props(inputs):
         elif (args.usecublas and "3" in args.usecublas):
             inputs.cublas_info = 3
 
-    if args.usevulkan:
+    if args.usevulkan: #is an empty array if using vulkan without defined gpu
         s = ""
         for l in range(0,len(args.usevulkan)):
             s += str(args.usevulkan[l])
-        if s=="":
-            s = "0"
         inputs.vulkan_info = s.encode("UTF-8")
     else:
-        inputs.vulkan_info = "0".encode("UTF-8")
+        inputs.vulkan_info = "".encode("UTF-8")
     return inputs
 
 def end_trim_to_sentence(input_text):
@@ -2164,12 +2162,16 @@ def show_new_gui():
             gpuname_label.grid(row=3, column=1, padx=75, sticky="W")
             gpu_selector_label.grid(row=3, column=0, padx = 8, pady=1, stick="nw")
             quick_gpu_selector_label.grid(row=3, column=0, padx = 8, pady=1, stick="nw")
-            if index == "Use Vulkan" or index == "Vulkan NoAVX2 (Old CPU)" or index == "Use CLBlast" or index == "CLBlast NoAVX2 (Old CPU)":
+            if index == "Use CLBlast" or index == "CLBlast NoAVX2 (Old CPU)":
                 gpu_selector_box.grid(row=3, column=1, padx=8, pady=1, stick="nw")
                 quick_gpu_selector_box.grid(row=3, column=1, padx=8, pady=1, stick="nw")
+                CUDA_gpu_selector_box.grid_remove()
+                CUDA_quick_gpu_selector_box.grid_remove()
                 if gpu_choice_var.get()=="All":
                     gpu_choice_var.set("1")
-            elif index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
+            elif index == "Use Vulkan" or index == "Vulkan NoAVX2 (Old CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
+                gpu_selector_box.grid_remove()
+                quick_gpu_selector_box.grid_remove()
                 CUDA_gpu_selector_box.grid(row=3, column=1, padx=8, pady=1, stick="nw")
                 CUDA_quick_gpu_selector_box.grid(row=3, column=1, padx=8, pady=1, stick="nw")
         else:
@@ -2475,7 +2477,10 @@ def show_new_gui():
             if rowsplit_var.get()==1:
                 args.usecublas.append("rowsplit")
         if runopts_var.get() == "Use Vulkan" or runopts_var.get() == "Vulkan NoAVX2 (Old CPU)":
-            args.usevulkan = [int(gpuchoiceidx)]
+            if gpu_choice_var.get()=="All":
+                args.usevulkan = []
+            else:
+                args.usevulkan = [int(gpuchoiceidx)]
             if runopts_var.get() == "Vulkan NoAVX2 (Old CPU)":
                 args.noavx2 = True
         if gpulayers_var.get():
@@ -2605,7 +2610,7 @@ def show_new_gui():
             if "noavx2" in dict and dict["noavx2"]:
                 if vulkan_noavx2_option is not None:
                     runopts_var.set(vulkan_noavx2_option)
-                    gpu_choice_var.set("1")
+                    gpu_choice_var.set("All")
                     for opt in range(0,4):
                         if opt in dict["usevulkan"]:
                             gpu_choice_var.set(str(opt+1))
@@ -2613,7 +2618,7 @@ def show_new_gui():
             else:
                 if vulkan_option is not None:
                     runopts_var.set(vulkan_option)
-                    gpu_choice_var.set("1")
+                    gpu_choice_var.set("All")
                     for opt in range(0,4):
                         if opt in dict["usevulkan"]:
                             gpu_choice_var.set(str(opt+1))
