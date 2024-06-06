@@ -58,7 +58,7 @@ struct load_model_inputs
     const float rope_freq_scale = 1.0f;
     const float rope_freq_base = 10000.0f;
     const bool flash_attention = false;
-    const char * kv_overrides;
+//    const char * override_kv;
 //    const char * cache_type_k;
 //    const char * cache_type_v;
     const float tensor_split[tensor_split_max];
@@ -174,7 +174,7 @@ extern std::string executable_path;
 extern std::string lora_filename;
 extern std::string lora_base;
 extern std::string mmproj_filename;
-// extern std::string kv_override;
+// extern std::string override_kv;
 // extern std::string cache_type_k;
 // extern std::string cache_type_v;
 extern std::vector<std::string> generated_tokens;
