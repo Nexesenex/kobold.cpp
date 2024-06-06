@@ -2195,6 +2195,8 @@ def show_new_gui():
             splitmode_box.grid(row=5, column=1, padx=8, pady=1,  stick="nw")
             tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
             tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
+            quick_tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
+            quick_tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
         else:
             lowvram_box.grid_forget()
             quick_lowvram_box.grid_forget()
@@ -2235,6 +2237,7 @@ def show_new_gui():
     quick_gpuname_label.grid(row=3, column=1, padx=75, sticky="W")
     quick_gpuname_label.configure(text_color="#ffff00")
     quick_gpu_layers_entry,quick_gpu_layers_label = makelabelentry(quick_tab, "GPU Layers:", gpulayers_var, 6, 50,"How many layers to offload onto the GPU.\nVRAM intensive, usage increases with model and context size.\nRequires some trial and error to find the best fit value.\n\nCommon values for total layers, accuracy not guaranteed.\n\nLlama/Mistral 7b/8b: 33\nSolar 10.7b/11b: 49\nLlama 13b: 41\nLlama 20b(stack): 63\nLlama/Yi 34b: 61\nMixtral 8x7b: 33\nLlama 70b: 81")
+    quick_tensor_split_entry,quick_tensor_split_label = makelabelentry(quick_tab, "Tensor Split:", tensor_split_str_vars, 8, 80, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
     quick_lowvram_box = makecheckbox(quick_tab, "Low VRAM (No KV offload)", lowvram_var, 4,0,tooltiptxt="Avoid offloading KV Cache or scratch buffers to VRAM.\nAllows more layers to fit, but may result in a speed loss.")
     quick_mmq_box = makecheckbox(quick_tab, "Use QuantMatMul (mmq)", mmq_var, 4,1,tooltiptxt="Enable MMQ mode instead of CuBLAS for prompt processing. Read the wiki. Speed may vary.")
 #    makelabelentry(quick_tab, "K Cache config", cache_type_k_var, 1, 200, "Override the default f16 Key cache with quantized cache like q8_0, q5_1, q5_0, q4_1, or q4_0.")
@@ -2252,6 +2255,9 @@ def show_new_gui():
         makecheckbox(quick_tab, name, quick_boxes[name], int(idx/2) +20, idx%2,tooltiptxt=quick_boxes_desc[name])
     # context size
     makeslider(quick_tab, "Context Size:", contextsize_text, context_var, 0, len(contextsize_text)-1, 30, set=15,tooltip="What is the maximum context size to support. Model specific. You cannot exceed it.\nLarger contexts require more memory, and not all models support it.")
+    
+    # blas batch size
+    makeslider(quick_tab, "BLAS Batch Size:", blasbatchsize_text, blas_size_var, 0, 7, 16, set=5,tooltip="How many tokens to process at once per batch.\nLarger values use more memory.")
 
     # load model
     makefileentry(quick_tab, "Model:", "Select GGML Model File", model_var, 40, 170, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
