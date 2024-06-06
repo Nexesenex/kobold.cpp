@@ -1860,8 +1860,8 @@ def show_new_gui():
 
     import customtkinter as ctk
     nextstate = 0 #0=exit, 1=launch
-    original_windowwidth = 920
-    original_windowheight = 600
+    original_windowwidth = 960
+    original_windowheight = 660
     windowwidth = original_windowwidth
     windowheight = original_windowheight
     ctk.set_appearance_mode("dark")
@@ -2453,8 +2453,9 @@ def show_new_gui():
 #    makelabelentry(quick_tab, "V Cache config", cache_type_v_var, 1, 200, "Override the default f16 Value cache with quantized cache like q8_0, q5_1, q5_0, q4_1, or q4_0.")
 
     # quick boxes
-    quick_boxes = {"Launch Browser": launchbrowser , "Disable MMAP":disablemmap,"Use ContextShift":contextshift,"Remote Tunnel":remotetunnel,"Use FlashAttention":flashattention,"Quiet Mode":quietmode}
+    quick_boxes = {"Launch Browser": launchbrowser,"Disable MMAP":disablemmap,"Use ContextShift":contextshift,"Remote Tunnel":remotetunnel,"Use FlashAttention":flashattention,"Quiet Mode":quietmode,"High Priority":highpriority}
     quick_boxes_desc = {"Launch Browser": "Launches your default browser after model loading is complete",
+    "High Priority": "Increases the koboldcpp process priority.\nMay cause lag or slowdown instead. Not recommended.",
     "Disable MMAP":"Avoids using mmap to load models if enabled",
     "Use ContextShift":"Uses Context Shifting to reduce reprocessing.\nRecommended. Check the wiki for more info.",
     "Remote Tunnel":"Creates a trycloudflare tunnel.\nAllows you to access koboldcpp from other devices over an internet URL.",
@@ -2500,7 +2501,7 @@ def show_new_gui():
     makelabelentry(hardware_tab, "Threads:" , threads_var, 11, 50,tooltip="How many threads to use.\nRecommended value is your CPU core count, defaults are usually OK.")
 
     # hardware checkboxes
-    hardware_boxes = {"Launch Browser": launchbrowser, "High Priority" : highpriority, "Disable MMAP":disablemmap, "Use mlock":usemlock, "Use Direct-I/O":usedirect_io, "Debug Mode":debugmode, "Keep Foreground":keepforeground}
+    hardware_boxes = {"Launch Browser":launchbrowser,"High Priority":highpriority, "Disable MMAP":disablemmap,"Use mlock":usemlock,"Use Direct-I/O":usedirect_io,"Debug Mode":debugmode,"Keep Foreground":keepforeground}
     hardware_boxes_desc = {"Launch Browser": "Launches your default browser after model loading is complete",
     "High Priority": "Increases the koboldcpp process priority.\nMay cause lag or slowdown instead. Not recommended.",
     "Disable MMAP": "Avoids using mmap to load models if enabled",
