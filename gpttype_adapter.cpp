@@ -44,7 +44,7 @@ std::string executable_path = "";
 std::string lora_filename = "";
 std::string lora_base = "";
 std::string mmproj_filename = "";
-//std::string override_kv = "";
+std::string kv_overrides = "";
 //std::string cache_type_k = "";
 //std::string cache_type_v = "";
 bool generation_finished;
@@ -864,7 +864,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     useSmartContext = inputs.use_smartcontext;
     useContextShift = inputs.use_contextshift;
     debugmode = inputs.debugmode;
-//    kcpp_params->override_kv = inputs.override_kv;
+    kcpp_params->kv_overrides = inputs.kv_overrides;
 //    kcpp_params->cache_type_k = inputs.cache_type_k;
 //    kcpp_params->cache_type_v = inputs.cache_type_v;
 
@@ -1084,6 +1084,8 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         model_params.use_mlock = inputs.use_mlock;
         model_params.use_direct_io = inputs.use_direct_io;	
         model_params.n_gpu_layers = inputs.gpulayers;
+		
+        model_params.kv_overrides = imput.kv_overrides;
 
         #if defined(GGML_USE_CLBLAST)
         if(file_format==FileFormat::GGUF_GENERIC && model_params.n_gpu_layers>0)
@@ -1172,7 +1174,6 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         llama_ctx_params.flash_attn = kcpp_params->flash_attn;
         llama_ctx_params.type_k = (inputs.quant_k==4040?GGML_TYPE_Q4_0:(inputs.quant_k==4140?GGML_TYPE_Q4_1:(inputs.quant_k==5040?GGML_TYPE_Q5_0:(inputs.quant_k==5140?GGML_TYPE_Q5_1:(inputs.quant_k==5141?GGML_TYPE_Q5_1:(inputs.quant_k==5150?GGML_TYPE_Q5_1:(inputs.quant_k==5151?GGML_TYPE_Q5_1:(inputs.quant_k==8040?GGML_TYPE_Q8_0:(inputs.quant_k==8041?GGML_TYPE_Q8_0:(inputs.quant_k==8050?GGML_TYPE_Q8_0:(inputs.quant_k==8051?GGML_TYPE_Q8_0:(inputs.quant_k==8080?GGML_TYPE_Q8_0:(inputs.quant_k==1640?GGML_TYPE_F16:(inputs.quant_k==1641?GGML_TYPE_F16:(inputs.quant_k==1650?GGML_TYPE_F16:(inputs.quant_k==1651?GGML_TYPE_F16:(inputs.quant_k==1680?GGML_TYPE_F16:GGML_TYPE_F16)))))))))))))))));
         llama_ctx_params.type_v = (inputs.quant_v==4040?GGML_TYPE_Q4_0:(inputs.quant_v==4140?GGML_TYPE_Q4_0:(inputs.quant_v==5040?GGML_TYPE_Q4_0:(inputs.quant_v==5140?GGML_TYPE_Q4_0:(inputs.quant_v==5141?GGML_TYPE_Q4_1:(inputs.quant_v==5150?GGML_TYPE_Q5_0:(inputs.quant_v==5151?GGML_TYPE_Q5_1:(inputs.quant_v==8040?GGML_TYPE_Q4_0:(inputs.quant_v==8041?GGML_TYPE_Q4_1:(inputs.quant_v==8050?GGML_TYPE_Q5_0:(inputs.quant_v==8051?GGML_TYPE_Q5_1:(inputs.quant_v==8080?GGML_TYPE_Q8_0:(inputs.quant_v==1640?GGML_TYPE_Q4_0:(inputs.quant_v==1641?GGML_TYPE_Q4_1:(inputs.quant_v==1650?GGML_TYPE_Q5_0:(inputs.quant_v==1651?GGML_TYPE_Q5_1:(inputs.quant_v==1680?GGML_TYPE_Q8_0:GGML_TYPE_F16)))))))))))))))));
-//        llama_ctx_params.override_kv = kcpp_params->override_kv;
 //        llama_ctx_params.cache_type_k = kcpp_params->cache_type_k;
 //        llama_ctx_params.cache_type_v = kcpp_params->cache_type_v;
         llama_ctx_v4 = llama_new_context_with_model(llamamodel, llama_ctx_params);
