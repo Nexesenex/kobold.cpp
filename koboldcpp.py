@@ -2256,7 +2256,13 @@ def show_new_gui():
         makecheckbox(quick_tab, name, quick_boxes[name], int(idx/2) +20, idx%2,tooltiptxt=quick_boxes_desc[name])
     # context size
     makeslider(quick_tab, "Context Size:", contextsize_text, context_var, 0, len(contextsize_text)-1, 30, set=15,tooltip="What is the maximum context size to support. Model specific. You cannot exceed it.\nLarger contexts require more memory, and not all models support it.")
-    
+
+    # threads
+    makelabelentry(quick_tab, "Threads:" , threads_var, 11, 50,"How many threads to use.\nRecommended value is your CPU core count, defaults are usually OK.")
+
+    # blas thread specifier
+    makelabelentry(quick_tab, "BLAS threads:" , blas_threads_var, 14, 50,"How many threads to use during BLAS processing.\nIf left blank, uses same value as regular thread count.")
+  
     # blas batch size
     makeslider(quick_tab, "BLAS Batch Size:", blasbatchsize_text, blas_size_var, 0, 7, 16, set=5,tooltip="How many tokens to process at once per batch.\nLarger values use more memory.")
 
