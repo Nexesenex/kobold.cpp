@@ -46,7 +46,7 @@ class load_model_inputs(ctypes.Structure):
                 ("lora_filename", ctypes.c_char_p),
                 ("lora_base", ctypes.c_char_p),
                 ("mmproj_filename", ctypes.c_char_p),
-#                ("override_kv", ctypes.c_char_p),
+                ("kv_overrides", ctypes.c_char_p),
 #                ("cache_type_k", ctypes.c_char_p),
 #                ("cache_type_v", ctypes.c_char_p),
                 ("use_mmap", ctypes.c_bool),
@@ -456,7 +456,7 @@ def load_model(model_filename):
     inputs.use_mmap = (not args.nommap)
     inputs.use_mlock = args.usemlock
     inputs.use_direct_io = args.usedirect_io
-#    inputs.override_kv = "".encode("UTF-8")
+    inputs.kv_overrides = "".encode("UTF-8")
 #    inputs.cache_type_k = "".encode("UTF-8")
 #    inputs.cache_type_v = "".encode("UTF-8")
     inputs.lora_filename = "".encode("UTF-8")
@@ -2032,7 +2032,7 @@ def show_new_gui():
     preloadstory_var = ctk.StringVar()
     mmproj_var = ctk.StringVar()
     
-#    override_kv_var = ctk.StringVar()
+    kv_overrides_var = ctk.StringVar()
 #    cache_type_k_var = ctk.StringVar()
 #    cache_type_v_var = ctk.StringVar()
 
@@ -2760,7 +2760,7 @@ def show_new_gui():
         
 #        args.cache_type_k = None if cache_type_k_var.get() == "" else cache_type_k_var.get()
 #        args.cache_type_v = None if cache_type_v_var.get() == "" else cache_type_v_var.get()
-#        args.override_kv = None if override_kv_var.get() == "" else override_kv_var.get()
+        args.kv_overrides = None if kv_overrides_var.get() == "" else kv_overrides_var.get()
 
         args.ssl = None if (ssl_cert_var.get() == "" or ssl_key_var.get() == "") else ([ssl_cert_var.get(), ssl_key_var.get()])
         args.password = None if (password_var.get() == "") else (password_var.get())
@@ -2916,7 +2916,7 @@ def show_new_gui():
         
 #        cache_type_k_var.set(dict["cache_type_k"] if ("cache_type_k" in dict and dict["cache_type_k"]) else "")
 #        cache_type_v_var.set(dict["cache_type_v"] if ("cache_type_v" in dict and dict["cache_type_v"]) else "")
-#        override_kv_var.set(dict["override_kv"] if ("override_kv" in dict and dict["override_kv"]) else "")
+        kv_overrides_var.set(dict["kv_overrides"] if ("kv_overrides" in dict and dict["kv_overrides"]) else "")
 
         ssl_cert_var.set("")
         ssl_key_var.set("")
@@ -4012,7 +4012,7 @@ if __name__ == '__main__':
     advparser.add_argument("--ssl", help="Allows all content to be served over SSL instead. A valid UNENCRYPTED SSL cert and key .pem files must be provided", metavar=('[cert_pem]', '[key_pem]'), nargs='+')
     advparser.add_argument("--nocertify", help="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.", action='store_true')
     advparser.add_argument("--mmproj", help="Select a multimodal projector file for LLaVA.", default="")
-#    advparser.add_argument("--override_kv", help="Supersede metadata of a model, like Epislon (e.g : llama.attention.layer_norm_rms_epsilon=float:1e5, 1.25e5, 3e6, etc)", metavar=('[override_kv]'), nargs='+')
+    advparser.add_argument("--kv_overrides", help="Supersede metadata of a model, like Epislon (e.g : llama.attention.layer_norm_rms_epsilon=float:1e5, 1.25e5, 3e6, etc)", metavar=('[kv_overrides]'), nargs='+')
 #    advparser.add_argument("--cache_type_k", help="Quantize the key cache, to lower the memory footprint of the context.", metavar=('[cache_type_k]'), nargs='+')
 #    advparser.add_argument("--cache_type_v", help="Quantize the value cache, to lower the memory footprint of the context.", metavar=('[cache_type_v]'), nargs='+')  
     advparser.add_argument("--password", help="Enter a password required to use this instance. This key will be required for all text endpoints. Image endpoints are not secured.", default=None)
