@@ -61,7 +61,7 @@ struct load_model_inputs
     const bool flash_attention = false;
     const float tensor_split[tensor_split_max] = {};
 //    const char * override_kv;
-    const char * kv_overrides;
+//    const char * kv_overrides;
 //    const char * cache_type_k;
 //    const char * cache_type_v;
     const int quant_k = 0;
@@ -181,7 +181,7 @@ extern std::string executable_path;
 extern std::string lora_filename;
 extern std::string lora_base;
 extern std::string mmproj_filename;
-// extern std::string kv_override;
+// extern std::string override_kv;
 // extern std::string cache_type_k;
 // extern std::string cache_type_v;
 extern std::vector<std::string> generated_tokens;
