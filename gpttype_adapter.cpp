@@ -7,6 +7,7 @@
 //No dynamic memory allocation! Setup structs with FIXED (known) shapes and sizes for ALL output fields
 //Python will ALWAYS provide the memory, we just write to it.
 
+#include <cmath> //dont know if we need this - askmyteapot
 #include <time.h>
 #include <mutex>
 #include "model_adapter.h"
@@ -1095,8 +1096,12 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             }
             else
             {
-                float multiplier_rope_base = llamamodel->hparams.rope_freq_base_train/10000.0f;
-                rope_freq_base *= multiplier_rope_base;
+                //float multiplier_rope_base = llamamodel->hparams.rope_freq_base_train/10000.0f;
+                //rope_freq_base *= multiplier_rope_base;
+                //Calculate rope_freq_base using the gradientAI formula
+                float chi_ctx_train_value = file_format_meta.n_ctx_train / (2 * 3.14159265358979323846);
+				float chi_ctx_value = kcpp_params->n_ctx / (2 * 3.14159265358979323846);
+				float rope_freq_base = powf(llamamodel->hparams.rope_freq_base_train, logf(chi_ctx_value) / logf(chi_ctx_train_value));
                 llama_ctx_params.rope_freq_base = rope_freq_base;
                 llama_ctx_params.rope_freq_scale = rope_freq_scale;
                 printf("Automatic RoPE Scaling: Using (scale:%.3f, base:%.1f).\n", rope_freq_scale, rope_freq_base);
