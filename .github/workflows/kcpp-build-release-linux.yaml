@@ -1,4 +1,4 @@
-name: Koboldcpp Builder Linux
+name: Koboldcpp Linux
 
 on: workflow_dispatch
 env:

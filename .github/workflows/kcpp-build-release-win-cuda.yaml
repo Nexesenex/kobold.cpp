@@ -1,4 +1,4 @@
-name: Koboldcpp Builder Windows CUDA
+name: Koboldcpp Windows CUDA
 
 on: workflow_dispatch
 env:

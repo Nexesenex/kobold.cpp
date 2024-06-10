@@ -1,4 +1,4 @@
-name: Koboldcpp Windows Full Binaries CUDA 12
+name: Koboldcpp Windows Full Binaries
 
 on: workflow_dispatch
 env:
@@ -41,34 +41,35 @@ jobs:
       - uses: Jimver/cuda-toolkit@v0.2.11
         id: cuda-toolkit
         with:
-          cuda: '12.1.0'
+          cuda: '11.4.4'
 
       - name: Build CUDA
         id: cmake_build
         run: |
           mkdir build
           cd build
-          cmake .. -DLLAMA_CUBLAS=ON -DCMAKE_SYSTEM_VERSION="10.0.19041.0"
+          cmake .. -DLLAMA_CUBLAS=ON -DLLAMA_AVX2=OFF -DCMAKE_SYSTEM_VERSION="10.0.19041.0"
           cmake --build . --config Release -j ${env:NUMBER_OF_PROCESSORS}
           mv bin/Release/koboldcpp_cublas.dll ../koboldcpp_cublas.dll
           cd ..
 
       # note: The libraries that come from the github cuda directory seem to be larger, so they are not recommended
-      # - name: Download CuBLAS Libraries
-      #   run: |
-      #     curl -L https://github.com/LostRuins/koboldcpp/releases/download/cuda11_cublas_libraries/cublas64_11.dll --output cublas64_11.dll
-      #     curl -L https://github.com/LostRuins/koboldcpp/releases/download/cuda11_cublas_libraries/cublasLt64_11.dll --output cublasLt64_11.dll
-      #     ls
-      - name: Copy CuBLAS Libraries
+      - name: Download CuBLAS Libraries
         run: |
-          copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\bin\cublasLt64_12.dll" .
-          copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.1\bin\cublas64_12.dll" .
+          curl -L https://github.com/LostRuins/koboldcpp/releases/download/cuda11_cublas_libraries/cublas64_11.dll --output cublas64_11.dll
+          curl -L https://github.com/LostRuins/koboldcpp/releases/download/cuda11_cublas_libraries/cublasLt64_11.dll --output cublasLt64_11.dll
           ls
+      # - name: Copy CuBLAS Libraries
+      #   run: |
+      #     copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.4\bin\cublasLt64_11.dll" .
+      #     copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.4\bin\cublas64_11.dll" .
+      #     ls
 
       - name: Package PyInstallers
         id: make_pyinstaller
         run: |
-          ./make_pyinstaller_cuda12.bat
+          ./make_pyinstaller.bat
+          ./make_pyinstaller_cuda.bat
 
       - name: Save artifact
         uses: actions/upload-artifact@v3

@@ -73,6 +73,7 @@ file(GLOB GGML_SOURCES_CUDA "ggml-cuda/*.cu")
 list(APPEND GGML_SOURCES_CUDA "ggml-cuda.cu")
 file(GLOB SRCS "ggml-cuda/template-instances/fattn-wmma*.cu")
 list(APPEND GGML_SOURCES_CUDA ${SRCS})
+
 # For MMQ Refactor
 file(GLOB SRCS "ggml-cuda/template-instances/mmq*.cu")
 list(APPEND GGML_SOURCES_CUDA ${SRCS})
@@ -80,6 +81,7 @@ list(APPEND GGML_SOURCES_CUDA ${SRCS})
 add_compile_definitions(GGML_USE_LLAMAFILE)
 
 set(GGML_HEADERS_CUDA ggml-cuda.h)
+
 set(GGML_V3_CUDA_SOURCES otherarch/ggml_v3-cuda.cu otherarch/ggml_v3-cuda.h)
 set(GGML_V2_CUDA_SOURCES otherarch/ggml_v2-cuda.cu otherarch/ggml_v2-cuda.h)
 set(GGML_V2_LEGACY_CUDA_SOURCES otherarch/ggml_v2-cuda-legacy.cu otherarch/ggml_v2-cuda-legacy.h)
@@ -92,6 +94,8 @@ if (LLAMA_CUBLAS)
         message(STATUS "cuBLAS found")
 
         enable_language(CUDA)
+
+        add_compile_definitions(GGML_USE_LLAMAFILE)
 
         add_compile_definitions(GGML_USE_CUDA)
         add_compile_definitions(SD_USE_CUBLAS)
@@ -183,7 +187,9 @@ if (LLAMA_HIPBLAS)
         list(APPEND GGML_SOURCES_ROCM "ggml-cuda.cu")
         file(GLOB SRCS "ggml-cuda/template-instances/fattn-wmma*.cu")
         list(APPEND GGML_SOURCES_ROCM ${SRCS})
+
         # For MMQ Refactor
+
         file(GLOB SRCS "ggml-cuda/template-instances/mmq*.cu")
         list(APPEND GGML_SOURCES_ROCM ${SRCS})
         add_compile_definitions(GGML_USE_HIPBLAS GGML_USE_CUDA SD_USE_CUBLAS)

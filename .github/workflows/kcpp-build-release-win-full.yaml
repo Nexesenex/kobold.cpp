@@ -1,4 +1,4 @@
-name: Koboldcpp Builder Windows Full Binaries
+name: Koboldcpp Windows Full Binaries
 
 on: workflow_dispatch
 env:
