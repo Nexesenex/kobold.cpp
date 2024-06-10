@@ -7,7 +7,7 @@ Just copy this single static HTML file anywhere and open it in a browser, or fro
 Please go to https://github.com/LostRuins/lite.koboldai.net for updates on Kobold Lite.
 If you are submitting a pull request for Lite, PLEASE use the above repo, not the KoboldCpp one.
 Kobold Lite is under the AGPL v3.0 License unless otherwise exempted. Please do not remove this line.
-Current version: 144
+Current version: 145
 -Concedo
 -->
 
@@ -946,7 +946,7 @@ Current version: 144
 		.statusicon:hover .statustext,
 		.statusicon.statustoggled .statustext {
 			display: inline-block;
-			width: 250px;
+			width: 280px;
 			background-color: #1f2931;
 			color: #ffffff;
 			font-size: 11pt;
@@ -3624,6 +3624,7 @@ Current version: 144
 	const koboldcpp_truemaxctxlen_endpoint = "/api/extra/true_max_context_length";
 	const koboldcpp_preloadstory_endpoint = "/api/extra/preloadstory";
 	const koboldcpp_transcribe_endpoint = "/api/extra/transcribe";
+	const koboldcpp_tokenize_endpoint = "/api/extra/tokencount";
 
 	const oai_models_endpoint = "/models";
 	const oai_submit_endpoint = "/completions";
@@ -7003,22 +7004,52 @@ Current version: 144
 	{
 		let key = document.getElementById("newlogitbiasid").value;
 		let val = document.getElementById("newlogitbiasval").value;
+		if(document.getElementById("newlogitbiasstringtoggle").checked)
+		{
+			key = document.getElementById("newlogitbiasstring").value;
+		}
 		if(key && val && key.trim()!="" && val.trim()!="")
 		{
 			let old = document.getElementById("logitbiastxtarea").value;
-			try {
-				let dict = JSON.parse(old);
-				key = parseInt(key);
-				val = parseInt(val);
-				if(!isNaN(key) && !isNaN(val))
-				{
-					dict[key] = parseInt(val);
-					document.getElementById("logitbiastxtarea").value = JSON.stringify(dict,null,2);
-				}
-			} catch (e) {
-				msgbox("Your inputs or logit bias JSON dictionary was not correctly formatted!");
+			if(document.getElementById("newlogitbiasstringtoggle").checked)
+			{
+				kcpp_tokenize(key,(tokarr)=>{
+					try {
+						if(tokarr && tokarr.length>0 && !isNaN(val))
+						{
+							let dict = JSON.parse(old);
+							for(let x=0;x<tokarr.length;++x)
+							{
+								key = parseInt(tokarr[x]);
+								val = parseInt(val);
+								if (!isNaN(key)) {
+									dict[key] = parseInt(val);
+								}
+							}
+							document.getElementById("logitbiastxtarea").value = JSON.stringify(dict, null, 2);
+						}
+					} catch (e) {
+						msgbox("Your inputs or logit bias JSON dictionary was not correctly formatted!");
+					}
+				});
 			}
+			else
+			{
+				try {
+					let dict = JSON.parse(old);
+					key = parseInt(key);
+					val = parseInt(val);
+					if (!isNaN(key) && !isNaN(val)) {
+						dict[key] = parseInt(val);
+						document.getElementById("logitbiastxtarea").value = JSON.stringify(dict, null, 2);
+					}
+				} catch (e) {
+					msgbox("Your inputs or logit bias JSON dictionary was not correctly formatted!");
+				}
+			}
+
 			document.getElementById("newlogitbiasid").value = "";
+			document.getElementById("newlogitbiasstring").value = "";
 			document.getElementById("newlogitbiasval").value = "";
 		}
 	}
@@ -11044,6 +11075,26 @@ Current version: 144
 				}
 
 				if (document.getElementById("useoaichatcompl").checked) {
+					let mainoaibody = submit_payload.prompt; //can be string or array
+					if(insertAIVisionImages.length>0)
+					{
+						mainoaibody = [
+							{
+								"type": "text",
+								"text": mainoaibody
+							}
+						];
+						for(let i=0;i<insertAIVisionImages.length;++i)
+						{
+							let oaiimg = {
+								"type": "image_url",
+								"image_url": {
+									"url": ("data:image/jpeg;base64,"+insertAIVisionImages[i])
+								}
+							};
+							mainoaibody.push(oaiimg);
+						}
+					}
 					let myrole = (localsettings.saved_oai_role==2)?"system":(localsettings.saved_oai_role==1?"assistant":"user");
 					oai_payload.messages = [];
 					targetep = (custom_oai_endpoint + oai_submit_endpoint_turbo);
@@ -11052,7 +11103,7 @@ Current version: 144
 						addrole = ((addrole==2)?"system":(addrole==1?"assistant":"user"));
 						oai_payload.messages.push({ "role": addrole, "content": document.getElementById("jailbreakprompttext").value });
 					}
-					oai_payload.messages.push({ "role": myrole, "content": submit_payload.prompt });
+					oai_payload.messages.push({ "role": myrole, "content": mainoaibody });
 					if (document.getElementById("jailbreakprompt2") && document.getElementById("jailbreakprompt2").checked && document.getElementById("jailbreakprompttext2").value!="") {
 						let addrole = document.getElementById("jailbreakprompttext2role").value;
 						addrole = ((addrole==2)?"system":(addrole==1?"assistant":"user"));
@@ -11927,7 +11978,12 @@ Current version: 144
 			latest_orig_prompt = origprompt;
 			let hasllava = is_using_kcpp_with_llava();
 			let visionstatus = "";
-			if(savedmeta.visionmode==3)
+			if(savedmeta.visionmode==4)
+			{
+				let isoai = (custom_oai_key!="" && document.getElementById("useoaichatcompl").checked);
+				visionstatus = isoai?`<span class="color_green">OpenAI API (Conditional)</span>`:`<span class="color_yellow">Unsupported</span>`;
+			}
+			else if(savedmeta.visionmode==3)
 			{
 				visionstatus = ((!savedmeta.visionmode || savedmeta.visionmode==0)?`<span class="color_red">Inactive</span>`:(hasllava?`<span class="color_green">Active</span>`:`<span class="color_yellow">Unsupported</span>`));
 			}
@@ -11936,14 +11992,15 @@ Current version: 144
 				visionstatus = ((!savedmeta.visionmode || savedmeta.visionmode==0)?`<span class="color_red">Inactive</span>`:(savedmeta.desc?`<span class="color_green">Active</span>`:`<span class="color_yellow">Analyzing</span>`));
 			}
 
-			let togglebtn = `<select class="form-control" id="aivisionmode" style="display:inline;height:24px;width: 134px; padding: 2px; margin: 3px; font-size:12px;" onchange="toggle_ai_vision(\'`+imghash+`\')">
+			let togglebtn = `<select class="form-control" id="aivisionmode" style="display:inline;height:24px;width: 140px; padding: 2px; margin: 3px; font-size:12px;" onchange="toggle_ai_vision(\'`+imghash+`\')">
 								<option value="0">Disabled</option>
 								<option value="1">Interrogate (Horde)</option>
 								<option value="2">Interrogate (A1111)</option>
 								<option value="3">Multimodal (LLaVA)</option>
+								<option value="4">OpenAI Vision (API)</option>
 							</select>`;
 			document.getElementById("zoomedimgdesc").innerHTML = `
-			AI Vision: `+visionstatus+` <span class="helpicon">?<span class="helptext">This allows the AI to visually recognize this image and react to it. On KoboldCpp, LLaVA models can be used. Otherwise, uses Horde or Local A1111 for image interrogation if enabled.</span></span>
+			AI Vision: `+visionstatus+` <span class="helpicon">?<span class="helptext">Allows the AI to see and react to this image. On KoboldCpp, LLaVA models can be used. Horde or Local A1111 use image interrogation if enabled. For OpenAI API, only works with Vision Models like Gpt4o.</span></span>
 			`+togglebtn+`
 			<br><button type="button" class="btn btn-primary" style="width: 140px; padding: 2px; margin: 3px; font-size:12px;" onclick="show_orig_prompt()">View Original Prompt</button>
 			<button type="button" class="btn btn-primary" style="width: 110px; padding: 2px; margin: 3px; font-size:12px;" onclick="add_img2img()">Create Img2Img</button>
@@ -12805,6 +12862,33 @@ Current version: 144
 			update_submit_button(false);
 		});
 	}
+	function kcpp_tokenize(prompt,onDone)
+	{
+		let payload = {
+			"prompt": prompt,
+			"special": false,
+		};
+		fetch(apply_proxy_url(custom_kobold_endpoint + koboldcpp_tokenize_endpoint), {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify(payload),
+		})
+		.then(x => x.json())
+		.then(resp => {
+			console.log(resp);
+			if(resp && resp.ids && resp.ids.length>0)
+			{
+				onDone(resp.ids);
+			} else {
+				onDone([]);
+			}
+		}).catch((error) => {
+			console.log("Tokenize Error: " + error);
+			onDone([]);
+		});
+	}
 
 	//clock speed is 500ms per tick
 	function poll_pending_response()
@@ -13209,7 +13293,7 @@ Current version: 144
 						{
 							return "\n(Attached Image: " + foundmeta.desc + ")\n";
 						}
-						else if(foundmeta.visionmode==3)
+						else if(foundmeta.visionmode==3 || foundmeta.visionmode==4)
 						{
 							let parts = inner.split(',');
 							if (parts.length === 2 && parts[0].startsWith('data:image')) {
@@ -14100,13 +14184,34 @@ Current version: 144
 		{
 			document.getElementById("nologitbias").classList.add("hidden");
 			document.getElementById("notokenbans").classList.add("hidden");
+			if(is_using_kcpp_with_added_memory())
+			{
+				document.getElementById("newlogitbiasstringtogglesection").classList.remove("hidden");
+			}else{
+				document.getElementById("newlogitbiasstringtogglesection").classList.add("hidden");
+				document.getElementById("newlogitbiasstringtoggle").checked = false;
+			}
 		}
 		else
 		{
 			document.getElementById("nologitbias").classList.remove("hidden");
 			document.getElementById("notokenbans").classList.remove("hidden");
+			document.getElementById("newlogitbiasstringtogglesection").classList.add("hidden");
+			document.getElementById("newlogitbiasstringtoggle").checked = false;
 		}
+		toggle_logit_bias_string();
+	}
 
+	function toggle_logit_bias_string()
+	{
+		if(document.getElementById("newlogitbiasstringtoggle").checked)
+		{
+			document.getElementById("newlogitbiasstring").classList.remove("hidden");
+			document.getElementById("newlogitbiasid").classList.add("hidden");
+		}else{
+			document.getElementById("newlogitbiasstring").classList.add("hidden");
+			document.getElementById("newlogitbiasid").classList.remove("hidden");
+		}
 	}
 
 	function populate_regex_replacers()
@@ -15697,7 +15802,7 @@ Current version: 144
 
 	<div class="popupcontainer flex hidden" id="settingscontainer">
 		<div class="popupbg flex"></div>
-		<div class="nspopup flexsizevsmall evenhigher">
+		<div class="nspopup flexsizevsmall highest">
 			<div class="popuptitlebar">
 				<div class="popuptitletext">Settings</div>
 			</div>
@@ -16168,7 +16273,6 @@ Current version: 144
 								<option value="2">Push-To-Talk</option>
 							</select>
 						</div>
-						<button id="resetallsettings" type="button" class="btn btn-primary bg_red" style="padding:2px 3px;margin-top:2px;font-size:11px;" onclick="reset_all_settings()">Reset ALL Settings</button>
 					</div>
 
 					<div class="settingitem">
@@ -16302,9 +16406,10 @@ Current version: 144
 						<div class="settinglabel">
 							<input type="file" id="loadbgimg" accept="image/png,image/webp,.webp,.jpg,.jpeg,.png,*.*,*" onchange="load_bg_img(event)" style="display:none;">
 							<div class="justifyleft settingsmall">Background Img</div>
-							<button type="button" class="btn btn-primary bg_green" style="padding:2px 2px;margin:1px;font-size:10px;" onclick="load_bgimg_button()">Set</button>
-							<button type="button" class="btn btn-primary bg_red" style="padding:2px 2px;margin:1px;font-size:10px;" onclick="clear_bg_img()">Clear</button>
+							<button type="button" class="btn btn-primary bg_green" style="padding:2px 2px;margin:0px 0px 0px auto;font-size:10px;" onclick="load_bgimg_button()">Set</button>
+							<button type="button" class="btn btn-primary bg_red" style="padding:2px 2px;margin:0px 0px 0px 1px;font-size:10px;" onclick="clear_bg_img()">Clear</button>
 						</div>
+						<button id="resetallsettings" type="button" class="btn btn-primary bg_red" style="padding:2px 3px;margin-top:2px;font-size:11px;" onclick="reset_all_settings()">Reset ALL Settings</button>
 					</div>
 
 				</div>
@@ -16425,11 +16530,17 @@ Current version: 144
 				<div id="expandlogitbias" class="hidden">
 					<div class="color_red hidden" id="nologitbias">Logit bias may be unavailable.</div>
 					<div style="color:#ffffff;">Enter OpenAI-formatted logit bias dictionary. Each key is the integer token IDs and their values are the biases (-100.0 to 100.0). Leave blank to disable.<br><a href='https://platform.openai.com/docs/api-reference/chat/create#chat-create-logit_bias' target='_blank' class='color_blueurl'>Input is a JSON object, reference here.</a><br></div>
-					<textarea class="form-control" style="line-height:1.1;margin-bottom: 4px;padding:3px" id="logitbiastxtarea" placeholder="" rows="5"></textarea>
+					<textarea class="form-control" style="line-height:1.1;margin-bottom: 4px;padding:3px; resize: vertical;" id="logitbiastxtarea" placeholder="" rows="5"></textarea>
 					<div style="display: flex; column-gap: 4px; margin-bottom: 4px;">
+					<input style="padding:2px" class="form-control stopseqbox inlineinput hidden" inputmode="text" type="text" placeholder="Token String" value="" id="newlogitbiasstring">
 					<input style="padding:2px" class="form-control stopseqbox inlineinput" inputmode="numeric" type="text" placeholder="Token ID" value="" id="newlogitbiasid">
 					<input style="padding:2px" class="form-control stopseqbox inlineinput" inputmode="text" type="text" placeholder="Bias Value" value="" id="newlogitbiasval">
 					<button type="button" class="btn btn-primary" style="width:90px;padding:6px 6px;" onclick="add_logit_bias()">Add New</button>
+					</div>
+					<div class="settinglabel hidden" id="newlogitbiasstringtogglesection">
+						<div class="justifyleft settingsmall">Input Strings Instead of IDs (Uses KCPP Tokenizer) <span class="helpicon">?<span
+							class="helptext">If enabled, allows you to input strings instead of only token IDs, and tokenizes them for you.</span></span></div>
+						<input type="checkbox" id="newlogitbiasstringtoggle" onclick="toggle_logit_bias_string()">
 					</div>
 				</div>
 

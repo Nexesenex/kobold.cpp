@@ -66,6 +66,9 @@ find_package(Threads REQUIRED)
 
 add_compile_definitions(LOG_DISABLE_LOGS)
 
+
+set(GGML_HEADERS_CUDA ggml-cuda.h)
+
 file(GLOB GGML_SOURCES_CUDA "ggml-cuda/*.cu")
 list(APPEND GGML_SOURCES_CUDA "ggml-cuda.cu")
 file(GLOB SRCS "ggml-cuda/template-instances/fattn-wmma*.cu")
@@ -73,6 +76,10 @@ list(APPEND GGML_SOURCES_CUDA ${SRCS})
 # For MMQ Refactor
 file(GLOB SRCS "ggml-cuda/template-instances/mmq*.cu")
 list(APPEND GGML_SOURCES_CUDA ${SRCS})
+
+add_compile_definitions(GGML_USE_LLAMAFILE)
+
+set(GGML_HEADERS_CUDA ggml-cuda.h)
 set(GGML_V3_CUDA_SOURCES otherarch/ggml_v3-cuda.cu otherarch/ggml_v3-cuda.h)
 set(GGML_V2_CUDA_SOURCES otherarch/ggml_v2-cuda.cu otherarch/ggml_v2-cuda.h)
 set(GGML_V2_LEGACY_CUDA_SOURCES otherarch/ggml_v2-cuda-legacy.cu otherarch/ggml_v2-cuda-legacy.h)
@@ -86,7 +93,6 @@ if (LLAMA_CUBLAS)
 
         enable_language(CUDA)
 
-        add_compile_definitions(GGML_USE_LLAMAFILE)
         add_compile_definitions(GGML_USE_CUDA)
         add_compile_definitions(SD_USE_CUBLAS)
         add_compile_definitions(GGML_CUDA_MMQ_Y=${LLAMA_CUDA_MMQ_Y})

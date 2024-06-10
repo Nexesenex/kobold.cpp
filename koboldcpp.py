@@ -1360,7 +1360,8 @@ Enter Prompt:<br>
             try:
                 genparams = json.loads(body)
                 countprompt = genparams.get('prompt', "")
-                rawcountdata = handle.token_count(countprompt.encode("UTF-8"))
+                tcaddspecial = genparams.get('special', True)
+                rawcountdata = handle.token_count(countprompt.encode("UTF-8"),tcaddspecial)
                 countlimit = rawcountdata.count if (rawcountdata.count>=0 and rawcountdata.count<50000) else 0
                 # the above protects the server in case the count limit got corrupted
                 countdata = [rawcountdata.ids[i] for i in range(countlimit)]

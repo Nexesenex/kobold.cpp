@@ -801,10 +801,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     kcpp_params->n_threads_batch = inputs.blasthreads;
     bool isGguf = (file_format == FileFormat::GGUF_GENERIC);
     kcpp_params->n_batch = GetBatchSize(inputs.blasbatchsize, in_file_format);
-    if(kcpp_params->n_batch>512)
-    {
-        kcpp_params->n_ubatch = (kcpp_params->n_batch>1024?1024:kcpp_params->n_batch);
-    }
+    kcpp_params->n_ubatch = kcpp_params->n_batch;
     kcpp_params->flash_attn = inputs.flash_attention;
     modelname = kcpp_params->model = inputs.model_filename;
     useSmartContext = inputs.use_smartcontext;
@@ -1553,7 +1550,7 @@ bool gpttype_generate_abort()
     return true;
 }
 
-std::vector<int> gpttype_get_token_arr(const std::string & input)
+std::vector<int> gpttype_get_token_arr(const std::string & input, bool addbos)
 {
     std::vector<int> toks;
     if(kcpp_params==nullptr)
@@ -1565,7 +1562,7 @@ std::vector<int> gpttype_get_token_arr(const std::string & input)
     {
         printf("\nFileFormat: %d, Tokenizing: %s",file_format ,input.c_str());
     }
-    TokenizeString(input, toks, file_format);
+    TokenizeString(input, toks, file_format,addbos);
     int tokcount = toks.size();
     if(debugmode==1)
     {

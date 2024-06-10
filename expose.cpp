@@ -280,11 +280,11 @@ extern "C"
     }
 
     static std::vector<int> toks; //just share a static object for token counting
-    token_count_outputs token_count(const char * input)
+    token_count_outputs token_count(const char * input, bool addbos)
     {
         std::string inputstr = input;
         token_count_outputs output;
-        toks = gpttype_get_token_arr(inputstr);
+        toks = gpttype_get_token_arr(inputstr,addbos);
         output.count = toks.size();
         output.ids = toks.data(); //this may be slightly unsafe
         return output;
