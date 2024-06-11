@@ -35,7 +35,7 @@
 #include "examples/llava/llava.h"
 
 //const
-const int extra_context_handle_fragmentation = 0;
+const int extra_context_handle_fragmentation = 128;
 const int LLAVA_TOKEN_IDENTIFIER_A = -998; //alternate between both, changing when image changes
 const int LLAVA_TOKEN_IDENTIFIER_B = -999;
 
