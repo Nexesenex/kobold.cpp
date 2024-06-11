@@ -87,11 +87,34 @@ set(GGML_V2_CUDA_SOURCES otherarch/ggml_v2-cuda.cu otherarch/ggml_v2-cuda.h)
 set(GGML_V2_LEGACY_CUDA_SOURCES otherarch/ggml_v2-cuda-legacy.cu otherarch/ggml_v2-cuda-legacy.h)
 
 if (LLAMA_CUBLAS)
-    cmake_minimum_required(VERSION 3.17)
+    message(WARNING "LLAMA_CUBLAS is deprecated and will be removed in the future.\nUse LLAMA_CUDA instead")
+    set(LLAMA_CUDA ON)
+endif()
+
+if (LLAMA_CUDA)
+    cmake_minimum_required(VERSION 3.18)  # for CMAKE_CUDA_ARCHITECTURES
 
     find_package(CUDAToolkit)
     if (CUDAToolkit_FOUND)
         message(STATUS "cuBLAS found")
+
+        if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+            # 52 == lowest CUDA 12 standard
+            # 60 == f16 CUDA intrinsics
+            # 61 == integer CUDA intrinsics
+            # 70 == (assumed) compute capability at which unrolling a loop in mul_mat_q kernels is faster
+            if (LLAMA_CUDA_F16 OR LLAMA_CUDA_DMMV_F16)
+                set(CMAKE_CUDA_ARCHITECTURES "60;61;70") # needed for f16 CUDA intrinsics
+            else()
+                message("CUDA Toolkit Version: ${CUDAToolkit_VERSION}")
+                if(CUDAToolkit_VERSION VERSION_GREATER 12)
+                     set(CMAKE_CUDA_ARCHITECTURES "52;61;70") # lowest CUDA 12 standard + lowest for integer intrinsics
+                else()
+                     set(CMAKE_CUDA_ARCHITECTURES "37;52;61;70") # lowest CUDA 12 standard + lowest for integer intrinsics
+                endif()
+            endif()
+        endif()
+        message(STATUS "Using CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
 
         enable_language(CUDA)
 
@@ -139,24 +162,11 @@ if (LLAMA_CUBLAS)
 
         set(LLAMA_EXTRA_LIBS ${LLAMA_EXTRA_LIBS} CUDA::cuda_driver)
 
-    if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
-        # 52 == lowest CUDA 12 standard
-        # 60 == f16 CUDA intrinsics
-        # 61 == integer CUDA intrinsics
-        # 70 == (assumed) compute capability at which unrolling a loop in mul_mat_q kernels is faster
-        if (LLAMA_CUDA_F16 OR LLAMA_CUDA_DMMV_F16)
-            set(CMAKE_CUDA_ARCHITECTURES "60;61;70") # needed for f16 CUDA intrinsics
+        if (LLAMA_CUDA_NO_VMM)
+            # No VMM requested, no need to link directly with the cuda driver lib (libcuda.so)
         else()
-            message("CUDA Toolkit Version: ${CUDAToolkit_VERSION}")
-            if(CUDAToolkit_VERSION VERSION_GREATER 12)
-                 set(CMAKE_CUDA_ARCHITECTURES "52;61;70") # lowest CUDA 12 standard + lowest for integer intrinsics
-            else()
-                 set(CMAKE_CUDA_ARCHITECTURES "37;52;61;70") # lowest CUDA 12 standard + lowest for integer intrinsics
-            endif()
+            set(LLAMA_EXTRA_LIBS ${LLAMA_EXTRA_LIBS} CUDA::cuda_driver) # required by cuDeviceGetAttribute(), cuMemGetAllocationGranularity(...), ...
         endif()
-    endif()
-    message(STATUS "Using CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
-
     else()
         message(WARNING "cuBLAS not found")
     endif()
