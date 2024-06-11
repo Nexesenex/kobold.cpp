@@ -1836,7 +1836,7 @@ def show_new_gui():
 
     lowvram_var = ctk.IntVar()
     mmq_var = ctk.IntVar(value=1)
-    quantkv_var = ctk.IntVar()
+    quantkv_var = ctk.IntVar(value=0)
     blas_threads_var = ctk.StringVar()
     blas_size_var = ctk.IntVar()
     version_var = ctk.StringVar(value="0")
