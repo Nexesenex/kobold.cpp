@@ -1797,7 +1797,7 @@ def show_new_gui():
     runopts = [opt for lib, opt in lib_option_pairs if file_exists(lib)]
     antirunopts = [opt.replace("Use ", "") for lib, opt in lib_option_pairs if not (opt in runopts)]
     quantkv_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"]   
-    quantkv_text = ["F16 (16BPW) - 1616","K16-V8-Bit (12.25BPW) - 1680","K16-V5.1-Bit (11BPW) - 1651","K16-V5-Bit (10.75BPW) - 1650","K16-V4.1-Bit (10.50BPW) - 1641","K16-V4-Bit (10.25BPW) - 1640","8-Bit (8.5BPW) - 8080","K8-V5.1-Bit (7.25BPW) - 8051","K8-V5-Bit (7BPW) - 8050","K8-V4.1-Bit (6.75BPW) - 8041","K8-V4-Bit (6.5BPW) - 8040","5.1-Bit (6BPW) - 5151","K5.1-V5Bit (5.75BPW) - 5150","K5.1-V4.1-Bit (5.5BPW) - 5141","K5-V4.1-Bit (5.25BPW) - 5140","K5-V4-Bit (5BPW) - 5040","K4.1-V4-Bit (4.75BPW) - 4140","4-Bit (4.5BPW) - 4040"]
+    quantkv_text = ["0 - F16 (16BPW) - 1616","1 - K16-V8-Bit (12.25BPW) - 1680","2 - K16-V5.1-Bit (11BPW) - 1651","3 - K16-V5-Bit (10.75BPW) - 1650","4 - K16-V4.1-Bit (10.50BPW) - 1641","5 - K16-V4-Bit (10.25BPW) - 1640","6 - 8-Bit (8.5BPW) - 8080","7 - K8-V5.1-Bit (7.25BPW) - 8051","8 - K8-V5-Bit (7BPW) - 8050","9 - K8-V4.1-Bit (6.75BPW) - 8041","10 - K8-V4-Bit (6.5BPW) - 8040","11 - 5.1-Bit (6BPW) - 5151","12 - K5.1-V5Bit (5.75BPW) - 5150","13 - K5.1-V4.1-Bit (5.5BPW) - 5141","14 - K5-V4.1-Bit (5.25BPW) - 5140","15 - K5-V4-Bit (5BPW) - 5040","16 - K4.1-V4-Bit (4.75BPW) - 4140","17 - 4-Bit (4.5BPW) - 4040"]
 
     if not any(runopts):
         exitcounter = 999
