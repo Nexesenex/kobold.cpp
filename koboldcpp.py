@@ -723,9 +723,9 @@ maxhordelen = 256
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.68a-ARopeFix"
-LcppVersion = "b3124"
-ReleaseDate = "2024/06/10"
+KcppVersion = "1.68b-GR"
+LcppVersion = "b3132+1"
+ReleaseDate = "2024/06/11"
 showdebug = True
 showsamplerwarning = True
 showmaxctxwarning = True
@@ -1797,7 +1797,7 @@ def show_new_gui():
     runopts = [opt for lib, opt in lib_option_pairs if file_exists(lib)]
     antirunopts = [opt.replace("Use ", "") for lib, opt in lib_option_pairs if not (opt in runopts)]
     quantkv_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"]   
-    quantkv_text = ["F16 (16BPW)","K16-V8-Bit (12.25BPW)","K16-V5.1-Bit (11BPW)","K16-V5-Bit (10.75BPW)","K16-V4.1-Bit (10.50BPW)","K16-V4-Bit (10.25BPW)","8-Bit (8.5BPW)","K8-V5.1-Bit (7.25BPW)","K8-V5-Bit (7BPW)","K8-V4.1-Bit (6.75BPW)","K8-V4-Bit (6.5BPW)","5.1-Bit (6BPW)","K5.1-V5Bit (5.75BPW)","K5.1-V4.1-Bit (5.5BPW)","K5-V4.1-Bit (5.25BPW)","K5-V4-Bit (5BPW)","K4.1-V4-Bit (4.75BPW)","4-Bit (4.5BPW)"]
+    quantkv_text = ["F16 (16BPW) - 1616","K16-V8-Bit (12.25BPW) - 1680","K16-V5.1-Bit (11BPW) - 1651","K16-V5-Bit (10.75BPW) - 1650","K16-V4.1-Bit (10.50BPW) - 1641","K16-V4-Bit (10.25BPW) - 1640","8-Bit (8.5BPW) - 8080","K8-V5.1-Bit (7.25BPW) - 8051","K8-V5-Bit (7BPW) - 8050","K8-V4.1-Bit (6.75BPW) - 8041","K8-V4-Bit (6.5BPW) - 8040","5.1-Bit (6BPW) - 5151","K5.1-V5Bit (5.75BPW) - 5150","K5.1-V4.1-Bit (5.5BPW) - 5141","K5-V4.1-Bit (5.25BPW) - 5140","K5-V4-Bit (5BPW) - 5040","K4.1-V4-Bit (4.75BPW) - 4140","4-Bit (4.5BPW) - 4040"]
 
     if not any(runopts):
         exitcounter = 999
@@ -3782,7 +3782,7 @@ if __name__ == '__main__':
     advparser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
     advparser.add_argument("--chatcompletionsadapter", help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="")
     advparser.add_argument("--flashattention", help="Enables flash attention, which shrinks the size of the BLAS/compute cache by 50-75% (a few hundreds MB recovered in VRAM), and allows the use of the quantized KV cache.", action='store_true')
-    advparser.add_argument("--quantkv", help="Sets the KV cache data quantization type to save VRAM in NVidia Video Cards, 0 = F16 (16 BPW), 1 = 1680/KvF16-Vq8_0 (12.25BPW), 2 = 1651/KvF16-Vq5_1 (11BPW), 3 = 1650/KvF16-Vq5_0 (10.75BPW), 4 = 1641/KvF16-Vq4_1 (10.5BPW), 5 = 1640/KvF16-Vq4_0 (10.25BPW), 6 = 8080/q8_0 (8.5 BPW), 7 = 8051/Kq8_0-Vq5_1 (7.25BPW), 8 = 8050/Kq8_0-Vq5_0 (7BPW), 9 = 8041/Kq8_0-Vq4_1 (6.75BPW), 10 = 8040/Kq8_0-Vq4_0 (6.5BPW), 11 = 5151/Kq5_1-Vq5_1 (6BPW), 12 = 5150/Kq5_1-Vq5_0 (5.75BPW), 13 = 5141/Kq5_1-Vq4_1 (5.5BPW), 14 = 5140/Kq5_1-Vq4_0 (5.25BPW), 15 = 5040/Kq5_0-Vq4_0 (5BPW), 16 = 4140/Kq4_1-Vq4_0 (4.75BPW), 17 = 4040/Q4_0 (4.5BPW). Requires Flash Attention, and disables context shifting.", metavar=('[quantization level 0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17]'), type=int, choices=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17], default=0)
+    advparser.add_argument("--quantkv", help="Sets the KV cache data quantization type to save VRAM in NVidia Video Cards, 0 = 1616/F16 (16 BPW), 1 = 1680/Kf16-Vq8_0 (12.25BPW), 2 = 1651/Kf16-Vq5_1 (11BPW), 3 = 1650/Kf16-Vq5_0 (10.75BPW), 4 = 1641/Kf16-Vq4_1 (10.5BPW), 5 = 1640/Kf16-Vq4_0 (10.25BPW), 6 = 8080/KVq8_0 (8.5 BPW), 7 = 8051/Kq8_0-Vq5_1 (7.25BPW), 8 = 8050/Kq8_0-Vq5_0 (7BPW), 9 = 8041/Kq8_0-Vq4_1 (6.75BPW), 10 = 8040/Kq8_0-Vq4_0 (6.5BPW), 11 = 5151/KVq5_1 (6BPW), 12 = 5150/Kq5_1-Vq5_0 (5.75BPW), 13 = 5141/Kq5_1-Vq4_1 (5.5BPW), 14 = 5140/Kq5_1-Vq4_0 (5.25BPW), 15 = 5040/Kq5_0-Vq4_0 (5BPW), 16 = 4140/Kq4_1-Vq4_0 (4.75BPW), 17 = 4040/KVq4_0 (4.5BPW). Requires Flash Attention, and disables context shifting.", metavar=('[quantization level 0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17]'), type=int, choices=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17], default=0)
     advparser.add_argument("--forceversion", help="If the model file format detection fails (e.g. rogue modified model) you can set this to override the detected format (enter desired version, e.g. 401 for GPTNeoX-Type2).",metavar=('[version]'), type=int, default=0)
     advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated compared to ContextShift, but works with KV Cache quantized unlike ContextShift which doesn't. Not recommended except for the use of KV Cache quantized.", action='store_true')
 
