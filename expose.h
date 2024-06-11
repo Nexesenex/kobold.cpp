@@ -57,7 +57,6 @@ struct load_model_inputs
     const int gpulayers = 0;
     const float rope_freq_scale = 1.0f;
     const float rope_freq_base = 10000.0f;
-    const char * banned_tokens[ban_token_max];
     const bool flash_attention = false;
 //    const char * override_kv = nullptr;
 //    const char * cache_type_k = nullptr;

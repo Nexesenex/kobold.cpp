@@ -1679,24 +1679,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         }
     }
     banned_token_ids.clear();
-    if(banned_token_ids.size()==0 && banned_tokens.size()>0)
-    {
-        printf("\n[First Run] Banning %zu token sequences...",banned_tokens.size());
-        for(int v=0;v<n_vocab;++v)
-        {
-            std::string word = FileFormatTokenizeID(v,file_format, true);
-            for(int i=0;i<banned_tokens.size();++i)
-            {
-                if (word.find(banned_tokens[i]) != std::string::npos)
-                {
-                    banned_token_ids.push_back(v);
-                    break;
-                }
-            }
-        }
-        printf("\nBanned a total of %zu tokens.\n",banned_token_ids.size());
-    }
-    else if(banned_tokens.size()>0)
+    if(banned_tokens.size()>0)
     {
         if(debugmode==1)
         {
