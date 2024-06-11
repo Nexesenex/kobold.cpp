@@ -62,6 +62,7 @@ class load_model_inputs(ctypes.Structure):
                 ("gpulayers", ctypes.c_int),
                 ("rope_freq_scale", ctypes.c_float),
                 ("rope_freq_base", ctypes.c_float),
+                ("banned_tokens", ctypes.c_char_p * ban_token_max),
                 ("flash_attention", ctypes.c_bool),
                 ("tensor_split", ctypes.c_float * tensor_split_max),
                 ("quant_k", ctypes.c_int),
@@ -449,6 +450,12 @@ def load_model(model_filename):
 
     inputs.executable_path = (getdirpath()+"/").encode("UTF-8")
     inputs.debugmode = args.debugmode
+    banned_tokens = args.bantokens
+    for n in range(ban_token_max):
+        if not banned_tokens or n >= len(banned_tokens):
+            inputs.banned_tokens[n] = "".encode("UTF-8")
+        else:
+            inputs.banned_tokens[n] = banned_tokens[n].encode("UTF-8")
     ret = handle.load_model(inputs)
     return ret
 
@@ -3758,6 +3765,7 @@ if __name__ == '__main__':
     advparser.add_argument("--blasthreads", help="Use a different number of threads during BLAS if specified. Otherwise, has the same value as --threads",metavar=('[threads]'), type=int, default=0)
     advparser.add_argument("--lora", help="LLAMA models only, applies a lora file on top of model. Experimental.", metavar=('[lora_filename]', '[lora_base]'), nargs='+')
     advparser.add_argument("--noshift", help="If set, do not attempt to Trim and Shift the GGUF context without reprocessing everything once the max context is reached. If you disable it (or need to use KV cache quantized), you can eventually use --smartcontext instead.", action='store_true')
+    parser.add_argument("--bantokens", help="You can manually specify a list of token SUBSTRINGS that the AI cannot use. This bans ALL instances of that substring.", metavar=('[token_substrings]'), nargs='+')
     advparser.add_argument("--nommap", help="If set, do not use mmap to load newer models", action='store_true')
     advparser.add_argument("--usemlock", help="For Apple Systems. Force system to keep model in RAM rather than swapping or compressing", action='store_true')
     advparser.add_argument("--usedirect_io", help="Accelerate the model loading time", action='store_true')
