@@ -1103,26 +1103,31 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             }
             else
             {
+                //KoboldCPP formula
+				
+                //float multiplier_rope_base = llamamodel->hparams.rope_freq_base_train/10000.0f;
+                //rope_freq_base *= multiplier_rope_base;
+				
                 //Calculate rope_freq_base using the gradientAI formula
                 float chi_ctx_train_value = file_format_meta.n_ctx_train / (2 * 3.14159265358979323846);
-				float chi_ctx_value = kcpp_params->n_ctx / (2 * 3.14159265358979323846);
-//              GradientAI Original formula
-//              float rope_freq_base = powf(llamamodel->hparams.rope_freq_base_train, logf(chi_ctx_value) / logf(chi_ctx_train_value));
-                    if(llamamodel->hparams.rope_freq_base_train!=10000.0f)
-//                      GradientAI formula with LRNO - low rope negative offset
-                        float rope_freq_base = powf(llamamodel->hparams.rope_freq_base_train, logf(chi_ctx_value) / logf(chi_ctx_train_value))/(1+((logf(chi_ctx_value)-logf(chi_ctx_train_value)/10));
-                    else if(llamamodel->hparams.rope_freq_base_train!=500000.0f)
-//                      GradientAI formula with HRNO - High rope negative offset
-                        float rope_freq_base = powf(llamamodel->hparams.rope_freq_base_train, logf(chi_ctx_value) / logf(chi_ctx_train_value))/(1+((logf(chi_ctx_value)-3)/10));
-                    else
-                    {
-//                      KoboldCPP formula
-                        float multiplier_rope_base = llamamodel->hparams.rope_freq_base_train/10000.0f;
-                        rope_freq_base *= multiplier_rope_base;
-                    }
+                float chi_ctx_value = kcpp_params->n_ctx / (2 * 3.14159265358979323846);
+				
+                //GradientAI Original formula
+                //float rope_freq_base = powf(llamamodel->hparams.rope_freq_base_train, logf(chi_ctx_value) / logf(chi_ctx_train_value));
+				
+                //GradientAI formula with LRNO - low rope negative offset
+                float rope_freq_base_gradientai_value = powf(llamamodel->hparams.rope_freq_base_train, log10f(chi_ctx_value) / log10f(chi_ctx_train_value));
+                float low_rope_negative_offset_value = (1 + (((log10f(chi_ctx_value)) - (log10f(chi_ctx_train_value))) / (3.14159265358979323846 * 3.14159265358979323846)));
+                float rope_freq_base = (rope_freq_base_gradientai_value / low_rope_negative_offset_value);
                 llama_ctx_params.rope_freq_base = rope_freq_base;
                 llama_ctx_params.rope_freq_scale = rope_freq_scale;
-                printf("Automatic RoPE Scaling: Using (scale:%.3f, base:%.1f).\n", rope_freq_scale, rope_freq_base);
+                printf("Chi context train (value:%.3f).\n", chi_ctx_train_value);
+                printf("Chi chosen context (value:%.3f).\n", chi_ctx_value);
+                printf("Log Chi context train (value:%.3f).\n", log10f(chi_ctx_train_value));
+                printf("Log Chi chosen context (value:%.3f).\n", log10f(chi_ctx_value));
+                printf("Rope base calculated via Gradient AI formula. (value:%.2f).\n", rope_freq_base_gradientai_value);
+                printf("Low Rope Negative Offset acting as a divisor. (value:%.3f).\n", low_rope_negative_offset_value);
+                printf("Automatic RoPE Scaling: Using (scale:%.3f, base:%.2f).\n", rope_freq_scale, rope_freq_base);
             }
         }
 
