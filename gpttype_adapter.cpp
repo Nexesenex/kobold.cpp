@@ -855,14 +855,18 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             {
                 float factor = file_format_meta.n_ctx_train/2048;
                 effectivenctx = effectivenctx/factor;
+                printf("Float factor (value:%.3f).\n", factor);
             }
             float magic_multiplier = 8.0f;
             float base_multiplier = effectivenctx*magic_multiplier;
             float base_raw = 10000.0f;
             rope_freq_base = (effectivenctx <= 2048 ? base_raw : base_multiplier);
 			//OLD : rope_freq_base = (effectivenctx <= 2048 ? 10000.0f : (effectivenctx <= 2176 ? 10000.0f : (effectivenctx <= 2304 ? 11000.0f : (effectivenctx <= 2432 ? 12000.0f : (effectivenctx <= 2560 ? 13000.0f : (effectivenctx <= 2688 ? 14000.0f : (effectivenctx <= 2816 ? 15000.0f : (effectivenctx <= 2944 ? 16000.0f : (effectivenctx <= 3072 ? 17000.0f : (effectivenctx <= 3200 ? 18000.0f : (effectivenctx <= 3328 ? 19000.0f : (effectivenctx <= 3456 ? 20000.0f : (effectivenctx <= 3584 ? 21000.0f : (effectivenctx <= 3712 ? 22000.0f : (effectivenctx <= 3840 ? 23000.0f : (effectivenctx <= 3968 ? 24000.0f : (effectivenctx <= 4096 ? 25000.0f : (effectivenctx <= 4224 ? 26000.0f : (effectivenctx <= 4352 ? 27000.0f : (effectivenctx <= 4480 ? 28500.0f : (effectivenctx <= 4608 ? 30000.0f : (effectivenctx <= 4736 ? 31500.0f : (effectivenctx <= 4864 ? 33000.0f : (effectivenctx <= 4992 ? 34500.0f : (effectivenctx <= 5120 ? 36000.0f : (effectivenctx <= 5248 ? 38000.0f : (effectivenctx <= 5376 ? 40000.0f : (effectivenctx <= 5504 ? 42000.0f : (effectivenctx <= 5632 ? 44000.0f : (effectivenctx <= 5760 ? 46000.0f : (effectivenctx <= 5888 ? 48000.0f : (effectivenctx <= 6016 ? 51000.0f : (effectivenctx <= 6144 ? 54000.0f : (effectivenctx <= 6288 ? 57000.0f : (effectivenctx <= 6400 ? 61000.0f : (effectivenctx <= 8192 ? 82684.0f : (effectivenctx <= 8192 ? 82684.0f : (effectivenctx <= 12288 ? 140000.0f : (effectivenctx <= 16384 ? 200000.0f : (effectivenctx <= 24576 ? 320000.0f : 440000.0f))))))))))))))))))))))))))))))))))))))));
+            printf("Magic multiplier (value:%.3f).\n", magic_multiplier);
+            printf("Base multiplier (value:%.2f).\n", base_multiplier);
+            printf("Base raw (value:%.3f).\n", base_raw);
+            printf("Automatic RoPE Scaling: Using (scale:%.4f, base:%.2f).\n", rope_freq_scale, rope_freq_base);
         }
-
         printf("Using automatic RoPE scaling. If the model has customized RoPE settings, they will be used directly instead!\n");
     }
     gptj_ctx_v3.hparams.rope_freq_scale = neox_ctx_v3.hparams.rope_freq_scale = rope_freq_scale;
@@ -1104,30 +1108,48 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             else
             {
                 //KoboldCPP formula
-				
                 //float multiplier_rope_base = llamamodel->hparams.rope_freq_base_train/10000.0f;
                 //rope_freq_base *= multiplier_rope_base;
 				
-                //Calculate rope_freq_base using the gradientAI formula
-                float chi_ctx_train_value = file_format_meta.n_ctx_train / (2 * 3.14159265358979323846);
-                float chi_ctx_value = kcpp_params->n_ctx / (2 * 3.14159265358979323846);
+                //Calculate chi values using the gradientAI formula, solar requires ctx *8 for correct scaling
+                if(llamamodel->hparams.rope_freq_base_train==10000.0f && file_format_meta.n_tensors==435)
+                {
+                    float chi_ctx_train_value = (file_format_meta.n_ctx_train * 8) / (2 * 3.14159265358979323846);
+                    float chi_ctx_value = (kcpp_params->n_ctx * 8) / (2 * 3.14159265358979323846);
+                    //GradientAI formula with the ER-LNO (extended rope - low negative offset) modified grandientAI formula
+                    float extended_rope_freq_base_gradientai_value = powf(llamamodel->hparams.rope_freq_base_train, log10f(chi_ctx_value) / log10f(chi_ctx_train_value));
+                    float extended_rope_low_negative_offset_value = (1 + (((log10f(chi_ctx_value)) - (log10f(chi_ctx_train_value))) / (3.14159265358979323846 * 3.14159265358979323846)));
+                    rope_freq_base = (extended_rope_freq_base_gradientai_value / extended_rope_low_negative_offset_value);
+                    printf("Chi context train (value:%.3f).\n", chi_ctx_train_value);
+                    printf("Chi chosen context (value:%.3f).\n", chi_ctx_value);
+                    printf("Log Chi context train (value:%.3f).\n", log10f(chi_ctx_train_value));
+                    printf("Log Chi chosen context (value:%.3f).\n", log10f(chi_ctx_value));
+                    printf("Rope base calculated via Gradient AI formula. (value:%.2f).\n", extended_rope_freq_base_gradientai_value);
+                    printf("Low Rope Negative Offset acting as a divisor for Solar. (value:%.3f).\n", extended_rope_low_negative_offset_value);
+                }
+                //Calculate chi values using the gradientAI formula
+                else
+                {
+                    float chi_ctx_train_value = file_format_meta.n_ctx_train / (2 * 3.14159265358979323846);
+                    float chi_ctx_value = kcpp_params->n_ctx / (2 * 3.14159265358979323846);
+                    //GradientAI formula with the ER-LNO (extended rope - low negative offset) modified grandientAI formula
+                    float extended_rope_freq_base_gradientai_value = powf(llamamodel->hparams.rope_freq_base_train, log10f(chi_ctx_value) / log10f(chi_ctx_train_value));
+                    float extended_rope_low_negative_offset_value = (1 + (((log10f(chi_ctx_value)) - (log10f(chi_ctx_train_value))) / (3.14159265358979323846 * 3.14159265358979323846)));
+                    float rope_freq_base = (extended_rope_freq_base_gradientai_value / extended_rope_low_negative_offset_value);
+                    printf("Chi context train (value:%.3f).\n", chi_ctx_train_value);
+                    printf("Chi chosen context (value:%.3f).\n", chi_ctx_value);
+                    printf("Log Chi context train (value:%.3f).\n", log10f(chi_ctx_train_value));
+                    printf("Log Chi chosen context (value:%.3f).\n", log10f(chi_ctx_value));
+                    printf("Rope base calculated via Gradient AI formula. (value:%.2f).\n", extended_rope_freq_base_gradientai_value);
+                    printf("Low Rope Negative Offset acting as a divisor for Llama. (value:%.3f).\n", extended_rope_low_negative_offset_value);
+                }     
 				
-                //GradientAI Original formula
+                //Calculate rope_freq_base using the original gradientAI formula			
                 //float rope_freq_base = powf(llamamodel->hparams.rope_freq_base_train, logf(chi_ctx_value) / logf(chi_ctx_train_value));
 				
-                //GradientAI formula with LRNO - low rope negative offset
-                float rope_freq_base_gradientai_value = powf(llamamodel->hparams.rope_freq_base_train, log10f(chi_ctx_value) / log10f(chi_ctx_train_value));
-                float low_rope_negative_offset_value = (1 + (((log10f(chi_ctx_value)) - (log10f(chi_ctx_train_value))) / (3.14159265358979323846 * 3.14159265358979323846)));
-                float rope_freq_base = (rope_freq_base_gradientai_value / low_rope_negative_offset_value);
                 llama_ctx_params.rope_freq_base = rope_freq_base;
                 llama_ctx_params.rope_freq_scale = rope_freq_scale;
-                printf("Chi context train (value:%.3f).\n", chi_ctx_train_value);
-                printf("Chi chosen context (value:%.3f).\n", chi_ctx_value);
-                printf("Log Chi context train (value:%.3f).\n", log10f(chi_ctx_train_value));
-                printf("Log Chi chosen context (value:%.3f).\n", log10f(chi_ctx_value));
-                printf("Rope base calculated via Gradient AI formula. (value:%.2f).\n", rope_freq_base_gradientai_value);
-                printf("Low Rope Negative Offset acting as a divisor. (value:%.3f).\n", low_rope_negative_offset_value);
-                printf("Automatic RoPE Scaling: Using (scale:%.3f, base:%.2f).\n", rope_freq_scale, rope_freq_base);
+                printf("Automatic RoPE Scaling: Using (scale:%.4f, base:%.2f).\n", rope_freq_scale, rope_freq_base);
             }
         }
 
