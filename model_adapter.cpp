@@ -317,7 +317,7 @@ void print_tok_vec(std::vector<float> &embd)
             printf("Arch Category: %d\n",fileformatmeta->model_architecture);
 
         }
-
+        fileformatmeta->n_tensors = gguf_get_n_tensors(ctx);
         gguf_free(ctx);
     }
 
