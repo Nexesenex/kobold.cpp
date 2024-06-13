@@ -1117,15 +1117,12 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
                     float chi_ctx_train_value = (file_format_meta.n_ctx_train * 8) / (2 * 3.14159265358979323846);
                     float chi_ctx_value = (kcpp_params->n_ctx * 8) / (2 * 3.14159265358979323846);
                     //GradientAI formula with the ER-LNO (extended rope - low negative offset) modified grandientAI formula
-                    float extended_rope_freq_base_gradientai_value = powf(llamamodel->hparams.rope_freq_base_train, log10f(chi_ctx_value) / log10f(chi_ctx_train_value));
-                    float extended_rope_low_negative_offset_value = (1 + (((log10f(chi_ctx_value)) - (log10f(chi_ctx_train_value))) / (3.14159265358979323846 * 3.14159265358979323846)));
-                    rope_freq_base = (extended_rope_freq_base_gradientai_value / extended_rope_low_negative_offset_value);
+                    rope_freq_base = powf(llamamodel->hparams.rope_freq_base_train, log10f(chi_ctx_value) / log10f(chi_ctx_train_value));
                     printf("Chi context train (value:%.3f).\n", chi_ctx_train_value);
                     printf("Chi chosen context (value:%.3f).\n", chi_ctx_value);
                     printf("Log Chi context train (value:%.3f).\n", log10f(chi_ctx_train_value));
                     printf("Log Chi chosen context (value:%.3f).\n", log10f(chi_ctx_value));
-                    printf("Rope base calculated via Gradient AI formula. (value:%.2f).\n", extended_rope_freq_base_gradientai_value);
-                    printf("Low Rope Negative Offset acting as a divisor for Solar. (value:%.3f).\n", extended_rope_low_negative_offset_value);
+                    printf("Rope base calculated via Gradient AI formula. (value:%.2f).\n", rope_freq_base);
                 }
                 //Calculate chi values using the gradientAI formula
                 else
@@ -1135,7 +1132,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
                     //GradientAI formula with the ER-LNO (extended rope - low negative offset) modified grandientAI formula
                     float extended_rope_freq_base_gradientai_value = powf(llamamodel->hparams.rope_freq_base_train, log10f(chi_ctx_value) / log10f(chi_ctx_train_value));
                     float extended_rope_low_negative_offset_value = (1 + (((log10f(chi_ctx_value)) - (log10f(chi_ctx_train_value))) / (3.14159265358979323846 * 3.14159265358979323846)));
-                    float rope_freq_base = (extended_rope_freq_base_gradientai_value / extended_rope_low_negative_offset_value);
+                    rope_freq_base = (extended_rope_freq_base_gradientai_value / extended_rope_low_negative_offset_value);
                     printf("Chi context train (value:%.3f).\n", chi_ctx_train_value);
                     printf("Chi chosen context (value:%.3f).\n", chi_ctx_value);
                     printf("Log Chi context train (value:%.3f).\n", log10f(chi_ctx_train_value));
