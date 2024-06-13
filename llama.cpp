@@ -14047,10 +14047,10 @@ static std::vector<llama_vocab::id> llama_tokenize_internal(const llama_vocab & 
                 }
 
                 if (add_special && vocab.special_add_bos != 0 && output.size() >= 2 && output[1] == vocab.special_bos_id) {
-                    LLAMA_LOG_WARN(
-                        "%s: Added a BOS token to the prompt as specified by the model but the prompt "
-                        "also starts with a BOS token. So now the final prompt starts with 2 BOS tokens. "
-                        "Are you sure this is what you want?\n", __FUNCTION__);
+                    // LLAMA_LOG_WARN(
+                    //     "%s: Added a BOS token to the prompt as specified by the model but the prompt "
+                    //     "also starts with a BOS token. So now the final prompt starts with 2 BOS tokens. "
+                    //     "Are you sure this is what you want?\n", __FUNCTION__);
                 }
 
                 if (add_special && vocab.special_add_eos == 1) {
@@ -14090,10 +14090,10 @@ static std::vector<llama_vocab::id> llama_tokenize_internal(const llama_vocab & 
                 }
 
                 if (add_special && vocab.special_add_bos != 0 && output.size() >= 2 && output[1] == vocab.special_bos_id) {
-                    LLAMA_LOG_WARN(
-                        "%s: Added a BOS token to the prompt as specified by the model but the prompt "
-                        "also starts with a BOS token. So now the final prompt starts with 2 BOS tokens. "
-                        "Are you sure this is what you want?\n", __FUNCTION__);
+                    // LLAMA_LOG_WARN(
+                    //     "%s: Added a BOS token to the prompt as specified by the model but the prompt "
+                    //     "also starts with a BOS token. So now the final prompt starts with 2 BOS tokens. "
+                    //     "Are you sure this is what you want?\n", __FUNCTION__);
                 }
 
                 if (add_special && vocab.special_add_eos == 1) {

@@ -162,11 +162,13 @@ if (LLAMA_CUDA)
 
         set(LLAMA_EXTRA_LIBS ${LLAMA_EXTRA_LIBS} CUDA::cuda_driver)
 
+
         if (LLAMA_CUDA_NO_VMM)
             # No VMM requested, no need to link directly with the cuda driver lib (libcuda.so)
         else()
             set(LLAMA_EXTRA_LIBS ${LLAMA_EXTRA_LIBS} CUDA::cuda_driver) # required by cuDeviceGetAttribute(), cuMemGetAllocationGranularity(...), ...
         endif()
+		
     else()
         message(WARNING "cuBLAS not found")
     endif()

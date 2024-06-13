@@ -7,7 +7,7 @@
 //No dynamic memory allocation! Setup structs with FIXED (known) shapes and sizes for ALL output fields
 //Python will ALWAYS provide the memory, we just write to it.
 
-#include <cmath> //dont know if we need this - askmyteapot
+#include <cmath>
 #include <time.h>
 #include <mutex>
 #include "model_adapter.h"
@@ -791,6 +791,19 @@ static int GetBatchSize(int desiredBlasBatchSize,FileFormat in_file_format)
     return desiredBlasBatchSize;
 }
 
+//this function applies automatic scaling to rope freq base when the desired context exceeds trained context
+static float CalcGradientAIRopeFreqBase(float original_rope_base, int n_ctx_train, int n_ctx_desired, bool is_solar)
+{
+    if(n_ctx_desired <= n_ctx_train || n_ctx_desired <= 2048)
+    {
+        return original_rope_base;
+    }
+    float ctx_multiplier = (is_solar?8.0f:1.0f);
+	float chi_ctx_train_value = (n_ctx_train * ctx_multiplier) / 6.28318;
+    float chi_ctx_value = (n_ctx_desired * ctx_multiplier) / 6.28318;
+    return powf(original_rope_base, logf(chi_ctx_value) / logf(chi_ctx_train_value));
+}
+
 ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in_file_format, FileFormatExtraMeta in_file_format_meta)
 {
     ggml_time_init();
@@ -842,13 +855,15 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     }
     else
     {
-        rope_freq_scale = 1.0f;
-        if (kcpp_params->n_ctx <= 2048) //normie mode
+        //Set freq base for all, including non GGUF. If we are using GGUF, this will be overwritten with more accurate values later.
+        rope_freq_base = CalcGradientAIRopeFreqBase(10000.0f,2048,kcpp_params->n_ctx,false);
+        if(file_format==FileFormat::GGUF_GENERIC)
         {
-            rope_freq_base = 10000.0f;
+            printf("Using automatic RoPE scaling. If the model has customized RoPE settings, they will be used directly instead!\n");
         }
         else
         {
+            //TO BE DECONFLICTED BEGINNING
             //approximate NTK aware ctx
             auto effectivenctx = kcpp_params->n_ctx;
             if((file_format == FileFormat::GGUF_GENERIC) && file_format_meta.n_ctx_train > 2048)
@@ -868,6 +883,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             printf("Automatic RoPE Scaling: Using (scale:%.4f, base:%.2f).\n", rope_freq_scale, rope_freq_base);
         }
         printf("Using automatic RoPE scaling. If the model has customized RoPE settings, they will be used directly instead!\n");
+        //TO BE DECONFLICTED END
     }
     gptj_ctx_v3.hparams.rope_freq_scale = neox_ctx_v3.hparams.rope_freq_scale = rope_freq_scale;
     gptj_ctx_v3.hparams.rope_freq_base = neox_ctx_v3.hparams.rope_freq_base = rope_freq_base;
@@ -1097,7 +1113,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         }
         else
         {
-            //if the model modifes rope in any way, use the model values. Otherwise, use our automatic ones
+            //if the model modifes rope in any way, or uses yarn, use the model values. Otherwise, use our automatic ones
             //special exception for llama, which uses auto scale
             if((llamamodel->hparams.rope_freq_base_train!=10000.0f && llamamodel->hparams.rope_freq_base_train!=500000.0f) ||
             llamamodel->hparams.rope_freq_scale_train!=1.0f ||
@@ -1107,6 +1123,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             }
             else
             {
+                //TO BE DECONFLICTED BEGINNING
                 //KoboldCPP formula
                 //float multiplier_rope_base = llamamodel->hparams.rope_freq_base_train/10000.0f;
                 //rope_freq_base *= multiplier_rope_base;
@@ -1146,6 +1163,10 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
                 //Calculate rope_freq_base using the original gradientAI formula			
                 //float rope_freq_base = powf(llamamodel->hparams.rope_freq_base_train, logf(chi_ctx_value) / logf(chi_ctx_train_value));
 				
+                //TO BE DECONFLICTED MID
+				//Calculate rope_freq_base using the gradientAI formula, solar requires ctx *8 for correct scaling
+                rope_freq_base = CalcGradientAIRopeFreqBase(llamamodel->hparams.rope_freq_base_train, file_format_meta.n_ctx_train, kcpp_params->n_ctx, file_format_meta.model_architecture==GGUFArch::ARCH_SOLAR);
+                //TO BE DECONFLICTED END
                 llama_ctx_params.rope_freq_base = rope_freq_base;
                 llama_ctx_params.rope_freq_scale = rope_freq_scale;
                 printf("Automatic RoPE Scaling: Using (scale:%.4f, base:%.2f).\n", rope_freq_scale, rope_freq_base);

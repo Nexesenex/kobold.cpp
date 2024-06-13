@@ -6,7 +6,7 @@
 # and adds a versatile Kobold API endpoint, additional format support,
 # backward compatibility, as well as a fancy UI with persistent stories,
 # editing tools, save formats, memory, world info, author's note, characters,
-# scenarios and everything Kobold and Kobold Lite have to offer.
+# scenarios and everything Kobold and KoboldAI Lite have to offer.
 
 import ctypes
 import os, math, re
@@ -607,7 +607,7 @@ def sd_generate(genparams):
     height = tryparseint(genparams.get("height", 512))
     seed = tryparseint(genparams.get("seed", -1))
     sample_method = genparams.get("sampler_name", "k_euler_a")
-    is_quiet = True if args.quiet else False
+    is_quiet = True if (args.quiet or args.debugmode == -1) else False
     clip_skip = tryparseint(genparams.get("clip_skip", -1))
 
     #clean vars
@@ -664,7 +664,7 @@ def whisper_load_model(model_filename):
 
 def whisper_generate(genparams):
     global args
-    is_quiet = True if args.quiet else False
+    is_quiet = True if (args.quiet or args.debugmode == -1) else False
     prompt = genparams.get("prompt", "")
     audio_data = genparams.get("audio_data", "")
     if audio_data.startswith("data:audio"):
@@ -680,7 +680,7 @@ def whisper_generate(genparams):
     return outstr
 
 def utfprint(str):
-    maxlen = 20000
+    maxlen = 25000
     strlength = len(str)
     if strlength > maxlen: #limit max output len
         str = str[:maxlen] + f"... (+{strlength-maxlen} chars)"
@@ -1175,7 +1175,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
 <h2>KoboldCpp NoScript Mode</h2>
 <div>
 <p>KoboldCpp can be used without Javascript enabled, however this is not recommended.
-<br>If you have Javascript, please use <a href="/">Kobold Lite WebUI</a> instead.</p><hr>
+<br>If you have Javascript, please use <a href="/">KoboldAI Lite WebUI</a> instead.</p><hr>
 <form action="/noscript">
 Enter Prompt:<br>
 <textarea name="prompt" cols="60" rows="8" wrap="soft" placeholder="Enter Prompt Here">{prompt}</textarea>
@@ -1211,7 +1211,7 @@ Enter Prompt:<br>
         if self.path in ["", "/?"] or self.path.startswith(('/?','?')): #it's possible for the root url to have ?params without /
             content_type = 'text/html'
             if embedded_kailite is None:
-                response_body = (f"Embedded Kobold Lite is not found.<br>You will have to connect via the main KoboldAI client, or <a href='https://lite.koboldai.net?local=1&port={self.port}'>use this URL</a> to connect.").encode()
+                response_body = (f"Embedded KoboldAI Lite is not found.<br>You will have to connect via the main KoboldAI client, or <a href='https://lite.koboldai.net?local=1&port={self.port}'>use this URL</a> to connect.").encode()
             else:
                 response_body = embedded_kailite
 
@@ -3534,14 +3534,14 @@ def main(launch_args,start_server=True):
         with open(os.path.join(basepath, "klite.embd"), mode='rb') as f:
             embedded_kailite = f.read()
             # patch it with extra stuff
-            origStr = "Sorry, Kobold Lite requires Javascript to function."
-            patchedStr = "Sorry, Kobold Lite requires Javascript to function.<br>You can use <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp NoScript mode</a> instead."
+            origStr = "Sorry, KoboldAI Lite requires Javascript to function."
+            patchedStr = "Sorry, KoboldAI Lite requires Javascript to function.<br>You can use <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp NoScript mode</a> instead."
             embedded_kailite = embedded_kailite.decode("UTF-8","ignore")
             embedded_kailite = embedded_kailite.replace(origStr, patchedStr)
             embedded_kailite = embedded_kailite.encode()
-            print("Embedded Kobold Lite loaded.")
+            print("Embedded KoboldAI Lite loaded.")
     except Exception as e:
-        print("Could not find Kobold Lite. Embedded Kobold Lite will not be available.")
+        print("Could not find KoboldAI Lite. Embedded KoboldAI Lite will not be available.")
 
     try:
         basepath = os.path.abspath(os.path.dirname(__file__))
@@ -3770,7 +3770,7 @@ if __name__ == '__main__':
     advparser.add_argument("--remotetunnel", help="Uses Cloudflare to create a remote tunnel, allowing you to access koboldcpp remotely over the internet even behind a firewall.", action='store_true')
     advparser.add_argument("--highpriority", help="Experimental flag. If set, increases the process CPU priority, potentially speeding up generation. Use caution.", action='store_true')
     advparser.add_argument("--foreground", help="Windows only. Sends the terminal to the foreground every time a new prompt is generated. This helps avoid some idle slowdown issues.", action='store_true')
-    advparser.add_argument("--preloadstory", help="Configures a prepared story json save file to be hosted on the server, which frontends (such as Kobold Lite) can access over the API.", default="")
+    advparser.add_argument("--preloadstory", help="Configures a prepared story json save file to be hosted on the server, which frontends (such as KoboldAI Lite) can access over the API.", default="")
     advparser.add_argument("--quiet", help="Enable quiet mode, which hides generation inputs and outputs in the terminal. Quiet mode is automatically enabled when running a horde worker.", action='store_true')
     advparser.add_argument("--ssl", help="Allows all content to be served over SSL instead. A valid UNENCRYPTED SSL cert and key .pem files must be provided", metavar=('[cert_pem]', '[key_pem]'), nargs='+')
     advparser.add_argument("--nocertify", help="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.", action='store_true')

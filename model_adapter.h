@@ -56,6 +56,7 @@ enum GGUFArch
     ARCH_FALCON = 1,
     ARCH_PHI = 2,
     ARCH_MAMBA = 3,
+    ARCH_SOLAR = 4,
 };
 
 struct FileFormatExtraMeta
