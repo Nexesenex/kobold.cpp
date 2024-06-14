@@ -66,9 +66,6 @@ find_package(Threads REQUIRED)
 
 add_compile_definitions(LOG_DISABLE_LOGS)
 
-
-set(GGML_HEADERS_CUDA ggml-cuda.h)
-
 file(GLOB GGML_SOURCES_CUDA "ggml-cuda/*.cu")
 list(APPEND GGML_SOURCES_CUDA "ggml-cuda.cu")
 file(GLOB SRCS "ggml-cuda/template-instances/fattn-wmma*.cu")
@@ -77,10 +74,6 @@ list(APPEND GGML_SOURCES_CUDA ${SRCS})
 # For MMQ Refactor
 file(GLOB SRCS "ggml-cuda/template-instances/mmq*.cu")
 list(APPEND GGML_SOURCES_CUDA ${SRCS})
-
-add_compile_definitions(GGML_USE_LLAMAFILE)
-
-set(GGML_HEADERS_CUDA ggml-cuda.h)
 
 set(GGML_V3_CUDA_SOURCES otherarch/ggml_v3-cuda.cu otherarch/ggml_v3-cuda.h)
 set(GGML_V2_CUDA_SOURCES otherarch/ggml_v2-cuda.cu otherarch/ggml_v2-cuda.h)
@@ -98,28 +91,9 @@ if (LLAMA_CUDA)
     if (CUDAToolkit_FOUND)
         message(STATUS "cuBLAS found")
 
-        if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
-            # 52 == lowest CUDA 12 standard
-            # 60 == f16 CUDA intrinsics
-            # 61 == integer CUDA intrinsics
-            # 70 == (assumed) compute capability at which unrolling a loop in mul_mat_q kernels is faster
-            if (LLAMA_CUDA_F16 OR LLAMA_CUDA_DMMV_F16)
-                set(CMAKE_CUDA_ARCHITECTURES "60;61;70") # needed for f16 CUDA intrinsics
-            else()
-                message("CUDA Toolkit Version: ${CUDAToolkit_VERSION}")
-                if(CUDAToolkit_VERSION VERSION_GREATER 12)
-                     set(CMAKE_CUDA_ARCHITECTURES "52;61;70") # lowest CUDA 12 standard + lowest for integer intrinsics
-                else()
-                     set(CMAKE_CUDA_ARCHITECTURES "37;52;61;70") # lowest CUDA 12 standard + lowest for integer intrinsics
-                endif()
-            endif()
-        endif()
-        message(STATUS "Using CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
-
         enable_language(CUDA)
 
         add_compile_definitions(GGML_USE_LLAMAFILE)
-
         add_compile_definitions(GGML_USE_CUDA)
         add_compile_definitions(SD_USE_CUBLAS)
         add_compile_definitions(GGML_CUDA_MMQ_Y=${LLAMA_CUDA_MMQ_Y})
@@ -162,14 +136,23 @@ if (LLAMA_CUDA)
 
         set(LLAMA_EXTRA_LIBS ${LLAMA_EXTRA_LIBS} CUDA::cuda_driver)
 
-
-        if (LLAMA_CUDA_NO_VMM)
-            # No VMM requested, no need to link directly with the cuda driver lib (libcuda.so)
-        else()
-            set(LLAMA_EXTRA_LIBS ${LLAMA_EXTRA_LIBS} CUDA::cuda_driver) # required by cuDeviceGetAttribute(), cuMemGetAllocationGranularity(...), ...
+        if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+            # 52 == lowest CUDA 12 standard
+            # 60 == f16 CUDA intrinsics
+            # 61 == integer CUDA intrinsics
+            # 70 == (assumed) compute capability at which unrolling a loop in mul_mat_q kernels is faster
+            if (LLAMA_CUDA_F16 OR LLAMA_CUDA_DMMV_F16)
+                set(CMAKE_CUDA_ARCHITECTURES "60;61;70") # needed for f16 CUDA intrinsics
+            else()
+                message("CUDA Toolkit Version: ${CUDAToolkit_VERSION}")
+                if(CUDAToolkit_VERSION VERSION_GREATER 12)
+                     set(CMAKE_CUDA_ARCHITECTURES "52;61;70") # lowest CUDA 12 standard + lowest for integer intrinsics
+                else()
+                     set(CMAKE_CUDA_ARCHITECTURES "37;52;61;70") # lowest CUDA 12 standard + lowest for integer intrinsics
+                endif()
+            endif()
         endif()
-		
-    else()
+        message(STATUS "Using CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
         message(WARNING "cuBLAS not found")
     endif()
 endif()
@@ -201,9 +184,9 @@ if (LLAMA_HIPBLAS)
         list(APPEND GGML_SOURCES_ROCM ${SRCS})
 
         # For MMQ Refactor
-
         file(GLOB SRCS "ggml-cuda/template-instances/mmq*.cu")
         list(APPEND GGML_SOURCES_ROCM ${SRCS})
+
         add_compile_definitions(GGML_USE_HIPBLAS GGML_USE_CUDA SD_USE_CUBLAS)
         add_library(ggml-rocm OBJECT ${GGML_SOURCES_CUDA})
         if (LLAMA_CUDA_FORCE_DMMV)
