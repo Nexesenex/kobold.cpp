@@ -77,6 +77,7 @@ list(APPEND GGML_SOURCES_CUDA ${SRCS})
 # For MMQ Refactor
 file(GLOB SRCS "ggml-cuda/template-instances/mmq*.cu")
 list(APPEND GGML_SOURCES_CUDA ${SRCS})
+
 set(GGML_V3_CUDA_SOURCES otherarch/ggml_v3-cuda.cu otherarch/ggml_v3-cuda.h)
 set(GGML_V2_CUDA_SOURCES otherarch/ggml_v2-cuda.cu otherarch/ggml_v2-cuda.h)
 set(GGML_V2_LEGACY_CUDA_SOURCES otherarch/ggml_v2-cuda-legacy.cu otherarch/ggml_v2-cuda-legacy.h)
@@ -185,6 +186,7 @@ if (LLAMA_HIPBLAS)
         # For MMQ Refactor
         file(GLOB SRCS "ggml-cuda/template-instances/mmq*.cu")
         list(APPEND GGML_SOURCES_ROCM ${SRCS})
+
         add_compile_definitions(GGML_USE_HIPBLAS GGML_USE_CUDA SD_USE_CUBLAS)
         add_library(ggml-rocm OBJECT ${GGML_SOURCES_CUDA})
         if (LLAMA_CUDA_FORCE_DMMV)
