@@ -621,8 +621,9 @@ def sd_generate(genparams):
 
     if args.sdclamped:
         sample_steps = (40 if sample_steps > 40 else sample_steps)
-        reslimit = 512
-        print("\nImgGen: Clamped Mode (For Shared Use). Step counts and resolution are clamped.")
+        reslimit = int(args.sdclamped)
+        reslimit = (512 if reslimit<512 else reslimit)
+        print(f"\nImgGen: Clamped Mode (For Shared Use). Step counts and resolution are clamped to {reslimit}x{reslimit}.")
 
     biggest = max(width,height)
     if biggest > reslimit:
@@ -1300,8 +1301,6 @@ Enter Prompt:<br>
             content_type = 'text/html'
             if embedded_kcpp_sdui is None:
                 response_body = (f"KoboldCpp API is running, but KCPP SDUI is not loaded").encode()
-            elif not args.sdmodel:
-                response_body = (f"No SD model was loaded. You can load one with --sdmodel").encode()
             else:
                 response_body = embedded_kcpp_sdui
 
@@ -1868,7 +1867,7 @@ def show_new_gui():
     sd_loramult_var = ctk.StringVar(value="1.0")
     sd_vae_var = ctk.StringVar()
     sd_vaeauto_var = ctk.IntVar(value=0)
-    sd_clamped_var = ctk.IntVar(value=0)
+    sd_clamped_var = ctk.StringVar(value="0")
     sd_threads_var = ctk.StringVar(value=str(default_threads))
     sd_quant_var = ctk.IntVar(value=0)
 
@@ -2413,7 +2412,7 @@ def show_new_gui():
 
     images_tab = tabcontent["Image Gen"]
     makefileentry(images_tab, "Stable Diffusion Model (safetensors/gguf):", "Select Stable Diffusion Model File", sd_model_var, 1, filetypes=[("*.safetensors *.gguf","*.safetensors *.gguf")], tooltiptxt="Select a .safetensors or .gguf Stable Diffusion model file on disk to be loaded.")
-    makecheckbox(images_tab, "Clamped Mode (Limit Resolution)", sd_clamped_var, 4,tooltiptxt="Limit generation steps and resolution settings for shared use.")
+    makelabelentry(images_tab, "Clamped Mode (Limit Resolution)", sd_clamped_var, 4, 50,"Limit generation steps and resolution settings for shared use.\nSet to 0 to disable, otherwise value is the size limit (min 512px).")
     makelabelentry(images_tab, "Image Threads:" , sd_threads_var, 6, 50,"How many threads to use during image generation.\nIf left blank, uses same value as threads.")
 
     sdloritem1,sdloritem2,sdloritem3 = makefileentry(images_tab, "Image LoRA (Must be non-quant):", "Select SD lora file",sd_lora_var, 10 ,filetypes=[("*.safetensors *.gguf", "*.safetensors *.gguf")],tooltiptxt="Select a .safetensors or .gguf SD LoRA model file to be loaded.")
@@ -2561,8 +2560,7 @@ def show_new_gui():
             args.sdmodel = sd_model_var.get()
 
         args.sdthreads = (0 if sd_threads_var.get()=="" else int(sd_threads_var.get()))
-        if sd_clamped_var.get()==1:
-            args.sdclamped = True
+        args.sdclamped = (0 if int(sd_clamped_var.get())<=0 else int(sd_clamped_var.get()))
         if sd_vaeauto_var.get()==1:
             args.sdvaeauto = True
             args.sdvae = ""
@@ -2721,7 +2719,7 @@ def show_new_gui():
         usehorde_var.set(1 if ("hordekey" in dict and dict["hordekey"]) else 0)
 
         sd_model_var.set(dict["sdmodel"] if ("sdmodel" in dict and dict["sdmodel"]) else "")
-        sd_clamped_var.set(1 if ("sdclamped" in dict and dict["sdclamped"]) else 0)
+        sd_clamped_var.set(int(dict["sdclamped"]) if ("sdclamped" in dict and dict["sdclamped"]) else 0)
         sd_threads_var.set(str(dict["sdthreads"]) if ("sdthreads" in dict and dict["sdthreads"]) else str(default_threads))
         sd_quant_var.set(1 if ("sdquant" in dict and dict["sdquant"]) else 0)
         sd_vae_var.set(dict["sdvae"] if ("sdvae" in dict and dict["sdvae"]) else "")
@@ -3011,7 +3009,7 @@ def convert_outdated_args(args):
         using_outdated_flags = True
         dict["sdmodel"] = dict["sdconfig"][0]
         if dict["sdconfig"] and len(dict["sdconfig"]) > 1:
-            dict["sdclamped"] = True
+            dict["sdclamped"] = 512
         if dict["sdconfig"] and len(dict["sdconfig"]) > 2:
             dict["sdthreads"] = int(dict["sdconfig"][2])
         if dict["sdconfig"] and len(dict["sdconfig"]) > 3:
@@ -3736,7 +3734,7 @@ if __name__ == '__main__':
     parser.add_argument("--config", metavar=('[filename]'), help="Load settings from a .kcpps file. Other arguments will be ignored", type=str, nargs=1)
     physical_core_limit = 1
     if os.cpu_count()!=None and os.cpu_count()>1:
-        physical_core_limit = int(os.cpu_count()/2)
+        physical_core_limit = os.cpu_count() // 2
     default_threads = (physical_core_limit if physical_core_limit<=3 else max(3,physical_core_limit-1))
     processor = platform.processor()
     if 'Intel' in processor:
@@ -3796,7 +3794,7 @@ if __name__ == '__main__':
     sdparsergroup = parser.add_argument_group('Image Generation Commands')
     sdparsergroup.add_argument("--sdmodel", metavar=('[filename]'), help="Specify a stable diffusion safetensors or gguf model to enable image generation.", default="")
     sdparsergroup.add_argument("--sdthreads", metavar=('[threads]'), help="Use a different number of threads for image generation if specified. Otherwise, has the same value as --threads.", type=int, default=0)
-    sdparsergroup.add_argument("--sdclamped", help="If specified, limit generation steps and resolution settings for shared use.", action='store_true')
+    sdparsergroup.add_argument("--sdclamped", help="If specified, limit generation steps and resolution settings for shared use. Accepts an extra optional parameter that indicates maximum resolution (eg. 768 clamps to 768x768, min 512px, disabled if 0).", nargs='?', const=512, type=int, default=0)
     sdparsergroupvae = sdparsergroup.add_mutually_exclusive_group()
     sdparsergroupvae.add_argument("--sdvae", metavar=('[filename]'), help="Specify a stable diffusion safetensors VAE which replaces the one in the model.", default="")
     sdparsergroupvae.add_argument("--sdvaeauto", help="Uses a built-in VAE via TAE SD, which is very fast, and fixed bad VAEs.", action='store_true')
