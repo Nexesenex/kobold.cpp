@@ -634,8 +634,8 @@ GGML_CALL static enum ggml_status ggml_backend_rpc_graph_compute(ggml_backend_t 
 GGML_CALL static bool ggml_backend_rpc_supports_op(ggml_backend_t backend, const ggml_tensor * op) {
     UNUSED(backend);
     UNUSED(op);
-    GGML_ASSERT(false && "not implemented");
-    return false;
+    //TODO: call the remote backend and cache the results
+    return true;
 }
 
 static ggml_backend_i ggml_backend_rpc_interface = {
