@@ -4561,35 +4561,6 @@ static void llm_load_vocab(
             vocab.special_cls_id  = -1;
             vocab.special_mask_id = -1;
 
-            // For Fill-In-the-Middle (FIM)/infill models which where converted
-            // prior to support of FIM special tokens in GGUF, the following
-            // will allow those models to continue to work. The general names
-            // of the known models are currently CodeLlama (LLM_ARCH_LLAMA) and
-            // CodeGemma (LLM_ARCH_GEMMA). This can potentially be removed once
-            // new versions of these models have been published.
-            std::string gen_name;
-            ml.get_key(LLM_KV_GENERAL_NAME, gen_name, false);
-
-            std::transform(gen_name.begin(), gen_name.end(), gen_name.begin(),
-                [](unsigned char c){ return std::tolower(c); });
-
-            if (gen_name.find("code") != std::string::npos) {
-                if (model.arch == LLM_ARCH_LLAMA) {
-                    vocab.special_prefix_id = 32007;
-                    vocab.special_suffix_id = 32008;
-                    vocab.special_middle_id = 32009;
-                    vocab.special_eot_id    = 32010;
-                } else if (model.arch == LLM_ARCH_GEMMA) {
-                    vocab.special_prefix_id = 67;
-                    vocab.special_suffix_id = 69;
-                    vocab.special_middle_id = 68;
-                    // TODO: this is not EOT, it is "file separator" token, needs fix
-                    //       https://huggingface.co/google/codegemma-7b-it/blob/9b1d9231388358c04d90bd003458f5070d97db44/tokenizer_config.json#L565-L572
-                    //vocab.special_eot_id    = 70;
-                    vocab.special_eot_id    = 107;
-                }
-            }
-
             const int add_space_prefix_keyidx = gguf_find_key(ctx, kv(LLM_KV_TOKENIZER_ADD_PREFIX).c_str());
             if (add_space_prefix_keyidx != -1) {
                 vocab.add_space_prefix = gguf_get_val_bool(ctx, add_space_prefix_keyidx);
@@ -4713,6 +4684,9 @@ static void llm_load_vocab(
             } else if (
                 tokenizer_pre == "smaug-bpe") {
                 vocab.type_pre = LLAMA_VOCAB_PRE_TYPE_SMAUG;
+            } else if (
+                tokenizer_pre == "poro-chat") {
+                vocab.type_pre = LLAMA_VOCAB_PRE_TYPE_PORO;
             } else {
                 throw std::runtime_error(format("unknown pre-tokenizer type: '%s'", tokenizer_pre.c_str()));
             }
@@ -4770,6 +4744,45 @@ static void llm_load_vocab(
 
     // determine the newline token: LLaMA "<0x0A>" == 10 == '\n', Falcon 193 == '\n'
     if (vocab.type == LLAMA_VOCAB_TYPE_SPM) {
+        // For Fill-In-the-Middle (FIM)/infill models which where converted
+        // prior to support of FIM special tokens in GGUF, the following
+        // will allow those models to continue to work. The general names
+        // of the known models are currently CodeLlama (LLM_ARCH_LLAMA) and
+        // CodeGemma (LLM_ARCH_GEMMA). This can potentially be removed once
+        // new versions of these models have been published.
+        std::string gen_name;
+        ml.get_key(LLM_KV_GENERAL_NAME, gen_name, false);
+
+        std::transform(gen_name.begin(), gen_name.end(), gen_name.begin(),
+            [](unsigned char c){ return std::tolower(c); });
+
+        if (gen_name.find("code") != std::string::npos) {
+            if (model.arch == LLM_ARCH_LLAMA
+              && 32010 < vocab.id_to_token.size()
+              && vocab.id_to_token[32007].text == "<PRE>"
+              && vocab.id_to_token[32008].text == "<SUF>"
+              && vocab.id_to_token[32009].text == "<MID>"
+              && vocab.id_to_token[32010].text == "<EOT>") {
+                vocab.special_prefix_id = 32007;
+                vocab.special_suffix_id = 32008;
+                vocab.special_middle_id = 32009;
+                vocab.special_eot_id    = 32010;
+            } else if (model.arch == LLM_ARCH_GEMMA
+              && 107 < vocab.id_to_token.size()
+              && vocab.id_to_token[67].text == "<|fim_prefix|>"
+              && vocab.id_to_token[69].text == "<|fim_suffix|>"
+              && vocab.id_to_token[68].text == "<|fim_middle|>"
+              && vocab.id_to_token[107].text == "<end_of_turn>") {
+                vocab.special_prefix_id = 67;
+                vocab.special_suffix_id = 69;
+                vocab.special_middle_id = 68;
+                // TODO: this is not EOT, it is "file separator" token, needs fix
+                //       https://huggingface.co/google/codegemma-7b-it/blob/9b1d9231388358c04d90bd003458f5070d97db44/tokenizer_config.json#L565-L572
+                //vocab.special_eot_id    = 70;
+                vocab.special_eot_id    = 107;
+            }
+        }
+
         try {
             vocab.linefeed_id = llama_byte_to_token(vocab, '\n');
         } catch (const std::exception & e) {
@@ -6609,16 +6622,6 @@ static int llama_model_load(const std::string & fname, llama_model & model, llam
             // TODO(cebtenzzre): propagate this error outside of llama_load_model_from_file
             LLAMA_LOG_WARN("%s: disabling Kompute due to unsupported model arch or quantization\n", __func__);
             params.n_gpu_layers = 0;
-        }
-#endif
-
-#ifdef GGML_USE_SYCL
-        if (params.split_mode == LLAMA_SPLIT_MODE_NONE) {
-            ggml_backend_sycl_set_single_device_mode(params.main_gpu);
-            //SYCL use device index (0, 1, 2) directly, uer input device id, then convert to device index.
-            params.main_gpu = ggml_backend_sycl_get_device_index(params.main_gpu);
-        } else {
-            ggml_backend_sycl_set_mul_device_mode();
         }
 #endif
 
@@ -13028,6 +13031,11 @@ struct llm_tokenizer_bpe {
                             "(?:'[sS]|'[tT]|'[rR][eE]|'[vV][eE]|'[mM]|'[lL][lL]|'[dD])|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+",
                         });
                         break;
+                    case LLAMA_VOCAB_PRE_TYPE_PORO:
+                        word_collection = unicode_regex_split(text, {
+                            " ?[^(\\s|.,!?…。，、।۔،)]+",
+                        });
+                        break;
                     default:
                         // default regex for BPE tokenization pre-processing
                         word_collection = unicode_regex_split(text, {
@@ -13238,7 +13246,7 @@ struct llm_tokenizer_wpm {
         const std::vector<uint32_t> cpts_nfd = unicode_cpts_normalize_nfd(unicode_cpts_from_utf8(text));
         std::vector<std::string> words(1, "");
 
-        for (const char32_t cpt : cpts_nfd) {
+        for (const uint32_t cpt : cpts_nfd) {
             const auto flags = unicode_cpt_flags(cpt);
 
             if (flags.is_whitespace) {
@@ -16223,8 +16231,7 @@ struct llama_context * llama_new_context_with_model(
         if (model->split_mode == LLAMA_SPLIT_MODE_NONE || model->split_mode == LLAMA_SPLIT_MODE_ROW) {
             ggml_backend_t backend = ggml_backend_sycl_init(model->main_gpu);
             if (backend == nullptr) {
-                int main_gpu_id = ggml_backend_sycl_get_device_id(model->main_gpu);
-                LLAMA_LOG_ERROR("%s: failed to initialize SYCL%d (index %d) backend\n", __func__, main_gpu_id, model->main_gpu);
+                LLAMA_LOG_ERROR("%s: failed to initialize SYCL%d backend\n", __func__, model->main_gpu);
                 llama_free(ctx);
                 return nullptr;
             }
