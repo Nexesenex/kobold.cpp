@@ -1147,7 +1147,8 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
                     printf("Rope base calculated via Gradient AI formula for Llama 3. (value:%.2f).\n", rope_freq_base);
                 }    
                 //Calculate chi values using the gradientAI formula, solar requires ctx *8 for correct scaling
-                else if(llamamodel->hparams.rope_freq_base_train==10000.0f && file_format_meta.n_tensors==435)
+//                else if(llamamodel->hparams.rope_freq_base_train==10000.0f && file_format_meta.n_tensors==435 && file_format_meta.n_ctx_train==8192)
+                else if(llamamodel->hparams.rope_freq_base_train==10000.0f && (file_format_meta.n_tensors==435 || file_format_meta.n_tensors==611))
                 {
                     float chi_ctx_train_value = (file_format_meta.n_ctx_train * 8) / (2 * 3.14159265358979323846);
                     float chi_ctx_value = (kcpp_params->n_ctx * 8) / (2 * 3.14159265358979323846);
