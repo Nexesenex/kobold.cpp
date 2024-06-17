@@ -197,6 +197,31 @@ lib_vulkan = pick_existant_file("koboldcpp_vulkan.dll","koboldcpp_vulkan.so")
 lib_vulkan_noavx2 = pick_existant_file("koboldcpp_vulkan_noavx2.dll","koboldcpp_vulkan_noavx2.so")
 libname = ""
 
+def get_amd_gfx_vers_linux():
+    from subprocess import run
+    FetchedAMDgfxVersion = []
+    try: # Get AMD ROCm GPU gfx version
+        try:
+            output = run(['/opt/rocm/bin/rocminfo'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
+        except Exception as e:
+            try:
+                output = run(['rocminfo'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+        gfx_version = None
+        for line in output.splitlines(): # read through the output line by line
+            line = line.strip()
+            if line.startswith("Name:"):
+                gfx_version = line.split(":", 1)[1].strip()
+            elif line.startswith("Device Type:") and "GPU" in line: # if the following Device Type is a GPU (not a CPU) then add it to devices list
+                FetchedAMDgfxVersion.append(gfx_version)
+            elif line.startswith("Device Type:") and "GPU" not in line:
+                gfx_version = None
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return []
+    return FetchedAMDgfxVersion
+
 def init_library():
     global handle, args, libname
     global lib_default,lib_failsafe,lib_openblas,lib_noavx2,lib_clblast,lib_clblast_noavx2,lib_cublas,lib_hipblas,lib_vulkan,lib_vulkan_noavx2
@@ -722,7 +747,7 @@ maxhordelen = 256
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.68.1b"
+KcppVersion = "1.68.1b+yr0-ROCm"
 LcppVersion = "b3173"
 ReleaseDate = "2024/06/17"
 showdebug = True
@@ -1609,9 +1634,10 @@ def RunServerMultiThreaded(addr, port):
         certpath = os.path.abspath(args.ssl[0])
         keypath = os.path.abspath(args.ssl[1])
         context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        context.maximum_version = ssl.TLSVersion.TLSv1_3
         context.load_cert_chain(certfile=certpath, keyfile=keypath)
         sock = context.wrap_socket(sock, server_side=True)
-
     sock.bind((addr, port))
     numThreads = 20
     sock.listen(numThreads)
@@ -1799,6 +1825,18 @@ def show_new_gui():
     quantkv_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"]   
     quantkv_text = ["0 - F16 (16BPW) - 1616","1 - K16-V8-Bit (12.25BPW) - 1680","2 - K16-V5.1-Bit (11BPW) - 1651","3 - K16-V5-Bit (10.75BPW) - 1650","4 - K16-V4.1-Bit (10.50BPW) - 1641","5 - K16-V4-Bit (10.25BPW) - 1640","6 - 8-Bit (8.5BPW) - 8080","7 - K8-V5.1-Bit (7.25BPW) - 8051","8 - K8-V5-Bit (7BPW) - 8050","9 - K8-V4.1-Bit (6.75BPW) - 8041","10 - K8-V4-Bit (6.5BPW) - 8040","11 - 5.1-Bit (6BPW) - 5151","12 - K5.1-V5Bit (5.75BPW) - 5150","13 - K5.1-V4.1-Bit (5.5BPW) - 5141","14 - K5-V4.1-Bit (5.25BPW) - 5140","15 - K5-V4-Bit (5BPW) - 5040","16 - K4.1-V4-Bit (4.75BPW) - 4140","17 - 4-Bit (4.5BPW) - 4040"]
 
+    if "Use CuBLAS" in runopts:
+        antirunopts.remove("hipBLAS (ROCm)")
+    if "Use hipBLAS (ROCm)" in runopts:
+        antirunopts.remove("CuBLAS")
+    if os.name != 'nt':
+        if "NoAVX2 Mode (Old CPU)" in antirunopts:
+            antirunopts.remove("NoAVX2 Mode (Old CPU)")
+        if "Failsafe Mode (Old CPU)" in antirunopts:
+            antirunopts.remove("Failsafe Mode (Old CPU)")
+        if "CLBlast NoAVX2 (Old CPU)" in antirunopts:
+            antirunopts.remove("CLBlast NoAVX2 (Old CPU)")
+
     if not any(runopts):
         exitcounter = 999
         show_gui_msgbox("No Backends Available!","KoboldCPP couldn't locate any backends to use (i.e Default, OpenBLAS, CLBlast, CuBLAS).\n\nTo use the program, please run the 'make' command from the directory.")
@@ -1818,6 +1856,7 @@ def show_new_gui():
     debugmode = ctk.IntVar()
     keepforeground = ctk.IntVar()
     quietmode = ctk.IntVar(value=0)
+    checkforupdates = ctk.IntVar()
     nocertifymode = ctk.IntVar(value=0)
 
     lowvram_var = ctk.IntVar()
@@ -1956,13 +1995,150 @@ def show_new_gui():
             button.grid(row=row+1, column=1, stick="nw")
         return label, entry, button
 
+    # from subprocess import run, CalledProcessError
+    # def get_device_names():
+    #     CUdevices = []
+    #     CLdevices = []
+    #     try: # Get OpenCL GPU names
+    #         output = run(['clinfo'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
+    #         CLdevices = [line.split(":", 1)[1].strip() for line in output.splitlines() if line.strip().startswith("Board name:")]
+    #     except Exception as e:
+    #         pass
+    #     try: # Get AMD ROCm GPU names
+    #         output = run(['rocminfo'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
+    #         device_name = None
+    #         for line in output.splitlines():
+    #             line = line.strip()
+    #             if line.startswith("Marketing Name:"): device_name = line.split(":", 1)[1].strip()
+    #             elif line.startswith("Device Type:") and "GPU" in line and device_name is not None: CUdevices.append(device_name)
+    #             elif line.startswith("Device Type:") and "GPU" not in line: device_name = None
+    #     except Exception as e:
+    #         pass
+    #     # try: # Get NVIDIA GPU names , Couldn't test so probably not working yet.
+    #     #     output = run(['nvidia-smi', '-L'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
+    #     #     CUdevices = [line.split(":", 1)[1].strip() for line in output.splitlines() if line.startswith("GPU:")]
+    #     # except FileNotFoundError: pass
+    #     CUdevices.append('All') if CUdevices else CUdevices.extend(['1', '2', '3', 'All'])
+    #     if not CLdevices: CLdevices.extend(['1', '2', '3'])
+    #     return CUdevices, CLdevices
+
+    # def show_tooltip(event, tooltip_text=None):
+    #     if hasattr(show_tooltip, "_tooltip"):
+    #         tooltip = show_tooltip._tooltip
+    #     else:
+    #         tooltip = ctk.CTkToplevel(root)
+    #         tooltip.configure(fg_color="#ffffe0")
+    #         tooltip.withdraw()
+    #         tooltip.overrideredirect(True)
+    #         tooltip_label = ctk.CTkLabel(tooltip, text=tooltip_text, text_color="#000000", fg_color="#ffffe0")
+    #         tooltip_label.pack(expand=True, padx=2, pady=1)
+    #         show_tooltip._tooltip = tooltip
+    #     x, y = root.winfo_pointerxy()
+    #     tooltip.wm_geometry(f"+{x + 10}+{y + 10}")
+    #     tooltip.deiconify()
+    # def hide_tooltip(event):
+    #     if hasattr(show_tooltip, "_tooltip"):
+    #         tooltip = show_tooltip._tooltip
+    #         tooltip.withdraw()
+
     # decided to follow yellowrose's and kalomaze's suggestions, this function will automatically try to determine GPU identifiers
     # run in new thread so it doesnt block. does not return anything, instead overwrites specific values and redraws GUI
+
+    def get_amd_gpu_info(): # Fallback
+        FetchedAMDdevices = []
+        FetchedAMDdeviceMem = []
+        amd_hip_devices = {
+            'W7900':    49152, # 48 GiB
+            'W7800':    32768, # 32 GiB
+            'W6800':    32768, # 32 GiB
+            '7900 XTX': 24560, # 24 GiB
+            '7900 XT':  20464, # 20 GiB
+            '7900 GRE': 16368, # 16 GiB
+            '7800 XT':  16368, # 16 GiB
+            '7600':     8176,  # 8 GiB
+            '6950 XT':  16368, # 16 GiB
+            '6900 XT':  16368, # 16 GiB
+            '6800 XT':  16368, # 16 GiB
+            '6800':     16368  # 16 GiB
+        }
+
+        def get_amd_gpu_info_windows(): # grab the devices through vulkaninfo then check them against amd_windows_hip_devices.
+            import re
+            from subprocess import run
+            nonlocal amd_hip_devices, FetchedAMDdevices, FetchedAMDdeviceMem
+            try:
+                output = run(['vulkaninfo', '--summary'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
+                output = output.split("Devices:\n========\n")[1]
+                output = re.split(r"GPU\d+:", output)
+                device_re = re.compile(r"^\s+deviceName\s+=\s+(.*)$", re.MULTILINE)
+                amd_re = re.compile(r"^\s+vendorID\s+=\s+0x1002$", re.MULTILINE)  # 0x1002 is the AMD vendor id for vulkan
+                for gpu in output:
+                    if amd_re.search(gpu):
+                        device_match = device_re.search(gpu)
+                        if device_match:
+                            device_name = device_match.group(1)
+                            for key in amd_hip_devices:
+                                if key in device_name:
+                                    memSize = amd_hip_devices[key]
+                            # list devices we know the memory for, that can use HIPBlas
+                            if memSize:
+                                FetchedAMDdevices.append(device_name)
+                                FetchedAMDdeviceMem.append(memSize)
+                try: 
+                    FetchedAMDdevices = [item.replace("AMD Radeon", "AMD") for item in FetchedAMDdevices] #Shorten Device Names
+                except Exception as e: 
+                    pass
+                return FetchedAMDdevices, FetchedAMDdeviceMem
+            except FileNotFoundError:
+                print("The command 'vulkaninfo' is not available on this system. Are GPU drivers installed?")
+                return [],[] # End get_amd_gpu_info_windows()
+            
+        def get_amd_gpu_info_linux():
+            from subprocess import run
+            nonlocal amd_hip_devices, FetchedAMDdevices, FetchedAMDdeviceMem
+            try: # Get AMD ROCm GPU names
+                    output = run(['rocminfo'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
+                    device_name = None
+                    for line in output.splitlines(): # read through the output line by line
+                        line = line.strip()
+                        if line.startswith("Marketing Name:"):
+                            device_name = line.split(":", 1)[1].strip() # if we find a named device, temporarily save the name
+                        elif line.startswith("Device Type:") and "GPU" in line and device_name is not None: # if the following Device Type is a GPU (not a CPU) then add it to devices list
+                            FetchedAMDdevices.append(device_name)
+                        elif line.startswith("Device Type:") and "GPU" not in line: device_name = None
+                    if FetchedAMDdevices:
+                        try:
+                            getamdvram = run(['rocm-smi', '--showmeminfo', 'vram', '--csv'], capture_output=True, text=True, check=True, encoding='utf-8').stdout # fetch VRAM of devices
+                            if getamdvram:
+                                FetchedAMDdeviceMem = [str(int(line.split(",")[1].strip()) // 1048576) for line in getamdvram.splitlines()[1:] if line.strip()] #return Mb from Bytes
+                        except Exception as e:
+                            pass
+                        try:
+                            if not FetchedAMDdeviceMem and device_name:
+                                for key in amd_hip_devices:
+                                    if key in device_name:
+                                        memSize = amd_hip_devices[key]
+                                        FetchedAMDdeviceMem.append(memSize)
+                        except Exception as e:
+                            pass
+                    try: 
+                        FetchedAMDdevices = [item.replace("AMD Radeon", "AMD") for item in FetchedAMDdevices] #Shorten Device Names
+                    except Exception as e: 
+                        pass
+                    return FetchedAMDdevices, FetchedAMDdeviceMem
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+                return [], [] # End get_amd_gpu_info_linux()
+            
+        if os.name == "nt":
+            return get_amd_gpu_info_windows()
+        else:
+            return get_amd_gpu_info_linux() # End get_amd_gpu_info()
+        
     def auto_gpu_heuristics():
         import subprocess
         FetchedCUdevices = []
         FetchedCUdeviceMem = []
-        AMDgpu = None
         try: # Get OpenCL GPU names on windows using a special binary. overwrite at known index if found.
             basepath = os.path.abspath(os.path.dirname(__file__))
             output = ""
@@ -1979,8 +2155,10 @@ def show_new_gui():
             for platform in data["devices"]:
                 dev = 0
                 for device in platform["online"]:
-                    dname = device["CL_DEVICE_NAME"]
+                    dname = device["CL_DEVICE_BOARD_NAME_AMD"]
                     dmem = int(device["CL_DEVICE_GLOBAL_MEM_SIZE"])
+                    if "AMD Radeon" in dname:
+                        dname = dname.replace("AMD Radeon", "AMD")
                     idx = plat+dev*2
                     if idx<len(CLDevices):
                         CLDevicesNames[idx] = dname
@@ -1998,22 +2176,8 @@ def show_new_gui():
         except Exception as e:
             pass
 
-        if len(FetchedCUdevices)==0:
-            try: # Get AMD ROCm GPU names
-                output = subprocess.run(['rocminfo'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
-                device_name = None
-                for line in output.splitlines(): # read through the output line by line
-                    line = line.strip()
-                    if line.startswith("Marketing Name:"): device_name = line.split(":", 1)[1].strip() # if we find a named device, temporarily save the name
-                    elif line.startswith("Device Type:") and "GPU" in line and device_name is not None: # if the following Device Type is a GPU (not a CPU) then add it to devices list
-                        FetchedCUdevices.append(device_name)
-                        AMDgpu = True
-                    elif line.startswith("Device Type:") and "GPU" not in line: device_name = None
-                if FetchedCUdevices:
-                    getamdvram = subprocess.run(['rocm-smi', '--showmeminfo', 'vram', '--csv'], capture_output=True, text=True, check=True, encoding='utf-8').stdout # fetch VRAM of devices
-                    FetchedCUdeviceMem = [line.split(",")[1].strip() for line in getamdvram.splitlines()[1:] if line.strip()]
-            except Exception as e:
-                pass
+        if len(FetchedCUdevices)==0 and not any(CLDevicesNames): # Fallback Get AMD GPU names if OpenCL didn't fetch them (since cuda method is more reliable)
+            FetchedCUdevices, FetchedCUdeviceMem = get_amd_gpu_info()
 
         try: # Get Vulkan names
             output = subprocess.run(['vulkaninfo','--summary'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
@@ -2029,10 +2193,7 @@ def show_new_gui():
         for idx in range(0,4):
             if(len(FetchedCUdevices)>idx):
                 CUDevicesNames[idx] = FetchedCUdevices[idx]
-                if AMDgpu:
-                    MaxMemory[0] = max(int(FetchedCUdeviceMem[idx]),MaxMemory[0])
-                else:
-                    MaxMemory[0] = max(int(FetchedCUdeviceMem[idx])*1024*1024,MaxMemory[0])
+                MaxMemory[0] = max(int(FetchedCUdeviceMem[idx])*1024*1024,MaxMemory[0])
 
         #autopick cublas if suitable, requires at least 3.5GB VRAM to auto pick
         global exitcounter, runmode_untouched
@@ -2093,6 +2254,12 @@ def show_new_gui():
         num_backends_built.grid(row=1, column=1, padx=195, pady=0)
         num_backends_built.configure(text_color="#00ff00")
 
+    # # Vars - should be in scope to be used by multiple widgets
+    # CUdevices, CLdevices = get_device_names()
+    # gpulayers_var = ctk.StringVar(value="0")
+    # threads_var = ctk.StringVar(value=str(default_threads))
+    # runopts_var = ctk.StringVar()
+    # gpu_choice_var = ctk.StringVar(value=CLdevices[0] if not None else CUdevices[0] if not None else "1")
     def changed_gpulayers(*args):
         global gui_layers_untouched
         gui_layers_untouched = False
@@ -2110,6 +2277,9 @@ def show_new_gui():
                     quick_gpuname_label.configure(text=VKDevicesNames[s])
                     gpuname_label.configure(text=VKDevicesNames[s])
                 elif v == "Use CLBlast" or v == "CLBlast NoAVX2 (Old CPU)":
+                    quick_gpuname_label.configure(text=CLDevicesNames[s])
+                    gpuname_label.configure(text=CLDevicesNames[s])
+                elif v == "Use hipBLAS (ROCm)" and not any(CUDevicesNames) and any(CLDevicesNames):
                     quick_gpuname_label.configure(text=CLDevicesNames[s])
                     gpuname_label.configure(text=CLDevicesNames[s])
                 else:
@@ -2375,11 +2545,13 @@ def show_new_gui():
     makecheckbox(network_tab, "Multiuser Mode", multiuser_var, 3,tooltiptxt="Allows requests by multiple different clients to be queued and handled in sequence.")
     makecheckbox(network_tab, "Remote Tunnel", remotetunnel, 3, 1,tooltiptxt="Creates a trycloudflare tunnel.\nAllows you to access koboldcpp from other devices over an internet URL.")
     makecheckbox(network_tab, "Quiet Mode", quietmode, 4,tooltiptxt="Prevents all generation related terminal output from being displayed.")
+    makecheckbox(network_tab, "Check For Updates", checkforupdates, 5, tooltiptxt="Check for updates on startup")
     makecheckbox(network_tab, "NoCertify Mode (Insecure)", nocertifymode, 4, 1,tooltiptxt="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.")
 
-    makefileentry(network_tab, "SSL Cert:", "Select SSL cert.pem file",ssl_cert_var, 5, width=130 ,filetypes=[("Unencrypted Certificate PEM", "*.pem")], singlerow=True,tooltiptxt="Select your unencrypted .pem SSL certificate file for https.\nCan be generated with OpenSSL.")
-    makefileentry(network_tab, "SSL Key:", "Select SSL key.pem file", ssl_key_var, 7, width=130, filetypes=[("Unencrypted Key PEM", "*.pem")], singlerow=True,tooltiptxt="Select your unencrypted .pem SSL key file for https.\nCan be generated with OpenSSL.")
-    makelabelentry(network_tab, "Password: ", password_var, 8, 150,tooltip="Enter a password required to use this instance.\nThis key will be required for all text endpoints.\nImage endpoints are not secured.")
+    makefileentry(network_tab, "SSL Cert:", "Select SSL cert.pem file",ssl_cert_var, 6, width=130 ,filetypes=[("Unencrypted Certificate PEM", "*.pem")], singlerow=True,tooltiptxt="Select your unencrypted .pem SSL certificate file for https.\nCan be generated with OpenSSL.")
+    makefileentry(network_tab, "SSL Key:", "Select SSL key.pem file", ssl_key_var, 8, width=130, filetypes=[("Unencrypted Key PEM", "*.pem")], singlerow=True,tooltiptxt="Select your unencrypted .pem SSL key file for https.\nCan be generated with OpenSSL.")
+    makelabelentry(network_tab, "Password: ", password_var, 9, 150,tooltip="Enter a password required to use this instance.\nThis key will be required for all text endpoints.\nImage endpoints are not secured.")
+
 
     # Horde Tab
     horde_tab = tabcontent["Horde Worker"]
@@ -2480,6 +2652,13 @@ def show_new_gui():
 
         gpuchoiceidx = 0
         if gpu_choice_var.get()!="All":
+        #     if runopts_var.get() == "Use CLBlast": #if CLBlast selected
+        #         if (gpu_choice_var.get()) in CLdevices:
+        #             gpuchoiceidx = CLdevices.index((gpu_choice_var.get()))
+        #     elif runopts_var.get() == "Use CuBLAS" or runopts_var.get() == "Use hipBLAS (ROCm)":
+        #         if (gpu_choice_var.get()) in CUdevices:
+        #             gpuchoiceidx = CUdevices.index((gpu_choice_var.get()))
+        # if runopts_var.get() == "Use CLBlast":
             gpuchoiceidx = int(gpu_choice_var.get())-1
         if runopts_var.get() == "Use CLBlast" or runopts_var.get() == "CLBlast NoAVX2 (Old CPU)":
             args.useclblast = [[0,0], [1,0], [0,1], [1,1]][gpuchoiceidx]
@@ -2597,6 +2776,7 @@ def show_new_gui():
         remotetunnel.set(1 if "remotetunnel" in dict and dict["remotetunnel"] else 0)
         keepforeground.set(1 if "foreground" in dict and dict["foreground"] else 0)
         quietmode.set(1 if "quiet" in dict and dict["quiet"] else 0)
+        checkforupdates.set(1 if "checkforupdates" in dict and dict["checkforupdates"] else 0)
         nocertifymode.set(1 if "nocertify" in dict and dict["nocertify"] else 0)
         if "quantkv" in dict:
             quantkv_var.set(dict["quantkv"])
@@ -2757,7 +2937,7 @@ def show_new_gui():
     def display_updates():
         try:
             import webbrowser as wb
-            wb.open("https://github.com/LostRuins/koboldcpp/releases/latest")
+            wb.open("https://github.com/YellowRoseCx/koboldcpp-rocm/releases/latest")
         except:
             print("Cannot launch updates in browser.")
 
@@ -2788,6 +2968,144 @@ def show_new_gui():
             print("\nNo text or image model file was selected. Exiting.")
             time.sleep(3)
             sys.exit(2)
+
+def show_old_gui():
+    import tkinter as tk
+    from tkinter.filedialog import askopenfilename
+    from tkinter import messagebox
+
+    if len(sys.argv) == 1:
+        #no args passed at all. Show nooby gui
+        root = tk.Tk()
+        launchclicked = False
+
+        def guilaunch():
+            nonlocal launchclicked
+            launchclicked = True
+            root.destroy()
+            pass
+
+        # Adjust size
+        root.geometry("480x360")
+        root.title("KoboldCpp v"+KcppVersion)
+        root.grid_columnconfigure(0, weight=1)
+        tk.Label(root, text = "KoboldCpp Easy Launcher",
+                font = ("Arial", 12)).grid(row=0,column=0)
+        tk.Label(root, text = "(Note: KoboldCpp only works with GGML model formats!)",
+                font = ("Arial", 9)).grid(row=1,column=0)
+
+        blasbatchopts = ["Don't Batch BLAS","BLAS = 32","BLAS = 64","BLAS = 128","BLAS = 256","BLAS = 512","BLAS = 1024","BLAS = 2048"]
+        blaschoice = tk.StringVar()
+        blaschoice.set("BLAS = 512")
+
+        runopts = ["Use OpenBLAS","Use CLBLast GPU #1","Use CLBLast GPU #2","Use CLBLast GPU #3","Use CuBLAS GPU","Use No BLAS","NoAVX2 Mode (Old CPU)","Failsafe Mode (Old CPU)"]
+        runchoice = tk.StringVar()
+        runchoice.set("Use OpenBLAS")
+
+        def onDropdownChange(event):
+            sel = runchoice.get()
+            if sel==runopts[1] or sel==runopts[2] or sel==runopts[3] or sel==runopts[4]:
+                frameC.grid(row=4,column=0,pady=4)
+            else:
+                frameC.grid_forget()
+
+        frameA = tk.Frame(root)
+        tk.OptionMenu( frameA , runchoice , command = onDropdownChange ,*runopts ).grid(row=0,column=0)
+        tk.OptionMenu( frameA , blaschoice ,*blasbatchopts ).grid(row=0,column=1)
+        frameA.grid(row=2,column=0)
+
+        frameB = tk.Frame(root)
+        threads_var=tk.StringVar()
+        threads_var.set(str(default_threads))
+        threads_lbl = tk.Label(frameB, text = 'Threads: ', font=('calibre',10, 'bold'))
+        threads_input = tk.Entry(frameB,textvariable = threads_var, font=('calibre',10,'normal'))
+        threads_lbl.grid(row=0,column=0)
+        threads_input.grid(row=0,column=1)
+        frameB.grid(row=3,column=0,pady=4)
+
+        frameC = tk.Frame(root)
+        gpu_layers_var=tk.StringVar()
+        gpu_layers_var.set("0")
+        gpu_lbl = tk.Label(frameC, text = 'GPU Layers: ', font=('calibre',10, 'bold'))
+        gpu_layers_input = tk.Entry(frameC,textvariable = gpu_layers_var, font=('calibre',10,'normal'))
+        gpu_lbl.grid(row=0,column=0)
+        gpu_layers_input.grid(row=0,column=1)
+        frameC.grid(row=4,column=0,pady=4)
+        onDropdownChange(None)
+
+        stream = tk.IntVar()
+        smartcontext = tk.IntVar()
+        launchbrowser = tk.IntVar(value=1)
+        unbantokens = tk.IntVar()
+        highpriority = tk.IntVar()
+        disablemmap = tk.IntVar()
+        frameD = tk.Frame(root)
+        tk.Checkbutton(frameD, text='Streaming Mode',variable=stream, onvalue=1, offvalue=0).grid(row=0,column=0)
+        tk.Checkbutton(frameD, text='Use SmartContext',variable=smartcontext, onvalue=1, offvalue=0).grid(row=0,column=1)
+        tk.Checkbutton(frameD, text='High Priority',variable=highpriority, onvalue=1, offvalue=0).grid(row=1,column=0)
+        tk.Checkbutton(frameD, text='Disable MMAP',variable=disablemmap, onvalue=1, offvalue=0).grid(row=1,column=1)
+        tk.Checkbutton(frameD, text='Unban Tokens',variable=unbantokens, onvalue=1, offvalue=0).grid(row=2,column=0)
+        tk.Checkbutton(frameD, text='Launch Browser',variable=launchbrowser, onvalue=1, offvalue=0).grid(row=2,column=1)
+        frameD.grid(row=5,column=0,pady=4)
+
+        # Create button, it will change label text
+        tk.Button(root , text = "Launch", font = ("Impact", 18), bg='#54FA9B', command = guilaunch ).grid(row=6,column=0)
+        tk.Label(root, text = "(Please use the Command Line for more advanced options)\nThis GUI is deprecated. Please install customtkinter.",
+                font = ("Arial", 9)).grid(row=7,column=0)
+
+        root.mainloop()
+
+        if launchclicked==False:
+            print("Exiting by user request.")
+            time.sleep(3)
+            sys.exit()
+
+        #load all the vars
+        args.threads = int(threads_var.get())
+        args.gpulayers = int(gpu_layers_var.get())
+
+        args.stream = (stream.get()==1)
+        args.smartcontext = (smartcontext.get()==1)
+        args.launch = (launchbrowser.get()==1)
+        args.unbantokens = (unbantokens.get()==1)
+        args.highpriority = (highpriority.get()==1)
+        args.nommap = (disablemmap.get()==1)
+        selrunchoice = runchoice.get()
+        selblaschoice = blaschoice.get()
+
+        if selrunchoice==runopts[1]:
+            args.useclblast = [0,0]
+        if selrunchoice==runopts[2]:
+            args.useclblast = [1,0]
+        if selrunchoice==runopts[3]:
+            args.useclblast = [0,1]
+        if selrunchoice==runopts[4]:
+            args.usecublas = ["normal"]
+        if selrunchoice==runopts[5]:
+            args.noblas = True
+        if selrunchoice==runopts[6]:
+            args.noavx2 = True
+        if selrunchoice==runopts[7]:
+            args.noavx2 = True
+            args.noblas = True
+            args.nommap = True
+
+        if selblaschoice==blasbatchopts[0]:
+            args.blasbatchsize = -1
+        if selblaschoice==blasbatchopts[1]:
+            args.blasbatchsize = 32
+        if selblaschoice==blasbatchopts[2]:
+            args.blasbatchsize = 64
+        if selblaschoice==blasbatchopts[3]:
+            args.blasbatchsize = 128
+        if selblaschoice==blasbatchopts[4]:
+            args.blasbatchsize = 256
+        if selblaschoice==blasbatchopts[5]:
+            args.blasbatchsize = 512
+        if selblaschoice==blasbatchopts[6]:
+            args.blasbatchsize = 1024
+        if selblaschoice==blasbatchopts[7]:
+            args.blasbatchsize = 2048
 
 def show_gui_msgbox(title,message):
     print(title + ": " + message)
@@ -3228,9 +3546,59 @@ def sanitize_string(input_string):
     sanitized_string = re.sub( r'[^\w\d\.\-_]', '', input_string)
     return sanitized_string
 
+def get_latest_release_tag():
+    import requests
+    try:
+        response = requests.get('https://api.github.com/repos/YellowRoseCx/koboldcpp-rocm/releases', verify=True)
+        data = response.json()
+        latest_release_tag = data[0]['tag_name']
+        return latest_release_tag
+    except Exception as e:
+        return KcppVersion
+def compare_versions(current_version, latest_version):
+    import re
+    current_version_parts = current_version.split('.yr') # Split the version into main version and YellowRose's patch
+    latest_version_parts = latest_version.split('.yr')
+    current_version_numbers = re.findall(r'\d+', current_version_parts[0]) # Compare the main version numbers
+    latest_version_numbers = re.findall(r'\d+', latest_version_parts[0])
+    for current, latest in zip(current_version_numbers, latest_version_numbers):
+        if int(latest) > int(current):
+            return latest_version
+    if current_version_parts[0] == latest_version_parts[0]: # If the main version numbers are equal, check YellowRose's patch
+        current_yr_number = current_version_parts[1].split('-')[0]
+        latest_yr_number = latest_version_parts[1].split('-')[0]
+        if int(latest_yr_number) > int(current_yr_number):
+            return latest_version
+    return current_version
+def check_latest_version():
+    from colorama import Fore, Style, init, deinit
+    if os.name == "nt":
+        init()
+    latest_version = get_latest_release_tag()
+    new_version = compare_versions(KcppVersion, latest_version)
+    if new_version != KcppVersion:
+        print(f"{Fore.CYAN}A new version of KoboldCpp-ROCm is available: {Fore.GREEN}**{new_version}**{Fore.CYAN}, current version is: {Fore.YELLOW}**{KcppVersion}**{Style.RESET_ALL}")
+    else:
+        print(f"{Fore.CYAN}You are using the latest version.{Style.RESET_ALL}")
+    if os.name == "nt":
+        deinit()
+
 def main(launch_args,start_server=True):
+    import platform
     global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
     global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath
+    OS = platform.system()
+    if OS == "Linux":
+        try:
+            amd_gfx_vers = get_amd_gfx_vers_linux()
+            if any(item.startswith("gfx103") for item in amd_gfx_vers) and len(amd_gfx_vers) == 1:
+                os.environ["HSA_OVERRIDE_GFX_VERSION"] = "10.3.0"
+                print(f"Set AMD HSA_OVERRIDE_GFX_VERSION to 10.3.0")
+        except Exception as e:
+            return
+    args = launch_args
+    embedded_kailite = None
+    embedded_kcpp_docs = None
 
     #perform some basic cleanup of old temporary directories
     try:
@@ -3669,6 +4037,8 @@ def main(launch_args,start_server=True):
 
     check_deprecation_warning()
     if start_server:
+        if args.checkforupdates:
+            check_latest_version()
         if args.remotetunnel:
             setuptunnel(True if args.sdmodel else False)
         else:
@@ -3745,6 +4115,7 @@ if __name__ == '__main__':
     parser.add_argument("--contextsize", help="Controls the memory allocated for maximum context size, only change if you need more RAM for big contexts. (default 2048). Supported values are [256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072,262144]. IF YOU USE ANYTHING ELSE YOU ARE ON YOUR OWN.",metavar=('[256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072,262144]'), type=check_range(int,256,262144), default=2048)
     parser.add_argument("--gpulayers", help="Set number of layers to offload to GPU when using GPU. Requires a GPU. Prefer a full offload (all layers on GPU) if possible.",metavar=('[GPU layers]'), nargs='?', const=1, type=int, default=0)
     parser.add_argument("--tensor_split", help="For CUDA and Vulkan only, ratio to split a model layers across multiple GPUs, space-separated list of proportions, e.g. 55 26 to run a 70b Llama2 Miqu model in IQ3_M with 32k context on a Geforce 3090 24G (55 layers) and a Geforce 3060 12G (26 layers)", metavar=('[Ratios]'), type=float, nargs='+')
+    parser.add_argument("--checkforupdates", help="Checks KoboldCpp-ROCm's release page on GitHub using HTTPS to see if there's a new update available.", action='store_true')
 
     #more advanced params
     advparser = parser.add_argument_group('Advanced Commands')
