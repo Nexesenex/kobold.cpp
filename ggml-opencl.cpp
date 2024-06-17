@@ -2160,7 +2160,6 @@ static ggml_backend_buffer_type_i ggml_backend_opencl_buffer_type_interface = {
     /* .get_alignment    = */ ggml_backend_opencl_buffer_type_get_alignment,
     /* .get_max_size     = */ ggml_backend_opencl_buffer_type_get_max_size,
     /* .get_alloc_size   = */ NULL,
-    /* .supports_backend = */ ggml_backend_opencl_buffer_type_supports_backend,
     /* .is_host          = */ NULL,
 };
 
@@ -2228,87 +2227,4 @@ ggml_backend_buffer_type_t ggml_backend_opencl_host_buffer_type() {
 
 // backend
 
-static const char * ggml_backend_opencl_name(ggml_backend_t backend) {
-    return "OpenCL";
-
-    GGML_UNUSED(backend);
-}
-
-static void ggml_backend_opencl_free(ggml_backend_t backend) {
-    GGML_UNUSED(backend);
-}
-
-static ggml_backend_buffer_type_t ggml_backend_opencl_get_default_buffer_type(ggml_backend_t backend) {
-    return ggml_backend_opencl_buffer_type();
-
-    GGML_UNUSED(backend);
-}
-
-static ggml_status ggml_backend_opencl_graph_compute(ggml_backend_t backend, ggml_cgraph * graph) {
-    for (int i = 0; i < graph->n_nodes; ++i) {
-        ggml_tensor * node = graph->nodes[i];
-
-        if (ggml_is_empty(node)) {
-            continue;
-        }
-
-        switch (node->op) {
-            case GGML_OP_MUL_MAT:
-                ggml_cl_mul_mat(node->src[0], node->src[1], node, nullptr, 0);
-                break;
-            case GGML_OP_MUL:
-                ggml_cl_mul(node->src[0], node->src[1], node);
-                break;
-            default:
-                GGML_ASSERT(false);
-        }
-    }
-
-    return GGML_STATUS_SUCCESS;
-
-    GGML_UNUSED(backend);
-}
-
-static bool ggml_backend_opencl_supports_op(ggml_backend_t backend, const ggml_tensor * op) {
-    switch (op->op) {
-        case GGML_OP_MUL_MAT:
-            return ggml_cl_can_mul_mat(op->src[0], op->src[1], op);
-        case GGML_OP_MUL:
-            // return ggml_can_repeat_rows(op->src[1], op->src[0]);
-            return true;
-        default:
-            return false;
-    }
-
-    GGML_UNUSED(backend);
-}
-
-static ggml_backend_i opencl_backend_i = {
-    /* .get_name                = */ ggml_backend_opencl_name,
-    /* .free                    = */ ggml_backend_opencl_free,
-    /* .get_default_buffer_type = */ ggml_backend_opencl_get_default_buffer_type,
-    /* .set_tensor_async        = */ NULL,
-    /* .get_tensor_async        = */ NULL,
-    /* .cpy_tensor_from_async   = */ NULL,
-    /* .cpy_tensor_to_async     = */ NULL,
-    /* .synchronize             = */ NULL,
-    /* .graph_plan_create       = */ NULL,
-    /* .graph_plan_free         = */ NULL,
-    /* .graph_plan_compute      = */ NULL,
-    /* .graph_compute           = */ ggml_backend_opencl_graph_compute,
-    /* .supports_op             = */ ggml_backend_opencl_supports_op,
-};
-
-ggml_backend_t ggml_backend_opencl_init() {
-    ggml_backend_t backend = new ggml_backend {
-        /* .interface = */ opencl_backend_i,
-        /* .context   = */ nullptr
-    };
-
-    return backend;
-}
-
-bool ggml_backend_is_opencl(ggml_backend_t backend) {
-    return backend && backend->iface.get_name == ggml_backend_opencl_name;
-}
 #endif
