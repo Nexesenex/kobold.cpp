@@ -20,7 +20,7 @@ fi
 KCPP_CUDA=$(<conda/envs/linux/cudaver)
 KCPP_CUDAAPPEND=-cuda${KCPP_CUDA//.}$KCPP_APPEND
 
-bin/micromamba run -r conda -p conda/envs/linux make LLAMA_VULKAN=1 LLAMA_OPENBLAS=1 LLAMA_CLBLAST=1 LLAMA_CUBLAS=1 LLAMA_PORTABLE=1 LLAMA_ADD_CONDA_PATHS=1
+bin/micromamba run -r conda -p conda/envs/linux make -j$(nproc) LLAMA_VULKAN=1 LLAMA_OPENBLAS=1 LLAMA_CLBLAST=1 LLAMA_CUBLAS=1 LLAMA_PORTABLE=1 LLAMA_ADD_CONDA_PATHS=1
 
 if [[ $1 == "rebuild" ]]; then
 	echo Rebuild complete, you can now try to launch Koboldcpp.
