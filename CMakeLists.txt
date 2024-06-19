@@ -52,7 +52,7 @@ set(LLAMA_LLAMAFILE_DEFAULT ON)
 # general
 option(BUILD_SHARED_LIBS                "build shared libraries"                                OFF)
 option(LLAMA_STATIC                     "llama: static link libraries"                          OFF)
-option(LLAMA_NATIVE                     "llama: enable -march=native flag"                      ON)
+option(LLAMA_NATIVE                     "llama: enable -march=native flag"                      OFF)
 option(LLAMA_LTO                        "llama: enable link time optimization"                  OFF)
 option(LLAMA_CCACHE                     "llama: use ccache if available"                        ON)
 
@@ -94,7 +94,7 @@ if (WIN32)
 endif()
 
 # 3rd party libs
-option(LLAMA_ACCELERATE                      "llama: enable Accelerate framework"               ON)
+option(LLAMA_ACCELERATE                      "llama: enable Accelerate framework"               OFF)
 option(LLAMA_BLAS                            "llama: use BLAS"                                  ${LLAMA_BLAS_DEFAULT})
 set(LLAMA_BLAS_VENDOR ${LLAMA_BLAS_VENDOR_DEFAULT} CACHE STRING
                                              "llama: BLAS library vendor")
@@ -141,8 +141,8 @@ set(LLAMA_SCHED_MAX_COPIES  "2" CACHE STRING "llama: max input copies for pipeli
 option(LLAMA_BUILD_TESTS                     "llama: build tests"    ${LLAMA_STANDALONE})
 option(LLAMA_BUILD_EXAMPLES                  "llama: build examples" ${LLAMA_STANDALONE})
 option(LLAMA_BUILD_SERVER                    "llama: build server example"                      ON)
-option(LLAMA_LASX                            "llama: enable lasx"                               ON)
-option(LLAMA_LSX                             "llama: enable lsx"                                ON)
+option(LLAMA_LASX                            "llama: enable lasx"                               OFF)
+option(LLAMA_LSX                             "llama: enable lsx"                                OFF)
 
 # add perf arguments
 option(LLAMA_PERF                            "llama: enable perf"                               OFF)
