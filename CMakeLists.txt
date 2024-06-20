@@ -51,6 +51,8 @@ set(LLAMA_CUDA_PEER_MAX_BATCH_SIZE "128" CACHE STRING
                                              "llama: max. batch size for using peer access")
 set(GGML_CUDA_USE_GRAPHS                                                                        OFF)
 option(LLAMA_CUDA_FA_ALL_QUANTS              "llama: compile all quants for FlashAttention"     OFF)
+option(LLAMA_CUDA_ENABLE_UNIFIED_MEMORY      "llama: enable to avoid OOM in Full Offload"       OFF)
+
 option(LLAMA_HIPBLAS                         "llama: use hipBLAS"                               OFF)
 
 # Other
@@ -121,6 +123,10 @@ if (LLAMA_CUBLAS)
             file(GLOB SRCS "ggml-cuda/template-instances/fattn-vec*.cu")
             list(APPEND GGML_SOURCES_CUDA ${SRCS})
             add_compile_definitions(GGML_CUDA_FA_ALL_QUANTS)
+        endif()
+		
+        if (LLAMA_CUDA_ENABLE_UNIFIED_MEMORY)
+            add_compile_definitions(GGML_CUDA_ENABLE_UNIFIED_MEMORY)
         endif()
 
         if (LLAMA_STATIC)
