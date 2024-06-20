@@ -73,7 +73,6 @@ struct gpt_params {
     int32_t n_gpu_layers_draft    =    -1; // number of layers to store in VRAM for the draft model (-1 - use default)
     int32_t main_gpu              =     0; // the GPU that is used for scratch and small tensors
     float   tensor_split[128]     =   {0}; // how split tensors should be distributed across GPUs
-    int32_t n_beams               =     0; // if non-zero then use beam search of given width.
     int32_t grp_attn_n            =     1; // group-attention factor
     int32_t grp_attn_w            =   512; // group-attention width
     int32_t n_print               =    -1; // print token count every n tokens (-1 = disabled)
@@ -203,6 +202,8 @@ struct gpt_params {
 
     std::string slot_save_path;
 
+    float slot_prompt_similarity = 0.5f;
+
     // batched-bench params
     bool is_pp_shared = false;
 
@@ -230,6 +231,15 @@ struct gpt_params {
 
     bool process_output = false; // collect data for the output tensor
     bool compute_ppl    = true;  // whether to compute perplexity
+
+    // cvector-generator params
+    int n_completions = 64;
+    int n_pca_batch = 20;
+    int n_pca_iterations = 1000;
+    std::string cvector_outfile          = "control_vector.gguf";
+    std::string cvector_completions_file = "examples/cvector-generator/completions.txt";
+    std::string cvector_positive_file    = "examples/cvector-generator/positive.txt";
+    std::string cvector_negative_file    = "examples/cvector-generator/negative.txt";
 };
 
 void gpt_params_handle_model_default(gpt_params & params);
@@ -275,6 +285,7 @@ bool fs_validate_filename(const std::string & filename);
 bool fs_create_directory_with_parents(const std::string & path);
 
 std::string fs_get_cache_directory();
+std::string fs_get_cache_file(const std::string & filename);
 
 //
 // Model utils
