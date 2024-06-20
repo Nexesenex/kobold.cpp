@@ -130,7 +130,16 @@ static cudaError_t ggml_cuda_device_malloc(void ** ptr, size_t size, int device)
     }
     return res;
 #else
-    return cudaMalloc(ptr, size);
+    cudaError_t err;
+    if (getenv("GGML_CUDA_ENABLE_UNIFIED_MEMORY") != nullptr)
+    {
+        err = cudaMallocManaged(ptr, size);
+    }
+    else
+    {
+        err = cudaMalloc(ptr, size);
+    }
+    return err;
 #endif
 }
 
