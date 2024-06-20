@@ -164,6 +164,10 @@ extern "C" {
         LLAMA_FTYPE_MOSTLY_Q3_K_ML       = 41, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_Q4_K_ML       = 42, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_Q5_K_ML       = 43, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q6_K_ML       = 44, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q8_O8E6       = 97, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q8_OE8        = 98, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q8_OE16       = 99, // except 1d tensors
         // Nexesenex custom IQ quants
         LLAMA_FTYPE_MOSTLY_IQ1_FS        = 45, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_IQ1_PS        = 46, // except 1d tensors
@@ -189,7 +193,6 @@ extern "C" {
         LLAMA_FTYPE_MOSTLY_IQ4_MR        = 68, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_IQ4_LR        = 69, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_IQ4_BLR       = 70, // except 1d tensors
-        LLAMA_FTYPE_MOSTLY_Q8_O8         = 97, // except 1d tensors
         // Nexesenex test IQ quants
         LLAMA_FTYPE_MOSTLY_IQ5_XSR       = 71, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_IQ5_SR        = 72, // except 1d tensors
