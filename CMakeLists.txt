@@ -112,6 +112,7 @@ set(LLAMA_CUDA_PEER_MAX_BATCH_SIZE "128" CACHE STRING
 option(LLAMA_CUDA_NO_PEER_COPY               "llama: do not use peer to peer copies"            OFF)
 option(LLAMA_CUDA_NO_VMM                     "llama: do not try to use CUDA VMM"                OFF)
 option(LLAMA_CUDA_FA_ALL_QUANTS              "llama: compile all quants for FlashAttention"     OFF)
+option(LLAMA_CUDA_ENABLE_UNIFIED_MEMORY      "llama: enable to avoid OOM in Full Offload"       OFF)
 
 option(LLAMA_CURL                            "llama: use libcurl to download model from an URL" OFF)
 option(LLAMA_HIPBLAS                         "llama: use hipBLAS"                               OFF)
@@ -477,6 +478,9 @@ if (LLAMA_CUDA)
             list(APPEND GGML_SOURCES_CUDA ${SRCS})
             file(GLOB SRCS "ggml-cuda/template-instances/fattn-vec*f16-f16.cu")
             list(APPEND GGML_SOURCES_CUDA ${SRCS})
+        endif()
+        if (LLAMA_CUDA_ENABLE_UNIFIED_MEMORY)
+            add_compile_definitions(GGML_CUDA_ENABLE_UNIFIED_MEMORY)
         endif()
 
         if (LLAMA_STATIC)
