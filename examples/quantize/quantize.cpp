@@ -17,10 +17,10 @@ struct quant_option {
 };
 
 static const std::vector<struct quant_option> QUANT_OPTIONS = {
-    { "Q4_0",   LLAMA_FTYPE_MOSTLY_Q4_0,   " 3.56G, +0.2166 ppl @ LLaMA-v1-7B", },
-    { "Q4_1",   LLAMA_FTYPE_MOSTLY_Q4_1,   " 3.90G, +0.1585 ppl @ LLaMA-v1-7B", },
-    { "Q5_0",   LLAMA_FTYPE_MOSTLY_Q5_0,   " 4.33G, +0.0683 ppl @ LLaMA-v1-7B", },
-    { "Q5_1",   LLAMA_FTYPE_MOSTLY_Q5_1,   " 4.70G, +0.0349 ppl @ LLaMA-v1-7B", },
+    { "Q4_0",   LLAMA_FTYPE_MOSTLY_Q4_0,   " 4.34G, +0.4685 ppl @ Llama-3-8B",  },
+    { "Q4_1",   LLAMA_FTYPE_MOSTLY_Q4_1,   " 4.78G, +0.4511 ppl @ Llama-3-8B",  },
+    { "Q5_0",   LLAMA_FTYPE_MOSTLY_Q5_0,   " 5.21G, +0.1316 ppl @ Llama-3-8B",  },
+    { "Q5_1",   LLAMA_FTYPE_MOSTLY_Q5_1,   " 5.65G, +0.1062 ppl @ Llama-3-8B",  },
     { "IQ2_XXS",LLAMA_FTYPE_MOSTLY_IQ2_XXS," 2.06 bpw quantization",            },
     { "IQ2_XS", LLAMA_FTYPE_MOSTLY_IQ2_XS, " 2.31 bpw quantization",            },
     { "IQ2_S",  LLAMA_FTYPE_MOSTLY_IQ2_S,  " 2.5  bpw quantization",            },
@@ -112,7 +112,7 @@ static const std::vector<struct quant_option> QUANT_OPTIONS = {
     { "IQ9_LR" ,LLAMA_FTYPE_MOSTLY_IQ9_LR, " 9.3x bpw quantization mix",        },
     { "IQ9_BLR",LLAMA_FTYPE_MOSTLY_IQ9_BLR," 9.4x bpw quantization mix",        },
     // Note: Ensure COPY comes after F32 to avoid ftype 0 from matching.
-    { "COPY",   LLAMA_FTYPE_ALL_F32,       "only copy tensors, no quantizing", },
+    { "COPY",   LLAMA_FTYPE_ALL_F32,       "only copy tensors, no quantizing",  },
 };
 
 static const char * const LLM_KV_QUANTIZE_IMATRIX_FILE       = "quantize.imatrix.file";
