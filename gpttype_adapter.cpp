@@ -1133,53 +1133,38 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
                 //float multiplier_rope_base = llamamodel->hparams.rope_freq_base_train/10000.0f;
                 //rope_freq_base *= multiplier_rope_base;
 				
-                //Calculate chi values using the gradientAI formula
-                if(llamamodel->hparams.rope_freq_base_train==500000.0f)
-                {
-                    float chi_ctx_train_value = file_format_meta.n_ctx_train / (2 * 3.14159265358979323846);
-                    float chi_ctx_value = kcpp_params->n_ctx / (2 * 3.14159265358979323846);
-                    //GradientAI formula
-                    rope_freq_base = powf(llamamodel->hparams.rope_freq_base_train, log10f(chi_ctx_value) / log10f(chi_ctx_train_value));
-                    printf("Chi context train (value:%.3f).\n", chi_ctx_train_value);
-                    printf("Chi chosen context (value:%.3f).\n", chi_ctx_value);
-                    printf("Log Chi context train (value:%.3f).\n", log10f(chi_ctx_train_value));
-                    printf("Log Chi chosen context (value:%.3f).\n", log10f(chi_ctx_value));
-                    printf("Rope base calculated via Gradient AI formula for Llama 3. (value:%.2f).\n", rope_freq_base);
-                }    
                 //Calculate chi values using the gradientAI formula, solar requires ctx *8 for correct scaling
 //                else if(llamamodel->hparams.rope_freq_base_train==10000.0f && file_format_meta.n_tensors==435 && file_format_meta.n_ctx_train==8192)
-                else if(llamamodel->hparams.rope_freq_base_train==10000.0f && (file_format_meta.n_tensors==435 || file_format_meta.n_tensors==611))
+//                else if(llamamodel->hparams.rope_freq_base_train==10000.0f && (file_format_meta.n_tensors==435 || file_format_meta.n_tensors==611))
+                if(llamamodel->hparams.rope_freq_base_train==10000.0f && file_format_meta.n_tensors==435)
                 {
                     float chi_ctx_train_value = (file_format_meta.n_ctx_train * 8) / (2 * 3.14159265358979323846);
                     float chi_ctx_value = (kcpp_params->n_ctx * 8) / (2 * 3.14159265358979323846);
-                    //GradientAI formula with the ER-LNO (extended rope - low positive offset)
+                    //GradientAI formula with the ER-LNO (extended rope - low negative offset) modified grandientAI formula
                     float extended_rope_freq_base_gradientai_value = powf(llamamodel->hparams.rope_freq_base_train, log10f(chi_ctx_value) / log10f(chi_ctx_train_value));
-                    float extended_rope_low_positive_offset_value = (1 + ((log10f(chi_ctx_value) - log10f(chi_ctx_train_value)) / ((log10f(chi_ctx_value) * log10f(chi_ctx_train_value)) - (log10f(chi_ctx_value) + log10f(chi_ctx_train_value)))));
+                    float extended_rope_low_positive_offset_value = (1 + (((log10f(chi_ctx_value)) - (log10f(chi_ctx_train_value))) / (3.14159265358979323846 * 3.14159265358979323846 - 1)));
                     rope_freq_base = (extended_rope_freq_base_gradientai_value * extended_rope_low_positive_offset_value);
                     printf("Chi context train (value:%.3f).\n", chi_ctx_train_value);
                     printf("Chi chosen context (value:%.3f).\n", chi_ctx_value);
                     printf("Log Chi context train (value:%.3f).\n", log10f(chi_ctx_train_value));
                     printf("Log Chi chosen context (value:%.3f).\n", log10f(chi_ctx_value));
-                    printf("Rope base calculated via Gradient AI formula. (value:%.2f).\n", extended_rope_freq_base_gradientai_value);
-                    printf("Low Rope Positive Offset acting as a divisor for Solar. (value:%.3f).\n", extended_rope_low_positive_offset_value);
-                    printf("Rope base calculated via Gradient AI formula for Solar. (value:%.2f).\n", rope_freq_base);
+                    printf("Rope base calculated via Gradient AI formula. (value:%.2f).\n", rope_freq_base);
                 }
                 //Calculate chi values using the gradientAI formula
                 else
                 {
                     float chi_ctx_train_value = file_format_meta.n_ctx_train / (2 * 3.14159265358979323846);
                     float chi_ctx_value = kcpp_params->n_ctx / (2 * 3.14159265358979323846);
-                    //GradientAI formula with the ER-LNO (extended rope - low negative offset)
+                    //GradientAI formula with the ER-LNO (extended rope - low negative offset) modified grandientAI formula
                     float extended_rope_freq_base_gradientai_value = powf(llamamodel->hparams.rope_freq_base_train, log10f(chi_ctx_value) / log10f(chi_ctx_train_value));
-                    float extended_rope_low_negative_offset_value = (1 + ((log10f(chi_ctx_value) - log10f(chi_ctx_train_value)) / (3.14159265358979323846 * 3.14159265358979323846)));
+                    float extended_rope_low_negative_offset_value = (1 + (((log10f(chi_ctx_value)) - (log10f(chi_ctx_train_value))) / (3.14159265358979323846 * 3.14159265358979323846 + 1)));
                     rope_freq_base = (extended_rope_freq_base_gradientai_value / extended_rope_low_negative_offset_value);
                     printf("Chi context train (value:%.3f).\n", chi_ctx_train_value);
                     printf("Chi chosen context (value:%.3f).\n", chi_ctx_value);
                     printf("Log Chi context train (value:%.3f).\n", log10f(chi_ctx_train_value));
                     printf("Log Chi chosen context (value:%.3f).\n", log10f(chi_ctx_value));
                     printf("Rope base calculated via Gradient AI formula. (value:%.2f).\n", extended_rope_freq_base_gradientai_value);
-                    printf("Low Rope Negative Offset acting as a divisor for Llama 1 & 2. (value:%.3f).\n", extended_rope_low_negative_offset_value);
-                    printf("Rope base calculated via Gradient AI formula for Llama 1 & 2. (value:%.2f).\n", rope_freq_base);
+                    printf("Low Rope Negative Offset acting as a divisor for Llama. (value:%.3f).\n", extended_rope_low_negative_offset_value);
                 }     
 				
                 //Calculate rope_freq_base using the original gradientAI formula			
