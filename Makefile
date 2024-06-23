@@ -154,20 +154,15 @@ endif
 # it is recommended to use the CMAKE file to build for cublas if you can - will likely work better
 OBJS_CUDA_TEMP_INST      = $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/fattn-wmma*.cu))
 
-ifdef LLAMA_CUDA_FA_THREE_QUANTS
-    OBJS_CUDA_TEMP_INST += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu))
-    OBJS_CUDA_TEMP_INST += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/fattn-vec*q8_0-q8_0.cu))
-    OBJS_CUDA_TEMP_INST += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/fattn-vec*f16-f16.cu))
-else
+ifdef LLAMA_CUDA_FA_ALL_QUANTS
     # all quants necessary for Kobold CPP Frankenstein are included, the other are deleted from the ggml_cuda templates directory
     OBJS_CUDA_TEMP_INST += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/fattn-vec*.cu))
     MK_NVCCFLAGS += -DGGML_CUDA_FA_ALL_QUANTS
     HIPFLAGS += -DGGML_CUDA_FA_ALL_QUANTS
-endif # LLAMA_CUDA_FA_THREE_QUANTS
-
-ifdef LLAMA_CUDA_FA_ALL_QUANTS
-    MK_NVCCFLAGS += -DGGML_CUDA_FA_ALL_QUANTS
-    HIPFLAGS += -DGGML_CUDA_FA_ALL_QUANTS
+else
+    OBJS_CUDA_TEMP_INST += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu))
+    OBJS_CUDA_TEMP_INST += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/fattn-vec*q8_0-q8_0.cu))
+    OBJS_CUDA_TEMP_INST += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/fattn-vec*f16-f16.cu))
 endif # LLAMA_CUDA_FA_ALL_QUANTS
 
 # For MMQ refactor
