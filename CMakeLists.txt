@@ -18,7 +18,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(LLAMA_STANDALONE ON)
 set(BUILD_SHARED_LIBS_DEFAULT ON)
 set(LLAMA_STATIC OFF)
-set(LLAMA_NATIVE OFF)
 set(LLAMA_LTO OFF)
 set(LLAMA_ALL_WARNINGS OFF)
 set(LLAMA_ALL_WARNINGS_3RD_PARTY OFF)
@@ -64,6 +63,7 @@ set(LLAMA_SCHED_MAX_COPIES  "2" CACHE STRING "llama: max input copies for pipeli
 option(LLAMA_OPENMP                          "llama: use OpenMP"                                ON)
 option(LLAMA_LLAMAFILE                       "llama: use llamafile SGEMM"                       ${LLAMA_LLAMAFILE_DEFAULT})
 option(LLAMA_CCACHE                          "llama: use ccache if available"                   ON)
+option(LLAMA_NATIVE                     "llama: enable -march=native flag"                      OFF)
 
 #
 # Compile flags
