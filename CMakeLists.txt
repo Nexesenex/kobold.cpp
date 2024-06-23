@@ -1,4 +1,4 @@
-# THIS FILE IS ONLY INTENDED CUBLAS BUILD PURPOSES ON WINDOWS VISUAL STUDIO.
+# THIS FILE IS ONLY INTENDED FOR HIPBLAS BUILD PURPOSES ON WINDOWS VISUAL STUDIO.
 # YOU'RE NOT RECOMMENDED TO USE IT
 
 message(STATUS "============== ============== ==============")
@@ -9,6 +9,7 @@ message(STATUS "============== ============== ==============")
 
 cmake_minimum_required(VERSION 3.12) # Don't bump this version for no reason
 project("llama.cpp" C CXX)
+# HIP on Windows: xhip is required with clang++ to get __half defined
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS 1)
@@ -27,6 +28,11 @@ set(LLAMA_SANITIZE_THREAD OFF)
 set(LLAMA_SANITIZE_ADDRESS OFF)
 set(LLAMA_SANITIZE_UNDEFINED OFF)
 
+set(LLVM_CC "C:/Program Files/LLVM/bin/clang.exe")
+set(LLVM_CXX "C:/Program Files/LLVM/bin/clang++.exe")
+set(ROCM_CC "C:/Program Files/AMD/ROCm/5.7/bin/clang.exe")
+set(ROCM_CXX "C:/Program Files/AMD/ROCm/5.7/bin/clang++.exe")
+
 # instruction set specific
 option(LLAMA_AVX                    "llama: enable AVX"                                     ON)
 option(LLAMA_AVX2                   "llama: enable AVX2"                                    ON)
@@ -40,7 +46,7 @@ if (NOT MSVC)
 endif()
 
 # 3rd party libs
-option(LLAMA_CUBLAS                          "llama: use CUDA"                                ON)
+option(LLAMA_CUBLAS                          "llama: use CUDA"                                OFF)
 set(LLAMA_CUDA_MMQ_Y       "64" CACHE STRING "llama: y tile size for mmq CUDA kernels")
 set(LLAMA_CUDA_DMMV_X      "32" CACHE STRING "llama: x stride for dmmv CUDA kernels")
 set(LLAMA_CUDA_DMMV_Y       "1" CACHE STRING "llama: y block size for dmmv CUDA kernels")
@@ -49,7 +55,7 @@ option(LLAMA_CUDA_F16                        "llama: use 16 bit floats for dmmv 
 set(LLAMA_CUDA_KQUANTS_ITER "2" CACHE STRING "llama: iters./thread per block for Q2_K/Q6_K")
 set(LLAMA_CUDA_PEER_MAX_BATCH_SIZE "128" CACHE STRING
                                              "llama: max. batch size for using peer access")
-option(LLAMA_HIPBLAS                         "llama: use hipBLAS"                               OFF)
+option(LLAMA_HIPBLAS                         "llama: use hipBLAS"                               ON)
 
 
 #
@@ -61,6 +67,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED true)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED true)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2")
 find_package(Threads REQUIRED)
 
 add_compile_definitions(LOG_DISABLE_LOGS)
@@ -143,12 +151,18 @@ if (LLAMA_CUBLAS)
 endif()
 
 if (LLAMA_HIPBLAS)
-    if (MSVC)
-        list(APPEND CMAKE_PREFIX_PATH "C:/Program Files/AMD/ROCm/5.5")
+
+    if (CMAKE_HOST_WIN32)
+		execute_process(COMMAND powershell.exe -Command "Get-ChildItem 'C:/Program Files/AMD/ROCm/' | Sort-Object {$_.Version} | Select-Object -Last 1 | ForEach-Object { Write-Output $_.FullName }"
+            OUTPUT_VARIABLE ROCM_PATH
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        list(APPEND CMAKE_PREFIX_PATH ${ROCM_PATH})
+        add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-xhip>")
+        message(STATUS "ROCM_PATH: ${ROCM_PATH}") 
     else()
         list(APPEND CMAKE_PREFIX_PATH /opt/rocm)
     endif()
-
 
     if (NOT ${CMAKE_C_COMPILER_ID} MATCHES "Clang")
         message(WARNING "Only LLVM is supported for HIP, hint: CC=/opt/rocm/llvm/bin/clang")
@@ -156,40 +170,57 @@ if (LLAMA_HIPBLAS)
     if (NOT ${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
         message(WARNING "Only LLVM is supported for HIP, hint: CXX=/opt/rocm/llvm/bin/clang++")
     endif()
-
     find_package(hip)
     find_package(hipblas)
     find_package(rocblas)
 
     if (${hipblas_FOUND} AND ${hip_FOUND})
         message(STATUS "HIP and hipBLAS found")
-        file(GLOB GGML_SOURCES_ROCM "ggml-cuda/*.cu")
-        list(APPEND GGML_SOURCES_ROCM "ggml-cuda.cu")
+        file(GLOB GGML_SOURCES_CUDA "ggml-cuda/*.cu")
+        list(APPEND GGML_SOURCES_CUDA "ggml-cuda.cu")
         file(GLOB SRCS "ggml-cuda/template-instances/fattn-wmma*.cu")
-        list(APPEND GGML_SOURCES_ROCM ${SRCS})
+        list(APPEND GGML_SOURCES_CUDA ${SRCS})
+
+        file(GLOB SRCS "ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu")
+        list(APPEND GGML_SOURCES_CUDA ${SRCS})
+        file(GLOB SRCS "ggml-cuda/template-instances/fattn-vec*q8_0-q8_0.cu")
+        list(APPEND GGML_SOURCES_CUDA ${SRCS})
+        file(GLOB SRCS "ggml-cuda/template-instances/fattn-vec*f16-f16.cu")
+        list(APPEND GGML_SOURCES_CUDA ${SRCS})
         file(GLOB SRCS "ggml-cuda/template-instances/mmq*.cu")
-        list(APPEND GGML_SOURCES_ROCM ${SRCS})
+        list(APPEND GGML_SOURCES_CUDA ${SRCS})
+
+        # only build minimal quants required for fattn quant kv
+
         add_compile_definitions(GGML_USE_HIPBLAS GGML_USE_CUDA SD_USE_CUBLAS)
+
         add_library(ggml-rocm OBJECT ${GGML_SOURCES_CUDA})
+
+        set_property(TARGET ggml-rocm PROPERTY C_STANDARD 11)
+        set_property(TARGET ggml-rocm PROPERTY CXX_STANDARD 11)
+        set_property(TARGET ggml-rocm PROPERTY C_COMPILER ${ROCM_CC})
+        set_property(TARGET ggml-rocm PROPERTY CXX_COMPILER ${ROCM_CXX})
+
+        target_compile_options(ggml-rocm PRIVATE -O2)
+		target_include_directories(ggml-rocm PUBLIC . ./otherarch ./otherarch/tools)
         if (LLAMA_CUDA_FORCE_DMMV)
             target_compile_definitions(ggml-rocm PUBLIC GGML_CUDA_FORCE_DMMV)
         endif()
 
-        file(GLOB SRCS "ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu")
-        list(APPEND GGML_SOURCES_ROCM ${SRCS})
-        file(GLOB SRCS "ggml-cuda/template-instances/fattn-vec*q8_0-q8_0.cu")
-        list(APPEND GGML_SOURCES_ROCM ${SRCS})
-        file(GLOB SRCS "ggml-cuda/template-instances/fattn-vec*f16-f16.cu")
-        list(APPEND GGML_SOURCES_ROCM ${SRCS})
-
-        # only build minimal quants required for fattn quant kv
         target_compile_definitions(ggml-rocm PUBLIC GGML_CUDA_DMMV_X=${LLAMA_CUDA_DMMV_X})
         target_compile_definitions(ggml-rocm PUBLIC GGML_CUDA_MMV_Y=${LLAMA_CUDA_MMV_Y})
         target_compile_definitions(ggml-rocm PUBLIC K_QUANTS_PER_ITERATION=${LLAMA_CUDA_KQUANTS_ITER})
-        set_source_files_properties(${GGML_SOURCES_ROCM} PROPERTIES LANGUAGE CXX)
+        set_source_files_properties(${GGML_SOURCES_CUDA} PROPERTIES LANGUAGE CXX)
         target_link_libraries(ggml-rocm PUBLIC hip::device hip::host roc::rocblas roc::hipblas)
 
         add_library(ggml-v2-rocm OBJECT ${GGML_V2_CUDA_SOURCES})
+
+        set_property(TARGET ggml-v2-rocm PROPERTY C_STANDARD 11)
+        set_property(TARGET ggml-v2-rocm PROPERTY CXX_STANDARD 11)
+        set_property(TARGET ggml-v2-rocm PROPERTY C_COMPILER ${ROCM_CC})
+        set_property(TARGET ggml-v2-rocm PROPERTY CXX_COMPILER ${ROCM_CXX})
+
+        target_compile_options(ggml-v2-rocm PRIVATE -O2)
         if (LLAMA_CUDA_FORCE_DMMV)
             target_compile_definitions(ggml-v2-rocm PUBLIC GGML_CUDA_FORCE_DMMV)
         endif()
@@ -200,6 +231,13 @@ if (LLAMA_HIPBLAS)
         target_link_libraries(ggml-v2-rocm PUBLIC hip::device hip::host roc::rocblas roc::hipblas)
 
         add_library(ggml-v3-rocm OBJECT ${GGML_V3_CUDA_SOURCES})
+
+        set_property(TARGET ggml-v3-rocm PROPERTY C_STANDARD 11)
+        set_property(TARGET ggml-v3-rocm PROPERTY CXX_STANDARD 11)
+        set_property(TARGET ggml-v3-rocm PROPERTY C_COMPILER ${ROCM_CC})
+        set_property(TARGET ggml-v3-rocm PROPERTY CXX_COMPILER ${ROCM_CXX})
+
+        target_compile_options(ggml-v3-rocm PRIVATE -O2)
         if (LLAMA_CUDA_FORCE_DMMV)
             target_compile_definitions(ggml-v3-rocm PUBLIC GGML_CUDA_FORCE_DMMV)
         endif()
@@ -210,6 +248,13 @@ if (LLAMA_HIPBLAS)
         target_link_libraries(ggml-v3-rocm PUBLIC hip::device hip::host roc::rocblas roc::hipblas)
 
         add_library(ggml-v2-legacy-rocm OBJECT ${GGML_V2_LEGACY_CUDA_SOURCES})
+
+        set_property(TARGET ggml-v2-legacy-rocm PROPERTY C_STANDARD 11)
+        set_property(TARGET ggml-v2-legacy-rocm PROPERTY CXX_STANDARD 11)
+        set_property(TARGET ggml-v2-legacy-rocm PROPERTY C_COMPILER ${ROCM_CC})
+        set_property(TARGET ggml-v2-legacy-rocm PROPERTY CXX_COMPILER ${ROCM_CXX})
+
+        target_compile_options(ggml-v2-legacy-rocm PRIVATE -O2)
         if (LLAMA_CUDA_FORCE_DMMV)
             target_compile_definitions(ggml-v2-legacy-rocm PUBLIC GGML_CUDA_FORCE_DMMV)
         endif()
@@ -222,11 +267,14 @@ if (LLAMA_HIPBLAS)
         if (LLAMA_STATIC)
             message(FATAL_ERROR "Static linking not supported for HIP/ROCm")
         endif()
-        set(LLAMA_EXTRA_LIBS ${LLAMA_EXTRA_LIBS} ggml-rocm ggml-v2-rocm ggml-v2-legacy-rocm)
+        set(LLAMA_EXTRA_LIBS ${LLAMA_EXTRA_LIBS} ggml-rocm ggml-v2-rocm ggml-v2-legacy-rocm ggml-v3-rocm)
     else()
         message(WARNING "hipBLAS or HIP not found. Try setting CMAKE_PREFIX_PATH=/opt/rocm")
     endif()
 endif()
+
+set(CMAKE_C_COMPILER ${ROCM_CC})
+set(CMAKE_CXX_COMPILER ${ROCM_CXX})
 
 if (LLAMA_ALL_WARNINGS)
     if (NOT MSVC)
@@ -413,7 +461,7 @@ add_library(ggml OBJECT
             ggml-quants.h
             sgemm.cpp
             sgemm.h
-            ${GGML_SOURCES_CUDA})
+			)
 target_include_directories(ggml PUBLIC . ./otherarch ./otherarch/tools)
 target_compile_features(ggml PUBLIC c_std_11) # don't bump
 target_link_libraries(ggml PUBLIC Threads::Threads ${LLAMA_EXTRA_LIBS})
@@ -429,9 +477,7 @@ set_target_properties(ggml_v1 PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(ggml_v2 OBJECT
             otherarch/ggml_v2.c
-            otherarch/ggml_v2.h
-            ${GGML_V2_CUDA_SOURCES}
-            ${GGML_V2_LEGACY_CUDA_SOURCES})
+            otherarch/ggml_v2.h)
 target_include_directories(ggml_v2 PUBLIC . ./otherarch ./otherarch/tools)
 target_compile_features(ggml_v2 PUBLIC c_std_11) # don't bump
 target_link_libraries(ggml_v2 PUBLIC Threads::Threads ${LLAMA_EXTRA_LIBS})
@@ -439,8 +485,7 @@ set_target_properties(ggml_v2 PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(ggml_v3 OBJECT
             otherarch/ggml_v3.c
-            otherarch/ggml_v3.h
-            ${GGML_V3_CUDA_SOURCES})
+            otherarch/ggml_v3.h)
 target_include_directories(ggml_v3 PUBLIC . ./otherarch ./otherarch/tools)
 target_compile_features(ggml_v3 PUBLIC c_std_11) # don't bump
 target_link_libraries(ggml_v3 PUBLIC Threads::Threads ${LLAMA_EXTRA_LIBS})
@@ -501,12 +546,18 @@ endif()
 if (LLAMA_HIPBLAS)
     set(TARGET koboldcpp_hipblas)
     add_library(${TARGET} SHARED expose.cpp expose.h)
+
+    # Set ROCm compilers for koboldcpp_hipblas
+    set_property(TARGET ${TARGET} PROPERTY C_STANDARD 11)
+    set_property(TARGET ${TARGET} PROPERTY CXX_STANDARD 11)
+    set_property(TARGET ${TARGET} PROPERTY C_COMPILER ${LLVM_CC})
+    set_property(TARGET ${TARGET} PROPERTY CXX_COMPILER ${LLVM_CXX})
+
     target_include_directories(${TARGET} PUBLIC . ./otherarch ./otherarch/tools ./otherarch/sdcpp ./otherarch/sdcpp/thirdparty ./examples ./common)
     target_compile_features(${TARGET} PUBLIC cxx_std_11) # don't bump
     set_target_properties(${TARGET} PROPERTIES PREFIX "")
     set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME "koboldcpp_hipblas")
     set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-    target_link_libraries(${TARGET} PUBLIC Threads::Threads ggml ggml_v1 ggml_v2 ggml_v3 common2 gpttype_adapter whisper_adapter sdtype_adapter ${LLAMA_EXTRA_LIBS})
+    target_link_libraries(${TARGET} PRIVATE Threads::Threads ggml ggml_v1 ggml_v2 ggml_v3 common2 gpttype_adapter whisper_adapter sdtype_adapter ${LLAMA_EXTRA_LIBS})
     target_compile_features(${TARGET} PRIVATE cxx_std_11)
 endif()
-

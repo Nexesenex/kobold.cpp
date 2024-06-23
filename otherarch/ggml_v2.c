@@ -145,6 +145,8 @@ inline static void* ggml_v2_aligned_malloc(size_t size) {
 #include "ggml_v2-opencl-legacy.h"
 #endif
 
+
+
 #undef MIN
 #undef MAX
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
