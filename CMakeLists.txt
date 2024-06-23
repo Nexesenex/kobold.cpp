@@ -42,6 +42,7 @@ endif()
 
 # 3rd party libs
 option(LLAMA_CUBLAS                          "llama: use CUDA"                                ON)
+option(LLAMA_CUDA                            "llama: use CUDA"                                ON)
 set(LLAMA_CUDA_DMMV_X      "32" CACHE STRING "llama: x stride for dmmv CUDA kernels")
 set(LLAMA_CUDA_DMMV_Y       "1" CACHE STRING "llama: y block size for dmmv CUDA kernels")
 set(LLAMA_CUDA_MMV_Y        "1" CACHE STRING "llama: y block size for mmv CUDA kernels")
@@ -50,7 +51,7 @@ set(LLAMA_CUDA_KQUANTS_ITER "2" CACHE STRING "llama: iters./thread per block for
 set(LLAMA_CUDA_PEER_MAX_BATCH_SIZE "128" CACHE STRING
                                              "llama: max. batch size for using peer access")
 set(GGML_CUDA_USE_GRAPHS                                                                        OFF)
-option(LLAMA_CUDA_FA_ALL_QUANTS              "llama: compile all quants for FlashAttention"     OFF)
+option(LLAMA_CUDA_FA_ALL_QUANTS              "llama: compile 18 quants for FlashAttention"      OFF)
 option(LLAMA_CUDA_ENABLE_UNIFIED_MEMORY      "llama: enable to avoid OOM in Full Offload"       OFF)
 
 option(LLAMA_HIPBLAS                         "llama: use hipBLAS"                               OFF)
@@ -109,20 +110,20 @@ if (LLAMA_CUBLAS)
         add_compile_definitions(K_QUANTS_PER_ITERATION=${LLAMA_CUDA_KQUANTS_ITER})
         add_compile_definitions(GGML_CUDA_PEER_MAX_BATCH_SIZE=${LLAMA_CUDA_PEER_MAX_BATCH_SIZE})
 
-        if (LLAMA_CUDA_FA_THREE_QUANTS)
+        if (LLAMA_CUDA_FA_ALL_QUANTS)
+            # all quants necessary for Kobold CPP Frankenstein are included
+            # the other are deleted from the ggml_cuda templates directory
+            file(GLOB SRCS "ggml-cuda/template-instances/fattn-vec*.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            add_compile_definitions(GGML_CUDA_FA_ALL_QUANTS)		
+        else ()
             # only build minimal quants required for fattn quant kv
             file(GLOB SRCS "ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu")
             list(APPEND GGML_SOURCES_CUDA ${SRCS})
             file(GLOB SRCS "ggml-cuda/template-instances/fattn-vec*q8_0-q8_0.cu")
             list(APPEND GGML_SOURCES_CUDA ${SRCS})
             file(GLOB SRCS "ggml-cuda/template-instances/fattn-vec*f16-f16.cu")
-            list(APPEND GGML_SOURCES_CUDA ${SRCS})			
-        else ()
-            # all quants necessary for Kobold CPP Frankenstein are included
-            # the other are deleted from the ggml_cuda templates directory
-            file(GLOB SRCS "ggml-cuda/template-instances/fattn-vec*.cu")
-            list(APPEND GGML_SOURCES_CUDA ${SRCS})
-            add_compile_definitions(GGML_CUDA_FA_ALL_QUANTS)
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})	
         endif()
 		
         if (LLAMA_CUDA_ENABLE_UNIFIED_MEMORY)
