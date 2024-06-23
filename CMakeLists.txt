@@ -58,6 +58,7 @@ option(LLAMA_HIPBLAS                         "llama: use hipBLAS"               
 set(LLAMA_SCHED_MAX_COPIES  "2" CACHE STRING "llama: max input copies for pipeline parallelism")
 option(LLAMA_OPENMP                          "llama: use OpenMP"                                ON)
 option(LLAMA_LLAMAFILE                       "llama: use llamafile SGEMM"                       ${LLAMA_LLAMAFILE_DEFAULT})
+option(LLAMA_CCACHE                          "llama: use ccache if available"                   ON)
 
 #
 # Compile flags
@@ -336,6 +337,17 @@ if (LLAMA_LLAMAFILE)
 
     set(GGML_HEADERS_LLAMAFILE sgemm.h)
     set(GGML_SOURCES_LLAMAFILE sgemm.cpp)
+endif()
+
+if (LLAMA_CCACHE)
+    find_program(LLAMA_CCACHE_FOUND ccache)
+    if (LLAMA_CCACHE_FOUND)
+        set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
+        set(ENV{CCACHE_SLOPPINESS} time_macros)
+        message(STATUS "ccache found, compilation results will be cached. Disable with LLAMA_CCACHE=OFF.")
+    else()
+        message(STATUS "Warning: ccache not found - consider installing it for faster compilation or disable this warning with LLAMA_CCACHE=OFF")
+    endif ()
 endif()
 
 # this version of Apple ld64 is buggy
