@@ -39,6 +39,10 @@ if (NOT MSVC)
     option(LLAMA_F16C               "llama: enable F16C"                                    ON)
 endif()
 
+if (WIN32)
+    set(LLAMA_WIN_VER "0x602" CACHE STRING "llama: Windows Version")
+endif()
+
 # 3rd party libs
 option(LLAMA_CUBLAS                          "llama: use CUDA"                                ON)
 option(LLAMA_CUDA                            "llama: use CUDA"                                ON)
@@ -137,7 +141,7 @@ if (LLAMA_CUDA)
 
         if (LLAMA_STATIC)
             if (WIN32)
-                # As of 12.3.1 CUDA Tookit for Windows does not offer a static cublas library
+                # As of 12.3.1 CUDA Toolkit for Windows does not offer a static cublas library
                 set(LLAMA_EXTRA_LIBS ${LLAMA_EXTRA_LIBS} CUDA::cudart_static CUDA::cublas CUDA::cublasLt)
             else ()
                 set(LLAMA_EXTRA_LIBS ${LLAMA_EXTRA_LIBS} CUDA::cudart_static CUDA::cublas_static CUDA::cublasLt_static)
@@ -463,7 +467,7 @@ endif()
 
 if (MINGW)
     # Target Windows 8 for PrefetchVirtualMemory
-    add_compile_definitions(_WIN32_WINNT=0x602)
+    add_compile_definitions(_WIN32_WINNT=${LLAMA_WIN_VER})
 endif()
 
 #
