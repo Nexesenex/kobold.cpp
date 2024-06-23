@@ -46,7 +46,6 @@ endif()
 # 3rd party libs
 option(LLAMA_CUBLAS                          "llama: use CUDA"                                ON)
 option(LLAMA_CUDA                            "llama: use CUDA"                                ON)
-set(LLAMA_CUDA_MMQ_Y       "64" CACHE STRING "llama: y tile size for mmq CUDA kernels")
 set(LLAMA_CUDA_DMMV_X      "32" CACHE STRING "llama: x stride for dmmv CUDA kernels")
 set(LLAMA_CUDA_DMMV_Y       "1" CACHE STRING "llama: y block size for dmmv CUDA kernels")
 set(LLAMA_CUDA_MMV_Y        "1" CACHE STRING "llama: y block size for mmv CUDA kernels")
@@ -111,7 +110,7 @@ if (LLAMA_CUDA)
         add_compile_definitions(GGML_CUDA_MMQ_Y=${LLAMA_CUDA_MMQ_Y})
 
         add_compile_definitions(GGML_CUDA_DMMV_X=${LLAMA_CUDA_DMMV_X})
-        add_compile_definitions(GGML_CUDA_DMMV_Y=${LLAMA_CUDA_DMMV_Y})
+        add_compile_definitions(GGML_CUDA_DMMV_Y=${LLAMA_CUDA_DMMV_Y}) # for backwards compatibility
         add_compile_definitions(GGML_CUDA_MMV_Y=${LLAMA_CUDA_MMV_Y})
         if (LLAMA_CUDA_F16 OR LLAMA_CUDA_DMMV_F16)
             add_compile_definitions(GGML_CUDA_F16)
