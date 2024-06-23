@@ -45,6 +45,7 @@ struct load_model_inputs
     const char * mmproj_filename = nullptr;
     const bool use_mmap = false;
     const bool use_mlock = false;
+//    const bool use_direct_io = false;
     const bool use_smartcontext = false;
     const bool use_contextshift = false;
     const int clblast_info = 0;
@@ -57,6 +58,9 @@ struct load_model_inputs
     const float rope_freq_scale = 1.0f;
     const float rope_freq_base = 10000.0f;
     const bool flash_attention = false;
+//    const char * override_kv = nullptr;
+//    const char * cache_type_k = nullptr;
+//    const char * cache_type_v = nullptr;
     const float tensor_split[tensor_split_max] = {};
     const int quant_k = 0;
     const int quant_v = 0;
@@ -170,6 +174,9 @@ extern std::string executable_path;
 extern std::string lora_filename;
 extern std::string lora_base;
 extern std::string mmproj_filename;
+// extern std::string override_kv;
+// extern std::string cache_type_k;
+// extern std::string cache_type_v;
 extern std::vector<std::string> generated_tokens;
 extern bool generation_finished;
 extern float last_eval_time;

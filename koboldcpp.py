@@ -45,8 +45,12 @@ class load_model_inputs(ctypes.Structure):
                 ("lora_filename", ctypes.c_char_p),
                 ("lora_base", ctypes.c_char_p),
                 ("mmproj_filename", ctypes.c_char_p),
+#                ("override_kv", ctypes.c_char_p),
+#                ("cache_type_k", ctypes.c_char_p),
+#                ("cache_type_v", ctypes.c_char_p),
                 ("use_mmap", ctypes.c_bool),
                 ("use_mlock", ctypes.c_bool),
+#                ("use_direct_io", ctypes.c_bool),
                 ("use_smartcontext", ctypes.c_bool),
                 ("use_contextshift", ctypes.c_bool),
                 ("clblast_info", ctypes.c_int),
@@ -429,6 +433,10 @@ def load_model(model_filename):
     inputs.blasthreads = args.blasthreads
     inputs.use_mmap = (not args.nommap)
     inputs.use_mlock = args.usemlock
+#   inputs.use_direct_io = args.usedirect_io
+#    inputs.override_kv = "".encode("UTF-8")
+#    inputs.cache_type_k = "".encode("UTF-8")
+#    inputs.cache_type_v = "".encode("UTF-8")
     inputs.lora_filename = "".encode("UTF-8")
     inputs.lora_base = "".encode("UTF-8")
     if args.lora:
@@ -741,7 +749,9 @@ maxhordelen = 256
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.68.yr0-ROCm"
+KcppVersion = "1.68p-ROCm"
+LcppVersion = "b3203"
+ReleaseDate = "2024/06/22"
 showdebug = True
 showsamplerwarning = True
 showmaxctxwarning = True
@@ -1219,7 +1229,7 @@ Enter Prompt:<br>
 
     def do_GET(self):
         global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
-        global maxctx, maxhordelen, friendlymodelname, KcppVersion, totalgens, preloaded_story, exitcounter, currentusergenkey, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath
+        global maxctx, maxhordelen, friendlymodelname, KcppVersion, LcppVersion, ReleaseDate, totalgens, preloaded_story, exitcounter, currentusergenkey, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath
         self.path = self.path.rstrip('/')
         response_body = None
         content_type = 'application/json'
@@ -1700,14 +1710,14 @@ def show_new_gui():
 
     import customtkinter as ctk
     nextstate = 0 #0=exit, 1=launch
-    original_windowwidth = 550
-    original_windowheight = 550
+    original_windowwidth = 930
+    original_windowheight = 620
     windowwidth = original_windowwidth
     windowheight = original_windowheight
     ctk.set_appearance_mode("dark")
     root = ctk.CTk()
     root.geometry(str(windowwidth) + "x" + str(windowheight))
-    root.title("KoboldCpp v"+KcppVersion)
+    root.title("Kobold.Cpp FrankenFork v"+KcppVersion)
 
     gtooltip_box = None
     gtooltip_label = None
@@ -1811,10 +1821,11 @@ def show_new_gui():
     # slider data
     blasbatchsize_values = ["-1", "32", "64", "128", "256", "512", "1024", "2048"]
     blasbatchsize_text = ["Don't Batch BLAS","32","64","128","256","512","1024","2048"]
-    contextsize_text = ["256", "512", "1024", "2048", "3072", "4096", "6144", "8192", "12288", "16384", "24576", "32768", "49152", "65536", "98304", "131072"]
+    contextsize_text = ["128", "256", "384", "512", "640", "768", "896", "1024", "1152", "1280", "1408", "1536", "1664", "1792", "1920", "2048", "2176", "2304", "2432", "2560", "2688", "2816", "2944", "3072", "3200", "3328", "3456", "3584", "3712", "3840", "3968", "4096", "4224", "4352", "4480", "4608", "4736", "4864", "4992", "5120", "5248", "5376", "5504", "5632", "5760", "5888", "6016", "6144", "6272", "6400", "6528", "6656", "6784", "6912", "7040", "7168", "7296", "7424", "7552", "7680", "7808", "7936", "8064", "8192", "8320", "8448", "8576", "8704", "8832", "8960", "9088", "9216", "9344", "9472", "9600", "9728", "9856", "9984", "10112", "10240", "10368", "10496", "10624", "10752", "10880", "11008", "11136", "11264", "11392", "11520", "11648", "11776", "11904", "12032", "12160", "12288", "12416", "12544", "12672", "12800", "12928", "13056", "13184", "13312", "13440", "13568", "13696", "13824", "13952", "14080", "14208", "14336", "14464", "14592", "14720", "14848", "14976", "15104", "15232", "15360", "15488", "15616", "15744", "15872", "16000", "16128", "16256", "16384", "16512", "16640", "16768", "16896", "17024", "17152", "17280", "17408", "17536", "17664", "17792", "17920", "18048", "18176", "18304", "18432", "18560", "18688", "18816", "18944", "19072", "19200", "19328", "19456", "19584", "19712", "19840", "19968", "20096", "20224", "20352", "20480", "20608", "20736", "20864", "20992", "21120", "21248", "21376", "21504", "21632", "21760", "21888", "22016", "22144", "22272", "22400", "22528", "22656", "22784", "22912", "23040", "23168", "23296", "23424", "23552", "23680", "23808", "23936", "24064", "24192", "24320", "24448", "24576", "24704", "24832", "24960", "25088", "25216", "25344", "25472", "25600", "25728", "25856", "25984", "26112", "26240", "26368", "26496", "26624", "26752", "26880", "27008", "27136", "27264", "27392", "27520", "27648", "27776", "27904", "28032", "28160", "28288", "28416", "28544", "28672", "28800", "28928", "29056", "29184", "29312", "29440", "29568", "29696", "29824", "29952", "30080", "30208", "30336", "30464", "30592", "30720", "30848", "30976", "31104", "31232", "31360", "31488", "31616", "31744", "31872", "32000", "32128", "32256", "32384", "32512", "32640", "32768", "32896", "33024", "33152", "33280", "33408", "33536", "33664", "33792", "33920", "34048", "34176", "34304", "34432", "34560", "34688", "34816", "34944", "35072", "35200", "35328", "35456", "35584", "35712", "35840", "35968", "36096", "36224", "36352", "36480", "36608", "36736", "36864", "36992", "37120", "37248", "37376", "37504", "37632", "37760", "37888", "38016", "38144", "38272", "38400", "38528", "38656", "38784", "38912", "39040", "39168", "39296", "39424", "39552", "39680", "39808", "39936", "40064", "40192", "40320", "40448", "40576", "40704", "40832", "40960", "41088", "41216", "41344", "41472", "41600", "41728", "41856", "41984", "42112", "42240", "42368", "42496", "42624", "42752", "42880", "43008", "43136", "43264", "43392", "43520", "43648", "43776", "43904", "44032", "44160", "44288", "44416", "44544", "44672", "44800", "44928", "45056", "45184", "45312", "45440", "45568", "45696", "45824", "45952", "46080", "46208", "46336", "46464", "46592", "46720", "46848", "46976", "47104", "47232", "47360", "47488", "47616", "47744", "47872", "48000", "48128", "48384", "48640", "48896", "49152", "49408", "49664", "49920", "50176", "50432", "50688", "50944", "51200", "51456", "51712", "51968", "52224", "52480", "52736", "52992", "53248", "53504", "53760", "54016", "54272", "54528", "54784", "55040", "55296", "55552", "55808", "56064", "56320", "56576", "56832", "57088", "57344", "57600", "57856", "58112", "58368", "58624", "58880", "59136", "59392", "59648", "59904", "60416", "60928", "61440", "61952", "62464", "62976", "63488", "64000", "64512", "65024", "65536", "66560", "67584", "68608", "69632", "70656", "71680", "72704", "73728", "74752", "75776", "76800", "77824", "78848", "79872", "80896", "81920", "82944", "83968", "84992", "86016", "87040", "88064", "89088", "90112", "91136", "92160", "93184", "94208", "95232", "96256", "97280", "98304", "100352", "102400", "104448", "106496", "108544", "110592", "112640", "114688", "116736", "118784", "120832", "122880", "124928", "126976", "129024", "131072", "135168", "139264", "143360", "147456", "151552", "155648", "163840", "167936", "172032", "176128", "180224", "184320", "188416", "192512", "196608", "200704", "204800", "208896", "212992", "217088", "221184", "225180", "229376", "233472", "237568", "241664", "245760", "249856", "253952", "258048", "262144"]
     runopts = [opt for lib, opt in lib_option_pairs if file_exists(lib)]
     antirunopts = [opt.replace("Use ", "") for lib, opt in lib_option_pairs if not (opt in runopts)]
-    quantkv_text = ["F16 (Off)","8-Bit","4-Bit"]
+    quantkv_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"]   
+    quantkv_text = ["0 - F16 (16BPW) - 1616","1 - K16-V8-Bit (12.25BPW) - 1680","2 - K16-V5.1-Bit (11BPW) - 1651","3 - K16-V5-Bit (10.75BPW) - 1650","4 - K16-V4.1-Bit (10.50BPW) - 1641","5 - K16-V4-Bit (10.25BPW) - 1640","6 - 8-Bit (8.5BPW) - 8080","7 - K8-V5.1-Bit (7.25BPW) - 8051","8 - K8-V5-Bit (7BPW) - 8050","9 - K8-V4.1-Bit (6.75BPW) - 8041","10 - K8-V4-Bit (6.5BPW) - 8040","11 - 5.1-Bit (6BPW) - 5151","12 - K5.1-V5Bit (5.75BPW) - 5150","13 - K5.1-V4.1-Bit (5.5BPW) - 5141","14 - K5-V4.1-Bit (5.25BPW) - 5140","15 - K5-V4-Bit (5BPW) - 5040","16 - K4.1-V4-Bit (4.75BPW) - 4140","17 - 4-Bit (4.5BPW) - 4040"]
 
     if "Use CuBLAS" in runopts:
         antirunopts.remove("hipBLAS (ROCm)")
@@ -1844,6 +1855,7 @@ def show_new_gui():
     highpriority = ctk.IntVar()
     disablemmap = ctk.IntVar()
     usemlock = ctk.IntVar()
+#    usedirect_io = ctk.IntVar()
     debugmode = ctk.IntVar()
     keepforeground = ctk.IntVar()
     quietmode = ctk.IntVar(value=0)
@@ -1874,6 +1886,10 @@ def show_new_gui():
     lora_base_var = ctk.StringVar()
     preloadstory_var = ctk.StringVar()
     mmproj_var = ctk.StringVar()
+    
+#    override_kv_var = ctk.StringVar()
+#    cache_type_k_var = ctk.StringVar()
+#    cache_type_v_var = ctk.StringVar()
 
     port_var = ctk.StringVar(value=defaultport)
     host_var = ctk.StringVar(value="")
@@ -1942,7 +1958,7 @@ def show_new_gui():
             temp.bind("<Leave>", hide_tooltip)
         return temp
 
-    def makeslider(parent, label, options, var, from_ , to,  row=0, width=160, height=10, set=0, tooltip=""):
+    def makeslider(parent, label, options, var, from_ , to,  row=0, width=512, height=10, set=0, tooltip=""):
         sliderLabel = makelabel(parent, options[set], row + 1, 1)
         titleLabel = makelabel(parent, label, row,0,tooltip)
 
@@ -2345,18 +2361,22 @@ def show_new_gui():
 
         if index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
             lowvram_box.grid(row=4, column=0, padx=8, pady=1,  stick="nw")
+            quick_lowvram_box.grid(row=4, column=0, padx=8, pady=1,  stick="nw")
             mmq_box.grid(row=4, column=1, padx=8, pady=1,  stick="nw")
             quick_mmq_box.grid(row=4, column=1, padx=8, pady=1,  stick="nw")
             splitmode_box.grid(row=5, column=1, padx=8, pady=1,  stick="nw")
             tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
             tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
+            quick_tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
+            quick_tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
         else:
-            lowvram_box.grid_remove()
-            mmq_box.grid_remove()
-            quick_mmq_box.grid_remove()
-            tensor_split_label.grid_remove()
-            tensor_split_entry.grid_remove()
-            splitmode_box.grid_remove()
+            lowvram_box.grid_forget()
+            quick_lowvram_box.grid_forget()
+            mmq_box.grid_forget()
+            quick_mmq_box.grid_forget()
+            tensor_split_label.grid_forget()
+            tensor_split_entry.grid_forget()
+            splitmode_box.grid_forget()
 
         if index == "Use Vulkan" or index == "Vulkan NoAVX2 (Old CPU)" or index == "Use CLBlast" or index == "CLBlast NoAVX2 (Old CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
             gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
@@ -2388,24 +2408,41 @@ def show_new_gui():
     quick_gpuname_label = ctk.CTkLabel(quick_tab, text="")
     quick_gpuname_label.grid(row=3, column=1, padx=75, sticky="W")
     quick_gpuname_label.configure(text_color="#ffff00")
-    quick_gpu_layers_entry,quick_gpu_layers_label = makelabelentry(quick_tab,"GPU Layers:", gpulayers_var, 6, 50,"How many layers to offload onto the GPU.\nVRAM intensive, usage increases with model and context size.\nRequires some trial and error to find the best fit value.\n\nCommon values for total layers, accuracy not guaranteed.\n\nLlama/Mistral 7b/8b: 33\nSolar 10.7b/11b: 49\nLlama 13b: 41\nLlama 20b(stack): 63\nLlama/Yi 34b: 61\nMixtral 8x7b: 33\nLlama 70b: 81")
-    quick_mmq_box = makecheckbox(quick_tab,  "Use QuantMatMul (mmq)", mmq_var, 4,1,tooltiptxt="Enable MMQ mode instead of CuBLAS for prompt processing. Read the wiki. Speed may vary.")
+    quick_gpu_layers_entry,quick_gpu_layers_label = makelabelentry(quick_tab, "GPU Layers:", gpulayers_var, 6, 50,"How many layers to offload onto the GPU.\nVRAM intensive, usage increases with model and context size.\nRequires some trial and error to find the best fit value.\n\nCommon values for total layers, accuracy not guaranteed.\n\nLlama/Mistral 7b/8b: 33\nSolar 10.7b/11b: 49\nLlama 13b: 41\nLlama 20b(stack): 63\nLlama/Yi 34b: 61\nMixtral 8x7b: 33\nLlama 70b: 81")
+    quick_tensor_split_entry,quick_tensor_split_label = makelabelentry(quick_tab, "Tensor Split - automatic unless specified:", tensor_split_str_vars, 8, 80, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
+    quick_lowvram_box = makecheckbox(quick_tab, "Low VRAM (No KV offload)", lowvram_var, 4,0,tooltiptxt="Avoid offloading KV Cache or scratch buffers to VRAM.\nAllows more layers to fit, but may result in a speed loss.")
+    quick_mmq_box = makecheckbox(quick_tab, "Use QuantMatMul (mmq)", mmq_var, 4,1,tooltiptxt="Enable MMQ mode instead of CuBLAS for prompt processing. Read the wiki. Speed may vary.")
+#    makelabelentry(quick_tab, "K Cache config", cache_type_k_var, 1, 200, "Override the default f16 Key cache with quantized cache like q8_0, q5_1, q5_0, q4_1, or q4_0.")
+#    makelabelentry(quick_tab, "V Cache config", cache_type_v_var, 1, 200, "Override the default f16 Value cache with quantized cache like q8_0, q5_1, q5_0, q4_1, or q4_0.")
 
     # quick boxes
-    quick_boxes = {"Launch Browser": launchbrowser , "Disable MMAP":disablemmap,"Use ContextShift":contextshift,"Remote Tunnel":remotetunnel,"Use FlashAttention":flashattention,"Quiet Mode":quietmode}
+    quick_boxes = {"Launch Browser": launchbrowser,"Disable MMAP":disablemmap,"Use ContextShift":contextshift,"Use SmartContext":smartcontext,"Remote Tunnel":remotetunnel,"Use FlashAttention":flashattention,"Quiet Mode":quietmode,"High Priority - disabled by default":highpriority}
     quick_boxes_desc = {"Launch Browser": "Launches your default browser after model loading is complete",
     "Disable MMAP":"Avoids using mmap to load models if enabled",
-    "Use ContextShift":"Uses Context Shifting to reduce reprocessing.\nRecommended. Check the wiki for more info.",
+    "Use ContextShift":"Uses Context Shifting to reduce reprocessing.\nRecommended.\nCheck the wiki for more info.",
+    "Use SmartContext":"Use Smart Context. Now considered outdated and not recommended.\nCheck the wiki for more info.",
     "Remote Tunnel":"Creates a trycloudflare tunnel.\nAllows you to access koboldcpp from other devices over an internet URL.",
     "Use FlashAttention":"Enable flash attention for GGUF models.",
-    "Quiet Mode":"Prevents all generation related terminal output from being displayed."}
+    "Quiet Mode":"Prevents all generation related terminal output from being displayed.",
+    "High Priority - disabled by default": "Increases the koboldcpp process priority.\nMay cause lag or slowdown instead. Not recommended."}
     for idx, name, in enumerate(quick_boxes):
         makecheckbox(quick_tab, name, quick_boxes[name], int(idx/2) +20, idx%2,tooltiptxt=quick_boxes_desc[name])
     # context size
-    makeslider(quick_tab, "Context Size:", contextsize_text, context_var, 0, len(contextsize_text)-1, 30, set=3,tooltip="What is the maximum context size to support. Model specific. You cannot exceed it.\nLarger contexts require more memory, and not all models support it.")
+    makeslider(quick_tab, "Context Size:", contextsize_text, context_var, 0, len(contextsize_text)-1, 30, set=15,tooltip="What is the maximum context size to support. Model specific. You cannot exceed it.\nLarger contexts require more memory, and not all models support it.")
+
+    # threads
+    makelabelentry(quick_tab, "Threads:" , threads_var, 11, 50,"How many threads to use.\nRecommended value is your CPU core count, defaults are usually OK.")
+
+    # blas thread specifier
+    makelabelentry(quick_tab, "BLAS threads :" , blas_threads_var, 14, 50,"How many threads to use during BLAS processing.\nIf left blank, uses same value as regular thread count.")
+  
+    # blas batch size
+    makeslider(quick_tab, "BLAS Batch Size - optimum of 512 if not filled :", blasbatchsize_text, blas_size_var, 0, 7, 16, set=5,tooltip="How many tokens to process at once per batch.\nLarger values use more memory.")
 
     # load model
     makefileentry(quick_tab, "Model:", "Select GGML Model File", model_var, 40, 170, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
+    
+    ctk.CTkButton(quick_tab , text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
 
     # Hardware Tab
     hardware_tab = tabcontent["Hardware"]
@@ -2436,11 +2473,13 @@ def show_new_gui():
     makelabelentry(hardware_tab, "Threads:" , threads_var, 11, 50,"How many threads to use.\nRecommended value is your CPU core count, defaults are usually OK.")
 
     # hardware checkboxes
-    hardware_boxes = {"Launch Browser": launchbrowser, "High Priority" : highpriority, "Disable MMAP":disablemmap, "Use mlock":usemlock, "Debug Mode":debugmode, "Keep Foreground":keepforeground}
+    hardware_boxes = {"Launch Browser":launchbrowser,"High Priority":highpriority, "Disable MMAP":disablemmap,"Use mlock":usemlock,"Debug Mode":debugmode,"Keep Foreground":keepforeground}
+    #"Use Direct-I/O":usedirect_io,
     hardware_boxes_desc = {"Launch Browser": "Launches your default browser after model loading is complete",
     "High Priority": "Increases the koboldcpp process priority.\nMay cause lag or slowdown instead. Not recommended.",
     "Disable MMAP": "Avoids using mmap to load models if enabled",
     "Use mlock": "Enables mlock, preventing the RAM used to load the model from being paged out.",
+#    "Use direct_io": "Enables Direct_IO, accelerating the model loading time.",
     "Debug Mode": "Enables debug mode, with extra info printed to the terminal.",
     "Keep Foreground": "Bring KoboldCpp to the foreground every time there is a new generation."}
 
@@ -2469,7 +2508,8 @@ def show_new_gui():
 
 
     # context size
-    makeslider(tokens_tab, "Context Size:",contextsize_text, context_var, 0, len(contextsize_text)-1, 20, set=3,tooltip="What is the maximum context size to support. Model specific. You cannot exceed it.\nLarger contexts require more memory, and not all models support it.")
+    makeslider(tokens_tab, "Context Size:",contextsize_text, context_var, 0, len(contextsize_text)-1, 20, set=15,tooltip="What is the maximum context size to support. Model specific. You cannot exceed it.\nLarger contexts require more memory, and not all models support it.")
+
 
     customrope_scale_entry, customrope_scale_label = makelabelentry(tokens_tab, "RoPE Scale:", customrope_scale,tooltip="For Linear RoPE scaling. RoPE frequency scale.")
     customrope_base_entry, customrope_base_label = makelabelentry(tokens_tab, "RoPE Base:", customrope_base,tooltip="For NTK Aware Scaling. RoPE frequency base.")
@@ -2484,7 +2524,7 @@ def show_new_gui():
     makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, command=toggleflashattn,  tooltiptxt="Enable flash attention for GGUF models.")
     noqkvlabel = makelabel(tokens_tab,"Requirments Not Met",31,0,"Requires FlashAttention ENABLED and ContextShift DISABLED.")
     noqkvlabel.configure(text_color="#ff5555")
-    qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 2, 30, set=0,tooltip="Enable quantization of KV cache.\nRequires FlashAttention and disables ContextShift.")
+    qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 17, 30, set=0,tooltip="Enable quantization of KV cache.\nRequires FlashAttention and disables ContextShift.")
     makefileentry(tokens_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 32,tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
     togglerope(1,1,1)
     toggleflashattn(1,1,1)
@@ -2498,6 +2538,7 @@ def show_new_gui():
     makefileentry(model_tab, "Lora Base:", "Select Lora Base File", lora_base_var, 5,tooltiptxt="Select an optional F16 GGML LoRA base file to use.\nLeave blank to skip.")
     makefileentry(model_tab, "LLaVA mmproj:", "Select LLaVA mmproj File", mmproj_var, 7,tooltiptxt="Select a mmproj file to use for LLaVA.\nLeave blank to skip.")
     makefileentry(model_tab, "Preloaded Story:", "Select Preloaded Story File", preloadstory_var, 9,tooltiptxt="Select an optional KoboldAI JSON savefile \nto be served on launch to any client.")
+#    makelabelentry(model_tab, "Opt. model metadata KV override:", override_kv_var, 1, 200, "Supersede metadata of a model, like Epislon _ e.g : llama.attention.layer_norm_rms_epsilon=float:1e5, 1.25e5, 3e6, etc.")
 
     # Network Tab
     network_tab = tabcontent["Network"]
@@ -2598,6 +2639,7 @@ def show_new_gui():
     def export_vars():
         args.threads = int(threads_var.get())
         args.usemlock   = usemlock.get() == 1
+#        args.usedirect_io   = usedirect_io.get() == 1
         args.debugmode  = debugmode.get()
         args.launch     = launchbrowser.get()==1
         args.highpriority = highpriority.get()==1
@@ -2610,7 +2652,7 @@ def show_new_gui():
         args.quiet = quietmode.get()==1
         args.nocertify = nocertifymode.get()==1
         if contextshift.get()==0 and flashattention.get()==1:
-            args.quantkv = quantkv_var.get()
+            args.quantkv = int(quantkv_values[int(quantkv_var.get())])
         else:
             args.quantkv = 0
 
@@ -2677,6 +2719,10 @@ def show_new_gui():
         args.lora = None if lora_var.get() == "" else ([lora_var.get()] if lora_base_var.get()=="" else [lora_var.get(), lora_base_var.get()])
         args.preloadstory = None if preloadstory_var.get() == "" else preloadstory_var.get()
         args.mmproj = None if mmproj_var.get() == "" else mmproj_var.get()
+        
+#        args.cache_type_k = None if cache_type_k_var.get() == "" else cache_type_k_var.get()
+#        args.cache_type_v = None if cache_type_v_var.get() == "" else cache_type_v_var.get()
+#        args.override_kv = None if override_kv_var.get() == "" else override_kv_var.get()
 
         args.ssl = None if (ssl_cert_var.get() == "" or ssl_key_var.get() == "") else ([ssl_cert_var.get(), ssl_key_var.get()])
         args.password = None if (password_var.get() == "") else (password_var.get())
@@ -2725,6 +2771,7 @@ def show_new_gui():
         if "threads" in dict:
             threads_var.set(dict["threads"])
         usemlock.set(1 if "usemlock" in dict and dict["usemlock"] else 0)
+#        usedirect_io.set(1 if "usedirect_io" in dict and dict["usedirect_io"] else 0)
         if "debugmode" in dict:
             debugmode.set(dict["debugmode"])
         launchbrowser.set(1 if "launch" in dict and dict["launch"] else 0)
@@ -2781,7 +2828,7 @@ def show_new_gui():
                             gpu_choice_var.set(str(opt+1))
                             break
 
-        elif  "noavx2" in dict and "noblas" in dict and dict["noblas"] and dict["noavx2"]:
+        elif "noavx2" in dict and "noblas" in dict and dict["noblas"] and dict["noavx2"]:
             if failsafe_option is not None:
                 runopts_var.set(failsafe_option)
         elif "noavx2" in dict and dict["noavx2"]:
@@ -2829,6 +2876,10 @@ def show_new_gui():
                 lora_var.set(dict["lora"][0])
 
         mmproj_var.set(dict["mmproj"] if ("mmproj" in dict and dict["mmproj"]) else "")
+        
+#        cache_type_k_var.set(dict["cache_type_k"] if ("cache_type_k" in dict and dict["cache_type_k"]) else "")
+#        cache_type_v_var.set(dict["cache_type_v"] if ("cache_type_v" in dict and dict["cache_type_v"]) else "")
+#        override_kv_var.set(dict["override_kv"] if ("override_kv" in dict and dict["override_kv"]) else "")
 
         ssl_cert_var.set("")
         ssl_key_var.set("")
@@ -3769,7 +3820,13 @@ def main(launch_args,start_server=True):
         print(args)
         # Flush stdout for win32 issue with regards to piping in terminals,
         # especially before handing over to C++ context.
-        print(f"==========\nLoading model: {modelname}", flush=True)
+        print(f"==========", flush=True)
+        print(f"==========\nLoading model: {modelname} \n[NoAVX2: {args.noavx2}, Threads: {args.threads}, HighPriority: {args.highpriority}, MMAP: {args.nommap}]", flush=True)
+        print(f"[NoBlas: {args.noblas}, Cublas_Args: {args.usecublas}, BlasThreads: {args.blasthreads}, BlasBatchSize: {args.blasbatchsize}]", flush=True)
+        print(f"[Layers: {args.gpulayers}, Tensor_Split: {args.tensor_split}, FlashAttention: {args.flashattention}, KV_cache: {args.quantkv}]", flush=True)
+        print(f"[Max_Context: {args.contextsize}, Rope Scale (Linear): {args.ropeconfig[0]}, Rope Base (NTK): {args.ropeconfig[1]}]", flush=True)        
+        print(f"[ContextShift: {args.noshift}, NoShift: {not (args.noshift)}, SmartContext: {args.smartcontext}]", flush=True)    
+        print(f"==========", flush=True)
         loadok = load_model(modelname)
         print("Load Text Model OK: " + str(loadok))
 
@@ -3923,7 +3980,7 @@ def main(launch_args,start_server=True):
         from datetime import datetime, timezone
         start_server = False
         save_to_file = (args.benchmark!="stdout" and args.benchmark!="")
-        benchmaxctx = maxctx
+        benchmaxctx = (maxctx - 156)
         benchlen = 100
         benchmodel = sanitize_string(os.path.splitext(os.path.basename(modelname))[0])
         if os.path.exists(args.benchmark) and os.path.getsize(args.benchmark) > 1000000:
@@ -3940,18 +3997,27 @@ def main(launch_args,start_server=True):
         genout = generate(benchprompt,memory="",images=[],max_length=benchlen,max_context_length=benchmaxctx,temperature=0.1,top_k=1,rep_pen=1,use_default_badwordsids=True)
         result = genout['text']
         result = (result[:5] if len(result)>5 else "")
+        resultok = (result=="11111")
         t_pp = float(handle.get_last_process_time())*float(benchmaxctx-benchlen)*0.001
         t_gen = float(handle.get_last_eval_time())*float(benchlen)*0.001
         s_pp = float(benchmaxctx-benchlen)/t_pp
         s_gen = float(benchlen)/t_gen
         datetimestamp = datetime.now(timezone.utc)
-        benchflagstr = f"NoAVX2={args.noavx2} Threads={args.threads} HighPriority={args.highpriority} NoBlas={args.noblas} Cublas_Args={args.usecublas} Tensor_Split={args.tensor_split} BlasThreads={args.blasthreads} BlasBatchSize={args.blasbatchsize} FlashAttention={args.flashattention} KvCache={args.quantkv}"
-        print(f"\nBenchmark Completed - v{KcppVersion} Results:\n======")
-        print(f"Flags: {benchflagstr}")
+        print(f"\nBenchmark Completed - v{KcppVersion} based on LlamaCPP {LcppVersion}; Release date: {ReleaseDate} Results:\n======")
         print(f"Timestamp: {datetimestamp}")
         print(f"Backend: {libname}")
-        print(f"Layers: {args.gpulayers}")
         print(f"Model: {benchmodel}")
+        print(f"NoAVX2: {args.noavx2}")        
+        print(f"Threads: {args.threads}")
+        print(f"HighPriority: {args.highpriority}")        
+        print(f"NoBlas: {args.noblas}")  
+        print(f"Cublas_Args: {args.usecublas}")       
+        print(f"Layers: {args.gpulayers}")
+        print(f"Tensor_Split: {args.tensor_split}")
+        print(f"BlasThreads: {args.blasthreads}")       
+        print(f"BlasBatchSize: {args.blasbatchsize}")
+        print(f"FlashAttention: {args.flashattention}")
+        print(f"KV_cache: {args.quantkv}")
         print(f"MaxCtx: {benchmaxctx}")
         print(f"GenAmount: {benchlen}\n-----")
         print(f"ProcessingTime: {t_pp:.3f}s")
@@ -3959,14 +4025,15 @@ def main(launch_args,start_server=True):
         print(f"GenerationTime: {t_gen:.3f}s")
         print(f"GenerationSpeed: {s_gen:.2f}T/s")
         print(f"TotalTime: {(t_pp+t_gen):.3f}s")
+        print(f"Coherent: {resultok}")
         print(f"Output: {result}\n-----")
         if save_to_file:
             try:
                 with open(args.benchmark, "a") as file:
                     file.seek(0, 2)
                     if file.tell() == 0: #empty file
-                        file.write(f"Timestamp,Backend,Layers,Model,MaxCtx,GenAmount,ProcessingTime,ProcessingSpeed,GenerationTime,GenerationSpeed,TotalTime,Output,Flags")
-                    file.write(f"\n{datetimestamp},{libname},{args.gpulayers},{benchmodel},{benchmaxctx},{benchlen},{t_pp:.2f},{s_pp:.2f},{t_gen:.2f},{s_gen:.2f},{(t_pp+t_gen):.2f},{result},{benchflagstr}")
+                        file.write(f"Datime,KCPP-FF,LCPP,Backend,Model,NoAVX2,Thrd,HighP,NoBlas,FlashA,Layers,BlasThrd,BBSize,KVC,MaxCtx,GenNum,PPTime,PPSpeed,TGTime,TGSpeed,TotalTime,Coher,Tensor1,Split2,Cublas1,Argument2,Argument3")
+                    file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{benchmodel},{args.noavx2},{args.threads},{args.highpriority},{args.noblas},{args.flashattention},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.quantkv},{benchmaxctx},{benchlen},{t_pp:.3f},{s_pp:.2f},{t_gen:.3f},{s_gen:.2f},{(t_pp+t_gen):.3f},{resultok},{args.tensor_split},,{args.usecublas},,")
             except Exception as e:
                 print(f"Error writing benchmark to file: {e}")
         global using_gui_launcher
@@ -4024,7 +4091,10 @@ if __name__ == '__main__':
             return f
         return range_checker
 
-    print("***\nWelcome to KoboldCpp - Version " + KcppVersion) # just update version manually
+    print("***\nWelcome to KoboldCpp RoseFranken Fork - based on YellowRose's ROCm fork" + KcppVersion) # just update version manually
+    print("***\nBased on LlamaCpp - Version " + LcppVersion) # just update LlamaCPP version manually
+    print("***\nRelease date: " + ReleaseDate) # just update date manually
+    print("***")
     # print("Python version: " + sys.version)
     parser = argparse.ArgumentParser(description='KoboldCpp Server')
     modelgroup = parser.add_mutually_exclusive_group() #we want to be backwards compatible with the unnamed positional args
@@ -4045,24 +4115,25 @@ if __name__ == '__main__':
         default_threads = (8 if default_threads > 8 else default_threads) #this helps avoid e-cores.
     parser.add_argument("--threads", metavar=('[threads]'), help="Use a custom number of threads if specified. Otherwise, uses an amount based on CPU cores", type=int, default=default_threads)
     compatgroup = parser.add_mutually_exclusive_group()
-    compatgroup.add_argument("--usecublas", help="Use CuBLAS for GPU Acceleration. Requires CUDA. Select lowvram to not allocate VRAM scratch buffer. Enter a number afterwards to select and use 1 GPU. Leaving no number will use all GPUs. For hipBLAS binaries, please check YellowRoseCx rocm fork.", nargs='*',metavar=('[lowvram|normal] [main GPU ID] [mmq] [rowsplit]'), choices=['normal', 'lowvram', '0', '1', '2', '3', 'mmq', 'rowsplit'])
+    compatgroup.add_argument("--usecublas", help="Use CuBLAS for GPU Acceleration (NVIDIA Geforce RTX cards, GTX 1xxx and 9xx are also compatible to some extend). Requires CUDA. Select lowvram to not allocate the context KV cache in VRAM, but instead in RAM. Enter a number afterwards to select and use 1 GPU. Leaving no number will use all GPUs. For hipBLAS binaries, please check YellowRoseCx rocm fork.", nargs='*',metavar=('[lowvram|normal] [main GPU ID] [mmq] [rowsplit]'), choices=['normal', 'lowvram', '0', '1', '2', '3', 'mmq', 'rowsplit'])
     compatgroup.add_argument("--usevulkan", help="Use Vulkan for GPU Acceleration. Can optionally specify GPU Device ID (e.g. --usevulkan 0).", metavar=('[Device ID]'), nargs='*', type=int, default=None)
     compatgroup.add_argument("--useclblast", help="Use CLBlast for GPU Acceleration. Must specify exactly 2 arguments, platform ID and device ID (e.g. --useclblast 1 0).", type=int, choices=range(0,9), nargs=2)
     compatgroup.add_argument("--noblas", help="Do not use any accelerated prompt ingestion", action='store_true')
-    parser.add_argument("--contextsize", help="Controls the memory allocated for maximum context size, only change if you need more RAM for big contexts. (default 2048). Supported values are [256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072]. IF YOU USE ANYTHING ELSE YOU ARE ON YOUR OWN.",metavar=('[256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072]'), type=check_range(int,256,262144), default=2048)
-    parser.add_argument("--gpulayers", help="Set number of layers to offload to GPU when using GPU. Requires GPU.",metavar=('[GPU layers]'), nargs='?', const=1, type=int, default=0)
-    parser.add_argument("--tensor_split", help="For CUDA and Vulkan only, ratio to split tensors across multiple GPUs, space-separated list of proportions, e.g. 7 3", metavar=('[Ratios]'), type=float, nargs='+')
     parser.add_argument("--checkforupdates", help="Checks KoboldCpp-ROCm's release page on GitHub using HTTPS to see if there's a new update available.", action='store_true')
+    parser.add_argument("--contextsize", help="Controls the memory allocated for maximum context size, only change if you need more RAM for big contexts. (default 2048). Supported values are [256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072,262144]. IF YOU USE ANYTHING ELSE YOU ARE ON YOUR OWN.",metavar=('[256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072,262144]'), type=check_range(int,256,262144), default=2048)
+    parser.add_argument("--gpulayers", help="Set number of layers to offload to GPU when using GPU. Requires a GPU. Prefer a full offload (all layers on GPU) if possible.",metavar=('[GPU layers]'), nargs='?', const=1, type=int, default=0)
+    parser.add_argument("--tensor_split", help="For CUDA and Vulkan only, ratio to split a model layers across multiple GPUs, space-separated list of proportions, e.g. 55 26 to run a 70b Llama2 Miqu model in IQ3_M with 32k context on a Geforce 3090 24G (55 layers) and a Geforce 3060 12G (26 layers)", metavar=('[Ratios]'), type=float, nargs='+')
 
     #more advanced params
     advparser = parser.add_argument_group('Advanced Commands')
-    advparser.add_argument("--ropeconfig", help="If set, uses customized RoPE scaling from configured frequency scale and frequency base (e.g. --ropeconfig 0.25 10000). Otherwise, uses NTK-Aware scaling set automatically based on context size. For linear rope, simply set the freq-scale and ignore the freq-base",metavar=('[rope-freq-scale]', '[rope-freq-base]'), default=[0.0, 10000.0], type=float, nargs='+')
-    advparser.add_argument("--blasbatchsize", help="Sets the batch size used in BLAS processing (default 512). Setting it to -1 disables BLAS mode, but keeps other benefits like GPU offload.", type=int,choices=[-1,32,64,128,256,512,1024,2048], default=512)
+    advparser.add_argument("--ropeconfig", help="If set, uses customized RoPE scaling from configured frequency scale and frequency base (e.g. --ropeconfig 0.25 10000). Otherwise, uses NTK-Aware scaling set automatically based on context size. For NTK Rope, a rule of thumb is to double the base frequency to go 50% beyond the base context, and to triple the base frequency to double the context. Beyond, the NTK calculations are more complex and you might need to use frequency scale as well. To use only linear rope, simply set the freq-scale and ignore the freq-base",metavar=('[rope-freq-scale]', '[rope-freq-base]'), default=[0.0, 10000.0], type=float, nargs='+')
+    advparser.add_argument("--blasbatchsize", help="Sets the batch size used in BLAS processing (default 512, the best speed/size compromize, 256 and 128 being good if you're short of VRAM). Setting it to -1 disables BLAS mode, but keeps other benefits like GPU offload.", type=int,choices=[-1,32,64,128,256,512,1024,2048], default=512)
     advparser.add_argument("--blasthreads", help="Use a different number of threads during BLAS if specified. Otherwise, has the same value as --threads",metavar=('[threads]'), type=int, default=0)
     advparser.add_argument("--lora", help="LLAMA models only, applies a lora file on top of model. Experimental.", metavar=('[lora_filename]', '[lora_base]'), nargs='+')
-    advparser.add_argument("--noshift", help="If set, do not attempt to Trim and Shift the GGUF context.", action='store_true')
+    advparser.add_argument("--noshift", help="If set, do not attempt to Trim and Shift the GGUF context without reprocessing everything once the max context is reached. If you disable it (or need to use KV cache quantized), you can eventually use --smartcontext instead.", action='store_true')
     advparser.add_argument("--nommap", help="If set, do not use mmap to load newer models", action='store_true')
     advparser.add_argument("--usemlock", help="For Apple Systems. Force system to keep model in RAM rather than swapping or compressing", action='store_true')
+#    advparser.add_argument("--usedirect_io", help="Accelerate the model loading time", action='store_true')
     advparser.add_argument("--noavx2", help="Do not use AVX2 instructions, a slower compatibility mode for older devices.", action='store_true')
     advparser.add_argument("--debugmode", help="Shows additional debug info in the terminal.", nargs='?', const=1, type=int, default=0)
     advparser.add_argument("--skiplauncher", help="Doesn't display or use the GUI launcher.", action='store_true')
@@ -4077,13 +4148,16 @@ if __name__ == '__main__':
     advparser.add_argument("--ssl", help="Allows all content to be served over SSL instead. A valid UNENCRYPTED SSL cert and key .pem files must be provided", metavar=('[cert_pem]', '[key_pem]'), nargs='+')
     advparser.add_argument("--nocertify", help="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.", action='store_true')
     advparser.add_argument("--mmproj", help="Select a multimodal projector file for LLaVA.", default="")
+#    advparser.add_argument("--override_kv", help="Supersede metadata of a model, like Epislon (e.g : llama.attention.layer_norm_rms_epsilon=float:1e5, 1.25e5, 3e6, etc)", metavar=('[override_kv]'), nargs='+')
+#    advparser.add_argument("--cache_type_k", help="Quantize the key cache, to lower the memory footprint of the context.", metavar=('[cache_type_k]'), nargs='+')
+#    advparser.add_argument("--cache_type_v", help="Quantize the value cache, to lower the memory footprint of the context.", metavar=('[cache_type_v]'), nargs='+')  
     advparser.add_argument("--password", help="Enter a password required to use this instance. This key will be required for all text endpoints. Image endpoints are not secured.", default=None)
     advparser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
     advparser.add_argument("--chatcompletionsadapter", help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="")
-    advparser.add_argument("--flashattention", help="Enables flash attention.", action='store_true')
-    advparser.add_argument("--quantkv", help="Sets the KV cache data type quantization, 0=f16, 1=q8, 2=q4. Requires Flash Attention, and disables context shifting.",metavar=('[quantization level 0/1/2]'), type=int, choices=[0,1,2], default=0)
+    advparser.add_argument("--flashattention", help="Enables flash attention, which shrinks the size of the BLAS/compute cache by 50-75% (a few hundreds MB recovered in VRAM), and allows the use of the quantized KV cache.", action='store_true')
+    advparser.add_argument("--quantkv", help="Sets the KV cache data quantization type to save VRAM in NVidia Video Cards, 0 = 1616/F16 (16 BPW), 1 = 1680/Kf16-Vq8_0 (12.25BPW), 2 = 1651/Kf16-Vq5_1 (11BPW), 3 = 1650/Kf16-Vq5_0 (10.75BPW), 4 = 1641/Kf16-Vq4_1 (10.5BPW), 5 = 1640/Kf16-Vq4_0 (10.25BPW), 6 = 8080/KVq8_0 (8.5 BPW), 7 = 8051/Kq8_0-Vq5_1 (7.25BPW), 8 = 8050/Kq8_0-Vq5_0 (7BPW), 9 = 8041/Kq8_0-Vq4_1 (6.75BPW), 10 = 8040/Kq8_0-Vq4_0 (6.5BPW), 11 = 5151/KVq5_1 (6BPW), 12 = 5150/Kq5_1-Vq5_0 (5.75BPW), 13 = 5141/Kq5_1-Vq4_1 (5.5BPW), 14 = 5140/Kq5_1-Vq4_0 (5.25BPW), 15 = 5040/Kq5_0-Vq4_0 (5BPW), 16 = 4140/Kq4_1-Vq4_0 (4.75BPW), 17 = 4040/KVq4_0 (4.5BPW). Requires Flash Attention, and disables context shifting.", metavar=('[quantization level 0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17]'), type=int, choices=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17], default=0)
     advparser.add_argument("--forceversion", help="If the model file format detection fails (e.g. rogue modified model) you can set this to override the detected format (enter desired version, e.g. 401 for GPTNeoX-Type2).",metavar=('[version]'), type=int, default=0)
-    advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated. Not recommended.", action='store_true')
+    advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated compared to ContextShift, but works with KV Cache quantized unlike ContextShift which doesn't. Not recommended except for the use of KV Cache quantized.", action='store_true')
 
     hordeparsergroup = parser.add_argument_group('Horde Worker Commands')
     hordeparsergroup.add_argument("--hordemodelname", metavar=('[name]'), help="Sets your AI Horde display model name.", default="")

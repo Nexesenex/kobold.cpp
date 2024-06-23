@@ -35,7 +35,7 @@
 #include "examples/llava/llava.h"
 
 //const
-const int extra_context_handle_fragmentation = 80;
+const int extra_context_handle_fragmentation = 128;
 const int LLAVA_TOKEN_IDENTIFIER_A = -998; //alternate between both, changing when image changes
 const int LLAVA_TOKEN_IDENTIFIER_B = -999;
 
@@ -44,6 +44,9 @@ std::string executable_path = "";
 std::string lora_filename = "";
 std::string lora_base = "";
 std::string mmproj_filename = "";
+//std::string override_kv = "";
+//std::string cache_type_k = "";
+//std::string cache_type_v = "";
 bool generation_finished;
 float last_process_time = 0;
 float last_eval_time = 0;
@@ -795,10 +798,44 @@ static float CalcGradientAIRopeFreqBase(float original_rope_base, int n_ctx_trai
     {
         return original_rope_base;
     }
-    float ctx_multiplier = (is_solar?8.0f:1.0f);
-	float chi_ctx_train_value = (n_ctx_train * ctx_multiplier) / 6.28318;
-    float chi_ctx_value = (n_ctx_desired * ctx_multiplier) / 6.28318;
-    return powf(original_rope_base, logf(chi_ctx_value) / logf(chi_ctx_train_value));
+	else
+	{
+        float ctx_multiplier = (is_solar?8.0f:1.0f);
+        float chi_ctx_train_value = (n_ctx_train * ctx_multiplier) / 6.28318;
+        float chi_ctx_value = (n_ctx_desired * ctx_multiplier) / 6.28318;
+        float gradient_ai_rope_freq_base_value = powf(original_rope_base, log10f(chi_ctx_value) / log10f(chi_ctx_train_value));
+
+        printf("Trained max context length (value:%.d).\n", n_ctx_train);
+        printf("Desired context length (value:%.d).\n", n_ctx_desired);
+        printf("Solar context multiplier (value:%.3f).\n", ctx_multiplier);
+        printf("Chi context train (value:%.3f).\n", chi_ctx_train_value);
+        printf("Chi chosen context (value:%.3f).\n", chi_ctx_value);
+        printf("Log Chi context train (value:%.3f).\n", log10f(chi_ctx_train_value));
+        printf("Log Chi chosen context (value:%.3f).\n", log10f(chi_ctx_value));
+	    printf("RoPE Frequency Base value (value:%.d).\n", original_rope_base);	
+        printf("RoPE base calculated via Gradient AI formula. (value:%.1f).\n", gradient_ai_rope_freq_base_value);
+
+	    if(original_rope_base==10000.0f && (file_format_meta.n_tensors==435 || file_format_meta.n_tensors==611))
+        {
+            float extended_rope_positive_offset_value = 1 + ((log10f(chi_ctx_value) - log10f(chi_ctx_train_value)) / ((log10f(chi_ctx_value) * log10f(chi_ctx_train_value)) - (log10f(chi_ctx_value) + log10f(chi_ctx_train_value))));
+            printf("Extended Rope Positive Offset (multiplicator for Solar based models. (value:%.3f).\n", extended_rope_positive_offset_value);
+            float rope_freq_base_with_positive_offset = gradient_ai_rope_freq_base_value * extended_rope_positive_offset_value;
+            printf("RoPE base calculated via Gradient AI formula for Solar based models. (value:%.1f).\n", rope_freq_base_with_positive_offset);
+            return rope_freq_base_with_positive_offset;
+        }
+	    else if(original_rope_base==10000.0f)
+        {
+            float extended_rope_negative_offset_value = 1 + ((log10f(chi_ctx_value) - log10f(chi_ctx_train_value)) / (3.14159265358979323846 * 3.14159265358979323846));
+            printf("Extended Rope Negative Offset (divisor) for Llama 1 and 2 based models. (value:%.3f).\n", extended_rope_negative_offset_value);
+            float rope_freq_base_with_negative_offset = gradient_ai_rope_freq_base_value / extended_rope_negative_offset_value;		
+            printf("RoPE base calculated via Gradient AI formula for Llama 1 and 2 based models. (value:%.1f).\n", rope_freq_base_with_negative_offset);
+            return rope_freq_base_with_negative_offset;
+        }
+        else
+        {
+	        return gradient_ai_rope_freq_base_value;
+        }
+    }
 }
 
 ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in_file_format, FileFormatExtraMeta in_file_format_meta)
@@ -818,6 +855,9 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     useSmartContext = inputs.use_smartcontext;
     useContextShift = inputs.use_contextshift;
     debugmode = inputs.debugmode;
+//    kcpp_params->override_kv = inputs.override_kv;
+//    kcpp_params->cache_type_k = inputs.cache_type_k;
+//    kcpp_params->cache_type_v = inputs.cache_type_v;
 
     auto clamped_max_context_length = inputs.max_context_length;
 
@@ -853,7 +893,8 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         rope_freq_base = CalcGradientAIRopeFreqBase(10000.0f,2048,kcpp_params->n_ctx,false);
         if(file_format==FileFormat::GGUF_GENERIC)
         {
-            printf("Using automatic RoPE scaling. If the model has customized RoPE settings, they will be used directly instead!\n");
+            printf("Using automatic RoPE scaling for GGUF. If the model has custom RoPE settings, they'll be used directly instead!\n");
+            printf("It means that the RoPE values written above will be replaced by the RoPE values indicated after loading.\n");
         }
         else
         {
@@ -1020,6 +1061,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         llama_ctx_params.logits_all = false;
         model_params.use_mmap = inputs.use_mmap;
         model_params.use_mlock = inputs.use_mlock;
+//        model_params.use_direct_io = inputs.use_direct_io;	
         model_params.n_gpu_layers = inputs.gpulayers;
 
         #if defined(GGML_USE_CLBLAST)
@@ -1106,8 +1148,11 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         }
 
         llama_ctx_params.flash_attn = kcpp_params->flash_attn;
-        llama_ctx_params.type_k = (inputs.quant_k>1?GGML_TYPE_Q4_0:(inputs.quant_k==1?GGML_TYPE_Q8_0:GGML_TYPE_F16));
-        llama_ctx_params.type_v = (inputs.quant_v>1?GGML_TYPE_Q4_0:(inputs.quant_v==1?GGML_TYPE_Q8_0:GGML_TYPE_F16));
+        llama_ctx_params.type_k = (inputs.quant_k==17?GGML_TYPE_Q4_0:(inputs.quant_k==16?GGML_TYPE_Q4_1:(inputs.quant_k==15?GGML_TYPE_Q5_0:(inputs.quant_k==14?GGML_TYPE_Q5_1:(inputs.quant_k==13?GGML_TYPE_Q5_1:(inputs.quant_k==12?GGML_TYPE_Q5_1:(inputs.quant_k==11?GGML_TYPE_Q5_1:(inputs.quant_k==10?GGML_TYPE_Q8_0:(inputs.quant_k==9?GGML_TYPE_Q8_0:(inputs.quant_k==8?GGML_TYPE_Q8_0:(inputs.quant_k==7?GGML_TYPE_Q8_0:(inputs.quant_k==6?GGML_TYPE_Q8_0:(inputs.quant_k==5?GGML_TYPE_F16:(inputs.quant_k==4?GGML_TYPE_F16:(inputs.quant_k==3?GGML_TYPE_F16:(inputs.quant_k==2?GGML_TYPE_F16:(inputs.quant_k==1?GGML_TYPE_F16:GGML_TYPE_F16)))))))))))))))));
+        llama_ctx_params.type_v = (inputs.quant_v==17?GGML_TYPE_Q4_0:(inputs.quant_v==16?GGML_TYPE_Q4_0:(inputs.quant_v==15?GGML_TYPE_Q4_0:(inputs.quant_v==14?GGML_TYPE_Q4_0:(inputs.quant_v==13?GGML_TYPE_Q4_1:(inputs.quant_v==12?GGML_TYPE_Q5_0:(inputs.quant_v==11?GGML_TYPE_Q5_1:(inputs.quant_v==10?GGML_TYPE_Q4_0:(inputs.quant_v==9?GGML_TYPE_Q4_1:(inputs.quant_v==8?GGML_TYPE_Q5_0:(inputs.quant_v==7?GGML_TYPE_Q5_1:(inputs.quant_v==6?GGML_TYPE_Q8_0:(inputs.quant_v==5?GGML_TYPE_Q4_0:(inputs.quant_v==4?GGML_TYPE_Q4_1:(inputs.quant_v==3?GGML_TYPE_Q5_0:(inputs.quant_v==2?GGML_TYPE_Q5_1:(inputs.quant_v==1?GGML_TYPE_Q8_0:GGML_TYPE_F16)))))))))))))))));
+//        llama_ctx_params.override_kv = kcpp_params->override_kv;
+//        llama_ctx_params.cache_type_k = kcpp_params->cache_type_k;
+//        llama_ctx_params.cache_type_v = kcpp_params->cache_type_v;
         llama_ctx_v4 = llama_new_context_with_model(llamamodel, llama_ctx_params);
 
         if (llama_ctx_v4 == NULL)
