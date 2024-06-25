@@ -2079,7 +2079,6 @@ def show_new_gui():
                 gui_layers_zeroed = gpulayers_var.get()=="" or gpulayers_var.get()=="0"
                 if (gui_layers_untouched or gui_layers_zeroed) and layerlimit>0:
                     gpulayers_var.set(str(layerlimit))
-                    mmq_var.set(0 if layerlimit>=200 else 1)
                     gui_layers_untouched = old_gui_layers_untouched
                     if gui_layers_zeroed:
                         gui_layers_untouched = True
