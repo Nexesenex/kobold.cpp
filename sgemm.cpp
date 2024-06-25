@@ -249,8 +249,9 @@ class tinyBLAS {
         : A(A), B(B), C(C), k(k), lda(lda), ldb(ldb), ldc(ldc), ith(ith), nth(nth) {
     }
 
-    void matmul(int64_t m, int64_t n) {
-        mnpack(0, m, 0, n);
+    void matmul(int64_t m, int64_t n, int task) {
+        if (task == GGML_TASK_TYPE_COMPUTE)
+            mnpack(0, m, 0, n);
     }
 
   private:
@@ -457,8 +458,9 @@ class tinyBLAS_Q0_ARM {
         : A(A), B(B), C(C), k(k), lda(lda), ldb(ldb), ldc(ldc), ith(ith), nth(nth) {
     }
 
-    void matmul(int64_t m, int64_t n) {
-        mnpack(0, m, 0, n);
+    void matmul(int64_t m, int64_t n, int task) {
+        if (task == GGML_TASK_TYPE_COMPUTE)
+            mnpack(0, m, 0, n);
     }
 
   private:
@@ -594,8 +596,9 @@ class tinyBLAS_Q0_AVX {
         : A(A), B(B), C(C), k(k), lda(lda), ldb(ldb), ldc(ldc), ith(ith), nth(nth) {
     }
 
-    void matmul(int64_t m, int64_t n) {
-        mnpack(0, m, 0, n);
+    void matmul(int64_t m, int64_t n, int task) {
+        if (task == GGML_TASK_TYPE_COMPUTE)
+            mnpack(0, m, 0, n);
     }
 
   private:
@@ -826,7 +829,7 @@ class tinyBLAS_Q0_AVX {
  * For example, for single-threaded single-precision GEMM you can say
  *
  *     llamafile_sgemm(m, n, k, A, lda, B, ldb, C, ldc,
- *                     0, 1,
+ *                     0, 1, GGML_TASK_TYPE_COMPUTE,
  *                     GGML_TYPE_F32, GGML_TYPE_F32, GGML_TYPE_F32);
  *
  * @param m is rows in `A` and `C`
@@ -840,13 +843,14 @@ class tinyBLAS_Q0_AVX {
  * @param ldc is row stride of `C`
  * @param ith is thread id (must be less than `nth`)
  * @param nth is number of threads (must be greater than zero)
+ * @param task is GGML task type
  * @param Atype is GGML data type of `A`
  * @param Btype is GGML data type of `B`
  * @param Ctype is GGML data type of `C`
  * @return true if this function was able to service the matmul request
  */
 bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda, const void *B, int64_t ldb, void *C,
-                     int64_t ldc, int ith, int nth, int Atype, int Btype, int Ctype) {
+                     int64_t ldc, int ith, int nth, int task, int Atype, int Btype, int Ctype) {
 
     assert(m >= 0);
     assert(n >= 0);
@@ -873,7 +877,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             (const float *)B, ldb,
             (float *)C, ldc,
             ith, nth};
-        tb.matmul(m, n);
+        tb.matmul(m, n, task);
         return true;
 #elif defined(__AVX__) || defined(__AVX2__)
         if (k % 8)
@@ -883,7 +887,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             (const float *)B, ldb,
             (float *)C, ldc,
             ith, nth};
-        tb.matmul(m, n);
+        tb.matmul(m, n, task);
         return true;
 #elif defined(__ARM_NEON)
         if (n < 4)
@@ -895,7 +899,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             (const float *)B, ldb,
             (float *)C, ldc,
             ith, nth};
-        tb.matmul(m, n);
+        tb.matmul(m, n, task);
         return true;
 #else
         return false;
@@ -913,7 +917,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             (const float *)B, ldb,
             (float *)C, ldc,
             ith, nth};
-        tb.matmul(m, n);
+        tb.matmul(m, n, task);
         return true;
 #elif (defined(__AVX__) || defined(__AVX2__)) && defined(__F16C__)
         if (k % 8)
@@ -925,7 +929,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             (const float *)B, ldb,
             (float *)C, ldc,
             ith, nth};
-        tb.matmul(m, n);
+        tb.matmul(m, n, task);
         return true;
 #elif defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC) && !defined(_MSC_VER)
         if (n < 8)
@@ -939,7 +943,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             (const ggml_fp16_t *)B, ldb,
             (float *)C, ldc,
             ith, nth};
-        tb.matmul(m, n);
+        tb.matmul(m, n, task);
         return true;
 #elif defined(__ARM_NEON) && !defined(_MSC_VER)
         if (k % 4)
@@ -951,7 +955,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             (const float *)B, ldb,
             (float *)C, ldc,
             ith, nth};
-        tb.matmul(m, n);
+        tb.matmul(m, n, task);
         return true;
 #else
         return false;
@@ -967,7 +971,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             (const block_q8_0 *)B, ldb,
             (float *)C, ldc,
             ith, nth};
-        tb.matmul(m, n);
+        tb.matmul(m, n, task);
         return true;
 #elif defined(__ARM_FEATURE_DOTPROD)
         tinyBLAS_Q0_ARM<block_q8_0> tb{
@@ -975,7 +979,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             (const block_q8_0 *)B, ldb,
             (float *)C, ldc,
             ith, nth};
-        tb.matmul(m, n);
+        tb.matmul(m, n, task);
         return true;
 #else
         return false;
@@ -991,7 +995,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             (const block_q8_0 *)B, ldb,
             (float *)C, ldc,
             ith, nth};
-        tb.matmul(m, n);
+        tb.matmul(m, n, task);
         return true;
 #elif defined(__ARM_FEATURE_DOTPROD)
         tinyBLAS_Q0_ARM<block_q4_0> tb{
@@ -999,7 +1003,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             (const block_q8_0 *)B, ldb,
             (float *)C, ldc,
             ith, nth};
-        tb.matmul(m, n);
+        tb.matmul(m, n, task);
         return true;
 #else
         return false;
@@ -1021,6 +1025,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
     (void)ldc;
     (void)ith;
     (void)nth;
+    (void)task;
     (void)Atype;
     (void)Btype;
     (void)Ctype;

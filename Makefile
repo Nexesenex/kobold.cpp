@@ -344,6 +344,9 @@ ifdef LLAMA_GPROF
 	MK_CFLAGS   += -pg
 	MK_CXXFLAGS += -pg
 endif
+ifdef LLAMA_PERF
+	MK_CPPFLAGS += -DGGML_PERF
+endif
 
 # Architecture specific
 # TODO: probably these flags need to be tweaked on some architectures
