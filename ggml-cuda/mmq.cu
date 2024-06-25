@@ -69,13 +69,7 @@ void ggml_cuda_op_mul_mat_q(
     GGML_UNUSED(src1_ddf_i);
 }
 
-bool ggml_cuda_should_use_mmq(enum ggml_type type, int cc, int64_t ne11) {
-#ifdef GGML_CUDA_FORCE_CUBLAS
-    return false;
-#endif // GGML_CUDA_FORCE_CUBLAS
-
-    bool mmq_supported;
-
+bool ggml_cuda_supports_mmq(enum ggml_type type) {
     switch (type) {
         case GGML_TYPE_Q4_0:
         case GGML_TYPE_Q4_1:
@@ -87,32 +81,8 @@ bool ggml_cuda_should_use_mmq(enum ggml_type type, int cc, int64_t ne11) {
         case GGML_TYPE_Q4_K:
         case GGML_TYPE_Q5_K:
         case GGML_TYPE_Q6_K:
-            mmq_supported = true;
-            break;
+            return true;
         default:
-            mmq_supported = false;
-            break;
+            return false;
     }
-
-    if (!mmq_supported) {
-        return false;
-    }
-
-    if (int8_mma_available(cc)) {
-        return true;
-    }
-
-    if (cc < MIN_CC_DP4A) {
-        return false;
-    }
-
-#ifdef GGML_CUDA_FORCE_MMQ
-    return true;
-#endif //GGML_CUDA_FORCE_MMQ
-
-    if (cc < CC_OFFSET_AMD) {
-        return cc < CC_VOLTA || ne11 < MMQ_DP4A_MAX_BATCH_SIZE;
-    }
-
-    return cc < CC_RDNA3 || ne11 < MMQ_DP4A_MAX_BATCH_SIZE;
 }
