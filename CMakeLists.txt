@@ -159,9 +159,10 @@ if (LLAMA_CUDA)
             # 52 == lowest CUDA 12 standard
             # 60 == f16 CUDA intrinsics
             # 61 == integer CUDA intrinsics
-            # 70 == (assumed) compute capability at which unrolling a loop in mul_mat_q kernels is faster
+            # 70 == FP16 tensor cores - (assumed) compute capability at which unrolling a loop in mul_mat_q kernels is faster
+            # 75 == int8 tensor cores
             if (LLAMA_CUDA_F16 OR LLAMA_CUDA_DMMV_F16)
-                set(CMAKE_CUDA_ARCHITECTURES "60;61;70") # needed for f16 CUDA intrinsics
+                set(CMAKE_CUDA_ARCHITECTURES "60;61;70;75") # needed for f16 CUDA intrinsics
             else()
                 message("CUDA Toolkit Version: ${CUDAToolkit_VERSION}")
                 if(CUDAToolkit_VERSION VERSION_GREATER 12)
