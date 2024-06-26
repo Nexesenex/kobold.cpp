@@ -1071,19 +1071,19 @@ bool gpt_params_find_arg(int argc, char ** argv, const std::string & arg, gpt_pa
         );
         return true;
     }
-    // if (arg == "-j" || arg == "--json-schema") {
-    //     if (++i >= argc) {
-    //         invalid_param = true;
-    //         return true;
-    //     }
-    //     sparams.grammar = json_schema_to_grammar(json::parse(argv[i]));
-    //     return true;
-    // }
-    if (arg == "-j" || arg == "--json-schema") {
-        CHECK_ARG
-        sparams.grammar = json_schema_to_grammar(json::parse(argv[i]));
-        return true;
-    }
+    //if (arg == "-j" || arg == "--json-schema") {
+    //    if (++i >= argc) {
+    //        invalid_param = true;
+    //        return true;
+    //    }
+    //    sparams.grammar = json_schema_to_grammar(json::parse(argv[i]));
+    //    return true;
+    //}
+    //if (arg == "-j" || arg == "--json-schema") {
+    //    CHECK_ARG
+    //    sparams.grammar = json_schema_to_grammar(json::parse(argv[i]));
+    //    return true;
+    //}
     if (arg == "--override-kv") {
         CHECK_ARG
         if (!string_parse_kv_override(argv[i], params.kv_overrides)) {
