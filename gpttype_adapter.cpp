@@ -792,7 +792,7 @@ static int GetBatchSize(int desiredBlasBatchSize,FileFormat in_file_format)
 }
 
 //this function applies automatic scaling to rope freq base when the desired context exceeds trained context
-static float CalcGradientAIRopeFreqBase(float original_rope_base, int n_ctx_train, int n_ctx_desired, bool is_solar)
+static float CalcGradientAIRopeFreqBase(float original_rope_base, int n_ctx_train, int n_ctx_desired, GGUFArch model_arch)
 {
     if(n_ctx_desired <= n_ctx_train || n_ctx_desired <= 2048)
     {
@@ -800,7 +800,7 @@ static float CalcGradientAIRopeFreqBase(float original_rope_base, int n_ctx_trai
     }
 	else
 	{
-        float ctx_multiplier = (is_solar?8.0f:1.0f);
+        float ctx_multiplier = (model_arch==GGUFArch::ARCH_SOLAR?8.0f:1.0f);
         float chi_ctx_train_value = (n_ctx_train * ctx_multiplier) / 6.28318;
         float chi_ctx_value = (n_ctx_desired * ctx_multiplier) / 6.28318;
         float gradient_ai_rope_freq_base_value = powf(original_rope_base, log10f(chi_ctx_value) / log10f(chi_ctx_train_value));
@@ -815,19 +815,19 @@ static float CalcGradientAIRopeFreqBase(float original_rope_base, int n_ctx_trai
 	    printf("RoPE Frequency Base value (value:%.d).\n", original_rope_base);	
         printf("RoPE base calculated via Gradient AI formula. (value:%.1f).\n", gradient_ai_rope_freq_base_value);
 
-	    if(original_rope_base==10000.0f && (file_format_meta.n_tensors==435 || file_format_meta.n_tensors==611))
+	    if(model_arch==GGUFArch::ARCH_SOLAR)
         {
             float extended_rope_positive_offset_value = 1 + ((log10f(chi_ctx_value) - log10f(chi_ctx_train_value)) / ((log10f(chi_ctx_value) * log10f(chi_ctx_train_value)) - (log10f(chi_ctx_value) + log10f(chi_ctx_train_value))));
-            printf("Extended Rope Positive Offset (multiplicator for Solar based models. (value:%.3f).\n", extended_rope_positive_offset_value);
             float rope_freq_base_with_positive_offset = gradient_ai_rope_freq_base_value * extended_rope_positive_offset_value;
+            printf("Extended Rope Positive Offset (multiplicator) for Solar based models. (value:%.3f).\n", extended_rope_positive_offset_value);
             printf("RoPE base calculated via Gradient AI formula for Solar based models. (value:%.1f).\n", rope_freq_base_with_positive_offset);
             return rope_freq_base_with_positive_offset;
         }
-	    else if(original_rope_base==10000.0f)
+	    else if(model_arch==GGUFArch::ARCH_MISTRAL_LLAMA_1_AND_2)
         {
             float extended_rope_negative_offset_value = 1 + ((log10f(chi_ctx_value) - log10f(chi_ctx_train_value)) / (3.14159265358979323846 * 3.14159265358979323846));
+            float rope_freq_base_with_negative_offset = gradient_ai_rope_freq_base_value / extended_rope_negative_offset_value;
             printf("Extended Rope Negative Offset (divisor) for Llama 1 and 2 based models. (value:%.3f).\n", extended_rope_negative_offset_value);
-            float rope_freq_base_with_negative_offset = gradient_ai_rope_freq_base_value / extended_rope_negative_offset_value;		
             printf("RoPE base calculated via Gradient AI formula for Llama 1 and 2 based models. (value:%.1f).\n", rope_freq_base_with_negative_offset);
             return rope_freq_base_with_negative_offset;
         }
@@ -890,7 +890,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     else
     {
         //Set freq base for all, including non GGUF. If we are using GGUF, this will be overwritten with more accurate values later.
-        rope_freq_base = CalcGradientAIRopeFreqBase(10000.0f,2048,kcpp_params->n_ctx,false);
+        rope_freq_base = CalcGradientAIRopeFreqBase(10000.0f,2048,kcpp_params->n_ctx, GGUFArch::ARCH_DEFAULT);
         if(file_format==FileFormat::GGUF_GENERIC)
         {
             printf("Using automatic RoPE scaling for GGUF. If the model has custom RoPE settings, they'll be used directly instead!\n");
@@ -1095,6 +1095,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         #endif
 
         llama_ctx_params.n_batch = kcpp_params->n_batch;
+        llama_ctx_params.n_ubatch = kcpp_params->n_ubatch;
         llama_ctx_params.n_threads = kcpp_params->n_threads;
         llama_ctx_params.n_threads_batch = kcpp_params->n_threads_batch;
 
@@ -1140,7 +1141,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             else
             {
 				//Calculate rope_freq_base using the gradientAI formula, solar requires ctx *8 for correct scaling
-                rope_freq_base = CalcGradientAIRopeFreqBase(llamamodel->hparams.rope_freq_base_train, file_format_meta.n_ctx_train, kcpp_params->n_ctx, file_format_meta.model_architecture==GGUFArch::ARCH_SOLAR);
+                rope_freq_base = CalcGradientAIRopeFreqBase(llamamodel->hparams.rope_freq_base_train, file_format_meta.n_ctx_train, kcpp_params->n_ctx, file_format_meta.model_architecture);
                 llama_ctx_params.rope_freq_base = rope_freq_base;
                 llama_ctx_params.rope_freq_scale = rope_freq_scale;
                 printf("Automatic RoPE Scaling: Using (scale:%.3f, base:%.1f).\n", rope_freq_scale, rope_freq_base);
@@ -1207,7 +1208,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         auto er = llama_decode(llama_ctx_v4, llama_batch_get_one(tmp.data(), tmp.size(), 0, 0));
         if(er!=0)
         {
-            printf("\nLLAMA EVAL returned nonzero!\n");
+            printf("\nLLAMA EVAL returned nonzero: %d\n",er);
         }
         return ModelLoadResult::SUCCESS;
     }
@@ -1850,6 +1851,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     std::vector<int> embd_inp;
     std::vector<int> embd_inp_mem; //for storing added memory
     std::vector<int> llava_mem; //for storing dummy tokens that will be consumed by llava
+    std::vector<int> llava_sep; //to separate between different llava images
 
     int32_t nctx = kcpp_params->n_ctx;
 
@@ -1857,6 +1859,9 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
     if(clp_ctx!=nullptr && clp_img_data!=nullptr)
     {
+        TokenizeString("\n\n", llava_sep, file_format,false);
+        int sepsize = llava_sep.size();
+
         for(int i=0;i<llava_images.size();++i)
         {
             std::string llava_image = llava_images[i].b64data;
@@ -1878,11 +1883,13 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 }
                 if(llava_images[i].clp_image_tokens>0 && llava_images[i].clp_image_tokens < nctx)
                 {
-                    for(int n=0;n<llava_images[i].clp_image_tokens;++n)
+                    int tokcnt = (i==0?(llava_images[i].clp_image_tokens):(llava_images[i].clp_image_tokens+sepsize));
+                    for(int n=0;n<tokcnt;++n)
                     {
                         llava_mem.push_back(current_llava_identifier);
                     }
-                }else
+                }
+                else
                 {
                     printf("\nWarning: LLAVA Image excluded - Context size too low or not enough clip tokens!\n");
                 }
@@ -2431,6 +2438,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                         //batch is empty, do image processing
                         int llavatokenscounted = 0;
                         int llavatokensevaled = 0;
+                        int sepsize = llava_sep.size();
                         while(input_consumed < embd_inp.size() && (embd_inp[input_consumed]==LLAVA_TOKEN_IDENTIFIER_A || embd_inp[input_consumed]==LLAVA_TOKEN_IDENTIFIER_B))
                         {
                             last_n_tokens.erase(last_n_tokens.begin());
@@ -2441,6 +2449,22 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                         }
                         for(int i=0;i<llava_images.size();++i)
                         {
+                            if(i>0 && sepsize>0)
+                            {
+                                //add a separator between each image
+                                auto evr = llama_decode(llama_ctx_v4, llama_batch_get_one(llava_sep.data(), sepsize, n_past, 0));
+                                if(evr!=0)
+                                {
+                                    printf("\nError when appending llava separator: %d\n",evr);
+                                }
+                                else
+                                {
+                                    printf("\rProcessing LLaVa Separator (%d tokens)",sepsize);
+                                }
+                                n_past += sepsize;
+                                llavatokensevaled += sepsize;
+                            }
+
                             if(allow_regular_prints)
                             {
                                 printf("\rProcessing LLaVa Embedding %d (%d tokens)",(i+1), llava_images[i].clp_image_tokens);

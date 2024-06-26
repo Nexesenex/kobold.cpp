@@ -595,9 +595,19 @@ def sd_load_model(model_filename,vae_filename,lora_filename):
     return ret
 
 def sd_generate(genparams):
-    global maxctx, args, currentusergenkey, totalgens, pendingabortkey
+    global maxctx, args, currentusergenkey, totalgens, pendingabortkey, chatcompl_adapter
+
+    default_adapter = {} if chatcompl_adapter is None else chatcompl_adapter
+    adapter_obj = genparams.get('adapter', default_adapter)
+    forced_negprompt = adapter_obj.get("negative_prompt", "")
+
     prompt = genparams.get("prompt", "high quality")
     negative_prompt = genparams.get("negative_prompt", "")
+    if forced_negprompt!="":
+        if negative_prompt!="":
+            negative_prompt += " " + forced_negprompt
+        else:
+            negative_prompt = forced_negprompt
     init_images_arr = genparams.get("init_images", [])
     init_images = ("" if (not init_images_arr or len(init_images_arr)==0 or not init_images_arr[0]) else init_images_arr[0])
     denoising_strength = genparams.get("denoising_strength", 0.6)
@@ -1777,6 +1787,7 @@ def show_new_gui():
     CLDevicesNames = ["","","",""]
     CUDevicesNames = ["","","","",""]
     VKDevicesNames = ["","","",""]
+    VKIsDGPU = [0,0,0,0]
     MaxMemory = [0]
 
     tabcontent = {}
@@ -2021,11 +2032,18 @@ def show_new_gui():
         try: # Get Vulkan names
             output = subprocess.run(['vulkaninfo','--summary'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
             devicelist = [line.split("=")[1].strip() for line in output.splitlines() if "deviceName" in line]
+            devicetypes = [line.split("=")[1].strip() for line in output.splitlines() if "deviceType" in line]
             idx = 0
             for dname in devicelist:
                 if idx<len(VKDevicesNames):
                     VKDevicesNames[idx] = dname
                     idx += 1
+            if len(devicetypes) == len(devicelist):
+                idx = 0
+                for dvtype in devicetypes:
+                    if idx<len(VKIsDGPU):
+                        VKIsDGPU[idx] = (1 if dvtype=="PHYSICAL_DEVICE_TYPE_DISCRETE_GPU" else 0)
+                        idx += 1
         except Exception as e:
             pass
 
@@ -2045,6 +2063,12 @@ def show_new_gui():
                 runopts_var.set("Use CuBLAS")
             elif "Use hipBLAS (ROCm)" in runopts:
                 runopts_var.set("Use hipBLAS (ROCm)")
+        elif exitcounter < 100 and (1 in VKIsDGPU) and runmode_untouched and "Use Vulkan" in runopts:
+            for i in range(0,len(VKIsDGPU)):
+                if VKIsDGPU[i]==1:
+                    runopts_var.set("Use Vulkan")
+                    gpu_choice_var.set(str(i+1))
+                    break
 
         changed_gpu_choice_var()
         return
@@ -2081,7 +2105,6 @@ def show_new_gui():
                 gui_layers_zeroed = gpulayers_var.get()=="" or gpulayers_var.get()=="0"
                 if (gui_layers_untouched or gui_layers_zeroed) and layerlimit>0:
                     gpulayers_var.set(str(layerlimit))
-                    mmq_var.set(0 if layerlimit>=200 else 1)
                     gui_layers_untouched = old_gui_layers_untouched
                     if gui_layers_zeroed:
                         gui_layers_untouched = True

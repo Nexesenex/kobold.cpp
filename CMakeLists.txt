@@ -25,6 +25,7 @@ set(LLAMA_GPROF OFF)
 set(LLAMA_SANITIZE_THREAD OFF)
 set(LLAMA_SANITIZE_ADDRESS OFF)
 set(LLAMA_SANITIZE_UNDEFINED OFF)
+set(LLAMA_SCHED_MAX_COPIES  "2" CACHE STRING "llama: max input copies for pipeline parallelism")
 
 # instruction set specific
 option(LLAMA_AVX                    "llama: enable AVX"                                     ON)
@@ -63,7 +64,7 @@ set(LLAMA_SCHED_MAX_COPIES  "2" CACHE STRING "llama: max input copies for pipeli
 option(LLAMA_OPENMP                          "llama: use OpenMP"                                ON)
 option(LLAMA_LLAMAFILE                       "llama: use llamafile SGEMM"                       ${LLAMA_LLAMAFILE_DEFAULT})
 option(LLAMA_CCACHE                          "llama: use ccache if available"                   ON)
-option(LLAMA_NATIVE                     "llama: enable -march=native flag"                      OFF)
+option(LLAMA_NATIVE                          "llama: enable -march=native flag"                 OFF)
 
 #
 # Compile flags
@@ -108,7 +109,6 @@ if (LLAMA_CUDA)
 
         add_compile_definitions(GGML_USE_CUDA)
         add_compile_definitions(SD_USE_CUBLAS)
-        add_compile_definitions(GGML_CUDA_MMQ_Y=${LLAMA_CUDA_MMQ_Y})
 
         add_compile_definitions(GGML_CUDA_DMMV_X=${LLAMA_CUDA_DMMV_X})
         add_compile_definitions(GGML_CUDA_DMMV_Y=${LLAMA_CUDA_DMMV_Y}) # for backwards compatibility

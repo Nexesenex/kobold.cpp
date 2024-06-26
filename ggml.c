@@ -3400,8 +3400,6 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
         ggml_cl_init();
 #endif
 
-        ggml_setup_op_has_task_pass();
-
         is_first_call = false;
     }
 
@@ -12358,7 +12356,7 @@ static void ggml_compute_forward_mul_mat(
 
 #if defined(GGML_USE_CLBLAST)
     if (ggml_cl_can_mul_mat(src0, src1, dst)) {
-        if (params->ith == 0 && params->type == GGML_TASK_TYPE_COMPUTE) {
+        if (params->ith == 0) {
             ggml_cl_mul_mat(src0, src1, dst, params->wdata, params->wsize);
         }
         return;
