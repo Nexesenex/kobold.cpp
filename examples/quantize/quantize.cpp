@@ -17,17 +17,16 @@ struct quant_option {
 };
 
 static const std::vector<struct quant_option> QUANT_OPTIONS = {
-    { "Q4_0",   LLAMA_FTYPE_MOSTLY_Q4_0,   " 3.56G, +0.2166 ppl @ LLaMA-v1-7B", },
-    { "Q4_1",   LLAMA_FTYPE_MOSTLY_Q4_1,   " 3.90G, +0.1585 ppl @ LLaMA-v1-7B", },
-    { "Q5_0",   LLAMA_FTYPE_MOSTLY_Q5_0,   " 4.33G, +0.0683 ppl @ LLaMA-v1-7B", },
-    { "Q5_1",   LLAMA_FTYPE_MOSTLY_Q5_1,   " 4.70G, +0.0349 ppl @ LLaMA-v1-7B", },
+    { "Q4_0",   LLAMA_FTYPE_MOSTLY_Q4_0,   " 4.34G, +0.4685 ppl @ Llama-3-8B",  },
+    { "Q4_1",   LLAMA_FTYPE_MOSTLY_Q4_1,   " 4.78G, +0.4511 ppl @ Llama-3-8B",  },
+    { "Q5_0",   LLAMA_FTYPE_MOSTLY_Q5_0,   " 5.21G, +0.1316 ppl @ Llama-3-8B",  },
+    { "Q5_1",   LLAMA_FTYPE_MOSTLY_Q5_1,   " 5.65G, +0.1062 ppl @ Llama-3-8B",  },
     { "IQ2_XXS",LLAMA_FTYPE_MOSTLY_IQ2_XXS," 2.06 bpw quantization",            },
     { "IQ2_XS", LLAMA_FTYPE_MOSTLY_IQ2_XS, " 2.31 bpw quantization",            },
     { "IQ2_S",  LLAMA_FTYPE_MOSTLY_IQ2_S,  " 2.5  bpw quantization",            },
     { "IQ2_M",  LLAMA_FTYPE_MOSTLY_IQ2_M,  " 2.7  bpw quantization",            },
     { "IQ1_S",  LLAMA_FTYPE_MOSTLY_IQ1_S,  " 1.56 bpw quantization",            },
     { "IQ1_M",  LLAMA_FTYPE_MOSTLY_IQ1_M,  " 1.75 bpw quantization",            },
-    { "IQ1_XS", LLAMA_FTYPE_MOSTLY_IQ1_XS, " 1.6-1.7 bpw quantization mix",     },
     { "Q2_K",   LLAMA_FTYPE_MOSTLY_Q2_K,   " 2.63G, +0.6717 ppl @ LLaMA-v1-7B", },
     { "Q2_K_S", LLAMA_FTYPE_MOSTLY_Q2_K_S, " 2.16G, +9.0634 ppl @ LLaMA-v1-7B", },
     { "IQ3_XXS",LLAMA_FTYPE_MOSTLY_IQ3_XXS," 3.06 bpw quantization",            },
@@ -61,6 +60,7 @@ static const std::vector<struct quant_option> QUANT_OPTIONS = {
     { "Q8_OE8" ,LLAMA_FTYPE_MOSTLY_Q8_OE8, " 8.8x bpw quantization",            },
     { "Q8_OE16",LLAMA_FTYPE_MOSTLY_Q8_OE16," 9.x bpw quantization",             },
     // Nexesenex custom IQ quants
+    { "IQ1_XS", LLAMA_FTYPE_MOSTLY_IQ1_XS, " 1.6-1.7 bpw quantization mix",     },
     { "IQ1_FS", LLAMA_FTYPE_MOSTLY_IQ1_FS, " 1.83 bpw quantization mix",        },
     { "IQ1_PS", LLAMA_FTYPE_MOSTLY_IQ1_PS, " 1.85 bpw quantization mix",        },
     { "IQ1_NS", LLAMA_FTYPE_MOSTLY_IQ1_NS, " 1.87 bpw quantization mix",        },
@@ -112,7 +112,7 @@ static const std::vector<struct quant_option> QUANT_OPTIONS = {
     { "IQ9_LR" ,LLAMA_FTYPE_MOSTLY_IQ9_LR, " 9.3x bpw quantization mix",        },
     { "IQ9_BLR",LLAMA_FTYPE_MOSTLY_IQ9_BLR," 9.4x bpw quantization mix",        },
     // Note: Ensure COPY comes after F32 to avoid ftype 0 from matching.
-    { "COPY",   LLAMA_FTYPE_ALL_F32,       "only copy tensors, no quantizing", },
+    { "COPY",   LLAMA_FTYPE_ALL_F32,       "only copy tensors, no quantizing",  },
 };
 
 static const char * const LLM_KV_QUANTIZE_IMATRIX_FILE       = "quantize.imatrix.file";
