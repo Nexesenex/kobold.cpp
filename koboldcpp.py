@@ -605,7 +605,7 @@ def sd_generate(genparams):
     negative_prompt = genparams.get("negative_prompt", "")
     if forced_negprompt!="":
         if negative_prompt!="":
-            negative_prompt += " " + forced_negprompt
+            negative_prompt += ", " + forced_negprompt
         else:
             negative_prompt = forced_negprompt
     init_images_arr = genparams.get("init_images", [])
@@ -2378,7 +2378,14 @@ def show_new_gui():
     noqkvlabel = makelabel(tokens_tab,"Requirments Not Met",31,0,"Requires FlashAttention ENABLED and ContextShift DISABLED.")
     noqkvlabel.configure(text_color="#ff5555")
     qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 20, 30, set=0,tooltip="Enable quantization of KV cache.\nRequires FlashAttention and disables ContextShift.")
-    makefileentry(tokens_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 32,tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
+    makefileentry(tokens_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 32, filetypes=[("JSON Adapter", "*.json")], tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
+    def pickpremadetemplate():
+        initialDir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'kcpp_adapters')
+        initialDir = initialDir if os.path.isdir(initialDir) else None
+        fnam = askopenfilename(title="Pick Premade ChatCompletions Adapter",filetypes=[("JSON Adapter", "*.json")], initialdir=initialDir)
+        if fnam:
+            chatcompletionsadapter_var.set(fnam)
+    ctk.CTkButton(tokens_tab, 64, text="Pick Premade", command=pickpremadetemplate).grid(row=33, column=1, padx=62, stick="nw")
     togglerope(1,1,1)
     toggleflashattn(1,1,1)
     togglectxshift(1,1,1)
