@@ -599,7 +599,8 @@ def sd_generate(genparams):
 
     default_adapter = {} if chatcompl_adapter is None else chatcompl_adapter
     adapter_obj = genparams.get('adapter', default_adapter)
-    forced_negprompt = adapter_obj.get("negative_prompt", "")
+    forced_negprompt = adapter_obj.get("add_sd_negative_prompt", "")
+    forced_posprompt = adapter_obj.get("add_sd_prompt", "")
 
     prompt = genparams.get("prompt", "high quality")
     negative_prompt = genparams.get("negative_prompt", "")
@@ -608,6 +609,11 @@ def sd_generate(genparams):
             negative_prompt += ", " + forced_negprompt
         else:
             negative_prompt = forced_negprompt
+    if forced_posprompt!="":
+        if prompt!="":
+            prompt += ", " + forced_posprompt
+        else:
+            prompt = forced_posprompt
     init_images_arr = genparams.get("init_images", [])
     init_images = ("" if (not init_images_arr or len(init_images_arr)==0 or not init_images_arr[0]) else init_images_arr[0])
     denoising_strength = genparams.get("denoising_strength", 0.6)
