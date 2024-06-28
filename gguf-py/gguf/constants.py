@@ -50,6 +50,9 @@ class Keys:
         POOLING_TYPE                      = "{arch}.pooling_type"
         LOGIT_SCALE                       = "{arch}.logit_scale"
         DECODER_START_TOKEN_ID            = "{arch}.decoder_start_token_id"
+        ATTN_LOGIT_SOFTCAPPING            = "{arch}.attn_logit_softcapping"
+        FINAL_LOGIT_SOFTCAPPING           = "{arch}.final_logit_softcapping"
+        QUERY_PRE_ATTN_SCALAR             = "{arch}.query_pre_attn_scalar"
 
     class Attention:
         HEAD_COUNT        = "{arch}.attention.head_count"
