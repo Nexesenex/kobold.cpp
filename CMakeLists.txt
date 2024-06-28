@@ -56,7 +56,7 @@ option(LLAMA_CUDA_NO_PEER_COPY               "llama: do not use peer to peer cop
 option(LLAMA_CUDA_FA_THREE_QUANTS            "llama: compile 3 kvquants for FlashAttention"     OFF)				 
 option(LLAMA_CUDA_FA_ALL_QUANTS              "llama: compile 18 kvquants for FA (by default)"   OFF)
 option(LLAMA_CUDA_ENABLE_UNIFIED_MEMORY      "llama: enable to avoid OOM in Full Offload"       OFF)
-set(GGML_CUDA_USE_GRAPHS                                                                        ON)
+option(GGML_CUDA_USE_GRAPHS                                                                     ON)
 
 option(LLAMA_HIPBLAS                         "llama: use hipBLAS"                               OFF)
 
@@ -116,6 +116,10 @@ if (LLAMA_CUBLAS)
         add_compile_definitions(GGML_CUDA_PEER_MAX_BATCH_SIZE=${LLAMA_CUDA_PEER_MAX_BATCH_SIZE})
         if (LLAMA_CUDA_NO_PEER_COPY)
             add_compile_definitions(GGML_CUDA_NO_PEER_COPY)
+        endif()
+		
+        if (GGML_CUDA_USE_GRAPHS)
+            add_compile_definitions(GGML_CUDA_USE_GRAPHS)
         endif()
 
         if (LLAMA_CUDA_FA_ALL_QUANTS)
