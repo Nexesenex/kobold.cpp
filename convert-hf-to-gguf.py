@@ -2337,6 +2337,7 @@ class Gemma2Model(Model):
 
     def set_vocab(self):
         self._set_vocab_llama_hf()
+        self.gguf_writer.add_add_space_prefix(False)
 
     def set_gguf_parameters(self):
         hparams = self.hparams
