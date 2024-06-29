@@ -3648,8 +3648,9 @@ def main(launch_args,start_server=True):
         from datetime import datetime, timezone
         start_server = False
         save_to_file = (args.benchmark!="stdout" and args.benchmark!="")
-        benchmaxctx = (maxctx - 156)
-        benchlen = 100
+        benchmaxctx = (maxctx - 128)
+        benchtg = 128
+        benchpp = (benchmaxctx - benchtg)
         benchmodel = sanitize_string(os.path.splitext(os.path.basename(modelname))[0])
         if os.path.exists(args.benchmark) and os.path.getsize(args.benchmark) > 1000000:
             print(f"\nWarning: The benchmark CSV output file you selected exceeds 1MB. This is probably not what you want, did you select the wrong CSV file?\nFor safety, benchmark output will not be saved.")
@@ -3662,16 +3663,16 @@ def main(launch_args,start_server=True):
         benchprompt = "1111111111111111"
         for i in range(0,14): #generate massive prompt
             benchprompt += benchprompt
-        genout = generate(benchprompt,memory="",images=[],max_length=benchlen,max_context_length=benchmaxctx,temperature=0.1,top_k=1,rep_pen=1,use_default_badwordsids=True)
+        genout = generate(benchprompt,memory="",images=[],max_length=benchtg,max_context_length=benchmaxctx,temperature=0.1,top_k=1,rep_pen=1,use_default_badwordsids=True)
         result = genout['text']
         result = (result[:5] if len(result)>5 else "")
         resultok = (result=="11111")
-        t_pp = float(handle.get_last_process_time())*float(benchmaxctx-benchlen)*0.001
-        t_gen = float(handle.get_last_eval_time())*float(benchlen)*0.001
-        s_pp = float(benchmaxctx-benchlen)/t_pp
-        s_gen = float(benchlen)/t_gen
+        t_pp = float(handle.get_last_process_time())*float(benchpp)*0.001
+        t_gen = float(handle.get_last_eval_time())*float(benchtg)*0.001
+        s_pp = float(benchpp)/t_pp
+        s_gen = float(benchtg)/t_gen
         datetimestamp = datetime.now(timezone.utc)
-        print(f"\nBenchmark Completed - v{KcppVersion} based on LlamaCPP {LcppVersion}; Release date: {ReleaseDate} Results:\n======")
+        print(f"\nBenchmark Completed - v{KcppVersion} based on LlamaCPP {LcppVersion}; Release date: {ReleaseDate}; Results:")
         print(f"Timestamp: {datetimestamp}")
         print(f"Backend: {libname}")
         print(f"Model: {benchmodel}")
@@ -3687,21 +3688,22 @@ def main(launch_args,start_server=True):
         print(f"FlashAttention: {args.flashattention}")
         print(f"KV_cache: {args.quantkv}")
         print(f"MaxCtx: {benchmaxctx}")
-        print(f"GenAmount: {benchlen}\n-----")
+        print(f"PPAmount: {benchpp}")
+        print(f"TGAmount: {benchtg}\n-----")
         print(f"ProcessingTime: {t_pp:.3f}s")
         print(f"ProcessingSpeed: {s_pp:.2f}T/s")
         print(f"GenerationTime: {t_gen:.3f}s")
         print(f"GenerationSpeed: {s_gen:.2f}T/s")
         print(f"TotalTime: {(t_pp+t_gen):.3f}s")
         print(f"Coherent: {resultok}")
-        print(f"Output: {result}\n-----")
+        print(f"Output: {result}")
         if save_to_file:
             try:
                 with open(args.benchmark, "a") as file:
                     file.seek(0, 2)
                     if file.tell() == 0: #empty file
                         file.write(f"Datime,KCPP-FF,LCPP,Backend,Model,NoAVX2,Thrd,HighP,NoBlas,FlashA,Layers,BlasThrd,BBSize,KVC,MaxCtx,GenNum,PPTime,PPSpeed,TGTime,TGSpeed,TotalTime,Coher,Tensor1,Split2,Cublas1,Argument2,Argument3")
-                    file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{benchmodel},{args.noavx2},{args.threads},{args.highpriority},{args.noblas},{args.flashattention},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.quantkv},{benchmaxctx},{benchlen},{t_pp:.3f},{s_pp:.2f},{t_gen:.3f},{s_gen:.2f},{(t_pp+t_gen):.3f},{resultok},{args.tensor_split},,{args.usecublas},,")
+                    file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{benchmodel},{args.noavx2},{args.threads},{args.highpriority},{args.noblas},{args.flashattention},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.quantkv},{benchpp},{benchtg},{t_pp:.3f},{s_pp:.2f},{t_gen:.3f},{s_gen:.2f},{(t_pp+t_gen):.3f},{resultok},{args.tensor_split},,{args.usecublas},,")
             except Exception as e:
                 print(f"Error writing benchmark to file: {e}")
         global using_gui_launcher
