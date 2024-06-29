@@ -250,38 +250,46 @@ struct ggml_cuda_pool_leg : public ggml_cuda_pool {
         int nnz = 0;
         size_t max_size = 0;
 #endif
-        size_t best_diff = 1ull << 36;
-        int ibest = -1;
+        int best_i = -1;
+        size_t best_size = std::numeric_limits<size_t>::max(); //smallest unused buffer that fits our needs
+        int worst_i = -1;
+        size_t worst_size = 0; //largest unused buffer seen so far
+
         for (int i = 0; i < MAX_BUFFERS; ++i) {
             ggml_cuda_buffer& b = buffer_pool[i];
-            if (b.ptr != nullptr) {
+            if (b.size > 0 && b.size >= size && b.size < best_size)
+            {
 #ifdef DEBUG_CUDA_MALLOC
                 ++nnz;
                 if (b.size > max_size) max_size = b.size;
 #endif
-                if (b.size >= size) {
-                    size_t diff = b.size - size;
-                    if (diff < best_diff) {
-                        best_diff = diff;
-                        ibest = i;
-                        if (!best_diff) {
-                            void * ptr = b.ptr;
-                            *actual_size = b.size;
-                            b.ptr = nullptr;
-                            b.size = 0;
-                            return ptr;
-                        }
-                    }
-                }
+                best_i = i;
+                best_size = b.size;
+            }
+            if (b.size > 0 && b.size > worst_size)
+            {
+                worst_i = i;
+                worst_size = b.size;
             }
         }
-        if (ibest >= 0) {
-            ggml_cuda_buffer& b = buffer_pool[ibest];
+        if(best_i!=-1) //found the smallest buffer that fits our needs
+        {
+            ggml_cuda_buffer& b = buffer_pool[best_i];
             void * ptr = b.ptr;
             *actual_size = b.size;
             b.ptr = nullptr;
             b.size = 0;
             return ptr;
+        }
+        if(worst_i!=-1 && !g_mul_mat_q) //no buffer that fits our needs, resize largest one to save memory (non mmq only)
+        {
+            ggml_cuda_buffer& b = buffer_pool[worst_i];
+            b.size = 0;
+            void * ptr = b.ptr;
+            ggml_cuda_set_device(device);
+            cudaFree(ptr);
+            pool_size -= size;
+            b.ptr = ptr = nullptr;
         }
         void * ptr;
         size_t look_ahead_size = (size_t) (1.05 * size);
