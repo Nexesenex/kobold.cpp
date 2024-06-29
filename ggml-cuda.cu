@@ -281,7 +281,7 @@ struct ggml_cuda_pool_leg : public ggml_cuda_pool {
             b.size = 0;
             return ptr;
         }
-        if(worst_i!=-1 && !g_mul_mat_q) //no buffer that fits our needs, resize largest one to save memory (non mmq only)
+        if(worst_i!=-1) //no buffer that fits our needs, resize largest one to save memory (non mmq only)
         {
             ggml_cuda_buffer& b = buffer_pool[worst_i];
             b.size = 0;
