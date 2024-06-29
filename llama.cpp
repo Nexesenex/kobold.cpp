@@ -4305,7 +4305,6 @@ static std::string llama_model_ftype_name(llama_ftype ftype) {
         case LLAMA_FTYPE_MOSTLY_IQ3_XXS:return "IQ3_XXS - 3.0625 bpw";
         case LLAMA_FTYPE_MOSTLY_IQ1_S:  return "IQ1_S - 1.5625 bpw";
         case LLAMA_FTYPE_MOSTLY_IQ1_M:  return "IQ1_M - 1.75 bpw";
-        case LLAMA_FTYPE_MOSTLY_IQ1_XS: return "IQ1_S mix - 1.6-1.7 bpw";
         case LLAMA_FTYPE_MOSTLY_IQ4_NL: return "IQ4_NL - 4.5 bpw";
         case LLAMA_FTYPE_MOSTLY_IQ4_XS: return "IQ4_XS - 4.25 bpw";
         case LLAMA_FTYPE_MOSTLY_IQ3_S:  return "IQ3_S - 3.4375 bpw";
@@ -4317,9 +4316,6 @@ static std::string llama_model_ftype_name(llama_ftype ftype) {
         case LLAMA_FTYPE_MOSTLY_Q4_K_ML:return "Q4_K large mix - 4.9 bpw";
         case LLAMA_FTYPE_MOSTLY_Q5_K_ML:return "Q5_K large mix - 5.9 bpw";
         case LLAMA_FTYPE_MOSTLY_Q6_K_ML:return "Q6_K large mix - 6.9 bpw";
-        case LLAMA_FTYPE_MOSTLY_Q8_O8E6:return "Q8_Out8Emb6 - 8.6x bpw";
-        case LLAMA_FTYPE_MOSTLY_Q8_OE8 :return "Q8_Out8Emb8 - 8.8x bpw";
-        case LLAMA_FTYPE_MOSTLY_Q8_OE16:return "Q8_Out16Emb16 - 9.x bpw";
 
         // Nexesenex custom IQ quants
         case LLAMA_FTYPE_MOSTLY_IQ1_FS: return "IQ1_S mix - 1.83 bpw";
@@ -4373,6 +4369,12 @@ static std::string llama_model_ftype_name(llama_ftype ftype) {
         case LLAMA_FTYPE_MOSTLY_IQ9_MR: return "IQ1_S mix - 9.2x bpw";
         case LLAMA_FTYPE_MOSTLY_IQ9_LR: return "IQ1_S mix - 9.3x bpw";
         case LLAMA_FTYPE_MOSTLY_IQ9_BLR:return "IQ1_S mix - 9.4x bpw";
+		
+        // Nexesenex other quants
+        case LLAMA_FTYPE_MOSTLY_Q8_O8E6:return "Q8_Out8Emb6 - 8.6x bpw";
+        case LLAMA_FTYPE_MOSTLY_Q8_OE8 :return "Q8_Out8Emb8 - 8.8x bpw";
+        case LLAMA_FTYPE_MOSTLY_Q8_OE16:return "Q8_Out16Emb16 - 9.x bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ1_XS: return "IQ1_S mix - 1.6-1.7 bpw";
 		
         default: return "unknown, may not work";
     }
