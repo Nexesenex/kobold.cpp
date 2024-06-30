@@ -1,0 +1,8 @@
+{
+"system_start":"",
+"system_end":"",
+"user_start":"### Instruction:",
+"user_end":"",
+"assistant_start":"### Response:",
+"assistant_end":""
+}
