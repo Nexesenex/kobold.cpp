@@ -507,7 +507,7 @@ def generate(prompt, memory="", images=[], max_length=32, max_context_length=512
             inputs.sampler_len = len(sampler_order)
             global showsamplerwarning
             if showsamplerwarning and inputs.mirostat==0 and inputs.sampler_len>0 and (inputs.sampler_order[0]!=6 or inputs.sampler_order[inputs.sampler_len-1]!=5):
-                print("\n(Note: Sub-optimal sampler_order detected. You may have reduced quality. Recommended sampler values are [6,0,1,3,4,2,5]. This message will only show once per session.)")
+                print("\n(Note: Non-default sampler_order detected. Recommended sampler values are [6,0,1,3,4,2,5]. This message will only show once per session.)")
                 showsamplerwarning = False
         except TypeError as e:
             print("ERROR: sampler_order must be a list of integers: " + str(e))
