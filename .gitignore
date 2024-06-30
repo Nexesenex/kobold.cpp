@@ -121,7 +121,7 @@ tests/test-tokenizer-1-bpe
 /koboldcpp_clblast.dll
 /koboldcpp_clblast_noavx2.dll
 /koboldcpp_vulkan_noavx2.dll
-/koboldcpp_cublas.dll
+/koboldcpp_cublas*.dll
 /koboldcpp_vulkan.dll
 /cublas64_11.dll
 /cublasLt64_11.dll
@@ -131,7 +131,7 @@ tests/test-tokenizer-1-bpe
 rocblas.dll
 hipblas.dll
 koboldcpp_hipblas.so
-koboldcpp_hipblas.dll
+koboldcpp_hipblas*.dll
 
 bin/
 conda/
