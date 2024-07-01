@@ -740,9 +740,10 @@ maxhordelen = 256
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.68ZB"
+KcppVersion = "1.68ZC"
 LcppVersion = "b3235+21"
-ReleaseDate = "2024/06/30"
+CudaSpecifics = "SMC2"
+ReleaseDate = "2024/07/01"
 showdebug = True
 showsamplerwarning = True
 showmaxctxwarning = True
@@ -3676,7 +3677,7 @@ def main(launch_args,start_server=True):
         s_pp = float(benchpp)/t_pp
         s_gen = float(benchtg)/t_gen
         datetimestamp = datetime.now(timezone.utc)
-        print(f"\nBenchmark Completed - v{KcppVersion} based on LlamaCPP {LcppVersion}; Release date: {ReleaseDate}; Results:")
+        print(f"\nBench Completed - v{KcppVersion} ; LlamaCPP {LcppVersion} ; If Cuda mode: {CudaSpecifics} ; Release date: {ReleaseDate}; Results:")
         print(f"Timestamp: {datetimestamp}")
         print(f"Backend: {libname}")
         print(f"Model: {benchmodel}")
@@ -3706,8 +3707,8 @@ def main(launch_args,start_server=True):
                 with open(args.benchmark, "a") as file:
                     file.seek(0, 2)
                     if file.tell() == 0: #empty file
-                        file.write(f"Datime,KCPP-FF,LCPP,Backend,Model,NoAVX2,Thrd,HighP,NoBlas,FlashA,Layers,BlasThrd,BBSize,KVC,MaxCtx,GenNum,PPTime,PPSpeed,TGTime,TGSpeed,TotalTime,Coher,Tensor1,Split2,Cublas1,Argument2,Argument3")
-                    file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{benchmodel},{args.noavx2},{args.threads},{args.highpriority},{args.noblas},{args.flashattention},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.quantkv},{benchpp},{benchtg},{t_pp:.3f},{s_pp:.2f},{t_gen:.3f},{s_gen:.2f},{(t_pp+t_gen):.3f},{resultok},{args.tensor_split},,{args.usecublas},,")
+                        file.write(f"Datime,KCPP-FF,LCPP,Backend,CudaSpecifics,Model,NoAVX2,Thrd,HighP,NoBlas,FlashA,Layers,BlasThrd,BBSize,KVC,MaxCtx,GenNum,PPTime,PPSpeed,TGTime,TGSpeed,TotalTime,Coher,Tensor1,Split2,Cublas1,Argument2,Argument3")
+                    file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{CudaSpecifics},{benchmodel},{args.noavx2},{args.threads},{args.highpriority},{args.noblas},{args.flashattention},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.quantkv},{benchpp},{benchtg},{t_pp:.3f},{s_pp:.2f},{t_gen:.3f},{s_gen:.2f},{(t_pp+t_gen):.3f},{resultok},{args.tensor_split},,{args.usecublas},,")
             except Exception as e:
                 print(f"Error writing benchmark to file: {e}")
         global using_gui_launcher
