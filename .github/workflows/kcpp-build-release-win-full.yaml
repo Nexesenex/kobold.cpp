@@ -1,4 +1,4 @@
-name: Koboldcpp Windows Full Binaries
+name: Koboldcpp Windows Full Binaries CUDA 11
 
 on: workflow_dispatch
 env:
@@ -74,5 +74,5 @@ jobs:
       - name: Save artifact
         uses: actions/upload-artifact@v3
         with:
-          name: kcpp_windows_pyinstallers
+          name: kcpp_windows_cuda_11.4.4_pyinstallers
           path: dist/
