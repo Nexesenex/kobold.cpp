@@ -73,5 +73,5 @@ jobs:
       - name: Save artifact
         uses: actions/upload-artifact@v3
         with:
-          name: kcpp_windows_pyinstallers
+          name: kcpp_windows_cuda_12.1.0_pyinstallers
           path: dist/
