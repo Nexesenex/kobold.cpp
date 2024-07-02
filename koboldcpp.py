@@ -742,7 +742,7 @@ requestsinqueue = 0
 defaultport = 5001
 KcppVersion = "1.68ZC"
 LcppVersion = "b3235+21"
-CudaSpecifics = "SMC2"
+CudaSpecifics = "Cu12.2_SMC2_Ar60617075_DmmvX64Y2_MMY2_KQIt2"
 ReleaseDate = "2024/07/01"
 showdebug = True
 showsamplerwarning = True
@@ -3767,6 +3767,8 @@ if __name__ == '__main__':
     print("***\nWelcome to KoboldCpp Frankenstein Fork" + KcppVersion) # just update version manually
     print("***\nBased on LlamaCpp - Version " + LcppVersion) # just update LlamaCPP version manually
     print("***\nRelease date: " + ReleaseDate) # just update date manually
+    print("***\nCuda mode compiled, if any: " + CudaSpecifics) # just update Cuda options used in CMake manually
+
     print("***")
     # print("Python version: " + sys.version)
     parser = argparse.ArgumentParser(description='KoboldCpp Server')
