@@ -140,4 +140,3 @@ void iq3xs_free_impl(int grid_size);
 #ifdef __cplusplus
 }
 #endif
-
