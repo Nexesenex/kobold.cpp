@@ -28,5 +28,5 @@ jobs:
       - name: Save artifact
         uses: actions/upload-artifact@v3
         with:
-          name: kcpp_fks_linux_cuda_11.5.0_binary
+          name: kcpp_linux_cuda_11.5.0_binary
           path: dist/
