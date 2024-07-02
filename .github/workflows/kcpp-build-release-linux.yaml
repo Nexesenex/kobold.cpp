@@ -1,4 +1,4 @@
-name: Koboldcpp Linux
+name: KCPP-F Linux full bin CUDA 11.5.0
 
 on: workflow_dispatch
 env:
@@ -28,5 +28,5 @@ jobs:
       - name: Save artifact
         uses: actions/upload-artifact@v3
         with:
-          name: kcpp_linux_binary
+          name: kcpp_linux_cuda_11.5.0_binary
           path: dist/
