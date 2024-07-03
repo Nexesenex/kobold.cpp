@@ -443,6 +443,16 @@ if (LLAMA_LLAMAFILE)
     set(GGML_SOURCES_LLAMAFILE sgemm.cpp)
 endif()
 
+#if (BUILD_SHARED_LIBS)
+#    set_target_properties(ggml PROPERTIES POSITION_INDEPENDENT_CODE ON)
+#    target_compile_definitions(ggml PRIVATE GGML_SHARED GGML_BUILD)
+#endif()
+#
+#if (BUILD_SHARED_LIBS_DEFAULT)
+#    set_target_properties(ggml PROPERTIES POSITION_INDEPENDENT_CODE ON)
+#    target_compile_definitions(ggml PRIVATE GGML_SHARED GGML_BUILD)
+#endif()
+
 if (LLAMA_CCACHE)
     find_program(LLAMA_CCACHE_FOUND ccache)
     if (LLAMA_CCACHE_FOUND)
