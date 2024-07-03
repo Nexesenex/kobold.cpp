@@ -24,7 +24,7 @@ jobs:
       - name: Build
         id: make_build
         run: |
-          ./koboldcpp.sh dist
+          ./koboldcpp_cuda_12.1.sh dist
 
       - name: Save artifact
         uses: actions/upload-artifact@v3
