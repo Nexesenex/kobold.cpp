@@ -138,3 +138,7 @@ conda/
 
 # Jetbrains idea folder
 .idea/
+# Scripts
+!/scripts/install-oneapi.bat
+
+*.spec
