@@ -3667,7 +3667,7 @@ def main(launch_args,start_server=True):
         s_pp = float(benchpp)/t_pp
         s_gen = float(benchtg)/t_gen
         datetimestamp = datetime.now(timezone.utc)
-        print(f"\nBench Completed - v{KcppVersion} ; LlamaCPP {LcppVersion} ; If Cuda mode: {CudaSpecifics} ; Release date: {ReleaseDate}; Results:")
+        print(f"\nBench Completed - v{KcppVersion} ; LlamaCPP {LcppVersion}\nIf Cuda mode: {CudaSpecifics} ; Release date: {ReleaseDate}; Results:")
         print(f"Timestamp: {datetimestamp}")
         print(f"Backend: {libname}")
         print(f"Model: {benchmodel}")
@@ -3682,13 +3682,14 @@ def main(launch_args,start_server=True):
         print(f"BlasBatchSize: {args.blasbatchsize}")
         print(f"FlashAttention: {args.flashattention}")
         print(f"KV_cache: {args.quantkv}")
-        print(f"MaxCtx: {benchmaxctx}")
-        print(f"PPAmount: {benchpp}")
-        print(f"TGAmount: {benchtg}\n-----")
+        print(f"MaxCtx: {maxctx}\n-----")
+        print(f"PPnum: {benchpp}")
         print(f"ProcessingTime: {t_pp:.3f}s")
         print(f"ProcessingSpeed: {s_pp:.2f}T/s")
+        print(f"TGnum: {benchtg}")
         print(f"GenerationTime: {t_gen:.3f}s")
         print(f"GenerationSpeed: {s_gen:.2f}T/s")
+        print(f"BenchmarkCtx: {benchmaxctx}")
         print(f"TotalTime: {(t_pp+t_gen):.3f}s")
         print(f"Coherent: {resultok}")
         print(f"Output: {result}")
@@ -3697,8 +3698,8 @@ def main(launch_args,start_server=True):
                 with open(args.benchmark, "a") as file:
                     file.seek(0, 2)
                     if file.tell() == 0: #empty file
-                        file.write(f"Datime,KCPP-FF,LCPP,Backend,CudaSpecifics,Model,NoAVX2,Thrd,HighP,NoBlas,FlashA,Layers,BlasThrd,BBSize,KVC,MaxCtx,GenNum,PPTime,PPSpeed,TGTime,TGSpeed,TotalTime,Coher,Tensor1,Split2,Cublas1,Argument2,Argument3")
-                    file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{CudaSpecifics},{benchmodel},{args.noavx2},{args.threads},{args.highpriority},{args.noblas},{args.flashattention},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.quantkv},{benchpp},{benchtg},{t_pp:.3f},{s_pp:.2f},{t_gen:.3f},{s_gen:.2f},{(t_pp+t_gen):.3f},{resultok},{args.tensor_split},,{args.usecublas},,")
+                        file.write(f"Datime,KCPP-FF,LCPP,Backend,Model,NoAVX2,HighP,NoBlas,FlashA,Thrd,Layers,BlasThrd,BBSize,KVC,PPNum,PPTime,PPSpeed,TGNum,TGTime,TGSpeed,BenchCtx,TotalTime,Coher,Tensor1,Split2,Cublas1,Argument2,Argument3,CudaSpecifics")
+                    file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{benchmodel},{args.noavx2},{args.highpriority},{args.noblas},{args.flashattention},{args.threads},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.quantkv},{benchpp},{t_pp:.3f},{s_pp:.2f},{benchtg},{t_gen:.3f},{s_gen:.2f},{benchmaxctx},{(t_pp+t_gen):.3f},{resultok},{args.tensor_split},,{args.usecublas},,,{CudaSpecifics}")
             except Exception as e:
                 print(f"Error writing benchmark to file: {e}")
         global using_gui_launcher
