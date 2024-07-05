@@ -1,4 +1,4 @@
-name: KCPP-F Win Full Bin NoAVX2 CUDA 11.4.4
+name: KCPP-F Win Full Bin OldCPU CUDA 11.4.4
 
 on: workflow_dispatch
 env:
@@ -68,8 +68,7 @@ jobs:
       - name: Package PyInstallers
         id: make_pyinstaller
         run: |
-          ./make_pyinstaller_noavx2.bat
-          ./make_pyinstaller_noavx2_cuda.bat
+          ./make_pyinstaller_cuda_oldcpu.bat
 
       - name: Save artifact
         uses: actions/upload-artifact@v3
