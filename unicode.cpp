@@ -189,9 +189,19 @@ static std::unordered_map<std::string, uint8_t> unicode_utf8_to_byte_map() {
     return map;
 }
 
+static bool unicode_wstring_from_utf8_failed_once = false;
 static inline std::wstring unicode_wstring_from_utf8(const std::string & s) {
     std::wstring_convert<std::codecvt_utf8<wchar_t>> conv;
-    return conv.from_bytes(s);
+    try {
+        return conv.from_bytes(s);
+    } catch(const std::exception & e) {
+        if(!unicode_wstring_from_utf8_failed_once)
+        {
+            unicode_wstring_from_utf8_failed_once = true;
+            printf("\nunicode_wstring_from_utf8 failed: %s\n", e.what());
+        }
+        return L"";
+    }
 }
 
 static std::vector<std::string> unicode_byte_encoding_process(const std::vector<std::string> & bpe_words) {
