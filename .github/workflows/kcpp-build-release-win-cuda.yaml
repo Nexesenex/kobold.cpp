@@ -1,4 +1,4 @@
-name: Koboldcpp Windows CUDA 11
+name: KCPP-F Win dll CUDA 11.4.4
 
 on: workflow_dispatch
 env:

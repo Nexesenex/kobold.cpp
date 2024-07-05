@@ -1,4 +1,4 @@
-name: Koboldcpp Windows Full NoAVX2 CUDA 11 Binaries
+name: KCPP-F Win Full Bin NoAVX2 CUDA 11.4.4
 
 on: workflow_dispatch
 env:
