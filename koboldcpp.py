@@ -473,8 +473,6 @@ def load_model(model_filename):
     inputs.flash_attention = args.flashattention
     if args.quantkv>0:
         inputs.quant_k = inputs.quant_v = args.quantkv
-        inputs.flash_attention = True
-        inputs.use_contextshift = 0
     else:
         inputs.quant_k = inputs.quant_v = 0
     inputs.blasbatchsize = args.blasbatchsize
@@ -1906,7 +1904,6 @@ def show_new_gui():
                     ctk.set_widget_scaling(smallratio)
                     changerunmode(1,1,1)
                     togglerope(1,1,1)
-                    toggleflashattn(1,1,1)
                     togglectxshift(1,1,1)
                     togglehorde(1,1,1)
                     togglesdquant(1,1,1)
@@ -1983,8 +1980,8 @@ def show_new_gui():
     contextsize_text = ["128", "256", "384", "512", "640", "768", "896", "1024", "1152", "1280", "1408", "1536", "1664", "1792", "1920", "2048", "2176", "2304", "2432", "2560", "2688", "2816", "2944", "3072", "3200", "3328", "3456", "3584", "3712", "3840", "3968", "4096", "4224", "4352", "4480", "4608", "4736", "4864", "4992", "5120", "5248", "5376", "5504", "5632", "5760", "5888", "6016", "6144", "6272", "6400", "6528", "6656", "6784", "6912", "7040", "7168", "7296", "7424", "7552", "7680", "7808", "7936", "8064", "8192", "8320", "8448", "8576", "8704", "8832", "8960", "9088", "9216", "9344", "9472", "9600", "9728", "9856", "9984", "10112", "10240", "10368", "10496", "10624", "10752", "10880", "11008", "11136", "11264", "11392", "11520", "11648", "11776", "11904", "12032", "12160", "12288", "12416", "12544", "12672", "12800", "12928", "13056", "13184", "13312", "13440", "13568", "13696", "13824", "13952", "14080", "14208", "14336", "14464", "14592", "14720", "14848", "14976", "15104", "15232", "15360", "15488", "15616", "15744", "15872", "16000", "16128", "16256", "16384", "16512", "16640", "16768", "16896", "17024", "17152", "17280", "17408", "17536", "17664", "17792", "17920", "18048", "18176", "18304", "18432", "18560", "18688", "18816", "18944", "19072", "19200", "19328", "19456", "19584", "19712", "19840", "19968", "20096", "20224", "20352", "20480", "20608", "20736", "20864", "20992", "21120", "21248", "21376", "21504", "21632", "21760", "21888", "22016", "22144", "22272", "22400", "22528", "22656", "22784", "22912", "23040", "23168", "23296", "23424", "23552", "23680", "23808", "23936", "24064", "24192", "24320", "24448", "24576", "24704", "24832", "24960", "25088", "25216", "25344", "25472", "25600", "25728", "25856", "25984", "26112", "26240", "26368", "26496", "26624", "26752", "26880", "27008", "27136", "27264", "27392", "27648", "27904", "28160", "28416", "28672", "28928", "29184", "29440", "29696", "29952", "30208", "30464", "30720", "30976", "31232", "31488", "31744", "32000", "32256", "32512", "32768", "33024", "33280", "33536", "33792", "34048", "34304", "34560", "34816", "35072", "35328", "35584", "35840", "36096", "36352", "36608", "36864", "37120", "37376", "37632", "37888", "38144", "38400", "38656", "38912", "39168", "39424", "39680", "39936", "40192", "40448", "40704", "40960", "41216", "41472", "41728", "41984", "42240", "42496", "42752", "43008", "43264", "43520", "43776", "44032", "44288", "44544", "44800", "45056", "45312", "45568", "45824", "46080", "46336", "46592", "46848", "47104", "47360", "47616", "47872", "48128", "48384", "48640", "48896", "49152", "49408", "49664", "49920", "50176", "50432", "50688", "50944", "51200", "51456", "51712", "51968", "52224", "52480", "52736", "52992", "53248", "53504", "53760", "54016", "54272", "54528", "54784", "55040", "55296", "55552", "55808", "56064", "56320", "56576", "56832", "57088", "57344", "57600", "57856", "58112", "58368", "58624", "58880", "59136", "59392", "59648", "59904", "60416", "60928", "61440", "61952", "62464", "62976", "63488", "64000", "64512", "65024", "65536", "66560", "67584", "68608", "69632", "70656", "71680", "72704", "73728", "74752", "75776", "76800", "77824", "78848", "79872", "80896", "81920", "82944", "83968", "84992", "86016", "87040", "88064", "89088", "90112", "91136", "92160", "93184", "94208", "95232", "96256", "97280", "98304", "99328", "100352", "101476", "102400", "103424", "104448", "105472", "106496", "107520", "108544", "109568", "110592", "111616", "112640", "113664", "114688", "115712", "116736", "117760", "118784", "119808", "120832", "121856", "122880", "123904", "124928", "125952", "126976", "128000", "129024", "130048", "131072", "132096", "133120", "134144", "135168", "136192", "137216", "138240", "139264", "140288", "141312", "142336", "143360", "144384", "145408", "146432", "147456", "148480", "149504", "150528", "151552", "152576", "153600", "154624", "155648", "156672", "157696", "158720", "159744", "160768", "161792", "162816", "163840", "164864", "165888", "166912", "167936", "168960", "169984", "171008", "172032", "173056", "174088", "175112", "176128", "177152", "178176", "179200", "180224", "181248", "182272", "183296", "184320", "185344", "186368", "187392", "188416", "189440", "190464", "191488", "192512", "193536", "194560", "195584", "196608", "198656", "200704", "202752", "204800", "206848", "208896", "210944", "212992", "215040", "217088", "219136", "221184", "223232", "225280", "227328", "229376", "231424", "233472", "235520", "237568", "239616", "241664", "243712", "245760", "247808", "249856", "251904", "253952", "256000", "258048", "260096", "262144"]
     runopts = [opt for lib, opt in lib_option_pairs if file_exists(lib)]
     antirunopts = [opt.replace("Use ", "") for lib, opt in lib_option_pairs if not (opt in runopts)]
-    quantkv_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21"]   
-    quantkv_text = ["0 - F16 (16BPW) - 1616","1 - K16-V8-Bit (12.25BPW) - 1680","2 - K16-V5.1-Bit (11BPW) - 1651","3 - K16-V5-Bit (10.75BPW) - 1650","4 - K16-V4.1-Bit (10.50BPW) - 1641","5 - K16-V4-Bit (10.25BPW) - 1640","6 - 8-Bit (8.5BPW) - 8080","7 - K8-V5.1-Bit (7.25BPW) - 8051","8 - K8-V5-Bit (7BPW) - 8050","9 - K8-V4.1-Bit (6.75BPW) - 8041","10 - K8-V4-Bit (6.5BPW) - 8040","11 - 5.1-Bit (6BPW) - 5151","12 - K5.1-V5Bit (5.75BPW) - 5150","13 - K5.1-V4.1-Bit (5.5BPW) - 5141","14 - K5.1-V4-Bit (5.25BPW) - 5140","15 - 5-Bit (5.5BPW) - 5050","16 - K5-V4.1-Bit (5.25BPW) - 5041","17 - K5-V4-Bit (5BPW) - 5040","18 - 4.1Bit (5BPW) - 4141","19 - K4.1-V4-Bit (4.75BPW) - 4140","20 - 4-Bit (4.5BPW) - 4040","21 - V8-Bit-K16 (12.25BPW) - 1680"]
+    quantkv_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26"]   
+    quantkv_text = ["0 - F16 (16BPW) - 1616","1 - K16-V8-Bit (12.25BPW) - FA 1680","2 - K16-V5.1-Bit (11BPW) - FA 1651","3 - K16-V5-Bit (10.75BPW) - FA 1650","4 - K16-V4.1-Bit (10.50BPW) - FA 1641","5 - K16-V4-Bit (10.25BPW) - FA 1640","6 - 8-Bit (8.5BPW) - FA 8080","7 - K8-V5.1-Bit (7.25BPW) - FA 8051","8 - K8-V5-Bit (7BPW) - FA 8050","9 - K8-V4.1-Bit (6.75BPW) - FA 8041","10 - K8-V4-Bit (6.5BPW) - FA 8040","11 - 5.1-Bit (6BPW) - FA 5151","12 - K5.1-V5Bit (5.75BPW) - FA 5150","13 - K5.1-V4.1-Bit (5.5BPW) - FA 5141","14 - K5.1-V4-Bit (5.25BPW) - FA 5140","15 - 5-Bit (5.5BPW) - FA 5050","16 - K5-V4.1-Bit (5.25BPW) - FA 5041","17 - K5-V4-Bit (5BPW) - FA 5040","18 - 4.1Bit (5BPW) - FA 4141","19 - K4.1-V4-Bit (4.75BPW) - FA 4140","20 - 4-Bit (4.5BPW) - FA 4040","21 - F16 (16BPW) - 1616","22 - K8-Bit-V16 (12.25BPW) - 8016","23 - K5.1-Bit-V16 (11BPW) - 5116","24 - K5-Bit-V16 (11.75BPW) - 5016","25 - K4.1-Bit-V16 (10.5BPW) - 4116","26 - K4-Bit-V16 (10.25BPW) - 4016"]
 
     if not any(runopts):
         exitcounter = 999
@@ -2009,7 +2006,7 @@ def show_new_gui():
     nocertifymode = ctk.IntVar(value=0)
 
     lowvram_var = ctk.IntVar()
-    mmq_var = ctk.IntVar(value=1)
+    mmq_var = ctk.IntVar(value=0)
     quantkv_var = ctk.IntVar(value=0)
     blas_threads_var = ctk.StringVar()
     blas_size_var = ctk.IntVar()
@@ -2337,25 +2334,6 @@ def show_new_gui():
         else:
             smartcontextbox.grid_remove()
 
-        if contextshift.get()==0 and flashattention.get()==1:
-            qkvslider.grid()
-            qkvlabel.grid()
-            noqkvlabel.grid_remove()
-        else:
-            qkvslider.grid_remove()
-            qkvlabel.grid_remove()
-            noqkvlabel.grid()
-
-    def toggleflashattn(a,b,c):
-        if contextshift.get()==0 and flashattention.get()==1:
-            qkvslider.grid()
-            qkvlabel.grid()
-            noqkvlabel.grid_remove()
-        else:
-            qkvslider.grid_remove()
-            qkvlabel.grid_remove()
-            noqkvlabel.grid()
-
 
     def guibench():
         args.benchmark = "stdout"
@@ -2457,8 +2435,8 @@ def show_new_gui():
     quick_boxes = {"Launch Browser": launchbrowser,"Disable MMAP":disablemmap,"Use ContextShift":contextshift,"Use SmartContext":smartcontext,"Remote Tunnel":remotetunnel,"Use FlashAttention":flashattention,"Quiet Mode":quietmode,"High Priority - disabled by default":highpriority}
     quick_boxes_desc = {"Launch Browser": "Launches your default browser after model loading is complete",
     "Disable MMAP":"Avoids using mmap to load models if enabled",
-    "Use ContextShift":"Uses Context Shifting to reduce reprocessing.\nRecommended.\nCheck the wiki for more info.",
-    "Use SmartContext":"Use Smart Context. Now considered outdated and not recommended.\nCheck the wiki for more info.",
+    "Use ContextShift":"Uses Context Shifting to reduce reprocessing.\nRecommended. Incompatible with KV modes 1 à 20, and 22 with FA.\nCheck the wiki for more info.",
+    "Use SmartContext":"Use Smart Context. Now considered outdated and not recommended, except for KVQ with FA.\nCheck the wiki for more info.",
     "Remote Tunnel":"Creates a trycloudflare tunnel.\nAllows you to access koboldcpp from other devices over an internet URL.",
     "Use FlashAttention":"Enable flash attention for GGUF models.",
     "Quiet Mode":"Prevents all generation related terminal output from being displayed.",
@@ -2475,7 +2453,7 @@ def show_new_gui():
     makelabelentry(quick_tab, "BLAS threads:" , blas_threads_var, 14, 50,tooltip="How many threads to use during BLAS processing.\nIf left blank, uses same value as regular thread count.")
   
     # blas batch size
-    makeslider(quick_tab, "BLAS Batch Size - optimum of 256 if not filled :", blasbatchsize_text, blas_size_var, 0, 13, 16, set=9,tooltip="How many tokens to process at once per batch.\nLarger values use more memory.")
+    makeslider(quick_tab, "BLAS Batch Size - optimum of 256 if not filled :", blasbatchsize_text, blas_size_var, 0, 13, 16, width=200, set=8,tooltip="How many tokens to process at once per batch.\nLarger values use more memory.")
 
     # load model
     makefileentry(quick_tab, "Model:", "Select GGML Model File", model_var, 40, 280, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
@@ -2527,7 +2505,7 @@ def show_new_gui():
     # blas thread specifier
     makelabelentry(hardware_tab, "BLAS threads:" , blas_threads_var, 14, 50,tooltip="How many threads to use during BLAS processing.\nIf left blank, uses same value as regular thread count.")
     # blas batch size
-    makeslider(hardware_tab, "BLAS Batch Size:", blasbatchsize_text, blas_size_var, 0, 13, 16,width=200, set=9,tooltip="How many tokens to process at once per batch.\nLarger values use more memory.")
+    makeslider(hardware_tab, "BLAS Batch Size:", blasbatchsize_text, blas_size_var, 0, 13, 16,width=200, set=8,tooltip="How many tokens to process at once per batch.\nLarger values use more memory.")
     # force version
     makelabelentry(hardware_tab, "Force Version:" , version_var, 100, 50,tooltip="If the autodetected version is wrong, you can change it here.\nLeave as 0 for default.")
     ctk.CTkButton(hardware_tab , text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
@@ -2541,8 +2519,8 @@ def show_new_gui():
     # Tokens Tab
     tokens_tab = tabcontent["Tokens"]
     # tokens checkboxes
-    smartcontextbox = makecheckbox(tokens_tab, "Use SmartContext", smartcontext, 1,tooltiptxt="Uses SmartContext. Now considered outdated and not recommended.\nCheck the wiki for more info.")
-    makecheckbox(tokens_tab, "Use ContextShift", contextshift, 2,tooltiptxt="Uses Context Shifting to reduce reprocessing.\nRecommended. Check the wiki for more info.", command=togglectxshift)
+    smartcontextbox = makecheckbox(tokens_tab, "Use SmartContext", smartcontext, 1,tooltiptxt="Uses SmartContext. Now considered outdated and not recommended, except for KVQ with FA.\nCheck the wiki for more info.")
+    makecheckbox(tokens_tab, "Use ContextShift", contextshift, 2,tooltiptxt="Uses Context Shifting to reduce reprocessing. Incompatible with KV modes 1 à 20, and 22 with FA.\nRecommended. Check the wiki for more info.", command=togglectxshift)
 
 
     # context size
@@ -2557,11 +2535,11 @@ def show_new_gui():
                 item.grid()
             else:
                 item.grid_remove()
-    makecheckbox(tokens_tab,  "Custom RoPE Config", variable=customrope_var, row=22, command=togglerope,tooltiptxt="Override the default RoPE configuration with custom RoPE scaling.")
-    makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, command=toggleflashattn,  tooltiptxt="Enable flash attention for GGUF models.")
+    makecheckbox(tokens_tab,  "Custom RoPE Config", variable=customrope_var, row=22, command=togglerope, tooltiptxt="Override the default RoPE configuration with custom RoPE scaling.")
+    makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, tooltiptxt="Enable flash attention for GGUF models.")
     noqkvlabel = makelabel(tokens_tab,"Requirments Not Met",31,0,"Requires FlashAttention ENABLED and ContextShift DISABLED.")
     noqkvlabel.configure(text_color="#ff5555")
-    qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 21, 30, set=0,tooltip="Enable quantization of KV cache.\nRequires FlashAttention and disables ContextShift.")
+    qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 26, 30, set=21,tooltip="Enable quantization of KV cache (KVQ). Modes 1-20 requires FlashAttention and disables ContextShift.\nModes 23-26 work without FA, for incompatible models. 0,21,22 can work with or without.")
     makefileentry(tokens_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 32, width=250, filetypes=[("JSON Adapter", "*.json")], tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
     def pickpremadetemplate():
         initialDir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'kcpp_adapters')
@@ -2571,7 +2549,6 @@ def show_new_gui():
             chatcompletionsadapter_var.set(fnam)
     ctk.CTkButton(tokens_tab, 64, text="Pick Premade", command=pickpremadetemplate).grid(row=33, column=0, padx=322, stick="nw")
     togglerope(1,1,1)
-    toggleflashattn(1,1,1)
     togglectxshift(1,1,1)
 
     # Model Tab
@@ -2699,11 +2676,8 @@ def show_new_gui():
         args.foreground = keepforeground.get()==1
         args.quiet = quietmode.get()==1
         args.nocertify = nocertifymode.get()==1
-        if contextshift.get()==0 and flashattention.get()==1:
-            args.quantkv = int(quantkv_values[int(quantkv_var.get())])
-        else:
-            args.quantkv = 0
-
+        args.quantkv = int(quantkv_values[int(quantkv_var.get())])
+            
         gpuchoiceidx = 0
         if gpu_choice_var.get()!="All":
             gpuchoiceidx = int(gpu_choice_var.get())-1
@@ -3487,9 +3461,17 @@ def main(launch_args,start_server=True):
     if args.model_param and args.model_param!="" and args.model_param.lower().endswith('.kcpps'):
         loadconfigfile(args.model_param)
 
-    #prevent quantkv from being used without flash attn
-    if args.quantkv and args.quantkv>0 and not args.flashattention:
-        print("Error: Using --quantkv requires --flashattention")
+    #prevent quantkv 1-20 from being used without flash attn, and 23-26 to be used without
+    if args.quantkv and args.quantkv >20 and args.quantkv <23:
+        print("KV f16 and Kq8_0-Vf16 cache can work in both FA and no-FA mode")
+
+    if args.quantkv and args.quantkv >0 and args.quantkv <21 and not args.flashattention:
+        print("Error: Using --quantkv 1 to 20 requires --flashattention")
+        sys.exit(1)
+        
+    if args.quantkv and args.quantkv >22 and args.flashattention:
+        print("Error: Using --quantkv legacy (quantum K<q8_0 cache - V16) is not using flash attention")
+        print("Error: the equivalent quants with FA has not been compiled because they are inferior to K16_Vx")
         sys.exit(1)
 
     if not args.model_param:
@@ -3999,10 +3981,10 @@ if __name__ == '__main__':
     #more advanced params
     advparser = parser.add_argument_group('Advanced Commands')
     advparser.add_argument("--ropeconfig", help="If set, uses customized RoPE scaling from configured frequency scale and frequency base (e.g. --ropeconfig 0.25 10000). Otherwise, uses NTK-Aware scaling set automatically based on context size. For NTK Rope, a rule of thumb is to double the base frequency to go 50% beyond the base context, and to triple the base frequency to double the context. Beyond, the NTK calculations are more complex and you might need to use frequency scale as well. To use only linear rope, simply set the freq-scale and ignore the freq-base",metavar=('[rope-freq-scale]', '[rope-freq-base]'), default=[0.0, 10000.0], type=float, nargs='+')
-    advparser.add_argument("--blasbatchsize", help="Sets the batch size used in BLAS processing (default 512, the best speed/size compromize, 256 and 128 being good if you're short of VRAM). Setting it to -1 disables BLAS mode, but keeps other benefits like GPU offload.", type=int,choices=[-1,1,2,4,8,16,32,64,128,256,512,1024,2048,4096], default=256)
+    advparser.add_argument("--blasbatchsize", help="Sets the batch size used in BLAS processing (default 128 for VRAM savings, optimal speed is 512, 256 is a great compromise). Setting it to -1 disables BLAS mode, but keeps other benefits like GPU offload.", type=int,choices=[-1,1,2,4,8,16,32,64,128,256,512,1024,2048,4096], default=128)
     advparser.add_argument("--blasthreads", help="Use a different number of threads during BLAS if specified. Otherwise, has the same value as --threads",metavar=('[threads]'), type=int, default=0)
     advparser.add_argument("--lora", help="LLAMA models only, applies a lora file on top of model. Experimental.", metavar=('[lora_filename]', '[lora_base]'), nargs='+')
-    advparser.add_argument("--noshift", help="If set, do not attempt to Trim and Shift the GGUF context without reprocessing everything once the max context is reached. If you disable it (or need to use KV cache quantized), you can eventually use --smartcontext instead.", action='store_true')
+    advparser.add_argument("--noshift", help="If set, do not attempt to Trim and Shift the GGUF context without reprocessing everything once the max context is reached. If you disable it (or need to use KV cache quantized (KVQ) with FlashAttention, aka. modes 1 to 20), you can eventually use --smartcontext instead.", action='store_true')
     advparser.add_argument("--nommap", help="If set, do not use mmap to load newer models", action='store_true')
     advparser.add_argument("--usemlock", help="For Apple Systems. Force system to keep model in RAM rather than swapping or compressing", action='store_true')
 #    advparser.add_argument("--usedirect_io", help="Accelerate the model loading time", action='store_true')
@@ -4027,9 +4009,9 @@ if __name__ == '__main__':
     advparser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
     advparser.add_argument("--chatcompletionsadapter", help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="")
     advparser.add_argument("--flashattention", help="Enables flash attention, which shrinks the size of the BLAS/compute cache by 50-75% (a few hundreds MB recovered in VRAM), and allows the use of the quantized KV cache.", action='store_true')
-    advparser.add_argument("--quantkv", help="Sets the KV cache data quantization type to save VRAM in NVidia Video Cards, 0 = 1616/F16 (16 BPW), 1 = 1680/Kf16-Vq8_0 (12.25BPW), 2 = 1651/Kf16-Vq5_1 (11BPW), 3 = 1650/Kf16-Vq5_0 (10.75BPW), 4 = 1641/Kf16-Vq4_1 (10.5BPW), 5 = 1640/Kf16-Vq4_0 (10.25BPW), 6 = 8080/KVq8_0 (8.5 BPW), 7 = 8051/Kq8_0-Vq5_1 (7.25BPW), 8 = 8050/Kq8_0-Vq5_0 (7BPW), 9 = 8041/Kq8_0-Vq4_1 (6.75BPW), 10 = 8040/Kq8_0-Vq4_0 (6.5BPW), 11 = 5151/KVq5_1 (6BPW), 12 = 5150/Kq5_1-Vq5_0 (5.75BPW), 13 = 5141/Kq5_1-Vq4_1 (5.5BPW), 14 = 5140/Kq5_1-Vq4_0 (5.25BPW), 15 = 5050/Kq5_0-Vq5_0 (5.5BPW), 16 = 5041/Kq5_0-Vq4_1 (5.25BPW), 17 = 5040/Kq5_0-Vq4_0 (5BPW), 18 = 4141/Kq4_1-Vq4_1 (5BPW), 19 = 4140/Kq4_1-Vq4_0 (4.75BPW), 20 = 4040/KVq4_0 (4.5BPW), 21 = 8016/Vq8_0-Kf16 (12.25BPW). Requires Flash Attention, and disables context shifting.", metavar=('[quantization level 0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21]'), type=int, choices=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21], default=0)
+    advparser.add_argument("--quantkv", help="Sets the KV cache data quantization (KVQ) type to save VRAM in NVidia Video Cards, 0 = 1616/F16 (16 BPW), 1 = FA1680/Kf16-Vq8_0 (12.25BPW), 2 = FA1651/Kf16-Vq5_1 (11BPW), 3 = FA1650/Kf16-Vq5_0 (10.75BPW), 4 = FA1641/Kf16-Vq4_1 (10.5BPW), 5 = FA1640/Kf16-Vq4_0 (10.25BPW), 6 = FA8080/KVq8_0 (8.5 BPW), 7 = FA8051/Kq8_0-Vq5_1 (7.25BPW), 8 = FA8050/Kq8_0-Vq5_0 (7BPW), 9 = FA8041/Kq8_0-Vq4_1 (6.75BPW), 10 = FA8040/Kq8_0-Vq4_0 (6.5BPW), 11 = FA5151/KVq5_1 (6BPW), 12 = FA5150/Kq5_1-Vq5_0 (5.75BPW), 13 = FA5141/Kq5_1-Vq4_1 (5.5BPW), 14 = FA5140/Kq5_1-Vq4_0 (5.25BPW), 15 = FA5050/Kq5_0-Vq5_0 (5.5BPW), 16 = FA5041/Kq5_0-Vq4_1 (5.25BPW), 17 = FA5040/Kq5_0-Vq4_0 (5BPW), 18 = FA4141/Kq4_1-Vq4_1 (5BPW), 19 = FA4140/Kq4_1-Vq4_0 (4.75BPW), 20 = FA4040/KVq4_0 (4.5BPW), 21 = 1616/F16 (16BPW), 22 = 8016/Kq8_0-Vf16 (12.25BPW), 23 = 5116/Kq5_1-Vf16 (11BPW), 24 = 5016/Kq5_1-Vf16 (10.75BPW), 25 = 4116/Kq4_1-Vf16 (10.50BPW), 26 = 4016/Kq4_0-Vf16 (10.25BPW). Modes 1-20 Requires Flash Attention, AND disables context shifting. Modes 0, 21, 22 can work with or without FA. Modes 23-26 work only without FA.", metavar=('[quantization level 0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22/23/24/25/26]'), type=int, choices=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26], default=0)
     advparser.add_argument("--forceversion", help="If the model file format detection fails (e.g. rogue modified model) you can set this to override the detected format (enter desired version, e.g. 401 for GPTNeoX-Type2).",metavar=('[version]'), type=int, default=0)
-    advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated compared to ContextShift, but works with KV Cache quantized unlike ContextShift which doesn't. Not recommended except for the use of KV Cache quantized.", action='store_true')
+    advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated compared to ContextShift, but works with KV Cache quantized unlike ContextShift which doesn't. Not recommended except for the use of KV Cache quantized (KVQ) with FlashAttention (modes 1 to 20).", action='store_true')
     advparser.add_argument("--unpack", help="Extracts the file contents of the KoboldCpp binary into a target directory.", metavar=('destination'), type=str, default="")
 
     hordeparsergroup = parser.add_argument_group('Horde Worker Commands')
