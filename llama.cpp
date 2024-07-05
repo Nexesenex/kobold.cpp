@@ -6003,12 +6003,14 @@ static bool llm_load_tensors(
     int64_t i_gpu_start = std::max((int64_t) hparams.n_layer - n_gpu_layers, (int64_t) 0);
     bool use_mmap_buffer = true;
 
+    #if defined(GGML_USE_CLBLAST)
     if(clblast_offload_fallback_mode)
     {
         printf("\nOpenCL GPU Offload Fallback...");
         clblast_offload_fallback_layers = n_gpu_layers;
         i_gpu_start = std::max((int64_t) hparams.n_layer, (int64_t) 0);
     }
+    #endif
 
     // there is very little benefit to offloading the input layer, so always keep it on the CPU
     model.buft_input = llama_default_buffer_type_cpu(true);
