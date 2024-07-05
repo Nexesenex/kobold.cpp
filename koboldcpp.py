@@ -1861,7 +1861,7 @@ def show_new_gui():
 
     import customtkinter as ctk
     nextstate = 0 #0=exit, 1=launch
-    original_windowwidth = 930
+    original_windowwidth = 860
     original_windowheight = 620
     windowwidth = original_windowwidth
     windowheight = original_windowheight
