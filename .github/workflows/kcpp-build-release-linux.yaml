@@ -1,4 +1,4 @@
-name: Koboldcpp Linux CUDA 11
+name: KCPP-F Linux full bin CUDA 11.5.0
 
 on: workflow_dispatch
 env:
