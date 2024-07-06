@@ -395,6 +395,47 @@ def tryparseint(value):
     except ValueError:
         return value
 
+def unpack_to_dir(destpath = ""):
+    import shutil
+    srcpath = os.path.abspath(os.path.dirname(__file__))
+    cliunpack = False if destpath == "" else True
+    print("Attempt to unpack KoboldCpp into directory...")
+
+    if not cliunpack:
+        from tkinter.filedialog import askdirectory
+        from tkinter import messagebox
+        destpath = askdirectory(title='Select an empty folder to unpack KoboldCpp')
+        if not destpath:
+            return
+
+    if os.path.isdir(srcpath) and os.path.isdir(destpath) and not os.listdir(destpath):
+        try:
+            if cliunpack:
+                print(f"KoboldCpp will be extracted to {destpath}\nThis process may take several seconds to complete.")
+            else:
+                messagebox.showinfo("Unpack Starting", f"KoboldCpp will be extracted to {destpath}\nThis process may take several seconds to complete.")
+            for item in os.listdir(srcpath):
+                s = os.path.join(srcpath, item)
+                d = os.path.join(destpath, item)
+                if os.path.isdir(s):
+                    shutil.copytree(s, d, False, None)
+                else:
+                    shutil.copy2(s, d)
+            if cliunpack:
+                print(f"KoboldCpp successfully extracted to {destpath}")
+            else:
+                messagebox.showinfo("KoboldCpp Unpack Success", f"KoboldCpp successfully extracted to {destpath}")
+        except Exception as e:
+            if cliunpack:
+                print(f"An error occurred while unpacking: {e}")
+            else:
+                messagebox.showerror("Error", f"An error occurred while unpacking: {e}")
+    else:
+        if cliunpack:
+            print(f"The target folder is not empty or invalid. Please select an empty folder.")
+        else:
+            messagebox.showwarning("Invalid Selection", "The target folder is not empty or invalid. Please select an empty folder.")
+
 def load_model(model_filename):
     global args
     inputs = load_model_inputs()
@@ -1783,7 +1824,7 @@ def show_new_gui():
 
     tabs = ctk.CTkFrame(root, corner_radius = 0, width=windowwidth, height=windowheight-50)
     tabs.grid(row=0, stick="nsew")
-    tabnames= ["Quick Launch", "Hardware", "Tokens", "Model Files", "Network", "Horde Worker","Image Gen","Audio"]
+    tabnames= ["Quick Launch", "Hardware", "Tokens", "Model Files", "Network", "Horde Worker","Image Gen","Audio","Extra"]
     navbuttons = {}
     navbuttonframe = ctk.CTkFrame(tabs, width=100, height=int(tabs.cget("height")))
     navbuttonframe.grid(row=0, column=0, padx=2,pady=2)
@@ -2482,7 +2523,13 @@ def show_new_gui():
 
     # audio tab
     audio_tab = tabcontent["Audio"]
-    makefileentry(audio_tab, "Whisper Model:", "Select Whisper .bin Model File", whisper_model_var, 1, width=280, filetypes=[("*.bin","*.bin")], tooltiptxt="Select a Whisper .bin model file on disk to be loaded.")
+    makefileentry(audio_tab, "Whisper Model (Speech-To-Text):", "Select Whisper .bin Model File", whisper_model_var, 1, width=280, filetypes=[("*.bin","*.bin")], tooltiptxt="Select a Whisper .bin model file on disk to be loaded.")
+
+    # extra tab
+    extra_tab = tabcontent["Extra"]
+    makelabel(extra_tab, "Unpack KoboldCpp to a local directory to modify its files.", 1, 0)
+    makelabel(extra_tab, "You can also launch via koboldcpp.py for faster startup.", 2, 0)
+    ctk.CTkButton(extra_tab , text = "Unpack KoboldCpp To Folder", command = unpack_to_dir ).grid(row=3,column=0, stick="w", padx= 8, pady=2)
 
     # launch
     def guilaunch():
@@ -3274,6 +3321,10 @@ def main(launch_args,start_server=True):
         print(f"Error cleaning up orphaned pyinstaller dirs: {e}")
 
     args = launch_args
+    if args.unpack:
+        unpack_to_dir(args.unpack)
+        return
+
     if args.config and len(args.config)==1:
         if isinstance(args.config[0], str) and os.path.exists(args.config[0]):
            loadconfigfile(args.config[0])
@@ -3769,7 +3820,7 @@ if __name__ == '__main__':
     # print("Python version: " + sys.version)
     parser = argparse.ArgumentParser(description='KoboldCpp Server')
     modelgroup = parser.add_mutually_exclusive_group() #we want to be backwards compatible with the unnamed positional args
-    modelgroup.add_argument("--model", metavar=('filename'), help="Model file to load", nargs="?")
+    modelgroup.add_argument("--model", metavar=('[filename]'), help="Model file to load", type=str, default="")
     modelgroup.add_argument("model_param", help="Model file to load (positional)", nargs="?")
     portgroup = parser.add_mutually_exclusive_group() #we want to be backwards compatible with the unnamed positional args
     portgroup.add_argument("--port", metavar=('[portnumber]'), help="Port to listen on", default=defaultport, type=int, action='store')
@@ -3828,6 +3879,7 @@ if __name__ == '__main__':
     advparser.add_argument("--quantkv", help="Sets the KV cache data quantization (KVQ) type to save VRAM in NVidia Video Cards, 0 = 1616/F16 (16 BPW), 1 = FA1680/Kf16-Vq8_0 (12.25BPW), 2 = FA1651/Kf16-Vq5_1 (11BPW), 3 = FA1650/Kf16-Vq5_0 (10.75BPW), 4 = FA1641/Kf16-Vq4_1 (10.5BPW), 5 = FA1640/Kf16-Vq4_0 (10.25BPW), 6 = FA8080/KVq8_0 (8.5 BPW), 7 = FA8051/Kq8_0-Vq5_1 (7.25BPW), 8 = FA8050/Kq8_0-Vq5_0 (7BPW), 9 = FA8041/Kq8_0-Vq4_1 (6.75BPW), 10 = FA8040/Kq8_0-Vq4_0 (6.5BPW), 11 = FA5151/KVq5_1 (6BPW), 12 = FA5150/Kq5_1-Vq5_0 (5.75BPW), 13 = FA5141/Kq5_1-Vq4_1 (5.5BPW), 14 = FA5140/Kq5_1-Vq4_0 (5.25BPW), 15 = FA5050/Kq5_0-Vq5_0 (5.5BPW), 16 = FA5041/Kq5_0-Vq4_1 (5.25BPW), 17 = FA5040/Kq5_0-Vq4_0 (5BPW), 18 = FA4141/Kq4_1-Vq4_1 (5BPW), 19 = FA4140/Kq4_1-Vq4_0 (4.75BPW), 20 = FA4040/KVq4_0 (4.5BPW), 21 = 1616/F16 (16BPW), 22 = 8016/Kq8_0-Vf16 (12.25BPW), 23 = 5116/Kq5_1-Vf16 (11BPW), 24 = 5016/Kq5_1-Vf16 (10.75BPW), 25 = 4116/Kq4_1-Vf16 (10.50BPW), 26 = 4016/Kq4_0-Vf16 (10.25BPW). Modes 1-20 Requires Flash Attention, AND disables context shifting. Modes 0, 21, 22 can work with or without FA. Modes 23-26 work only without FA.", metavar=('[quantization level 0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22/23/24/25/26]'), type=int, choices=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26], default=0)
     advparser.add_argument("--forceversion", help="If the model file format detection fails (e.g. rogue modified model) you can set this to override the detected format (enter desired version, e.g. 401 for GPTNeoX-Type2).",metavar=('[version]'), type=int, default=0)
     advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated compared to ContextShift, but works with KV Cache quantized unlike ContextShift which doesn't. Not recommended except for the use of KV Cache quantized (KVQ) with FlashAttention (modes 1 to 20).", action='store_true')
+    advparser.add_argument("--unpack", help="Extracts the file contents of the KoboldCpp binary into a target directory.", metavar=('destination'), type=str, default="")
 
     hordeparsergroup = parser.add_argument_group('Horde Worker Commands')
     hordeparsergroup.add_argument("--hordemodelname", metavar=('[name]'), help="Sets your AI Horde display model name.", default="")
