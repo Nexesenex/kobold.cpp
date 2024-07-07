@@ -1895,9 +1895,9 @@ def show_new_gui():
     tensor_split_str_vars = ctk.StringVar(value="")
     rowsplit_var = ctk.IntVar()
 
-    contextshift = ctk.IntVar(value=1)
+    contextshift = ctk.IntVar(value=0)
     remotetunnel = ctk.IntVar(value=0)
-    smartcontext = ctk.IntVar()
+    smartcontext = ctk.IntVar(value=1)
     flashattention = ctk.IntVar(value=0)
     context_var = ctk.IntVar()
     customrope_var = ctk.IntVar()
