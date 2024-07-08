@@ -1077,7 +1077,8 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         llama_ctx_params.logits_all = false;
         model_params.use_mmap = inputs.use_mmap;
         model_params.use_mlock = inputs.use_mlock;
-//        model_params.use_direct_io = inputs.use_direct_io;	
+//        model_params.use_direct_io = inputs.use_direct_io;
+//        model_params.use_token_healing = inputs.use_token_healing;	
         model_params.n_gpu_layers = inputs.gpulayers;
 
         #if defined(GGML_USE_CLBLAST)
