@@ -52,6 +52,7 @@ class load_model_inputs(ctypes.Structure):
                 ("use_mmap", ctypes.c_bool),
                 ("use_mlock", ctypes.c_bool),
 #                ("use_direct_io", ctypes.c_bool),
+#                ("use_token_healing", ctypes.c_bool),
                 ("use_smartcontext", ctypes.c_bool),
                 ("use_contextshift", ctypes.c_bool),
                 ("clblast_info", ctypes.c_int),
@@ -455,6 +456,7 @@ def load_model(model_filename):
     inputs.blasthreads = args.blasthreads
     inputs.use_mmap = (not args.nommap)
     inputs.use_mlock = args.usemlock
+#    inputs.use_token_healing = args.token_healing
 #   inputs.use_direct_io = args.usedirect_io
 #    inputs.override_kv = "".encode("UTF-8")
 #    inputs.cache_type_k = "".encode("UTF-8")
@@ -1999,6 +2001,7 @@ def show_new_gui():
     highpriority = ctk.IntVar()
     disablemmap = ctk.IntVar()
     usemlock = ctk.IntVar()
+#    token_healing = ctk.IntVar()
 #    usedirect_io = ctk.IntVar()
     debugmode = ctk.IntVar()
     keepforeground = ctk.IntVar()
@@ -2521,6 +2524,7 @@ def show_new_gui():
     # tokens checkboxes
     smartcontextbox = makecheckbox(tokens_tab, "Use SmartContext", smartcontext, 1,tooltiptxt="Uses SmartContext. Now considered outdated and not recommended, except for KVQ with FA.\nCheck the wiki for more info.")
     makecheckbox(tokens_tab, "Use ContextShift", contextshift, 2,tooltiptxt="Uses Context Shifting to reduce reprocessing. Incompatible with KV modes 1 à 20, and 22 with FA.\nRecommended. Check the wiki for more info.", command=togglectxshift)
+#    makecheckbox(tokens_tab, "Use Token Healing", token_healing, 3, tooltiptxt="Enable flash attention for GGUF models.")
 
 
     # context size
@@ -2665,6 +2669,7 @@ def show_new_gui():
         args.threads = int(threads_var.get())
         args.usemlock   = usemlock.get() == 1
 #        args.usedirect_io   = usedirect_io.get() == 1
+#        args.token_healing  = token_healing.get()
         args.debugmode  = debugmode.get()
         args.launch     = launchbrowser.get()==1
         args.highpriority = highpriority.get()==1
@@ -2786,6 +2791,7 @@ def show_new_gui():
         if "threads" in dict:
             threads_var.set(dict["threads"])
         usemlock.set(1 if "usemlock" in dict and dict["usemlock"] else 0)
+#        token_healing.set(1 if "token_healing" in dict and dict["token_healing"] else 0)
 #        usedirect_io.set(1 if "usedirect_io" in dict and dict["usedirect_io"] else 0)
         if "debugmode" in dict:
             debugmode.set(dict["debugmode"])
@@ -3988,6 +3994,7 @@ if __name__ == '__main__':
     advparser.add_argument("--nommap", help="If set, do not use mmap to load newer models", action='store_true')
     advparser.add_argument("--usemlock", help="For Apple Systems. Force system to keep model in RAM rather than swapping or compressing", action='store_true')
 #    advparser.add_argument("--usedirect_io", help="Accelerate the model loading time", action='store_true')
+#    advparser.add_argument("--token_healing", help="Heal the generation of tokens", action='store_true')
     advparser.add_argument("--noavx2", help="Do not use AVX2 instructions, a slower compatibility mode for older devices.", action='store_true')
     advparser.add_argument("--debugmode", help="Shows additional debug info in the terminal.", nargs='?', const=1, type=int, default=0)
     advparser.add_argument("--skiplauncher", help="Doesn't display or use the GUI launcher.", action='store_true')

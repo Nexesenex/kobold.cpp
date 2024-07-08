@@ -46,6 +46,7 @@ struct load_model_inputs
     const char * mmproj_filename = nullptr;
     const bool use_mmap = false;
     const bool use_mlock = false;
+//    const bool use_token_healing = false;
 //    const bool use_direct_io = false;
     const bool use_smartcontext = false;
     const bool use_contextshift = false;
