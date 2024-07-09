@@ -107,7 +107,6 @@ static std::vector<std::string> stop_sequence;
 static std::vector<int> special_stop_sequence; //for stop sequences that don't have a string representation
 static std::vector<std::string> banned_tokens;
 static std::vector<int> banned_token_ids;
-static std::vector<std::string> dry_sequence_break_strings;
 static std::unordered_multimap<gpt_vocab::id, std::vector<gpt_vocab::id>> dry_sequence_breakers; // Multi-mapping from first token of sequence to tail of sequence (tail is empty for a single token)
 static std::vector<int> dry_repeat_count; // Indexed as last_n_tokens
 static std::unordered_map<gpt_vocab::id, int> dry_max_token_repeat;
@@ -2073,23 +2072,23 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     kcpp_params->smoothing_factor = inputs.smoothing_factor;
 
     // Parse dry sequence breakers / restart sequences
-    dry_sequence_break_strings.clear();
+    kcpp_params->dry_sequence_breakers.clear();
     for(int x=0;x<dry_seq_break_max;++x)
     {
         std::string word = inputs.dry_sequence_breakers[x];
         if(word!="")
         {
-            dry_sequence_break_strings.push_back(word);
+            kcpp_params->dry_sequence_breakers.push_back(word);
         }
     }
     dry_sequence_breakers.clear();
-    if(dry_sequence_break_strings.size()>0)
+    if(kcpp_params->dry_sequence_breakers.size()>0)
     {
         if(debugmode==1)
         {
-            printf("\nProcessing %zu dry break strings...",dry_sequence_break_strings.size());
+            printf("\nProcessing %zu dry break strings...",kcpp_params->dry_sequence_breakers.size());
         }
-        for (const auto& sequence_break: dry_sequence_break_strings) {
+        for (const auto& sequence_break: kcpp_params->dry_sequence_breakers) {
             GetOverlappingTokenSequences(sequence_break, dry_sequence_breakers);
         }
         if(debugmode==1)
