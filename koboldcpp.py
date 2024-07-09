@@ -512,7 +512,7 @@ def generate(prompt, memory="", images=[], max_length=32, max_context_length=512
             inputs.sampler_len = len(sampler_order)
             global showsamplerwarning
             if showsamplerwarning and inputs.mirostat==0 and inputs.sampler_len>0 and (inputs.sampler_order[0]!=6 or inputs.sampler_order[inputs.sampler_len-1]!=5):
-                print("\n(Note: Sub-optimal sampler_order detected. You may have reduced quality. Recommended sampler values are [6,7,0,1,3,4,2,5]. This message will only show once per session.)")
+                print("\n(Note: Non-default sampler_order detected. Recommended sampler values are [6,7,0,1,3,4,2,5]. This message will only show once per session.)")
                 showsamplerwarning = False
         except TypeError as e:
             print("ERROR: sampler_order must be a list of integers: " + str(e))
@@ -600,9 +600,25 @@ def sd_load_model(model_filename,vae_filename,lora_filename):
     return ret
 
 def sd_generate(genparams):
-    global maxctx, args, currentusergenkey, totalgens, pendingabortkey
+    global maxctx, args, currentusergenkey, totalgens, pendingabortkey, chatcompl_adapter
+
+    default_adapter = {} if chatcompl_adapter is None else chatcompl_adapter
+    adapter_obj = genparams.get('adapter', default_adapter)
+    forced_negprompt = adapter_obj.get("add_sd_negative_prompt", "")
+    forced_posprompt = adapter_obj.get("add_sd_prompt", "")
+
     prompt = genparams.get("prompt", "high quality")
     negative_prompt = genparams.get("negative_prompt", "")
+    if forced_negprompt!="":
+        if negative_prompt!="":
+            negative_prompt += ", " + forced_negprompt
+        else:
+            negative_prompt = forced_negprompt
+    if forced_posprompt!="":
+        if prompt!="":
+            prompt += ", " + forced_posprompt
+        else:
+            prompt = forced_posprompt
     init_images_arr = genparams.get("init_images", [])
     init_images = ("" if (not init_images_arr or len(init_images_arr)==0 or not init_images_arr[0]) else init_images_arr[0])
     denoising_strength = genparams.get("denoising_strength", 0.6)
@@ -694,7 +710,7 @@ def utfprint(str):
         print(str)
     except UnicodeEncodeError:
         # Replace or omit the problematic character
-        utf_string = str.encode('ascii', 'ignore').decode('ascii')
+        utf_string = str.encode('ascii', 'ignore').decode('ascii',"ignore")
         utf_string = utf_string.replace('\a', '') #remove bell characters
         print(utf_string)
 
@@ -729,7 +745,7 @@ maxhordelen = 256
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.68"
+KcppVersion = "1.69.1"
 showdebug = True
 showsamplerwarning = True
 showmaxctxwarning = True
@@ -879,7 +895,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                         if detected_upload_filename and len(detected_upload_filename)>0:
                             utfprint(f"Detected uploaded file: {detected_upload_filename[0]}")
                             file_data = fpart.split(b'\r\n\r\n')[1].rsplit(b'\r\n', 1)[0]
-                            file_data_base64 = base64.b64encode(file_data).decode('utf-8')
+                            file_data_base64 = base64.b64encode(file_data).decode('utf-8',"ignore")
                             base64_string = f"data:audio/wav;base64,{file_data_base64}"
                             return base64_string
             print("Uploaded file not found.")
@@ -1784,6 +1800,7 @@ def show_new_gui():
     CLDevicesNames = ["","","",""]
     CUDevicesNames = ["","","","",""]
     VKDevicesNames = ["","","",""]
+    VKIsDGPU = [0,0,0,0]
     MaxMemory = [0]
 
     tabcontent = {}
@@ -2022,11 +2039,18 @@ def show_new_gui():
         try: # Get Vulkan names
             output = subprocess.run(['vulkaninfo','--summary'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
             devicelist = [line.split("=")[1].strip() for line in output.splitlines() if "deviceName" in line]
+            devicetypes = [line.split("=")[1].strip() for line in output.splitlines() if "deviceType" in line]
             idx = 0
             for dname in devicelist:
                 if idx<len(VKDevicesNames):
                     VKDevicesNames[idx] = dname
                     idx += 1
+            if len(devicetypes) == len(devicelist):
+                idx = 0
+                for dvtype in devicetypes:
+                    if idx<len(VKIsDGPU):
+                        VKIsDGPU[idx] = (1 if dvtype=="PHYSICAL_DEVICE_TYPE_DISCRETE_GPU" else 0)
+                        idx += 1
         except Exception as e:
             pass
 
@@ -2046,6 +2070,12 @@ def show_new_gui():
                 runopts_var.set("Use CuBLAS")
             elif "Use hipBLAS (ROCm)" in runopts:
                 runopts_var.set("Use hipBLAS (ROCm)")
+        elif exitcounter < 100 and (1 in VKIsDGPU) and runmode_untouched and "Use Vulkan" in runopts:
+            for i in range(0,len(VKIsDGPU)):
+                if VKIsDGPU[i]==1:
+                    runopts_var.set("Use Vulkan")
+                    gpu_choice_var.set(str(i+1))
+                    break
 
         changed_gpu_choice_var()
         return
@@ -2082,7 +2112,6 @@ def show_new_gui():
                 gui_layers_zeroed = gpulayers_var.get()=="" or gpulayers_var.get()=="0"
                 if (gui_layers_untouched or gui_layers_zeroed) and layerlimit>0:
                     gpulayers_var.set(str(layerlimit))
-                    mmq_var.set(0 if layerlimit>=200 else 1)
                     gui_layers_untouched = old_gui_layers_untouched
                     if gui_layers_zeroed:
                         gui_layers_untouched = True
@@ -2204,6 +2233,10 @@ def show_new_gui():
             tensor_split_label.grid_remove()
             tensor_split_entry.grid_remove()
             splitmode_box.grid_remove()
+
+        if index == "Use Vulkan":
+            tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
+            tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
 
         if index == "Use Vulkan" or index == "Vulkan NoAVX2 (Old CPU)" or index == "Use CLBlast" or index == "CLBlast NoAVX2 (Old CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
             gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
@@ -2332,7 +2365,14 @@ def show_new_gui():
     noqkvlabel = makelabel(tokens_tab,"Requirments Not Met",31,0,"Requires FlashAttention ENABLED and ContextShift DISABLED.")
     noqkvlabel.configure(text_color="#ff5555")
     qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 2, 30, set=0,tooltip="Enable quantization of KV cache.\nRequires FlashAttention and disables ContextShift.")
-    makefileentry(tokens_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 32,tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
+    makefileentry(tokens_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 32, filetypes=[("JSON Adapter", "*.json")], tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
+    def pickpremadetemplate():
+        initialDir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'kcpp_adapters')
+        initialDir = initialDir if os.path.isdir(initialDir) else None
+        fnam = askopenfilename(title="Pick Premade ChatCompletions Adapter",filetypes=[("JSON Adapter", "*.json")], initialdir=initialDir)
+        if fnam:
+            chatcompletionsadapter_var.set(fnam)
+    ctk.CTkButton(tokens_tab, 64, text="Pick Premade", command=pickpremadetemplate).grid(row=33, column=1, padx=62, stick="nw")
     togglerope(1,1,1)
     toggleflashattn(1,1,1)
     togglectxshift(1,1,1)
@@ -2799,12 +2839,12 @@ def make_url_request(url, data, method='POST', headers={}):
             request = urllib.request.Request(url, headers=headers, method=method)
         response_data = ""
         with urllib.request.urlopen(request,context=ssl_context) as response:
-            response_data = response.read().decode('utf-8')
+            response_data = response.read().decode('utf-8',"ignore")
             json_response = json.loads(response_data)
             return json_response
     except urllib.error.HTTPError as e:
         try:
-            errmsg = e.read().decode('utf-8')
+            errmsg = e.read().decode('utf-8',"ignore")
             print_with_time(f"Error: {e} - {errmsg}")
         except Exception as e:
             print_with_time(f"Error: {e}")
