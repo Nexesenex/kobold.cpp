@@ -4,7 +4,7 @@ KoboldCpp-experimental is a sligthly extended KoboldCpp with [custom](experiment
 
 # koboldcpp
 
-KoboldCpp is an easy-to-use AI text-generation software for GGML and GGUF models. It's a single self contained distributable from Concedo, that builds off llama.cpp, and adds a versatile Kobold API endpoint, additional format support, Stable Diffusion image generation, backward compatibility, as well as a fancy UI with persistent stories, editing tools, save formats, memory, world info, author's note, characters, scenarios and everything KoboldAI and KoboldAI Lite have to offer.
+KoboldCpp is an easy-to-use AI text-generation software for GGML and GGUF models, inspired by the original **KoboldAI**. It's a single self-contained distributable from Concedo, that builds off llama.cpp, and adds a versatile **KoboldAI API endpoint**, additional format support, Stable Diffusion image generation, speech-to-text, backward compatibility, as well as a fancy UI with persistent stories, editing tools, save formats, memory, world info, author's note, characters, scenarios and everything KoboldAI and KoboldAI Lite have to offer.
 
 ![Preview](media/preview.png)
 ![Preview](media/preview2.png)
@@ -137,9 +137,16 @@ There are some community made AUR packages available: [CUBLAS](https://aur.archl
   - https://github.com/noneabove1182/koboldcpp-docker
 - If you're building your own docker, remember to set CUDA_DOCKER_ARCH or enable LLAMA_PORTABLE
 
-## Questions and Help
+## Questions and Help Wiki
+
 - **First, please check out [The KoboldCpp FAQ and Knowledgebase](https://github.com/LostRuins/koboldcpp/wiki) which may already have answers to your questions! Also please search through past issues and discussions.**
 - If you cannot find an answer, open an issue on this github, or find us on the [KoboldAI Discord](https://koboldai.org/discord).
+
+## KoboldCpp and KoboldAI API Documentation
+- [Documentation for KoboldAI and KoboldCpp endpoints can be found here](https://lite.koboldai.net/koboldcpp_api)
+
+## KoboldCpp Public Demo
+- [A public KoboldCpp demo can be found at our Huggingface Space. Please do not abuse it.](https://koboldai-koboldcpp-tiefighter.hf.space/)
 
 ## Considerations
 - For Windows: No installation, single file executable, (It Just Works)
@@ -154,7 +161,7 @@ There are some community made AUR packages available: [CUBLAS](https://aur.archl
 ## License
 - The original GGML library and llama.cpp by ggerganov are licensed under the MIT License
 - However, KoboldAI Lite is licensed under the AGPL v3.0 License
-- The other files are also under the AGPL v3.0 License unless otherwise stated
+- KoboldCpp code and other files are also under the AGPL v3.0 License unless otherwise stated
 
 ## Notes
 - Generation delay scales linearly with original prompt length. If OpenBLAS is enabled then prompt ingestion becomes about 2-3x faster. This is automatic on windows, but will require linking on OSX and Linux. CLBlast speeds this up even further, and `--gpulayers` + `--useclblast` or `--usecublas` more so.

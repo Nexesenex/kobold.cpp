@@ -738,7 +738,9 @@ def whisper_generate(genparams):
     return outstr
 
 def utfprint(str):
-    maxlen = 25000
+    maxlen = 32000
+    if args.debugmode >= 1:
+        maxlen = 64000
     strlength = len(str)
     if strlength > maxlen: #limit max output len
         str = str[:maxlen] + f"... (+{strlength-maxlen} chars)"
