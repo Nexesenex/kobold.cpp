@@ -593,7 +593,7 @@ void sample_dry(int n_ctx, int rep_pen_range, float penalty_multiplier, float pe
             if (k > rt) {
                 // If k is outside the current Z-box, do naive computation.
                 int n = 0;
-                while (n + k < last_n_repeat and last_tokens[last - n] == last_tokens[last - (n+k)]) {
+                while (n + k < last_n_repeat && last_tokens[last - n] == last_tokens[last - (n+k)]) {
                     ++n;
                 }
                 dry_repeat_count[last - k] = std::min(n, rep_limit);
@@ -612,7 +612,7 @@ void sample_dry(int n_ctx, int rep_pen_range, float penalty_multiplier, float pe
                     dry_repeat_count[last - k] = n;
                 } else {
                     int i = rt + 1;
-                    while (i < last_n_repeat and last_tokens[last - i] == last_tokens[last - (i - k)]) {
+                    while (i < last_n_repeat && last_tokens[last - i] == last_tokens[last - (i - k)]) {
                         i += 1;
                     }
 
