@@ -656,8 +656,8 @@ void sample_dry(int n_ctx, int rep_pen_range, float penalty_multiplier, float pe
     // Step 4: Apply logit penalties based on the maximum repeat length for relevant tokens.
 
     // Prevent floating point overflow in `pow(penalty_base, exponent)` by clamping to `max_exponent`.
-    // Determine the max from `penalty_base` and the log of `std::numeric_limits<float>::max()`
-    constexpr float FLOAT_MAX_LOG = log(std::numeric_limits<float>::max());
+    // Compute it from `penalty_base` and the approximate log of `std::numeric_limits<float>::max()`
+    const float FLOAT_MAX_LOG = 88.7228391f;
     int max_exponent = 0;
     if (penalty_base > 1.000001f) {
         max_exponent = FLOAT_MAX_LOG / std::log(penalty_base);
