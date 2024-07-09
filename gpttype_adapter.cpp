@@ -549,7 +549,6 @@ void sample_dry(int n_ctx, int rep_pen_range, float penalty_multiplier, float pe
                 for (size_t offset = 0; offset < seq_len; ++offset) {
                     // The +1 when indexing `last_tokens` is because we already matched the head.
                     if (it->second[offset] != last_tokens[ix + 1 + offset]) {
-                        printf("\n[dry] Match failed at offset %d...", (int)offset);
                         match = false;
                         break;
                     }
@@ -664,6 +663,10 @@ void sample_dry(int n_ctx, int rep_pen_range, float penalty_multiplier, float pe
         max_exponent = FLOAT_MAX_LOG / std::log(penalty_base);
     }
 
+    if (debugmode==1 && !dry_max_token_repeat.empty()) {
+        printf("DRY penalties [");
+    }
+    size_t count = 0;
     for (const auto& kvp: dry_max_token_repeat) {
         gpt_vocab::id token = kvp.first;
         int repeat_exp = kvp.second - allowed_length;
@@ -675,9 +678,13 @@ void sample_dry(int n_ctx, int rep_pen_range, float penalty_multiplier, float pe
         {
             std::string tokenizedstr = FileFormatTokenizeID(token, file_format);
             ::utreplace(tokenizedstr, "\n", "\\n");
-            printf("[dry] Token %d [%s] len %d, penalty %.03f\n", token, RemoveBell(tokenizedstr).c_str(), kvp.second, penalty);
+            printf("%s(%s %.02f)", count == 0 ? "" : " ", RemoveBell(tokenizedstr).c_str(), penalty);
         }
         candidates->data[token].logit -= penalty;
+        ++count;
+    }
+    if (debugmode==1 && !dry_max_token_repeat.empty()) {
+        printf("]\n");
     }
 }
 
