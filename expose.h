@@ -86,7 +86,8 @@ struct generation_inputs
     const float mirostat_tau = 0.0f;
     const float dry_multiplier = 0.0f;
     const float dry_base = 0.0f;
-    const int dry_allowed_length = 0.0f;
+    const int dry_allowed_length = 0;
+    const int dry_penalty_last_n = 0;
     const char * dry_sequence_breakers[dry_seq_break_max] = {};
     const samplers sampler_order[KCPP_SAMPLER_MAX] = {};
     const int sampler_len = 0;

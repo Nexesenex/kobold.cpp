@@ -88,6 +88,7 @@ class generation_inputs(ctypes.Structure):
                 ("dry_multiplier", ctypes.c_float),
                 ("dry_base", ctypes.c_float),
                 ("dry_allowed_length", ctypes.c_int),
+                ("dry_penalty_last_n", ctypes.c_int),
                 ("dry_sequence_breakers", ctypes.c_char_p * dry_seq_break_max),
                 ("sampler_order", ctypes.c_int * sampler_order_max),
                 ("sampler_len", ctypes.c_int),
@@ -449,7 +450,7 @@ def load_model(model_filename):
     ret = handle.load_model(inputs)
     return ret
 
-def generate(prompt, memory="", images=[], max_length=32, max_context_length=512, temperature=0.7, top_k=100, top_a=0.0, top_p=0.92, min_p=0.0, typical_p=1.0, tfs=1.0, rep_pen=1.0, rep_pen_range=128, rep_pen_slope=1.0, presence_penalty=0.0, mirostat=0, mirostat_tau=5.0, mirostat_eta=0.1, dry_multiplier=0.0, dry_base=1.75, dry_allowed_length=2, dry_sequence_breakers=['\n', ':', '"', '*'], sampler_order=[6,0,1,3,4,2,5], seed=-1, stop_sequence=[], use_default_badwordsids=False, stream_sse=False, grammar='', grammar_retain_state=False, genkey='', trimstop=False, quiet=False, dynatemp_range=0.0, dynatemp_exponent=1.0, smoothing_factor=0.0, logit_biases={}, render_special=False, banned_tokens=[], bypass_eos_token=False):
+def generate(prompt, memory="", images=[], max_length=32, max_context_length=512, temperature=0.7, top_k=100, top_a=0.0, top_p=0.92, min_p=0.0, typical_p=1.0, tfs=1.0, rep_pen=1.0, rep_pen_range=128, rep_pen_slope=1.0, presence_penalty=0.0, mirostat=0, mirostat_tau=5.0, mirostat_eta=0.1, dry_multiplier=0.0, dry_base=1.75, dry_allowed_length=2, dry_penalty_last_n=0, dry_sequence_breakers=['\n', ':', '"', '*'], sampler_order=[6,0,1,3,4,2,5], seed=-1, stop_sequence=[], use_default_badwordsids=False, stream_sse=False, grammar='', grammar_retain_state=False, genkey='', trimstop=False, quiet=False, dynatemp_range=0.0, dynatemp_exponent=1.0, smoothing_factor=0.0, logit_biases={}, render_special=False, banned_tokens=[], bypass_eos_token=False):
     global maxctx, args, currentusergenkey, totalgens, pendingabortkey
     inputs = generation_inputs()
     inputs.prompt = prompt.encode("UTF-8")
@@ -500,6 +501,7 @@ def generate(prompt, memory="", images=[], max_length=32, max_context_length=512
     inputs.dry_multiplier = dry_multiplier
     inputs.dry_base = dry_base
     inputs.dry_allowed_length = dry_allowed_length
+    inputs.dry_penalty_last_n = dry_penalty_last_n
     # Handle dry_sequence_breakers being passed as a json-encoded array of
     # strings, rather than as an array of strings itself. This is to support
     # SillyTavern, which passes sequence breakers to Oobabooga that way.
@@ -950,6 +952,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 dry_multiplier=genparams.get('dry_multiplier', 0.0),
                 dry_base=genparams.get('dry_base', 1.75),
                 dry_allowed_length=genparams.get('dry_allowed_length', 2),
+                dry_penalty_last_n=genparams.get('dry_penalty_last_n', 0),
                 dry_sequence_breakers=genparams.get('dry_sequence_breakers', []),
                 sampler_order=genparams.get('sampler_order', [6,0,1,3,4,2,5]),
                 seed=tryparseint(genparams.get('sampler_seed', -1)),

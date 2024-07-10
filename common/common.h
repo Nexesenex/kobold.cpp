@@ -115,6 +115,7 @@ struct gpt_params {
     float   dry_multiplier    = 0.0f;  // penalty multiplier, 0.0 = disabled
     float   dry_base          = 1.75f; // exponential base
     int32_t dry_allowed_length = 2;    // repeated sequences longer than this are penalized
+    int32_t dry_penalty_last_n = 0;    // how many tokens to scan for repetitions (0 = entire context)
     std::vector<std::string> dry_sequence_breakers; // DRY sequence breakers
 
     // DynaTemp!
