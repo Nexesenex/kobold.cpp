@@ -878,8 +878,6 @@ int mirostat, float mirostat_tau, float mirostat_eta, float dry_multiplier, floa
                     break;
                 case KCPP_SAMPLER_REP_PEN:
                     sample_rep_pen(n_ctx, rep_pen_range, rep_pen, rep_pen_slope, presence_penalty, &candidates_p);
-                    break;
-                case KCPP_SAMPLER_DRY:
                     sample_dry(n_ctx, rep_pen_range, dry_multiplier, dry_base, dry_allowed_length, dry_sequence_breakers, &candidates_p);
                     break;
                 default:
@@ -2073,26 +2071,21 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
     // Parse dry sequence breakers / restart sequences
     kcpp_params->dry_sequence_breakers.clear();
-    for(int x=0;x<dry_seq_break_max;++x)
-    {
+    for(int x=0;x<dry_seq_break_max;++x) {
         std::string word = inputs.dry_sequence_breakers[x];
-        if(word!="")
-        {
+        if(word!="") {
             kcpp_params->dry_sequence_breakers.push_back(word);
         }
     }
     dry_sequence_breakers.clear();
-    if(kcpp_params->dry_sequence_breakers.size()>0)
-    {
-        if(debugmode==1)
-        {
+    if(kcpp_params->dry_sequence_breakers.size()>0) {
+        if(debugmode==1) {
             printf("\nProcessing %zu dry break strings...",kcpp_params->dry_sequence_breakers.size());
         }
         for (const auto& sequence_break: kcpp_params->dry_sequence_breakers) {
             GetOverlappingTokenSequences(sequence_break, dry_sequence_breakers);
         }
-        if(debugmode==1)
-        {
+        if(debugmode==1) {
             int trivial = 0, non_trivial = 0;
             for (const auto& seq: dry_sequence_breakers) {
                 if (seq.second.empty()) {
@@ -2358,7 +2351,6 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     {
         sampler_order = {
             KCPP_SAMPLER_REP_PEN,
-            KCPP_SAMPLER_DRY,
             KCPP_SAMPLER_TOP_K,
             KCPP_SAMPLER_TOP_A,
             KCPP_SAMPLER_TFS,

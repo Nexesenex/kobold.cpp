@@ -18,7 +18,6 @@ enum samplers
     KCPP_SAMPLER_TYP=4,
     KCPP_SAMPLER_TEMP=5,
     KCPP_SAMPLER_REP_PEN=6,
-    KCPP_SAMPLER_DRY=7,
     KCPP_SAMPLER_MAX
 };
 enum stop_reason
