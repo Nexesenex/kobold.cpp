@@ -141,6 +141,12 @@ There are some community made AUR packages available: [CUBLAS](https://aur.archl
 - These unofficial resources have been contributed by the community, and may be outdated or unmaintained. No official support will be provided for them!
   - Arch Linux Packages: [CUBLAS](https://aur.archlinux.org/packages/koboldcpp-cuda), and [HIPBLAS](https://aur.archlinux.org/packages/koboldcpp-hipblas).
   - Unofficial Dockers: [korewaChino](https://github.com/korewaChino/koboldCppDocker) and [noneabove1182](https://github.com/noneabove1182/koboldcpp-docker)
+  - Nix & NixOS: KoboldCpp is available on Nixpkgs and can be installed by adding just `koboldcpp` to your `environment.systemPackages`.
+    - Make sure to have `nixpkgs.config.allowUnfree`, `hardware.opengl.enable` *(`hardware.graphics.enable` if you're using unstable channel)* and `nixpkgs.config.cudaSupport` set to `true` to enable CUDA.
+    - Metal is enabled by default on macOS, Vulkan support is enabled by default on both Linux and macOS, ROCm support isn't available yet.
+    - You can also use `nix3-run` to use KoboldCpp: `nix run --expr ``with import <nixpkgs> { config = { allowUnfree = true; cudaSupport = true; }; }; koboldcpp`` --impure`
+    - Or use `nix-shell`: `nix-shell --expr 'with import <nixpkgs> { config = { allowUnfree = true; cudaSupport = true; }; }; koboldcpp' --run "koboldcpp" --impure`
+    - Packages (like OpenBlast, CLBLast, Vulkan, etc.) can be overridden, please refer to the [17th Nix Pill - Nixpkgs Overriding Packages](https://nixos.org/guides/nix-pills/17-nixpkgs-overriding-packages)
 
 ## Questions and Help Wiki
 
