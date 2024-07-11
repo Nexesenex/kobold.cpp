@@ -6046,7 +6046,7 @@ static bool llm_load_tensors(
     {
         printf("\nOpenCL GPU Offload Fallback...");
         clblast_offload_fallback_layers = n_gpu_layers;
-        i_gpu_start = std::max((int64_t) hparams.n_layer, (int64_t) 0);
+        i_gpu_start = std::max((int) hparams.n_layer, (int) 0);
     }
     #endif
 
