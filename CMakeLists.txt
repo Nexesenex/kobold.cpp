@@ -65,7 +65,7 @@ set(LLAMA_SCHED_MAX_COPIES  "2" CACHE STRING "llama: max input copies for pipeli
 option(LLAMA_OPENMP                          "llama: use OpenMP"                                ON)
 option(LLAMA_LLAMAFILE                       "llama: use llamafile SGEMM"                       ${LLAMA_LLAMAFILE_DEFAULT})
 option(LLAMA_CCACHE                          "llama: use ccache if available"                   ON)
-option(LLAMA_NATIVE                     "llama: enable -march=native flag"                      OFF)
+option(LLAMA_NATIVE                          "llama: enable -march=native flag"                 OFF)
 
 #
 # Compile flags
@@ -246,6 +246,7 @@ if (LLAMA_CUBLAS)
         set(LLAMA_EXTRA_LIBS ${LLAMA_EXTRA_LIBS} CUDA::cuda_driver)
 
     if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+        # 37 == Highest CUDA 11 standard for Kepler
         # 52 == lowest CUDA 12 standard
         # 60 == f16 CUDA intrinsics
         # 61 == integer CUDA intrinsics
@@ -258,7 +259,7 @@ if (LLAMA_CUBLAS)
             if(CUDAToolkit_VERSION VERSION_GREATER 12)
                  set(CMAKE_CUDA_ARCHITECTURES "52;61;70;75") # lowest CUDA 12 standard + lowest for integer intrinsics
             else()
-                 set(CMAKE_CUDA_ARCHITECTURES "37;52;61;70;75") # lowest CUDA 12 standard + lowest for integer intrinsics
+                 set(CMAKE_CUDA_ARCHITECTURES "35;37;50;52") # CUDA 11, for Kepler and Maxwell Arch <52
             endif()
         endif()
     endif()
