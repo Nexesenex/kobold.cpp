@@ -1100,6 +1100,14 @@ static float CalcGradientAIRopeFreqBase(float original_rope_base, int n_ctx_trai
             printf("RoPE base calculated via Gradient AI formula for Solar based models. (value:%.1f).\n", rope_freq_base_with_positive_offset);
             return rope_freq_base_with_positive_offset;
         }
+	    else if(model_arch==GGUFArch::ARCH_MISTRAL_LLAMA_1_AND_2)
+        {
+            float extended_rope_negative_offset_value = 1 + ((log10f(chi_ctx_value) - log10f(chi_ctx_train_value)) / (3.14159265358979323846 * 3.14159265358979323846));
+            float rope_freq_base_with_negative_offset = gradient_ai_rope_freq_base_value / extended_rope_negative_offset_value;
+            printf("Extended RoPE Negative Offset (divisor) for Llama 1 and 2 based models. (value:%.3f).\n", extended_rope_negative_offset_value);
+            printf("RoPE base calculated via Gradient AI formula for Llama 1 and 2 based models. (value:%.1f).\n", rope_freq_base_with_negative_offset);
+            return rope_freq_base_with_negative_offset;
+        }
         else
         {
 	        return gradient_ai_rope_freq_base_value;
