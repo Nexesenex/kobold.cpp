@@ -58,6 +58,7 @@ enum GGUFArch
     ARCH_MAMBA = 3,
     ARCH_SOLAR = 4,
     ARCH_QWEN2 = 5,
+    ARCH_MISTRAL_LLAMA_1_AND_2 = 50,
 };
 
 struct FileFormatExtraMeta

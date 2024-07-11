@@ -316,8 +316,11 @@ void print_tok_vec(std::vector<float> &embd)
             {
                 fileformatmeta->model_architecture = GGUFArch::ARCH_QWEN2;
             }
+            else if(modelarch=="llama" && freq_base_train==10000.0f)
+            {
+                fileformatmeta->model_architecture = GGUFArch::ARCH_MISTRAL_LLAMA_1_AND_2;
             printf("Arch Category: %d\n",fileformatmeta->model_architecture);
-
+            }
         }
         fileformatmeta->n_tensors = gguf_get_n_tensors(ctx);
         gguf_free(ctx);
