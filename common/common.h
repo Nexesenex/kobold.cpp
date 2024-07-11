@@ -113,6 +113,11 @@ struct gpt_params {
     int32_t mirostat          = 0;     // 0 = disabled, 1 = mirostat, 2 = mirostat 2.0
     float   mirostat_tau      = 5.00f; // target entropy
     float   mirostat_eta      = 0.10f; // learning rate
+    float   dry_multiplier    = 0.0f;  // penalty multiplier, 0.0 = disabled
+    float   dry_base          = 1.75f; // exponential base
+    int32_t dry_allowed_length = 2;    // repeated sequences longer than this are penalized
+    int32_t dry_penalty_last_n = 0;    // how many tokens to scan for repetitions (0 = entire context)
+    std::vector<std::string> dry_sequence_breakers; // DRY sequence breakers
 
     // DynaTemp!
     float   dynatemp_range     = 0.0f;  // enables DynaTemp if greater than 0. dynatemp_min = temperature - dt_range, dynatemp_max = temperature + dt_range
