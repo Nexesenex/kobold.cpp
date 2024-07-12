@@ -676,21 +676,19 @@ static __device__ __forceinline__ void vec_dot_q8_0_q8_1_mma(
     for (int j0 = 0; j0 < mmq_x; j0 += ntx*mma_C::J) {
 #pragma unroll
         for (int k01 = 0; k01 < WARP_SIZE; k01 += QI8_0) {
-            const int k0 = k00 + k01;
-
-            mma_B B;
+            mma_B  B;
             float dB[mma_C::ne/2];
 
-            B.load(y_qs + j0*MMQ_TILE_Y_K + k0 % WARP_SIZE, MMQ_TILE_Y_K);
+            B.load(y_qs + j0*MMQ_TILE_Y_K + k01, MMQ_TILE_Y_K);
 
 #pragma unroll
             for (int l = 0; l < mma_C::ne/2; ++l) {
                 const int j = j0 + mma_C::get_j(l);
 
                 if (ds_layout == MMQ_Q8_1_DS_LAYOUT_D4) {
-                    dB[l] =             y_df[j*MMQ_TILE_Y_K + (k0/QI8_1) % (WARP_SIZE/QI8_1)];
+                    dB[l] =             y_df[j*MMQ_TILE_Y_K + k01/QI8_1];
                 } else {
-                    dB[l] = __low2float(y_ds[j*MMQ_TILE_Y_K + (k0/QI8_1) % (WARP_SIZE/QI8_1)]);
+                    dB[l] = __low2float(y_ds[j*MMQ_TILE_Y_K + k01/QI8_1]);
                 }
             }
 
