@@ -1255,6 +1255,16 @@ static __device__ __forceinline__ void vec_dot_q3_K_q8_1_mma(
 #endif // INT8_MMA_AVAILABLE
 }
 
+static __device__ __forceinline__ int unpack_scales_q45_K(const int * scales, const int ksc) {
+    // scale arrangement after the following two lines:
+    //   - ksc == 0: sc0, sc1, sc2, sc3
+    //   - ksc == 1: sc4, sc5, sc6, sc7
+    //   - ksc == 2:  m0,  m1,  m2,  m3
+    //   - ksc == 3:  m4,  m5,  m6,  m7
+    return ((scales[(ksc%2) + (ksc!=0)] >> (4 * (ksc & (ksc/2)))) & 0x0F0F0F0F) | // lower 4 bits
+           ((scales[ksc/2]              >> (2 * (ksc % 2)))       & 0x30303030);  // upper 2 bits
+}
+
 template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinline__ void load_tiles_q4_K(
     const char * __restrict__ x, int * __restrict__ x_tile, const int & kbx0, const int & i_max, const int & stride) {
 
@@ -1321,10 +1331,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
         const int * scales = (const int *) bxi->scales;
 
         const int ksc = threadIdx.x % (WARP_SIZE/8);
-
-        // scale arrangement after the following two lines: sc0,...,sc3, sc4,...,sc7, m0,...,m3, m4,...,m8
-        int scales8 = (scales[(ksc%2) + (ksc!=0)] >> (4 * (ksc & (ksc/2)))) & 0x0F0F0F0F; // lower 4 bits
-        scales8    |= (scales[ksc/2]              >> (2 * (ksc % 2)))       & 0x30303030; // upper 2 bits
+        const int scales8 = unpack_scales_q45_K(scales, ksc);
 
 #ifdef INT8_MMA_AVAILABLE
         x_sc[i*MMQ_MMA_TILE_X_K_Q4_K + ksc] = scales8;
@@ -1556,10 +1563,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
         const int * scales = (const int *) bxi->scales;
 
         const int ksc = threadIdx.x % (WARP_SIZE/8);
-
-        // scale arrangement after the following two lines: sc0,...,sc3, sc4,...,sc7, m0,...,m3, m4,...,m8
-        int scales8 = (scales[(ksc%2) + (ksc!=0)] >> (4 * (ksc & (ksc/2)))) & 0x0F0F0F0F; // lower 4 bits
-        scales8    |= (scales[ksc/2]              >> (2 * (ksc % 2)))       & 0x30303030; // upper 2 bits
+        const int scales8 = unpack_scales_q45_K(scales, ksc);
 
 #ifdef INT8_MMA_AVAILABLE
         x_sc[i*MMQ_MMA_TILE_X_K_Q5_K + ksc] = scales8;
