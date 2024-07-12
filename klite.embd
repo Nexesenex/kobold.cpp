@@ -14,7 +14,7 @@ Current version indicated by LITEVER below.
 <script>
 	const LITEVER = 151;
 	const urlParams = new URLSearchParams(window.location.search);
-	const localflag = urlParams.get('local');
+	const localflag = true;
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
 </script>
 
@@ -5125,7 +5125,7 @@ Current version indicated by LITEVER below.
 	}
 	function is_using_kcpp_with_dry()
 	{
-		return (custom_kobold_endpoint!="" && koboldcpp_version && koboldcpp_version!="" && compare_version_str(koboldcpp_version, "1.68") >= 0);
+		return (custom_kobold_endpoint!="" && koboldcpp_version && koboldcpp_version!="" && compare_version_str(koboldcpp_version, "1.6839") >= 0);
 	}
 	function is_using_kcpp_with_grammar()
 	{
