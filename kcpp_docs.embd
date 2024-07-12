@@ -172,6 +172,28 @@
                             "exclusiveMinimum": 0,
                             "type": "number"
                          },
+                         "dry_multiplier": {
+                            "description": "KoboldCpp ONLY. DRY penalty scale.",
+                            "minimum": 0,
+                            "type": "number"
+                         },
+                         "dry_base": {
+                            "description": "KoboldCpp ONLY. DRY exponential base.",
+                            "exclusiveMinimum": 0,
+                            "type": "number"
+                         },
+                         "dry_allowed_length": {
+                            "description": "KoboldCpp ONLY. DRY penalizes repetitions longer than this many tokens.",
+                            "minimum": 0,
+                            "type": "integer"
+                         },
+                         "dry_sequence_breakers": {
+                            "description": "KoboldCpp ONLY. An array of strings that cause DRY repetition counts to reset.",
+                            "items": {
+                               "type": "string"
+                            },
+                            "type": "array"
+                         },
                          "genkey": {
                             "description": "KoboldCpp ONLY. A unique genkey set by the user. When checking a polled-streaming request, use this key to be able to fetch pending text even if multiuser is enabled.",
                             "type": "string"
