@@ -23907,7 +23907,7 @@ int32_t llama_token_to_piece(const struct llama_model * model, llama_token token
             size--;
         }
         if (length < (int32_t)size) {
-            return (int32_t) -size;
+            return -(int32_t) size;
         }
         memcpy(buf, token, size);
         return (int32_t) size;
