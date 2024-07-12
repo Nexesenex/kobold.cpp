@@ -1144,6 +1144,11 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     //determine rope scaling params
     float rope_freq_scale = 1.0f;
     float rope_freq_base = 10000.0f;
+//    float   yarn_ext_factor       = -1.0f; // YaRN extrapolation mix factor
+//    float   yarn_attn_factor      =  1.0f; // YaRN magnitude scaling factor
+//    float   yarn_beta_fast        = 32.0f; // YaRN low correction dim
+//    float   yarn_beta_slow        =  1.0f; // YaRN high correction dim
+//    int32_t yarn_orig_ctx         =     0; // YaRN original context length
     bool overwriteRope = false;
     if(inputs.rope_freq_scale>0.0f)
     {
@@ -1152,6 +1157,9 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         overwriteRope = true;
         printf("Using Custom RoPE scaling (scale:%.3f, base:%.1f).\n",rope_freq_scale,rope_freq_base);
     }
+//    else if (inputs.yarn>0.0f)
+//    {
+//    }		
     else
     {
         //Set freq base for all, including non GGUF. If we are using GGUF, this will be overwritten with more accurate values later.
@@ -1265,7 +1273,14 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         llama_ctx_params.main_gpu = cu_parseinfo_maindevice;
         llama_ctx_params.rope_freq_base = rope_freq_base;
         llama_ctx_params.rope_freq_scale = rope_freq_scale;
-        llama_ctx_params.n_batch = kcpp_params->n_batch;
+        llama_ctx_params.n_batch = kcpp_params->n_batch;	
+//        llama_ctx_params.yarn_ext_factor = yarn_ext_factor       // YaRN extrapolation mix factor
+//        llama_ctx_params.yarn_attn_factor = yarn_attn_factor      // YaRN magnitude scaling factor
+//        llama_ctx_params.yarn_beta_fast = yarn_beta_fast        // YaRN low correction dim
+//        llama_ctx_params.yarn_beta_slow = yarn_beta_slow        // YaRN high correction dim
+//        llama_ctx_params.yarn_orig_ctx = yarn_orig_ctx         // YaRN original context length
+//        llama_ctx_params.grp_attn_n = grp_attn_n            // group-attention factor
+//        llama_ctx_params.grp_attn_w = grp_attn_w            // group-attention width
 
         #if defined(GGML_USE_CUDA) || defined(GGML_USE_VULKAN)
         bool ts_all_zero = true;
@@ -1409,6 +1424,11 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         {
             llama_ctx_params.rope_freq_base = rope_freq_base;
             llama_ctx_params.rope_freq_scale = rope_freq_scale;
+//            llama_ctx_params.yarn_ext_factor = yarn_ext_factor       // YaRN extrapolation mix factor
+//            llama_ctx_params.yarn_attn_factor = yarn_attn_factor      // YaRN magnitude scaling factor
+//            llama_ctx_params.yarn_beta_fast = yarn_beta_fast        // YaRN low correction dim
+//            llama_ctx_params.yarn_beta_slow = yarn_beta_slow        // YaRN high correction dim
+//            llama_ctx_params.yarn_orig_ctx = yarn_orig_ctx         // YaRN original context length
         }
         else
         {
