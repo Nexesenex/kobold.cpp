@@ -1297,28 +1297,10 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
 #endif // INT8_MMA_AVAILABLE
     }
 
-//     const int blocks_per_tile_x_row = WARP_SIZE / QI4_K;  // == 1 if QK_K == 256
-//     const int kbxd = threadIdx.x % blocks_per_tile_x_row; // == 0 if QK_K == 256
-
-// #pragma unroll
-//     for (int i0 = 0; i0 < mmq_y; i0 += nwarps * QI4_K) {
-//         int i = (i0 + threadIdx.y * QI4_K + threadIdx.x / blocks_per_tile_x_row) % mmq_y;
-
-//         if (need_check) {
-//             i = min(i, i_max);
-//         }
-
-//         const block_q4_K * bxi = (const block_q4_K *) x + kbx0 + i*stride + kbxd;
-
-// #ifdef INT8_MMA_AVAILABLE
-//         x_dm[i*MMQ_MMA_TILE_X_K_Q4_K       + kbxd] = bxi->dm;
-// #else
-//         x_dm[i*(WARP_SIZE/QI4_K) + i/QI4_K + kbxd] = bxi->dm;
-// #endif // INT8_MMA_AVAILABLE
-//     }
+#ifdef INT8_MMA_AVAILABLE
 
 #pragma unroll
-    for (int i0 = 0; i0 < mmq_y; i0 += nwarps * 16) {
+    for (int i0 = 0; i0 < mmq_y; i0 += nwarps*16) {
         int i = (i0 + threadIdx.y*16 + threadIdx.x/(WARP_SIZE/16)) % mmq_y;
 
         if (need_check) {
@@ -1343,6 +1325,40 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
             x_dm[i*MMQ_MMA_TILE_X_K_Q8_1 + sizeof(int)*ksc + l] = dm*make_half2(sc8[l], m8[l]);
         }
     }
+
+#else
+
+#pragma unroll
+    for (int i0 = 0; i0 < mmq_y; i0 += nwarps * QI4_K) {
+        int i = (i0 + threadIdx.y*QI4_K + threadIdx.x) % mmq_y;
+
+        if (need_check) {
+            i = min(i, i_max);
+        }
+
+        const block_q4_K * bxi = (const block_q4_K *) x + kbx0 + i*stride + threadIdx.x;
+
+        x_dm[i*(WARP_SIZE/QI4_K) + i/QI4_K + threadIdx.x] = bxi->dm;
+    }
+
+#pragma unroll
+    for (int i0 = 0; i0 < mmq_y; i0 += nwarps*8) {
+        int i = (i0 + threadIdx.y*8 + threadIdx.x / (WARP_SIZE/8)) % mmq_y;
+
+        if (need_check) {
+            i = min(i, i_max);
+        }
+
+        const block_q4_K * bxi = (const block_q4_K *) x + kbx0 + i*stride;
+
+        const int * scales = (const int *) bxi->scales;
+
+        const int ksc = threadIdx.x % (WARP_SIZE/8);
+        const int scales8 = unpack_scales_q45_K(scales, ksc);
+
+        x_sc[i*(WARP_SIZE/8) + i/8 + ksc] = scales8;
+    }
+#endif // INT8_MMA_AVAILABLE
 }
 
 template <int mmq_x, int mmq_y, int nwarps>
