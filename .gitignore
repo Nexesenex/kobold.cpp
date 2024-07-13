@@ -142,3 +142,5 @@ conda/
 !/scripts/install-oneapi.bat
 
 *.spec
+kobold_benchmarks.csv
+.~lock.kobold_benchmarks.csv\#
