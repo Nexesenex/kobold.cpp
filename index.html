@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 152;
+	const LITEVER = 153;
 	const urlParams = new URLSearchParams(window.location.search);
 	const localflag = true;
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -1955,12 +1955,32 @@ Current version indicated by LITEVER below.
 		max-height: 100%;
 		width: 100%;
 		word-wrap: break-word;
-		font-size: 20px;
+		font-size: 18px;
 		font-family: Inter, sans-serif;
 		tab-size: 4;
-		line-height: 35px;
+		line-height: 32px;
 		color: rgb(55, 65, 81);
 		display: flex;
+	}
+
+	@media (max-width: 400px) {
+		.corpostyle
+		{
+			font-size: 16px;
+			line-height: 26px;
+		}
+		.corpostyleinner
+		{
+			padding-left: 6px;
+			padding-right: 6px;
+		}
+		.corpostyleitem
+		{
+			padding-left: 6px;
+			padding-right: 6px;
+			padding-top: 8px;
+			padding-bottom: 8px;
+		}
 	}
 
 	body.darkmode .corpostyle {
@@ -4098,6 +4118,7 @@ Current version indicated by LITEVER below.
 		idle_duration: 60,
 		export_settings: true, //affects if settings are included with the story and sharelinks
 		show_advanced_load: false, //if true, every load opens the selector window
+		import_tavern_prompt: true, //when opening character cards, prompt for chat or instruct mode
 		invert_colors: false,
 		passed_ai_warning: false, //used to store AI safety panel acknowledgement state
 		entersubmit: true, //enter sends the prompt
@@ -4219,7 +4240,7 @@ Current version indicated by LITEVER below.
 	{
 		"id":9,
 		"name":"Llama 3 Chat",
-		"user":"<|eot_id|><|start_header_id|>assistant<|end_header_id|>\\n\\n",
+		"user":"<|eot_id|><|start_header_id|>user<|end_header_id|>\\n\\n",
 		"assistant":"<|eot_id|><|start_header_id|>assistant<|end_header_id|>\\n\\n",
 		"system":"<|start_header_id|>system<|end_header_id|>\\n\\n",
 	},
@@ -6219,7 +6240,7 @@ Current version indicated by LITEVER below.
 			render_gametext(true);
 		}
 
-		if(localsettings.show_advanced_load)
+		if(localsettings.import_tavern_prompt)
 		{
 			msgboxYesNo("Import Character Card in Instruct Mode?\n\nYes = Instruct Mode Used\nNo = Chat Mode Used\n\nIf unsure, select 'No'.","Import Tavern Card", ()=>{
 				load_tav_obj_confirm(false);
@@ -6963,6 +6984,7 @@ Current version indicated by LITEVER below.
 	}
 	function confirm_scenario()
 	{
+		mainmenu_untab(false);
 		if(temp_scenario!=null)
 		{
 			hide_popups();
@@ -7072,6 +7094,7 @@ Current version indicated by LITEVER below.
 
 	function display_scenarios()
 	{
+		mainmenu_untab(true);
 		temp_scenario = null;
 		document.getElementById("quickstartcontainer").classList.remove("hidden");
 
@@ -7399,6 +7422,17 @@ Current version indicated by LITEVER below.
 			document.getElementById("advancedloadfile").classList.contains("hidden")
 		);
 	}
+
+	var mainmenu_is_untab = false;
+	function mainmenu_untab(untab)
+	{
+		mainmenu_is_untab = untab;
+		document.querySelectorAll('.mainnav').forEach(
+			(el) => {
+				el.setAttribute('tabindex', mainmenu_is_untab?'-1':'0');
+			}
+		);
+	}
 	function hide_popups() {
 		document.getElementById("saveloadcontainer").classList.add("hidden");
 		document.getElementById("newgamecontainer").classList.add("hidden");
@@ -7418,6 +7452,7 @@ Current version indicated by LITEVER below.
 		document.getElementById("pasteimgcontainer").classList.add("hidden");
 		document.getElementById("choosesharecontainer").classList.add("hidden");
 		document.getElementById("advancedloadfile").classList.add("hidden");
+		mainmenu_untab(false);
 	}
 
 	function preview_dynatemp(isModifiedRange)
@@ -8059,6 +8094,7 @@ Current version indicated by LITEVER below.
 
 	function connect_custom_endpoint()
 	{
+		mainmenu_untab(false);
 		custom_kobold_endpoint = "";
 		custom_kobold_key = "";
 		custom_oai_key = "";
@@ -8517,16 +8553,19 @@ Current version indicated by LITEVER below.
 
 	function display_endpoint_container()
 	{
+		mainmenu_untab(true);
 		document.getElementById("customendpointcontainer").classList.remove("hidden");
 		customapi_dropdown();
 	}
 	function dismiss_endpoint_container()
 	{
+		mainmenu_untab(false);
 		document.getElementById("customendpointcontainer").classList.add("hidden");
 	}
 
 	function display_saveloadcontainer()
 	{
+		mainmenu_untab(true);
 		document.getElementById("saveloadcontainer").classList.remove("hidden");
 
 		let filetable = ``;
@@ -8551,10 +8590,10 @@ Current version indicated by LITEVER below.
 					`+(testslot?`[ Slot `+(i+1)+` - `+testslot+` ]`:`[ Slot `+(i+1)+` - Empty ]`)+`
 					</div>
 					<div style="text-align: right; align-self: center; width: 184px;">
-					<button type="button" title="Save To Slot" name="slc`+i+`" class="btn btn-primary" onclick="save_to_slot(`+i+`)"><img class="btnicon-save"/></button>
-					<button type="button" title="Load From Slot" name="slc`+i+`" class="btn btn-primary" onclick="load_from_slot(`+i+`)" `+(testslot?"":"disabled")+`><img class="btnicon-load"/></button>
-					<button type="button" title="Download Slot" name="slc`+i+`" class="btn btn-primary bg_green" onclick="download_from_slot(`+i+`)" `+(testslot?"":"disabled")+`><img class="btnicon-download"/></button>
-					<button type="button" title="Delete Slot" name="slc`+i+`" class="btn btn-primary bg_red" onclick="delete_from_slot(`+i+`)" `+(testslot?"":"disabled")+`><img class="btnicon-delete"/></button>
+					<button type="button" title="Save To Slot ${i}" name="slc${i}" class="btn btn-primary" onclick="save_to_slot(${i})"><img class="btnicon-save"/></button>
+					<button type="button" title="Load From Slot ${i}" name="slc${i}" class="btn btn-primary" onclick="load_from_slot(${i})" `+(testslot?"":"disabled")+`><img class="btnicon-load"/></button>
+					<button type="button" title="Download Slot ${i}" name="slc${i}" class="btn btn-primary bg_green" onclick="download_from_slot(${i})" `+(testslot?"":"disabled")+`><img class="btnicon-download"/></button>
+					<button type="button" title="Delete Slot ${i}" name="slc${i}" class="btn btn-primary bg_red" onclick="delete_from_slot(${i})" `+(testslot?"":"disabled")+`><img class="btnicon-delete"/></button>
 					</div></div>`;
 				filetable += entry;
 			}
@@ -9122,6 +9161,7 @@ Current version indicated by LITEVER below.
 	}
 
 	function display_settings() {
+		mainmenu_untab(true);
 		document.getElementById("settingscontainer").classList.remove("hidden");
 		display_settings_tab(current_settings_tab_idx);
 		document.getElementById("max_context_length").value = document.getElementById("max_context_length_slide").value = localsettings.max_context_length;
@@ -9136,6 +9176,7 @@ Current version indicated by LITEVER below.
 		document.getElementById("viewport_width_mode").value = localsettings.viewport_width_mode;
 		document.getElementById("export_settings").checked = localsettings.export_settings;
 		document.getElementById("show_advanced_load").checked = localsettings.show_advanced_load;
+		document.getElementById("import_tavern_prompt").checked = localsettings.import_tavern_prompt;
 		document.getElementById("invert_colors").checked = localsettings.invert_colors;
 		document.getElementById("trimsentences").checked = localsettings.trimsentences;
 		document.getElementById("trimwhitespace").checked = localsettings.trimwhitespace;
@@ -9423,6 +9464,7 @@ Current version indicated by LITEVER below.
 			document.getElementById("typ_s").value != found.typical ||
 			document.getElementById("tfs_s").value != found.tfs ||
 			document.getElementById("miro_type").value != 0 ||
+			document.getElementById("dry_multiplier").value != 0 ||
 			document.getElementById("rep_pen").value !=  found.rep_pen ||
 			document.getElementById("rep_pen_range").value != found.rep_pen_range ||
 			document.getElementById("rep_pen_slope").value != found.rep_pen_slope ||
@@ -9506,6 +9548,7 @@ Current version indicated by LITEVER below.
 		localsettings.viewport_width_mode = document.getElementById("viewport_width_mode").value;
 		localsettings.export_settings = (document.getElementById("export_settings").checked ? true : false);
 		localsettings.show_advanced_load = (document.getElementById("show_advanced_load").checked ? true : false);
+		localsettings.import_tavern_prompt = (document.getElementById("import_tavern_prompt").checked ? true : false);
 		localsettings.invert_colors = (document.getElementById("invert_colors").checked ? true : false);
 		localsettings.trimsentences = (document.getElementById("trimsentences").checked ? true : false);
 		localsettings.trimwhitespace = (document.getElementById("trimwhitespace").checked ? true : false);
@@ -9877,6 +9920,7 @@ Current version indicated by LITEVER below.
 	}
 
 	function display_newgame() {
+		mainmenu_untab(true);
 		document.getElementById("newgamecontainer").classList.remove("hidden");
 	}
 
@@ -14269,7 +14313,7 @@ Current version indicated by LITEVER below.
 					whorun = "<br>You're using the Cohere API";
 				}
 				else {
-					whorun = `<br>There are <span class="color_orange">${selected_models.reduce((s, a) => s + a.count, 0)}</span> <a class="color_green" href="#" onclick="get_and_show_workers()">volunteer(s)</a> running selected models with a total queue length of <span class="color_orange">${selected_models.reduce((s, a) => s + a.queued, 0)}</span> tokens`;
+					whorun = `<br>There are <span class="color_orange">${selected_models.reduce((s, a) => s + a.count, 0)}</span> <a class="color_green mainnav" href="#" tabindex="${mainmenu_is_untab?`-1`:`0`}" onclick="get_and_show_workers()">volunteer(s)</a> running selected models with a total queue length of <span class="color_orange">${selected_models.reduce((s, a) => s + a.queued, 0)}</span> tokens`;
 				}
 				let nowmode = (localsettings.opmode==1?"Story Mode":(localsettings.opmode==2?"Adventure Mode":(localsettings.opmode==3?"Chat Mode":"Instruct Mode")));
 				let selmodelstr = "";
@@ -14285,8 +14329,8 @@ Current version indicated by LITEVER below.
 				document.getElementById("gametext").innerHTML = `Welcome to <span class="color_cyan">KoboldAI Lite</span>!`+
 				`<br>You are using the models <span class="color_green">${selmodelstr}</span>${(selected_workers.length == 0 ? `` : ` (Pinned to ${selected_workers.length} worker IDs)`)}.`+
 				`${whorun}.<br><br><b><span class="color_orange">${nowmode} Selected</span></b> - Enter a prompt below to begin!`+
-				`<br>Or, <a href="#" class="color_blueurl" onclick="document.getElementById('loadfileinput').click()">load a <b>JSON File</b> or a <b>Character Card</b> here.</a>`+
-				`<br>Or, <a href="#" class="color_blueurl" onclick="display_scenarios()">select a <b>Quick Start Scenario</b> here.</a>`+
+				`<br>Or, <a href="#" tabindex="${mainmenu_is_untab?`-1`:`0`}" class="color_blueurl mainnav" onclick="document.getElementById('loadfileinput').click()">load a <b>JSON File</b> or a <b>Character Card</b> here.</a>`+
+				`<br>Or, <a href="#" tabindex="${mainmenu_is_untab?`-1`:`0`}" class="color_blueurl mainnav" onclick="display_scenarios()">select a <b>Quick Start Scenario</b> here.</a>`+
 				`<br>${(welcome!=""?`<br><em>${escapeHtml(welcome)}</em>`:``)}`;
 			}
 
@@ -14505,7 +14549,7 @@ Current version indicated by LITEVER below.
 			document.getElementById("fvico").href = favivon_normal;
 		}
 		else if (selected_models.length == 0 && selected_workers.length == 0) {
-			let perfinfo = `There are <span class="color_orange">${perfdata.worker_count}</span> total <a class="color_green" href="#" onclick="get_and_show_workers()">volunteer(s)</a> in the AI Horde, and <span class="color_orange">${perfdata.queued_requests}</span> request(s) in queues.<br>A total of <span class="color_orange">${perfdata.past_minute_tokens}</span> tokens were generated in the last minute.<br><br>`;
+			let perfinfo = `There are <span class="color_orange">${perfdata.worker_count}</span> total <a class="color_green mainnav" tabindex="${mainmenu_is_untab?`-1`:`0`}" href="#" onclick="get_and_show_workers()">volunteer(s)</a> in the AI Horde, and <span class="color_orange">${perfdata.queued_requests}</span> request(s) in queues.<br>A total of <span class="color_orange">${perfdata.past_minute_tokens}</span> tokens were generated in the last minute.<br><br>`;
 			document.getElementById("gametext").innerHTML = `Welcome to <span class="color_cyan">KoboldAI Lite</span>!<br><br>${perfinfo}<a href="#" class="color_blueurl" onclick="display_endpoint_container()">Please select an AI service to use!</a><br>`;
 			document.getElementById("fvico").href = favivon_normal;
 		}
@@ -15322,6 +15366,7 @@ Current version indicated by LITEVER below.
 	}
 
 	function btn_memory() {
+		mainmenu_untab(true);
 		document.getElementById("memorycontainer").classList.remove("hidden");
 		display_memory_tab(memory_tab);
 
@@ -16480,35 +16525,35 @@ Current version indicated by LITEVER below.
 							<ul class="nav navbar-nav">
 
 								<li class="nav-item hidden" id="topbtn_reconnect">
-									<a class="nav-link" href="#" onclick="closeTopNav();attempt_connect()">Reconnect</a>
+									<a class="nav-link mainnav" href="#" onclick="closeTopNav();attempt_connect()">Reconnect</a>
 								</li>
 
 								<li class="nav-item hidden" id="topbtn_customendpt">
-									<a class="nav-link" href="#" onclick="closeTopNav();display_endpoint_container()">Select Endpoint</a>
+									<a class="nav-link mainnav" href="#" onclick="closeTopNav();display_endpoint_container()">Select Endpoint</a>
 								</li>
 
 								<li class="nav-item hidden" id="topbtn_ai">
-									<a class="nav-link" href="#" onclick="closeTopNav();display_endpoint_container()">AI</a>
+									<a class="nav-link mainnav" href="#" onclick="closeTopNav();display_endpoint_container()">AI</a>
 								</li>
 
 								<li class="nav-item hidden" id="topbtn_newgame">
-									<a class="nav-link" href="#" onclick="closeTopNav();display_newgame()">New Session</a>
+									<a class="nav-link mainnav" href="#" onclick="closeTopNav();display_newgame()">New Session</a>
 								</li>
 
 								<li class="nav-item hidden" id="topbtn_scenarios">
-									<a class="nav-link" href="#" onclick="closeTopNav();display_scenarios()">Scenarios</a>
+									<a class="nav-link mainnav" href="#" onclick="closeTopNav();display_scenarios()">Scenarios</a>
 								</li>
 								<li class="nav-item hidden" id="topbtn_quickplay">
-									<a class="nav-link" href="#" onclick="closeTopNav();display_scenarios()">Quick Start</a>
+									<a class="nav-link mainnav" href="#" onclick="closeTopNav();display_scenarios()">Quick Start</a>
 								</li>
 
 								<li class="nav-item hidden" id="topbtn_save_load">
 									<a id="tempfile" href="#" style="display:none;"></a>
 									<input type="file" id="loadfileinput" accept="text/json,application/json,image/png,image/webp,.kaistory,.webp,.png,.json,.txt,*.*,*" onchange="load_file(event)" style="display:none;">
-									<a class="nav-link" href="#" onclick="closeTopNav();display_saveloadcontainer()">Save / Load</a>
+									<a class="nav-link mainnav" href="#" onclick="closeTopNav();display_saveloadcontainer()">Save / Load</a>
 								</li>
 								<li class="nav-item hidden" id="topbtn_settings">
-									<a class="nav-link" href="#" id="btn_settings"
+									<a class="nav-link mainnav" href="#" id="btn_settings"
 										onclick="closeTopNav();display_settings()">Settings</a>
 								</li>
 
@@ -16536,39 +16581,39 @@ Current version indicated by LITEVER below.
 
 		<div class="flex" id="actionmenu">
 			<div id="actionmenuitems">
-				<button type="button" class="btn btn-primary" id="btn_actmem" onclick="btn_memory()">Context</button>
-				<button type="button" class="btn btn-primary" id="btn_actundo" onpointerdown="btn_back_longpress_start()" onpointerleave="btn_back_longpress_end()" onpointerup="btn_back_longpress_end()" onclick="btn_back()">Back</button>
-				<button type="button" class="btn btn-primary" id="btn_actredo" onpointerdown="btn_redo_longpress_start()" onpointerleave="btn_redo_longpress_end()" onpointerup="btn_redo_longpress_end()" onclick="btn_redo()">Redo</button>
-				<button type="button" class="btn btn-primary" id="btn_actretry" onclick="btn_retry()">Retry</button>
-				<button type="button" class="btn btn-primary bg_green" id="btn_genimg" onclick="add_img_btn_menu()">Add Img</button>
+				<button type="button" class="btn btn-primary mainnav" id="btn_actmem" onclick="btn_memory()">Context</button>
+				<button type="button" class="btn btn-primary mainnav" id="btn_actundo" onpointerdown="btn_back_longpress_start()" onpointerleave="btn_back_longpress_end()" onpointerup="btn_back_longpress_end()" onclick="btn_back()">Back</button>
+				<button type="button" class="btn btn-primary mainnav" id="btn_actredo" onpointerdown="btn_redo_longpress_start()" onpointerleave="btn_redo_longpress_end()" onpointerup="btn_redo_longpress_end()" onclick="btn_redo()">Redo</button>
+				<button type="button" class="btn btn-primary mainnav" id="btn_actretry" onclick="btn_retry()">Retry</button>
+				<button type="button" class="btn btn-primary bg_green mainnav" id="btn_genimg" onclick="add_img_btn_menu()">Add Img</button>
 			</div>
 			<div class="box flex flex-push-right">
-				<input type="checkbox" id="entersubmit" onclick="toggle_entersends()" checked>
+				<input type="checkbox" id="entersubmit" class="mainnav" onclick="toggle_entersends()" checked>
 				<div class="box-label"><label class="unstyled" for="entersubmit">Enter Sends</label></div>
-				<input type="checkbox" id="allowediting"  onclick="toggle_editable()">
+				<input type="checkbox" id="allowediting" class="mainnav" onclick="toggle_editable()">
 				<div class="box-label"><label class="unstyled" for="allowediting">Allow Editing</label></div>
 			</div>
 		</div>
 		<div class="">
 			<div id="inputrow" class="">
 				<div id="inputrowmode" style="padding-right: 4px;">
-					<button title="Toggle Adventure Mode" type="button" class="btn btn-primary btn-secondary hidden" style="line-height: 1.4;" id="btnmode_adventure" onclick="btn_adventure_mode()">
+					<button title="Toggle Adventure Mode" type="button" class="btn btn-primary btn-secondary hidden mainnav" style="line-height: 1.4;" id="btnmode_adventure" onclick="btn_adventure_mode()">
 						<img id="adventure_mode_img" class="input_story">
 						<br><b id="adventure_mode_txt" style="font-size: 10px;">Story</b>
 					</button>
-					<button title="Show Groupchat Selection" type="button" class="btn btn-primary btn-secondary" style="line-height: 1;" id="btnmode_chat" onclick="show_groupchat_select()">
+					<button title="Show Groupchat Selection" type="button" class="btn btn-primary btn-secondary mainnav" style="line-height: 1;" id="btnmode_chat" onclick="show_groupchat_select()">
 						<img class="input_chat">
 						<br><b style="font-size: 10px;">Chat<br>Select</b>
 					</button>
 				</div>
 				<div id="inputrowleft" class="tokens-in-box">
-					<textarea title="User Input" class="form-control" id="input_text" oninput="update_submit_button()" onkeypress="return handle_typing(event)" placeholder="Enter text here"></textarea>
+					<textarea title="User Input" class="form-control mainnav" id="input_text" oninput="update_submit_button()" onkeypress="return handle_typing(event)" placeholder="Enter text here"></textarea>
 					<span id="token-budget" class="token-budget"></span>
 				</div>
 				<div id="inputrowright" style="padding-right: 2px;">
-					<button type="button" class="btn btn-secondary wait" id="btnsend" disabled
+					<button type="button" class="btn btn-secondary wait mainnav" id="btnsend" disabled
 						onclick="submit_generation_button(false)" onmousedown="ptt_start()" onmouseup="ptt_end()">Loading</button>
-						<a href="#" id="abortgen" class="hidden bg_black" style="text-align: center;color: #ffaaaa;" onclick="abort_generation()"><b style="display: block;">[ABORT]</b></a>
+						<a href="#" id="abortgen" class="hidden bg_black mainnav" style="text-align: center;color: #ffaaaa;" onclick="abort_generation()"><b style="display: block;">[ABORT]</b></a>
 				</div>
 			</div>
 		</div>
@@ -16583,27 +16628,27 @@ Current version indicated by LITEVER below.
 				<!-- A greatly simplified action menu for this mode -->
 				<div class="flex hidden" id="actionmenu2">
 					<div id="actionmenuitems2" class="box flex-push-right" style="margin-bottom: 2px;">
-						<button type="button" class="btn btn-primary" id="btn_actmem2" onclick="btn_memory()">Context</button>
-						<button type="button" class="btn btn-primary" id="btn_actundo2" onpointerdown="btn_back_longpress_start()" onpointerleave="btn_back_longpress_end()" onpointerup="btn_back_longpress_end()" onclick="btn_back()">Back</button>
-						<button type="button" class="btn btn-primary" id="btn_actredo2" onpointerdown="btn_redo_longpress_start()" onpointerleave="btn_redo_longpress_end()" onpointerup="btn_redo_longpress_end()" onclick="btn_redo()">Redo</button>
-						<button type="button" class="btn btn-primary" id="btn_actretry2" onclick="btn_retry()">Retry</button>
-						<button type="button" class="btn btn-primary bg_green" id="btn_genimg2" onclick="add_img_btn_menu()">Add Img</button>
-						<button type="button" class="btn btn-primary" id="btn_editmode" onclick="btn_editmode()">Edit</button>
+						<button type="button" class="btn btn-primary mainnav" id="btn_actmem2" onclick="btn_memory()">Context</button>
+						<button type="button" class="btn btn-primary mainnav" id="btn_actundo2" onpointerdown="btn_back_longpress_start()" onpointerleave="btn_back_longpress_end()" onpointerup="btn_back_longpress_end()" onclick="btn_back()">Back</button>
+						<button type="button" class="btn btn-primary mainnav" id="btn_actredo2" onpointerdown="btn_redo_longpress_start()" onpointerleave="btn_redo_longpress_end()" onpointerup="btn_redo_longpress_end()" onclick="btn_redo()">Redo</button>
+						<button type="button" class="btn btn-primary mainnav" id="btn_actretry2" onclick="btn_retry()">Retry</button>
+						<button type="button" class="btn btn-primary bg_green mainnav" id="btn_genimg2" onclick="add_img_btn_menu()">Add Img</button>
+						<button type="button" class="btn btn-primary mainnav" id="btn_editmode" onclick="btn_editmode()">Edit</button>
 
 					</div>
 				</div>
 
 				<div class="cht_inp_hold_outer">
 					<div class="cht_inp_hold">
-					<button title="Show Groupchat Selection" onclick="show_groupchat_select()" id="chat_btnmode_chat" class="chat_btnmode_chat hidden" type="button"></button>
-					<button title="Toggle Adventure Mode" onclick="btn_adventure_mode()" id="chat_btnmode_adventure" class="chat_btnmode_adventure actionmode hidden" type="button"></button>
+					<button title="Show Groupchat Selection" onclick="show_groupchat_select()" id="chat_btnmode_chat" class="chat_btnmode_chat hidden mainnav" type="button"></button>
+					<button title="Toggle Adventure Mode" onclick="btn_adventure_mode()" id="chat_btnmode_adventure" class="chat_btnmode_adventure actionmode hidden mainnav" type="button"></button>
 					<div id="cht_inp_bg" class="cht_inp_bg">
 					<div class="cht_inp_bg_inner" id="cht_inp_lengthtester" style="white-space: nowrap; visibility: hidden; height: 0px; position:absolute; width: auto;"></div>
-					<textarea title="User Input" class="cht_inp_bg_inner" id="cht_inp" type="text" name="chtchtinp"  role="presentation" autocomplete="noppynop" spellcheck="true" rows="1" wrap="on" placeholder="Type a message" value="" oninput="update_submit_button();chat_resize_input();" onkeypress="return chat_handle_typing(event)"/></textarea>
+					<textarea title="User Input" class="cht_inp_bg_inner mainnav" id="cht_inp" type="text" name="chtchtinp"  role="presentation" autocomplete="noppynop" spellcheck="true" rows="1" wrap="on" placeholder="Type a message" value="" oninput="update_submit_button();chat_resize_input();" onkeypress="return chat_handle_typing(event)"/></textarea>
 					</div>
-					<button title="Submit" onclick="submit_generation_button(true)" onmousedown="ptt_start()" onmouseup="ptt_end()" id="chat_msg_send_btn" class="chat_msg_send_btn" type="button"></button>
-					<button title="Abort" onclick="abort_generation()" id="chat_msg_send_btn_abort" class="hidden chat_msg_send_btn_abort" type="button"></button>
-					<button title="Toggle Action Menu" type="button" class="chat_msg_cust_btn" id="btn_chat_cust" onclick="chat_toggle_actionmenu()"></button>
+					<button title="Submit" onclick="submit_generation_button(true)" onmousedown="ptt_start()" onmouseup="ptt_end()" id="chat_msg_send_btn" class="chat_msg_send_btn mainnav" type="button"></button>
+					<button title="Abort" onclick="abort_generation()" id="chat_msg_send_btn_abort" class="hidden chat_msg_send_btn_abort mainnav" type="button"></button>
+					<button title="Toggle Action Menu" type="button" class="chat_msg_cust_btn mainnav" id="btn_chat_cust" onclick="chat_toggle_actionmenu()"></button>
 					</div>
 				</div>
 
@@ -16614,12 +16659,12 @@ Current version indicated by LITEVER below.
 		<div id="corpointerface" class="hidden">
 			<div class="corpostyle">
 				<div id="corpo_leftpannel" class="corpoleftpanel">
-					<button class="corpo_leftpanel_close" onclick="show_corpo_leftpanel(false)">&times;</button>
+					<button title="Hide Corpo Side Panel" class="corpo_leftpanel_close" onclick="show_corpo_leftpanel(false)">&times;</button>
 					<p id="corpoleftpanelitems" class="corpoleftpanelitems">
 
 					</p>
 				</div>
-				<button class="corpo_leftpanel_open" onclick="show_corpo_leftpanel(true)"><div class="corpo_arrow_right"></div></button>
+				<button title="Show Corpo Side Panel" class="corpo_leftpanel_open" onclick="show_corpo_leftpanel(true)"><div class="corpo_arrow_right"></div></button>
 				<div class="corporightpanel">
 					<div id="corpostylemain" class="corpostylemain">
 						<div id="corpo_body" class="corpostyleinner"></div>
@@ -16627,9 +16672,9 @@ Current version indicated by LITEVER below.
 					<div class="corpomainbtm">
 						<div class="corpo_chat_outer">
 							<div class="corpo_chat_inner" id="corpo_cht_inp_lengthtester" style="white-space: nowrap; visibility: hidden; height: 0px; position:absolute; width: auto;"></div>
-							<textarea title="User Input" class="corpo_chat_inner" id="corpo_cht_inp" type="text" name="crpchtinp"  role="presentation" autocomplete="noppynop" spellcheck="true" rows="1" wrap="on" placeholder="Message KoboldAI" value="" oninput="update_submit_button();chat_resize_input();" onkeypress="return chat_handle_typing(event)"/></textarea>
-							<button title="Submit" onclick="submit_generation_button(true)" id="corpo_chat_send_btn" class="corpo_chat_send_btn" type="button"></button>
-							<button title="Abort" onclick="abort_generation()" id="corpo_chat_send_btn_abort" class="hidden corpo_chat_send_btn_abort" type="button"></button>
+							<textarea title="User Input" class="corpo_chat_inner mainnav" id="corpo_cht_inp" type="text" name="crpchtinp"  role="presentation" autocomplete="noppynop" spellcheck="true" rows="1" wrap="on" placeholder="Message KoboldAI" value="" oninput="update_submit_button();chat_resize_input();" onkeypress="return chat_handle_typing(event)"/></textarea>
+							<button title="Submit" onclick="submit_generation_button(true)" id="corpo_chat_send_btn" class="corpo_chat_send_btn mainnav" type="button"></button>
+							<button title="Abort" onclick="abort_generation()" id="corpo_chat_send_btn_abort" class="hidden corpo_chat_send_btn_abort mainnav" type="button"></button>
 						</div>
 						<div id="lastreq3" class="corpolastreq color_gray"></div>
 					</div>
@@ -16714,7 +16759,7 @@ Current version indicated by LITEVER below.
 				<div class="popuptitletext">Select your AI provider</div>
 			</div>
 			<div style="padding: 4px;">
-			<select style="padding:4px;" class="form-control" id="customapidropdown" onchange="customapi_dropdown()">
+			<select title="Select your AI provider" style="padding:4px;" class="form-control" id="customapidropdown" onchange="customapi_dropdown()">
 				<option value="0">AI Horde</option>
 				<option value="1">KoboldAI Remote API</option>
 				<option value="2">OpenAI API</option>
@@ -17048,6 +17093,34 @@ Current version indicated by LITEVER below.
 						</div>
 					</div>
 
+					<div class="settingitem wide" id="chatnamessection">
+						<div class="settinglabel" style="padding-top: 3px;">
+							<div style="display:flex;width:100%;">
+								<div class="settinglabel settingcell" style="padding-bottom:0px">
+									<div  class="justifyleft settingsmall" style="width:100%">Your Name <span class="helpicon">?<span class="helptext">The name the AI will see you as</span></span></div>
+								</div>
+								<div class="settinglabel settingcell" style="padding-bottom:0px">
+									<div class="justifyleft settingsmall" style="width:100%">AI Name <span class="helpicon">?<span class="helptext">Name of the person(s) you want to chat with. Multiple opponents can be specified, creating a group chat, separate their names using multiple lines.</span></span></div>
+								</div>
+							</div>
+							<div style="display:flex;width:100%;">
+								<div class="settinglabel settingcell">
+									<div class="justifyleft settingsmall" style="width:100%">
+									<input class="settinglabel miniinput" style="height:18px;" type="text" placeholder="(Enter Name)" value="" id="chatname" title="The name that you will be chatting as">
+									</div>
+								</div>
+								<div class="settinglabel settingcell">
+									<div class="justifyleft settingsmall" style="width:100%">
+									<textarea class="settinglabel miniinput" style="resize: none;overflow:hidden;" id="chatopponent" placeholder="(Auto)" rows="1" wrap="off" title="The name of the person you want to chat with" oninput="handle_bot_name_input()" onchange="handle_bot_name_onchange()"></textarea>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="settinglabel" style="width:100%">
+							<button type="button" class="btn btn-primary" style="padding:2px 4px;margin:2px;margin-left:auto;font-size:11px;" onclick="add_another_participant()">Add Another Participant</button>
+						</div>
+					</div>
+
 					<div class="settingitem wide" id="instructtagsection">
 						<div class="settinglabel">
 							<div id="instructsection_basic" class="settinglabel" style="width:100%">
@@ -17077,34 +17150,6 @@ Current version indicated by LITEVER below.
 								<div style="width:100px">Assistant Tag <span class="helpicon">?<span class="helptext">The sequence to start an assistant response</span></span></div>
 								<input class="settinglabel miniinput" title="Assistant Tag" style="width:calc(100% - 100px)" type="text" placeholder="\\n### Response:\\n" value="" id="instruct_endtag" onchange="edit_instruct_tag_format()" title="The sequence to end an instruction prompt">
 							</div>
-						</div>
-					</div>
-
-					<div class="settingitem wide" id="chatnamessection">
-						<div class="settinglabel" style="padding-top: 3px;">
-							<div style="display:flex;width:100%;">
-								<div class="settinglabel settingcell" style="padding-bottom:0px">
-									<div  class="justifyleft settingsmall" style="width:100%">Your Name <span class="helpicon">?<span class="helptext">The name the AI will see you as</span></span></div>
-								</div>
-								<div class="settinglabel settingcell" style="padding-bottom:0px">
-									<div class="justifyleft settingsmall" style="width:100%">AI Name <span class="helpicon">?<span class="helptext">Name of the person(s) you want to chat with. Multiple opponents can be specified, creating a group chat, separate their names using multiple lines.</span></span></div>
-								</div>
-							</div>
-							<div style="display:flex;width:100%;">
-								<div class="settinglabel settingcell">
-									<div class="justifyleft settingsmall" style="width:100%">
-									<input class="settinglabel miniinput" style="height:18px;" type="text" placeholder="(Enter Name)" value="" id="chatname" title="The name that you will be chatting as">
-									</div>
-								</div>
-								<div class="settinglabel settingcell">
-									<div class="justifyleft settingsmall" style="width:100%">
-									<textarea class="settinglabel miniinput" style="resize: none;overflow:hidden;" id="chatopponent" placeholder="(Auto)" rows="1" wrap="off" title="The name of the person you want to chat with" oninput="handle_bot_name_input()" onchange="handle_bot_name_onchange()"></textarea>
-									</div>
-								</div>
-							</div>
-						</div>
-						<div class="settinglabel" style="width:100%">
-							<button type="button" class="btn btn-primary" style="padding:2px 4px;margin:2px;margin-left:auto;font-size:11px;" onclick="add_another_participant()">Add Another Participant</button>
 						</div>
 					</div>
 
@@ -17501,7 +17546,7 @@ Current version indicated by LITEVER below.
 
 					<div class="settingitem">
 						<div class="settinglabel">
-							<div class="justifyleft settingsmall">TTS <span class="helpicon">?<span class="helptext">Enable Text-To-Speech to have your story automatically read to you.</span></span></div>
+							<div class="justifyleft settingsmall" style="width: 100%;">TTS <span class="helpicon">?<span class="helptext">Enable Text-To-Speech to have your story automatically read to you.</span></span></div>
 							<select title="Text To Speech" class="form-control" id="ttsselect" style="font-size:12px;height:20px;padding:0;margin:0px 0 0;width:calc(100% - 35px);" onchange="toggle_tts_mode()">
 							</select>
 							<button id="test_tts" type="button" class="bg_green btn btn-primary" style="height:20px; width:30px; padding:2px 3px;font-size:11px; margin-left: 2px;" onclick="test_tts()">Test</button>
@@ -17532,7 +17577,7 @@ Current version indicated by LITEVER below.
 						   <input title="Notify On Done" type="checkbox" id="notify_on" style="margin:0px 0px 0px auto;">
 						</div>
 
-						<div class="settinglabel" style="margin-top: 5px;">
+						<div class="settinglabel" style="margin-top: 8px;">
 							<div class="justifyleft settingsmall">Speech Control <span class="helpicon">?<span class="helptext">Requires KoboldCpp with Whisper model loaded. Enables Speech-To-Text voice input. Automatically listens for speech in 'On' mode (Voice Detection), or use Push-To-Talk (PTT).</span></span></div>
 							<select title="Speech Control Mode" style="padding:1px; height:auto; font-size: 8pt;" class="form-control" id="voice_typing_mode">
 								<option value="0">Off</option>
@@ -17550,10 +17595,12 @@ Current version indicated by LITEVER below.
 					<div class="settingitem wide">
 						<div style="font-size:12px;">
 							<div class="settingsdesctxt">Style tags to use for generating images:<br>(E.g. Sketch, Realistic, Anime, 3D Render, Drawing)<br></div>
-							<input class="settinglabel miniinput" type="text" placeholder="Default Style" value="" id="imagestyleinput">
-							<div class="aidgpopuplistheader anotelabel">Negative Prompt<br></div>
-							<input title="Negative Prompt" class="settinglabel miniinput" type="text" placeholder="Default Negative Prompt. Put &quot;none&quot; to skip" value="" id="negpromptinput">
+							<input class="settinglabel miniinput" title="Style Tags" type="text" placeholder="Default Style" value="" id="imagestyleinput">
 
+							<div class="inlinelabel">
+								<div class="justifyleft" style="padding:4px">Negative Prompt: </div>
+								<input title="Negative Prompt" style="width:calc(100% - 110px);" type="text" placeholder="Default Negative Prompt. Put &quot;none&quot; to skip" value="" id="negpromptinput">
+							</div>
 							<div class="inlinelabel">
 								<div class="justifyleft" style="padding:4px">Number of Steps: </div>
 								<input title="Number of Steps" type="text" inputmode="decimal" id="img_steps" style="width:60px">
@@ -17650,16 +17697,8 @@ Current version indicated by LITEVER below.
 								class="helptext">If enabled, renders special tags like EOS and padding tokens. Not recommended.</span></span></div>
 						   <input title="Render Special Tags" type="checkbox" id="render_special_tags" style="margin:0px 0px 0px auto;">
 						</div>
-						<div class="settinglabel">
-							<div class="justifyleft settingsmall">Run In Background <span class="helpicon">?<span
-								class="helptext">Prevents the browser from suspending KoboldAI Lite by playing a silent audio track. This setting cannot be saved.</span></span></div>
-						   <input title="Run In Background" type="checkbox" id="run_in_background" style="margin:0px 0px 0px auto;">
-						</div>
-						<div class="settinglabel">
-							<div class="justifyleft settingsmall">User Mods <span class="helpicon">?<span class="helptext">Allows you to load third-party user created mods (caution).</span></span></div>
-							<button id="loadusermod" type="button" class="btn btn-primary" style="padding:2px 3px;margin-top:2px;font-size:11px;margin:0px 0px 0px auto;" onclick="apply_user_mod()">Apply User Mod</button>
-						</div>
 					</div>
+
 
 					<div class="settingitem">
 						<div class="settinglabel">
@@ -17682,6 +17721,26 @@ Current version indicated by LITEVER below.
 								class="helptext">If enabled, allows you to select additional configurations during file load</span></span></div>
 						   <input title="Show Advanced Load" type="checkbox" id="show_advanced_load" style="margin:0px 0px 0px auto;">
 						</div>
+						<div class="settinglabel">
+							<div class="justifyleft settingsmall">Card Import Prompt <span class="helpicon">?<span
+								class="helptext">If enabled, prompts the user to choose what mode to import a character card in. If disabled, automatically picks chat mode.</span></span></div>
+						   <input title="Character Card Import Prompt" type="checkbox" id="import_tavern_prompt" style="margin:0px 0px 0px auto;">
+						</div>
+					</div>
+
+					<div class="settingitem" style="margin-top: 4px;">
+						<div class="settinglabel">
+							<div class="justifyleft settingsmall">Run In Background <span class="helpicon">?<span
+								class="helptext">Prevents the browser from suspending KoboldAI Lite by playing a silent audio track. This setting cannot be saved.</span></span></div>
+						   <input title="Run In Background" type="checkbox" id="run_in_background" style="margin:0px 0px 0px auto;">
+						</div>
+						<div class="settinglabel">
+							<div class="justifyleft settingsmall">User Mods <span class="helpicon">?<span class="helptext">Allows you to load third-party user created mods (caution).</span></span></div>
+							<button id="loadusermod" type="button" class="btn btn-primary" style="padding:2px 3px;margin-top:2px;font-size:11px;margin:0px 0px 0px auto;" onclick="apply_user_mod()">Apply User Mod</button>
+						</div>
+					</div>
+
+					<div class="settingitem" style="margin-top: 4px;">
 						<div class="settinglabel">
 							<div class="justifyleft settingsmall">Autoscroll Text <span class="helpicon">?<span
 								class="helptext">Automatically scrolls the text window down when new text is generated</span></span></div>
