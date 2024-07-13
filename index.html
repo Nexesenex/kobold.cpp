@@ -3945,7 +3945,7 @@ Current version indicated by LITEVER below.
 	const ALLTALK_ID = 1001;
 	const HD_RES_PX = 512;
 	const NO_HD_RES_PX = 320;
-	const SAVE_SLOTS = 6;
+	const SAVE_SLOTS = 8;
 
 	//all configurable globals
 	var perfdata = null; //if it's null, we are not connected
@@ -8575,8 +8575,7 @@ Current version indicated by LITEVER below.
 				<button type="button" style="font-size:12px; margin:2px;width:33%" name="localload" class="btn btn-primary" onclick="hide_popups();load_file_button()">`+"📁<br>Open File"+`</button>
 				<button type="button" style="font-size:12px; margin:2px;width:34%" name="shareurl" class="btn btn-primary" onclick="hide_popups();share_story_button()">`+"🌐<br>Share"+`</button>
 				</div>
-				<div style="margin-top:3px; text-align: center; align-self: center; width: calc(100% - 184px);">
-				<span style="font-weight:bold;text-decoration: underline;">Temporary Browser Storage</span>
+				<div style="margin-top:0px; text-align: center; align-self: center; width: calc(100% - 184px);">
 				</div>`;
 		filetable += entry;
 
@@ -8585,7 +8584,7 @@ Current version indicated by LITEVER below.
 			for(let i=0;i<SAVE_SLOTS;++i)
 			{
 				let testslot = localStorage.getItem(STORAGE_PREFIX + "slot_"+i+"_meta");
-				entry = `<div style="display:flex; height:42px;">
+				entry = `<div style="display:flex; height:33px;">
 					<div style="margin:3px; text-align: center; align-self: center; width: calc(100% - 184px);">
 					`+(testslot?`[ Slot `+(i+1)+` - `+testslot+` ]`:`[ Slot `+(i+1)+` - Empty ]`)+`
 					</div>
@@ -16735,13 +16734,13 @@ Current version indicated by LITEVER below.
 		<div class="popupbg flex"></div>
 		<div class="saveloadpopup">
 			<div class="popuptitlebar">
-				<div class="popuptitletext">Save File / Load File / Export File</div>
+				<div class="popuptitletext">Save / Load Chat in Temp Browser Storage, or Export via Download</div>
 			</div>
 
 			<div style="overflow: auto;">
 				<div id="saveloadentries" class="justifyleft anotelabel saveloadgrid">
 				</div>
-				<div class="justifyleft anotelabel"><p style="padding:6px;font-size: 10px;" class="color_red">Caution: Storage Slots are saved to a tempoary cache and can be deleted by your browser. To avoid losing data, use the download file button.</p></div>
+				<div class="justifyleft anotelabel"><p style="padding:0px;font-size: 8px;" class="color_red">CAUTION: CHATS ARE SAVED TO A TEMPOARY CACHE AND CAN BE DELETED BY YOUR BROWSER. TO AVOID LOSING DATA, USE THE DOWNLOAD FILE BUTTON.</p></div>
 				<div class="popupfooter">
 					<button type="button" class="btn btn-primary" id=""
 						onclick="hide_popups()">Back</button>
