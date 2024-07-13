@@ -1,8 +1,8 @@
 {
-"system_start":"### Input:",
-"system_end":"\n\n",
-"user_start":"### Instruction:",
-"user_end":"\n\n",
-"assistant_start":"### Response:",
-"assistant_end":"\n\n"
+  "system_start": "",
+  "system_end": "\n\n",
+  "user_start": "### Instruction:\n",
+  "user_end": "\n\n",
+  "assistant_start": "### Response:\n",
+  "assistant_end": "</s>\n\n"
 }
