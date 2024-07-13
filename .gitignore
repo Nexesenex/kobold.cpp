@@ -132,6 +132,8 @@ tests/test-tokenizer-1-bpe
 /hipblas.dll
 /koboldcpp_hipblas.so
 /koboldcpp_hipblas*.dll
+cudart64_110.dll
+cudart64_12.dll
 
 bin/
 conda/
@@ -142,3 +144,6 @@ conda/
 !/scripts/install-oneapi.bat
 
 *.spec
+kobold_benchmarks.csv
+.~lock.kobold_benchmarks.csv\#
+*.dll
