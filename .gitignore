@@ -121,6 +121,7 @@ tests/test-tokenizer-1-bpe
 /koboldcpp_clblast.dll
 /koboldcpp_clblast_noavx2.dll
 /koboldcpp_vulkan_noavx2.dll
+/koboldcpp_openblas_noavx2.dll
 /koboldcpp_cublas*.dll
 /koboldcpp_vulkan.dll
 /cublas64_11.dll
