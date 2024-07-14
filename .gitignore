@@ -144,3 +144,4 @@ conda/
 *.spec
 kobold_benchmarks.csv
 .~lock.kobold_benchmarks.csv\#
+*.dll
