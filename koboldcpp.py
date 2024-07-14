@@ -196,6 +196,7 @@ def pick_existant_file(ntoption,nonntoption):
 lib_default = pick_existant_file("koboldcpp_default.dll","koboldcpp_default.so")
 lib_failsafe = pick_existant_file("koboldcpp_failsafe.dll","koboldcpp_failsafe.so")
 lib_openblas = pick_existant_file("koboldcpp_openblas.dll","koboldcpp_openblas.so")
+lib_openblas_noavx2 = pick_existant_file("koboldcpp_openblas_noavx2.dll","koboldcpp_openblas_noavx2.so")
 lib_noavx2 = pick_existant_file("koboldcpp_noavx2.dll","koboldcpp_noavx2.so")
 lib_clblast = pick_existant_file("koboldcpp_clblast.dll","koboldcpp_clblast.so")
 lib_clblast_noavx2 = pick_existant_file("koboldcpp_clblast_noavx2.dll","koboldcpp_clblast_noavx2.so")
@@ -207,10 +208,10 @@ libname = ""
 
 def init_library():
     global handle, args, libname
-    global lib_default,lib_failsafe,lib_openblas,lib_noavx2,lib_clblast,lib_clblast_noavx2,lib_cublas,lib_hipblas,lib_vulkan,lib_vulkan_noavx2
+    global lib_default,lib_failsafe,lib_openblas,lib_openblas_noavx2,lib_noavx2,lib_clblast,lib_clblast_noavx2,lib_cublas,lib_hipblas,lib_vulkan,lib_vulkan_noavx2
 
     libname = ""
-    use_openblas = False # if true, uses OpenBLAS for acceleration. libopenblas.dll must exist in the same dir.
+    use_openblas = False # if true, uses OpenBLAS for acceleration. libopenblas.dll must exist in the same dir
     use_clblast = False #uses CLBlast instead
     use_cublas = False #uses cublas instead
     use_hipblas = False #uses hipblas instead
@@ -233,13 +234,21 @@ def init_library():
                 print("Attempting to use NoAVX2 Vulkan library for faster prompt ingestion. A compatible Vulkan will be required.")
                 use_vulkan = True
         else:
-            if not file_exists(lib_noavx2):
+            if not file_exists(lib_openblas_noavx2) or (os.name=='nt' and not file_exists("libopenblas.dll")):
+                print("Warning: OpenBLAS library file not found.")
+            elif not file_exists(lib_noavx2):
                 print("Warning: NoAVX2 library file not found. Failsafe library will be used.")
+                use_failsafe = true
             elif (args.noblas and args.nommap):
                 use_failsafe = True
                 print("!!! Attempting to use FAILSAFE MODE !!!")
+            elif args.noblas:
+                print("Non-BLAS non-avx2 library will be used.")
             else:
-                print("Attempting to use non-avx2 compatibility library.")
+                use_openblas = True
+                print("Attempting to use OpenBLAS library for faster prompt ingestion. A compatible libopenblas will be required.")
+                if sys.platform=="darwin":
+                    print("Mac OSX note: Some people have found Accelerate actually faster than OpenBLAS. To compare, run Koboldcpp with --noblas instead.")
     elif args.useclblast:
         if not file_exists(lib_clblast) or (os.name=='nt' and not file_exists("clblast.dll")):
             print("Warning: CLBlast library file not found. Non-BLAS library will be used.")
@@ -267,7 +276,7 @@ def init_library():
         if not file_exists(lib_openblas) or (os.name=='nt' and not file_exists("libopenblas.dll")):
             print("Warning: OpenBLAS library file not found. Non-BLAS library will be used.")
         elif args.noblas:
-            print("Attempting to library without OpenBLAS.")
+            print("Attempting to use library without OpenBLAS.")
         else:
             use_openblas = True
             print("Attempting to use OpenBLAS library for faster prompt ingestion. A compatible libopenblas will be required.")
@@ -281,6 +290,8 @@ def init_library():
             libname = lib_clblast_noavx2
         elif use_vulkan:
             libname = lib_vulkan_noavx2
+        elif use_openblas:
+            libname = lib_openblas_noavx2
         else:
             libname = lib_noavx2
     else:
@@ -1885,9 +1896,10 @@ def show_new_gui():
         (lib_default, "Use No BLAS"),
         (lib_clblast_noavx2, "CLBlast NoAVX2 (Old CPU)"),
         (lib_vulkan_noavx2, "Vulkan NoAVX2 (Old CPU)"),
+        (lib_openblas_noavx2, "Use OpenBLAS (Old CPU)"),
         (lib_noavx2, "NoAVX2 Mode (Old CPU)"),
         (lib_failsafe, "Failsafe Mode (Old CPU)")]
-    openblas_option, clblast_option, cublas_option, hipblas_option, vulkan_option, default_option, clblast_noavx2_option, vulkan_noavx2_option, noavx2_option, failsafe_option = (opt if file_exists(lib) or (os.name == 'nt' and file_exists(opt + ".dll")) else None for lib, opt in lib_option_pairs)
+    openblas_option, clblast_option, cublas_option, hipblas_option, vulkan_option, default_option, clblast_noavx2_option, vulkan_noavx2_option, openblas_noavx2_option, noavx2_option, failsafe_option = (opt if file_exists(lib) or (os.name == 'nt' and file_exists(opt + ".dll")) else None for lib, opt in lib_option_pairs)
     # slider data
     blasbatchsize_values = ["-1", "1", "2", "4", "8", "16", "32", "64", "128", "256", "512", "1024", "2048", "4096"]
     blasbatchsize_text = ["Don't Batch BLAS","1","2","4","8","16","32","64","128","256","512","1024","2048","4096"]
@@ -2769,7 +2781,12 @@ def show_new_gui():
         elif "noblas" in dict and dict["noblas"]:
             if default_option is not None:
                 runopts_var.set(default_option)
-        elif openblas_option is not None:
+#        elif openblas_option is not None:
+#                runopts_var.set(openblas_option)
+        elif "openblas" in dict and dict ["openblas"]:
+            if "noavx2" in dict and dict["noavx2"]:
+                runopts_var.set(openblas_noavx2_option)
+            else:
                 runopts_var.set(openblas_option)
         if "gpulayers" in dict and dict["gpulayers"]:
             gpulayers_var.set(dict["gpulayers"])
@@ -3504,8 +3521,8 @@ def main(launch_args,start_server=True):
         nocertify = True
 
     if args.gpulayers and args.gpulayers>0:
-        global libname, lib_default, lib_openblas, lib_failsafe, lib_noavx2
-        nogood = [lib_default,lib_openblas,lib_failsafe,lib_noavx2]
+        global libname, lib_default, lib_openblas, lib_openblas_noavx2, lib_failsafe, lib_noavx2
+        nogood = [lib_default,lib_openblas,lib_openblas_noavx2,lib_failsafe,lib_noavx2]
         if libname in nogood and sys.platform!="darwin":
             print("WARNING: GPU layers is set, but a GPU backend was not selected!")
             pass
