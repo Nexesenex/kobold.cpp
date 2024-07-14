@@ -1,7 +1,7 @@
 # Add custom options to Makefile.local rather than editing this file.
 -include $(abspath $(lastword ${MAKEFILE_LIST})).local
 
-default: koboldcpp_default koboldcpp_failsafe koboldcpp_openblas koboldcpp_noavx2 koboldcpp_clblast koboldcpp_clblast_noavx2 koboldcpp_cublas koboldcpp_hipblas koboldcpp_vulkan koboldcpp_vulkan_noavx2
+default: koboldcpp_default koboldcpp_failsafe koboldcpp_openblas koboldcpp_noavx2 koboldcpp_clblast koboldcpp_clblast_noavx2 koboldcpp_cublas koboldcpp_hipblas koboldcpp_vulkan koboldcpp_vulkan_noavx2 koboldcpp_openblas_noavx2
 tools: quantize_gpt2 quantize_gptj quantize_gguf quantize_neox quantize_mpt quantize_clip whispermain sdmain gguf-split
 dev: koboldcpp_openblas
 dev2: koboldcpp_clblast
@@ -469,6 +469,8 @@ ggml_v4_vulkan.o: ggml.c ggml.h ggml-cuda.h ggml-common.h
 	$(CC)  $(FASTCFLAGS) $(FULLCFLAGS) $(VULKAN_FLAGS) -c $< -o $@
 ggml_v4_vulkan_noavx2.o: ggml.c ggml.h ggml-cuda.h ggml-common.h
 	$(CC)  $(FASTCFLAGS) $(SIMPLECFLAGS) $(VULKAN_FLAGS) -c $< -o $@
+ggml_v4_openblas_noavx2.o: ggml.c ggml.h ggml-cuda.h ggml-common.h
+	$(CC)  $(FASTCFLAGS) $(SIMPLECFLAGS) $(OPENBLAS_FLAGS) -c $< -o $@
 
 #quants
 ggml-quants.o: ggml-quants.c ggml.h ggml-quants.h ggml-cuda.h ggml-common.h
@@ -527,6 +529,8 @@ ggml_v3_cublas.o: otherarch/ggml_v3.c otherarch/ggml_v3.h
 	$(CC)  $(FASTCFLAGS) $(FULLCFLAGS) $(CUBLAS_FLAGS) $(HIPFLAGS) -c $< -o $@
 ggml_v3_clblast_noavx2.o: otherarch/ggml_v3.c otherarch/ggml_v3.h
 	$(CC)  $(FASTCFLAGS) $(SIMPLECFLAGS) $(CLBLAST_FLAGS) -c $< -o $@
+ggml_v3_openblas_noavx2.o: otherarch/ggml_v3.c otherarch/ggml_v3.h
+	$(CC)  $(FASTCFLAGS) $(SIMPLECFLAGS) $(OPENBLAS_FLAGS) -c $< -o $@
 
 #version 2 libs
 ggml_v2.o: otherarch/ggml_v2.c otherarch/ggml_v2.h
@@ -543,6 +547,8 @@ ggml_v2_cublas.o: otherarch/ggml_v2.c otherarch/ggml_v2.h
 	$(CC)  $(FASTCFLAGS) $(FULLCFLAGS) $(CUBLAS_FLAGS) $(HIPFLAGS) -c $< -o $@
 ggml_v2_clblast_noavx2.o: otherarch/ggml_v2.c otherarch/ggml_v2.h
 	$(CC)  $(FASTCFLAGS) $(SIMPLECFLAGS) $(CLBLAST_FLAGS) -c $< -o $@
+ggml_v2_openblas_noavx2.o: otherarch/ggml_v2.c otherarch/ggml_v2.h
+	$(CC)  $(FASTCFLAGS) $(SIMPLECFLAGS) $(OPENBLAS_FLAGS) -c $< -o $@
 
 #extreme old version compat
 ggml_v1.o: otherarch/ggml_v1.c otherarch/ggml_v1.h
@@ -608,9 +614,11 @@ gpttype_adapter_vulkan.o: $(GPTTYPE_ADAPTER)
 	$(CXX) $(CXXFLAGS) $(VULKAN_FLAGS) -c $< -o $@
 gpttype_adapter_vulkan_noavx2.o: $(GPTTYPE_ADAPTER)
 	$(CXX) $(CXXFLAGS) $(FAILSAFE_FLAGS) $(VULKAN_FLAGS) -c $< -o $@
+gpttype_adapter_openblas_noavx2.o: $(GPTTYPE_ADAPTER)
+	$(CXX) $(CXXFLAGS) $(FAILSAFE_FLAGS) $(OPENBLAS_FLAGS) -c $< -o $@
 
 clean:
-	rm -vf *.o main sdmain whispermain quantize_gguf quantize_clip quantize_gpt2 quantize_gptj quantize_neox quantize_mpt quantize-stats perplexity embedding benchmark-matmult save-load-state gguf imatrix imatrix.exe gguf.exe main.exe quantize_clip.exe quantize_gguf.exe quantize_gptj.exe quantize_gpt2.exe quantize_neox.exe quantize_mpt.exe koboldcpp_default.dll koboldcpp_openblas.dll koboldcpp_failsafe.dll koboldcpp_noavx2.dll koboldcpp_clblast.dll koboldcpp_clblast_noavx2.dll koboldcpp_vulkan.dll koboldcpp_vulkan_noavx2.dll koboldcpp_default.so koboldcpp_openblas.so koboldcpp_failsafe.so koboldcpp_noavx2.so koboldcpp_clblast.so koboldcpp_clblast_noavx2.so koboldcpp_cublas.so koboldcpp_hipblas.so koboldcpp_vulkan.so koboldcpp_vulkan_noavx2.so
+	rm -vf *.o main sdmain whispermain quantize_gguf quantize_clip quantize_gpt2 quantize_gptj quantize_neox quantize_mpt quantize-stats perplexity embedding benchmark-matmult save-load-state gguf imatrix imatrix.exe gguf.exe main.exe quantize_clip.exe quantize_gguf.exe quantize_gptj.exe quantize_gpt2.exe quantize_neox.exe quantize_mpt.exe koboldcpp_default.dll koboldcpp_openblas.dll koboldcpp_failsafe.dll koboldcpp_noavx2.dll koboldcpp_clblast.dll koboldcpp_clblast_noavx2.dll koboldcpp_vulkan.dll koboldcpp_vulkan_noavx2.dll koboldcpp_openblas_noavx2.dll koboldcpp_default.so koboldcpp_openblas.so koboldcpp_failsafe.so koboldcpp_noavx2.so koboldcpp_clblast.so koboldcpp_clblast_noavx2.so koboldcpp_cublas.so koboldcpp_hipblas.so koboldcpp_vulkan.so koboldcpp_vulkan_noavx2.so koboldcpp_openblas_noavx2.so
 	rm -vrf ggml-cuda/*.o
 	rm -vrf ggml-cuda/template-instances/*.o
 
@@ -637,8 +645,17 @@ koboldcpp_default: ggml.o ggml_v3.o ggml_v2.o ggml_v1.o expose.o gpttype_adapter
 ifdef OPENBLAS_BUILD
 koboldcpp_openblas: ggml_v4_openblas.o ggml_v3_openblas.o ggml_v2_openblas.o ggml_v1.o expose.o gpttype_adapter_openblas.o sdcpp_default.o whispercpp_default.o llavaclip_default.o llava.o ggml-backend_default.o ggml-blas.o $(OBJS_FULL) $(OBJS)
 	$(OPENBLAS_BUILD)
+ifdef OPENBLAS_BUILD
+koboldcpp_openblas_noavx2: ggml_v4_openblas_noavx2.o ggml_v3_openblas_noavx2.o ggml_v2_openblas_noavx2.o ggml_v1_failsafe.o expose.o gpttype_adapter_openblas_noavx2.o sdcpp_default.o whispercpp_default.o llavaclip_default.o llava.o ggml-backend_default.o ggml-blas.o $(OBJS_SIMPLE) $(OBJS)
+	$(OPENBLAS_BUILD)
+else
+koboldcpp_openblas_noavx2:
+	$(DONOTHING)
+endif
 else
 koboldcpp_openblas:
+	$(DONOTHING)
+koboldcpp_openblas_noavx2:
 	$(DONOTHING)
 endif
 
