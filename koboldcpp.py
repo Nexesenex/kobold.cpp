@@ -16,6 +16,7 @@ import base64
 import json, sys, http.server, time, asyncio, socket, threading
 from concurrent.futures import ThreadPoolExecutor
 
+# constants
 sampler_order_max = 7
 stop_token_max = 16
 ban_token_max = 16
@@ -25,6 +26,54 @@ dry_seq_break_max = 16
 images_max = 4
 bias_min_value = -100.0
 bias_max_value = 100.0
+
+# global vars
+handle = None
+friendlymodelname = "inactive"
+friendlysdmodelname = "inactive"
+fullsdmodelpath = ""  #if empty, it's not initialized
+mmprojpath = "" #if empty, it's not initialized
+password = "" #if empty, no auth key required
+fullwhispermodelpath = "" #if empty, it's not initialized
+maxctx = 4096
+maxhordectx = 4096
+maxhordelen = 350
+modelbusy = threading.Lock()
+requestsinqueue = 0
+defaultport = 5001
+KcppVersion = "1.70001"
+LcppVersion = "b3389+3"
+CudaSpecifics = "Cu12.2_SMC2_Ar60617075_DmmvX64Y2_MMY2_KQIt2"
+ReleaseDate = "2024/07/15"
+showdebug = True
+guimode = False
+showsamplerwarning = True
+showmaxctxwarning = True
+session_kudos_earned = 0
+session_jobs = 0
+session_starttime = None
+exitcounter = -1
+punishcounter = 0 #causes a timeout if too many errors
+rewardcounter = 0 #reduces error counts for successful jobs
+totalgens = 0
+currentusergenkey = "" #store a special key so polled streaming works even in multiuser
+pendingabortkey = "" #if an abort is received for the non-active request, remember it (at least 1) to cancel later
+args = None #global args
+gui_layers_untouched = True
+runmode_untouched = True
+preloaded_story = None
+chatcompl_adapter = None
+embedded_kailite = None
+embedded_kcpp_docs = None
+embedded_kcpp_sdui = None
+sslvalid = False
+nocertify = False
+start_time = time.time()
+last_req_time = time.time()
+last_non_horde_req_time = time.time()
+currfinishreason = "null"
+using_gui_launcher = False
+using_outdated_flags = False
 
 class logit_bias(ctypes.Structure):
     _fields_ = [("token_id", ctypes.c_int32),
@@ -164,8 +213,6 @@ class whisper_generation_inputs(ctypes.Structure):
 class whisper_generation_outputs(ctypes.Structure):
     _fields_ = [("status", ctypes.c_int),
                 ("data", ctypes.c_char_p)]
-
-handle = None
 
 def getdirpath():
     return os.path.dirname(os.path.realpath(__file__))
@@ -442,6 +489,47 @@ def unpack_to_dir(destpath = ""):
             print(f"The target folder is not empty or invalid. Please select an empty folder.")
         else:
             messagebox.showwarning("Invalid Selection", "The target folder is not empty or invalid. Please select an empty folder.")
+
+def exit_with_error(code, message, title="Error"):
+    global guimode
+    print("")
+    time.sleep(1)
+    if guimode:
+        show_gui_msgbox(title, message)
+    else:
+        print(message, flush=True)
+    time.sleep(2)
+    sys.exit(code)
+
+def utfprint(str):
+    maxlen = 32000
+    if args.debugmode >= 1:
+        maxlen = 64000
+    strlength = len(str)
+    if strlength > maxlen: #limit max output len
+        str = str[:maxlen] + f"... (+{strlength-maxlen} chars)"
+    try:
+        print(str)
+    except UnicodeEncodeError:
+        # Replace or omit the problematic character
+        utf_string = str.encode('ascii', 'ignore').decode('ascii',"ignore")
+        utf_string = utf_string.replace('\a', '') #remove bell characters
+        print(utf_string)
+
+def bring_terminal_to_foreground():
+    if os.name=='nt':
+        ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 9)
+        ctypes.windll.user32.SetForegroundWindow(ctypes.windll.kernel32.GetConsoleWindow())
+
+def string_contains_sequence_substring(inputstr,sequences):
+    if inputstr.strip()=="":
+        return False
+    for s in sequences:
+        if s.strip()=="":
+            continue
+        if s.strip() in inputstr.strip() or inputstr.strip() in s.strip():
+            return True
+    return False
 
 def load_model(model_filename):
     global args
@@ -761,84 +849,10 @@ def whisper_generate(genparams):
         outstr = ret.data.decode("UTF-8","ignore")
     return outstr
 
-def utfprint(str):
-    maxlen = 32000
-    if args.debugmode >= 1:
-        maxlen = 64000
-    strlength = len(str)
-    if strlength > maxlen: #limit max output len
-        str = str[:maxlen] + f"... (+{strlength-maxlen} chars)"
-    try:
-        print(str)
-    except UnicodeEncodeError:
-        # Replace or omit the problematic character
-        utf_string = str.encode('ascii', 'ignore').decode('ascii',"ignore")
-        utf_string = utf_string.replace('\a', '') #remove bell characters
-        print(utf_string)
-
-def bring_terminal_to_foreground():
-    if os.name=='nt':
-        ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 9)
-        ctypes.windll.user32.SetForegroundWindow(ctypes.windll.kernel32.GetConsoleWindow())
-
-def string_contains_sequence_substring(inputstr,sequences):
-    if inputstr.strip()=="":
-        return False
-    for s in sequences:
-        if s.strip()=="":
-            continue
-        if s.strip() in inputstr.strip() or inputstr.strip() in s.strip():
-            return True
-    return False
-
 #################################################################
 ### A hacky simple HTTP server simulating a kobold api by Concedo
 ### we are intentionally NOT using flask, because we want MINIMAL dependencies
 #################################################################
-friendlymodelname = "inactive"
-friendlysdmodelname = "inactive"
-fullsdmodelpath = ""  #if empty, it's not initialized
-mmprojpath = "" #if empty, it's not initialized
-password = "" #if empty, no auth key required
-fullwhispermodelpath = "" #if empty, it's not initialized
-maxctx = 4096
-maxhordectx = 4096
-maxhordelen = 350
-modelbusy = threading.Lock()
-requestsinqueue = 0
-defaultport = 5001
-KcppVersion = "1.70001"
-LcppVersion = "b3389+3"
-CudaSpecifics = "Cu12.2_SMC2_Ar60617075_DmmvX64Y2_MMY2_KQIt2"
-ReleaseDate = "2024/07/15"
-showdebug = True
-showsamplerwarning = True
-showmaxctxwarning = True
-session_kudos_earned = 0
-session_jobs = 0
-session_starttime = None
-exitcounter = -1
-punishcounter = 0 #causes a timeout if too many errors
-rewardcounter = 0 #reduces error counts for successful jobs
-totalgens = 0
-currentusergenkey = "" #store a special key so polled streaming works even in multiuser
-pendingabortkey = "" #if an abort is received for the non-active request, remember it (at least 1) to cancel later
-args = None #global args
-gui_layers_untouched = True
-runmode_untouched = True
-preloaded_story = None
-chatcompl_adapter = None
-embedded_kailite = None
-embedded_kcpp_docs = None
-embedded_kcpp_sdui = None
-sslvalid = False
-nocertify = False
-start_time = time.time()
-last_req_time = time.time()
-last_non_horde_req_time = time.time()
-currfinishreason = "null"
-using_gui_launcher = False
-using_outdated_flags = False
 
 # Used to parse json for openai tool calls
 def extract_json_from_string(input_string):
@@ -1837,7 +1851,9 @@ def RunServerMultiThreaded(addr, port):
             sys.exit(0)
 
 # note: customtkinter-5.2.0
-def show_new_gui():
+def show_gui():
+    global guimode
+    guimode = True
     from tkinter.filedialog import askopenfilename
     from tkinter.filedialog import asksaveasfile
 
@@ -1854,9 +1870,7 @@ def show_new_gui():
         if not args.model_param and not args.sdmodel and not args.whispermodel:
             global exitcounter
             exitcounter = 999
-            print("\nNo ggml model or kcpps file was selected. Exiting.")
-            time.sleep(3)
-            sys.exit(2)
+            exit_with_error(2,"No ggml model or kcpps file was selected. Exiting.")
         return
 
     import customtkinter as ctk
@@ -1987,9 +2001,7 @@ def show_new_gui():
 
     if not any(runopts):
         exitcounter = 999
-        show_gui_msgbox("No Backends Available!","KoboldCPP couldn't locate any backends to use (i.e Default, OpenBLAS, CLBlast, CuBLAS).\n\nTo use the program, please run the 'make' command from the directory.")
-        time.sleep(3)
-        sys.exit(2)
+        exit_with_error(2,"KoboldCPP couldn't locate any backends to use (i.e Default, OpenBLAS, CLBlast, CuBLAS).\n\nTo use the program, please run the 'make' command from the directory.","No Backends Available!")
 
     # Vars - should be in scope to be used by multiple widgets
     gpulayers_var = ctk.StringVar(value="0")
@@ -2992,12 +3004,10 @@ def show_new_gui():
 
         if not args.model_param and not args.sdmodel and not args.whispermodel:
             exitcounter = 999
-            print("\nNo text or image model file was selected. Exiting.")
-            time.sleep(3)
-            sys.exit(2)
+            exit_with_error(2,"No text or image model file was selected. Exiting.")
 
 def show_gui_msgbox(title,message):
-    print(title + ": " + message)
+    print(title + ": " + message, flush=True)
     try:
         from tkinter import messagebox
         import tkinter as tk
@@ -3458,9 +3468,7 @@ def main(launch_args,start_server=True):
         else:
             global exitcounter
             exitcounter = 999
-            print("Specified kcpp config file invalid or not found.")
-            time.sleep(3)
-            sys.exit(2)
+            exit_with_error(2,"Specified kcpp config file invalid or not found.")
     args = convert_outdated_args(args)
 
     #positional handling for kcpps files (drag and drop)
@@ -3472,7 +3480,7 @@ def main(launch_args,start_server=True):
         print("KV f16 and Kq8_0-Vf16 cache can work in both FA and no-FA mode")
 
     if args.quantkv and args.quantkv >0 and args.quantkv <21 and not args.flashattention:
-        print("Error: Using --quantkv 1 to 20 requires --flashattention")
+        exit_with_error(1, "Error: Using --quantkv 1 to 20 requires --flashattention")
         sys.exit(1)
         
     if args.quantkv and args.quantkv >22 and args.flashattention:
@@ -3488,7 +3496,7 @@ def main(launch_args,start_server=True):
         print("For command line arguments, please refer to --help")
         print("***")
         try:
-            show_new_gui()
+            show_gui()
         except Exception as ex:
             exitcounter = 999
             ermsg = "Reason: " + str(ex) + "\nFile selection GUI unsupported.\ncustomtkinter python module required!\nPlease check command line: script.py --help"
@@ -3619,50 +3627,43 @@ def main(launch_args,start_server=True):
     #handle loading text model
     if args.model_param:
         if not os.path.exists(args.model_param):
-            print(f"Cannot find text model file: {args.model_param}")
             if args.ignoremissing:
-                print(f"Ignoring missing model file...")
+                print(f"Ignoring missing model file: {args.model_param}")
                 args.model_param = None
             else:
                 exitcounter = 999
-                time.sleep(3)
-                sys.exit(2)
+                exit_with_error(2,f"Cannot find text model file: {args.model_param}")
 
         if args.lora and args.lora[0]!="":
             if not os.path.exists(args.lora[0]):
-                print(f"Cannot find lora file: {args.lora[0]}")
                 if args.ignoremissing:
-                    print(f"Ignoring missing lora file...")
+                    print(f"Ignoring missing lora file: {args.lora[0]}")
                     args.lora = None
                 else:
                     exitcounter = 999
-                    time.sleep(3)
-                    sys.exit(2)
+                    exit_with_error(2,f"Cannot find lora file: {args.lora[0]}")
             else:
                 args.lora[0] = os.path.abspath(args.lora[0])
                 if len(args.lora) > 1:
                     if not os.path.exists(args.lora[1]):
-                        print(f"Cannot find lora base: {args.lora[1]}")
                         if args.ignoremissing:
-                            print(f"Ignoring missing lora file...")
+                            print(f"Ignoring missing lora base: {args.lora[1]}")
                             args.lora = None
                         else:
                             exitcounter = 999
-                            time.sleep(3)
-                            sys.exit(2)
+                            exit_with_error(2,f"Cannot find lora base: {args.lora[1]}")
+
                     else:
                         args.lora[1] = os.path.abspath(args.lora[1])
 
         if args.mmproj and args.mmproj!="":
             if not os.path.exists(args.mmproj):
-                print(f"Cannot find mmproj file: {args.mmproj}")
                 if args.ignoremissing:
-                    print(f"Ignoring missing mmproj file...")
+                    print(f"Ignoring missing mmproj file: {args.mmproj}")
                     args.mmproj = None
                 else:
                     exitcounter = 999
-                    time.sleep(3)
-                    sys.exit(2)
+                    exit_with_error(2,f"Cannot find mmproj file: {args.mmproj}")
             else:
                 global mmprojpath
                 args.mmproj = os.path.abspath(args.mmproj)
@@ -3690,22 +3691,18 @@ def main(launch_args,start_server=True):
 
         if not loadok:
             exitcounter = 999
-            print("Could not load text model: " + modelname)
-            time.sleep(3)
-            sys.exit(3)
+            exit_with_error(3,"Could not load text model: " + modelname)
 
     #handle loading image model
     if args.sdmodel and args.sdmodel!="":
         imgmodel = args.sdmodel
         if not imgmodel or not os.path.exists(imgmodel):
-            print(f"Cannot find image model file: {imgmodel}")
             if args.ignoremissing:
-                print(f"Ignoring missing img model file...")
+                print(f"Ignoring missing img model file: {imgmodel}")
                 args.sdmodel = None
             else:
                 exitcounter = 999
-                time.sleep(3)
-                sys.exit(2)
+                exit_with_error(2,f"Cannot find image model file: {imgmodel}")
         else:
             imglora = ""
             imgvae = ""
@@ -3729,22 +3726,18 @@ def main(launch_args,start_server=True):
             print("Load Image Model OK: " + str(loadok))
             if not loadok:
                 exitcounter = 999
-                print("Could not load image model: " + imgmodel)
-                time.sleep(3)
-                sys.exit(3)
+                exit_with_error(3,"Could not load image model: " + imgmodel)
 
     #handle whisper model
     if args.whispermodel and args.whispermodel!="":
         whispermodel = args.whispermodel
         if not whispermodel or not os.path.exists(whispermodel):
-            print(f"Cannot find whisper model file: {whispermodel}")
             if args.ignoremissing:
-                print(f"Ignoring missing whisper model file...")
+                print(f"Ignoring missing whisper model file: {whispermodel}")
                 args.whispermodel = None
             else:
                 exitcounter = 999
-                time.sleep(3)
-                sys.exit(2)
+                exit_with_error(2,f"Cannot find whisper model file: {whispermodel}")
         else:
             whispermodel = os.path.abspath(whispermodel)
             fullwhispermodelpath = whispermodel
@@ -3752,9 +3745,8 @@ def main(launch_args,start_server=True):
             print("Load Whisper Model OK: " + str(loadok))
             if not loadok:
                 exitcounter = 999
-                print("Could not load whisper model: " + imgmodel)
-                time.sleep(3)
-                sys.exit(3)
+                exit_with_error(3,"Could not load whisper model: " + whispermodel)
+
 
     #load embedded lite
     try:
