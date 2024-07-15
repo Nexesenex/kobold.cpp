@@ -658,7 +658,7 @@ static inline __m128i packNibbles( __m256i bytes ) {
 }
 #endif  //__loongarch_asx
 
-void quantize_row_q2_2_reference(const float * restrict x, block_q2_2 * restrict y, int64_t k) {
+void quantize_row_q2_2_ref(const float * restrict x, block_q2_2 * restrict y, int64_t k) {
     static const int qk = QK2_2;
 
     assert(k % qk == 0);
@@ -688,7 +688,7 @@ void quantize_row_q2_2_reference(const float * restrict x, block_q2_2 * restrict
 }
 
 void quantize_row_q2_2(const float * restrict x, void * restrict y, int64_t k) {
-    quantize_row_q2_2_reference(x, y, k);
+    quantize_row_q2_2_ref(x, y, k);
 }
 
 // reference implementation for deterministic creation of model files
@@ -3363,13 +3363,13 @@ size_t quantize_q8_0(const float * restrict src, void * restrict dst, int64_t nr
 size_t quantize_q2_2(const float * restrict src, void * restrict dst, int64_t nrow, int64_t n_per_row, const float * quant_weights) {
     (void)quant_weights; // not used
     const size_t row_size = ggml_row_size(GGML_TYPE_Q2_2, n_per_row);
-    quantize_row_q2_2_reference(src, dst, (int64_t)nrow*n_per_row);
+    quantize_row_q2_2_ref(src, dst, (int64_t)nrow*n_per_row);
     return nrow * row_size;
 }
 
 // ====================== 1.625 bpw (de)-quantization (BitNet b1.58)
 
-void quantize_row_q1_3_reference(const float * restrict x, block_q1_3 * restrict y, int64_t k) {
+void quantize_row_q1_3_ref(const float * restrict x, block_q1_3 * restrict y, int64_t k) {
     assert(k % QK1_3 == 0);
     const int64_t nb = k / QK1_3;
     static_assert(sizeof(y->q) % 4 == 0, "bad block_q1_3.q size");
@@ -3414,13 +3414,13 @@ void quantize_row_q1_3_reference(const float * restrict x, block_q1_3 * restrict
 void quantize_row_q1_3(const float * restrict x, void * restrict vy, int64_t k) {
     assert(k % QK1_3 == 0);
     block_q1_3 * restrict y = vy;
-    quantize_row_q1_3_reference(x, y, k);
+    quantize_row_q1_3_ref(x, y, k);
 }
 
 size_t quantize_q1_3(const float * restrict src, void * restrict dst, int64_t nrow, int64_t n_per_row, const float * quant_weights) {
     (void)quant_weights; // not used
     const size_t row_size = ggml_row_size(GGML_TYPE_Q1_3, n_per_row);
-    quantize_row_q1_3(src, dst, (int64_t)nrow*n_per_row);
+    quantize_row_q1_3_ref(src, dst, (int64_t)nrow*n_per_row);
     return nrow * row_size;
 }
 
