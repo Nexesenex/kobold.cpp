@@ -7794,7 +7794,9 @@ static void llm_build_kv_store(
     cb(k_cache_view, "k_cache_view", il);
 
     // note: storing RoPE-ed version of K in the KV cache
-    ggml_build_forward_expand(graph, ggml_cpy(ctx, k_cur, k_cache_view));
+    ggml_tensor * tmp = ggml_cpy(ctx, k_cur, k_cache_view);
+    tmp->kv_cache_flag = GGML_KV_CACHE_FLAG_K;
+    ggml_build_forward_expand(graph, tmp);
 
     assert(v_cur->ne[0] == n_embd_v_gqa && v_cur->ne[1] == n_tokens);
 
@@ -7812,8 +7814,9 @@ static void llm_build_kv_store(
         v_cur = ggml_transpose(ctx, v_cur);
     }
     cb(v_cache_view, "v_cache_view", il);
-
-    ggml_build_forward_expand(graph, ggml_cpy(ctx, v_cur, v_cache_view));
+    tmp=ggml_cpy(ctx, v_cur, v_cache_view);
+    tmp->kv_cache_flag = GGML_KV_CACHE_FLAG_V;
+    ggml_build_forward_expand(graph, tmp);
 }
 
 static struct ggml_tensor * llm_build_norm(
@@ -14606,30 +14609,20 @@ static int llama_decode_internal(
 
         if(ggml_use_cached_graph(lctx.sched)) {
 
-            // If using flash attention, find mask node so it can be skipped when updating
-            // KV cache paramaters in cached graph nodes below
-            void * flash_attn_mask_node = nullptr;
-            if(cparams.flash_attn) {
-                for (int i = 0; i < gf->n_nodes; i++) {
-                    ggml_tensor * node = gf->nodes[i];
-                    if (node->op == GGML_OP_FLASH_ATTN_EXT) {
-                        flash_attn_mask_node = node->src[3];
-                        break;
-                    }
-                }
-            }
-
             // Temporarily store KV cache parameters that will need updated in cached graph.
             const struct llama_hparams & hparams = model.hparams;
             const int64_t  n_layer = hparams.n_layer;
             const int64_t kv_head = kv_self.head;
             std::vector<void *> kv_cache_ptrs;
+            std::vector<void *> k_cache_ptrs;
+            std::vector<void *> v_cache_ptrs;
             for (int il = 0; il < n_layer; ++il) {
                 const int64_t n_embd_k_gqa = hparams.n_embd_k_gqa();
                 const int64_t n_embd_v_gqa = hparams.n_embd_v_gqa();
                 ggml_tensor * tmp_tensor =  kv_self.k_l[il];
                 size_t tmp_offset = (ggml_row_size(kv_self.k_l[il]->type, n_embd_k_gqa))*kv_head;
                 kv_cache_ptrs.push_back(static_cast<char*>(tmp_tensor->data) + tmp_offset);
+                k_cache_ptrs.push_back(static_cast<char*>(tmp_tensor->data) + tmp_offset);
                 tmp_tensor = kv_self.v_l[il];
                 if (cparams.flash_attn) {
                     tmp_offset = (kv_head)*ggml_row_size(kv_self.v_l[il]->type, n_embd_v_gqa);
@@ -14637,17 +14630,21 @@ static int llama_decode_internal(
                     tmp_offset = (kv_head)*ggml_element_size(kv_self.v_l[il]);
                 }
                 kv_cache_ptrs.push_back(static_cast<char*>(tmp_tensor->data) + tmp_offset);
+                v_cache_ptrs.push_back(static_cast<char*>(tmp_tensor->data) + tmp_offset);
             }
 
             // Update KV cache parameters in cached graph.
-            int copy_op_count = 0;
+            int k_count = 0;
+            int v_count = 0;
             if(gf != nullptr && gf->nodes != nullptr){
                 for (int i = 0; i < gf->n_nodes; i++) {
                     ggml_tensor * node = gf->nodes[i];
                     if (node->op == GGML_OP_CPY) {
-                        if (node != flash_attn_mask_node) {
-                            node->src[1]->data = kv_cache_ptrs[copy_op_count];
-                            copy_op_count++;
+                        if (node->kv_cache_flag == GGML_KV_CACHE_FLAG_K) {
+                            node->src[1]->data = k_cache_ptrs[k_count++];
+                        }
+                        if (node->kv_cache_flag == GGML_KV_CACHE_FLAG_V) {
+                            node->src[1]->data = v_cache_ptrs[v_count++];
                         }
                     }
                 }
