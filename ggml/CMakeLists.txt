@@ -57,7 +57,7 @@ option(GGML_LTO    "ggml: enable link time optimization" OFF)
 option(GGML_CCACHE "ggml: use ccache if available"       ON)
 
 # debug
-option(GGML_ALL_WARNINGS           "ggml: enable all compiler warnings"                   ON)
+option(GGML_ALL_WARNINGS           "ggml: enable all compiler warnings"                   OFF)
 option(GGML_ALL_WARNINGS_3RD_PARTY "ggml: enable all compiler warnings in 3rd party libs" OFF)
 option(GGML_GPROF                  "ggml: enable gprof"                                   OFF)
 
@@ -78,13 +78,13 @@ endif()
 
 option(GGML_CPU_HBM     "ggml: use memkind for CPU HBM" OFF)
 
-option(GGML_AVX         "ggml: enable AVX"              ${INS_ENB})
-option(GGML_AVX2        "ggml: enable AVX2"             ${INS_ENB})
+option(GGML_AVX         "ggml: enable AVX"              ON)
+option(GGML_AVX2        "ggml: enable AVX2"             ON)
 option(GGML_AVX512      "ggml: enable AVX512"           OFF)
 option(GGML_AVX512_VBMI "ggml: enable AVX512-VBMI"      OFF)
 option(GGML_AVX512_VNNI "ggml: enable AVX512-VNNI"      OFF)
 option(GGML_AVX512_BF16 "ggml: enable AVX512-BF16"      OFF)
-option(GGML_FMA         "ggml: enable FMA"              ${INS_ENB})
+option(GGML_FMA         "ggml: enable FMA"              ON)
 if (NOT MSVC)
     option(GGML_F16C    "ggml: enable F16C"             ${INS_ENB}) # in MSVC F16C is implied with AVX2/AVX512
 endif()
@@ -104,15 +104,15 @@ option(GGML_ACCELERATE                      "ggml: enable Accelerate framework" 
 option(GGML_BLAS                            "ggml: use BLAS"                                  ${GGML_BLAS_DEFAULT})
 set(GGML_BLAS_VENDOR ${GGML_BLAS_VENDOR_DEFAULT} CACHE STRING
                                             "ggml: BLAS library vendor")
-option(GGML_LLAMAFILE                       "ggml: use LLAMAFILE"                             OFF)
+option(GGML_LLAMAFILE                       "ggml: use LLAMAFILE"                             ON)
 
-option(GGML_CUDA                            "ggml: use CUDA"                                  OFF)
+option(GGML_CUDA                            "ggml: use CUDA"                                  ON)
 option(GGML_CUDA_FORCE_DMMV                 "ggml: use dmmv instead of mmvq CUDA kernels"     OFF)
-option(GGML_CUDA_FORCE_MMQ                  "ggml: use mmq kernels instead of cuBLAS"         OFF)
+option(GGML_CUDA_FORCE_MMQ                  "ggml: use mmq kernels instead of cuBLAS"         ON)
 option(GGML_CUDA_FORCE_CUBLAS               "ggml: always use cuBLAS instead of mmq kernels"  OFF)
 set   (GGML_CUDA_DMMV_X   "32" CACHE STRING "ggml: x stride for dmmv CUDA kernels")
 set   (GGML_CUDA_MMV_Y     "1" CACHE STRING "ggml: y block size for mmv CUDA kernels")
-option(GGML_CUDA_F16                        "ggml: use 16 bit floats for some calculations"   OFF)
+option(GGML_CUDA_F16                        "ggml: use 16 bit floats for some calculations"   ON)
 set   (GGML_CUDA_KQUANTS_ITER "2" CACHE STRING
                                             "ggml: iters./thread per block for Q2_K/Q6_K")
 set   (GGML_CUDA_PEER_MAX_BATCH_SIZE "128" CACHE STRING
