@@ -138,3 +138,6 @@ conda/
 
 # Jetbrains idea folder
 .idea/
+.~lock.kobold_benchmarks.csv\#
+kobold_benchmarks.csv
+koboldcpp_cublas170103.dll
