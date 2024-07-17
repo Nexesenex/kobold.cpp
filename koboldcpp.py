@@ -221,6 +221,16 @@ def getabspath():
 def file_exists(filename):
     return os.path.exists(os.path.join(getdirpath(), filename))
 
+def get_default_threads():
+    physical_core_limit = 1
+    if os.cpu_count()!=None and os.cpu_count()>1:
+        physical_core_limit = os.cpu_count() // 2
+    default_threads = (physical_core_limit if physical_core_limit<=3 else max(3,physical_core_limit-1))
+    processor = platform.processor()
+    if 'Intel' in processor:
+        default_threads = (8 if default_threads > 8 else default_threads) #this helps avoid e-cores.
+    return default_threads
+
 def pick_existant_file(ntoption,nonntoption):
     precompiled_prefix = "precompiled_"
     ntexist = file_exists(ntoption)
@@ -251,6 +261,19 @@ lib_hipblas = pick_existant_file("koboldcpp_hipblas.dll","koboldcpp_hipblas.so")
 lib_vulkan = pick_existant_file("koboldcpp_vulkan.dll","koboldcpp_vulkan.so")
 lib_vulkan_noavx2 = pick_existant_file("koboldcpp_vulkan_noavx2.dll","koboldcpp_vulkan_noavx2.so")
 libname = ""
+lib_option_pairs = [
+    (lib_openblas, "Use OpenBLAS"),
+    (lib_default, "Use No BLAS"),
+    (lib_clblast, "Use CLBlast"),
+    (lib_cublas, "Use CuBLAS"),
+    (lib_hipblas, "Use hipBLAS (ROCm)"),
+    (lib_vulkan, "Use Vulkan"),
+    (lib_noavx2, "NoAVX2 Mode (Old CPU)"),
+    (lib_clblast_noavx2, "CLBlast NoAVX2 (Old CPU)"),
+    (lib_vulkan_noavx2, "Vulkan NoAVX2 (Old CPU)"),
+    (lib_failsafe, "Failsafe Mode (Old CPU)")]
+openblas_option, default_option, clblast_option, cublas_option, hipblas_option, vulkan_option, noavx2_option, clblast_noavx2_option, vulkan_noavx2_option, failsafe_option = (opt if file_exists(lib) or (os.name == 'nt' and file_exists(opt + ".dll")) else None for lib, opt in lib_option_pairs)
+runopts = [opt for lib, opt in lib_option_pairs if file_exists(lib)]
 
 def init_library():
     global handle, args, libname
@@ -671,6 +694,18 @@ def fetch_gpu_properties(testCL,testCU,testVK):
         except Exception as e:
             pass
     return
+
+def auto_set_backend_cli():
+    print("\nAn SKCPPS template was selected - automatically selecting your backend...\n")
+    fetch_gpu_properties(False,True,True)
+    if exitcounter < 100 and MaxMemory[0]>3500000000 and (("Use CuBLAS" in runopts and CUDevicesNames[0]!="") or "Use hipBLAS (ROCm)" in runopts) and any(CUDevicesNames):
+        if "Use CuBLAS" in runopts or "Use hipBLAS (ROCm)" in runopts:
+            args.usecublas = ["normal","mmq"]
+    elif exitcounter < 100 and (1 in VKIsDGPU) and "Use Vulkan" in runopts:
+        for i in range(0,len(VKIsDGPU)):
+            if VKIsDGPU[i]==1:
+                args.usevulkan = []
+                break
 
 def load_model(model_filename):
     global args
@@ -2005,7 +2040,7 @@ def show_gui():
         root.withdraw()
         root.quit()
         if args.model_param and args.model_param!="" and (args.model_param.lower().endswith('.kcpps') or args.model_param.lower().endswith('.skcpps')):
-            loadconfigfile(args.model_param)
+            load_config_cli(args.model_param)
         if not args.model_param and not args.sdmodel and not args.whispermodel:
             global exitcounter
             exitcounter = 999
@@ -2097,6 +2132,8 @@ def show_gui():
     show_tooltip(None,"") #initialize tooltip objects
     hide_tooltip(None)
 
+    default_threads = get_default_threads()
+
     tabs = ctk.CTkFrame(root, corner_radius = 0, width=windowwidth, height=windowheight-50)
     tabs.grid(row=0, stick="nsew")
     tabnames= ["Quick Launch", "Hardware", "Tokens", "Model Files", "Network", "Horde Worker","Image Gen","Audio","Extra"]
@@ -2110,23 +2147,10 @@ def show_gui():
     tabcontentframe.grid_propagate(False)
 
     tabcontent = {}
-    lib_option_pairs = [
-        (lib_openblas, "Use OpenBLAS"),
-        (lib_default, "Use No BLAS"),
-        (lib_clblast, "Use CLBlast"),
-        (lib_cublas, "Use CuBLAS"),
-        (lib_hipblas, "Use hipBLAS (ROCm)"),
-        (lib_vulkan, "Use Vulkan"),
-        (lib_noavx2, "NoAVX2 Mode (Old CPU)"),
-        (lib_clblast_noavx2, "CLBlast NoAVX2 (Old CPU)"),
-        (lib_vulkan_noavx2, "Vulkan NoAVX2 (Old CPU)"),
-        (lib_failsafe, "Failsafe Mode (Old CPU)")]
-    openblas_option, default_option, clblast_option, cublas_option, hipblas_option, vulkan_option, noavx2_option, clblast_noavx2_option, vulkan_noavx2_option, failsafe_option = (opt if file_exists(lib) or (os.name == 'nt' and file_exists(opt + ".dll")) else None for lib, opt in lib_option_pairs)
     # slider data
     blasbatchsize_values = ["-1", "32", "64", "128", "256", "512", "1024", "2048"]
     blasbatchsize_text = ["Don't Batch BLAS","32","64","128","256","512","1024","2048"]
     contextsize_text = ["256", "512", "1024", "2048", "3072", "4096", "6144", "8192", "12288", "16384", "24576", "32768", "49152", "65536", "98304", "131072"]
-    runopts = [opt for lib, opt in lib_option_pairs if file_exists(lib)]
     antirunopts = [opt.replace("Use ", "") for lib, opt in lib_option_pairs if not (opt in runopts)]
     quantkv_text = ["F16 (Off)","8-Bit","4-Bit"]
 
@@ -2198,7 +2222,7 @@ def show_gui():
 
     whisper_model_var = ctk.StringVar()
 
-    kcpp_jsonembed_var = ctk.IntVar(value=0)
+    kcpp_export_template_var = ctk.IntVar(value=0)
 
     def tabbuttonaction(name):
         for t in tabcontent:
@@ -2292,7 +2316,7 @@ def show_gui():
 
     # decided to follow yellowrose's and kalomaze's suggestions, this function will automatically try to determine GPU identifiers
     # run in new thread so it doesnt block. does not return anything, instead overwrites specific values and redraws GUI
-    def auto_set_backend():
+    def auto_set_backend_gui():
         fetch_gpu_properties(True,True,True)
         #autopick cublas if suitable, requires at least 3.5GB VRAM to auto pick
         global exitcounter, runmode_untouched
@@ -2683,8 +2707,7 @@ def show_gui():
     makelabel(extra_tab, "Unpack KoboldCpp to a local directory to modify its files.", 1, 0)
     makelabel(extra_tab, "You can also launch via koboldcpp.py for faster startup.", 2, 0)
     ctk.CTkButton(extra_tab , text = "Unpack KoboldCpp To Folder", command = unpack_to_dir ).grid(row=3,column=0, stick="w", padx= 8, pady=2)
-    makecheckbox(extra_tab, "Save launch settings as portable SKCPPS", kcpp_jsonembed_var, 5, tooltiptxt="Portable sharing format.\nEmbeds any selected JSON files directly into skcpps setting files when saving.")
-
+    makecheckbox(extra_tab, "Export as launcher .SKCPPS template (Expert Only)", kcpp_export_template_var, 5, tooltiptxt="Creates a KoboldCpp launch template for others to use.\nEmbeds JSON files directly into exported file when saving.\nWhen loaded, forces the backend to be automatically determined.\nWarning! Not recommended for beginners!")
 
     # launch
     def guilaunch():
@@ -2768,7 +2791,7 @@ def show_gui():
 
         args.chatcompletionsadapter = None if chatcompletionsadapter_var.get() == "" else chatcompletionsadapter_var.get()
         try:
-            if kcpp_jsonembed_var.get()==1 and isinstance(args.chatcompletionsadapter, str) and args.chatcompletionsadapter!="" and os.path.exists(args.chatcompletionsadapter):
+            if kcpp_export_template_var.get()==1 and isinstance(args.chatcompletionsadapter, str) and args.chatcompletionsadapter!="" and os.path.exists(args.chatcompletionsadapter):
                 print(f"Embedding chat completions adapter...")   # parse and save embedded preload story
                 with open(args.chatcompletionsadapter, 'r') as f:
                     args.chatcompletionsadapter = json.load(f)
@@ -2779,7 +2802,7 @@ def show_gui():
         args.lora = None if lora_var.get() == "" else ([lora_var.get()] if lora_base_var.get()=="" else [lora_var.get(), lora_base_var.get()])
         args.preloadstory = None if preloadstory_var.get() == "" else preloadstory_var.get()
         try:
-            if kcpp_jsonembed_var.get()==1 and isinstance(args.preloadstory, str) and args.preloadstory!="" and os.path.exists(args.preloadstory):
+            if kcpp_export_template_var.get()==1 and isinstance(args.preloadstory, str) and args.preloadstory!="" and os.path.exists(args.preloadstory):
                 print(f"Embedding preload story...")   # parse and save embedded preload story
                 with open(args.preloadstory, 'r') as f:
                     args.preloadstory = json.load(f)
@@ -2970,17 +2993,21 @@ def show_gui():
 
         whisper_model_var.set(dict["whispermodel"] if ("whispermodel" in dict and dict["whispermodel"]) else "")
 
-    def save_config():
-        file_type = [("KoboldCpp Settings", "*.kcpps *.skcpps")]
+    def save_config_gui():
+        export_vars()
+        savdict = json.loads(json.dumps(args.__dict__))
+        file_type = [("KoboldCpp Settings", "*.kcpps")]
+        if kcpp_export_template_var.get()==1:
+            file_type = [("KoboldCpp Template", "*.skcpps")]
+            savdict["istemplate"] = True
         filename = asksaveasfile(filetypes=file_type, defaultextension=file_type)
         if filename == None: return
-        export_vars()
         file = open(str(filename.name), 'a')
-        file.write(json.dumps(args.__dict__))
+        file.write(json.dumps(savdict))
         file.close()
         pass
 
-    def load_config():
+    def load_config_gui(): #this is used to populate the GUI with a config file, whereas load_config_cli simply overwrites cli args
         file_type = [("KoboldCpp Settings", "*.kcpps *.skcpps")]
         global runmode_untouched
         runmode_untouched = False
@@ -3008,12 +3035,12 @@ def show_gui():
     ctk.CTkButton(tabs , text = "Launch", fg_color="#2f8d3c", hover_color="#2faa3c", command = guilaunch, width=80, height = 35 ).grid(row=1,column=1, stick="se", padx= 25, pady=5)
 
     ctk.CTkButton(tabs , text = "Update", fg_color="#9900cc", hover_color="#aa11dd", command = display_updates, width=90, height = 35 ).grid(row=1,column=0, stick="sw", padx= 5, pady=5)
-    ctk.CTkButton(tabs , text = "Save", fg_color="#084a66", hover_color="#085a88", command = save_config, width=60, height = 35 ).grid(row=1,column=1, stick="sw", padx= 5, pady=5)
-    ctk.CTkButton(tabs , text = "Load", fg_color="#084a66", hover_color="#085a88", command = load_config, width=60, height = 35 ).grid(row=1,column=1, stick="sw", padx= 70, pady=5)
+    ctk.CTkButton(tabs , text = "Save", fg_color="#084a66", hover_color="#085a88", command = save_config_gui, width=60, height = 35 ).grid(row=1,column=1, stick="sw", padx= 5, pady=5)
+    ctk.CTkButton(tabs , text = "Load", fg_color="#084a66", hover_color="#085a88", command = load_config_gui, width=60, height = 35 ).grid(row=1,column=1, stick="sw", padx= 70, pady=5)
     ctk.CTkButton(tabs , text = "Help", fg_color="#992222", hover_color="#bb3333", command = display_help, width=60, height = 35 ).grid(row=1,column=1, stick="sw", padx= 135, pady=5)
 
     # start a thread that tries to get actual gpu names and layer counts
-    gpuinfo_thread = threading.Thread(target=auto_set_backend)
+    gpuinfo_thread = threading.Thread(target=auto_set_backend_gui)
     gpuinfo_thread.start() #submit job in new thread so nothing is waiting
 
     # runs main loop until closed or launch clicked
@@ -3428,8 +3455,8 @@ def unload_libs():
         del handle
         handle = None
 
-def loadconfigfile(filename):
-    print("Loading kcpps configuration file...")
+def load_config_cli(filename):
+    print("Loading .kcpps configuration file...")
     with open(filename, 'r') as f:
         config = json.load(f)
         for key, value in config.items():
@@ -3487,7 +3514,7 @@ def main(launch_args,start_server=True):
 
     if args.config and len(args.config)==1:
         if isinstance(args.config[0], str) and os.path.exists(args.config[0]):
-           loadconfigfile(args.config[0])
+           load_config_cli(args.config[0])
         elif args.ignoremissing:
             print("Ignoring missing kcpp config file...")
         else:
@@ -3498,7 +3525,7 @@ def main(launch_args,start_server=True):
 
     #positional handling for kcpps files (drag and drop)
     if args.model_param and args.model_param!="" and (args.model_param.lower().endswith('.kcpps') or args.model_param.lower().endswith('.skcpps')):
-        loadconfigfile(args.model_param)
+        load_config_cli(args.model_param)
 
     #prevent quantkv from being used without flash attn
     if args.quantkv and args.quantkv>0 and not args.flashattention:
@@ -3665,13 +3692,17 @@ def main(launch_args,start_server=True):
                 pass
         elif args.gpulayers==-1 and not shouldavoidgpu and os.path.exists(args.model_param):
             print("Trying to automatically determine GPU layers...")
-            if MaxMemory[0] == 0: #try to get gpu vram for cuda
+            if MaxMemory[0] == 0: #try to get gpu vram for cuda if not picked yet
                 fetch_gpu_properties(False,True,False)
                 pass
             if MaxMemory[0] > 0:
                 layeramt = autoset_gpu_layers(args.model_param, args.contextsize, MaxMemory[0])
                 print(f"Auto Recommended Layers: {layeramt}")
                 args.gpulayers = layeramt
+
+    if args.threads == -1:
+        args.threads = get_default_threads()
+        print(f"Auto Set Threads: {args.threads}")
 
     init_library() # Note: if blas does not exist and is enabled, program will crash.
     print("==========")
@@ -3988,14 +4019,8 @@ if __name__ == '__main__':
     parser.add_argument("--host", metavar=('[ipaddr]'), help="Host IP to listen on. If empty, all routable interfaces are accepted.", default="")
     parser.add_argument("--launch", help="Launches a web browser when load is completed.", action='store_true')
     parser.add_argument("--config", metavar=('[filename]'), help="Load settings from a .kcpps file. Other arguments will be ignored", type=str, nargs=1)
-    physical_core_limit = 1
-    if os.cpu_count()!=None and os.cpu_count()>1:
-        physical_core_limit = os.cpu_count() // 2
-    default_threads = (physical_core_limit if physical_core_limit<=3 else max(3,physical_core_limit-1))
-    processor = platform.processor()
-    if 'Intel' in processor:
-        default_threads = (8 if default_threads > 8 else default_threads) #this helps avoid e-cores.
-    parser.add_argument("--threads", metavar=('[threads]'), help="Use a custom number of threads if specified. Otherwise, uses an amount based on CPU cores", type=int, default=default_threads)
+
+    parser.add_argument("--threads", metavar=('[threads]'), help="Use a custom number of threads if specified. Otherwise, uses an amount based on CPU cores", type=int, default=get_default_threads())
     compatgroup = parser.add_mutually_exclusive_group()
     compatgroup.add_argument("--usecublas", help="Use CuBLAS for GPU Acceleration. Requires CUDA. Select lowvram to not allocate VRAM scratch buffer. Enter a number afterwards to select and use 1 GPU. Leaving no number will use all GPUs. For hipBLAS binaries, please check YellowRoseCx rocm fork.", nargs='*',metavar=('[lowvram|normal] [main GPU ID] [mmq] [rowsplit]'), choices=['normal', 'lowvram', '0', '1', '2', '3', 'mmq', 'rowsplit'])
     compatgroup.add_argument("--usevulkan", help="Use Vulkan for GPU Acceleration. Can optionally specify GPU Device ID (e.g. --usevulkan 0).", metavar=('[Device ID]'), nargs='*', type=int, default=None)
