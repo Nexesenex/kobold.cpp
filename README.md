@@ -170,3 +170,170 @@ when you can't use the precompiled binary directly, we provide an automated buil
   - [Stable Diffusion 1.5 and SDXL safetensor models](https://github.com/LostRuins/koboldcpp/wiki#can-i-generate-images-with-koboldcpp)
   - [LLaVA based Vision models and multimodal projectors (mmproj)](https://github.com/LostRuins/koboldcpp/wiki#what-is-llava-and-mmproj)
   - [Whisper models for Speech-To-Text](https://huggingface.co/koboldcpp/whisper/tree/main)
+  
+## KoboldCPP Frankenstein specifics :
+
+<details>
+<summary>Unroll the 26 KV cache options (all should be considered experimental except F16, KV Q8_0, and KV Q4_0)</summary>
+
+With Flash Attention :
+- F16 -> Fullproof (the usual KV quant since the beginning of LCPP/KCPP)
+- K F16 with : V Q8_0, Q5_1, Q5_0, Q4_1, Q4_0
+- K Q8_0 with : V F16, Q8_0 (stable, my current main, part of the LCPP/KCPP main triplet), Q5_1 (maybe unstable), Q5_0 (maybe unstable), Q4_1 (maybe stable), the rest is untested beyond benches), Q4_0 (maybe stable)
+- K Q5_1 with : V Q5_1, Q5_0, Q4_1, Q4_0
+- K Q5_0 with : V Q5_0, Q4_1, V Q4_0
+- K Q4_1 with : V Q4_1 (stable), Q4_0 (maybe stable)
+- KV Q4_0 (quite stable, if we consider that it's part of the LCPP/KCPP main triplet)
+Works in command line, normally also via the GUI, and normally saves on .KCPPS config files.
+
+Without Flash Attention nor MMQ (for models like Gemma) :
+- V F16 with KQ8_0, Q5_1, Q5_0, Q4_1, and Q4_0.
+</details>
+
+<details>
+<summary>Unroll the options to set KV Quants</summary>
+
+0 = 1616/F16 (16 BPW), - present on KV3modes releases as well
+
+1 = 1680/Kf16-Vq8_0 (12.25BPW),
+2 = 1651/Kf16-Vq5_1 (11BPW),
+3 = 1650/Kf16-Vq5_0 (10.75BPW),
+4 = 1641/Kf16-Vq4_1 (10.5BPW),
+5 = 1640/Kf16-Vq4_0 (10.25BPW),
+
+6 = 8080/KVq8_0 (8.5 BPW), - present on KV3modes releases as well
+7 = 8051/Kq8_0-Vq5_1 (7.25BPW),
+8 = 8050/Kq8_0-Vq5_0 (7BPW),
+9 = 8041/Kq8_0-Vq4_1 (6.75BPW),
+10 = 8040/Kq8_0-Vq4_0 (6.5BPW),
+11 = 5151/KVq5_1 (6BPW),
+12 = 5150/Kq5_1-Vq5_0 (5.75BPW),
+13 = 5141/Kq5_1-Vq4_1 (5.5BPW),
+14 = 5140/Kq5_1-Vq4_0 (5.25BPW),
+15 = 5050/Kq5_0-Vq5_0 (5.5BPW),
+16 = 5041/Kq5_0-Vq4_1 (5.25BPW),
+17 = 5040/Kq5_0-Vq4_0 (5BPW),
+18 = 4141/Kq4_1-Vq4_1 (5BPW),
+19 = 4140/Kq4_1-Vq4_0 (4.75BPW),
+20 = 4040/KVq4_0 (4.5BPW) - present on KV3modes releases as well
+
+21 = 1616/F16 (16 BPW), - present on KV3modes releases as well (same as 0, I just used it for the GUI slider).
+
+22 = 8016/Kq8_0, Vf16 (12.25BPW), FA and no-FA both
+
+23 = 5116/Kq5_1-Vf16 (11BPW), no-FA
+24 = 5016/Kq5_1-Vf16 (10.75BPW), no-FA
+25 = 4116/Kq4_1-Vf16 (10.50BPW), no-FA
+26 = 4016/Kq4_0-Vf16 (10.25BPW), no-FA
+
+choices=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26], default=0)
+</details>
+
+<details>
+<summary>Unroll the details about Emphasisfsm by Yoshqu</summary>
+
+The common problem during text generiation are misplaced emphasis characters.
+
+    *looks at you "why* this is here?"
+
+while it should be
+
+    *looks at you* "why this is here?"
+
+This emphasisfsm solves this by simple (and fast) grammar expressed by deterministic finite state machine.
+
+![Letters](emphasis-dfsm-letters.png)
+
+Single letters are not practical in LLMs as tokens often contains more than one.
+
+Emphasisfsm uses LLM tokens as its alphabet making it very fast.
+
+![Tokens](emphasis-dfsm-tokens.png)
+
+Those are only most obvious examples. There are more, eg. ' "***' is a valid token to transition from qout to star. and '*this' is vaild for quot->none or none->quot.
+
+### Usage
+
+To support variety of GUIs this extension shamefully exploits GBNF grammar string. *This is not a proper GBNF grammar, it only uses the field which is easily editable in most GUIs*
+
+![KoboldCpp hack](gbnf-kob.png) ![SillyTavern hack](gbnf-st.png)
+
+
+    emphasisfsm "_bias_[D][_emph1_][,_emphn_]"
+
+Empty string emphasisfsm is disabled. The easiest way to enable is to
+
+    emphasisfsm "-20"
+
+which defaults to
+
+    emphasisfsm "-20 \" \" * *"
+
+(no debug, only * and " are considered)
+
+
+### how it works
+
+Main loop is extended from:
+
+- retrieve logits
+- sample logits, select token (top_k and friends)
+- output token
+
+to
+
+- retrieve logits
+- ban forbidden emphasisfsm transitions from current state (stetting their logits low)
+- sample logits, select token (top_k and friends)
+- emphasisfsm trasition on selected token
+- output token
+
+
+### TODO
+
+- find split utf8 letters over more than one token (i don't plant to support it, but warning would be nice)
+- banning end tokens generation inside of emphasis - forcing LLM to finsh his 'thought' ?
+
+
+### Meta-Llama-3-8B stats for default (" *) emphasisfsm
+
+    empcats_gen: ban bias: -17.500000
+    empcats_gen: emphasis indifferent tokens: 126802
+    empcats_gen: tokens for emphasis '"' '"': 1137
+    empcats_gen: tokens for emphasis '*' '*': 315
+    empcats_gen: always banned tokens: 2
+    empcats_gen: total tokens: 128256
+
+Always banned tokens are :
+
+<pre>' "*"',  ' "*"'</pre>
+
+### Tests
+
+    emphasisfsm "-20 1 1 2 2 3 3 4 4 5 5 6 6 7 7 8 8 9 9 0 0"
+
+This forces that every digit is a citation, so example text completion looks like:
+
+
+```
+Give me math vector of random numbers.Here is a 3-dimensional math vector with random numbers:
+Vector:
+[
+    3.445,
+    -5.117,
+    7.992
+]
+```
+
+There is no other digit between two 3, two 4, two 5 and so on....
+</details>
+
+<details>
+<summary>Unroll the Dry sampler recommanded settings</summary>
+
+Multiplier : 0.8
+Base : 1.75
+Allowed length : 2
+Range : Uses the repetition penalty range (usual parameter is 2048)
+Usual sequence breakers : '\n', ':', '"', '*'
+</details>
