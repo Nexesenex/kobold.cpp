@@ -704,7 +704,7 @@ def fetch_gpu_properties(testCL,testCU,testVK):
     return
 
 def auto_set_backend_cli():
-    print("\nAn SKCPPS template was selected - automatically selecting your backend...\n")
+    print("\nA .kcppt template was selected - automatically selecting your backend...\n")
     fetch_gpu_properties(False,True,True)
     if exitcounter < 100 and MaxMemory[0]>3500000000 and (("Use CuBLAS" in runopts and CUDevicesNames[0]!="") or "Use hipBLAS (ROCm)" in runopts) and any(CUDevicesNames):
         if "Use CuBLAS" in runopts or "Use hipBLAS (ROCm)" in runopts:
@@ -2050,7 +2050,7 @@ def show_gui():
         args.model_param = askopenfilename(title="Select ggml model .bin or .gguf file or .kcpps config")
         root.withdraw()
         root.quit()
-        if args.model_param and args.model_param!="" and (args.model_param.lower().endswith('.kcpps') or args.model_param.lower().endswith('.skcpps')):
+        if args.model_param and args.model_param!="" and (args.model_param.lower().endswith('.kcpps') or args.model_param.lower().endswith('.kcppt')):
             load_config_cli(args.model_param)
         if not args.model_param and not args.sdmodel and not args.whispermodel:
             global exitcounter
@@ -2117,6 +2117,7 @@ def show_gui():
         root.bind("<Configure>", on_resize)
     global using_gui_launcher
     using_gui_launcher = True
+    kcpp_exporting_template = False
 
     # trigger empty tooltip then remove it
     def show_tooltip(event, tooltip_text=None):
@@ -2239,8 +2240,6 @@ def show_gui():
 
     whisper_model_var = ctk.StringVar()
 
-    kcpp_export_template_var = ctk.IntVar(value=0)
-
     def tabbuttonaction(name):
         for t in tabcontent:
             if name == t:
@@ -2333,10 +2332,15 @@ def show_gui():
 
     # decided to follow yellowrose's and kalomaze's suggestions, this function will automatically try to determine GPU identifiers
     # run in new thread so it doesnt block. does not return anything, instead overwrites specific values and redraws GUI
-    def auto_set_backend_gui():
-        fetch_gpu_properties(True,True,True)
-        #autopick cublas if suitable, requires at least 3.5GB VRAM to auto pick
+    def auto_set_backend_gui(manual_select=False):
         global exitcounter, runmode_untouched
+        if manual_select:
+            print("\nA .kcppt template was selected - automatically selecting your backend...\n")
+            runmode_untouched = True
+            fetch_gpu_properties(False,True,True)
+        else:
+            fetch_gpu_properties(True,True,True)
+        #autopick cublas if suitable, requires at least 3.5GB VRAM to auto pick
         #we do not want to autoselect hip/cublas if the user has already changed their desired backend!
         if exitcounter < 100 and MaxMemory[0]>3500000000 and (("Use CuBLAS" in runopts and CUDevicesNames[0]!="") or "Use hipBLAS (ROCm)" in runopts) and (any(CUDevicesNames) or any(CLDevicesNames)) and runmode_untouched:
             if "Use CuBLAS" in runopts:
@@ -2353,7 +2357,7 @@ def show_gui():
 
     def on_picked_model_file(filepath):
         global gui_layers_untouched
-        if filepath.lower().endswith('.kcpps') or filepath.lower().endswith('.skcpps'):
+        if filepath.lower().endswith('.kcpps') or filepath.lower().endswith('.kcppt'):
             #load it as a config file instead
             with open(filepath, 'r') as f:
                 dict = json.load(f)
@@ -2724,12 +2728,28 @@ def show_gui():
     audio_tab = tabcontent["Audio"]
     makefileentry(audio_tab, "Whisper Model (Speech-To-Text):", "Select Whisper .bin Model File", whisper_model_var, 1, width=280, filetypes=[("*.bin","*.bin")], tooltiptxt="Select a Whisper .bin model file on disk to be loaded.")
 
+    def kcpp_export_template():
+        nonlocal kcpp_exporting_template
+        kcpp_exporting_template = True
+        export_vars()
+        kcpp_exporting_template = False
+        savdict = json.loads(json.dumps(args.__dict__))
+        file_type = [("KoboldCpp LaunchTemplate", "*.kcppt")]
+        savdict["istemplate"] = True
+        filename = asksaveasfile(filetypes=file_type, defaultextension=file_type)
+        if filename == None: return
+        file = open(str(filename.name), 'a')
+        file.write(json.dumps(savdict))
+        file.close()
+        pass
+
     # extra tab
     extra_tab = tabcontent["Extra"]
     makelabel(extra_tab, "Unpack KoboldCpp to a local directory to modify its files.", 1, 0)
     makelabel(extra_tab, "You can also launch via koboldcpp.py for faster startup.", 2, 0)
     ctk.CTkButton(extra_tab , text = "Unpack KoboldCpp To Folder", command = unpack_to_dir ).grid(row=3,column=0, stick="w", padx= 8, pady=2)
-    makecheckbox(extra_tab, "Export as launcher .SKCPPS template (Expert Only)", kcpp_export_template_var, 5, tooltiptxt="Creates a KoboldCpp launch template for others to use.\nEmbeds JSON files directly into exported file when saving.\nWhen loaded, forces the backend to be automatically determined.\nWarning! Not recommended for beginners!")
+    makelabel(extra_tab, "Export as launcher .kcppt template (Expert Only)", 4, 0,tooltiptxt="Creates a KoboldCpp launch template for others to use.\nEmbeds JSON files directly into exported file when saving.\nWhen loaded, forces the backend to be automatically determined.\nWarning! Not recommended for beginners!")
+    ctk.CTkButton(extra_tab , text = "Generate LaunchTemplate", command = kcpp_export_template ).grid(row=5,column=0, stick="w", padx= 8, pady=2)
 
     # launch
     def guilaunch():
@@ -2743,6 +2763,7 @@ def show_gui():
         pass
 
     def export_vars():
+        nonlocal kcpp_exporting_template
         args.threads = int(threads_var.get())
         args.usemlock   = usemlock.get() == 1
 #        args.usedirect_io   = usedirect_io.get() == 1
@@ -2812,7 +2833,7 @@ def show_gui():
 
         args.chatcompletionsadapter = None if chatcompletionsadapter_var.get() == "" else chatcompletionsadapter_var.get()
         try:
-            if kcpp_export_template_var.get()==1 and isinstance(args.chatcompletionsadapter, str) and args.chatcompletionsadapter!="" and os.path.exists(args.chatcompletionsadapter):
+            if kcpp_exporting_template and isinstance(args.chatcompletionsadapter, str) and args.chatcompletionsadapter!="" and os.path.exists(args.chatcompletionsadapter):
                 print(f"Embedding chat completions adapter...")   # parse and save embedded preload story
                 with open(args.chatcompletionsadapter, 'r') as f:
                     args.chatcompletionsadapter = json.load(f)
@@ -2823,7 +2844,7 @@ def show_gui():
         args.lora = None if lora_var.get() == "" else ([lora_var.get()] if lora_base_var.get()=="" else [lora_var.get(), lora_base_var.get()])
         args.preloadstory = None if preloadstory_var.get() == "" else preloadstory_var.get()
         try:
-            if kcpp_export_template_var.get()==1 and isinstance(args.preloadstory, str) and args.preloadstory!="" and os.path.exists(args.preloadstory):
+            if kcpp_exporting_template and isinstance(args.preloadstory, str) and args.preloadstory!="" and os.path.exists(args.preloadstory):
                 print(f"Embedding preload story...")   # parse and save embedded preload story
                 with open(args.preloadstory, 'r') as f:
                     args.preloadstory = json.load(f)
@@ -3024,13 +3045,15 @@ def show_gui():
 
         whisper_model_var.set(dict["whispermodel"] if ("whispermodel" in dict and dict["whispermodel"]) else "")
 
+        if "istemplate" in dict and dict["istemplate"]:
+            auto_set_backend_gui(True)
+
     def save_config_gui():
+        nonlocal kcpp_exporting_template
+        kcpp_exporting_template = False
         export_vars()
         savdict = json.loads(json.dumps(args.__dict__))
         file_type = [("KoboldCpp Settings", "*.kcpps")]
-        if kcpp_export_template_var.get()==1:
-            file_type = [("KoboldCpp Template", "*.skcpps")]
-            savdict["istemplate"] = True
         filename = asksaveasfile(filetypes=file_type, defaultextension=file_type)
         if filename == None: return
         file = open(str(filename.name), 'a')
@@ -3039,7 +3062,7 @@ def show_gui():
         pass
 
     def load_config_gui(): #this is used to populate the GUI with a config file, whereas load_config_cli simply overwrites cli args
-        file_type = [("KoboldCpp Settings", "*.kcpps *.skcpps")]
+        file_type = [("KoboldCpp Settings", "*.kcpps *.kcppt")]
         global runmode_untouched
         runmode_untouched = False
         filename = askopenfilename(filetypes=file_type, defaultextension=file_type, initialdir=None)
@@ -3083,6 +3106,7 @@ def show_gui():
         sys.exit(0)
     else:
         # processing vars
+        kcpp_exporting_template = False
         export_vars()
 
         if not args.model_param and not args.sdmodel and not args.whispermodel:
@@ -3490,8 +3514,11 @@ def load_config_cli(filename):
     print("Loading .kcpps configuration file...")
     with open(filename, 'r') as f:
         config = json.load(f)
+        args.istemplate = False
         for key, value in config.items():
             setattr(args, key, value)
+        if args.istemplate:
+            auto_set_backend_cli()
 
 
 def delete_old_pyinstaller():
@@ -3555,7 +3582,7 @@ def main(launch_args,start_server=True):
     args = convert_outdated_args(args)
 
     #positional handling for kcpps files (drag and drop)
-    if args.model_param and args.model_param!="" and (args.model_param.lower().endswith('.kcpps') or args.model_param.lower().endswith('.skcpps')):
+    if args.model_param and args.model_param!="" and (args.model_param.lower().endswith('.kcpps') or args.model_param.lower().endswith('.kcppt')):
         load_config_cli(args.model_param)
 
     #prevent quantkv 1-20 from being used without flash attn, and 23-26 to be used without
