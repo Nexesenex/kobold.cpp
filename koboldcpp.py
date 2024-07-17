@@ -75,6 +75,14 @@ currfinishreason = "null"
 using_gui_launcher = False
 using_outdated_flags = False
 
+CLDevices = ["1","2","3","4"]
+CUDevices = ["1","2","3","4","All"]
+CLDevicesNames = ["","","",""]
+CUDevicesNames = ["","","","",""]
+VKDevicesNames = ["","","",""]
+VKIsDGPU = [0,0,0,0]
+MaxMemory = [0]
+
 class logit_bias(ctypes.Structure):
     _fields_ = [("token_id", ctypes.c_int32),
                 ("bias", ctypes.c_float)]
@@ -221,6 +229,16 @@ def getabspath():
 def file_exists(filename):
     return os.path.exists(os.path.join(getdirpath(), filename))
 
+def get_default_threads():
+    physical_core_limit = 1
+    if os.cpu_count()!=None and os.cpu_count()>1:
+        physical_core_limit = os.cpu_count() // 2
+    default_threads = (physical_core_limit if physical_core_limit<=3 else max(3,physical_core_limit-1))
+    processor = platform.processor()
+    if 'Intel' in processor:
+        default_threads = (8 if default_threads > 8 else default_threads) #this helps avoid e-cores.
+    return default_threads
+
 def pick_existant_file(ntoption,nonntoption):
     precompiled_prefix = "precompiled_"
     ntexist = file_exists(ntoption)
@@ -251,6 +269,19 @@ lib_hipblas = pick_existant_file("koboldcpp_hipblas.dll","koboldcpp_hipblas.so")
 lib_vulkan = pick_existant_file("koboldcpp_vulkan.dll","koboldcpp_vulkan.so")
 lib_vulkan_noavx2 = pick_existant_file("koboldcpp_vulkan_noavx2.dll","koboldcpp_vulkan_noavx2.so")
 libname = ""
+lib_option_pairs = [
+    (lib_openblas, "Use OpenBLAS"),
+    (lib_default, "Use No BLAS"),
+    (lib_clblast, "Use CLBlast"),
+    (lib_cublas, "Use CuBLAS"),
+    (lib_hipblas, "Use hipBLAS (ROCm)"),
+    (lib_vulkan, "Use Vulkan"),
+    (lib_noavx2, "NoAVX2 Mode (Old CPU)"),
+    (lib_clblast_noavx2, "CLBlast NoAVX2 (Old CPU)"),
+    (lib_vulkan_noavx2, "Vulkan NoAVX2 (Old CPU)"),
+    (lib_failsafe, "Failsafe Mode (Old CPU)")]
+openblas_option, default_option, clblast_option, cublas_option, hipblas_option, vulkan_option, noavx2_option, clblast_noavx2_option, vulkan_noavx2_option, failsafe_option = (opt if file_exists(lib) or (os.name == 'nt' and file_exists(opt + ".dll")) else None for lib, opt in lib_option_pairs)
+runopts = [opt for lib, opt in lib_option_pairs if file_exists(lib)]
 
 def init_library():
     global handle, args, libname
@@ -561,6 +592,128 @@ def read_gguf_layer_count(file_path):
                 return 0 #not found
     except Exception as ex:
         return 0
+
+def autoset_gpu_layers(filepath,ctxsize,gpumem): #shitty algo to determine how many layers to use
+    try:
+        layerlimit = 0
+        fsize = os.path.getsize(filepath)
+        if fsize>10000000: #dont bother with models < 10mb
+            cs = ctxsize
+            mem = gpumem
+            if cs and cs > 4096:
+                fsize *= 1.2
+            elif cs and cs > 2048:
+                fsize *= 1.1
+            if mem < fsize*1.6:
+                layers = read_gguf_layer_count(filepath)
+                if layers == 0: #fail to read
+                    sizeperlayer = fsize*0.052
+                    layerlimit = int(min(200,mem/sizeperlayer))
+                else:
+                    ratio = mem/(fsize*1.5)
+                    layerlimit = int(ratio*layers)
+            else:
+                layerlimit = 200 #assume full offload
+        return layerlimit
+    except Exception as ex:
+        return 0
+
+def fetch_gpu_properties(testCL,testCU,testVK):
+    import subprocess
+    if testCL:
+        try: # Get OpenCL GPU names on windows using a special binary. overwrite at known index if found.
+            basepath = os.path.abspath(os.path.dirname(__file__))
+            output = ""
+            data = None
+            try:
+                output = subprocess.run(["clinfo","--json"], capture_output=True, text=True, check=True, encoding='utf-8').stdout
+                data = json.loads(output)
+            except Exception as e1:
+                output = subprocess.run([((os.path.join(basepath, "winclinfo.exe")) if os.name == 'nt' else "clinfo"),"--json"], capture_output=True, text=True, check=True, creationflags=subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS, encoding='utf-8').stdout
+                data = json.loads(output)
+            plat = 0
+            dev = 0
+            lowestclmem = 0
+            for platform in data["devices"]:
+                dev = 0
+                for device in platform["online"]:
+                    dname = device["CL_DEVICE_NAME"]
+                    dmem = int(device["CL_DEVICE_GLOBAL_MEM_SIZE"])
+                    idx = plat+dev*2
+                    if idx<len(CLDevices):
+                        CLDevicesNames[idx] = dname
+                        lowestclmem = dmem if lowestclmem==0 else (dmem if dmem<lowestclmem else lowestclmem)
+                    dev += 1
+                plat += 1
+            MaxMemory[0] = lowestclmem
+        except Exception as e:
+            pass
+
+    if testCU:
+        FetchedCUdevices = []
+        FetchedCUdeviceMem = []
+        AMDgpu = None
+        try: # Get NVIDIA GPU names
+            output = subprocess.run(['nvidia-smi','--query-gpu=name,memory.total','--format=csv,noheader'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
+            FetchedCUdevices = [line.split(",")[0].strip() for line in output.splitlines()]
+            FetchedCUdeviceMem = [line.split(",")[1].strip().split(" ")[0].strip() for line in output.splitlines()]
+        except Exception as e:
+            pass
+        if len(FetchedCUdevices)==0:
+            try: # Get AMD ROCm GPU names
+                output = subprocess.run(['rocminfo'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
+                device_name = None
+                for line in output.splitlines(): # read through the output line by line
+                    line = line.strip()
+                    if line.startswith("Marketing Name:"): device_name = line.split(":", 1)[1].strip() # if we find a named device, temporarily save the name
+                    elif line.startswith("Device Type:") and "GPU" in line and device_name is not None: # if the following Device Type is a GPU (not a CPU) then add it to devices list
+                        FetchedCUdevices.append(device_name)
+                        AMDgpu = True
+                    elif line.startswith("Device Type:") and "GPU" not in line: device_name = None
+                if FetchedCUdevices:
+                    getamdvram = subprocess.run(['rocm-smi', '--showmeminfo', 'vram', '--csv'], capture_output=True, text=True, check=True, encoding='utf-8').stdout # fetch VRAM of devices
+                    FetchedCUdeviceMem = [line.split(",")[1].strip() for line in getamdvram.splitlines()[1:] if line.strip()]
+            except Exception as e:
+                pass
+        for idx in range(0,4):
+            if(len(FetchedCUdevices)>idx):
+                CUDevicesNames[idx] = FetchedCUdevices[idx]
+                if AMDgpu:
+                    MaxMemory[0] = max(int(FetchedCUdeviceMem[idx]),MaxMemory[0])
+                else:
+                    MaxMemory[0] = max(int(FetchedCUdeviceMem[idx])*1024*1024,MaxMemory[0])
+
+    if testVK:
+        try: # Get Vulkan names
+            output = subprocess.run(['vulkaninfo','--summary'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
+            devicelist = [line.split("=")[1].strip() for line in output.splitlines() if "deviceName" in line]
+            devicetypes = [line.split("=")[1].strip() for line in output.splitlines() if "deviceType" in line]
+            idx = 0
+            for dname in devicelist:
+                if idx<len(VKDevicesNames):
+                    VKDevicesNames[idx] = dname
+                    idx += 1
+            if len(devicetypes) == len(devicelist):
+                idx = 0
+                for dvtype in devicetypes:
+                    if idx<len(VKIsDGPU):
+                        VKIsDGPU[idx] = (1 if dvtype=="PHYSICAL_DEVICE_TYPE_DISCRETE_GPU" else 0)
+                        idx += 1
+        except Exception as e:
+            pass
+    return
+
+def auto_set_backend_cli():
+    print("\nAn SKCPPS template was selected - automatically selecting your backend...\n")
+    fetch_gpu_properties(False,True,True)
+    if exitcounter < 100 and MaxMemory[0]>3500000000 and (("Use CuBLAS" in runopts and CUDevicesNames[0]!="") or "Use hipBLAS (ROCm)" in runopts) and any(CUDevicesNames):
+        if "Use CuBLAS" in runopts or "Use hipBLAS (ROCm)" in runopts:
+            args.usecublas = ["normal","mmq"]
+    elif exitcounter < 100 and (1 in VKIsDGPU) and "Use Vulkan" in runopts:
+        for i in range(0,len(VKIsDGPU)):
+            if VKIsDGPU[i]==1:
+                args.usevulkan = []
+                break
 
 def load_model(model_filename):
     global args
@@ -1897,8 +2050,8 @@ def show_gui():
         args.model_param = askopenfilename(title="Select ggml model .bin or .gguf file or .kcpps config")
         root.withdraw()
         root.quit()
-        if args.model_param and args.model_param!="" and args.model_param.lower().endswith('.kcpps'):
-            loadconfigfile(args.model_param)
+        if args.model_param and args.model_param!="" and (args.model_param.lower().endswith('.kcpps') or args.model_param.lower().endswith('.skcpps')):
+            load_config_cli(args.model_param)
         if not args.model_param and not args.sdmodel and not args.whispermodel:
             global exitcounter
             exitcounter = 999
@@ -1989,6 +2142,8 @@ def show_gui():
     show_tooltip(None,"") #initialize tooltip objects
     hide_tooltip(None)
 
+    default_threads = get_default_threads()
+
     tabs = ctk.CTkFrame(root, corner_radius = 0, width=windowwidth, height=windowheight-50)
     tabs.grid(row=0, stick="nsew")
     tabnames= ["Quick Launch", "Hardware", "Tokens", "Model Files", "Network", "Horde Worker","Image Gen","Audio","Extra"]
@@ -2001,32 +2156,11 @@ def show_gui():
     tabcontentframe.grid(row=0, column=1, sticky="nsew", padx=2, pady=2)
     tabcontentframe.grid_propagate(False)
 
-    CLDevices = ["1","2","3","4"]
-    CUDevices = ["1","2","3","4","All"]
-    CLDevicesNames = ["","","",""]
-    CUDevicesNames = ["","","","",""]
-    VKDevicesNames = ["","","",""]
-    VKIsDGPU = [0,0,0,0]
-    MaxMemory = [0]
-
     tabcontent = {}
-    lib_option_pairs = [
-        (lib_openblas, "Use OpenBLAS"),
-        (lib_default, "Use No BLAS"),
-        (lib_clblast, "Use CLBlast"),
-        (lib_cublas, "Use CuBLAS"),
-        (lib_hipblas, "Use hipBLAS (ROCm)"),
-        (lib_vulkan, "Use Vulkan"),
-        (lib_noavx2, "NoAVX2 Mode (Old CPU)"),
-        (lib_clblast_noavx2, "CLBlast NoAVX2 (Old CPU)"),
-        (lib_vulkan_noavx2, "Vulkan NoAVX2 (Old CPU)"),
-        (lib_failsafe, "Failsafe Mode (Old CPU)")]
-    openblas_option, default_option, clblast_option, cublas_option, hipblas_option, vulkan_option, noavx2_option, clblast_noavx2_option, vulkan_noavx2_option, failsafe_option = (opt if file_exists(lib) or (os.name == 'nt' and file_exists(opt + ".dll")) else None for lib, opt in lib_option_pairs)
     # slider data
     blasbatchsize_values = ["-1", "1", "2", "4", "8", "16", "32", "64", "128", "256", "512", "1024", "2048", "4096"]
     blasbatchsize_text = ["Don't Batch BLAS","1","2","4","8","16","32","64","128","256","512","1024","2048","4096"]
     contextsize_text = ["128", "256", "384", "512", "640", "768", "896", "1024", "1152", "1280", "1408", "1536", "1664", "1792", "1920", "2048", "2176", "2304", "2432", "2560", "2688", "2816", "2944", "3072", "3200", "3328", "3456", "3584", "3712", "3840", "3968", "4096", "4224", "4352", "4480", "4608", "4736", "4864", "4992", "5120", "5248", "5376", "5504", "5632", "5760", "5888", "6016", "6144", "6272", "6400", "6528", "6656", "6784", "6912", "7040", "7168", "7296", "7424", "7552", "7680", "7808", "7936", "8064", "8192", "8320", "8448", "8576", "8704", "8832", "8960", "9088", "9216", "9344", "9472", "9600", "9728", "9856", "9984", "10112", "10240", "10368", "10496", "10624", "10752", "10880", "11008", "11136", "11264", "11392", "11520", "11648", "11776", "11904", "12032", "12160", "12288", "12416", "12544", "12672", "12800", "12928", "13056", "13184", "13312", "13440", "13568", "13696", "13824", "13952", "14080", "14208", "14336", "14464", "14592", "14720", "14848", "14976", "15104", "15232", "15360", "15488", "15616", "15744", "15872", "16000", "16128", "16256", "16384", "16512", "16640", "16768", "16896", "17024", "17152", "17280", "17408", "17536", "17664", "17792", "17920", "18048", "18176", "18304", "18432", "18560", "18688", "18816", "18944", "19072", "19200", "19328", "19456", "19584", "19712", "19840", "19968", "20096", "20224", "20352", "20480", "20608", "20736", "20864", "20992", "21120", "21248", "21376", "21504", "21632", "21760", "21888", "22016", "22144", "22272", "22400", "22528", "22656", "22784", "22912", "23040", "23168", "23296", "23424", "23552", "23680", "23808", "23936", "24064", "24192", "24320", "24448", "24576", "24704", "24832", "24960", "25088", "25216", "25344", "25472", "25600", "25728", "25856", "25984", "26112", "26240", "26368", "26496", "26624", "26752", "26880", "27008", "27136", "27264", "27392", "27648", "27904", "28160", "28416", "28672", "28928", "29184", "29440", "29696", "29952", "30208", "30464", "30720", "30976", "31232", "31488", "31744", "32000", "32256", "32512", "32768", "33024", "33280", "33536", "33792", "34048", "34304", "34560", "34816", "35072", "35328", "35584", "35840", "36096", "36352", "36608", "36864", "37120", "37376", "37632", "37888", "38144", "38400", "38656", "38912", "39168", "39424", "39680", "39936", "40192", "40448", "40704", "40960", "41216", "41472", "41728", "41984", "42240", "42496", "42752", "43008", "43264", "43520", "43776", "44032", "44288", "44544", "44800", "45056", "45312", "45568", "45824", "46080", "46336", "46592", "46848", "47104", "47360", "47616", "47872", "48128", "48384", "48640", "48896", "49152", "49408", "49664", "49920", "50176", "50432", "50688", "50944", "51200", "51456", "51712", "51968", "52224", "52480", "52736", "52992", "53248", "53504", "53760", "54016", "54272", "54528", "54784", "55040", "55296", "55552", "55808", "56064", "56320", "56576", "56832", "57088", "57344", "57600", "57856", "58112", "58368", "58624", "58880", "59136", "59392", "59648", "59904", "60416", "60928", "61440", "61952", "62464", "62976", "63488", "64000", "64512", "65024", "65536", "66560", "67584", "68608", "69632", "70656", "71680", "72704", "73728", "74752", "75776", "76800", "77824", "78848", "79872", "80896", "81920", "82944", "83968", "84992", "86016", "87040", "88064", "89088", "90112", "91136", "92160", "93184", "94208", "95232", "96256", "97280", "98304", "99328", "100352", "101476", "102400", "103424", "104448", "105472", "106496", "107520", "108544", "109568", "110592", "111616", "112640", "113664", "114688", "115712", "116736", "117760", "118784", "119808", "120832", "121856", "122880", "123904", "124928", "125952", "126976", "128000", "129024", "130048", "131072", "132096", "133120", "134144", "135168", "136192", "137216", "138240", "139264", "140288", "141312", "142336", "143360", "144384", "145408", "146432", "147456", "148480", "149504", "150528", "151552", "152576", "153600", "154624", "155648", "156672", "157696", "158720", "159744", "160768", "161792", "162816", "163840", "164864", "165888", "166912", "167936", "168960", "169984", "171008", "172032", "173056", "174088", "175112", "176128", "177152", "178176", "179200", "180224", "181248", "182272", "183296", "184320", "185344", "186368", "187392", "188416", "189440", "190464", "191488", "192512", "193536", "194560", "195584", "196608", "198656", "200704", "202752", "204800", "206848", "208896", "210944", "212992", "215040", "217088", "219136", "221184", "223232", "225280", "227328", "229376", "231424", "233472", "235520", "237568", "239616", "241664", "243712", "245760", "247808", "249856", "251904", "253952", "256000", "258048", "260096", "262144"]
-    runopts = [opt for lib, opt in lib_option_pairs if file_exists(lib)]
     antirunopts = [opt.replace("Use ", "") for lib, opt in lib_option_pairs if not (opt in runopts)]
     quantkv_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26"]   
     quantkv_text = ["0 - F16 (16BPW) - 1616","1 - K16-V8-Bit (12.25BPW) - FA 1680","2 - K16-V5.1-Bit (11BPW) - FA 1651","3 - K16-V5-Bit (10.75BPW) - FA 1650","4 - K16-V4.1-Bit (10.50BPW) - FA 1641","5 - K16-V4-Bit (10.25BPW) - FA 1640","6 - 8-Bit (8.5BPW) - FA 8080","7 - K8-V5.1-Bit (7.25BPW) - FA 8051","8 - K8-V5-Bit (7BPW) - FA 8050","9 - K8-V4.1-Bit (6.75BPW) - FA 8041","10 - K8-V4-Bit (6.5BPW) - FA 8040","11 - 5.1-Bit (6BPW) - FA 5151","12 - K5.1-V5Bit (5.75BPW) - FA 5150","13 - K5.1-V4.1-Bit (5.5BPW) - FA 5141","14 - K5.1-V4-Bit (5.25BPW) - FA 5140","15 - 5-Bit (5.5BPW) - FA 5050","16 - K5-V4.1-Bit (5.25BPW) - FA 5041","17 - K5-V4-Bit (5BPW) - FA 5040","18 - 4.1Bit (5BPW) - FA 4141","19 - K4.1-V4-Bit (4.75BPW) - FA 4140","20 - 4-Bit (4.5BPW) - FA 4040","21 - F16 (16BPW) - 1616","22 - K8-Bit-V16 (12.25BPW) - 8016","23 - K5.1-Bit-V16 (11BPW) - 5116","24 - K5-Bit-V16 (11.75BPW) - 5016","25 - K4.1-Bit-V16 (10.5BPW) - 4116","26 - K4-Bit-V16 (10.25BPW) - 4016"]
@@ -2104,6 +2238,8 @@ def show_gui():
     sd_quant_var = ctk.IntVar(value=0)
 
     whisper_model_var = ctk.StringVar()
+
+    kcpp_export_template_var = ctk.IntVar(value=0)
 
     def tabbuttonaction(name):
         for t in tabcontent:
@@ -2197,89 +2333,8 @@ def show_gui():
 
     # decided to follow yellowrose's and kalomaze's suggestions, this function will automatically try to determine GPU identifiers
     # run in new thread so it doesnt block. does not return anything, instead overwrites specific values and redraws GUI
-    def auto_gpu_heuristics():
-        import subprocess
-        FetchedCUdevices = []
-        FetchedCUdeviceMem = []
-        AMDgpu = None
-        try: # Get OpenCL GPU names on windows using a special binary. overwrite at known index if found.
-            basepath = os.path.abspath(os.path.dirname(__file__))
-            output = ""
-            data = None
-            try:
-                output = subprocess.run(["clinfo","--json"], capture_output=True, text=True, check=True, encoding='utf-8').stdout
-                data = json.loads(output)
-            except Exception as e1:
-                output = subprocess.run([((os.path.join(basepath, "winclinfo.exe")) if os.name == 'nt' else "clinfo"),"--json"], capture_output=True, text=True, check=True, creationflags=subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS, encoding='utf-8').stdout
-                data = json.loads(output)
-            plat = 0
-            dev = 0
-            lowestclmem = 0
-            for platform in data["devices"]:
-                dev = 0
-                for device in platform["online"]:
-                    dname = device["CL_DEVICE_NAME"]
-                    dmem = int(device["CL_DEVICE_GLOBAL_MEM_SIZE"])
-                    idx = plat+dev*2
-                    if idx<len(CLDevices):
-                        CLDevicesNames[idx] = dname
-                        lowestclmem = dmem if lowestclmem==0 else (dmem if dmem<lowestclmem else lowestclmem)
-                    dev += 1
-                plat += 1
-            MaxMemory[0] = lowestclmem
-        except Exception as e:
-            pass
-
-        try: # Get NVIDIA GPU names
-            output = subprocess.run(['nvidia-smi','--query-gpu=name,memory.total','--format=csv,noheader'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
-            FetchedCUdevices = [line.split(",")[0].strip() for line in output.splitlines()]
-            FetchedCUdeviceMem = [line.split(",")[1].strip().split(" ")[0].strip() for line in output.splitlines()]
-        except Exception as e:
-            pass
-
-        if len(FetchedCUdevices)==0:
-            try: # Get AMD ROCm GPU names
-                output = subprocess.run(['rocminfo'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
-                device_name = None
-                for line in output.splitlines(): # read through the output line by line
-                    line = line.strip()
-                    if line.startswith("Marketing Name:"): device_name = line.split(":", 1)[1].strip() # if we find a named device, temporarily save the name
-                    elif line.startswith("Device Type:") and "GPU" in line and device_name is not None: # if the following Device Type is a GPU (not a CPU) then add it to devices list
-                        FetchedCUdevices.append(device_name)
-                        AMDgpu = True
-                    elif line.startswith("Device Type:") and "GPU" not in line: device_name = None
-                if FetchedCUdevices:
-                    getamdvram = subprocess.run(['rocm-smi', '--showmeminfo', 'vram', '--csv'], capture_output=True, text=True, check=True, encoding='utf-8').stdout # fetch VRAM of devices
-                    FetchedCUdeviceMem = [line.split(",")[1].strip() for line in getamdvram.splitlines()[1:] if line.strip()]
-            except Exception as e:
-                pass
-
-        try: # Get Vulkan names
-            output = subprocess.run(['vulkaninfo','--summary'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
-            devicelist = [line.split("=")[1].strip() for line in output.splitlines() if "deviceName" in line]
-            devicetypes = [line.split("=")[1].strip() for line in output.splitlines() if "deviceType" in line]
-            idx = 0
-            for dname in devicelist:
-                if idx<len(VKDevicesNames):
-                    VKDevicesNames[idx] = dname
-                    idx += 1
-            if len(devicetypes) == len(devicelist):
-                idx = 0
-                for dvtype in devicetypes:
-                    if idx<len(VKIsDGPU):
-                        VKIsDGPU[idx] = (1 if dvtype=="PHYSICAL_DEVICE_TYPE_DISCRETE_GPU" else 0)
-                        idx += 1
-        except Exception as e:
-            pass
-
-        for idx in range(0,4):
-            if(len(FetchedCUdevices)>idx):
-                CUDevicesNames[idx] = FetchedCUdevices[idx]
-                if AMDgpu:
-                    MaxMemory[0] = max(int(FetchedCUdeviceMem[idx]),MaxMemory[0])
-                else:
-                    MaxMemory[0] = max(int(FetchedCUdeviceMem[idx])*1024*1024,MaxMemory[0])
-
+    def auto_set_backend_gui():
+        fetch_gpu_properties(True,True,True)
         #autopick cublas if suitable, requires at least 3.5GB VRAM to auto pick
         global exitcounter, runmode_untouched
         #we do not want to autoselect hip/cublas if the user has already changed their desired backend!
@@ -2294,50 +2349,24 @@ def show_gui():
                     runopts_var.set("Use Vulkan")
                     gpu_choice_var.set(str(i+1))
                     break
-
         changed_gpu_choice_var()
-        return
 
     def on_picked_model_file(filepath):
-        if filepath.lower().endswith('.kcpps'):
+        global gui_layers_untouched
+        if filepath.lower().endswith('.kcpps') or filepath.lower().endswith('.skcpps'):
             #load it as a config file instead
             with open(filepath, 'r') as f:
                 dict = json.load(f)
                 import_vars(dict)
         else:
-            autoset_gpu_layers(filepath)
-
-    def autoset_gpu_layers(filepath): #shitty algo to determine how many layers to use
-        try:
-            global gui_layers_untouched
-            fsize = os.path.getsize(filepath)
-            if fsize>10000000: #dont bother with models < 10mb
-                cs = int(contextsize_text[context_var.get()])
-                mem = MaxMemory[0]
-                layerlimit = 0
-                if cs and cs > 4096:
-                    fsize *= 1.2
-                elif cs and cs > 2048:
-                    fsize *= 1.1
-                if mem < fsize*1.6:
-                    layers = read_gguf_layer_count(filepath)
-                    if layers == 0: #fail to read
-                        sizeperlayer = fsize*0.052
-                        layerlimit = int(min(200,mem/sizeperlayer))
-                    else:
-                        ratio = mem/(fsize*1.5)
-                        layerlimit = int(ratio*layers)
-                else:
-                    layerlimit = 200 #assume full offload
-                old_gui_layers_untouched = gui_layers_untouched
-                gui_layers_zeroed = gpulayers_var.get()=="" or gpulayers_var.get()=="0"
-                if (gui_layers_untouched or gui_layers_zeroed) and layerlimit>0:
-                    gpulayers_var.set(str(layerlimit))
-                    gui_layers_untouched = old_gui_layers_untouched
-                    if gui_layers_zeroed:
-                        gui_layers_untouched = True
-        except Exception as ex:
-            pass
+            layerlimit = autoset_gpu_layers(filepath,int(contextsize_text[context_var.get()]),MaxMemory[0])
+            old_gui_layers_untouched = gui_layers_untouched
+            gui_layers_zeroed = gpulayers_var.get()=="" or gpulayers_var.get()=="0"
+            if (gui_layers_untouched or gui_layers_zeroed) and layerlimit>0:
+                gpulayers_var.set(str(layerlimit))
+                gui_layers_untouched = old_gui_layers_untouched
+                if gui_layers_zeroed:
+                    gui_layers_untouched = True
 
     def setup_backend_tooltip(parent):
         # backend count label with the tooltip function
@@ -2700,6 +2729,7 @@ def show_gui():
     makelabel(extra_tab, "Unpack KoboldCpp to a local directory to modify its files.", 1, 0)
     makelabel(extra_tab, "You can also launch via koboldcpp.py for faster startup.", 2, 0)
     ctk.CTkButton(extra_tab , text = "Unpack KoboldCpp To Folder", command = unpack_to_dir ).grid(row=3,column=0, stick="w", padx= 8, pady=2)
+    makecheckbox(extra_tab, "Export as launcher .SKCPPS template (Expert Only)", kcpp_export_template_var, 5, tooltiptxt="Creates a KoboldCpp launch template for others to use.\nEmbeds JSON files directly into exported file when saving.\nWhen loaded, forces the backend to be automatically determined.\nWarning! Not recommended for beginners!")
 
     # launch
     def guilaunch():
@@ -2781,10 +2811,24 @@ def show_gui():
             args.ropeconfig = [float(customrope_scale.get()),float(customrope_base.get())]
 
         args.chatcompletionsadapter = None if chatcompletionsadapter_var.get() == "" else chatcompletionsadapter_var.get()
+        try:
+            if kcpp_export_template_var.get()==1 and isinstance(args.chatcompletionsadapter, str) and args.chatcompletionsadapter!="" and os.path.exists(args.chatcompletionsadapter):
+                print(f"Embedding chat completions adapter...")   # parse and save embedded preload story
+                with open(args.chatcompletionsadapter, 'r') as f:
+                    args.chatcompletionsadapter = json.load(f)
+        except Exception as ex2:
+            pass
 
         args.model_param = None if model_var.get() == "" else model_var.get()
         args.lora = None if lora_var.get() == "" else ([lora_var.get()] if lora_base_var.get()=="" else [lora_var.get(), lora_base_var.get()])
         args.preloadstory = None if preloadstory_var.get() == "" else preloadstory_var.get()
+        try:
+            if kcpp_export_template_var.get()==1 and isinstance(args.preloadstory, str) and args.preloadstory!="" and os.path.exists(args.preloadstory):
+                print(f"Embedding preload story...")   # parse and save embedded preload story
+                with open(args.preloadstory, 'r') as f:
+                    args.preloadstory = json.load(f)
+        except Exception as ex2:
+            pass
         args.mmproj = None if mmproj_var.get() == "" else mmproj_var.get()
         
 #        args.cache_type_k = None if cache_type_k_var.get() == "" else cache_type_k_var.get()
@@ -2980,18 +3024,22 @@ def show_gui():
 
         whisper_model_var.set(dict["whispermodel"] if ("whispermodel" in dict and dict["whispermodel"]) else "")
 
-    def save_config():
+    def save_config_gui():
+        export_vars()
+        savdict = json.loads(json.dumps(args.__dict__))
         file_type = [("KoboldCpp Settings", "*.kcpps")]
+        if kcpp_export_template_var.get()==1:
+            file_type = [("KoboldCpp Template", "*.skcpps")]
+            savdict["istemplate"] = True
         filename = asksaveasfile(filetypes=file_type, defaultextension=file_type)
         if filename == None: return
-        export_vars()
         file = open(str(filename.name), 'a')
-        file.write(json.dumps(args.__dict__))
+        file.write(json.dumps(savdict))
         file.close()
         pass
 
-    def load_config():
-        file_type = [("KoboldCpp Settings", "*.kcpps")]
+    def load_config_gui(): #this is used to populate the GUI with a config file, whereas load_config_cli simply overwrites cli args
+        file_type = [("KoboldCpp Settings", "*.kcpps *.skcpps")]
         global runmode_untouched
         runmode_untouched = False
         filename = askopenfilename(filetypes=file_type, defaultextension=file_type, initialdir=None)
@@ -3018,12 +3066,12 @@ def show_gui():
     ctk.CTkButton(tabs , text = "Launch", fg_color="#2f8d3c", hover_color="#2faa3c", command = guilaunch, width=80, height = 35 ).grid(row=1,column=1, stick="se", padx= 25, pady=5)
 
     ctk.CTkButton(tabs , text = "Update", fg_color="#9900cc", hover_color="#aa11dd", command = display_updates, width=90, height = 35 ).grid(row=1,column=0, stick="sw", padx= 5, pady=5)
-    ctk.CTkButton(tabs , text = "Save", fg_color="#084a66", hover_color="#085a88", command = save_config, width=60, height = 35 ).grid(row=1,column=1, stick="sw", padx= 5, pady=5)
-    ctk.CTkButton(tabs , text = "Load", fg_color="#084a66", hover_color="#085a88", command = load_config, width=60, height = 35 ).grid(row=1,column=1, stick="sw", padx= 70, pady=5)
+    ctk.CTkButton(tabs , text = "Save", fg_color="#084a66", hover_color="#085a88", command = save_config_gui, width=60, height = 35 ).grid(row=1,column=1, stick="sw", padx= 5, pady=5)
+    ctk.CTkButton(tabs , text = "Load", fg_color="#084a66", hover_color="#085a88", command = load_config_gui, width=60, height = 35 ).grid(row=1,column=1, stick="sw", padx= 70, pady=5)
     ctk.CTkButton(tabs , text = "Help", fg_color="#992222", hover_color="#bb3333", command = display_help, width=60, height = 35 ).grid(row=1,column=1, stick="sw", padx= 135, pady=5)
 
     # start a thread that tries to get actual gpu names and layer counts
-    gpuinfo_thread = threading.Thread(target=auto_gpu_heuristics)
+    gpuinfo_thread = threading.Thread(target=auto_set_backend_gui)
     gpuinfo_thread.start() #submit job in new thread so nothing is waiting
 
     # runs main loop until closed or launch clicked
@@ -3438,8 +3486,8 @@ def unload_libs():
         del handle
         handle = None
 
-def loadconfigfile(filename):
-    print("Loading kcpps configuration file...")
+def load_config_cli(filename):
+    print("Loading .kcpps configuration file...")
     with open(filename, 'r') as f:
         config = json.load(f)
         for key, value in config.items():
@@ -3497,7 +3545,7 @@ def main(launch_args,start_server=True):
 
     if args.config and len(args.config)==1:
         if isinstance(args.config[0], str) and os.path.exists(args.config[0]):
-           loadconfigfile(args.config[0])
+           load_config_cli(args.config[0])
         elif args.ignoremissing:
             print("Ignoring missing kcpp config file...")
         else:
@@ -3507,8 +3555,8 @@ def main(launch_args,start_server=True):
     args = convert_outdated_args(args)
 
     #positional handling for kcpps files (drag and drop)
-    if args.model_param and args.model_param!="" and args.model_param.lower().endswith('.kcpps'):
-        loadconfigfile(args.model_param)
+    if args.model_param and args.model_param!="" and (args.model_param.lower().endswith('.kcpps') or args.model_param.lower().endswith('.skcpps')):
+        load_config_cli(args.model_param)
 
     #prevent quantkv 1-20 from being used without flash attn, and 23-26 to be used without
     if args.quantkv and args.quantkv >20 and args.quantkv <23:
@@ -3543,18 +3591,32 @@ def main(launch_args,start_server=True):
 
     #try to read story if provided
     if args.preloadstory:
+        global preloaded_story
+        canload = False
         if isinstance(args.preloadstory, str) and os.path.exists(args.preloadstory):
             print(f"Preloading saved story {args.preloadstory} into server...")
             with open(args.preloadstory, mode='rb') as f:
-                global preloaded_story
                 preloaded_story = f.read()
-                print("Saved story preloaded.")
+                canload = True
+        elif isinstance(args.preloadstory, str):
+            print(f"Preloading saved story as JSON into server...")
+            try:
+                import ast
+                parsed = ast.literal_eval(args.preloadstory)
+                preloaded_story = json.dumps(parsed).encode()
+                canload = True
+            except Exception as ex:
+                print(ex)
+        if canload:
+            print("Saved story preloaded.")
         else:
-            print(f"Warning: Saved story file {args.preloadstory} invalid or not found. No story will be preloaded into server.")
+            print(f"Warning: Saved story file invalid or not found. No story will be preloaded into server.")
 
     # try to read chat completions adapter
     if args.chatcompletionsadapter:
+        global chatcompl_adapter
         ccadapter_path = None
+        canload = False
         adapt_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'kcpp_adapters')
         adapt_dir = adapt_dir if os.path.isdir(adapt_dir) else None
         if isinstance(args.chatcompletionsadapter, str) and os.path.exists(args.chatcompletionsadapter):
@@ -3569,11 +3631,21 @@ def main(launch_args,start_server=True):
         if ccadapter_path:
             print(f"Loading Chat Completions Adapter: {ccadapter_path}")
             with open(ccadapter_path, 'r') as f:
-                global chatcompl_adapter
                 chatcompl_adapter = json.load(f)
-                print(f"Chat Completions Adapter Loaded")
+                canload = True
         else:
-            print(f"Warning: Chat Completions Adapter {args.chatcompletionsadapter} invalid or not found.")
+            if isinstance(args.chatcompletionsadapter, str) and args.chatcompletionsadapter!="":
+                try:
+                    import ast
+                    parsed = ast.literal_eval(args.chatcompletionsadapter)
+                    chatcompl_adapter = json.loads(json.dumps(parsed))
+                    canload = True
+                except Exception as ex:
+                    print(ex)
+        if canload:
+            print(f"Chat Completions Adapter Loaded")
+        else:
+            print(f"Warning: Chat Completions Adapter invalid or not found.")
 
     if args.model_param and args.model_param!="":
         if args.model_param.endswith("?download=true"):
@@ -3648,12 +3720,29 @@ def main(launch_args,start_server=True):
         global nocertify
         nocertify = True
 
-    if args.gpulayers and args.gpulayers>0:
+    if args.gpulayers:
         global libname, lib_default, lib_openblas, lib_failsafe, lib_noavx2
         nogood = [lib_default,lib_openblas,lib_failsafe,lib_noavx2]
+        shouldavoidgpu = False
         if libname in nogood and sys.platform!="darwin":
-            print("WARNING: GPU layers is set, but a GPU backend was not selected!")
-            pass
+            shouldavoidgpu = True
+        if args.gpulayers>0:
+            if shouldavoidgpu:
+                print("WARNING: GPU layers is set, but a GPU backend was not selected!")
+                pass
+        elif args.gpulayers==-1 and not shouldavoidgpu and os.path.exists(args.model_param):
+            print("Trying to automatically determine GPU layers...")
+            if MaxMemory[0] == 0: #try to get gpu vram for cuda if not picked yet
+                fetch_gpu_properties(False,True,False)
+                pass
+            if MaxMemory[0] > 0:
+                layeramt = autoset_gpu_layers(args.model_param, args.contextsize, MaxMemory[0])
+                print(f"Auto Recommended Layers: {layeramt}")
+                args.gpulayers = layeramt
+
+    if args.threads == -1:
+        args.threads = get_default_threads()
+        print(f"Auto Set Threads: {args.threads}")
 
     init_library() # Note: if blas does not exist and is enabled, program will crash.
     print("==========")
@@ -3995,21 +4084,15 @@ if __name__ == '__main__':
     parser.add_argument("--host", metavar=('[ipaddr]'), help="Host IP to listen on. If empty, all routable interfaces are accepted.", default="")
     parser.add_argument("--launch", help="Launches a web browser when load is completed.", action='store_true')
     parser.add_argument("--config", metavar=('[filename]'), help="Load settings from a .kcpps file. Other arguments will be ignored", type=str, nargs=1)
-    physical_core_limit = 1
-    if os.cpu_count()!=None and os.cpu_count()>1:
-        physical_core_limit = os.cpu_count() // 2
-    default_threads = (physical_core_limit if physical_core_limit<=3 else max(3,physical_core_limit-1))
-    processor = platform.processor()
-    if 'Intel' in processor:
-        default_threads = (8 if default_threads > 8 else default_threads) #this helps avoid e-cores.
-    parser.add_argument("--threads", metavar=('[threads]'), help="Use a custom number of threads if specified. Otherwise, uses an amount based on CPU cores", type=int, default=default_threads)
+
+    parser.add_argument("--threads", metavar=('[threads]'), help="Use a custom number of threads if specified. Otherwise, uses an amount based on CPU cores", type=int, default=get_default_threads())
     compatgroup = parser.add_mutually_exclusive_group()
     compatgroup.add_argument("--usecublas", help="Use CuBLAS for GPU Acceleration (NVIDIA Geforce RTX cards, GTX 1xxx and 9xx are also compatible to some extend). Requires CUDA. Select lowvram to not allocate the context KV cache in VRAM, but instead in RAM. Enter a number afterwards to select and use 1 GPU. Leaving no number will use all GPUs. For hipBLAS binaries, please check YellowRoseCx rocm fork.", nargs='*',metavar=('[lowvram|normal] [main GPU ID] [mmq] [rowsplit]'), choices=['normal', 'lowvram', '0', '1', '2', '3', 'mmq', 'rowsplit'])
     compatgroup.add_argument("--usevulkan", help="Use Vulkan for GPU Acceleration. Can optionally specify GPU Device ID (e.g. --usevulkan 0).", metavar=('[Device ID]'), nargs='*', type=int, default=None)
     compatgroup.add_argument("--useclblast", help="Use CLBlast for GPU Acceleration. Must specify exactly 2 arguments, platform ID and device ID (e.g. --useclblast 1 0).", type=int, choices=range(0,9), nargs=2)
     compatgroup.add_argument("--noblas", help="Do not use any accelerated prompt ingestion", action='store_true')
     parser.add_argument("--contextsize", help="Controls the memory allocated for maximum context size, only change if you need more RAM for big contexts. (default 4096). Supported values are [256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072,262144]. IF YOU USE ANYTHING ELSE YOU ARE ON YOUR OWN.",metavar=('[256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072,262144]'), type=check_range(int,256,262144), default=4096)
-    parser.add_argument("--gpulayers", help="Set number of layers to offload to GPU when using GPU. Requires a GPU. Prefer a full offload (all layers on GPU) if possible.",metavar=('[GPU layers]'), nargs='?', const=1, type=int, default=0)
+    parser.add_argument("--gpulayers", help="Set number of layers to offload to GPU when using GPU. Requires a GPU. Prefer a full offload (all layers on GPU) if possible. Set to -1 to try autodetect (experimental)",metavar=('[GPU layers]'), nargs='?', const=1, type=int, default=0)
     parser.add_argument("--tensor_split", help="For CUDA and Vulkan only, ratio to split a model layers across multiple GPUs, space-separated list of proportions, e.g. 55 26 to run a 70b Llama2 Miqu model in IQ3_M with 32k context on a Geforce 3090 24G (55 layers) and a Geforce 3060 12G (26 layers)", metavar=('[Ratios]'), type=float, nargs='+')
 
     #more advanced params
