@@ -150,6 +150,10 @@ inline bool LogitsDuplicated(std::vector<float> & arr1, std::vector<float> & arr
 
 static std::string FileFormatTokenizeID(int id, FileFormat file_format, bool return_special = false)
 {
+    if(id<0)
+    {
+        return ""; //placeholder IDs cannot be tokenized!
+    }
     if (file_format == FileFormat::GGML || file_format == FileFormat::GGHF || file_format == FileFormat::GGJT || file_format == FileFormat::GGJT_2)
     {
         return std::string(llama_v2_token_to_str(llama_ctx_v2, id));
@@ -502,7 +506,7 @@ void sample_top_a(llama_token_data_array * candidates, float a, size_t min_keep)
 }
 
 void sample_dry(int n_ctx, int penalty_range, float penalty_multiplier, float penalty_base, int allowed_length, const std::unordered_multimap<gpt_vocab::id, std::vector<gpt_vocab::id>>& restart_sequences, llama_token_data_array * candidates) {
-    if (penalty_multiplier == 0.0f || penalty_base == 0.0f) {
+    if (penalty_multiplier <= 0.0f || penalty_base <= 0.0f) {
         return;
     }
     if (penalty_range <= 0) {
@@ -1390,7 +1394,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             printf("CUBLAS: Set main device to %d\n",cu_parseinfo_maindevice);
         }
         ggml_cuda_set_mul_mat_q(inputs.use_mmq);
-        if(file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2 && kcpp_params->flash_attn)
+        if(file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2 && !kcpp_params->flash_attn)
         {
             printf("CUBLAS: Warning, you are running Qwen2 without Flash Attention and may observe incoherent output.\n");
         }
@@ -2891,7 +2895,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     float pt2 = (time2*1000.0/(realnpredict==0?1:realnpredict));
     float ts2 = (1000.0/pt2);
     float tokens_per_second = (realnpredict == 0 ? 0 : realnpredict / (time1 + time2));
-    printf("\nCtxLimit: %d/%d, Process:%.2fs (%.1fms/T = %.2fT/s), Generate:%.2fs (%.1fms/T = %.2fT/s), Total:%.2fs (%.2fT/s)",(int)current_context_tokens.size(),(int)nctx, time1, pt1, ts1, time2, pt2, ts2, (time1 + time2), tokens_per_second);
+    printf("\nCtxLimit:%d/%d, Amt:%d/%d, Process:%.2fs (%.1fms/T = %.2fT/s), Generate:%.2fs (%.1fms/T = %.2fT/s), Total:%.2fs (%.2fT/s)",(int)current_context_tokens.size(),(int)nctx, realnpredict, kcpp_params->n_predict, time1, pt1, ts1, time2, pt2, ts2, (time1 + time2), tokens_per_second);
     fflush(stdout);
     output.status = 1;
     output.stopreason = last_stop_reason;
