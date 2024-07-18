@@ -704,7 +704,7 @@ def fetch_gpu_properties(testCL,testCU,testVK):
     return
 
 def auto_set_backend_cli():
-    print("\nA .kcppt template was selected - automatically selecting your backend...\n")
+    print("\nA .kcppt template was selected from CLI - automatically selecting your backend...\n")
     fetch_gpu_properties(False,True,True)
     if exitcounter < 100 and MaxMemory[0]>3500000000 and (("Use CuBLAS" in runopts and CUDevicesNames[0]!="") or "Use hipBLAS (ROCm)" in runopts) and any(CUDevicesNames):
         if "Use CuBLAS" in runopts or "Use hipBLAS (ROCm)" in runopts:
@@ -2335,7 +2335,7 @@ def show_gui():
     def auto_set_backend_gui(manual_select=False):
         global exitcounter, runmode_untouched
         if manual_select:
-            print("\nA .kcppt template was selected - automatically selecting your backend...\n")
+            print("\nA .kcppt template was selected from GUI - automatically selecting your backend...\n")
             runmode_untouched = True
             fetch_gpu_properties(False,True,True)
         else:
@@ -2345,8 +2345,10 @@ def show_gui():
         if exitcounter < 100 and MaxMemory[0]>3500000000 and (("Use CuBLAS" in runopts and CUDevicesNames[0]!="") or "Use hipBLAS (ROCm)" in runopts) and (any(CUDevicesNames) or any(CLDevicesNames)) and runmode_untouched:
             if "Use CuBLAS" in runopts:
                 runopts_var.set("Use CuBLAS")
+                gpu_choice_var.set("1")
             elif "Use hipBLAS (ROCm)" in runopts:
                 runopts_var.set("Use hipBLAS (ROCm)")
+                gpu_choice_var.set("1")
         elif exitcounter < 100 and (1 in VKIsDGPU) and runmode_untouched and "Use Vulkan" in runopts:
             for i in range(0,len(VKIsDGPU)):
                 if VKIsDGPU[i]==1:
@@ -3555,6 +3557,24 @@ def sanitize_string(input_string):
     sanitized_string = re.sub( r'[^\w\d\.\-_]', '', input_string)
     return sanitized_string
 
+def download_model_from_url(url): #returns path to downloaded model when done
+    import subprocess
+    mdlfilename = os.path.basename(url)
+    #check if file already exists
+    if mdlfilename:
+        if os.path.exists(mdlfilename) and os.path.getsize(mdlfilename) > 10000000: #10MB trigger
+            print(f"File {mdlfilename} already exists, not redownloading.")
+            return mdlfilename
+        else:
+            dl_url = url
+            if "https://huggingface.co/" in dl_url and "/blob/main/" in dl_url:
+                dl_url = dl_url.replace("/blob/main/", "/resolve/main/")
+            print(f"Downloading file from external URL at {dl_url}")
+            subprocess.run(f"curl -fL {dl_url} -o {mdlfilename}", shell=True, capture_output=True, text=True, check=True, encoding='utf-8')
+            print(f"Download {mdlfilename} completed...", flush=True)
+            return mdlfilename
+    return None
+
 def main(launch_args,start_server=True):
     global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
     global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath
@@ -3571,8 +3591,15 @@ def main(launch_args,start_server=True):
         return
 
     if args.config and len(args.config)==1:
-        if isinstance(args.config[0], str) and os.path.exists(args.config[0]):
-           load_config_cli(args.config[0])
+        cfgname = args.config[0]
+        if cfgname.endswith("?download=true"):
+            cfgname = cfgname.replace("?download=true","")
+        if isinstance(cfgname, str) and (cfgname.startswith("http://") or cfgname.startswith("https://")) and (cfgname.endswith(".kcpps") or cfgname.endswith(".kcppt")):
+            dlfile = download_model_from_url(cfgname)
+            if dlfile:
+                cfgname = dlfile
+        if isinstance(cfgname, str) and os.path.exists(cfgname):
+           load_config_cli(cfgname)
         elif args.ignoremissing:
             print("Ignoring missing kcpp config file...")
         else:
@@ -3674,25 +3701,35 @@ def main(launch_args,start_server=True):
         else:
             print(f"Warning: Chat Completions Adapter invalid or not found.")
 
+    # handle model downloads if needed
     if args.model_param and args.model_param!="":
         if args.model_param.endswith("?download=true"):
             args.model_param = args.model_param.replace("?download=true","")
         if (args.model_param.startswith("http://") or args.model_param.startswith("https://")) and (args.model_param.endswith(".gguf") or args.model_param.endswith(".bin")):
-            import subprocess
-            mdlfilename = os.path.basename(args.model_param)
-            #check if file already exists
-            if mdlfilename:
-                if os.path.exists(mdlfilename) and os.path.getsize(mdlfilename) > 10000000: #10MB trigger
-                    print(f"Model file {mdlfilename} already exists, not redownloading.")
-                    args.model_param = mdlfilename
-                else:
-                    dl_url = args.model_param
-                    if "https://huggingface.co/" in dl_url and "/blob/main/" in dl_url:
-                        dl_url = dl_url.replace("/blob/main/", "/resolve/main/")
-                    print(f"Downloading model from external URL at {dl_url}")
-                    subprocess.run(f"curl -fL {dl_url} -o {mdlfilename}", shell=True, capture_output=True, text=True, check=True, encoding='utf-8')
-                    print(f"Download {mdlfilename} completed...", flush=True)
-                    args.model_param = mdlfilename
+            dlfile = download_model_from_url(args.model_param)
+            if dlfile:
+                args.model_param = dlfile
+    if args.sdmodel and args.sdmodel!="":
+        if args.sdmodel.endswith("?download=true"):
+            args.sdmodel = args.sdmodel.replace("?download=true","")
+        if (args.sdmodel.startswith("http://") or args.sdmodel.startswith("https://")) and (args.sdmodel.endswith(".gguf") or args.sdmodel.endswith(".safetensors")):
+            dlfile = download_model_from_url(args.sdmodel)
+            if dlfile:
+                args.sdmodel = dlfile
+    if args.mmproj and args.mmproj!="":
+        if args.mmproj.endswith("?download=true"):
+            args.mmproj = args.mmproj.replace("?download=true","")
+        if (args.mmproj.startswith("http://") or args.mmproj.startswith("https://")) and (args.mmproj.endswith(".gguf")):
+            dlfile = download_model_from_url(args.mmproj)
+            if dlfile:
+                args.mmproj = dlfile
+    if args.whispermodel and args.whispermodel!="":
+        if args.whispermodel.endswith("?download=true"):
+            args.whispermodel = args.whispermodel.replace("?download=true","")
+        if (args.whispermodel.startswith("http://") or args.whispermodel.startswith("https://")) and (args.whispermodel.endswith(".gguf") or args.whispermodel.endswith(".bin")):
+            dlfile = download_model_from_url(args.whispermodel)
+            if dlfile:
+                args.whispermodel = dlfile
 
     # sanitize and replace the default vanity name. remember me....
     if args.model_param and args.model_param!="":
@@ -3700,6 +3737,7 @@ def main(launch_args,start_server=True):
         newmdldisplayname = os.path.splitext(newmdldisplayname)[0]
         friendlymodelname = "koboldcpp/" + sanitize_string(newmdldisplayname)
 
+    # horde worker settings
     global maxhordelen, maxhordectx, showdebug
     if args.hordemodelname and args.hordemodelname!="":
         friendlymodelname = args.hordemodelname
@@ -3707,11 +3745,9 @@ def main(launch_args,start_server=True):
             friendlymodelname = "debug-" + friendlymodelname
         if not friendlymodelname.startswith("koboldcpp/"):
             friendlymodelname = "koboldcpp/" + friendlymodelname
-
     if (args.hordemodelname and args.hordemodelname!="") or (args.hordeworkername and args.hordeworkername!="") or (args.hordekey and args.hordekey!=""):
         if args.debugmode == 0:
             args.debugmode = -1
-
     if args.hordegenlen and args.hordegenlen > 0:
         maxhordelen = int(args.hordegenlen)
     if args.hordemaxctx and args.hordemaxctx > 0:

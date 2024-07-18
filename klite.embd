@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 157;
+	const LITEVER = 158;
 	const urlParams = new URLSearchParams(window.location.search);
 	const localflag = true;
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -9824,6 +9824,7 @@ Current version indicated by LITEVER below.
 			document.getElementById('uipicker_messenger').classList.remove('hidden');
 			document.getElementById('uipicker_aesthetic').classList.remove('hidden');
 			document.getElementById('chatnamessection').classList.remove('hidden');
+			document.getElementById('uipicker_corpo').classList.remove('hidden');
 		}
 		if (document.getElementById('opmode').value == 4) {
 			document.getElementById('gui_type').value = localsettings.gui_type_instruct;
@@ -11426,12 +11427,12 @@ Current version indicated by LITEVER below.
 				let anote_dist = anote_strength;
 				let anote_insert_idx = truncated_context.length - anote_dist;
 				//try to align anote with a word boundary
-				for(let i=0;i<12;++i)
+				for(let i=0;i<15;++i)
 				{
 					if(anote_insert_idx>=0 && anote_insert_idx<truncated_context.length
 					&& truncated_context[anote_insert_idx]!=" " && truncated_context[anote_insert_idx]!="."
 					&& truncated_context[anote_insert_idx]!="!" && truncated_context[anote_insert_idx]!="?"
-					&& truncated_context[anote_insert_idx]!="\n")
+					&& truncated_context[anote_insert_idx]!="," && truncated_context[anote_insert_idx]!="\n")
 					{
 						++anote_insert_idx;
 					}else{
@@ -14535,7 +14536,7 @@ Current version indicated by LITEVER below.
 			else
 			{
 				let textToRender = concat_gametext(false, "", "", "", true);
-				document.getElementById("corpo_body").innerHTML = render_corpo_instruct(textToRender);
+				document.getElementById("corpo_body").innerHTML = render_corpo_ui(textToRender);
 				corpoedit_resize_input();
 			}
 
@@ -14664,7 +14665,7 @@ Current version indicated by LITEVER below.
 			</div>`;
 	}
 
-	function corpo_repack_history(input) //repack all history into individual turns
+	function repack_instruct_history(input) //repack all history into individual turns
 	{
 		let myturnchat = false; //who is currently speaking?
 		let st = get_instruct_starttag(false);
@@ -14761,34 +14762,58 @@ Current version indicated by LITEVER below.
 
 		let currctx = concat_gametext(false, "", "", "", false);
 		currctx = replace_instruct_placeholders(currctx);
-		let chatunits = corpo_repack_history(currctx);
+
+		let chatunits = [];
+		if(localsettings.opmode==3)
+		{
+			chatunits = repack_chat_history(currctx);
+		}
+		else
+		{
+			chatunits = repack_instruct_history(currctx);
+		}
+
 		if(idx < chatunits.length)
 		{
 			gametext_arr = [];
 
-			let st = get_instruct_starttag(false);
-			let et = get_instruct_endtag(false);
-			if(localsettings.placeholder_tags)
+			if(localsettings.opmode==3)
 			{
-				st = instructstartplaceholder;
-				et = instructendplaceholder;
-			}
-
-			for(let i=0;i<=idx;++i)
-			{
-				let cont = chatunits[i].msg;
-				let chunk = cont;
-				if(i!=idx)
+				for(let i=0;i<=idx;++i)
 				{
-					chunk = (chatunits[i].myturn?st:et) + chunk;
+					let cont = chatunits[i].msg;
+					let chunk = "\n" + chatunits[i].name + ": " + cont;
+					gametext_arr.push(chunk);
 				}
-				if(i==idx-1)
+			}
+			else
+			{
+				let st = get_instruct_starttag(false);
+				let et = get_instruct_endtag(false);
+				if(localsettings.placeholder_tags)
 				{
-					chunk += et;
+					st = instructstartplaceholder;
+					et = instructendplaceholder;
 				}
 
-				gametext_arr.push(chunk);
+				for(let i=0;i<=idx;++i)
+				{
+					let cont = chatunits[i].msg;
+					let chunk = cont;
+					if(i!=idx)
+					{
+						chunk = (chatunits[i].myturn?st:et) + chunk;
+					}
+					if(i==idx-1)
+					{
+						chunk += et;
+					}
+
+					gametext_arr.push(chunk);
+				}
 			}
+
+
 			corpo_editing_turn = -1;
 			render_gametext(true);
 			btn_retry();
@@ -14819,7 +14844,16 @@ Current version indicated by LITEVER below.
 		let idx = corpo_editing_turn;
 		let currctx = concat_gametext(false, "", "", "", false);
 		currctx = replace_instruct_placeholders(currctx);
-		let chatunits = corpo_repack_history(currctx);
+		let chatunits = [];
+		if(localsettings.opmode==3)
+		{
+			chatunits = repack_chat_history(currctx);
+		}
+		else
+		{
+			chatunits = repack_instruct_history(currctx);
+		}
+
 		let textarea = document.getElementById("corpo_edit_inp");
 		let needsave = false;
 
@@ -14834,28 +14868,44 @@ Current version indicated by LITEVER below.
 			retry_preserve_last = false;
 			redo_prev_text = [];
 
-			let st = get_instruct_starttag(false);
-			let et = get_instruct_endtag(false);
-			if(localsettings.placeholder_tags)
-			{
-				st = instructstartplaceholder;
-				et = instructendplaceholder;
-			}
 			let newtxt = textarea.value;
 			newtxt = unstash_image_placeholders(newtxt);
 
-			for(let i=0;i<chatunits.length;++i)
+			if(localsettings.opmode==3) //chat mode
 			{
-				let cont = (i==idx?newtxt:chatunits[i].msg);
-				if(cont!="")
+				for(let i=0;i<chatunits.length;++i)
 				{
-					let chunk = (chatunits[i].myturn?st:et) + cont;
-					gametext_arr.push(chunk);
+					let cont = (i==idx?newtxt:chatunits[i].msg);
+					if(cont!="")
+					{
+						let chunk = "\n" + chatunits[i].name + ": " + cont;
+						gametext_arr.push(chunk);
+					}
 				}
 			}
-			if(gametext_arr.length>0)
+			else //instruct and the rest
 			{
-				gametext_arr[gametext_arr.length-1] += et;
+				let st = get_instruct_starttag(false);
+				let et = get_instruct_endtag(false);
+				if(localsettings.placeholder_tags)
+				{
+					st = instructstartplaceholder;
+					et = instructendplaceholder;
+				}
+
+				for(let i=0;i<chatunits.length;++i)
+				{
+					let cont = (i==idx?newtxt:chatunits[i].msg);
+					if(cont!="")
+					{
+						let chunk = (chatunits[i].myturn?st:et) + cont;
+						gametext_arr.push(chunk);
+					}
+				}
+				if(gametext_arr.length>0)
+				{
+					gametext_arr[gametext_arr.length-1] += et;
+				}
 			}
 
 			console.log("Merged corpo edit field. Parts:" + gametext_arr.length);
@@ -14866,7 +14916,7 @@ Current version indicated by LITEVER below.
 	}
 
 	var corpo_editing_turn = -1;
-	function render_corpo_instruct(input)
+	function render_corpo_ui(input)
 	{
 		var corpobody = document.getElementById("corpo_body");
 		if(!corpobody)
@@ -14876,7 +14926,16 @@ Current version indicated by LITEVER below.
 
 		let newbodystr = "";
 		input = replace_instruct_placeholders(input);
-		let chatunits = corpo_repack_history(input);
+		let chatunits = [];
+		if(localsettings.opmode==3) //chat mode
+		{
+			chatunits = repack_chat_history(input);
+		}
+		else
+		{
+			chatunits = repack_instruct_history(input);
+		}
+
 		let incomplete_resp = (synchro_pending_stream!="" || pending_response_id!="");
 
 		for(var i=0;i<chatunits.length;++i)
@@ -14912,7 +14971,11 @@ Current version indicated by LITEVER below.
 
 			let namepart = (curr.myturn ? "User" : "KoboldAI");
 			//advanced name replacement
-			if(localsettings.inject_chatnames_instruct && localsettings.instruct_has_markdown)
+			if(localsettings.opmode==3 && curr.name) //chat mode
+			{
+				namepart = curr.name;
+			}
+			else if(localsettings.inject_chatnames_instruct && localsettings.instruct_has_markdown)
 			{
 				let person = (curr.myturn ? localsettings.chatname : localsettings.chatopponent);
 				let prefix = person + ": ";
@@ -14960,6 +15023,10 @@ Current version indicated by LITEVER below.
 		{
 			let namepart = "KoboldAI";
 			let futuretext = (synchro_pending_stream!=""?(escapeHtml(pending_context_preinjection) + escapeHtml(synchro_pending_stream)):"...");
+			if(localsettings.opmode==3)
+			{
+				namepart = "";
+			}
 			newbodystr += `<div class="corpostyleitem">
 			<div><img src="`+niko_square+`" class="corpoavatar"/></div>
 			<div>
@@ -15031,17 +15098,10 @@ Current version indicated by LITEVER below.
 		}
 	}
 
-	function render_enhanced_chat(input)
+	function repack_chat_history(input) //repack history for chatmode
 	{
-		var chatbody = document.getElementById("chat_msg_body");
-		if(!chatbody)
-		{
-			return;
-		}
-
-		let newbodystr = "";
+		let chatunits = []; //parse chat body into nice chat chunks
 		let myturnchat = false; //who is currently speaking?
-
 
 		var othernamesregex = new RegExp("(?!" + localsettings.chatname + ").+?\: ", "gi");
 
@@ -15054,9 +15114,8 @@ Current version indicated by LITEVER below.
 		});
 
 
-		let chatunits = []; //parse chat body into nice chat chunks
-		input = input.split("\n"); //split by newline, then parse each chunk
 
+		input = input.split("\n"); //split by newline, then parse each chunk
 		let m_name = "\n" + localsettings.chatname + ": ";
 		var mynameregex = new RegExp("(" + localsettings.chatname + ")\: ", "gi");
 
@@ -15114,10 +15173,21 @@ Current version indicated by LITEVER below.
 				{
 					chatunits[chatunits.length-1].msg += "<br>"+tempfullsearchable;
 				}
-
 			}
-
 		}
+		return chatunits;
+	}
+
+	function render_enhanced_chat(input)
+	{
+		var chatbody = document.getElementById("chat_msg_body");
+		if(!chatbody)
+		{
+			return;
+		}
+
+		let newbodystr = "";
+		let chatunits = repack_chat_history(input);
 
 		let colormap = {}, colidx = 0;
 		for(var i=0;i<chatunits.length;++i)
@@ -16873,8 +16943,7 @@ Current version indicated by LITEVER below.
 			</div>
 			<div id="claudecustom" class="aidgpopuplistheader anotelabel hidden">
 				Entering your Claude API key will allow you to use KoboldAI Lite with their API.<br><br>
-				Note that KoboldAI Lite takes no responsibility for your usage or consequences of this feature.<br>Only Temperature, Top-P and Top-K samplers are used.<br><br>
-				<span class="color_red">NOTICE: At this time, the official Claude API has CORS restrictions and must be accessed with a CORS proxy. Your connection WILL be proxied.</span><br><br>
+				Note that KoboldAI Lite takes no responsibility for your usage or consequences of this feature. <br><span class="color_red">At this time, the official Claude API has CORS restrictions and must be accessed with a CORS proxy. Your connection WILL be proxied.</span><br>Only Temperature, Top-P and Top-K samplers are used.<br><br>
 				<span class="color_green" style="font-weight: bold;">Please input Claude API URL and Key.</span><br><br>
 				<input class="form-control" type="text" id="custom_claude_endpoint" placeholder="Claude API URL" value="">
 				<input class="form-control" type="password" id="custom_claude_key" placeholder="Claude API Key (Required)" value="" onfocus="focus_api_keys()" onblur="blur_api_keys()"><br>
@@ -16899,15 +16968,15 @@ Current version indicated by LITEVER below.
 				<div class="box-label" title="Rename User and Bot tags to work with claude, force inject them otherwise">Claude Compatibility Rename Fix</div>
 				</span>
 
-				<input class="form-control hidden" type="text" id="claudesystemprompt" placeholder="(Enter System Prompt)"
-				value="" onload="">
-				<input class="form-control hidden" type="text" id="claudejailbreakprompt" placeholder="(Enter Assistant Postfix)"
-				value="" onload="">
+				<textarea class="form-control hidden" rows="2" style="resize: vertical; line-height:1.1; padding:4px; display:inline; width: 100%" type="text" id="claudesystemprompt" placeholder="(Enter System Prompt)"
+				value="" onload=""></textarea>
+				<textarea class="form-control hidden" rows="2" style="resize: vertical; line-height:1.1; padding:4px; display:inline; width: 100%" type="text" id="claudejailbreakprompt" placeholder="(Enter Assistant Postfix)"
+				value="" onload=""></textarea>
 
 			</div>
 			<div id="palmcustom" class="aidgpopuplistheader anotelabel hidden">
 				Uses Gemini or PaLM Text Bison by Google.<br><br>
-				Note that KoboldAI Lite takes no responsibility for your usage or consequences of this feature.<br><br>
+				Note that KoboldAI Lite takes no responsibility for your usage or consequences of this feature. Your API key is used directly with the Gemini API and is not transmitted to us.<br><br>
 				<select style="padding:4px;" class="form-control" id="custom_palm_model" onchange="togglepalmmodel()">
 					<option value="gemini-pro" selected="selected">gemini-pro</option>
 					<option value="gemini-1.5-pro-latest">gemini-1.5-pro-latest</option>
@@ -16920,7 +16989,7 @@ Current version indicated by LITEVER below.
 			</div>
 			<div id="coherecustom" class="aidgpopuplistheader anotelabel hidden">
 				Uses Cohere's models through their own API.<br><br>
-				Note that KoboldAI Lite takes no responsibility for your usage or consequences of this feature.<br><br>
+				Note that KoboldAI Lite takes no responsibility for your usage or consequences of this feature. Your API key is used directly with the Cohere API and is not transmitted to us.<br><br>
 				<select style="padding:4px;" class="form-control" id="custom_cohere_model">
 					<option value="command" selected="selected">command</option>
 					<option value="command-r">command-r</option>
