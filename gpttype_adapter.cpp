@@ -1489,16 +1489,12 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
                 lora_base_arg = lora_base.c_str();
             }
 
-            int err = llama_model_apply_lora_from_file(llamamodel,
-                                                       lora_filename.c_str(),
-                                                       1.0f,
-                                                       lora_base_arg,
-                                                       kcpp_params->n_threads);
-            if (err != 0)
-            {
+            auto adapter = llama_lora_adapter_init(llamamodel, lora_filename.c_str());
+            if (adapter == nullptr) {
                 fprintf(stderr, "%s: error: failed to apply lora adapter\n", __func__);
                 return ModelLoadResult::FAIL;
             }
+            llama_lora_adapter_set(llama_ctx_v4, adapter, 1.0f);
         }
 
         if(mmproj_filename != "" && file_format==FileFormat::GGUF_GENERIC)

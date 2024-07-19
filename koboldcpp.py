@@ -564,34 +564,40 @@ def string_contains_sequence_substring(inputstr,sequences):
 
 import struct
 
-def read_gguf_layer_count(file_path):
+def read_gguf_metadata(file_path):
+    chunk_size = 8192  # read only first 8kb of file
     try:
-        fsize = os.path.getsize(file_path)
-        if fsize < 10000: #ignore files under 10kb
-            return 0
-        with open(file_path, 'rb') as f:
-            file_header = f.read(4)
-            if file_header != b'GGUF': #file is not GGUF
-                return 0
-            magic_key = b'.block_count'
-            magic_length = len(magic_key)
-            chunk_size = 4096  # read only first 4kb of file
-            data = f.read(chunk_size)
-            index = data.find(magic_key)  # Search for the magic number, Read 2 chunks of 4 byte numbers
-            if index != -1 and index + magic_length + 8 <= chunk_size:
-                start_index = index + magic_length
+        def read_gguf_key(keyname,data,maxval):
+            keylen = len(keyname)
+            index = data.find(keyname)  # Search for the magic number, Read 2 chunks of 4 byte numbers
+            if index != -1 and index + keylen + 8 <= chunk_size:
+                start_index = index + keylen
                 first_value_bytes = data[start_index:start_index + 4]
                 second_value_bytes = data[start_index + 4:start_index + 8]
                 # Unpack each 4 bytes as an unsigned int32 in little-endian format
-                value1 = struct.unpack('<I', first_value_bytes)[0]
+                value1 = struct.unpack('<I', first_value_bytes)[0] #4 means its a uint32
                 value2 = struct.unpack('<I', second_value_bytes)[0]
-                if value1 == 4 and value2 > 0 and value2 <= 300:
-                    return value2 #contains layer count
+                if value1 == 4 and value2 > 0 and value2 <= maxval:
+                    return value2 #contains the desired value
                 return 0
             else:
                 return 0 #not found
+
+        fsize = os.path.getsize(file_path)
+        if fsize < 10000: #ignore files under 10kb
+            return None
+        with open(file_path, 'rb') as f:
+            file_header = f.read(4)
+            if file_header != b'GGUF': #file is not GGUF
+                return None
+            data = f.read(chunk_size)
+            layercount = read_gguf_key(b'.block_count',data,512)
+            head_count_kv = read_gguf_key(b'.attention.head_count_kv',data,8192)
+            key_length = read_gguf_key(b'.attention.key_length',data,8192)
+            val_length = read_gguf_key(b'.attention.value_length',data,8192)
+            return [layercount,head_count_kv, max(key_length,val_length)]
     except Exception as ex:
-        return 0
+        return None
 
 def autoset_gpu_layers(filepath,ctxsize,gpumem): #shitty algo to determine how many layers to use
     try:
@@ -600,20 +606,28 @@ def autoset_gpu_layers(filepath,ctxsize,gpumem): #shitty algo to determine how m
         if fsize>10000000: #dont bother with models < 10mb
             cs = ctxsize
             mem = gpumem
-            if cs and cs > 4096:
-                fsize *= 1.2
+            csmul = 1.0
+            if cs and cs > 8192:
+                csmul = 1.4
+            elif cs and cs > 4096:
+                csmul = 1.2
             elif cs and cs > 2048:
-                fsize *= 1.1
-            if mem < fsize*1.6:
-                layers = read_gguf_layer_count(filepath)
-                if layers == 0: #fail to read
-                    sizeperlayer = fsize*0.052
+                csmul = 1.1
+            if mem < fsize*1.6*csmul:
+                ggufmeta = read_gguf_metadata(filepath)
+                if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
+                    sizeperlayer = fsize*csmul*0.052
                     layerlimit = int(min(200,mem/sizeperlayer))
                 else:
-                    ratio = mem/(fsize*1.5)
+                    layers = ggufmeta[0]
+                    headcount = ggufmeta[1]
+                    headkvlen = (ggufmeta[2] if ggufmeta[2] > 0 else 128)
+                    ratio = mem/(fsize*csmul*1.5)
+                    if headcount > 0:
+                        ratio = max(ratio,mem/(fsize*1.34 + (layers*headcount*headkvlen*cs*4.25)))
                     layerlimit = int(ratio*layers)
             else:
-                layerlimit = 200 #assume full offload
+                layerlimit = 200 # assume full offload
         return layerlimit
     except Exception as ex:
         return 0
@@ -704,15 +718,17 @@ def fetch_gpu_properties(testCL,testCU,testVK):
     return
 
 def auto_set_backend_cli():
-    print("\nA .kcppt template was selected from CLI - automatically selecting your backend...\n")
+    print("\nA .kcppt template was selected from CLI - automatically selecting your backend...")
     fetch_gpu_properties(False,True,True)
     if exitcounter < 100 and MaxMemory[0]>3500000000 and (("Use CuBLAS" in runopts and CUDevicesNames[0]!="") or "Use hipBLAS (ROCm)" in runopts) and any(CUDevicesNames):
         if "Use CuBLAS" in runopts or "Use hipBLAS (ROCm)" in runopts:
             args.usecublas = ["normal","mmq"]
+            print("Auto Selected CUDA Backend...\n")
     elif exitcounter < 100 and (1 in VKIsDGPU) and "Use Vulkan" in runopts:
         for i in range(0,len(VKIsDGPU)):
             if VKIsDGPU[i]==1:
                 args.usevulkan = []
+                print("Auto Selected Vulkan Backend...\n")
                 break
 
 def load_model(model_filename):
@@ -2067,7 +2083,7 @@ def show_gui():
     ctk.set_appearance_mode("dark")
     root = ctk.CTk()
     root.geometry(str(windowwidth) + "x" + str(windowheight))
-    root.title("Kobold.Cpp FrankenFork v"+KcppVersion)
+    root.title(f"Kobold.Cpp FrankenFork v{KcppVersion}")
 
     gtooltip_box = None
     gtooltip_label = None
@@ -2297,14 +2313,10 @@ def show_gui():
 
 
     def makelabelentry(parent, text, var, row=0, width=50, padx=8, singleline=False, tooltip=""):
-        label = makelabel(parent, text, row,0,tooltip)
-        entry = ctk.CTkEntry(parent, width=width, textvariable=var) #you cannot set placeholder text for SHARED variables
-        if singleline:
-            entry.grid(row=row, column=0, padx=padx, stick="nw")
-        else:
-            entry.grid(row=row, column=1, padx=padx, stick="nw")
+        label = makelabel(parent, text, row, 0, tooltip)
+        entry = ctk.CTkEntry(parent, width=width, textvariable=var)
+        entry.grid(row=row, column=(0 if singleline else 1), padx=padx, sticky="nw")
         return entry, label
-
 
     def makefileentry(parent, text, searchtext, var, row=0, width=200, filetypes=[], onchoosefile=None, singlerow=False, singlecol=True, tooltiptxt=""):
         label = makelabel(parent, text, row,0,tooltiptxt,columnspan=3)
@@ -2335,7 +2347,7 @@ def show_gui():
     def auto_set_backend_gui(manual_select=False):
         global exitcounter, runmode_untouched
         if manual_select:
-            print("\nA .kcppt template was selected from GUI - automatically selecting your backend...\n")
+            print("\nA .kcppt template was selected from GUI - automatically selecting your backend...")
             runmode_untouched = True
             fetch_gpu_properties(False,True,True)
         else:
@@ -2346,14 +2358,17 @@ def show_gui():
             if "Use CuBLAS" in runopts:
                 runopts_var.set("Use CuBLAS")
                 gpu_choice_var.set("1")
+                print("Auto Selected CUDA Backend...\n")
             elif "Use hipBLAS (ROCm)" in runopts:
                 runopts_var.set("Use hipBLAS (ROCm)")
                 gpu_choice_var.set("1")
+                print("Auto Selected HIP Backend...\n")
         elif exitcounter < 100 and (1 in VKIsDGPU) and runmode_untouched and "Use Vulkan" in runopts:
             for i in range(0,len(VKIsDGPU)):
                 if VKIsDGPU[i]==1:
                     runopts_var.set("Use Vulkan")
                     gpu_choice_var.set(str(i+1))
+                    print("Auto Selected Vulkan Backend...\n")
                     break
         changed_gpu_choice_var()
 
@@ -2517,17 +2532,18 @@ def show_gui():
 #    makelabelentry(quick_tab, "V Cache config", cache_type_v_var, 1, 200, "Override the default f16 Value cache with quantized cache like q8_0, q5_1, q5_0, q4_1, or q4_0.")
 
     # quick boxes
-    quick_boxes = {"Launch Browser": launchbrowser,"Disable MMAP":disablemmap,"Use ContextShift":contextshift,"Use SmartContext":smartcontext,"Remote Tunnel":remotetunnel,"Use FlashAttention":flashattention,"Quiet Mode":quietmode,"High Priority - disabled by default":highpriority}
-    quick_boxes_desc = {"Launch Browser": "Launches your default browser after model loading is complete",
-    "Disable MMAP":"Avoids using mmap to load models if enabled",
-    "Use ContextShift":"Uses Context Shifting to reduce reprocessing.\nRecommended. Incompatible with KV modes 1 à 20, and 22 with FA.\nCheck the wiki for more info.",
-    "Use SmartContext":"Use Smart Context. Now considered outdated and not recommended, except for KVQ with FA.\nCheck the wiki for more info.",
-    "Remote Tunnel":"Creates a trycloudflare tunnel.\nAllows you to access koboldcpp from other devices over an internet URL.",
-    "Use FlashAttention":"Enable flash attention for GGUF models.",
-    "Quiet Mode":"Prevents all generation related terminal output from being displayed.",
-    "High Priority - disabled by default": "Increases the koboldcpp process priority.\nMay cause lag or slowdown instead. Not recommended."}
-    for idx, name, in enumerate(quick_boxes):
-        makecheckbox(quick_tab, name, quick_boxes[name], int(idx/2) +20, idx%2,tooltiptxt=quick_boxes_desc[name])
+    quick_boxes = {
+        "Launch Browser": [launchbrowser, "Launches your default browser after model loading is complete"],
+        "Disable MMAP": [disablemmap,  "Avoids using mmap to load models if enabled"],
+        "Use ContextShift": [contextshift, "Uses Context Shifting to reduce reprocessing.\nRecommended. Check the wiki for more info."],
+        "Remote Tunnel": [remotetunnel,  "Creates a trycloudflare tunnel.\nAllows you to access koboldcpp from other devices over an internet URL."],
+        "Use FlashAttention": [flashattention, "Enable flash attention for GGUF models."],
+        "Quiet Mode": [quietmode, "Prevents all generation related terminal output from being displayed."]
+    }
+
+    for idx, (name, properties) in enumerate(quick_boxes.items()):
+        makecheckbox(quick_tab, name, properties[0], int(idx/2) + 20, idx % 2, tooltiptxt=properties[1])
+
     # context size
     makeslider(quick_tab, "Context Size:", contextsize_text, context_var, 0, len(contextsize_text)-1, 30, width=512, set=31,tooltip="What is the maximum context size to support. Model specific. You cannot exceed it.\nLarger contexts require more memory, and not all models support it.")
 
@@ -2574,18 +2590,17 @@ def show_gui():
     makelabelentry(hardware_tab, "Threads:" , threads_var, 11, 50,tooltip="How many threads to use.\nRecommended value is your CPU core count, defaults are usually OK.")
 
     # hardware checkboxes
-    hardware_boxes = {"Launch Browser":launchbrowser,"High Priority":highpriority, "Disable MMAP":disablemmap,"Use mlock":usemlock,"Debug Mode":debugmode,"Keep Foreground":keepforeground}
-    #"Use Direct-I/O":usedirect_io,
-    hardware_boxes_desc = {"Launch Browser": "Launches your default browser after model loading is complete",
-    "High Priority": "Increases the koboldcpp process priority.\nMay cause lag or slowdown instead. Not recommended.",
-    "Disable MMAP": "Avoids using mmap to load models if enabled",
-    "Use mlock": "Enables mlock, preventing the RAM used to load the model from being paged out.",
-#    "Use direct_io": "Enables Direct_IO, accelerating the model loading time.",
-    "Debug Mode": "Enables debug mode, with extra info printed to the terminal.",
-    "Keep Foreground": "Bring KoboldCpp to the foreground every time there is a new generation."}
+    hardware_boxes = {
+        "Launch Browser": [launchbrowser, "Launches your default browser after model loading is complete"],
+        "High Priority": [highpriority, "Increases the koboldcpp process priority.\nMay cause lag or slowdown instead. Not recommended."],
+        "Disable MMAP": [disablemmap, "Avoids using mmap to load models if enabled"],
+        "Use mlock": [usemlock, "Enables mlock, preventing the RAM used to load the model from being paged out."],
+        "Debug Mode": [debugmode, "Enables debug mode, with extra info printed to the terminal."],
+        "Keep Foreground": [keepforeground, "Bring KoboldCpp to the foreground every time there is a new generation."]
+    }
 
-    for idx, name, in enumerate(hardware_boxes):
-        makecheckbox(hardware_tab, name, hardware_boxes[name], int(idx/2) +30, idx%2, tooltiptxt=hardware_boxes_desc[name])
+    for idx, (name, properties) in enumerate(hardware_boxes.items()):
+        makecheckbox(hardware_tab, name, properties[0], int(idx/2) + 30, idx % 2, tooltiptxt=properties[1])
 
     # blas thread specifier
     makelabelentry(hardware_tab, "BLAS threads:" , blas_threads_var, 14, 50,tooltip="How many threads to use during BLAS processing.\nIf left blank, uses same value as regular thread count.")
@@ -2674,14 +2689,16 @@ def show_gui():
     horde_workername_entry,  horde_workername_label = makelabelentry(horde_tab, "Horde Worker Name:",horde_workername_var, 24, 180,tooltip="Your worker's name to be displayed.")
 
     def togglehorde(a,b,c):
-        labels = [horde_name_label, horde_gen_label, horde_context_label, horde_apikey_label, horde_workername_label]
-        for idx, item in enumerate([horde_name_entry, horde_gen_entry, horde_context_entry, horde_apikey_entry, horde_workername_entry]):
+        horde_items = zip([horde_name_entry, horde_gen_entry, horde_context_entry, horde_apikey_entry, horde_workername_entry],
+                          [horde_name_label, horde_gen_label, horde_context_label, horde_apikey_label, horde_workername_label])
+
+        for item, label in horde_items:
             if usehorde_var.get() == 1:
                 item.grid()
-                labels[idx].grid()
+                label.grid()
             else:
                 item.grid_remove()
-                labels[idx].grid_remove()
+                label.grid_remove()
         if usehorde_var.get()==1 and (horde_name_var.get()=="koboldcpp" or horde_name_var.get()=="") and model_var.get()!="":
             basefile = os.path.basename(model_var.get())
             horde_name_var.set(sanitize_string(os.path.splitext(basefile)[0]))
@@ -3569,9 +3586,9 @@ def download_model_from_url(url): #returns path to downloaded model when done
             dl_url = url
             if "https://huggingface.co/" in dl_url and "/blob/main/" in dl_url:
                 dl_url = dl_url.replace("/blob/main/", "/resolve/main/")
-            print(f"Downloading file from external URL at {dl_url}")
+            print(f"Downloading file from external URL at {dl_url} now...")
             subprocess.run(f"curl -fL {dl_url} -o {mdlfilename}", shell=True, capture_output=True, text=True, check=True, encoding='utf-8')
-            print(f"Download {mdlfilename} completed...", flush=True)
+            print(f"Download {mdlfilename} completed.", flush=True)
             return mdlfilename
     return None
 
@@ -3796,7 +3813,7 @@ def main(launch_args,start_server=True):
         elif args.gpulayers==-1 and not shouldavoidgpu and os.path.exists(args.model_param):
             print("Trying to automatically determine GPU layers...")
             if MaxMemory[0] == 0: #try to get gpu vram for cuda if not picked yet
-                fetch_gpu_properties(False,True,False)
+                fetch_gpu_properties(False,True,True)
                 pass
             if MaxMemory[0] > 0:
                 layeramt = autoset_gpu_layers(args.model_param, args.contextsize, MaxMemory[0])
@@ -4130,10 +4147,10 @@ if __name__ == '__main__':
             return f
         return range_checker
 
-    print("***\nWelcome to KoboldCpp Frankenstein Fork" + KcppVersion) # just update version manually
-    print("***\nBased on LlamaCpp - Version " + LcppVersion) # just update LlamaCPP version manually
-    print("***\nRelease date: " + ReleaseDate) # just update date manually
-    print("***\nCuda mode compiled, if any: " + CudaSpecifics) # just update Cuda options used in CMake manually
+    print(f"***\nWelcome to KoboldCpp Frankenstein Fork - Version {KcppVersion}") # just update version manually
+    print(f"***\nBased on LlamaCpp - Version {LcppVersion}") # just update LlamaCPP version manually
+    print(f"***\nRelease date: {ReleaseDate}") # just update date manually
+    print(f"***\nCuda mode compiled, if any: {CudaSpecifics}") # just update Cuda options used in CMake manually
 
     print("***")
     # print("Python version: " + sys.version)
