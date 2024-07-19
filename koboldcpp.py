@@ -766,7 +766,11 @@ def autoset_gpu_layers(filepath,ctxsize,gpumem,quantkv,blasbatchsize,flashattent
                     print(f"Estimated loaded size: {estimated_loaded_size} B ; Estimated loaded size: {estimated_occupation_size} B")                    
             else:
                 print(f"Best case : assume full offload.")  
-                layerlimit = 200 # assume full offload
+                ggufmeta = read_gguf_metadata(filepath)
+                if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
+                    layerlimit = 200 # assume full offload
+                else:
+                    layerlimit = ggufmeta[0] + 3
                 print(f"GPU VRAM {mem} B is superior to Model size {fsize} B x 1.1 x {csmul} (CCBM)")
             print("***")
         return layerlimit
