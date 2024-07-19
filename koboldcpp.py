@@ -616,7 +616,7 @@ def autoset_gpu_layers(filepath,ctxsize,gpumem): #shitty algo to determine how m
                     headkvlen = (ggufmeta[2] if ggufmeta[2] > 0 else 128)
                     ratio = mem/(fsize*csmul*1.5)
                     if headcount > 0:
-                        ratio = max(ratio, mem - (1.0*1024*1024*1024) - (layers*4*headkvlen*cs*4*1.25))/(fsize*1.1 + (layers*headcount*headkvlen*cs*4))
+                        ratio = max(ratio, mem - (1.0*1024*1024*1024) - (layers*4*headkvlen*cs*4*1.25))/(fsize + (layers*headcount*headkvlen*cs*4))
                     layerlimit = int(ratio*layers)
             else:
                 ggufmeta = read_gguf_metadata(filepath)
