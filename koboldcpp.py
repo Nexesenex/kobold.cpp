@@ -599,35 +599,176 @@ def read_gguf_metadata(file_path):
     except Exception as ex:
         return None
 
-def autoset_gpu_layers(filepath,ctxsize,gpumem): #shitty algo to determine how many layers to use
+def autoset_gpu_layers(filepath,ctxsize,gpumem,quantkv,blasbatchsize,flashattention,mmqmode,lowvram,dedicated): #shitty algo to determine how many layers to use
     try:
         layerlimit = 0
         fsize = os.path.getsize(filepath)
         if fsize>10000000: #dont bother with models < 10mb
             cs = ctxsize
-            mem = gpumem
+            
+            ded = dedicated
+            
+            if ded == 1: 
+                reserved_mem = 2**29   
+            else: 
+                reserved_mem = (2**30+2**27)
+            gpu_smem = gpumem / 4
+            mem = gpu_smem - reserved_mem
+            
+            bbs = blasbatchsize
+            bbs_ratio = bbs / 128
+
+            fa = flashattention
+            fa_ratio = 1
+            if fa == 1:
+                fa_ratio = 0.5
+
+            mmq = mmqmode
+            mmq_ratio = 1
+            if mmq == 1:
+                mmq_ratio = 0.5
+
+            lv = lowvram
+            lvctx_ratio = 1
+            if lv == 1:
+                lvctx_ratio = 0
+            lvcomp_ratio = 1
+            if lv == 1:
+                lvcomp_ratio = 0.5
+
+            kvq = quantkv
+            kvbpw = 0
+            if kvq == 0:
+                kvbpw = 32
+            if kvq == 1:
+                kvbpw = 24.5
+            if kvq == 2:
+                kvbpw = 22
+            if kvq == 3:
+                kvbpw = 21.5
+            if kvq == 4:
+                kvbpw = 21
+            if kvq == 5:
+                kvbpw = 20.5
+            if kvq == 6:
+                kvbpw = 17
+            if kvq == 7:
+                kvbpw = 14.5
+            if kvq == 8:
+                kvbpw = 14
+            if kvq == 9:
+                kvbpw = 13.5
+            if kvq == 10:
+                kvbpw = 13
+            if kvq == 11:
+                kvbpw = 12
+            if kvq == 12:
+                kvbpw = 11.5
+            if kvq == 13:
+                kvbpw = 11
+            if kvq == 14:
+                kvbpw = 10.5
+            if kvq == 15:
+                kvbpw = 11
+            if kvq == 16:
+                kvbpw = 10.5
+            if kvq == 17:
+                kvbpw = 10
+            if kvq == 18:
+                kvbpw = 10
+            if kvq == 19:
+                kvbpw = 9.5
+            if kvq == 20:
+                kvbpw = 9
+            if kvq == 21:
+                kvbpw = 32
+            if kvq == 22:
+                kvbpw = 24.5
+            if kvq == 23:
+                kvbpw = 22
+            if kvq == 24:
+                kvbpw = 21.5
+            if kvq == 25:
+                kvbpw = 21
+            if kvq == 26:
+                kvbpw = 20.5
+
             csmul = 1.0
-            if cs and cs > 8192:
-                csmul = 1.4
+            if cs and cs > 131072:
+                csmul = 1.35
+            elif cs and cs > 65536:
+                csmul = 1.30
+            elif cs and cs > 32768:
+                csmul = 1.25
+            elif cs and cs > 16384:
+                csmul = 1.20
+            elif cs and cs > 8192:
+                csmul = 1.15
             elif cs and cs > 4096:
-                csmul = 1.2
+                csmul = 1.10
             elif cs and cs > 2048:
-                csmul = 1.1
-            if mem < fsize*1.6*csmul:
+                csmul = 1.05
+                
+            layer_offset = 0
+              
+            print("***")
+            print(f"Model size: {fsize} B ; GPU VRAM: {gpumem} B ; GPU simulated VRAM: {gpu_smem} B")
+            print(f"Reserved VRAM {reserved_mem} B ; GPU usable VRAM {mem} B")
+            print(f"Blas batch size: {bbs} ; BBS ratio: {bbs_ratio}")
+            print(f"Flash Attention: {fa} ; FA ratio: {fa_ratio}")
+            print(f"MMQ: {mmq} ; MMQ ratio: {mmq_ratio}")
+            print(f"Lowvram: {lv} ; Lowvram context ratio: {lvctx_ratio} ; Lowvram compute ratio: {lvcomp_ratio}")
+            print(f"Quant KV mode: {kvq} ; Quant KV bpw: {kvbpw}")
+            print(f"Context size: {cs} ; Context compute buffer multiplier (CCBM): {csmul}")
+            print(f"Manual layer offset: {layer_offset}")
+            print("***")
+            if mem < fsize*1.1*csmul:
+                print(f" GPU usable VRAM : {mem} B < {fsize} B * 1.1 * {csmul} (CCBM) ")
                 ggufmeta = read_gguf_metadata(filepath)
                 if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
+                    print(f"Failure to read metadata or no layers number declared. Fallback calculation.")
                     sizeperlayer = fsize*csmul*0.052
+                    print(f"Size per layer = Model size {fsize} B x 0.052 x {csmul} (CCBM)")
                     layerlimit = int(min(200,mem/sizeperlayer))
+                    print(f"Size per layer: {sizeperlayer} B ; layers limit: {layerlimit}")
                 else:
+                    print(f"Success to read metadata, proceeding...")
                     layers = ggufmeta[0]
                     headcount = ggufmeta[1]
                     headkvlen = (ggufmeta[2] if ggufmeta[2] > 0 else 128)
-                    ratio = mem/(fsize*csmul*1.5)
+                    sizeperlayer = fsize/layers
+                    print(f"Model layers: {layers} ; Attention heads: {headcount} ; Head size : {headkvlen} ; Size per layer: {sizeperlayer} B")
+                    ratio_init = mem/(fsize*csmul*1.5)
+                    print(f"Initial ratio: {ratio_init} = GPU usable VRAM {mem} B / Model size: {fsize} B x 1.2 x {csmul} (CCBM)")                 
                     if headcount > 0:
-                        ratio = max(ratio,mem/(fsize*1.34 + (layers*headcount*headkvlen*cs*4.25)))
-                    layerlimit = int(ratio*layers)
+                        print("***")
+                        print(f"Attention heads: {headcount} > 0")   
+                        # ratio = max(ratio_init,mem/(fsize*1.34 + (layers*headcount*headkvlen*cs*4.25))) #concedo           
+                        # ratio = max(ratio_init,mem/(fsize*1.025 + (layers*headcount*headkvlen*cs*4) + (layers*4*headkvlen*cs*4) + (1.5*1024*1024*1024))) #Henky
+                        # ratio = min(ratio_init,mem/(fsize*1.04 + (layers*(headcount+(bbs_ratio*mmq_ratio*fa_ratio))*headkvlen*cs*kvbpw/8))) #Nexes based on Pyroserenus
+                        loaded_layers = (layers*ratio_init+layer_offset)
+                        loaded_layers_size = loaded_layers * sizeperlayer
+                        print(f"Initially loaded layers: {loaded_layers} ; Size per layer: {sizeperlayer} B ; Loaded layer size {loaded_layers_size} B")
+                        print(f"context size: {cs} tokens ; GPU usable VRAM: {mem} B ; quant_kv_bpw : {kvbpw} bpw")
+                        context_buffer = (layers*headcount*headkvlen*cs*lvctx_ratio*kvbpw/8)
+                        compute_buffer = (layers*bbs_ratio*mmq_ratio*fa_ratio*headkvlen*cs*lvcomp_ratio*4)
+                        total_buffer = context_buffer + compute_buffer
+                        loaded_size = int(fsize*1.1 + context_buffer)
+                        ratio_formula = (mem - compute_buffer)/loaded_size
+                        print(f"Context buffer: {context_buffer} B + Compute buffer: {compute_buffer} B = Total_buffer: {total_buffer} B")   
+                        print(f"Loaded size: {loaded_size} B ; Formula ratio: {ratio_formula}")   
+                        ratio = max(ratio_init,ratio_formula)
+                    else: ratio = ratio_init
+                    layerlimit = int(ratio*layers+layer_offset)
+                    print(f"Layers limit: {layerlimit} = final ratio {ratio} x {layers} layers")
+                    estimated_loaded_size = int(layerlimit*sizeperlayer + total_buffer)
+                    estimated_occupation_size = int(estimated_loaded_size + reserved_mem)
+                    print(f"Estimated loaded size: {estimated_loaded_size} B ; Estimated loaded size: {estimated_occupation_size} B")                    
             else:
+                print(f"Best case : assume full offload.")  
                 layerlimit = 200 # assume full offload
+                print(f"GPU VRAM {mem} B is superior to Model size {fsize} B x 1.1 x {csmul} (CCBM)")
+            print("***")
         return layerlimit
     except Exception as ex:
         return 0
@@ -2193,6 +2334,7 @@ def show_gui():
     gpu_choice_var = ctk.StringVar(value="1")
 
     launchbrowser = ctk.IntVar(value=1)
+    dedicated = ctk.IntVar(value=0)
     highpriority = ctk.IntVar()
     disablemmap = ctk.IntVar()
     usemlock = ctk.IntVar()
@@ -2489,6 +2631,7 @@ def show_gui():
             tensor_split_label.grid_forget()
             tensor_split_entry.grid_forget()
             splitmode_box.grid_forget()
+            dedicated_box.grid_forget()
 
         if index == "Use Vulkan":
             tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
@@ -2534,11 +2677,13 @@ def show_gui():
     # quick boxes
     quick_boxes = {
         "Launch Browser": [launchbrowser, "Launches your default browser after model loading is complete"],
-        "Disable MMAP": [disablemmap,  "Avoids using mmap to load models if enabled"],
+        "Disable MMAP": [disablemmap, "Avoids using mmap to load models if enabled"],
         "Use ContextShift": [contextshift, "Uses Context Shifting to reduce reprocessing.\nRecommended. Check the wiki for more info."],
-        "Remote Tunnel": [remotetunnel,  "Creates a trycloudflare tunnel.\nAllows you to access koboldcpp from other devices over an internet URL."],
+        "Use SmartContext": [smartcontext, "Use Smart Context. Now considered outdated and not recommended, except for KVQ with FA.\nCheck the wiki for more info."],
+        "Remote Tunnel": [remotetunnel, "Creates a trycloudflare tunnel.\nAllows you to access koboldcpp from other devices over an internet URL."],
         "Use FlashAttention": [flashattention, "Enable flash attention for GGUF models."],
-        "Quiet Mode": [quietmode, "Prevents all generation related terminal output from being displayed."]
+        "Quiet Mode": [quietmode, "Prevents all generation related terminal output from being displayed."],
+        "High Priority - disabled by default": [highpriority, "Increases the koboldcpp process priority.\nMay cause lag or slowdown instead. Not recommended."]
     }
 
     for idx, (name, properties) in enumerate(quick_boxes.items()):
@@ -2585,6 +2730,7 @@ def show_gui():
     lowvram_box = makecheckbox(hardware_tab,  "Low VRAM (No KV offload)", lowvram_var, 4,0, tooltiptxt='Avoid offloading KV Cache or scratch buffers to VRAM.\nAllows more layers to fit, but may result in a speed loss.')
     mmq_box = makecheckbox(hardware_tab,  "Use QuantMatMul (mmq)", mmq_var, 4,1, tooltiptxt="Enable MMQ mode to use finetuned kernels instead of default CuBLAS/HipBLAS for prompt processing.\nRead the wiki. Speed may vary.")
     splitmode_box = makecheckbox(hardware_tab,  "Row-Split", rowsplit_var, 5,0, tooltiptxt="Split rows across GPUs instead of splitting layers and KV across GPUs.\nUses the main GPU for small tensors and intermediate results. Speed may vary.")
+    dedicated_box = makecheckbox(hardware_tab,  "Dedicated GPU for LLM", rowsplit_var, 5,1, tooltiptxt="Reduces the reserved area of the GPU layers autoloader from 1.125GB to 0.5GB.")
 
     # threads
     makelabelentry(hardware_tab, "Threads:" , threads_var, 11, 50,tooltip="How many threads to use.\nRecommended value is your CPU core count, defaults are usually OK.")
@@ -2595,6 +2741,7 @@ def show_gui():
         "High Priority": [highpriority, "Increases the koboldcpp process priority.\nMay cause lag or slowdown instead. Not recommended."],
         "Disable MMAP": [disablemmap, "Avoids using mmap to load models if enabled"],
         "Use mlock": [usemlock, "Enables mlock, preventing the RAM used to load the model from being paged out."],
+#        "Direct I/O": [usedirect_io, "Enables Direct_IO, accelerating the model loading time],
         "Debug Mode": [debugmode, "Enables debug mode, with extra info printed to the terminal."],
         "Keep Foreground": [keepforeground, "Bring KoboldCpp to the foreground every time there is a new generation."]
     }
@@ -2789,6 +2936,7 @@ def show_gui():
 #        args.token_healing  = token_healing.get()
         args.debugmode  = debugmode.get()
         args.launch     = launchbrowser.get()==1
+        args.dedicated     = dedicated.get()==1
         args.highpriority = highpriority.get()==1
         args.nommap = disablemmap.get()==1
         args.smartcontext = smartcontext.get()==1
@@ -2927,6 +3075,7 @@ def show_gui():
         if "debugmode" in dict:
             debugmode.set(dict["debugmode"])
         launchbrowser.set(1 if "launch" in dict and dict["launch"] else 0)
+        dedicated.set(1 if "dedicated" in dict and dict["dedicated"] else 0)
         highpriority.set(1 if "highpriority" in dict and dict["highpriority"] else 0)
         disablemmap.set(1 if "nommap" in dict and dict["nommap"] else 0)
         smartcontext.set(1 if "smartcontext" in dict and dict["smartcontext"] else 0)
@@ -3816,7 +3965,7 @@ def main(launch_args,start_server=True):
                 fetch_gpu_properties(False,True,True)
                 pass
             if MaxMemory[0] > 0:
-                layeramt = autoset_gpu_layers(args.model_param, args.contextsize, MaxMemory[0])
+                layeramt = autoset_gpu_layers(args.model_param, args.contextsize, MaxMemory[0], args.quantkv, args.blasbatchsize, args.flashattention, "mmq" in args.usecublas, "lowvram" in args.usecublas, args.dedicated)
                 print(f"Auto Recommended Layers: {layeramt}")
                 args.gpulayers = layeramt
 
@@ -4147,11 +4296,10 @@ if __name__ == '__main__':
             return f
         return range_checker
 
-    print(f"***\nWelcome to KoboldCpp Frankenstein Fork - Version {KcppVersion}") # just update version manually
+    print(f"***\nWelcome to Kobold.Cpp Frankenstein Fork - Version {KcppVersion}") # just update version manually
     print(f"***\nBased on LlamaCpp - Version {LcppVersion}") # just update LlamaCPP version manually
     print(f"***\nRelease date: {ReleaseDate}") # just update date manually
     print(f"***\nCuda mode compiled, if any: {CudaSpecifics}") # just update Cuda options used in CMake manually
-
     print("***")
     # print("Python version: " + sys.version)
     parser = argparse.ArgumentParser(description='KoboldCpp Server')
@@ -4164,7 +4312,7 @@ if __name__ == '__main__':
     parser.add_argument("--host", metavar=('[ipaddr]'), help="Host IP to listen on. If empty, all routable interfaces are accepted.", default="")
     parser.add_argument("--launch", help="Launches a web browser when load is completed.", action='store_true')
     parser.add_argument("--config", metavar=('[filename]'), help="Load settings from a .kcpps file. Other arguments will be ignored", type=str, nargs=1)
-
+    parser.add_argument("--dedicated", help="Reduces the reserved area of the GPU layers autoloader from 1.125GB to 0.5GB.", action='store_true')
     parser.add_argument("--threads", metavar=('[threads]'), help="Use a custom number of threads if specified. Otherwise, uses an amount based on CPU cores", type=int, default=get_default_threads())
     compatgroup = parser.add_mutually_exclusive_group()
     compatgroup.add_argument("--usecublas", help="Use CuBLAS for GPU Acceleration (NVIDIA Geforce RTX cards, GTX 1xxx and 9xx are also compatible to some extend). Requires CUDA. Select lowvram to not allocate the context KV cache in VRAM, but instead in RAM. Enter a number afterwards to select and use 1 GPU. Leaving no number will use all GPUs. For hipBLAS binaries, please check YellowRoseCx rocm fork.", nargs='*',metavar=('[lowvram|normal] [main GPU ID] [mmq] [rowsplit]'), choices=['normal', 'lowvram', '0', '1', '2', '3', 'mmq', 'rowsplit'])
