@@ -163,9 +163,18 @@ class Keys:
         MIDDLE_ID            = "tokenizer.ggml.middle_token_id"
         EOT_ID               = "tokenizer.ggml.eot_token_id"
 
+    class Adapter:
+        TYPE       = "adapter.type"
+        LORA_ALPHA = "adapter.lora.alpha"
+
 #
 # recommended mapping of model tensor names for storage in gguf
 #
+
+
+class GGUFType:
+    MODEL   = "model"
+    ADAPTER = "adapter"
 
 
 class MODEL_ARCH(IntEnum):
