@@ -617,7 +617,7 @@ def autoset_gpu_layers(filepath,ctxsize,gpumem): #shitty algo to determine how m
                     ratio = mem/(fsize*csmul*1.5)
                     print(ratio)
                     if headcount > 0:
-                        ratio = max(ratio,mem/(fsize*1.1 + (layers*headcount*headkvlen*cs*4) + (layers*4*headkvlen*cs*4) + (1.5*1024*1024*1024)))
+                        ratio = (mem - (1.0*1024*1024*1024) - (layers*4*headkvlen*cs*4*1.25))/(fsize*1.1 + (layers*headcount*headkvlen*cs*4))
                         print(ratio)
                     layerlimit = int(ratio*layers)
             else:
