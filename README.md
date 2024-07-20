@@ -8,6 +8,7 @@ Kobold.cpp Frankenstein (KCPP-F) is a fork of the experimental branch of KoboldC
 - Often some PRs unsupported/not yet supported in KCPP.
 - More infos displayed in the CLI, without activating debug mode.
 - Smartcontext instead of contextshift by default in GUI for compatibility with Gemma
+- A model layer GPU autoloader based on Concedo's work and Pyroserenus formulas, currently in development.
 
 Recommanded settings for Commande Line Interface / GUI :
 ```
@@ -17,7 +18,7 @@ Recommanded settings for Commande Line Interface / GUI :
 ```
 Check the help section (koboldcpp.exe --help or python koboldcpp.py --help) for more infos.
 
-## KoboldCPP Frankenstein specifics :
+## Kobold.cpp Frankenstein specifics :
 
 <details>
 <summary>Unroll the 26 KV cache options (all should be considered experimental except F16, KV Q8_0, and KV Q4_0)</summary>
@@ -184,6 +185,12 @@ Range : Uses the repetition penalty range (usual parameter is 2048)
 Usual sequence breakers : '\n', ':', '"', '*'
 </details>
 
+#Kobold.cpp Frankenstein notes :
+
+- I often mislabel the Cuda specifics of the builds. Here's the right nomenclature :
+Cuda 12.2 arch 60617075 : Cu12.2_SMC2_Ar60617075_DmmvX64Y2_MMY2_KQIt2
+Cuda 12.1 arch 52617075 : CuCML_ArCML_SMC2_DmmvX32Y1 (CML : CMakeList)
+Cuda 11.4.4/11.5 arch 35375052 : CuCML_ArCML_SMC2_DmmvX32Y1
 
 # koboldcpp-experimental
 
