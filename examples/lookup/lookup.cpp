@@ -113,7 +113,10 @@ int main(int argc, char ** argv){
 
     std::vector<draft_t> drafts;
 
-    llama_batch batch_tgt = llama_batch_init(max_context_size, 0, 64);
+    llama_batch batch_tgt = llama_batch_init(max_context_size, 0, n_draft);
+    std::vector<std::vector<int>> sampling_idx_store;
+    sampling_idx_store.resize(n_draft);
+    sampling_idx_store[0].push_back(0);
 
     // debug
     struct llama_kv_cache_view kvc_view = llama_kv_cache_view_init(ctx, 1);
@@ -131,7 +134,7 @@ int main(int argc, char ** argv){
         int seq_best = 0;
         while (true) {
             // sample from the target model
-            llama_token id = llama_sampling_sample(ctx_sampling, ctx, NULL, i_dft);
+            llama_token id = llama_sampling_sample(ctx_sampling, ctx, NULL, sampling_idx_store[seq_best][i_dft]);
 
             llama_sampling_accept(ctx_sampling, ctx, id, true);
 
@@ -151,7 +154,7 @@ int main(int argc, char ** argv){
             bool accepted = false;
             for (int j = 0; j < (int) drafts.size(); ++j) {
                 if (!drafts.empty() && i_dft + 1 < (int) drafts[j].size() && id == drafts[j][i_dft + 1]) {
-                    LOG("draft success: (%d, '%s')\n", id, token_str.c_str());
+                    LOG("draft success: (%d, '%s'), seq_id=%d\n", id, token_str.c_str(), j);
                     ++n_accept;
                     ++n_past;
                     ++i_dft;
@@ -204,12 +207,15 @@ int main(int argc, char ** argv){
         // KV cache management
         // clean the cache of draft tokens that weren't accepted
         if (seq_best != 0) {
-            llama_kv_cache_seq_cp(ctx, seq_best, 0, n_past-i_dft, n_past);
+            llama_kv_cache_seq_cp(ctx, seq_best, 0, n_past-i_dft, -1);
         }
         llama_kv_cache_seq_keep(ctx, 0);
         llama_kv_cache_seq_rm(ctx, 0, n_past, -1);
 
         llama_batch_clear(batch_tgt);
+        for (int j = 0; j < n_draft; ++j) {
+            sampling_idx_store[j].clear();
+        }
 
         // Draft already contains a single token sampled from the model:
         GGML_ASSERT(drafts.size() == 1);
@@ -264,6 +270,9 @@ int main(int argc, char ** argv){
                     break;
                 }
 
+                for (const llama_seq_id & sid : current_seq_ids) {
+                    sampling_idx_store[sid].push_back(batch_tgt.n_tokens);
+                }
                 llama_batch_add(batch_tgt, current_token, n_past + i, current_seq_ids, true);
             }
         }
