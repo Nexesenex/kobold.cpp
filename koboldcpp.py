@@ -599,7 +599,7 @@ def read_gguf_metadata(file_path):
     except Exception as ex:
         return None
 
-def autoset_gpu_layers(filepath,ctxsize,gpumem1,quantkv,blasbatchsize,flashattention,mmqmode,lowvram,dedicated): #shitty algo to determine how many layers to use
+def autoset_gpu_layers(filepath,ctxsize,gpu0mem,quantkv,blasbatchsize,flashattention,mmqmode,lowvram,dedicated,gpu1vram,gpu2vram,gpu3vram): #shitty algo to determine how many layers to use
     try:
         layerlimit = 0
         fsize = os.path.getsize(filepath)
@@ -609,11 +609,20 @@ def autoset_gpu_layers(filepath,ctxsize,gpumem1,quantkv,blasbatchsize,flashatten
             ded = dedicated
             
             if ded == 1: 
-                reserved_mem1 = 2**29   
+                reserved_mem0 = 2**29   
             else: 
-                reserved_mem1 = (2**30+2**27)
-            gpu_smem1 = gpumem1 / 4
-            mem1 = gpu_smem1 - reserved_mem1
+                reserved_mem0 = (2**30+2**27)
+            gpu0_smem = gpu0mem
+            mem0 = gpu0_smem - reserved_mem0
+            
+            # gpu1_svram = gpu1vram
+            # vram1 = gpu1_svram1 - reserved_vram1
+            
+            # gpu2_svram = gpu2vram
+            # vram2 = gpu1_svram2 - reserved_vram2
+            
+            # gpu3_svram = gpu3vram
+            # vram3 = gpu1_svram3 - reserved_vram3
             
             bbs = blasbatchsize
             bbs_ratio = bbs / 128
@@ -712,8 +721,8 @@ def autoset_gpu_layers(filepath,ctxsize,gpumem1,quantkv,blasbatchsize,flashatten
             layer_offset = 0
               
             print("***")
-            print(f"Model size: {fsize} B ; GPU VRAM: {gpumem1} B ; GPU simulated VRAM: {gpu_smem1} B")
-            print(f"Reserved VRAM {reserved_mem1} B ; GPU usable VRAM {mem1} B")
+            print(f"Model size: {fsize} B ; GPU0 VRAM: {gpumem0} B ; GPU0 simulated VRAM: {gpu_smem0} B")
+            print(f"GPU0 reserved VRAM {reserved_mem0} B ; GPU0 usable VRAM {mem0} B")
             print(f"Blas batch size: {bbs} ; BBS ratio: {bbs_ratio}")
             print(f"Flash Attention: {fa} ; FA ratio: {fa_ratio}")
             print(f"MMQ: {mmq} ; MMQ ratio: {mmq_ratio}")
@@ -722,14 +731,14 @@ def autoset_gpu_layers(filepath,ctxsize,gpumem1,quantkv,blasbatchsize,flashatten
             print(f"Context size: {cs} ; Context compute buffer multiplier (CCBM): {csmul}")
             print(f"Manual layer offset: {layer_offset}")
             print("***")
-            if mem1 < fsize*1.1*csmul:
-                print(f" GPU usable VRAM : {mem1} B < {fsize} B * 1.1 * {csmul} (CCBM) ")
+            if mem0 < fsize*1.1*csmul:
+                print(f" GPU0 usable VRAM : {mem0} B < {fsize} B * 1.1 * {csmul} (CCBM) ")
                 ggufmeta = read_gguf_metadata(filepath)
                 if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
                     print(f"Failure to read metadata or no layers number declared. Fallback calculation.")
                     sizeperlayer = fsize*csmul*0.052
                     print(f"Size per layer = Model size {fsize} B x 0.052 x {csmul} (CCBM)")
-                    layerlimit = int(min(200,mem1/sizeperlayer))
+                    layerlimit = int(min(200,mem0/sizeperlayer))
                     print(f"Size per layer: {sizeperlayer} B ; layers limit: {layerlimit}")
                 else:
                     print(f"Success to read metadata, proceeding...")
@@ -738,23 +747,23 @@ def autoset_gpu_layers(filepath,ctxsize,gpumem1,quantkv,blasbatchsize,flashatten
                     headkvlen = (ggufmeta[2] if ggufmeta[2] > 0 else 128)
                     sizeperlayer = fsize/layers
                     print(f"Model layers: {layers} ; Attention heads: {headcount} ; Head size : {headkvlen} ; Size per layer: {sizeperlayer} B")
-                    ratio_init = mem1/(fsize*csmul*1.5)
-                    print(f"Initial ratio: {ratio_init} = GPU usable VRAM {mem1} B / Model size: {fsize} B x 1.2 x {csmul} (CCBM)")                 
+                    ratio_init = mem0/(fsize*csmul*1.5)
+                    print(f"Initial ratio: {ratio_init} = GPU0 usable VRAM {mem0} B / Model size: {fsize} B x 1.2 x {csmul} (CCBM)")                 
                     if headcount > 0:
                         print("***")
                         print(f"Attention heads: {headcount} > 0")   
-                        # ratio = max(ratio_init,mem1/(fsize*1.34 + (layers*headcount*headkvlen*cs*4.25))) #concedo           
-                        # ratio = max(ratio_init,mem1/(fsize*1.025 + (layers*headcount*headkvlen*cs*4) + (layers*4*headkvlen*cs*4) + (1.5*1024*1024*1024))) #Henky
-                        # ratio = min(ratio_init,mem1/(fsize*1.04 + (layers*(headcount+(bbs_ratio*mmq_ratio*fa_ratio))*headkvlen*cs*kvbpw/8))) #Nexes based on Pyroserenus
+                        # ratio = max(ratio_init,mem0/(fsize*1.34 + (layers*headcount*headkvlen*cs*4.25))) #concedo           
+                        # ratio = max(ratio_init,mem0/(fsize*1.025 + (layers*headcount*headkvlen*cs*4) + (layers*4*headkvlen*cs*4) + (1.5*1024*1024*1024))) #Henky
+                        # ratio = min(ratio_init,mem0/(fsize*1.04 + (layers*(headcount+(bbs_ratio*mmq_ratio*fa_ratio))*headkvlen*cs*kvbpw/8))) #Nexes based on Pyroserenus
                         loaded_layers = (layers*ratio_init+layer_offset)
                         loaded_layers_size = loaded_layers * sizeperlayer
                         print(f"Initially loaded layers: {loaded_layers} ; Size per layer: {sizeperlayer} B ; Loaded layer size {loaded_layers_size} B")
-                        print(f"context size: {cs} tokens ; GPU usable VRAM: {mem1} B ; quant_kv_bpw : {kvbpw} bpw")
+                        print(f"context size: {cs} tokens ; GPU0 usable VRAM: {mem0} B ; quant_kv_bpw : {kvbpw} bpw")
                         context_buffer = (layers*headcount*headkvlen*cs*lvctx_ratio*kvbpw/8)
                         compute_buffer = (layers*bbs_ratio*mmq_ratio*fa_ratio*headkvlen*cs*lvcomp_ratio*4)
                         total_buffer = context_buffer + compute_buffer
                         loaded_size = int(fsize*1.1 + context_buffer)
-                        ratio_formula = (mem1 - compute_buffer)/loaded_size
+                        ratio_formula = (mem0 - compute_buffer)/loaded_size
                         print(f"Context buffer: {context_buffer} B + Compute buffer: {compute_buffer} B = Total_buffer: {total_buffer} B")   
                         print(f"Loaded size: {loaded_size} B ; Formula ratio: {ratio_formula}")   
                         ratio = max(ratio_init,ratio_formula)
@@ -762,7 +771,7 @@ def autoset_gpu_layers(filepath,ctxsize,gpumem1,quantkv,blasbatchsize,flashatten
                     layerlimit = int(ratio*layers+layer_offset)
                     print(f"Layers limit: {layerlimit} = final ratio {ratio} x {layers} layers")
                     estimated_loaded_size = int(layerlimit*sizeperlayer + total_buffer)
-                    estimated_occupation_size = int(estimated_loaded_size + reserved_mem1)
+                    estimated_occupation_size = int(estimated_loaded_size + reserved_mem0)
                     print(f"Estimated loaded size: {estimated_loaded_size} B ; Estimated loaded size: {estimated_occupation_size} B")                    
             else:
                 print(f"Best case : assume full offload.")  
@@ -771,7 +780,7 @@ def autoset_gpu_layers(filepath,ctxsize,gpumem1,quantkv,blasbatchsize,flashatten
                     layerlimit = 200 # assume full offload
                 else:
                     layerlimit = ggufmeta[0] + 3
-                print(f"GPU VRAM {mem1} B is superior to Model size {fsize} B x 1.1 x {csmul} (CCBM)")
+                print(f"GPU0 VRAM {mem0} B is superior to Model size {fsize} B x 1.1 x {csmul} (CCBM)")
             print("***")
         return layerlimit
     except Exception as ex:
@@ -2951,7 +2960,17 @@ def show_gui():
         args.quiet = quietmode.get()==1
         args.nocertify = nocertifymode.get()==1
         args.quantkv = int(quantkv_values[int(quantkv_var.get())])
-            
+
+        args.gpu0vram = int(gpu0vram_values[int(gpu0vram_var.get())])
+        args.gpu1vram = int(gpu1vram_values[int(gpu1vram_var.get())])
+        args.gpu2vram = int(gpu2vram_values[int(gpu2vram_var.get())])
+        args.gpu3vram = int(gpu3vram_values[int(gpu3vram_var.get())])
+
+        # args.gpu0vram = None if gpu0vram_var.get()=="" else int(gpu0vram_var.get())
+        # args.gpu1vram = None if gpu1vram_var.get()=="" else int(gpu1vram_var.get())
+        # args.gpu2vram = None if gpu2vram_var.get()=="" else int(gpu2vram_var.get())  
+        # args.gpu3vram = None if gpu3vram_var.get()=="" else int(gpu3vram_var.get())
+          
         gpuchoiceidx = 0
         if gpu_choice_var.get()!="All":
             gpuchoiceidx = int(gpu_choice_var.get())-1
@@ -3166,6 +3185,15 @@ def show_gui():
 
         if "blasbatchsize" in dict and dict["blasbatchsize"]:
             blas_size_var.set(blasbatchsize_values.index(str(dict["blasbatchsize"])))
+            
+        if "gpu0vram" in dict and dict["gpu0vram"]:
+            gpu0vram_var.set(str(dict["gpu0vram"]))
+        if "gpu1vram" in dict and dict["gpu1vram"]:
+            gpu1vram_var.set(str(dict["gpu1vram"]))
+        if "gpu2vram" in dict and dict["gpu2vram"]:
+            gpu2vram_var.set(str(dict["gpu2vram"]))
+        if "gpu3vram" in dict and dict["gpu3vram"]:
+            gpu3vram_var.set(str(dict["gpu3vram"]))
 
         version_var.set(str(dict["forceversion"]) if ("forceversion" in dict and dict["forceversion"]) else "0")
         model_var.set(dict["model_param"] if ("model_param" in dict and dict["model_param"]) else "")
@@ -3969,7 +3997,7 @@ def main(launch_args,start_server=True):
                 fetch_gpu_properties(False,True,True)
                 pass
             if MaxMemory[0] > 0:
-                layeramt = autoset_gpu_layers(args.model_param, args.contextsize, MaxMemory[0], args.quantkv, args.blasbatchsize, args.flashattention, "mmq" in args.usecublas, "lowvram" in args.usecublas, args.dedicated)
+                layeramt = autoset_gpu_layers(args.model_param, args.contextsize, MaxMemory[0], args.quantkv, args.blasbatchsize, args.flashattention, "mmq" in args.usecublas, "lowvram" in args.usecublas, args.dedicated, args.gpu1vram, args.gpu2vram, args.gpu3vram)
                 print(f"Auto Recommended Layers: {layeramt}")
                 args.gpulayers = layeramt
 
@@ -4316,7 +4344,13 @@ if __name__ == '__main__':
     parser.add_argument("--host", metavar=('[ipaddr]'), help="Host IP to listen on. If empty, all routable interfaces are accepted.", default="")
     parser.add_argument("--launch", help="Launches a web browser when load is completed.", action='store_true')
     parser.add_argument("--config", metavar=('[filename]'), help="Load settings from a .kcpps file. Other arguments will be ignored", type=str, nargs=1)
+
     parser.add_argument("--dedicated", help="Reduces the reserved area of the GPU layers autoloader from 1.125GB to 0.5GB.", action='store_true')
+    parser.add_argument("--gpu0vram", help="declares the amount of VRAM of GPU1 (in GB).", type=check_range(int,1,80), default=0)
+    parser.add_argument("--gpu1vram", help="declares the amount of VRAM of GPU1 (in GB).", type=check_range(int,1,80), default=0)
+    parser.add_argument("--gpu2vram", help="declares the amount of VRAM of GPU2 (in GB).", type=check_range(int,1,80), default=0)
+    parser.add_argument("--gpu3vram", help="declares the amount of VRAM of GPU3 (in GB).", type=check_range(int,1,80), default=0)
+
     parser.add_argument("--threads", metavar=('[threads]'), help="Use a custom number of threads if specified. Otherwise, uses an amount based on CPU cores", type=int, default=get_default_threads())
     compatgroup = parser.add_mutually_exclusive_group()
     compatgroup.add_argument("--usecublas", help="Use CuBLAS for GPU Acceleration (NVIDIA Geforce RTX cards, GTX 1xxx and 9xx are also compatible to some extend). Requires CUDA. Select lowvram to not allocate the context KV cache in VRAM, but instead in RAM. Enter a number afterwards to select and use 1 GPU. Leaving no number will use all GPUs. For hipBLAS binaries, please check YellowRoseCx rocm fork.", nargs='*',metavar=('[lowvram|normal] [main GPU ID] [mmq] [rowsplit]'), choices=['normal', 'lowvram', '0', '1', '2', '3', 'mmq', 'rowsplit'])
