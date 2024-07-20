@@ -127,6 +127,7 @@ int main(int argc, char ** argv){
         }
 
         int i_dft = 0;
+        int seq_best = 0;
         while (true) {
             // sample from the target model
             llama_token id = llama_sampling_sample(ctx_sampling, ctx, NULL, i_dft);
@@ -146,24 +147,32 @@ int main(int argc, char ** argv){
             ++n_predict;
 
             // check if the target token matches the draft
-            if (!drafts.empty() && i_dft + 1 < (int) drafts[0].size() && id == drafts[0][i_dft + 1]) {
-                LOG("draft success: (%d, '%s')\n", id, token_str.c_str());
-                ++n_accept;
-                ++n_past;
-                ++i_dft;
-                inp.push_back(id);
-                {
-                    // Update context ngram cache with the newly accepted token:
-                    const int64_t t_start_draft_us = ggml_time_us();
-                    llama_ngram_cache_update(ngram_cache_context, LLAMA_NGRAM_MIN, LLAMA_NGRAM_MAX, inp, 1, false);
-                    t_draft_us += ggml_time_us() - t_start_draft_us;
-                }
+            bool accepted = false;
+            for (int i = 0; i < (int) drafts.size(); ++i) {
+                if (!drafts.empty() && i_dft + 1 < (int) drafts[i].size() && id == drafts[i][i_dft + 1]) {
+                    LOG("draft success: (%d, '%s')\n", id, token_str.c_str());
+                    ++n_accept;
+                    ++n_past;
+                    ++i_dft;
+                    inp.push_back(id);
+                    seq_best = i;
+                    {
+                        // Update context ngram cache with the newly accepted token:
+                        const int64_t t_start_draft_us = ggml_time_us();
+                        llama_ngram_cache_update(ngram_cache_context, LLAMA_NGRAM_MIN, LLAMA_NGRAM_MAX, inp, 1, false);
+                        t_draft_us += ggml_time_us() - t_start_draft_us;
+                    }
 
-                if (params.use_color) {
-                    // color accepted draft token
-                    printf("\033[34m%s\033[0m", token_str.c_str());
-                    fflush(stdout);
+                    if (params.use_color) {
+                        // color accepted draft token
+                        printf("\033[34m%s\033[0m", token_str.c_str());
+                        fflush(stdout);
+                    }
+                    accepted = true;
+                    break;
                 }
+            }
+            if (accepted) {
                 continue;
             }
 
@@ -193,7 +202,10 @@ int main(int argc, char ** argv){
 
         // KV cache management
         // clean the cache of draft tokens that weren't accepted
-        llama_kv_cache_seq_rm(ctx, 0, n_past, -1);
+        if (seq_best != -1) {
+            llama_kv_cache_seq_keep(ctx, seq_best);
+            llama_kv_cache_seq_rm(ctx, seq_best, n_past, -1);
+        }
 
         llama_batch_clear(batch_tgt);
         llama_batch_add(batch_tgt, drafts[0][0], n_past, { 0 }, true);
