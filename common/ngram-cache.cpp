@@ -140,10 +140,12 @@ static llama_token try_draft(
 }
 
 void llama_ngram_cache_draft(
-    std::vector<llama_token> & inp, std::vector<llama_token> & draft, int n_draft, int ngram_min, int ngram_max,
+    std::vector<llama_token> & inp, std::vector<std::vector<llama_token>> & drafts, int n_draft, int ngram_min, int ngram_max,
     llama_ngram_cache & nc_context, llama_ngram_cache & nc_dynamic, llama_ngram_cache & nc_static
 ) {
-    GGML_ASSERT(draft.size() == 1);
+    GGML_ASSERT(drafts.size() == 1);
+    GGML_ASSERT(drafts[0].size() == 1);
+    std::vector<llama_token> & draft = drafts[0];
     const int inp_size = inp.size();
 
     if (inp_size < LLAMA_NGRAM_STATIC) {
@@ -188,7 +190,6 @@ void llama_ngram_cache_draft(
             break;
         }
 
-        LOG(" - draft candidate: token=%d\n", drafted_token);
         draft.push_back(drafted_token);
     }
 }

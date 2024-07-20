@@ -11,6 +11,8 @@
 #include <vector>
 #include <unordered_map>
 
+typedef std::vector<llama_token> draft_t;
+
 int main(int argc, char ** argv){
     gpt_params params;
 
@@ -108,9 +110,9 @@ int main(int argc, char ** argv){
 
     struct llama_sampling_context * ctx_sampling = llama_sampling_init(params.sparams);
 
-    std::vector<llama_token> draft;
+    std::vector<draft_t> drafts;
 
-    llama_batch batch_tgt = llama_batch_init(params.n_ctx, 0, 1);
+    llama_batch batch_tgt = llama_batch_init(max_context_size, 0, 1);
 
     // debug
     struct llama_kv_cache_view kvc_view = llama_kv_cache_view_init(ctx, 1);
@@ -124,8 +126,10 @@ int main(int argc, char ** argv){
             llama_kv_cache_dump_view_seqs(kvc_view, 40);
         }
 
-        // print current draft sequence
-        LOG("drafted %s\n", LOG_TOKENS_TOSTR_PRETTY(ctx, draft).c_str());
+        LOG("drafts:\n");
+        for (const draft_t & draft : drafts) {
+            LOG("  - %s\n", LOG_TOKENS_TOSTR_PRETTY(ctx, draft).c_str());
+        }
 
         int i_dft = 0;
         while (true) {
@@ -147,7 +151,7 @@ int main(int argc, char ** argv){
             ++n_predict;
 
             // check if the target token matches the draft
-            if (i_dft < (int) draft.size() && id == draft[i_dft]) {
+            if (!drafts.empty() && i_dft < (int) drafts[0].size() && id == drafts[0][i_dft]) {
                 LOG("the sampled target token matches the %dth drafted token (%d, '%s') - accepted\n", i_dft, id, token_str.c_str());
                 ++n_accept;
                 ++n_past;
@@ -176,8 +180,8 @@ int main(int argc, char ** argv){
 
             LOG("the sampled target token (%d, '%s') did not match, or we ran out of drafted tokens\n", id, token_str.c_str());
 
-            draft.clear();
-            draft.push_back(id);
+            drafts.clear();
+            drafts.push_back({id});
             inp.push_back(id);
             {
                 // Update context ngram cache with the newly accepted token:
@@ -197,26 +201,27 @@ int main(int argc, char ** argv){
         llama_kv_cache_seq_rm(ctx, 0, n_past, -1);
 
         llama_batch_clear(batch_tgt);
-        llama_batch_add(batch_tgt, draft[0], n_past, { 0 }, true);
+        llama_batch_add(batch_tgt, drafts[0][0], n_past, { 0 }, true);
 
         // Draft already contains a single token sampled from the model:
-        GGML_ASSERT(draft.size() == 1);
-        GGML_ASSERT(draft[0] == inp.back());
+        GGML_ASSERT(drafts.size() == 1);
+        GGML_ASSERT(drafts[0].size() == 1);
+        GGML_ASSERT(drafts[0][0] == inp.back());
         const int64_t t_start_draft_us = ggml_time_us();
 
-        llama_ngram_cache_draft(inp, draft, n_draft, LLAMA_NGRAM_MIN, LLAMA_NGRAM_MAX, ngram_cache_context, ngram_cache_dynamic, ngram_cache_static);
+        llama_ngram_cache_draft(inp, drafts, n_draft, LLAMA_NGRAM_MIN, LLAMA_NGRAM_MAX, ngram_cache_context, ngram_cache_dynamic, ngram_cache_static);
 
-        for (size_t i = 1; i < draft.size(); ++i) {
-            llama_batch_add(batch_tgt, draft[i], n_past + i, { 0 }, true);
+        for (size_t i = 1; i < drafts[0].size(); ++i) {
+            llama_batch_add(batch_tgt, drafts[0][i], n_past + i, { 0 }, true);
         }
 
         t_draft_us += ggml_time_us() - t_start_draft_us;
-        n_drafted += draft.size() - 1;
+        n_drafted += drafts[0].size() - 1;
 
         llama_decode(ctx, batch_tgt);
         ++n_past;
 
-        draft.erase(draft.begin());
+        drafts[0].erase(drafts[0].begin());
     }
 
     auto t_dec_end = ggml_time_us();

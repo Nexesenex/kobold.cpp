@@ -82,7 +82,7 @@ void llama_ngram_cache_update(
 // nc_dynamic:         ngram cache based on previous user generations.
 // nc_static:          ngram cache generated from a large text corpus, used for validation.
 void llama_ngram_cache_draft(
-    std::vector<llama_token> & inp, std::vector<llama_token> & draft, int n_draft, int ngram_min, int ngram_max,
+    std::vector<llama_token> & inp, std::vector<std::vector<llama_token>> & drafts, int n_draft, int ngram_min, int ngram_max,
     llama_ngram_cache & nc_context, llama_ngram_cache & nc_dynamic, llama_ngram_cache & nc_static);
 
 // Save an ngram cache to a file.
