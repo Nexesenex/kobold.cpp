@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <fstream>
+#include <set>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -208,7 +209,6 @@ int main(int argc, char ** argv){
         }
 
         llama_batch_clear(batch_tgt);
-        llama_batch_add(batch_tgt, drafts[0][0], n_past, { 0 }, true);
 
         // Draft already contains a single token sampled from the model:
         GGML_ASSERT(drafts.size() == 1);
@@ -231,8 +231,40 @@ int main(int argc, char ** argv){
         }
 
 
-        for (size_t i = 1; i < drafts[0].size(); ++i) {
-            llama_batch_add(batch_tgt, drafts[0][i], n_past + i, { 0 }, true);
+        for (int i = 0; i < draft_max; ++i) {
+            std::set<llama_token> seen_tokens;
+
+            while (true) {
+                llama_token               current_token   = -1;
+                std::vector<llama_seq_id> current_seq_ids;
+
+                for (int j = 0; j < (int) drafts.size(); ++j) {
+                    if (i >= (int) drafts[j].size()) {
+                        continue;
+                    }
+
+                    if (current_token == -1) {
+                        if (seen_tokens.find(drafts[j][i]) != seen_tokens.end()) {
+                            continue;
+                        }
+
+                        current_token = drafts[j][i];
+                        seen_tokens.emplace(current_token);
+                    }
+
+                    if (drafts[j][i] != current_token) {
+                        continue;
+                    }
+
+                    current_seq_ids.push_back(j);
+                }
+
+                if (current_token == -1) {
+                    break;
+                }
+
+                llama_batch_add(batch_tgt, current_token, n_past + i, current_seq_ids, true);
+            }
         }
 
         t_draft_us += ggml_time_us() - t_start_draft_us;
