@@ -600,7 +600,7 @@ def read_gguf_metadata(file_path):
     except Exception as ex:
         return None
 
-def autoset_gpu_layers(filepath,ctxsize,gpu0mem,quantkv,blasbatchsize,flashattention,mmqmode,lowvram,displaygpu,gpu1vram,gpu2vram,gpu3vram): #shitty algo to determine how many layers to use
+def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,quantkv,mmqmode,lowvram,displaygpu,gpu1vram,gpu2vram,gpu3vram): #shitty algo to determine how many layers to use
     try:
         layerlimit = 0
         fsize = os.path.getsize(filepath)
@@ -803,8 +803,9 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,quantkv,blasbatchsize,flashatten
                     layerlimit = int(ratio*layers+layer_offset)
                     print(f"Layers limit: {layerlimit} = final ratio {ratio} x {layers} layers")
                     estimated_loaded_size = int(layerlimit*sizeperlayer + total_buffer)
-                    estimated_occupation_size = int(estimated_loaded_size + reserved_mem)
-                    print(f"Estimated loaded size: {estimated_loaded_size} B ; Estimated loaded size: {estimated_occupation_size} B")                    
+                    print(f"Estimated loaded size: {estimated_loaded_size} B")
+                    estimated_occupation_size = int(estimated_loaded_size + reserved_mem0)
+                    print(f"Estimated occupation size: {estimated_occupation_size} B")                    
             else:
                 print(f"Best case : assume full offload.")  
                 ggufmeta = read_gguf_metadata(filepath)
@@ -2372,9 +2373,14 @@ def show_gui():
     contextsize_text = ["128", "256", "384", "512", "640", "768", "896", "1024", "1152", "1280", "1408", "1536", "1664", "1792", "1920", "2048", "2176", "2304", "2432", "2560", "2688", "2816", "2944", "3072", "3200", "3328", "3456", "3584", "3712", "3840", "3968", "4096", "4224", "4352", "4480", "4608", "4736", "4864", "4992", "5120", "5248", "5376", "5504", "5632", "5760", "5888", "6016", "6144", "6272", "6400", "6528", "6656", "6784", "6912", "7040", "7168", "7296", "7424", "7552", "7680", "7808", "7936", "8064", "8192", "8320", "8448", "8576", "8704", "8832", "8960", "9088", "9216", "9344", "9472", "9600", "9728", "9856", "9984", "10112", "10240", "10368", "10496", "10624", "10752", "10880", "11008", "11136", "11264", "11392", "11520", "11648", "11776", "11904", "12032", "12160", "12288", "12416", "12544", "12672", "12800", "12928", "13056", "13184", "13312", "13440", "13568", "13696", "13824", "13952", "14080", "14208", "14336", "14464", "14592", "14720", "14848", "14976", "15104", "15232", "15360", "15488", "15616", "15744", "15872", "16000", "16128", "16256", "16384", "16512", "16640", "16768", "16896", "17024", "17152", "17280", "17408", "17536", "17664", "17792", "17920", "18048", "18176", "18304", "18432", "18560", "18688", "18816", "18944", "19072", "19200", "19328", "19456", "19584", "19712", "19840", "19968", "20096", "20224", "20352", "20480", "20608", "20736", "20864", "20992", "21120", "21248", "21376", "21504", "21632", "21760", "21888", "22016", "22144", "22272", "22400", "22528", "22656", "22784", "22912", "23040", "23168", "23296", "23424", "23552", "23680", "23808", "23936", "24064", "24192", "24320", "24448", "24576", "24704", "24832", "24960", "25088", "25216", "25344", "25472", "25600", "25728", "25856", "25984", "26112", "26240", "26368", "26496", "26624", "26752", "26880", "27008", "27136", "27264", "27392", "27648", "27904", "28160", "28416", "28672", "28928", "29184", "29440", "29696", "29952", "30208", "30464", "30720", "30976", "31232", "31488", "31744", "32000", "32256", "32512", "32768", "33024", "33280", "33536", "33792", "34048", "34304", "34560", "34816", "35072", "35328", "35584", "35840", "36096", "36352", "36608", "36864", "37120", "37376", "37632", "37888", "38144", "38400", "38656", "38912", "39168", "39424", "39680", "39936", "40192", "40448", "40704", "40960", "41216", "41472", "41728", "41984", "42240", "42496", "42752", "43008", "43264", "43520", "43776", "44032", "44288", "44544", "44800", "45056", "45312", "45568", "45824", "46080", "46336", "46592", "46848", "47104", "47360", "47616", "47872", "48128", "48384", "48640", "48896", "49152", "49408", "49664", "49920", "50176", "50432", "50688", "50944", "51200", "51456", "51712", "51968", "52224", "52480", "52736", "52992", "53248", "53504", "53760", "54016", "54272", "54528", "54784", "55040", "55296", "55552", "55808", "56064", "56320", "56576", "56832", "57088", "57344", "57600", "57856", "58112", "58368", "58624", "58880", "59136", "59392", "59648", "59904", "60416", "60928", "61440", "61952", "62464", "62976", "63488", "64000", "64512", "65024", "65536", "66560", "67584", "68608", "69632", "70656", "71680", "72704", "73728", "74752", "75776", "76800", "77824", "78848", "79872", "80896", "81920", "82944", "83968", "84992", "86016", "87040", "88064", "89088", "90112", "91136", "92160", "93184", "94208", "95232", "96256", "97280", "98304", "99328", "100352", "101476", "102400", "103424", "104448", "105472", "106496", "107520", "108544", "109568", "110592", "111616", "112640", "113664", "114688", "115712", "116736", "117760", "118784", "119808", "120832", "121856", "122880", "123904", "124928", "125952", "126976", "128000", "129024", "130048", "131072", "132096", "133120", "134144", "135168", "136192", "137216", "138240", "139264", "140288", "141312", "142336", "143360", "144384", "145408", "146432", "147456", "148480", "149504", "150528", "151552", "152576", "153600", "154624", "155648", "156672", "157696", "158720", "159744", "160768", "161792", "162816", "163840", "164864", "165888", "166912", "167936", "168960", "169984", "171008", "172032", "173056", "174088", "175112", "176128", "177152", "178176", "179200", "180224", "181248", "182272", "183296", "184320", "185344", "186368", "187392", "188416", "189440", "190464", "191488", "192512", "193536", "194560", "195584", "196608", "198656", "200704", "202752", "204800", "206848", "208896", "210944", "212992", "215040", "217088", "219136", "221184", "223232", "225280", "227328", "229376", "231424", "233472", "235520", "237568", "239616", "241664", "243712", "245760", "247808", "249856", "251904", "253952", "256000", "258048", "260096", "262144"]
     runopts = [opt for lib, opt in lib_option_pairs if file_exists(lib)]
     antirunopts = [opt.replace("Use ", "") for lib, opt in lib_option_pairs if not (opt in runopts)]
-    quantkv_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26"]   
+    quantkv_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26"]
     quantkv_text = ["0 - F16 (16BPW) - 1616","1 - K16-V8-Bit (12.25BPW) - FA 1680","2 - K16-V5.1-Bit (11BPW) - FA 1651","3 - K16-V5-Bit (10.75BPW) - FA 1650","4 - K16-V4.1-Bit (10.50BPW) - FA 1641","5 - K16-V4-Bit (10.25BPW) - FA 1640","6 - 8-Bit (8.5BPW) - FA 8080","7 - K8-V5.1-Bit (7.25BPW) - FA 8051","8 - K8-V5-Bit (7BPW) - FA 8050","9 - K8-V4.1-Bit (6.75BPW) - FA 8041","10 - K8-V4-Bit (6.5BPW) - FA 8040","11 - 5.1-Bit (6BPW) - FA 5151","12 - K5.1-V5Bit (5.75BPW) - FA 5150","13 - K5.1-V4.1-Bit (5.5BPW) - FA 5141","14 - K5.1-V4-Bit (5.25BPW) - FA 5140","15 - 5-Bit (5.5BPW) - FA 5050","16 - K5-V4.1-Bit (5.25BPW) - FA 5041","17 - K5-V4-Bit (5BPW) - FA 5040","18 - 4.1Bit (5BPW) - FA 4141","19 - K4.1-V4-Bit (4.75BPW) - FA 4140","20 - 4-Bit (4.5BPW) - FA 4040","21 - F16 (16BPW) - 1616","22 - K8-Bit-V16 (12.25BPW) - 8016","23 - K5.1-Bit-V16 (11BPW) - 5116","24 - K5-Bit-V16 (11.75BPW) - 5016","25 - K4.1-Bit-V16 (10.5BPW) - 4116","26 - K4-Bit-V16 (10.25BPW) - 4016"]
-
+    displaygpu_values = ["-1", "0", "1", "2", "3"]
+    gpu0vram_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48"]
+    gpu1vram_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48"]
+    gpu2vram_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48"]
+    gpu3vram_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48"]
+    
     if not any(runopts):
         exitcounter = 999
         exit_with_error(2,"KoboldCPP couldn't locate any backends to use (i.e Default, OpenBLAS, CLBlast, CuBLAS).\n\nTo use the program, please run the 'make' command from the directory.","No Backends Available!")
@@ -2386,7 +2392,6 @@ def show_gui():
     gpu_choice_var = ctk.StringVar(value="1")
 
     launchbrowser = ctk.IntVar(value=1)
-    displaygpu = ctk.IntVar(value=0)
     highpriority = ctk.IntVar()
     disablemmap = ctk.IntVar()
     usemlock = ctk.IntVar()
@@ -2397,7 +2402,7 @@ def show_gui():
     quietmode = ctk.IntVar(value=0)
     nocertifymode = ctk.IntVar(value=0)
 
-    lowvram_var = ctk.IntVar()
+    lowvram_var = ctk.IntVar(value=0)
     mmq_var = ctk.IntVar(value=0)
     quantkv_var = ctk.IntVar(value=0)
     blas_threads_var = ctk.StringVar()
@@ -2405,6 +2410,12 @@ def show_gui():
     version_var = ctk.StringVar(value="0")
     tensor_split_str_vars = ctk.StringVar(value="")
     rowsplit_var = ctk.IntVar()
+    
+    displaygpu_var = ctk.IntVar()
+    gpu0vram_var = ctk.IntVar()
+    gpu1vram_var = ctk.IntVar()
+    gpu2vram_var = ctk.IntVar()
+    gpu3vram_var = ctk.IntVar()
 
     contextshift = ctk.IntVar(value=0)
     remotetunnel = ctk.IntVar(value=0)
@@ -2574,7 +2585,7 @@ def show_gui():
                 dict = json.load(f)
                 import_vars(dict)
         else:
-            layerlimit = autoset_gpu_layers(filepath,int(contextsize_text[context_var.get()]),MaxMemory[0])
+            layerlimit = autoset_gpu_layers(filepath,int(contextsize_text[context_var.get()]),MaxMemory[0],int(blasbatchsize_values[int(blas_size_var.get())]),flashattention.get(),int(quantkv_values[int(quantkv_var.get())]),mmq_var.get(),lowvram_var.get(),int(displaygpu_values[int(displaygpu_var.get())]),int(gpu1vram_values[int(gpu1vram_var.get())]),int(gpu2vram_values[int(gpu2vram_var.get())]),int(gpu3vram_values[int(gpu3vram_var.get())]))
             old_gui_layers_untouched = gui_layers_untouched
             gui_layers_zeroed = gpulayers_var.get()=="" or gpulayers_var.get()=="0"
             if (gui_layers_untouched or gui_layers_zeroed) and layerlimit>0:
@@ -3015,14 +3026,14 @@ def show_gui():
         args.foreground = keepforeground.get()==1
         args.quiet = quietmode.get()==1
         args.nocertify = nocertifymode.get()==1
-        args.quantkv = int(quantkv_values[int(quantkv_var.get())])
+        args.quantkv = int(quantkv_values[int(quantkv_var.get())])==0
 
-        args.displaygpu = int(displaygpu_values[int(displaygpu_var.get())])
+        args.displaygpu = int(displaygpu_values[int(displaygpu_var.get())])==0
 
-        args.gpu0vram = int(gpu0vram_values[int(gpu0vram_var.get())])
-        args.gpu1vram = int(gpu1vram_values[int(gpu1vram_var.get())])
-        args.gpu2vram = int(gpu2vram_values[int(gpu2vram_var.get())])
-        args.gpu3vram = int(gpu3vram_values[int(gpu3vram_var.get())])
+        args.gpu0vram = int(gpu0vram_values[int(gpu0vram_var.get())])==0
+        args.gpu1vram = int(gpu1vram_values[int(gpu1vram_var.get())])==0
+        args.gpu2vram = int(gpu2vram_values[int(gpu2vram_var.get())])==0
+        args.gpu3vram = int(gpu3vram_values[int(gpu3vram_var.get())])==0
 
         # args.gpu0vram = None if gpu0vram_var.get()=="" else int(gpu0vram_var.get())
         # args.gpu1vram = None if gpu1vram_var.get()=="" else int(gpu1vram_var.get())
@@ -3242,17 +3253,39 @@ def show_gui():
 
         if "blasbatchsize" in dict and dict["blasbatchsize"]:
             blas_size_var.set(blasbatchsize_values.index(str(dict["blasbatchsize"])))
+            
+        if "displaygpu" in dict:
+            displaygpu_var.set(dict["displaygpu"])
+        if "gpu0vram" in dict:
+            gpu0vram_var.set(dict["gpu0vram"])
+        if "gpu1vram" in dict:
+            gpu1vram_var.set(dict["gpu1vram"])
+        if "gpu2vram" in dict:
+            gpu2vram_var.set(dict["gpu2vram"])
+        if "gpu3vram" in dict:
+            gpu3vram_var.set(dict["gpu3vram"])
+     
+        # if "displaygpu" in dict and dict["displaygpu"]:
+            # displaygpu_var.set(displaygpu_values.index(str(dict["displaygpu"])))
+        # if "gpu0vram" in dict and dict["gpu0vram"]:
+            # gpu0vram_var.set(gpu0vram_values.index(str(dict["gpu0vram"])))
+        # if "gpu1vram" in dict and dict["gpu1vram"]:
+            # gpu1vram_var.set(gpu1vram_values.index(str(dict["gpu1vram"])))
+        # if "gpu2vram" in dict and dict["gpu3vram"]:
+            # gpu2vram_var.set(gpu2vram_values.index(str(dict["gpu2vram"])))
+        # if "gpu3vram" in dict and dict["gpu3vram"]:
+            # gpu3vram_var.set(gpu3vram_values.index(str(dict["gpu3vram"])))
 
-        if "displaygpu" in dict and dict["displaygpu"]:
-            displaygpu_var.set(str(dict["displaygpu"]))
-        if "gpu0vram" in dict and dict["gpu0vram"]:
-            gpu0vram_var.set(str(dict["gpu0vram"]))
-        if "gpu1vram" in dict and dict["gpu1vram"]:
-            gpu1vram_var.set(str(dict["gpu1vram"]))
-        if "gpu2vram" in dict and dict["gpu2vram"]:
-            gpu2vram_var.set(str(dict["gpu2vram"]))
-        if "gpu3vram" in dict and dict["gpu3vram"]:
-            gpu3vram_var.set(str(dict["gpu3vram"]))
+        # if "displaygpu" in dict and dict["displaygpu"]:
+            # displaygpu_var.set(str(dict["displaygpu"]))
+        # if "gpu0vram" in dict and dict["gpu0vram"]:
+            # gpu0vram_var.set(str(dict["gpu0vram"]))
+        # if "gpu1vram" in dict and dict["gpu1vram"]:
+            # gpu1vram_var.set(str(dict["gpu1vram"]))
+        # if "gpu2vram" in dict and dict["gpu2vram"]:
+            # gpu2vram_var.set(str(dict["gpu2vram"]))
+        # if "gpu3vram" in dict and dict["gpu3vram"]:
+            # gpu3vram_var.set(str(dict["gpu3vram"]))
 
         version_var.set(str(dict["forceversion"]) if ("forceversion" in dict and dict["forceversion"]) else "0")
         model_var.set(dict["model_param"] if ("model_param" in dict and dict["model_param"]) else "")
@@ -4068,7 +4101,7 @@ def main(launch_args,start_server=True):
                 fetch_gpu_properties(False,True,True)
                 pass
             if MaxMemory[0] > 0:
-                layeramt = autoset_gpu_layers(args.model_param, args.contextsize, MaxMemory[0], args.quantkv, args.blasbatchsize, args.flashattention, "mmq" in args.usecublas, "lowvram" in args.usecublas, args.displaygpu, args.gpu1vram, args.gpu2vram, args.gpu3vram)
+                layeramt = autoset_gpu_layers(args.model_param, args.contextsize, MaxMemory[0], args.blasbatchsize, args.flashattention, args.quantkv, "mmq" in args.usecublas, "lowvram" in args.usecublas, args.displaygpu, args.gpu1vram, args.gpu2vram, args.gpu3vram)
                 print(f"Auto Recommended Layers: {layeramt}")
                 args.gpulayers = layeramt
             else:
