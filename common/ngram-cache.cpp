@@ -145,13 +145,13 @@ void llama_ngram_cache_draft(
 ) {
     GGML_ASSERT(drafts.size() == 1);
     GGML_ASSERT(drafts[0].size() == 1);
-    std::vector<llama_token> & draft = drafts[0];
     const int inp_size = inp.size();
 
     if (inp_size < LLAMA_NGRAM_STATIC) {
         return;
     }
 
+    std::vector<llama_token> & draft = drafts[0];
     while ((int) draft.size()-1 < n_draft) {
         llama_token drafted_token = -1;
 
@@ -176,14 +176,51 @@ void llama_ngram_cache_draft(
             }
             ngrams_cd.push_back(ngram_cd);
         }
-        if (drafted_token == -1) {
-            drafted_token = try_draft(nc_context, ngrams_cd, part_static, draft_min_sample_size_lax, draft_min_percent_lax);
-        }
-        if (drafted_token == -1) {
-            drafted_token = try_draft(nc_dynamic, ngrams_cd, part_static, draft_min_sample_size_strict, draft_min_percent_strict);
-        }
-        if (drafted_token == -1) {
-            drafted_token = try_draft(nc_static, ngram_static);
+        {
+            GGML_UNUSED(nc_dynamic);
+            const int * min_percent = draft_min_percent_lax;
+            const int * min_sample_size = draft_min_sample_size_lax;
+            llama_ngram_cache & nc_primary = nc_context;
+            const std::vector<llama_ngram> & ngrams_primary = ngrams_cd;
+
+            for (int i = ngrams_primary.size()-1; i >= 0 && drafted_token == -1; --i) {
+                const llama_ngram ngram_primary = ngrams_primary[i];
+
+                llama_ngram_cache::iterator part_primary_it = nc_primary.find(ngram_primary);
+                if (part_primary_it == nc_primary.end()) {
+                    continue;
+                }
+                const llama_ngram_cache_part part_primary = part_primary_it->second;
+
+                int max_count_primary = 0;
+                int max_count_static  = 0;
+                int sum_count_primary = 0;
+                llama_token max_token = -1;
+
+                for (std::pair<llama_token, int> token_count_primary : part_primary) {
+                    const llama_token token = token_count_primary.first;
+
+                    llama_ngram_cache_part::iterator token_count_static_it = part_static.find(token);
+
+                    const int32_t count_primary = token_count_primary.second;
+                    const int32_t count_static  = token_count_static_it != part_static.end() ? 100*token_count_static_it->second : 1;
+
+                    if (count_primary*count_static > max_count_primary*max_count_static) {
+                        max_token         = token;
+                        max_count_primary = count_primary;
+                        max_count_static  = count_static;
+                    }
+                    sum_count_primary += count_primary;
+                }
+
+                if (sum_count_primary < min_sample_size[i]) {
+                    continue;
+                }
+                if (100*max_count_primary < min_percent[i]*sum_count_primary) {
+                    continue;;
+                }
+                drafted_token = max_token;
+            }
         }
 
         if (drafted_token == -1) {

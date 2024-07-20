@@ -60,6 +60,7 @@ typedef std::unordered_map<llama_token, int32_t> llama_ngram_cache_part;
 // n-gram -> empirical distribution of following tokens
 typedef std::unordered_map<llama_ngram, llama_ngram_cache_part, llama_ngram_hash_function> llama_ngram_cache;
 
+typedef std::vector<llama_token> llama_draft_t;
 
 // Update an ngram cache with tokens.
 // ngram_cache:         the cache to modify.
