@@ -113,7 +113,7 @@ int main(int argc, char ** argv){
 
     std::vector<draft_t> drafts;
 
-    llama_batch batch_tgt = llama_batch_init(max_context_size, 0, 1);
+    llama_batch batch_tgt = llama_batch_init(max_context_size, 0, 64);
 
     // debug
     struct llama_kv_cache_view kvc_view = llama_kv_cache_view_init(ctx, 1);
@@ -203,10 +203,11 @@ int main(int argc, char ** argv){
 
         // KV cache management
         // clean the cache of draft tokens that weren't accepted
-        if (seq_best != -1) {
-            llama_kv_cache_seq_keep(ctx, seq_best);
-            llama_kv_cache_seq_rm(ctx, seq_best, n_past, -1);
+        if (seq_best != 0) {
+            llama_kv_cache_seq_cp(ctx, seq_best, 0, n_past-i_dft, n_past);
         }
+        llama_kv_cache_seq_keep(ctx, 0);
+        llama_kv_cache_seq_rm(ctx, 0, n_past, -1);
 
         llama_batch_clear(batch_tgt);
 
