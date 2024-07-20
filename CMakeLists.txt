@@ -44,7 +44,7 @@ endif()
 
 # 3rd party libs
 option(LLAMA_CUBLAS                          "llama: use CUDA"                                ON)
-option(LLAMA_CUDA                            "llama: use CUDA"                                ON)
+option(LLAMA_CUDA                            "llama: use CUDA"                                OFF)
 set(LLAMA_CUDA_DMMV_X      "32" CACHE STRING "llama: x stride for dmmv CUDA kernels")
 set(LLAMA_CUDA_DMMV_Y       "1" CACHE STRING "llama: y block size for dmmv CUDA kernels")
 set(LLAMA_CUDA_MMV_Y        "1" CACHE STRING "llama: y block size for mmv CUDA kernels")
@@ -55,14 +55,14 @@ set(LLAMA_CUDA_PEER_MAX_BATCH_SIZE "128" CACHE STRING
 option(LLAMA_CUDA_NO_PEER_COPY               "llama: do not use peer to peer copies"            OFF)
 option(LLAMA_CUDA_FA_ALL_QUANTS              "llama: compile 18 quants for FlashAttention"      ON)
 option(LLAMA_CUDA_ENABLE_UNIFIED_MEMORY      "llama: enable to avoid OOM in Full Offload"       OFF)
-option(GGML_CUDA_USE_GRAPHS                                                                     ON)
+option(GGML_CUDA_USE_GRAPHS                                                                     OFF)
 
 option(LLAMA_HIPBLAS                         "llama: use hipBLAS"                               OFF)
 
 # Other
 set(LLAMA_SCHED_MAX_COPIES  "2" CACHE STRING "llama: max input copies for pipeline parallelism")
 option(LLAMA_OPENMP                          "llama: use OpenMP"                                ON)
-option(LLAMA_LLAMAFILE                       "llama: use llamafile SGEMM"                       ${LLAMA_LLAMAFILE_DEFAULT})
+option(LLAMA_LLAMAFILE                       "llama: use llamafile SGEMM"                       ON)
 option(LLAMA_CCACHE                          "llama: use ccache if available"                   ON)
 option(LLAMA_NATIVE                          "llama: enable -march=native flag"                 OFF)
 
