@@ -126,11 +126,6 @@ int main(int argc, char ** argv){
             llama_kv_cache_dump_view_seqs(kvc_view, 40);
         }
 
-        LOG("drafts:\n");
-        for (const draft_t & draft : drafts) {
-            LOG("  - %s\n", LOG_TOKENS_TOSTR_PRETTY(ctx, draft).c_str());
-        }
-
         int i_dft = 0;
         while (true) {
             // sample from the target model
@@ -151,8 +146,8 @@ int main(int argc, char ** argv){
             ++n_predict;
 
             // check if the target token matches the draft
-            if (!drafts.empty() && i_dft < (int) drafts[0].size() && id == drafts[0][i_dft]) {
-                LOG("the sampled target token matches the %dth drafted token (%d, '%s') - accepted\n", i_dft, id, token_str.c_str());
+            if (!drafts.empty() && i_dft + 1 < (int) drafts[0].size() && id == drafts[0][i_dft + 1]) {
+                LOG("draft success: (%d, '%s')\n", id, token_str.c_str());
                 ++n_accept;
                 ++n_past;
                 ++i_dft;
@@ -178,7 +173,7 @@ int main(int argc, char ** argv){
             fflush(stdout);
 
 
-            LOG("the sampled target token (%d, '%s') did not match, or we ran out of drafted tokens\n", id, token_str.c_str());
+            LOG("sampled: (%d, '%s')\n", id, token_str.c_str());
 
             drafts.clear();
             drafts.push_back({id});
@@ -211,6 +206,19 @@ int main(int argc, char ** argv){
 
         llama_ngram_cache_draft(inp, drafts, n_draft, LLAMA_NGRAM_MIN, LLAMA_NGRAM_MAX, ngram_cache_context, ngram_cache_dynamic, ngram_cache_static);
 
+        int draft_max = 0;
+        for (const draft_t & draft : drafts) {
+            draft_max = std::max(draft_max, (int) draft.size());
+        }
+
+        if (draft_max > 1) {
+            LOG("drafts:\n");
+            for (const draft_t & draft : drafts) {
+                LOG("  - %s\n", LOG_TOKENS_TOSTR_PRETTY(ctx, draft).c_str());
+            }
+        }
+
+
         for (size_t i = 1; i < drafts[0].size(); ++i) {
             llama_batch_add(batch_tgt, drafts[0][i], n_past + i, { 0 }, true);
         }
@@ -220,8 +228,6 @@ int main(int argc, char ** argv){
 
         llama_decode(ctx, batch_tgt);
         ++n_past;
-
-        drafts[0].erase(drafts[0].begin());
     }
 
     auto t_dec_end = ggml_time_us();
