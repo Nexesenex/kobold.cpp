@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <fstream>
+#include <queue>
 
 void llama_ngram_cache_update(llama_ngram_cache & ngram_cache, int ngram_min, int ngram_max,
                               std::vector<llama_token> & inp, int nnew, bool print_progress) {
@@ -139,6 +140,24 @@ static llama_token try_draft(
     return drafted_token;
 }
 
+struct draft_candidate {
+    llama_draft_t draft;
+    float nll;
+    int ngram_size;
+};
+
+struct compare_draft_candidate {
+    bool operator()(const draft_candidate & a, const draft_candidate & b){
+        if (a.ngram_size > b.ngram_size) {
+            return true;
+        }
+        if (a.ngram_size < b.ngram_size) {
+            return false;
+        }
+        return a.nll < b.nll;
+    }
+};
+
 void llama_ngram_cache_draft(
     std::vector<llama_token> & inp, std::vector<std::vector<llama_token>> & drafts, int n_draft, int ngram_min, int ngram_max,
     llama_ngram_cache & nc_context, llama_ngram_cache & nc_dynamic, llama_ngram_cache & nc_static
@@ -153,84 +172,104 @@ void llama_ngram_cache_draft(
 
     int i_draft = 0;
 
-    std::vector<llama_token> & draft = drafts[0];
-    while (i_draft < n_draft) {
-        llama_token drafted_token = -1;
+    std::vector<llama_token> draft(drafts[0].begin(), drafts[0].end());
 
-        const int ngram_start_static = inp_size-LLAMA_NGRAM_STATIC + draft.size()-1;
-        llama_ngram ngram_static;
-        for (int j = ngram_start_static; j < ngram_start_static + LLAMA_NGRAM_STATIC; ++j) {
-            ngram_static.tokens[j-ngram_start_static] = get_token(inp, draft, j);
-        }
-        llama_ngram_cache::iterator part_static_it = nc_static.find(ngram_static);
-        llama_ngram_cache_part part_static;
-        if (part_static_it != nc_static.end()) {
-            part_static = part_static_it->second;
-        }
+    const int ngram_start_static = inp_size-LLAMA_NGRAM_STATIC + draft.size()-1;
+    llama_ngram ngram_static;
+    for (int j = ngram_start_static; j < ngram_start_static + LLAMA_NGRAM_STATIC; ++j) {
+        ngram_static.tokens[j-ngram_start_static] = get_token(inp, draft, j);
+    }
+    llama_ngram_cache::iterator part_static_it = nc_static.find(ngram_static);
+    llama_ngram_cache_part part_static;
+    if (part_static_it != nc_static.end()) {
+        part_static = part_static_it->second;
+    }
 
-        // cd = context + dynamic
-        std::vector<llama_ngram> ngrams_cd;
-        for (int ngram_size_cd = ngram_min; ngram_size_cd <= ngram_max; ++ngram_size_cd) {
-            const int ngram_start_cd = inp_size-ngram_size_cd + draft.size()-1;
-            llama_ngram ngram_cd;
-            for (int j = ngram_start_cd; j < ngram_start_cd + ngram_size_cd; ++j) {
-                ngram_cd.tokens[j-ngram_start_cd] = get_token(inp, draft, j);
+    // cd = context + dynamic
+    std::vector<llama_ngram> ngrams_cd;
+    for (int ngram_size_cd = ngram_min; ngram_size_cd <= ngram_max; ++ngram_size_cd) {
+        const int ngram_start_cd = inp_size-ngram_size_cd + draft.size()-1;
+        llama_ngram ngram_cd;
+        for (int j = ngram_start_cd; j < ngram_start_cd + ngram_size_cd; ++j) {
+            ngram_cd.tokens[j-ngram_start_cd] = get_token(inp, draft, j);
+        }
+        ngrams_cd.push_back(ngram_cd);
+    }
+
+    std::priority_queue<draft_candidate, std::vector<draft_candidate>, compare_draft_candidate> pqueue;
+
+    {
+        GGML_UNUSED(nc_dynamic);
+        const int * min_percent = draft_min_percent_lax;
+        const int * min_sample_size = draft_min_sample_size_lax;
+        llama_ngram_cache & nc_primary = nc_context;
+        const std::vector<llama_ngram> & ngrams_primary = ngrams_cd;
+
+        for (int i = ngrams_primary.size()-1; i >= 0; --i) {
+            const llama_ngram ngram_primary = ngrams_primary[i];
+
+            llama_ngram_cache::iterator part_primary_it = nc_primary.find(ngram_primary);
+            if (part_primary_it == nc_primary.end()) {
+                continue;
             }
-            ngrams_cd.push_back(ngram_cd);
-        }
+            const llama_ngram_cache_part part_primary = part_primary_it->second;
 
-        {
-            GGML_UNUSED(nc_dynamic);
-            const int * min_percent = draft_min_percent_lax;
-            const int * min_sample_size = draft_min_sample_size_lax;
-            llama_ngram_cache & nc_primary = nc_context;
-            const std::vector<llama_ngram> & ngrams_primary = ngrams_cd;
+            int sum_count_primary = 0;
 
-            for (int i = ngrams_primary.size()-1; i >= 0 && drafted_token == -1; --i) {
-                const llama_ngram ngram_primary = ngrams_primary[i];
+            for (std::pair<llama_token, int> token_count_primary : part_primary) {
+                const int32_t count_primary = token_count_primary.second;
 
-                llama_ngram_cache::iterator part_primary_it = nc_primary.find(ngram_primary);
-                if (part_primary_it == nc_primary.end()) {
-                    continue;
-                }
-                const llama_ngram_cache_part part_primary = part_primary_it->second;
+                sum_count_primary += count_primary;
+            }
 
-                int max_count_primary = 0;
-                int max_count_static  = 0;
-                int sum_count_primary = 0;
-                llama_token max_token = -1;
+            for (std::pair<llama_token, int> token_count_primary : part_primary) {
+                const llama_token token = token_count_primary.first;
 
-                for (std::pair<llama_token, int> token_count_primary : part_primary) {
-                    const llama_token token = token_count_primary.first;
-
-                    llama_ngram_cache_part::iterator token_count_static_it = part_static.find(token);
-
-                    const int32_t count_primary = token_count_primary.second;
-                    const int32_t count_static  = token_count_static_it != part_static.end() ? 100*token_count_static_it->second : 1;
-
-                    if (count_primary*count_static > max_count_primary*max_count_static) {
-                        max_token         = token;
-                        max_count_primary = count_primary;
-                        max_count_static  = count_static;
-                    }
-                    sum_count_primary += count_primary;
-                }
+                const int32_t count_primary = token_count_primary.second;
 
                 if (sum_count_primary < min_sample_size[i]) {
                     continue;
                 }
-                if (100*max_count_primary < min_percent[i]*sum_count_primary) {
+
+                if (100*count_primary < min_percent[i]*sum_count_primary) {
                     continue;;
                 }
-                drafted_token = max_token;
+
+                draft_candidate candidate;
+                for (const llama_token & t : draft) {
+                    candidate.draft.push_back(t);
+                }
+                candidate.draft.push_back(token);
+                candidate.nll = -logf(1.0f*count_primary/sum_count_primary);
+                candidate.ngram_size = i;
+                pqueue.push(candidate);
             }
         }
+    }
 
-        if (drafted_token == -1) {
-            break;
+    if (pqueue.empty()) {
+        return;
+    }
+
+    drafts.clear();
+
+    while (i_draft < n_draft && !pqueue.empty()) {
+        const draft_candidate candidate = pqueue.top();
+        pqueue.pop();
+
+        bool already_accepted = false;
+        for (const llama_draft_t & d : drafts) {
+            if (candidate.draft == d) {
+                already_accepted = true;
+                break;
+            }
+        }
+        if (already_accepted) {
+            continue;
         }
 
-        draft.push_back(drafted_token);
+        GGML_ASSERT(candidate.draft[0] == draft[0]);
+        drafts.push_back(candidate.draft);
         i_draft++;
     }
 }
