@@ -151,8 +151,10 @@ void llama_ngram_cache_draft(
         return;
     }
 
+    int i_draft = 0;
+
     std::vector<llama_token> & draft = drafts[0];
-    while ((int) draft.size()-1 < n_draft) {
+    while (i_draft < n_draft) {
         llama_token drafted_token = -1;
 
         const int ngram_start_static = inp_size-LLAMA_NGRAM_STATIC + draft.size()-1;
@@ -176,6 +178,7 @@ void llama_ngram_cache_draft(
             }
             ngrams_cd.push_back(ngram_cd);
         }
+
         {
             GGML_UNUSED(nc_dynamic);
             const int * min_percent = draft_min_percent_lax;
@@ -228,6 +231,7 @@ void llama_ngram_cache_draft(
         }
 
         draft.push_back(drafted_token);
+        i_draft++;
     }
 }
 
