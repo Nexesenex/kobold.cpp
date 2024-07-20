@@ -149,14 +149,14 @@ int main(int argc, char ** argv){
 
             // check if the target token matches the draft
             bool accepted = false;
-            for (int i = 0; i < (int) drafts.size(); ++i) {
-                if (!drafts.empty() && i_dft + 1 < (int) drafts[i].size() && id == drafts[i][i_dft + 1]) {
+            for (int j = 0; j < (int) drafts.size(); ++j) {
+                if (!drafts.empty() && i_dft + 1 < (int) drafts[j].size() && id == drafts[j][i_dft + 1]) {
                     LOG("draft success: (%d, '%s')\n", id, token_str.c_str());
                     ++n_accept;
                     ++n_past;
                     ++i_dft;
                     inp.push_back(id);
-                    seq_best = i;
+                    seq_best = j;
                     {
                         // Update context ngram cache with the newly accepted token:
                         const int64_t t_start_draft_us = ggml_time_us();
