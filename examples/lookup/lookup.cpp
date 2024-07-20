@@ -207,7 +207,7 @@ int main(int argc, char ** argv){
         // KV cache management
         // clean the cache of draft tokens that weren't accepted
         if (seq_best != 0) {
-            llama_kv_cache_seq_cp(ctx, seq_best, 0, n_past-i_dft, -1);
+            llama_kv_cache_seq_cp(ctx, seq_best, 0, n_past-i_dft, n_past);
         }
         llama_kv_cache_seq_keep(ctx, 0);
         llama_kv_cache_seq_rm(ctx, 0, n_past, -1);
