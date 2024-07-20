@@ -206,7 +206,7 @@ int main(int argc, char ** argv){
 
         // KV cache management
         // clean the cache of draft tokens that weren't accepted
-        if (seq_best != 0) {
+        if (seq_best != 0 && i_dft > 0) {
             llama_kv_cache_seq_cp(ctx, seq_best, 0, n_past-i_dft, n_past);
         }
         llama_kv_cache_seq_keep(ctx, 0);
@@ -224,6 +224,10 @@ int main(int argc, char ** argv){
         const int64_t t_start_draft_us = ggml_time_us();
 
         llama_ngram_cache_draft(inp, drafts, n_draft, LLAMA_NGRAM_MIN, LLAMA_NGRAM_MAX, ngram_cache_context, ngram_cache_dynamic, ngram_cache_static);
+
+        for (int j = 1; j < (int) drafts.size(); ++j) {
+            llama_kv_cache_seq_cp(ctx, 0, j, -1, -1);
+        }
 
         int draft_max = 0;
         for (const draft_t & draft : drafts) {
