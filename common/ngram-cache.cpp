@@ -164,6 +164,10 @@ void llama_ngram_cache_draft(
     std::vector<llama_token> & inp, std::vector<std::vector<llama_token>> & drafts, int n_draft, int ngram_min, int ngram_max,
     llama_ngram_cache & nc_context, llama_ngram_cache & nc_dynamic, llama_ngram_cache & nc_static
 ) {
+    if (n_draft == 0) {
+        return;
+    }
+
     GGML_ASSERT(drafts.size() == 1);
     GGML_ASSERT(drafts[0].size() == 1);
     const int inp_size = inp.size();

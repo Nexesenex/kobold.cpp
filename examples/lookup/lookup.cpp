@@ -24,6 +24,7 @@ int main(int argc, char ** argv){
 
     // max. number of additional tokens to draft if match is found
     const int n_draft = params.n_draft;
+    const int n_seq   = std::max(n_draft, 1);
 
     const bool dump_kv_cache = params.dump_kv_cache;
 
@@ -113,9 +114,9 @@ int main(int argc, char ** argv){
 
     std::vector<draft_t> drafts;
 
-    llama_batch batch_tgt = llama_batch_init(max_context_size, 0, n_draft);
+    llama_batch batch_tgt = llama_batch_init(max_context_size, 0, n_seq);
     std::vector<std::vector<int>> sampling_idx_store;
-    sampling_idx_store.resize(n_draft);
+    sampling_idx_store.resize(n_seq);
     sampling_idx_store[0].push_back(0);
 
     // debug
@@ -213,7 +214,7 @@ int main(int argc, char ** argv){
         llama_kv_cache_seq_rm(ctx, 0, n_past, -1);
 
         llama_batch_clear(batch_tgt);
-        for (int j = 0; j < n_draft; ++j) {
+        for (int j = 0; j < n_seq; ++j) {
             sampling_idx_store[j].clear();
         }
 
