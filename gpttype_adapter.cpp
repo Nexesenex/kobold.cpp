@@ -1139,6 +1139,10 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
 //    kcpp_params->override_kv = inputs.override_kv;
 //    kcpp_params->cache_type_k = inputs.cache_type_k;
 //    kcpp_params->cache_type_v = inputs.cache_type_v;
+    if(debugmode>0)
+    {
+        kcppstderr = true;
+    }
 
     auto clamped_max_context_length = inputs.max_context_length;
 

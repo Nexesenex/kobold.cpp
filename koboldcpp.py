@@ -502,6 +502,8 @@ def unpack_to_dir(destpath = ""):
             for item in os.listdir(srcpath):
                 s = os.path.join(srcpath, item)
                 d = os.path.join(destpath, item)
+                if item.endswith('.pyd'):  # Skip .pyd files
+                    continue
                 if os.path.isdir(s):
                     shutil.copytree(s, d, False, None)
                 else:
@@ -1870,6 +1872,9 @@ Enter Prompt:<br>
            response_body = (json.dumps([]).encode())
         elif self.path.endswith('/sdapi/v1/upscalers'):
            response_body = (json.dumps([]).encode())
+
+        elif self.path.endswith(('/api/tags')): #ollama compatible
+            response_body = (json.dumps({"models":[{"name":"koboldcpp","model":friendlymodelname,"modified_at":"2024-07-19T15:26:55.6122841+08:00","size":394998579,"digest":"b5dc5e784f2a3ee1582373093acf69a2f4e2ac1710b253a001712b86a61f88bb","details":{"parent_model":"","format":"gguf","family":"koboldcpp","families":["koboldcpp"],"parameter_size":"128M","quantization_level":"Q4_0"}}]}).encode())
 
         elif self.path=="/api" or self.path=="/docs" or self.path.startswith(('/api/?json=','/api?json=','/docs/?json=','/docs?json=')):
             content_type = 'text/html'
