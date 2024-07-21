@@ -220,13 +220,13 @@ void llama_ngram_cache_draft(
 
         bool child_pushed = false;
 
-        for (int i = ngrams_primary.size()-1; i >= 0 && cp.draft.size() < 2; --i) {
+        for (int i = ngrams_primary.size()-1; i >= 0; --i) {
             if ((int) drafts.size() >= n_draft) {
                 break;
             }
 
             const int nsc = (ngram_min + i) - (cp.draft.size() - 1);
-            if (nsc <= 0) {
+            if (nsc < (ngram_min + i + 1)/2) {
                 break;
             }
 
@@ -270,6 +270,17 @@ void llama_ngram_cache_draft(
                 cc.draft.push_back(token);
                 cc.nll = cp.nll - logf(1.0f*count_primary/sum_count_primary);
                 cc.nsampled = nsc;
+
+                bool duplicate = false;
+                for (const draft_candidate & co : heap_wip) {
+                    if (co.draft == cc.draft) {
+                        duplicate = true;
+                        break;
+                    }
+                }
+                if (duplicate) {
+                    continue;
+                }
 
                 heap_wip.push_back(cc);
                 std::push_heap(heap_wip.begin(), heap_wip.end(), compare_draft_candidate());
