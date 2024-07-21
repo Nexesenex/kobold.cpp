@@ -251,9 +251,8 @@ void llama_ngram_cache_draft(
             ngrams_cd.push_back(ngram_cd);
         }
 
-        GGML_UNUSED(nc_dynamic);
-
         try_draft(nc_context, ngrams_cd, part_static, draft_min_sample_size_lax, draft_min_percent_lax, cp, ngram_min, drafts_new);
+        try_draft(nc_dynamic, ngrams_cd, part_static, draft_min_sample_size_lax, draft_min_percent_lax, cp, ngram_min, drafts_new);
 
         if (drafts_new.empty()) {
             drafts.push_back(cp.draft);
