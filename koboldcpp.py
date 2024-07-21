@@ -764,57 +764,48 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,qua
             print(f"Context size: {cs} ; Context compute buffer multiplier (CCBM): {csmul}")
             print(f"Manual layer offset: {layer_offset}")
             print("***")
-            if mem < fsize*1.00*csmul:
-                print(f" GPU usable VRAM : {mem} B < {fsize} B * 1.1 * {csmul} (CCBM) ")
-                ggufmeta = read_gguf_metadata(filepath)
-                if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
-                    print(f"Failure to read metadata or no layers number declared. Fallback calculation.")
-                    sizeperlayer = fsize*csmul*0.052
-                    print(f"Size per layer = Model size {fsize} B x 0.052 x {csmul} (CCBM)")
-                    layerlimit = int(min(200,mem/sizeperlayer))
-                    print(f"Size per layer: {sizeperlayer} B ; layers limit: {layerlimit}")
-                else:
-                    print(f"Success to read metadata, proceeding...")
-                    layers = ggufmeta[0]
-                    headcount = ggufmeta[1]
-                    headkvlen = (ggufmeta[2] if ggufmeta[2] > 0 else 128)
-                    sizeperlayer = fsize/layers
-                    print(f"Model layers: {layers} ; Attention heads: {headcount} ; Head size : {headkvlen} ; Size per layer: {sizeperlayer} B")
-                    ratio_init = mem/(fsize*csmul*1.5)
-                    print(f"Initial ratio: {ratio_init} = GPU usable VRAM {mem} B / Model size: {fsize} B x 1.2 x {csmul} (CCBM)")                 
-                    if headcount > 0:
-                        print("***")
-                        print(f"Attention heads: {headcount} > 0")   
-                        # ratio = max(ratio_init,mem/(fsize*1.34 + (layers*headcount*headkvlen*cs*4.25))) #concedo           
-                        # ratio = max(ratio_init,mem/(fsize*1.025 + (layers*headcount*headkvlen*cs*4) + (layers*4*headkvlen*cs*4) + (1.5*1024*1024*1024))) #Henky
-                        # ratio = min(ratio_init,mem/(fsize*1.04 + (layers*(headcount+(bbs_ratio*mmq_ratio*fa_ratio))*headkvlen*cs*kvbpw/8))) #Nexes based on Pyroserenus
-                        loaded_layers = (layers*ratio_init+layer_offset)
-                        loaded_layers_size = loaded_layers * sizeperlayer
-                        print(f"Initially loaded layers: {loaded_layers} ; Size per layer: {sizeperlayer} B ; Loaded layer size {loaded_layers_size} B")
-                        print(f"context size: {cs} tokens ; GPU usable VRAM: {mem} B ; quant_kv_bpw : {kvbpw} bpw")
-                        context_buffer = (layers*headcount*headkvlen*cs*lvctx_ratio*kvbpw/8)
-                        compute_buffer = (layers*bbs_ratio*mmq_ratio*fa_ratio*headkvlen*cs*lvcomp_ratio*4)
-                        total_buffer = context_buffer + compute_buffer
-                        loaded_size = int(fsize*1.1 + context_buffer)
-                        ratio_formula = (mem - compute_buffer)/loaded_size
-                        print(f"Context buffer: {context_buffer} B + Compute buffer: {compute_buffer} B = Total_buffer: {total_buffer} B")   
-                        print(f"Loaded size: {loaded_size} B ; Formula ratio: {ratio_formula}")   
-                        ratio = max(ratio_init,ratio_formula)
-                    else: ratio = ratio_init
-                    layerlimit = int(ratio*layers+layer_offset)
-                    print(f"Layers limit: {layerlimit} = final ratio {ratio} x {layers} layers")
-                    estimated_loaded_size = int(layerlimit*sizeperlayer + total_buffer)
-                    print(f"Estimated loaded size: {estimated_loaded_size} B")
-                    estimated_occupation_size = int(estimated_loaded_size + reserved_mem0)
-                    print(f"Estimated occupation size: {estimated_occupation_size} B")                    
+            ggufmeta = read_gguf_metadata(filepath)
+            if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
+                print(f"Failure to read metadata or no layers number declared. Fallback calculation.")
+                sizeperlayer = int(fsize*csmul*0.052)
+                print(f"Arbitrary size per layer = Model size {fsize} B x 0.052 x {csmul} (CCBM)")
+                layerlimit = int(min(200,mem/sizeperlayer))
+                print(f"Arbitrary size per layer: {sizeperlayer} B ; layers limit: {layerlimit}")
             else:
-                print(f"Best case : assume full offload.")  
-                ggufmeta = read_gguf_metadata(filepath)
-                if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
-                    layerlimit = 200 # assume full offload
-                else:
-                    layerlimit = ggufmeta[0] + 3
-                print(f"GPU VRAM {mem} B is superior to Model size {fsize} B x 1.00 x {csmul} (CCBM)")
+                print(f"Success to read metadata, proceeding...")
+                layers = ggufmeta[0]
+                headcount = ggufmeta[1]
+                headkvlen = (ggufmeta[2] if ggufmeta[2] > 0 else 128)
+                sizeperlayer = int(fsize/layers)
+                print(f"Model layers: {layers} ; Attention heads: {headcount} ; Head size : {headkvlen} ; Size per layer: {sizeperlayer} B")
+                ratio_init = mem/(fsize*csmul*1.2)
+                print(f"Initial ratio: {ratio_init} = GPU usable VRAM {mem} B / (Model size: {fsize} B x 1.2 x {csmul} (CCBM))")
+                if headcount > 0:
+                    print("***")
+                    print(f"Attention heads: {headcount} > 0")
+                    # ratio = max(ratio_init, mem/(fsize*1.34 + (layers*headcount*headkvlen*cs*4.25))) #concedo
+                    # ratio = max(ratio_init, mem/(fsize*1.025 + (layers*headcount*headkvlen*cs*4) + (layers*4*headkvlen*cs*4) + (1.5*1024*1024*1024))) #Henky
+                    # ratio = min(ratio_init, mem/(fsize*1.04 + (layers*(headcount+(bbs_ratio*mmq_ratio*fa_ratio))*headkvlen*cs*kvbpw/8))) #Nexes based on Pyroserenus
+                    # ratio = max(ratio_init, mem - (1.5*1024*1024*1024) - (layers*4*headkvlen*cs*4*1.25))/(fsize + (layers*headcount*headkvlen*cs*4)) #Henky 2
+                    loaded_layers = (layers*ratio_init+layer_offset)
+                    loaded_layers_size = int(loaded_layers * sizeperlayer)
+                    print(f"Initially loaded layers: {loaded_layers} ; Size per layer: {sizeperlayer} B ; Loaded layer size {loaded_layers_size} B")
+                    print(f"context size: {cs} tokens ; GPU usable VRAM: {mem} B ; quant_kv_bpw : {kvbpw} bpw")
+                    context_buffer = (layers*headcount*headkvlen*cs*lvctx_ratio*kvbpw/8)
+                    compute_buffer = (layers*bbs_ratio*mmq_ratio*fa_ratio*headkvlen*cs*lvcomp_ratio*4)
+                    total_buffer = context_buffer + compute_buffer
+                    loaded_size = int(fsize*1.1 + context_buffer)
+                    ratio_formula = (mem - compute_buffer)/loaded_size
+                    print(f"Context buffer: {context_buffer} B + Compute buffer: {compute_buffer} B = Total_buffer: {total_buffer} B")
+                    print(f"Loaded size: {loaded_size} B ; Formula ratio: {ratio_formula}")
+                    ratio = max(ratio_init,ratio_formula)
+                else: ratio = ratio_init
+                layerlimit = min(int(ratio*layers+layer_offset), (layers + 3))
+                print(f"Layers limit: {layerlimit} = final ratio {ratio} x {layers} layers")
+                estimated_loaded_size = int(layerlimit*sizeperlayer + total_buffer)
+                print(f"Estimated loaded size: {estimated_loaded_size} B")
+                estimated_occupation_size = int(estimated_loaded_size + reserved_mem0)
+                print(f"Estimated occupation size: {estimated_occupation_size} B")
             print("***")
         return layerlimit
     except Exception as ex:
