@@ -69,10 +69,10 @@ jobs:
         id: make_pyinstaller
         run: |
           ./make_pyinstaller_noavx2.bat
-          ./make_pyinstaller_noavx2_cuda.bat
+          ./make_pyinstaller_cuda_noavx2.bat
 
       - name: Save artifact
         uses: actions/upload-artifact@v3
         with:
-          name: kcpp_windows_noavx2_pyinstallers
+          name: kcpp_windows_noavx2_cuda_pyinstallers
           path: dist/
