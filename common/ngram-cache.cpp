@@ -132,23 +132,34 @@ static void try_draft(
         const llama_ngram_cache_part part_primary = part_primary_it->second;
 
         int sum_count_primary = 0;
+        int sum_count_prod    = 0;
 
         for (std::pair<llama_token, int> token_count_primary : part_primary) {
+            const llama_token token = token_count_primary.first;
+
+            llama_ngram_cache_part::iterator token_count_static_it = part_static.find(token);
+
             const int32_t count_primary = token_count_primary.second;
+            const int32_t count_static  = token_count_static_it != part_static.end() ? 100*token_count_static_it->second : 1;
 
             sum_count_primary += count_primary;
+            sum_count_prod    += count_primary*count_static;
         }
 
         for (std::pair<llama_token, int> token_count_primary : part_primary) {
             const llama_token token = token_count_primary.first;
 
+            llama_ngram_cache_part::iterator token_count_static_it = part_static.find(token);
+
             const int32_t count_primary = token_count_primary.second;
+            const int32_t count_static  = token_count_static_it != part_static.end() ? 100*token_count_static_it->second : 1;
+            const int32_t count_prod    = count_primary*count_static;
 
             if (sum_count_primary < min_sample_size[i]) {
                 continue;
             }
 
-            if (100*count_primary < min_percent[i]*sum_count_primary) {
+            if (100*count_prod < min_percent[i]*sum_count_prod) {
                 continue;
             }
 
@@ -157,7 +168,7 @@ static void try_draft(
                 cc.draft.push_back(t);
             }
             cc.draft.push_back(token);
-            cc.nll = cp.nll - logf(1.0f*count_primary/sum_count_primary);
+            cc.nll = cp.nll - logf(1.0f*count_prod/sum_count_prod);
             cc.nsampled = nsc;
 
             bool duplicate = false;
