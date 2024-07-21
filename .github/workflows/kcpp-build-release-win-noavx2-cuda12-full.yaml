@@ -68,8 +68,7 @@ jobs:
       - name: Package PyInstallers
         id: make_pyinstaller
         run: |
-          ./make_pyinstaller_noavx2.bat
-          ./make_pyinstaller_noavx2_cuda12.bat
+          ./make_pyinstaller_cuda12_noavx2.bat
 
       - name: Save artifact
         uses: actions/upload-artifact@v3
