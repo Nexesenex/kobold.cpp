@@ -605,21 +605,18 @@ def autoset_gpu_layers(filepath,ctxsize,gpumem): #shitty algo to determine how m
                 csmul = 1.2
             elif cs and cs > 2048:
                 csmul = 1.1
-            if mem < fsize*1.6*csmul:
-                ggufmeta = read_gguf_metadata(filepath)
-                if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
-                    sizeperlayer = fsize*csmul*0.052
-                    layerlimit = int(min(200,mem/sizeperlayer))
-                else:
-                    layers = ggufmeta[0]
-                    headcount = ggufmeta[1]
-                    headkvlen = (ggufmeta[2] if ggufmeta[2] > 0 else 128)
-                    ratio = mem/(fsize*csmul*1.5)
-                    if headcount > 0:
-                        ratio = max(ratio,mem/(fsize*1.34 + (layers*headcount*headkvlen*cs*4.25)))
-                    layerlimit = int(ratio*layers)
+            ggufmeta = read_gguf_metadata(filepath)
+            if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
+                sizeperlayer = fsize*csmul*0.052
+                layerlimit = int(min(200,mem/sizeperlayer))
             else:
-                layerlimit = 200 # assume full offload
+                layers = ggufmeta[0]
+                headcount = ggufmeta[1]
+                headkvlen = (ggufmeta[2] if ggufmeta[2] > 0 else 128)
+                ratio = mem/(fsize*csmul*1.5)
+                if headcount > 0:
+                    ratio = max(ratio, mem - (1.5*1024*1024*1024) - (layers*4*headkvlen*cs*4*1.25))/(fsize + (layers*headcount*headkvlen*cs*4))
+                layerlimit = min(int(ratio*layers), (layers + 3))
         return layerlimit
     except Exception as ex:
         return 0
@@ -1673,6 +1670,9 @@ Enter Prompt:<br>
            response_body = (json.dumps([]).encode())
         elif self.path.endswith('/sdapi/v1/upscalers'):
            response_body = (json.dumps([]).encode())
+
+        elif self.path.endswith(('/api/tags')): #ollama compatible
+            response_body = (json.dumps({"models":[{"name":"koboldcpp","model":friendlymodelname,"modified_at":"2024-07-19T15:26:55.6122841+08:00","size":394998579,"digest":"b5dc5e784f2a3ee1582373093acf69a2f4e2ac1710b253a001712b86a61f88bb","details":{"parent_model":"","format":"gguf","family":"koboldcpp","families":["koboldcpp"],"parameter_size":"128M","quantization_level":"Q4_0"}}]}).encode())
 
         elif self.path=="/api" or self.path=="/docs" or self.path.startswith(('/api/?json=','/api?json=','/docs/?json=','/docs?json=')):
             content_type = 'text/html'
