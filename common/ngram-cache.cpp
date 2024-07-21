@@ -222,6 +222,12 @@ void llama_ngram_cache_draft(
             if ((int) drafts.size() >= n_draft) {
                 break;
             }
+
+            const int nsc = (ngram_min + i) - (cp.draft.size() - 1);
+            if (nsc <= 0) {
+                break;
+            }
+
             const llama_ngram ngram_primary = ngrams_primary[i];
 
             llama_ngram_cache::iterator part_primary_it = nc_primary.find(ngram_primary);
@@ -261,7 +267,8 @@ void llama_ngram_cache_draft(
                 }
                 cc.draft.push_back(token);
                 cc.nll = cp.nll - logf(1.0f*count_primary/sum_count_primary);
-                cc.nsampled = i; // FIXME
+                cc.nsampled = nsc;
+
                 pq_wip.push(cc);
                 child_pushed = true;
             }
