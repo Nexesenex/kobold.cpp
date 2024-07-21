@@ -193,29 +193,28 @@ void llama_ngram_cache_draft(
         const draft_candidate cp = heap_wip.back();
         heap_wip.pop_back();
 
-    const int ngram_start_static = inp_size-LLAMA_NGRAM_STATIC + cp.draft.size()-1;
-    llama_ngram ngram_static;
-    for (int j = ngram_start_static; j < ngram_start_static + LLAMA_NGRAM_STATIC; ++j) {
-        ngram_static.tokens[j-ngram_start_static] = get_token(inp, cp.draft, j);
-    }
-    llama_ngram_cache::iterator part_static_it = nc_static.find(ngram_static);
-    llama_ngram_cache_part part_static;
-    if (part_static_it != nc_static.end()) {
-        part_static = part_static_it->second;
-    }
-
-    // cd = context + dynamic
-    std::vector<llama_ngram> ngrams_cd;
-    for (int ngram_size_cd = ngram_min; ngram_size_cd <= ngram_max; ++ngram_size_cd) {
-        const int ngram_start_cd = inp_size-ngram_size_cd + cp.draft.size()-1;
-        llama_ngram ngram_cd;
-        for (int j = ngram_start_cd; j < ngram_start_cd + ngram_size_cd; ++j) {
-            ngram_cd.tokens[j-ngram_start_cd] = get_token(inp, cp.draft, j);
+        const int ngram_start_static = inp_size-LLAMA_NGRAM_STATIC + cp.draft.size()-1;
+        llama_ngram ngram_static;
+        for (int j = ngram_start_static; j < ngram_start_static + LLAMA_NGRAM_STATIC; ++j) {
+            ngram_static.tokens[j-ngram_start_static] = get_token(inp, cp.draft, j);
         }
-        ngrams_cd.push_back(ngram_cd);
-    }
+        llama_ngram_cache::iterator part_static_it = nc_static.find(ngram_static);
+        llama_ngram_cache_part part_static;
+        if (part_static_it != nc_static.end()) {
+            part_static = part_static_it->second;
+        }
 
-    {
+        // cd = context + dynamic
+        std::vector<llama_ngram> ngrams_cd;
+        for (int ngram_size_cd = ngram_min; ngram_size_cd <= ngram_max; ++ngram_size_cd) {
+            const int ngram_start_cd = inp_size-ngram_size_cd + cp.draft.size()-1;
+            llama_ngram ngram_cd;
+            for (int j = ngram_start_cd; j < ngram_start_cd + ngram_size_cd; ++j) {
+                ngram_cd.tokens[j-ngram_start_cd] = get_token(inp, cp.draft, j);
+            }
+            ngrams_cd.push_back(ngram_cd);
+        }
+
         GGML_UNUSED(nc_dynamic);
         const int * min_percent = draft_min_percent_lax;
         const int * min_sample_size = draft_min_sample_size_lax;
@@ -295,8 +294,6 @@ void llama_ngram_cache_draft(
         if (!child_pushed) {
             drafts.push_back(cp.draft);
         }
-    }
-
     }
 }
 
