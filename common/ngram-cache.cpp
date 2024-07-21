@@ -61,6 +61,24 @@ constexpr int        draft_min_percent_lax[LLAMA_NGRAM_MAX] = { 0,  0,  0,  0};
 constexpr int draft_min_sample_size_strict[LLAMA_NGRAM_MAX] = { 4,  3,  2,  2};
 constexpr int     draft_min_percent_strict[LLAMA_NGRAM_MAX] = {75, 66, 66, 66};
 
+struct draft_candidate {
+    llama_draft_t draft;
+    float nll;
+    int nsampled;
+};
+
+struct compare_draft_candidate {
+    bool operator()(const draft_candidate & a, const draft_candidate & b){
+        if (a.nsampled > b.nsampled) {
+            return true;
+        }
+        if (a.nsampled < b.nsampled) {
+            return false;
+        }
+        return a.nll < b.nll;
+    }
+};
+
 // Helper function that tries to draft a token from only the static ngram cache:
 static llama_token try_draft(llama_ngram_cache & nc_static, const llama_ngram ngram_static) {
     llama_ngram_cache::iterator part_static_it = nc_static.find(ngram_static);
@@ -94,13 +112,17 @@ static llama_token try_draft(llama_ngram_cache & nc_static, const llama_ngram ng
 }
 
 // Try to draft a token from primary cache (context/dynamic), validate with static cache:
-static llama_token try_draft(
+static void try_draft(
     llama_ngram_cache & nc_primary, const std::vector<llama_ngram> & ngrams_primary, llama_ngram_cache_part & part_static,
-    const int * min_sample_size, const int * min_percent) {
+    const int * min_sample_size, const int * min_percent, const draft_candidate & cp,
+    const int ngram_min, std::vector<draft_candidate> & drafts_new) {
 
-    llama_token drafted_token = -1;
+    for (int i = ngrams_primary.size()-1; i >= 0; --i) {
+        const int nsc = (ngram_min + i) - (cp.draft.size() - 1);
+        if (nsc < (ngram_min + i + 1)/2) {
+            break;
+        }
 
-    for (int i = ngrams_primary.size()-1; i >= 0 && drafted_token == -1; --i) {
         const llama_ngram ngram_primary = ngrams_primary[i];
 
         llama_ngram_cache::iterator part_primary_it = nc_primary.find(ngram_primary);
@@ -109,56 +131,50 @@ static llama_token try_draft(
         }
         const llama_ngram_cache_part part_primary = part_primary_it->second;
 
-        int max_count_primary = 0;
-        int max_count_static  = 0;
         int sum_count_primary = 0;
-        llama_token max_token = -1;
+
+        for (std::pair<llama_token, int> token_count_primary : part_primary) {
+            const int32_t count_primary = token_count_primary.second;
+
+            sum_count_primary += count_primary;
+        }
 
         for (std::pair<llama_token, int> token_count_primary : part_primary) {
             const llama_token token = token_count_primary.first;
 
-            llama_ngram_cache_part::iterator token_count_static_it = part_static.find(token);
-
             const int32_t count_primary = token_count_primary.second;
-            const int32_t count_static  = token_count_static_it != part_static.end() ? 100*token_count_static_it->second : 1;
 
-            if (count_primary*count_static > max_count_primary*max_count_static) {
-                max_token         = token;
-                max_count_primary = count_primary;
-                max_count_static  = count_static;
+            if (sum_count_primary < min_sample_size[i]) {
+                continue;
             }
-            sum_count_primary += count_primary;
-        }
 
-        if (sum_count_primary < min_sample_size[i]) {
-            continue;
+            if (100*count_primary < min_percent[i]*sum_count_primary) {
+                continue;
+            }
+
+            draft_candidate cc;
+            for (const llama_token & t : cp.draft) {
+                cc.draft.push_back(t);
+            }
+            cc.draft.push_back(token);
+            cc.nll = cp.nll - logf(1.0f*count_primary/sum_count_primary);
+            cc.nsampled = nsc;
+
+            bool duplicate = false;
+            for (const draft_candidate & co : drafts_new) {
+                if (co.draft == cc.draft) {
+                    duplicate = true;
+                    break;
+                }
+            }
+            if (duplicate) {
+                continue;
+            }
+
+            drafts_new.push_back(cc);
         }
-        if (100*max_count_primary < min_percent[i]*sum_count_primary) {
-            continue;;
-        }
-        drafted_token = max_token;
     }
-
-    return drafted_token;
 }
-
-struct draft_candidate {
-    llama_draft_t draft;
-    float nll;
-    int nsampled;
-};
-
-struct compare_draft_candidate {
-    bool operator()(const draft_candidate & a, const draft_candidate & b){
-        if (a.nsampled > b.nsampled) {
-            return true;
-        }
-        if (a.nsampled < b.nsampled) {
-            return false;
-        }
-        return a.nll < b.nll;
-    }
-};
 
 void llama_ngram_cache_draft(
     std::vector<llama_token> & inp, std::vector<std::vector<llama_token>> & drafts, int n_draft, int ngram_min, int ngram_max,
@@ -225,68 +241,8 @@ void llama_ngram_cache_draft(
         }
 
         GGML_UNUSED(nc_dynamic);
-        const int * min_percent = draft_min_percent_lax;
-        const int * min_sample_size = draft_min_sample_size_lax;
-        llama_ngram_cache & nc_primary = nc_context;
-        const std::vector<llama_ngram> & ngrams_primary = ngrams_cd;
 
-        for (int i = ngrams_primary.size()-1; i >= 0; --i) {
-            const int nsc = (ngram_min + i) - (cp.draft.size() - 1);
-            if (nsc < (ngram_min + i + 1)/2) {
-                break;
-            }
-
-            const llama_ngram ngram_primary = ngrams_primary[i];
-
-            llama_ngram_cache::iterator part_primary_it = nc_primary.find(ngram_primary);
-            if (part_primary_it == nc_primary.end()) {
-                continue;
-            }
-            const llama_ngram_cache_part part_primary = part_primary_it->second;
-
-            int sum_count_primary = 0;
-
-            for (std::pair<llama_token, int> token_count_primary : part_primary) {
-                const int32_t count_primary = token_count_primary.second;
-
-                sum_count_primary += count_primary;
-            }
-
-            for (std::pair<llama_token, int> token_count_primary : part_primary) {
-                const llama_token token = token_count_primary.first;
-
-                const int32_t count_primary = token_count_primary.second;
-
-                if (sum_count_primary < min_sample_size[i]) {
-                    continue;
-                }
-
-                if (100*count_primary < min_percent[i]*sum_count_primary) {
-                    continue;
-                }
-
-                draft_candidate cc;
-                for (const llama_token & t : cp.draft) {
-                    cc.draft.push_back(t);
-                }
-                cc.draft.push_back(token);
-                cc.nll = cp.nll - logf(1.0f*count_primary/sum_count_primary);
-                cc.nsampled = nsc;
-
-                bool duplicate = false;
-                for (const draft_candidate & co : drafts_new) {
-                    if (co.draft == cc.draft) {
-                        duplicate = true;
-                        break;
-                    }
-                }
-                if (duplicate) {
-                    continue;
-                }
-
-                drafts_new.push_back(cc);
-            }
-        }
+        try_draft(nc_context, ngrams_cd, part_static, draft_min_sample_size_lax, draft_min_percent_lax, cp, ngram_min, drafts_new);
 
         if (drafts_new.empty()) {
             drafts.push_back(cp.draft);
