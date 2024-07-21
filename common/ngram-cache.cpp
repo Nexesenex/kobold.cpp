@@ -2,6 +2,7 @@
 #include "common.h"
 #include "log.h"
 
+#include <algorithm>
 #include <climits>
 #include <cstdint>
 #include <fstream>
@@ -171,21 +172,22 @@ void llama_ngram_cache_draft(
         return;
     }
 
-    std::priority_queue<draft_candidate, std::vector<draft_candidate>, compare_draft_candidate> pq_wip;
+    std::vector<draft_candidate> heap_wip;
 
     {
         draft_candidate candidate;
         candidate.draft.push_back(drafts[0][0]);
         candidate.nll = 0.0f;
         candidate.nsampled = INT_MAX;
-        pq_wip.push(candidate);
+        heap_wip.push_back(candidate);
     }
 
     drafts.clear();
 
-    while ((int) drafts.size() < n_draft && !pq_wip.empty()) {
-        const draft_candidate cp = pq_wip.top();
-        pq_wip.pop();
+    while ((int) drafts.size() < n_draft && !heap_wip.empty()) {
+        std::pop_heap(heap_wip.begin(), heap_wip.end(), compare_draft_candidate());
+        const draft_candidate cp = heap_wip.back();
+        heap_wip.pop_back();
 
     const int ngram_start_static = inp_size-LLAMA_NGRAM_STATIC + cp.draft.size()-1;
     llama_ngram ngram_static;
@@ -269,7 +271,8 @@ void llama_ngram_cache_draft(
                 cc.nll = cp.nll - logf(1.0f*count_primary/sum_count_primary);
                 cc.nsampled = nsc;
 
-                pq_wip.push(cc);
+                heap_wip.push_back(cc);
+                std::push_heap(heap_wip.begin(), heap_wip.end(), compare_draft_candidate());
                 child_pushed = true;
             }
         }
