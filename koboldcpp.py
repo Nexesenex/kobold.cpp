@@ -2357,7 +2357,7 @@ def show_gui():
 
     tabs = ctk.CTkFrame(root, corner_radius = 0, width=windowwidth, height=windowheight-50)
     tabs.grid(row=0, stick="nsew")
-    tabnames= ["Quick Launch", "Hardware", "Tokens", "Model Files", "Network", "Horde Worker","Image Gen","Audio","Extra"]
+    tabnames= ["Quick Launch", "Hardware", "GPU AutoLayers", "Tokens", "Model Files", "Network", "Horde Worker","Image Gen","Audio","Extra"]
     navbuttons = {}
     navbuttonframe = ctk.CTkFrame(tabs, width=100, height=int(tabs.cget("height")))
     navbuttonframe.grid(row=0, column=0, padx=2,pady=2)
@@ -2376,10 +2376,15 @@ def show_gui():
     quantkv_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26"]
     quantkv_text = ["0 - F16 (16BPW) - 1616","1 - K16-V8-Bit (12.25BPW) - FA 1680","2 - K16-V5.1-Bit (11BPW) - FA 1651","3 - K16-V5-Bit (10.75BPW) - FA 1650","4 - K16-V4.1-Bit (10.50BPW) - FA 1641","5 - K16-V4-Bit (10.25BPW) - FA 1640","6 - 8-Bit (8.5BPW) - FA 8080","7 - K8-V5.1-Bit (7.25BPW) - FA 8051","8 - K8-V5-Bit (7BPW) - FA 8050","9 - K8-V4.1-Bit (6.75BPW) - FA 8041","10 - K8-V4-Bit (6.5BPW) - FA 8040","11 - 5.1-Bit (6BPW) - FA 5151","12 - K5.1-V5Bit (5.75BPW) - FA 5150","13 - K5.1-V4.1-Bit (5.5BPW) - FA 5141","14 - K5.1-V4-Bit (5.25BPW) - FA 5140","15 - 5-Bit (5.5BPW) - FA 5050","16 - K5-V4.1-Bit (5.25BPW) - FA 5041","17 - K5-V4-Bit (5BPW) - FA 5040","18 - 4.1Bit (5BPW) - FA 4141","19 - K4.1-V4-Bit (4.75BPW) - FA 4140","20 - 4-Bit (4.5BPW) - FA 4040","21 - F16 (16BPW) - 1616","22 - K8-Bit-V16 (12.25BPW) - 8016","23 - K5.1-Bit-V16 (11BPW) - 5116","24 - K5-Bit-V16 (11.75BPW) - 5016","25 - K4.1-Bit-V16 (10.5BPW) - 4116","26 - K4-Bit-V16 (10.25BPW) - 4016"]
     displaygpu_values = ["-1", "0", "1", "2", "3"]
-    gpu0vram_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48"]
-    gpu1vram_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48"]
-    gpu2vram_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48"]
-    gpu3vram_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48"]
+    displaygpu_text = ["No GPU used for desktop display", "GPU 0 used for desktop", "GPU 1 used for desktop", "GPU 2 used for desktop", "GPU 3 used for desktop"]
+    gpu0vram_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80"]
+    gpu0vram_text = ["No first GPU", "1GB", "2GB", "3GB", "4GB", "5GB", "6GB", "7GB", "8GB", "9GB", "10GB", "11GB", "12GB", "13GB", "14GB", "15GB", "16GB", "17GB", "18GB", "19GB", "20GB", "21GB", "22GB", "23GB", "24GB", "25GB", "26GB", "27GB", "28GB", "29GB", "30GB", "31GB", "32GB", "33GB", "34GB", "35GB", "36GB", "37GB", "38GB", "39GB", "40GB", "41GB", "42GB", "43GB", "44GB", "45GB", "46GB", "47GB", "48GB", "49GB", "50GB", "51GB", "52GB", "53GB", "54GB", "55GB", "56GB", "57GB", "58GB", "59GB", "60GB", "61GB", "62GB", "63GB", "64GB", "65GB", "66GB", "67GB", "68GB", "69GB", "70GB", "71GB", "72GB", "73GB", "74GB", "75GB", "76GB", "77GB", "78GB", "79GB", "80GB"]
+    gpu1vram_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80"]
+    gpu1vram_text = ["No second GPU", "1GB", "2GB", "3GB", "4GB", "5GB", "6GB", "7GB", "8GB", "9GB", "10GB", "11GB", "12GB", "13GB", "14GB", "15GB", "16GB", "17GB", "18GB", "19GB", "20GB", "21GB", "22GB", "23GB", "24GB", "25GB", "26GB", "27GB", "28GB", "29GB", "30GB", "31GB", "32GB", "33GB", "34GB", "35GB", "36GB", "37GB", "38GB", "39GB", "40GB", "41GB", "42GB", "43GB", "44GB", "45GB", "46GB", "47GB", "48GB", "49GB", "50GB", "51GB", "52GB", "53GB", "54GB", "55GB", "56GB", "57GB", "58GB", "59GB", "60GB", "61GB", "62GB", "63GB", "64GB", "65GB", "66GB", "67GB", "68GB", "69GB", "70GB", "71GB", "72GB", "73GB", "74GB", "75GB", "76GB", "77GB", "78GB", "79GB", "80GB"]
+    gpu2vram_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80"]
+    gpu2vram_text = ["No third GPU", "1GB", "2GB", "3GB", "4GB", "5GB", "6GB", "7GB", "8GB", "9GB", "10GB", "11GB", "12GB", "13GB", "14GB", "15GB", "16GB", "17GB", "18GB", "19GB", "20GB", "21GB", "22GB", "23GB", "24GB", "25GB", "26GB", "27GB", "28GB", "29GB", "30GB", "31GB", "32GB", "33GB", "34GB", "35GB", "36GB", "37GB", "38GB", "39GB", "40GB", "41GB", "42GB", "43GB", "44GB", "45GB", "46GB", "47GB", "48GB", "49GB", "50GB", "51GB", "52GB", "53GB", "54GB", "55GB", "56GB", "57GB", "58GB", "59GB", "60GB", "61GB", "62GB", "63GB", "64GB", "65GB", "66GB", "67GB", "68GB", "69GB", "70GB", "71GB", "72GB", "73GB", "74GB", "75GB", "76GB", "77GB", "78GB", "79GB", "80GB"]
+    gpu3vram_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80"]
+    gpu3vram_text = ["No fourth GPU", "1GB", "2GB", "3GB", "4GB", "5GB", "6GB", "7GB", "8GB", "9GB", "10GB", "11GB", "12GB", "13GB", "14GB", "15GB", "16GB", "17GB", "18GB", "19GB", "20GB", "21GB", "22GB", "23GB", "24GB", "25GB", "26GB", "27GB", "28GB", "29GB", "30GB", "31GB", "32GB", "33GB", "34GB", "35GB", "36GB", "37GB", "38GB", "39GB", "40GB", "41GB", "42GB", "43GB", "44GB", "45GB", "46GB", "47GB", "48GB", "49GB", "50GB", "51GB", "52GB", "53GB", "54GB", "55GB", "56GB", "57GB", "58GB", "59GB", "60GB", "61GB", "62GB", "63GB", "64GB", "65GB", "66GB", "67GB", "68GB", "69GB", "70GB", "71GB", "72GB", "73GB", "74GB", "75GB", "76GB", "77GB", "78GB", "79GB", "80GB"]
     
     if not any(runopts):
         exitcounter = 999
@@ -2694,7 +2699,6 @@ def show_gui():
             tensor_split_label.grid_forget()
             tensor_split_entry.grid_forget()
             splitmode_box.grid_forget()
-            displaygpu_box.grid_forget()
 
         if index == "Use Vulkan":
             tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
@@ -2793,7 +2797,6 @@ def show_gui():
     lowvram_box = makecheckbox(hardware_tab,  "Low VRAM (No KV offload)", lowvram_var, 4,0, tooltiptxt='Avoid offloading KV Cache or scratch buffers to VRAM.\nAllows more layers to fit, but may result in a speed loss.')
     mmq_box = makecheckbox(hardware_tab,  "Use QuantMatMul (mmq)", mmq_var, 4,1, tooltiptxt="Enable MMQ mode to use finetuned kernels instead of default CuBLAS/HipBLAS for prompt processing.\nRead the wiki. Speed may vary.")
     splitmode_box = makecheckbox(hardware_tab,  "Row-Split", rowsplit_var, 5,0, tooltiptxt="Split rows across GPUs instead of splitting layers and KV across GPUs.\nUses the main GPU for small tensors and intermediate results. Speed may vary.")
-    displaygpu_box = makecheckbox(hardware_tab,  "Dedicated GPU for LLM", rowsplit_var, 5,1, tooltiptxt="Reduces the reserved area of the GPU layers autoloader from 1.125GB to 0.5GB.")
 
     # threads
     makelabelentry(hardware_tab, "Threads:" , threads_var, 11, 50,tooltip="How many threads to use.\nRecommended value is your CPU core count, defaults are usually OK.")
@@ -2825,6 +2828,16 @@ def show_gui():
     changerunmode(1,1,1)
     global runmode_untouched
     runmode_untouched = True
+    
+    # GPU layers Autoloader Tab
+    gpu_al_tab = tabcontent["GPU AutoLayers"]
+    
+    makeslider(gpu_al_tab, "Display GPU:", displaygpu_text, displaygpu_var, 0, 4, 2, width=241, set=0,tooltip="Increases the reserved area of the GPU layers autoloader from 0.5GB to 1.25GB.")
+    makeslider(gpu_al_tab, "GPU 1 VRAM:", gpu1vram_text, gpu1vram_var, 0, 80, 4, width=241, set=0,tooltip="GPU 1 VRAM size.")
+    makeslider(gpu_al_tab, "GPU 2 VRAM:", gpu2vram_text, gpu2vram_var, 0, 80, 6, width=241, set=0,tooltip="GPU 2 VRAM size.")
+    makeslider(gpu_al_tab, "GPU 3 VRAM:", gpu3vram_text, gpu3vram_var, 0, 80, 10, width=241, set=0,tooltip="GPU 3 VRAM size.")
+    
+    tensor_split_entry,tensor_split_label = makelabelentry(gpu_al_tab, "Tensor Split:", tensor_split_str_vars, 8, 80, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
 
     # Tokens Tab
     tokens_tab = tabcontent["Tokens"]
@@ -4423,10 +4436,10 @@ if __name__ == '__main__':
     parser.add_argument("--config", metavar=('[filename]'), help="Load settings from a .kcpps file. Other arguments will be ignored", type=str, nargs=1)
 
     parser.add_argument("--displaygpu", help="Reduces the reserved area of the GPU layers autoloader from 1.25GB to 0.5GB.", type=check_range(int,-1,3), default=0)
-    parser.add_argument("--gpu0vram", help="declares the amount of VRAM of GPU1 (in GB).", type=check_range(int,1,80), default=0)
-    parser.add_argument("--gpu1vram", help="declares the amount of VRAM of GPU1 (in GB).", type=check_range(int,1,80), default=0)
-    parser.add_argument("--gpu2vram", help="declares the amount of VRAM of GPU2 (in GB).", type=check_range(int,1,80), default=0)
-    parser.add_argument("--gpu3vram", help="declares the amount of VRAM of GPU3 (in GB).", type=check_range(int,1,80), default=0)
+    parser.add_argument("--gpu0vram", help="declares the amount of VRAM of GPU1 (in GB).", type=check_range(int,0,80), default=0)
+    parser.add_argument("--gpu1vram", help="declares the amount of VRAM of GPU1 (in GB).", type=check_range(int,0,80), default=0)
+    parser.add_argument("--gpu2vram", help="declares the amount of VRAM of GPU2 (in GB).", type=check_range(int,0,80), default=0)
+    parser.add_argument("--gpu3vram", help="declares the amount of VRAM of GPU3 (in GB).", type=check_range(int,0,80), default=0)
 
     parser.add_argument("--threads", metavar=('[threads]'), help="Use a custom number of threads if specified. Otherwise, uses an amount based on CPU cores", type=int, default=get_default_threads())
     compatgroup = parser.add_mutually_exclusive_group()
