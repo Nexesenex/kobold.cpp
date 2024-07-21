@@ -279,11 +279,12 @@ int main(int argc, char ** argv){
                     sampling_idx_store[sid].push_back(batch_tgt.n_tokens);
                 }
                 llama_batch_add(batch_tgt, current_token, n_past + i, current_seq_ids, true);
+                n_drafted++;
             }
         }
+        n_drafted--; // 1 out of the added token was sampled;
 
         t_draft_us += ggml_time_us() - t_start_draft_us;
-        n_drafted += drafts[0].size() - 1;
 
         llama_decode(ctx, batch_tgt);
         ++n_past;
