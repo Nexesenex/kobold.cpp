@@ -144,14 +144,21 @@ struct draft_candidate {
     llama_draft_t draft;
     float nll;
     int ngram_size;
+
+    int get_n_sampled() const {
+        return ngram_size - ((int) draft.size() - 1);
+    }
 };
 
 struct compare_draft_candidate {
     bool operator()(const draft_candidate & a, const draft_candidate & b){
-        if (a.ngram_size > b.ngram_size) {
+        const int n_sampled_a = a.get_n_sampled();
+        const int n_sampled_b = b.get_n_sampled();
+
+        if (n_sampled_a > n_sampled_b) {
             return true;
         }
-        if (a.ngram_size < b.ngram_size) {
+        if (n_sampled_a < n_sampled_b) {
             return false;
         }
         return a.nll < b.nll;
@@ -196,7 +203,8 @@ void llama_ngram_cache_draft(
         ngrams_cd.push_back(ngram_cd);
     }
 
-    std::priority_queue<draft_candidate, std::vector<draft_candidate>, compare_draft_candidate> pqueue;
+    std::priority_queue<draft_candidate, std::vector<draft_candidate>, compare_draft_candidate> pq_wip;
+    std::priority_queue<draft_candidate, std::vector<draft_candidate>, compare_draft_candidate> pq_done;
 
     {
         GGML_UNUSED(nc_dynamic);
@@ -232,7 +240,7 @@ void llama_ngram_cache_draft(
                 }
 
                 if (100*count_primary < min_percent[i]*sum_count_primary) {
-                    continue;;
+                    continue;
                 }
 
                 draft_candidate candidate;
@@ -242,31 +250,20 @@ void llama_ngram_cache_draft(
                 candidate.draft.push_back(token);
                 candidate.nll = -logf(1.0f*count_primary/sum_count_primary);
                 candidate.ngram_size = i;
-                pqueue.push(candidate);
+                pq_done.push(candidate);
             }
         }
     }
 
-    if (pqueue.empty()) {
+    if (pq_done.empty()) {
         return;
     }
 
     drafts.clear();
 
-    while (i_draft < n_draft && !pqueue.empty()) {
-        const draft_candidate candidate = pqueue.top();
-        pqueue.pop();
-
-        bool already_accepted = false;
-        for (const llama_draft_t & d : drafts) {
-            if (candidate.draft == d) {
-                already_accepted = true;
-                break;
-            }
-        }
-        if (already_accepted) {
-            continue;
-        }
+    while (i_draft < n_draft && !pq_done.empty()) {
+        const draft_candidate candidate = pq_done.top();
+        pq_done.pop();
 
         GGML_ASSERT(candidate.draft[0] == draft[0]);
         drafts.push_back(candidate.draft);
