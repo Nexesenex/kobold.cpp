@@ -187,11 +187,16 @@ void llama_ngram_cache_draft(
     }
 
     drafts.clear();
-    int i_draft       = 0;
-    int i_draft_start = 0;
+    int i_draft = 0;
+    std::vector<draft_candidate> drafts_new;
 
-    while (i_draft < n_draft && !drafts_wip.empty()) {
-        i_draft_start = i_draft;
+    while (i_draft + ((int) drafts_new.size()) < n_draft && !(drafts_wip.empty() && drafts_new.empty())) {
+        for (const draft_candidate & ndc : drafts_new) {
+            drafts_wip.push_back(ndc);
+            std::push_heap(drafts_wip.begin(), drafts_wip.end(), compare_draft_candidate());
+            i_draft++;
+        }
+        drafts_new.clear();
 
         std::pop_heap(drafts_wip.begin(), drafts_wip.end(), compare_draft_candidate());
         const draft_candidate cp = drafts_wip.back();
@@ -269,7 +274,7 @@ void llama_ngram_cache_draft(
                 cc.nsampled = nsc;
 
                 bool duplicate = false;
-                for (const draft_candidate & co : drafts_wip) {
+                for (const draft_candidate & co : drafts_new) {
                     if (co.draft == cc.draft) {
                         duplicate = true;
                         break;
@@ -279,22 +284,29 @@ void llama_ngram_cache_draft(
                     continue;
                 }
 
-                drafts_wip.push_back(cc);
-                std::push_heap(drafts_wip.begin(), drafts_wip.end(), compare_draft_candidate());
-                i_draft++;
+                drafts_new.push_back(cc);
             }
         }
 
-        if (i_draft == i_draft_start) {
+        if (drafts_new.empty()) {
             drafts.push_back(cp.draft);
+            i_draft++;
         }
     }
 
-    const int n_copy = std::min(n_draft - i_draft_start, (int) drafts_wip.size());
-    for (int i = 0; i < n_copy; ++i) {
-        std::pop_heap(drafts_wip.begin(), drafts_wip.end(), compare_draft_candidate());
-        drafts.push_back(drafts_wip.back().draft);
-        drafts_wip.pop_back();
+    for (const draft_candidate & dc : drafts_wip) {
+        drafts.push_back(dc.draft);
+    }
+
+    std::sort(drafts_new.begin(), drafts_new.end(), compare_draft_candidate());
+
+    for (const draft_candidate & dc : drafts_new) {
+        drafts.push_back(dc.draft);
+        i_draft++;
+
+        if (i_draft >= n_draft) {
+            break;
+        }
     }
 }
 
