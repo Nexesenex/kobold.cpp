@@ -176,22 +176,22 @@ void llama_ngram_cache_draft(
         return;
     }
 
-    std::vector<draft_candidate> heap_wip;
+    std::vector<draft_candidate> drafts_wip;
 
     {
         draft_candidate candidate;
         candidate.draft.push_back(drafts[0][0]);
         candidate.nll = 0.0f;
         candidate.nsampled = INT_MAX;
-        heap_wip.push_back(candidate);
+        drafts_wip.push_back(candidate);
     }
 
     drafts.clear();
 
-    while ((int) drafts.size() < n_draft && !heap_wip.empty()) {
-        std::pop_heap(heap_wip.begin(), heap_wip.end(), compare_draft_candidate());
-        const draft_candidate cp = heap_wip.back();
-        heap_wip.pop_back();
+    while ((int) drafts.size() < n_draft && !drafts_wip.empty()) {
+        std::pop_heap(drafts_wip.begin(), drafts_wip.end(), compare_draft_candidate());
+        const draft_candidate cp = drafts_wip.back();
+        drafts_wip.pop_back();
 
         const int ngram_start_static = inp_size-LLAMA_NGRAM_STATIC + cp.draft.size()-1;
         llama_ngram ngram_static;
@@ -275,7 +275,7 @@ void llama_ngram_cache_draft(
                 cc.nsampled = nsc;
 
                 bool duplicate = false;
-                for (const draft_candidate & co : heap_wip) {
+                for (const draft_candidate & co : drafts_wip) {
                     if (co.draft == cc.draft) {
                         duplicate = true;
                         break;
@@ -285,8 +285,8 @@ void llama_ngram_cache_draft(
                     continue;
                 }
 
-                heap_wip.push_back(cc);
-                std::push_heap(heap_wip.begin(), heap_wip.end(), compare_draft_candidate());
+                drafts_wip.push_back(cc);
+                std::push_heap(drafts_wip.begin(), drafts_wip.end(), compare_draft_candidate());
                 child_pushed = true;
             }
         }
