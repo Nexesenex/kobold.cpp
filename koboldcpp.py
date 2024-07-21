@@ -2753,7 +2753,7 @@ def show_gui():
         makecheckbox(quick_tab, name, properties[0], int(idx/2) + 20, idx % 2, tooltiptxt=properties[1])
 
     # context size
-    makeslider(quick_tab, "Context Size:", contextsize_text, context_var, 0, len(contextsize_text)-1, 30, width=512, set=31,tooltip="What is the maximum context size to support. Model specific. You cannot exceed it.\nLarger contexts require more memory, and not all models support it.")
+    makeslider(quick_tab, "Context Size:", contextsize_text, context_var, 0, len(contextsize_text)-1, 30, width=512, set=15,tooltip="What is the maximum context size to support. Model specific. You cannot exceed it.\nLarger contexts require more memory, and not all models support it.")
 
     # threads
     makelabelentry(quick_tab, "Threads:" , threads_var, 11, 50,tooltip="How many threads to use.\nRecommended value is your CPU core count, defaults are usually OK.")
@@ -2836,7 +2836,7 @@ def show_gui():
 
 
     # context size
-    makeslider(tokens_tab, "Context Size:",contextsize_text, context_var, 0, len(contextsize_text)-1, 20, width=512, set=31,tooltip="What is the maximum context size to support. Model specific. You cannot exceed it.\nLarger contexts require more memory, and not all models support it.")
+    makeslider(tokens_tab, "Context Size:",contextsize_text, context_var, 0, len(contextsize_text)-1, 20, width=512, set=15,tooltip="What is the maximum context size to support. Model specific. You cannot exceed it.\nLarger contexts require more memory, and not all models support it.")
 
     customrope_scale_entry, customrope_scale_label = makelabelentry(tokens_tab, "RoPE Scale:", customrope_scale, row=23, padx=100, singleline=True, tooltip="For Linear RoPE scaling. RoPE frequency scale.")
     customrope_base_entry, customrope_base_label = makelabelentry(tokens_tab, "RoPE Base:", customrope_base, row=24, padx=100, singleline=True, tooltip="For NTK Aware Scaling. RoPE frequency base.")
@@ -2851,7 +2851,7 @@ def show_gui():
     makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, tooltiptxt="Enable flash attention for GGUF models.")
     noqkvlabel = makelabel(tokens_tab,"Requirments Not Met",31,0,"Requires FlashAttention ENABLED and ContextShift DISABLED.")
     noqkvlabel.configure(text_color="#ff5555")
-    qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 26, 30, set=21,tooltip="Enable quantization of KV cache (KVQ). Modes 1-20 requires FlashAttention and disables ContextShift.\nModes 23-26 work without FA, for incompatible models. 0,21,22 can work with or without.")
+    qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 26, 30, set=0,tooltip="Enable quantization of KV cache (KVQ). Mode 0 (F16) is default. Modes 1-20 requires FlashAttention and disables ContextShift.\nModes 23-26 work without FA, for incompatible models. 0,21,22 can work with or without.")
     makefileentry(tokens_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 32, width=250, filetypes=[("JSON Adapter", "*.json")], tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
     def pickpremadetemplate():
         initialDir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'kcpp_adapters')
@@ -3903,13 +3903,16 @@ def main(launch_args,start_server=True):
         load_config_cli(args.model_param)
 
     #prevent quantkv 1-20 from being used without flash attn, and 23-26 to be used without
-    if args.quantkv and args.quantkv >20 and args.quantkv <23:
-        print("KV f16 and Kq8_0-Vf16 cache can work in both FA and no-FA mode")
+    if args.quantkv and args.quantkv ==0:
+        print("KV f16 cache can work in both FA and no-FA mode")
 
     if args.quantkv and args.quantkv >0 and args.quantkv <21 and not args.flashattention:
         print("Error: Using --quantkv 1 to 20 requires --flashattention")
         sys.exit(1)
-        
+
+    if args.quantkv and args.quantkv >20 and args.quantkv <23:
+        print("KV f16 and Kq8_0-Vf16 cache can work in both FA and no-FA mode")
+
     if args.quantkv and args.quantkv >22 and args.flashattention:
         print("Error: Using --quantkv legacy (quantum K<q8_0 cache - V16) is not using flash attention")
         print("Error: the equivalent quants with FA has not been compiled because they are inferior to K16_Vx")
@@ -4464,8 +4467,8 @@ if __name__ == '__main__':
     compatgroup.add_argument("--usevulkan", help="Use Vulkan for GPU Acceleration. Can optionally specify GPU Device ID (e.g. --usevulkan 0).", metavar=('[Device ID]'), nargs='*', type=int, default=None)
     compatgroup.add_argument("--useclblast", help="Use CLBlast for GPU Acceleration. Must specify exactly 2 arguments, platform ID and device ID (e.g. --useclblast 1 0).", type=int, choices=range(0,9), nargs=2)
     compatgroup.add_argument("--noblas", help="Do not use any accelerated prompt ingestion", action='store_true')
-    parser.add_argument("--contextsize", help="Controls the memory allocated for maximum context size, only change if you need more RAM for big contexts. (default 4096). Supported values are [256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072,262144]. IF YOU USE ANYTHING ELSE YOU ARE ON YOUR OWN.",metavar=('[256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072,262144]'), type=check_range(int,256,262144), default=4096)
-    parser.add_argument("--gpulayers", help="Set number of layers to offload to GPU when using GPU. Requires GPU. Prefer a full offload (all layers on GPU) if possible. Set to -1 to try autodetect (experimental)",metavar=('[GPU layers]'), nargs='?', const=1, type=int, default=0)
+    parser.add_argument("--contextsize", help="Controls the memory allocated for maximum context size, only change if you need more RAM for big contexts. (default 4096). Supported values are [256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072,262144]. IF YOU USE ANYTHING ELSE YOU ARE ON YOUR OWN.",metavar=('[256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072,262144]'), type=check_range(int,256,262144), default=2048)
+    parser.add_argument("--gpulayers", help="Set number of layers to offload to GPU when using GPU. Requires a GPU. Prefer a full offload (all layers on GPU) if possible. Set to -1 to try autodetect (experimental)",metavar=('[GPU layers]'), nargs='?', const=1, type=int, default=0)
     parser.add_argument("--tensor_split", help="For CUDA and Vulkan only, ratio to split a model layers across multiple GPUs, space-separated list of proportions, e.g. 55 26 to run a 70b Llama2 Miqu model in IQ3_M with 16k context on a Geforce 3090 24G (55 layers) and a Geforce 3060 12G (26 layers)", metavar=('[Ratios]'), type=float, nargs='+')
 
     #more advanced params
@@ -4500,7 +4503,7 @@ if __name__ == '__main__':
     advparser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
     advparser.add_argument("--chatcompletionsadapter", help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="")
     advparser.add_argument("--flashattention", help="Enables flash attention, which shrinks the size of the BLAS/compute cache by 50-75% (a few hundreds MB recovered in VRAM), and allows the use of the quantized KV cache.", action='store_true')
-    advparser.add_argument("--quantkv", help="Sets the KV cache data quantization (KVQ) type to save VRAM in NVidia Video Cards, 0 = 1616/F16 (16 BPW), 1 = FA1680/Kf16-Vq8_0 (12.25BPW), 2 = FA1651/Kf16-Vq5_1 (11BPW), 3 = FA1650/Kf16-Vq5_0 (10.75BPW), 4 = FA1641/Kf16-Vq4_1 (10.5BPW), 5 = FA1640/Kf16-Vq4_0 (10.25BPW), 6 = FA8080/KVq8_0 (8.5 BPW), 7 = FA8051/Kq8_0-Vq5_1 (7.25BPW), 8 = FA8050/Kq8_0-Vq5_0 (7BPW), 9 = FA8041/Kq8_0-Vq4_1 (6.75BPW), 10 = FA8040/Kq8_0-Vq4_0 (6.5BPW), 11 = FA5151/KVq5_1 (6BPW), 12 = FA5150/Kq5_1-Vq5_0 (5.75BPW), 13 = FA5141/Kq5_1-Vq4_1 (5.5BPW), 14 = FA5140/Kq5_1-Vq4_0 (5.25BPW), 15 = FA5050/Kq5_0-Vq5_0 (5.5BPW), 16 = FA5041/Kq5_0-Vq4_1 (5.25BPW), 17 = FA5040/Kq5_0-Vq4_0 (5BPW), 18 = FA4141/Kq4_1-Vq4_1 (5BPW), 19 = FA4140/Kq4_1-Vq4_0 (4.75BPW), 20 = FA4040/KVq4_0 (4.5BPW), 21 = 1616/F16 (16BPW), 22 = 8016/Kq8_0-Vf16 (12.25BPW), 23 = 5116/Kq5_1-Vf16 (11BPW), 24 = 5016/Kq5_1-Vf16 (10.75BPW), 25 = 4116/Kq4_1-Vf16 (10.50BPW), 26 = 4016/Kq4_0-Vf16 (10.25BPW). Modes 1-20 Requires Flash Attention, AND disables context shifting. Modes 0, 21, 22 can work with or without FA. Modes 23-26 work only without FA.", metavar=('[quantization level 0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22/23/24/25/26]'), type=int, choices=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26], default=0)
+    advparser.add_argument("--quantkv", help="Sets the KV cache data quantization (KVQ) type to save VRAM in NVidia Video Cards, 0 = 1616/F16 (16 BPW), 1 = FA1680/Kf16-Vq8_0 (12.25BPW), 2 = FA1651/Kf16-Vq5_1 (11BPW), 3 = FA1650/Kf16-Vq5_0 (10.75BPW), 4 = FA1641/Kf16-Vq4_1 (10.5BPW), 5 = FA1640/Kf16-Vq4_0 (10.25BPW), 6 = FA8080/KVq8_0 (8.5 BPW), 7 = FA8051/Kq8_0-Vq5_1 (7.25BPW), 8 = FA8050/Kq8_0-Vq5_0 (7BPW), 9 = FA8041/Kq8_0-Vq4_1 (6.75BPW), 10 = FA8040/Kq8_0-Vq4_0 (6.5BPW), 11 = FA5151/KVq5_1 (6BPW), 12 = FA5150/Kq5_1-Vq5_0 (5.75BPW), 13 = FA5141/Kq5_1-Vq4_1 (5.5BPW), 14 = FA5140/Kq5_1-Vq4_0 (5.25BPW), 15 = FA5050/Kq5_0-Vq5_0 (5.5BPW), 16 = FA5041/Kq5_0-Vq4_1 (5.25BPW), 17 = FA5040/Kq5_0-Vq4_0 (5BPW), 18 = FA4141/Kq4_1-Vq4_1 (5BPW), 19 = FA4140/Kq4_1-Vq4_0 (4.75BPW), 20 = FA4040/KVq4_0 (4.5BPW), 21 = 1616/F16 (16BPW), 22 = 8016/Kq8_0-Vf16 (12.25BPW), 23 = 5116/Kq5_1-Vf16 (11BPW), 24 = 5016/Kq5_1-Vf16 (10.75BPW), 25 = 4116/Kq4_1-Vf16 (10.50BPW), 26 = 4016/Kq4_0-Vf16 (10.25BPW). Modes 1-20 Requires Flash Attention, AND disables context shifting. Modes 0, 21, 22 can work with or without FA. Modes 23-26 work only without FA.", metavar=('[quantization level 0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22/23/24/25/26]'), type=check_range(int,0,26), default=0)
     advparser.add_argument("--forceversion", help="If the model file format detection fails (e.g. rogue modified model) you can set this to override the detected format (enter desired version, e.g. 401 for GPTNeoX-Type2).",metavar=('[version]'), type=int, default=0)
     advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated compared to ContextShift, but works with KV Cache quantized unlike ContextShift which doesn't. Not recommended except for the use of KV Cache quantized (KVQ) with FlashAttention (modes 1 to 20).", action='store_true')
     advparser.add_argument("--unpack", help="Extracts the file contents of the KoboldCpp binary into a target directory.", metavar=('destination'), type=str, default="")
