@@ -187,8 +187,12 @@ void llama_ngram_cache_draft(
     }
 
     drafts.clear();
+    int i_draft       = 0;
+    int i_draft_start = 0;
 
-    while ((int) drafts.size() < n_draft && !drafts_wip.empty()) {
+    while (i_draft < n_draft && !drafts_wip.empty()) {
+        i_draft_start = i_draft;
+
         std::pop_heap(drafts_wip.begin(), drafts_wip.end(), compare_draft_candidate());
         const draft_candidate cp = drafts_wip.back();
         drafts_wip.pop_back();
@@ -221,13 +225,7 @@ void llama_ngram_cache_draft(
         llama_ngram_cache & nc_primary = nc_context;
         const std::vector<llama_ngram> & ngrams_primary = ngrams_cd;
 
-        bool child_pushed = false;
-
         for (int i = ngrams_primary.size()-1; i >= 0; --i) {
-            if ((int) drafts.size() >= n_draft) {
-                break;
-            }
-
             const int nsc = (ngram_min + i) - (cp.draft.size() - 1);
             if (nsc < (ngram_min + i + 1)/2) {
                 break;
@@ -250,10 +248,6 @@ void llama_ngram_cache_draft(
             }
 
             for (std::pair<llama_token, int> token_count_primary : part_primary) {
-                if ((int) drafts.size() >= n_draft) {
-                    break;
-                }
-
                 const llama_token token = token_count_primary.first;
 
                 const int32_t count_primary = token_count_primary.second;
@@ -287,13 +281,20 @@ void llama_ngram_cache_draft(
 
                 drafts_wip.push_back(cc);
                 std::push_heap(drafts_wip.begin(), drafts_wip.end(), compare_draft_candidate());
-                child_pushed = true;
+                i_draft++;
             }
         }
 
-        if (!child_pushed) {
+        if (i_draft == i_draft_start) {
             drafts.push_back(cp.draft);
         }
+    }
+
+    const int n_copy = std::min(n_draft - i_draft_start, (int) drafts_wip.size());
+    for (int i = 0; i < n_copy; ++i) {
+        std::pop_heap(drafts_wip.begin(), drafts_wip.end(), compare_draft_candidate());
+        drafts.push_back(drafts_wip.back().draft);
+        drafts_wip.pop_back();
     }
 }
 
