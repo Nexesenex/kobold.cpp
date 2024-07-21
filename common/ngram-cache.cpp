@@ -2,6 +2,7 @@
 #include "common.h"
 #include "log.h"
 
+#include <climits>
 #include <cstdint>
 #include <fstream>
 #include <queue>
@@ -54,8 +55,8 @@ static llama_token get_token(const std::vector<llama_token> & inp, const std::ve
 }
 
 // If sample size or percentage are below these thresholds the draft is aborted early:
-constexpr int    draft_min_sample_size_lax[LLAMA_NGRAM_MAX] = { 2,  1,  1,  1};
-constexpr int        draft_min_percent_lax[LLAMA_NGRAM_MAX] = {50, 33, 33, 33};
+constexpr int    draft_min_sample_size_lax[LLAMA_NGRAM_MAX] = { 1,  1,  1,  1};
+constexpr int        draft_min_percent_lax[LLAMA_NGRAM_MAX] = { 0,  0,  0,  0};
 constexpr int draft_min_sample_size_strict[LLAMA_NGRAM_MAX] = { 4,  3,  2,  2};
 constexpr int     draft_min_percent_strict[LLAMA_NGRAM_MAX] = {75, 66, 66, 66};
 
@@ -143,22 +144,15 @@ static llama_token try_draft(
 struct draft_candidate {
     llama_draft_t draft;
     float nll;
-    int ngram_size;
-
-    int get_n_sampled() const {
-        return ngram_size - ((int) draft.size() - 1);
-    }
+    int nsampled;
 };
 
 struct compare_draft_candidate {
     bool operator()(const draft_candidate & a, const draft_candidate & b){
-        const int n_sampled_a = a.get_n_sampled();
-        const int n_sampled_b = b.get_n_sampled();
-
-        if (n_sampled_a > n_sampled_b) {
+        if (a.nsampled > b.nsampled) {
             return true;
         }
-        if (n_sampled_a < n_sampled_b) {
+        if (a.nsampled < b.nsampled) {
             return false;
         }
         return a.nll < b.nll;
@@ -173,18 +167,30 @@ void llama_ngram_cache_draft(
     GGML_ASSERT(drafts[0].size() == 1);
     const int inp_size = inp.size();
 
-    if (inp_size < LLAMA_NGRAM_STATIC) {
+    if (inp_size < std::max(ngram_max, LLAMA_NGRAM_STATIC)) {
         return;
     }
 
-    int i_draft = 0;
+    std::priority_queue<draft_candidate, std::vector<draft_candidate>, compare_draft_candidate> pq_wip;
 
-    std::vector<llama_token> draft(drafts[0].begin(), drafts[0].end());
+    {
+        draft_candidate candidate;
+        candidate.draft.push_back(drafts[0][0]);
+        candidate.nll = 0.0f;
+        candidate.nsampled = INT_MAX;
+        pq_wip.push(candidate);
+    }
 
-    const int ngram_start_static = inp_size-LLAMA_NGRAM_STATIC + draft.size()-1;
+    drafts.clear();
+
+    while ((int) drafts.size() < n_draft && !pq_wip.empty()) {
+        const draft_candidate cp = pq_wip.top();
+        pq_wip.pop();
+
+    const int ngram_start_static = inp_size-LLAMA_NGRAM_STATIC + cp.draft.size()-1;
     llama_ngram ngram_static;
     for (int j = ngram_start_static; j < ngram_start_static + LLAMA_NGRAM_STATIC; ++j) {
-        ngram_static.tokens[j-ngram_start_static] = get_token(inp, draft, j);
+        ngram_static.tokens[j-ngram_start_static] = get_token(inp, cp.draft, j);
     }
     llama_ngram_cache::iterator part_static_it = nc_static.find(ngram_static);
     llama_ngram_cache_part part_static;
@@ -195,16 +201,13 @@ void llama_ngram_cache_draft(
     // cd = context + dynamic
     std::vector<llama_ngram> ngrams_cd;
     for (int ngram_size_cd = ngram_min; ngram_size_cd <= ngram_max; ++ngram_size_cd) {
-        const int ngram_start_cd = inp_size-ngram_size_cd + draft.size()-1;
+        const int ngram_start_cd = inp_size-ngram_size_cd + cp.draft.size()-1;
         llama_ngram ngram_cd;
         for (int j = ngram_start_cd; j < ngram_start_cd + ngram_size_cd; ++j) {
-            ngram_cd.tokens[j-ngram_start_cd] = get_token(inp, draft, j);
+            ngram_cd.tokens[j-ngram_start_cd] = get_token(inp, cp.draft, j);
         }
         ngrams_cd.push_back(ngram_cd);
     }
-
-    std::priority_queue<draft_candidate, std::vector<draft_candidate>, compare_draft_candidate> pq_wip;
-    std::priority_queue<draft_candidate, std::vector<draft_candidate>, compare_draft_candidate> pq_done;
 
     {
         GGML_UNUSED(nc_dynamic);
@@ -213,7 +216,12 @@ void llama_ngram_cache_draft(
         llama_ngram_cache & nc_primary = nc_context;
         const std::vector<llama_ngram> & ngrams_primary = ngrams_cd;
 
-        for (int i = ngrams_primary.size()-1; i >= 0; --i) {
+        bool child_pushed = false;
+
+        for (int i = ngrams_primary.size()-1; i >= 0 && cp.draft.size() < 2; --i) {
+            if ((int) drafts.size() >= n_draft) {
+                break;
+            }
             const llama_ngram ngram_primary = ngrams_primary[i];
 
             llama_ngram_cache::iterator part_primary_it = nc_primary.find(ngram_primary);
@@ -231,6 +239,10 @@ void llama_ngram_cache_draft(
             }
 
             for (std::pair<llama_token, int> token_count_primary : part_primary) {
+                if ((int) drafts.size() >= n_draft) {
+                    break;
+                }
+
                 const llama_token token = token_count_primary.first;
 
                 const int32_t count_primary = token_count_primary.second;
@@ -243,31 +255,23 @@ void llama_ngram_cache_draft(
                     continue;
                 }
 
-                draft_candidate candidate;
-                for (const llama_token & t : draft) {
-                    candidate.draft.push_back(t);
+                draft_candidate cc;
+                for (const llama_token & t : cp.draft) {
+                    cc.draft.push_back(t);
                 }
-                candidate.draft.push_back(token);
-                candidate.nll = -logf(1.0f*count_primary/sum_count_primary);
-                candidate.ngram_size = i;
-                pq_done.push(candidate);
+                cc.draft.push_back(token);
+                cc.nll = cp.nll - logf(1.0f*count_primary/sum_count_primary);
+                cc.nsampled = i; // FIXME
+                pq_wip.push(cc);
+                child_pushed = true;
             }
+        }
+
+        if (!child_pushed) {
+            drafts.push_back(cp.draft);
         }
     }
 
-    if (pq_done.empty()) {
-        return;
-    }
-
-    drafts.clear();
-
-    while (i_draft < n_draft && !pq_done.empty()) {
-        const draft_candidate candidate = pq_done.top();
-        pq_done.pop();
-
-        GGML_ASSERT(candidate.draft[0] == draft[0]);
-        drafts.push_back(candidate.draft);
-        i_draft++;
     }
 }
 
