@@ -810,7 +810,7 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,qua
                     estimated_occupation_size = int(estimated_loaded_size + reserved_mem0)
                     print(f"Estimated occupation size: {estimated_occupation_size} B")
             else:
-                print(f"Best case : assume full offload.")  
+                print(f"Best case : assume full offload.")
                 ggufmeta = read_gguf_metadata(filepath)
                 if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
                     layerlimit = 200 + layer_offset # assume full offload
@@ -2741,7 +2741,7 @@ def show_gui():
     quick_gpuname_label.grid(row=3, column=1, padx=75, sticky="W")
     quick_gpuname_label.configure(text_color="#ffff00")
     quick_gpu_layers_entry,quick_gpu_layers_label = makelabelentry(quick_tab,"GPU Layers:", gpulayers_var, 6, 50,tooltip="How many layers to offload onto the GPU.\nVRAM intensive, usage increases with model and context size.\nRequires some trial and error to find the best fit value.\n\nCommon values for total layers, accuracy not guaranteed.\n\nLlama/Mistral 7b/8b: 33\nSolar 10.7b/11b: 49\nLlama 13b: 41\nLlama 20b(stack): 63\nLlama/Yi 34b: 61\nMixtral 8x7b: 33\nLlama 70b: 81")
-    quick_tensor_split_entry,quick_tensor_split_label = makelabelentry(quick_tab, "Tensor Split:", tensor_split_str_vars, 8, 80, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
+    quick_tensor_split_entry,quick_tensor_split_label = makelabelentry(quick_tab, "Tensor Split:", tensor_split_str_vars, 8, 160, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
     quick_lowvram_box = makecheckbox(quick_tab, "Low VRAM (No KV offload)", lowvram_var, 4,0,tooltiptxt="Avoid offloading KV Cache or scratch buffers to VRAM.\nAllows more layers to fit, but may result in a speed loss.")
     quick_mmq_box = makecheckbox(quick_tab, "Use QuantMatMul (mmq)", mmq_var, 4,1,tooltiptxt="Enable MMQ mode instead of CuBLAS for prompt processing. Read the wiki. Speed may vary.")
 #    makelabelentry(quick_tab, "K Cache config", cache_type_k_var, 1, 200, "Override the default f16 Key cache with quantized cache like q8_0, q5_1, q5_0, q4_1, or q4_0.")
@@ -2799,7 +2799,7 @@ def show_gui():
     gpuname_label.grid(row=3, column=1, padx=75, sticky="W")
     gpuname_label.configure(text_color="#ffff00")
     gpu_layers_entry,gpu_layers_label = makelabelentry(hardware_tab,"GPU Layers:", gpulayers_var, 6, 50,tooltip="How many layers to offload onto the GPU.\nVRAM intensive, usage increases with model and context size.\nRequires some trial and error to find the best fit value.\n\nCommon values for total layers, accuracy not guaranteed.\n\nLlama/Mistral 7b/8b: 33\nSolar 10.7b/11b: 49\nLlama 13b: 41\nLlama 20b(stack): 63\nLlama/Yi 34b: 61\nMixtral 8x7b: 33\nLlama 70b: 81")
-    tensor_split_entry,tensor_split_label = makelabelentry(hardware_tab, "Tensor Split:", tensor_split_str_vars, 8, 80, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
+    tensor_split_entry,tensor_split_label = makelabelentry(hardware_tab, "Tensor Split:", tensor_split_str_vars, 8, 160, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
     lowvram_box = makecheckbox(hardware_tab,  "Low VRAM (No KV offload)", lowvram_var, 4,0, tooltiptxt='Avoid offloading KV Cache or scratch buffers to VRAM.\nAllows more layers to fit, but may result in a speed loss.')
     mmq_box = makecheckbox(hardware_tab,  "Use QuantMatMul (mmq)", mmq_var, 4,1, tooltiptxt="Enable MMQ mode to use finetuned kernels instead of default CuBLAS/HipBLAS for prompt processing.\nRead the wiki. Speed may vary.")
     splitmode_box = makecheckbox(hardware_tab,  "Row-Split", rowsplit_var, 5,0, tooltiptxt="Split rows across GPUs instead of splitting layers and KV across GPUs.\nUses the main GPU for small tensors and intermediate results. Speed may vary.")
@@ -2843,9 +2843,9 @@ def show_gui():
     makeslider(gpu_al_tab, "GPU 1 VRAM:", gpu1vram_text, gpu1vram_var, 0, 80, 4, width=241, set=0,tooltip="GPU 1 VRAM size.")
     makeslider(gpu_al_tab, "GPU 2 VRAM:", gpu2vram_text, gpu2vram_var, 0, 80, 6, width=241, set=0,tooltip="GPU 2 VRAM size.")
     makeslider(gpu_al_tab, "GPU 3 VRAM:", gpu3vram_text, gpu3vram_var, 0, 80, 10, width=241, set=0,tooltip="GPU 3 VRAM size.")
-    makeslider(gpu_al_tab, "Layers offset:", layeroffset_text, layeroffset_var, 0, 20, 12, width=241, set=10,tooltip="Removes or adds a layer to the GPU layers autoloader calculatio in case of OOM or under-exploitation..")
+    makeslider(gpu_al_tab, "Layers offset:", layeroffset_text, layeroffset_var, 0, 20, 12, width=241, set=10,tooltip="Removes or adds a layer to the GPU layers autoloader calculation in case of OOM or under-exploitation..")
 
-    tensor_split_entry,tensor_split_label = makelabelentry(gpu_al_tab, "Tensor Split:", tensor_split_str_vars, 8, 80, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
+    tensor_split_entry,tensor_split_label = makelabelentry(gpu_al_tab, "Tensor Split:", tensor_split_str_vars, 8, 160, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
 
     # Tokens Tab
     tokens_tab = tabcontent["Tokens"]
@@ -4483,7 +4483,7 @@ if __name__ == '__main__':
     parser.add_argument("--gpu1vram", help="declares the amount of VRAM of GPU1 (in GB).", type=check_range(int,0,80), default=0)
     parser.add_argument("--gpu2vram", help="declares the amount of VRAM of GPU2 (in GB).", type=check_range(int,0,80), default=0)
     parser.add_argument("--gpu3vram", help="declares the amount of VRAM of GPU3 (in GB).", type=check_range(int,0,80), default=0)
-    parser.add_argument("--layeroffset", help="Removes or adds a layer to the GPU layers autoloader calculatio in case of OOM or under-exploitation.", type=check_range(int,-10,+10), default=0)
+    parser.add_argument("--layeroffset", help="Removes or adds a layer to the GPU layers autoloader calculation in case of OOM or under-exploitation.", type=check_range(int,-10,+10), default=0)
 
     parser.add_argument("--threads", metavar=('[threads]'), help="Use a custom number of threads if specified. Otherwise, uses an amount based on CPU cores", type=int, default=get_default_threads())
     compatgroup = parser.add_mutually_exclusive_group()
