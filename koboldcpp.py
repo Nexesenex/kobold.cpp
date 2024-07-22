@@ -629,6 +629,9 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,qua
                 reserved_vram3 = (2**30+2**28)
             else: 
                 reserved_vram3 = 2**29
+                
+            if dispgpu == 4:
+                reserved_mem0 = 2**29
 
             gpu0_smem = gpu0mem
             mem0 = gpu0_smem - reserved_mem0
@@ -2847,6 +2850,9 @@ def show_gui():
     makeslider(gpu_al_tab, "Negative layers offset:", neglayeroffset_text, neglayeroffset_var, 0, 10, 14, width=201, set=0,tooltip="Removes layers to the GPU layers autoloader calculation in case of Out of Memory (OOM) error..")
 
     tensor_split_entry,tensor_split_label = makelabelentry(gpu_al_tab, "Tensor Split:", tensor_split_str_vars, 8, 160, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
+
+    # load model
+    makefileentry(gpu_al_tab, "Model:", "Select GGML Model File", model_var, 40, 280, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
 
     # Tokens Tab
     tokens_tab = tabcontent["Tokens"]
