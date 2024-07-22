@@ -2127,40 +2127,55 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
     // Parse dry sequence breakers / restart sequences
     kcpp_params->dry_sequence_breakers.clear();
-    for(int x=0;x<dry_seq_break_max;++x) {
-        std::string word = inputs.dry_sequence_breakers[x];
-        if(word!="") {
-            kcpp_params->dry_sequence_breakers.push_back(word);
-        }
-    }
     dry_sequence_breakers.clear();
-    if(kcpp_params->dry_sequence_breakers.size()>0) {
-        // Restrict the maximum length of sequences used as sequence breakers. There are
-        // very few use cases for a long sequence breaker, and limiting the max length
-        // prevents a potential denial of service attack in which long repetitive sequence
-        // breakers could result in slow DRY sampling with a suitably crafted context.
-        const int MAX_CHAR_LEN = 40;
-        const int MAX_SEQ_LEN = 20;
 
-        if(debugmode==1) {
-            printf("\nProcessing %zu dry break strings...",kcpp_params->dry_sequence_breakers.size());
-        }
-        for (auto sequence_break: kcpp_params->dry_sequence_breakers) {
-            if (sequence_break.size() > MAX_CHAR_LEN) {
-                sequence_break.resize(MAX_CHAR_LEN);
+    if (kcpp_params->dry_multiplier > 0)
+    {
+        for (int x = 0; x < dry_seq_break_max; ++x)
+        {
+            std::string word = inputs.dry_sequence_breakers[x];
+            if (word != "")
+            {
+                kcpp_params->dry_sequence_breakers.push_back(word);
             }
-            GetOverlappingTokenSequences(sequence_break, dry_sequence_breakers, MAX_SEQ_LEN);
         }
-        if(debugmode==1) {
-            int trivial = 0, non_trivial = 0;
-            for (const auto& seq: dry_sequence_breakers) {
-                if (seq.second.empty()) {
-                    ++trivial;
-                } else {
-                    ++non_trivial;
+        if (kcpp_params->dry_sequence_breakers.size() > 0)
+        {
+            // Restrict the maximum length of sequences used as sequence breakers. There are
+            // very few use cases for a long sequence breaker, and limiting the max length
+            // prevents a potential denial of service attack in which long repetitive sequence
+            // breakers could result in slow DRY sampling with a suitably crafted context.
+            const int MAX_CHAR_LEN = 40;
+            const int MAX_SEQ_LEN = 20;
+
+            if (debugmode == 1)
+            {
+                printf("\nProcessing %zu dry break strings...", kcpp_params->dry_sequence_breakers.size());
+            }
+            for (auto sequence_break : kcpp_params->dry_sequence_breakers)
+            {
+                if (sequence_break.size() > MAX_CHAR_LEN)
+                {
+                    sequence_break.resize(MAX_CHAR_LEN);
                 }
+                GetOverlappingTokenSequences(sequence_break, dry_sequence_breakers, MAX_SEQ_LEN);
             }
-            printf("\nFound a total of %zu restart heads, %d trivial, %d non-trivial.\n", dry_sequence_breakers.size(), trivial, non_trivial);
+            if (debugmode == 1)
+            {
+                int trivial = 0, non_trivial = 0;
+                for (const auto &seq : dry_sequence_breakers)
+                {
+                    if (seq.second.empty())
+                    {
+                        ++trivial;
+                    }
+                    else
+                    {
+                        ++non_trivial;
+                    }
+                }
+                printf("\nFound a total of %zu restart heads, %d trivial, %d non-trivial.\n", dry_sequence_breakers.size(), trivial, non_trivial);
+            }
         }
     }
 

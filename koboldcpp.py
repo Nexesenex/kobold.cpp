@@ -2982,6 +2982,7 @@ def show_gui():
         savdict = json.loads(json.dumps(args.__dict__))
         file_type = [("KoboldCpp LaunchTemplate", "*.kcppt")]
         savdict["istemplate"] = True
+        savdict["gpulayers"] = -1
         filename = asksaveasfile(filetypes=file_type, defaultextension=file_type)
         if filename == None: return
         file = open(str(filename.name), 'a')
