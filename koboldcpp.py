@@ -601,7 +601,7 @@ def read_gguf_metadata(file_path):
     except Exception as ex:
         return None
 
-def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,quantkv,mmqmode,lowvram,displaygpu,gpu1vram,gpu2vram,gpu3vram): #shitty algo to determine how many layers to use
+def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,quantkv,mmqmode,lowvram,displaygpu,gpu1vram,gpu2vram,gpu3vram,layeroffset): #shitty algo to determine how many layers to use
     try:
         layerlimit = 0
         fsize = os.path.getsize(filepath)
@@ -619,12 +619,12 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,qua
                 reserved_vram1 = (2**30+2**28)
             else: 
                 reserved_vram1 = 2**29
-                
+
             if dispgpu == 2:
                 reserved_vram2 = (2**30+2**28)
             else: 
                 reserved_vram2 = 2**29
-                
+
             if dispgpu == 3:
                 reserved_vram3 = (2**30+2**28)
             else: 
@@ -755,9 +755,9 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,qua
                 csmul = 1.16
             elif cs and cs > 2048:
                 csmul = 1.08
-                
-            layer_offset = 0
-              
+
+            layer_offset = layeroffset
+
             print("***")
             print(f"Blas batch size: {bbs} ; BBS ratio: {bbs_ratio}")
             print(f"Flash Attention: {fa} ; FA ratio: {fa_ratio}")
@@ -765,7 +765,7 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,qua
             print(f"Lowvram: {lv} ; Lowvram context ratio: {lvctx_ratio} ; Lowvram compute ratio: {lvcomp_ratio}")
             print(f"Quant KV mode: {kvq} ; Quant KV bpw: {kvbpw}")
             print(f"Context size: {cs} ; Context compute buffer multiplier (CCBM): {csmul}")
-            print(f"Manual layer offset: {layer_offset}")
+            print(f"Manual layers offset: {layer_offset}")
             print("***")
             if mem < fsize*1.42*csmul:
                 print(f" GPU usable VRAM : {mem} B < {fsize} B * 1.1 * {csmul} (CCBM) ")
@@ -774,7 +774,7 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,qua
                     print(f"Failure to read metadata or no layers number declared. Fallback calculation.")
                     sizeperlayer = fsize*csmul*0.052
                     print(f"Size per layer = Model size {fsize} B x 0.052 x {csmul} (CCBM)")
-                    layerlimit = int(min(200,mem/sizeperlayer))
+                    layerlimit = int(min(200,mem/sizeperlayer+layer_offset))
                     print(f"Size per layer: {sizeperlayer} B ; layers limit: {layerlimit}")
                 else:
                     print(f"Success to read metadata, proceeding...")
@@ -784,11 +784,11 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,qua
                     sizeperlayer = int(fsize/layers)
                     print(f"Model layers: {layers} ; Attention heads: {headcount} ; Head size : {headkvlen} ; Size per layer: {sizeperlayer} B")
                     ratio_init = mem/(fsize*csmul*1.42)
-                    print(f"Initial ratio: {ratio_init} = GPU usable VRAM {mem} B / Model size: {fsize} B x 1.2 x {csmul} (CCBM)")                 
+                    print(f"Initial ratio: {ratio_init} = GPU usable VRAM {mem} B / Model size: {fsize} B x 1.2 x {csmul} (CCBM)")
                     if headcount > 0:
                         print("***")
                         print(f"Attention heads: {headcount} > 0")   
-                        # ratio = max(ratio_init,mem/(fsize*1.34 + (layers*headcount*headkvlen*cs*4.25))) #concedo           
+                        # ratio = max(ratio_init,mem/(fsize*1.34 + (layers*headcount*headkvlen*cs*4.25))) #Concedo
                         # ratio = max(ratio_init,mem/(fsize*1.025 + (layers*headcount*headkvlen*cs*4) + (layers*4*headkvlen*cs*4) + (1.5*1024*1024*1024))) #Henky
                         # ratio = min(ratio_init,mem/(fsize*1.04 + (layers*(headcount+(bbs_ratio*mmq_ratio*fa_ratio))*headkvlen*cs*kvbpw/8))) #Nexes based on Pyroserenus
                         loaded_layers = (layers*ratio_init+layer_offset)
@@ -805,18 +805,18 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,qua
                         ratio = max(ratio_init,ratio_formula)
                     else: ratio = ratio_init
                     layerlimit = int(ratio*layers+layer_offset)
-                    print(f"Layers limit: {layerlimit} = final ratio {ratio} x {layers} layers")
+                    print(f"Layers limit: {layerlimit} = final ratio {ratio} x {layers} layers + {layer_offset} layers")
                     estimated_loaded_size = int(layerlimit*sizeperlayer + total_buffer)
                     print(f"Estimated loaded size: {estimated_loaded_size} B")
                     estimated_occupation_size = int(estimated_loaded_size + reserved_mem0)
-                    print(f"Estimated occupation size: {estimated_occupation_size} B")                    
+                    print(f"Estimated occupation size: {estimated_occupation_size} B")
             else:
                 print(f"Best case : assume full offload.")  
                 ggufmeta = read_gguf_metadata(filepath)
                 if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
-                    layerlimit = 200 # assume full offload
+                    layerlimit = 200 + layer_offset # assume full offload
                 else:
-                    layerlimit = ggufmeta[0] + 5
+                    layerlimit = ggufmeta[0] + 3 + layer_offset
                 print(f"GPU VRAM {mem} B is superior to Model size {fsize} B x 1.00 x {csmul} (CCBM)")
             print("***")
         return layerlimit
@@ -2377,6 +2377,8 @@ def show_gui():
     quantkv_text = ["0 - F16 (16BPW) - 1616","1 - K16-V8-Bit (12.25BPW) - FA 1680","2 - K16-V5.1-Bit (11BPW) - FA 1651","3 - K16-V5-Bit (10.75BPW) - FA 1650","4 - K16-V4.1-Bit (10.50BPW) - FA 1641","5 - K16-V4-Bit (10.25BPW) - FA 1640","6 - 8-Bit (8.5BPW) - FA 8080","7 - K8-V5.1-Bit (7.25BPW) - FA 8051","8 - K8-V5-Bit (7BPW) - FA 8050","9 - K8-V4.1-Bit (6.75BPW) - FA 8041","10 - K8-V4-Bit (6.5BPW) - FA 8040","11 - 5.1-Bit (6BPW) - FA 5151","12 - K5.1-V5Bit (5.75BPW) - FA 5150","13 - K5.1-V4.1-Bit (5.5BPW) - FA 5141","14 - K5.1-V4-Bit (5.25BPW) - FA 5140","15 - 5-Bit (5.5BPW) - FA 5050","16 - K5-V4.1-Bit (5.25BPW) - FA 5041","17 - K5-V4-Bit (5BPW) - FA 5040","18 - 4.1Bit (5BPW) - FA 4141","19 - K4.1-V4-Bit (4.75BPW) - FA 4140","20 - 4-Bit (4.5BPW) - FA 4040","21 - F16 (16BPW) - 1616","22 - K8-Bit-V16 (12.25BPW) - 8016","23 - K5.1-Bit-V16 (11BPW) - 5116","24 - K5-Bit-V16 (11.75BPW) - 5016","25 - K4.1-Bit-V16 (10.5BPW) - 4116","26 - K4-Bit-V16 (10.25BPW) - 4016"]
     displaygpu_values = ["-1", "0", "1", "2", "3"]
     displaygpu_text = ["No GPU used for desktop display", "GPU 0 used for desktop", "GPU 1 used for desktop", "GPU 2 used for desktop", "GPU 3 used for desktop"]
+    layeroffset_values = ["-10", "-9", "-8", "-7", "-6", "-5", "-4", "-3", "-2", "-1", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+    layeroffset_text = ["Remove 10 layers", "Remove 9 layers", "Remove 8 layers", "Remove 7 layers", "Remove 6 layers", "Remove 5 layers", "Remove 4 layers", "Remove 3 layers", "Remove 2 layers", "Remove 1 layer", "no layer offset", "Add 1 layer", "Add 2 layers", "Add 3 layers", "Add 4 layers", "Add 5 layers", "Add 6 layers", "Add 7 layers", "Add 8 layers", "Add 9 layers", "Add 10 layers"]
     gpu0vram_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80"]
     gpu0vram_text = ["No first GPU", "1GB", "2GB", "3GB", "4GB", "5GB", "6GB", "7GB", "8GB", "9GB", "10GB", "11GB", "12GB", "13GB", "14GB", "15GB", "16GB", "17GB", "18GB", "19GB", "20GB", "21GB", "22GB", "23GB", "24GB", "25GB", "26GB", "27GB", "28GB", "29GB", "30GB", "31GB", "32GB", "33GB", "34GB", "35GB", "36GB", "37GB", "38GB", "39GB", "40GB", "41GB", "42GB", "43GB", "44GB", "45GB", "46GB", "47GB", "48GB", "49GB", "50GB", "51GB", "52GB", "53GB", "54GB", "55GB", "56GB", "57GB", "58GB", "59GB", "60GB", "61GB", "62GB", "63GB", "64GB", "65GB", "66GB", "67GB", "68GB", "69GB", "70GB", "71GB", "72GB", "73GB", "74GB", "75GB", "76GB", "77GB", "78GB", "79GB", "80GB"]
     gpu1vram_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80"]
@@ -2415,8 +2417,9 @@ def show_gui():
     version_var = ctk.StringVar(value="0")
     tensor_split_str_vars = ctk.StringVar(value="")
     rowsplit_var = ctk.IntVar()
-    
+
     displaygpu_var = ctk.IntVar()
+    layeroffset_var = ctk.IntVar()
     gpu0vram_var = ctk.IntVar()
     gpu1vram_var = ctk.IntVar()
     gpu2vram_var = ctk.IntVar()
@@ -2437,7 +2440,7 @@ def show_gui():
     lora_base_var = ctk.StringVar()
     preloadstory_var = ctk.StringVar()
     mmproj_var = ctk.StringVar()
-    
+
 #    override_kv_var = ctk.StringVar()
 #    cache_type_k_var = ctk.StringVar()
 #    cache_type_v_var = ctk.StringVar()
@@ -2590,7 +2593,7 @@ def show_gui():
                 dict = json.load(f)
                 import_vars(dict)
         else:
-            layerlimit = autoset_gpu_layers(filepath,int(contextsize_text[context_var.get()]),MaxMemory[0],int(blasbatchsize_values[int(blas_size_var.get())]),flashattention.get(),int(quantkv_values[int(quantkv_var.get())]),mmq_var.get(),lowvram_var.get(),int(displaygpu_values[int(displaygpu_var.get())]),int(gpu1vram_values[int(gpu1vram_var.get())]),int(gpu2vram_values[int(gpu2vram_var.get())]),int(gpu3vram_values[int(gpu3vram_var.get())]))
+            layerlimit = autoset_gpu_layers(filepath,int(contextsize_text[context_var.get()]),MaxMemory[0],int(blasbatchsize_values[int(blas_size_var.get())]),flashattention.get(),int(quantkv_values[int(quantkv_var.get())]),mmq_var.get(),lowvram_var.get(),int(displaygpu_values[int(displaygpu_var.get())]),int(gpu1vram_values[int(gpu1vram_var.get())]),int(gpu2vram_values[int(gpu2vram_var.get())]),int(gpu3vram_values[int(gpu3vram_var.get())]),int(layeroffset_values[int(layeroffset_var.get())]))
             old_gui_layers_untouched = gui_layers_untouched
             gui_layers_zeroed = gpulayers_var.get()=="" or gpulayers_var.get()=="0"
             if (gui_layers_untouched or gui_layers_zeroed) and layerlimit>0:
@@ -2770,7 +2773,7 @@ def show_gui():
 
     # load model
     makefileentry(quick_tab, "Model:", "Select GGML Model File", model_var, 40, 280, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
-    
+
     ctk.CTkButton(quick_tab , text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
 
     # Hardware Tab
@@ -2828,15 +2831,16 @@ def show_gui():
     changerunmode(1,1,1)
     global runmode_untouched
     runmode_untouched = True
-    
+
     # GPU layers Autoloader Tab
     gpu_al_tab = tabcontent["GPU AutoLayers"]
-    
+
     makeslider(gpu_al_tab, "Display GPU:", displaygpu_text, displaygpu_var, 0, 4, 2, width=241, set=0,tooltip="Increases the reserved area of the GPU layers autoloader from 0.5GB to 1.25GB.")
     makeslider(gpu_al_tab, "GPU 1 VRAM:", gpu1vram_text, gpu1vram_var, 0, 80, 4, width=241, set=0,tooltip="GPU 1 VRAM size.")
     makeslider(gpu_al_tab, "GPU 2 VRAM:", gpu2vram_text, gpu2vram_var, 0, 80, 6, width=241, set=0,tooltip="GPU 2 VRAM size.")
     makeslider(gpu_al_tab, "GPU 3 VRAM:", gpu3vram_text, gpu3vram_var, 0, 80, 10, width=241, set=0,tooltip="GPU 3 VRAM size.")
-    
+    makeslider(gpu_al_tab, "Layers offset:", layeroffset_text, layeroffset_var, 0, 20, 12, width=241, set=10,tooltip="Removes or adds a layer to the GPU layers autoloader calculatio in case of OOM or under-exploitation..")
+
     tensor_split_entry,tensor_split_label = makelabelentry(gpu_al_tab, "Tensor Split:", tensor_split_str_vars, 8, 80, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
 
     # Tokens Tab
@@ -3024,6 +3028,7 @@ def show_gui():
         args.quantkv = int(quantkv_values[int(quantkv_var.get())])
 
         args.displaygpu = int(displaygpu_values[int(displaygpu_var.get())])
+        args.layeroffset = int(layeroffset_values[int(layeroffset_var.get())])
 
         args.gpu0vram = int(gpu0vram_values[int(gpu0vram_var.get())])
         args.gpu1vram = int(gpu1vram_values[int(gpu1vram_var.get())])
@@ -3248,9 +3253,11 @@ def show_gui():
 
         if "blasbatchsize" in dict and dict["blasbatchsize"]:
             blas_size_var.set(blasbatchsize_values.index(str(dict["blasbatchsize"])))
-            
+
         if "displaygpu" in dict:
             displaygpu_var.set(dict["displaygpu"])
+        if "layeroffset" in dict:
+            layeroffset_var.set(dict["layeroffset"])
         if "gpu0vram" in dict:
             gpu0vram_var.set(dict["gpu0vram"])
         if "gpu1vram" in dict:
@@ -3259,7 +3266,7 @@ def show_gui():
             gpu2vram_var.set(dict["gpu2vram"])
         if "gpu3vram" in dict:
             gpu3vram_var.set(dict["gpu3vram"])
-     
+
         # if "displaygpu" in dict and dict["displaygpu"]:
             # displaygpu_var.set(displaygpu_values.index(str(dict["displaygpu"])))
         # if "gpu0vram" in dict and dict["gpu0vram"]:
@@ -4087,7 +4094,7 @@ def main(launch_args,start_server=True):
                 fetch_gpu_properties(False,True,True)
                 pass
             if MaxMemory[0] > 0:
-                layeramt = autoset_gpu_layers(args.model_param, args.contextsize, MaxMemory[0], args.blasbatchsize, args.flashattention, args.quantkv, "mmq" in args.usecublas, "lowvram" in args.usecublas, args.displaygpu, args.gpu1vram, args.gpu2vram, args.gpu3vram)
+                layeramt = autoset_gpu_layers(args.model_param, args.contextsize, MaxMemory[0], args.blasbatchsize, args.flashattention, args.quantkv, "mmq" in args.usecublas, "lowvram" in args.usecublas, args.displaygpu, args.gpu1vram, args.gpu2vram, args.gpu3vram, args.layeroffset)
                 print(f"Auto Recommended Layers: {layeramt}")
                 args.gpulayers = layeramt
 
@@ -4440,6 +4447,7 @@ if __name__ == '__main__':
     parser.add_argument("--gpu1vram", help="declares the amount of VRAM of GPU1 (in GB).", type=check_range(int,0,80), default=0)
     parser.add_argument("--gpu2vram", help="declares the amount of VRAM of GPU2 (in GB).", type=check_range(int,0,80), default=0)
     parser.add_argument("--gpu3vram", help="declares the amount of VRAM of GPU3 (in GB).", type=check_range(int,0,80), default=0)
+    parser.add_argument("--layeroffset", help="Removes or adds a layer to the GPU layers autoloader calculatio in case of OOM or under-exploitation.", type=check_range(int,-10,+10), default=0)
 
     parser.add_argument("--threads", metavar=('[threads]'), help="Use a custom number of threads if specified. Otherwise, uses an amount based on CPU cores", type=int, default=get_default_threads())
     compatgroup = parser.add_mutually_exclusive_group()
@@ -4478,7 +4486,7 @@ if __name__ == '__main__':
     advparser.add_argument("--mmproj", help="Select a multimodal projector file for LLaVA.", default="")
 #    advparser.add_argument("--override_kv", help="Supersede metadata of a model, like Epislon (e.g : llama.attention.layer_norm_rms_epsilon=float:1e5, 1.25e5, 3e6, etc)", metavar=('[override_kv]'), nargs='+')
 #    advparser.add_argument("--cache_type_k", help="Quantize the key cache, to lower the memory footprint of the context.", metavar=('[cache_type_k]'), nargs='+')
-#    advparser.add_argument("--cache_type_v", help="Quantize the value cache, to lower the memory footprint of the context.", metavar=('[cache_type_v]'), nargs='+')  
+#    advparser.add_argument("--cache_type_v", help="Quantize the value cache, to lower the memory footprint of the context.", metavar=('[cache_type_v]'), nargs='+')
     advparser.add_argument("--password", help="Enter a password required to use this instance. This key will be required for all text endpoints. Image endpoints are not secured.", default=None)
     advparser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
     advparser.add_argument("--chatcompletionsadapter", help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="")
