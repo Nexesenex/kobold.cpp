@@ -4,11 +4,11 @@ Kobold.cpp Frankenstein (KCPP-F) is a fork of the experimental branch of KoboldC
 - More context steps in GUI, as well as more Blas Batch Size (supports MMVQ 1-8 for example)
 - 26 different modes of quantization for the context cache (F16, 20 KV modes with Flash Attention, 5 K modes without Flash Attention for models like Gemma)  
 - A slightly different benchmark (one flag per column instead of a single flag space).
-- 8 Stories slot instead of 6 in the web-interface
+- 8 Stories slots instead of 6 in the web-interface (KLite).
 - Often some PRs unsupported/not yet supported in KCPP.
 - More infos displayed in the CLI, without activating debug mode.
 - Smartcontext instead of contextshift by default in GUI for compatibility with Gemma
-- A model layer GPU autoloader based on Concedo's work and Pyroserenus formulas, currently in development.
+- Since 1.71010, an enhanced models layers autoloader on GPU, based on Concedo's code and Pyroserenus formulas, but different from Henky's subsequent commit on KCPP-official. It's compatible with KV_Quants, works in single and multi-GPU, is accessible in CLI and GUI modes, and can be configured easily in tandem with tensor split for an entirely customized loading accordingly to one's rig and needs. 
 
 Recommanded settings for Commande Line Interface / GUI :
 ```
