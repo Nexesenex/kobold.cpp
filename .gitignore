@@ -129,3 +129,10 @@ poetry.toml
 
 # Scripts
 !/scripts/install-oneapi.bat
+koboldcpp_fks.exe.spec
+koboldcpp_fks_cuda_11.4_35375052_full.exe.spec
+koboldcpp_fks_cuda_12.2_52617075_full.exe.spec
+koboldcpp_fks_cuda_12.2_60617075_full.exe.spec
+koboldcpp_fks_cuda_12.2_only.exe.spec
+models/ggml-vocab-chameleon.gguf.inp
+models/ggml-vocab-chameleon.gguf.out
