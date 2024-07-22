@@ -61,7 +61,7 @@ static llama_token get_token(const std::vector<llama_token> & inp, const std::ve
 // constexpr int draft_min_sample_size_strict[LLAMA_NGRAM_MAX] = { 4,  3,  2,  2};
 // constexpr int     draft_min_percent_strict[LLAMA_NGRAM_MAX] = {75, 66, 66, 66};
 constexpr int    draft_min_sample_size_lax[LLAMA_NGRAM_MAX] = { 1,  1,  1,  1};
-constexpr int        draft_min_percent_lax[LLAMA_NGRAM_MAX] = {15, 10, 10, 10};
+constexpr int        draft_min_percent_lax[LLAMA_NGRAM_MAX] = {20, 20, 10, 10};
 constexpr int draft_min_sample_size_strict[LLAMA_NGRAM_MAX] = { 4,  3,  2,  2};
 constexpr int     draft_min_percent_strict[LLAMA_NGRAM_MAX] = {50, 50, 50, 50};
 
