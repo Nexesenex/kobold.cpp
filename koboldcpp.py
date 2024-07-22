@@ -3411,7 +3411,7 @@ def show_gui():
     def display_updates():
         try:
             import webbrowser as wb
-            wb.open("https://github.com/LostRuins/koboldcpp/releases/latest")
+            wb.open("https://github.com/Nexesenex/kobold.cpp/releases")
         except:
             print("Cannot launch updates in browser.")
 
