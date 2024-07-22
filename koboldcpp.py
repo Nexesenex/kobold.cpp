@@ -4327,6 +4327,7 @@ def main(launch_args,start_server=True):
         from datetime import datetime, timezone
         start_server = False
         save_to_file = (args.benchmark!="stdout" and args.benchmark!="")
+        gpu0avram = MaxMemory[0]/1024/1024
         benchmaxctx = (maxctx - 128)
         benchtg = 128
         benchpp = (benchmaxctx - benchtg)
@@ -4361,6 +4362,7 @@ def main(launch_args,start_server=True):
         print(f"HighPriority: {args.highpriority}")
         print(f"FlashAttention: {args.flashattention}")
         print(f"Threads: {args.threads}")
+        print(f"GPU 0 VRAM: {gpu0avram} MiB")
         print(f"Cublas_Args: {args.usecublas}")
         print(f"Layers: {args.gpulayers}")
         print(f"Tensor_Split: {args.tensor_split}")
@@ -4383,8 +4385,8 @@ def main(launch_args,start_server=True):
                 with open(args.benchmark, "a") as file:
                     file.seek(0, 2)
                     if file.tell() == 0: #empty file
-                        file.write(f"Datime,KCPPF,LCPP,Backend,CudaSpecifics,Model,NoAvx2,NoBlas,NoMmap,HighP,FlashA,Thrd,Layers,BlasThrd,BBSize,KVC,PPNum,PPTime,PPSpeed,TGNum,TGTime,TGSpeed,BenchCtx,TotalTime,Coher,Tensor1,Split2,Cublas1,Argument2,Argument3,Argument4")
-                    file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{CudaSpecifics},{benchmodel},{args.noavx2},{args.noblas},{args.nommap},{args.highpriority},{args.flashattention},{args.threads},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.quantkv},{benchpp},{t_pp:.3f},{s_pp:.2f},{benchtg},{t_gen:.3f},{s_gen:.2f},{benchmaxctx},{(t_pp+t_gen):.3f},{resultok},{args.tensor_split},,{args.usecublas},,,")
+                        file.write(f"Datime,KCPPF,LCPP,Backend,CudaSpecifics,Model,NoAvx2,NoBlas,NoMmap,HighP,FlashA,Thrd,VRAM0,Layers,BlasThrd,BBSize,KVC,PPNum,PPTime,PPSpeed,TGNum,TGTime,TGSpeed,BenchCtx,TotalTime,Coher,Tensor1,Split2,Cublas1,Argument2,Argument3,Argument4")
+                    file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{CudaSpecifics},{benchmodel},{args.noavx2},{args.noblas},{args.nommap},{args.highpriority},{args.flashattention},{args.threads},{gpu0avram},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.quantkv},{benchpp},{t_pp:.3f},{s_pp:.2f},{benchtg},{t_gen:.3f},{s_gen:.2f},{benchmaxctx},{(t_pp+t_gen):.3f},{resultok},{args.tensor_split},,{args.usecublas},,,")
             except Exception as e:
                 print(f"Error writing benchmark to file: {e}")
         global using_gui_launcher
