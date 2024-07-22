@@ -56,10 +56,14 @@ static llama_token get_token(const std::vector<llama_token> & inp, const std::ve
 }
 
 // If sample size or percentage are below these thresholds the draft is aborted early:
-constexpr int    draft_min_sample_size_lax[LLAMA_NGRAM_MAX] = { 1,  1,  1,  1};
-constexpr int        draft_min_percent_lax[LLAMA_NGRAM_MAX] = { 0,  0,  0,  0};
+constexpr int    draft_min_sample_size_lax[LLAMA_NGRAM_MAX] = { 2,  2,  1,  1};
+constexpr int        draft_min_percent_lax[LLAMA_NGRAM_MAX] = {66, 50, 50, 50};
 constexpr int draft_min_sample_size_strict[LLAMA_NGRAM_MAX] = { 4,  3,  2,  2};
 constexpr int     draft_min_percent_strict[LLAMA_NGRAM_MAX] = {75, 66, 66, 66};
+// constexpr int    draft_min_sample_size_lax[LLAMA_NGRAM_MAX] = { 2,  1,  1,  1};
+// constexpr int        draft_min_percent_lax[LLAMA_NGRAM_MAX] = {50, 20, 20, 20};
+// constexpr int draft_min_sample_size_strict[LLAMA_NGRAM_MAX] = { 3,  2,  1,  1};
+// constexpr int     draft_min_percent_strict[LLAMA_NGRAM_MAX] = {50, 50, 50, 50};
 
 struct draft_candidate {
     llama_draft_t draft;
@@ -80,35 +84,62 @@ struct compare_draft_candidate {
 };
 
 // Helper function that tries to draft a token from only the static ngram cache:
-static llama_token try_draft(llama_ngram_cache & nc_static, const llama_ngram ngram_static) {
+static void try_draft(
+    llama_ngram_cache & nc_static, const llama_ngram & ngram_static,
+    const int * min_sample_size, const int * min_percent, const draft_candidate & cp,
+    const int ngram_min, std::vector<draft_candidate> & drafts_new) {
+
+    const int nsc = (ngram_min + LLAMA_NGRAM_STATIC) - (cp.draft.size() - 1);
+    if (nsc < (ngram_min + LLAMA_NGRAM_STATIC + 1)/2) {
+        return;
+    }
+
     llama_ngram_cache::iterator part_static_it = nc_static.find(ngram_static);
     if (part_static_it == nc_static.end()) {
-        return -1;
+        return;
     }
     const llama_ngram_cache_part part_static = part_static_it->second;
 
-    int max_count_static  = 0;
     int sum_count_static  = 0;
-    llama_token max_token = -1;
+
+    for (std::pair<llama_token, int> token_count_static : part_static) {
+        const int32_t count_static  = token_count_static.second;
+
+        sum_count_static += count_static;
+    }
 
     for (std::pair<llama_token, int> token_count_static : part_static) {
         const llama_token token = token_count_static.first;
         const int32_t count_static  = token_count_static.second;
 
-        if (count_static > max_count_static) {
-            max_token        = token;
-            max_count_static = count_static;
+        if (sum_count_static < min_sample_size[LLAMA_NGRAM_STATIC-1]) {
+            continue;
         }
-        sum_count_static += count_static;
-    }
+        if (100*count_static < min_percent[LLAMA_NGRAM_STATIC-1]*sum_count_static) {
+            continue;;
+        }
 
-    if (sum_count_static < draft_min_sample_size_lax[LLAMA_NGRAM_STATIC-1]) {
-        return -1;
+        draft_candidate cc;
+        for (const llama_token & t : cp.draft) {
+            cc.draft.push_back(t);
+        }
+        cc.draft.push_back(token);
+        cc.nll = cp.nll - logf(1.0f*count_static/sum_count_static);
+        cc.nsampled = nsc;
+
+        bool duplicate = false;
+        for (const draft_candidate & co : drafts_new) {
+            if (co.draft == cc.draft) {
+                duplicate = true;
+                break;
+            }
+        }
+        if (duplicate) {
+            continue;
+        }
+
+        drafts_new.push_back(cc);
     }
-    if (100*max_count_static < draft_min_percent_lax[LLAMA_NGRAM_STATIC-1]*sum_count_static) {
-        return -1;
-    }
-    return max_token;
 }
 
 // Try to draft a token from primary cache (context/dynamic), validate with static cache:
@@ -251,8 +282,9 @@ void llama_ngram_cache_draft(
             ngrams_cd.push_back(ngram_cd);
         }
 
-        try_draft(nc_context, ngrams_cd, part_static, draft_min_sample_size_lax, draft_min_percent_lax, cp, ngram_min, drafts_new);
-        try_draft(nc_dynamic, ngrams_cd, part_static, draft_min_sample_size_lax, draft_min_percent_lax, cp, ngram_min, drafts_new);
+        try_draft(nc_context, ngrams_cd,    part_static, draft_min_sample_size_lax,    draft_min_percent_lax,    cp, ngram_min, drafts_new);
+        try_draft(nc_dynamic, ngrams_cd,    part_static, draft_min_sample_size_strict, draft_min_percent_strict, cp, ngram_min, drafts_new);
+        try_draft(nc_static,  ngram_static,              draft_min_sample_size_strict, draft_min_percent_strict, cp, ngram_min, drafts_new);
 
         if (drafts_new.empty()) {
             drafts.push_back(cp.draft);
