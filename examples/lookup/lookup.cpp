@@ -154,7 +154,7 @@ int main(int argc, char ** argv){
             // check if the target token matches the draft
             bool accepted = false;
             for (int j = 0; j < (int) drafts.size(); ++j) {
-                if (!drafts.empty() && i_dft + 1 < (int) drafts[j].size() && id == drafts[j][i_dft + 1]) {
+                if (!has_eos && !drafts.empty() && i_dft + 1 < (int) drafts[j].size() && id == drafts[j][i_dft + 1]) {
                     LOG("draft success: (%d, '%s'), seq_id=%d\n", id, token_str.c_str(), j);
                     ++n_accept;
                     ++n_past;
