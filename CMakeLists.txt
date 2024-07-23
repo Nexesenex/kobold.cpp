@@ -624,6 +624,13 @@ add_library(common2
             src/unicode.h
             src/unicode.cpp
             src/unicode-data.cpp)
+            # src/llama-impl.h
+            # src/llama-grammar.cpp
+            # src/llama-grammar.h
+            # src/llama-sampling.cpp
+            # src/llama-sampling.h
+            # src/llama-vocab.cpp
+            # src/llama-vocab.h
 target_include_directories(common2 PUBLIC . ./ggml/include ./ggml/src ./include ./otherarch ./otherarch/tools ./otherarch/sdcpp ./otherarch/sdcpp/thirdparty ./examples ./common)
 target_compile_features(common2 PUBLIC cxx_std_11) # don't bump
 target_link_libraries(common2 PRIVATE ggml ${LLAMA_EXTRA_LIBS})
