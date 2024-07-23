@@ -2727,11 +2727,15 @@ def show_gui():
             quick_mmq_box.grid_forget()
             tensor_split_label.grid_forget()
             tensor_split_entry.grid_forget()
+            quick_tensor_split_label.grid_forget()
+            quick_tensor_split_entry.grid_forget()
             splitmode_box.grid_forget()
 
         if index == "Use Vulkan":
             tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
             tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
+            quick_tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
+            quick_tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
 
         if index == "Use Vulkan" or index == "Vulkan NoAVX2 (Old CPU)" or index == "Use CLBlast" or index == "CLBlast NoAVX2 (Old CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
             gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
@@ -2800,7 +2804,7 @@ def show_gui():
     # load model
     makefileentry(quick_tab, "Model:", "Select GGML Model File", model_var, 40, 576, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
 
-    ctk.CTkButton(quick_tab , text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
+    ctk.CTkButton(quick_tab, text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
 
     # Hardware Tab
     hardware_tab = tabcontent["Hardware"]
@@ -2850,8 +2854,10 @@ def show_gui():
     makeslider(hardware_tab, "BLAS Batch Size:", blasbatchsize_text, blas_size_var, 0, 13, 16,width=200, set=8,tooltip="How many tokens to process at once per batch.\nLarger values use more memory.")
     # force version
     makelabelentry(hardware_tab, "Force Version:" , version_var, 100, 50,tooltip="If the autodetected version is wrong, you can change it here.\nLeave as 0 for default.")
-    ctk.CTkButton(hardware_tab , text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
 
+    makefileentry(hardware_tab, "Model:", "Select GGML Model File", model_var, 40, 576, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
+
+    ctk.CTkButton(hardware_tab, text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
 
     runopts_var.trace('w', changerunmode)
     changerunmode(1,1,1)
@@ -2872,6 +2878,8 @@ def show_gui():
 
     # load model
     makefileentry(gpu_al_tab, "Model:", "Select GGML Model File", model_var, 40, 576, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
+    
+    ctk.CTkButton(gpu_al_tab, text = "Run Benchmark", command = guibench ).grid(row=45,column=0, stick="se", padx= 0, pady=2)
 
     # Tokens Tab
     tokens_tab = tabcontent["Tokens"]
@@ -2906,6 +2914,9 @@ def show_gui():
         if fnam:
             chatcompletionsadapter_var.set(fnam)
     ctk.CTkButton(tokens_tab, 64, text="Pick Premade", command=pickpremadetemplate).grid(row=33, column=0, padx=584, stick="nw")
+
+    makefileentry(tokens_tab, "Model:", "Select GGML Model File", model_var, 40, 576, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
+
     togglerope(1,1,1)
     togglectxshift(1,1,1)
 
@@ -2918,6 +2929,7 @@ def show_gui():
     makefileentry(model_tab, "LLaVA mmproj:", "Select LLaVA mmproj File", mmproj_var, 7,width=576,tooltiptxt="Select a mmproj file to use for LLaVA.\nLeave blank to skip.")
     makefileentry(model_tab, "Preloaded Story:", "Select Preloaded Story File", preloadstory_var, 9,width=576,tooltiptxt="Select an optional KoboldAI JSON savefile \nto be served on launch to any client.")
 #    makelabelentry(model_tab, "Opt. model metadata KV override:", override_kv_var, 1, 200, "Supersede metadata of a model, like Epislon _ e.g : llama.attention.layer_norm_rms_epsilon=float:1e5, 1.25e5, 3e6, etc.")
+    ctk.CTkButton(model_tab, text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
 
     # Network Tab
     network_tab = tabcontent["Network"]
