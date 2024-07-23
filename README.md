@@ -1,6 +1,18 @@
 # Kobold.cpp Frankenstein :
 
-Kobold.cpp Frankenstein (KCPP-F) is a fork of the experimental branch of KoboldCPP (KCPP), mainly aimed at NVidia Cuda users (it supports the rest also), with a few modifications accordingly to my own needs :
+<details>
+<summary>Unroll DISCLAIMER:</summary>
+
+The KoboldCPP-Frankenstein builds are NOT supported by the KoboldCPP (KCPP) team, Github, or Discord channel. They are for greedy-test and amusement only.
+My KCPP-Frankenstein version number bumps as soon as the version number in the official experimental branch bumps in the following way x.xxx : (KCPP) xx (KCPP-F).
+They are not "upgrades" over the official version. And they might be bugged at time: only the official KCPP releases are to be considered correctly numbered, reliable and "fixed".
+The LllamaCPP version + the additional PRs integrated follow my KCPP-Frankenstein (KCPP-F) versioning in the title, so everybody knows what version they deal with.
+Important : New models sometimes integrated in my builds (like recently Mistral Nemo, which posed problems for several users) are for personal testing only, and CAN'T be fixed if they fail because their support come from third party PRs coming from LlamaCPP merged "savagely" in my builds, sometimes before even being merged on LlamaCPP master.
+</details>
+
+Presentation :
+
+Kobold.cpp Frankenstein (KCPP-F) is a fork of the experimental branch of KoboldCPP (KCPP), mainly aimed at NVidia Cuda users (I'm myself using Ampere GPUs, it MIGHT support the other backends also, everything is compîled but Hipblas/ROCm, but it's not tested), with a few modifications accordingly to my own needs :
 - More context steps in GUI, as well as more Blas Batch Size (supports MMVQ 1-8 for example)
 - 26 different modes of quantization for the context cache (F16, 20 KV modes with Flash Attention, 5 K modes without Flash Attention for models like Gemma)  
 - A slightly different benchmark (one flag per column instead of a single flag space).
@@ -8,7 +20,7 @@ Kobold.cpp Frankenstein (KCPP-F) is a fork of the experimental branch of KoboldC
 - Often some PRs unsupported/not yet supported in KCPP.
 - More infos displayed in the CLI, without activating debug mode.
 - Smartcontext instead of contextshift by default in GUI for compatibility with Gemma
-- Since 1.71010, an enhanced model layers autoloader on GPU, based on Concedo's code and Pyroserenus formulas, but different from Henky's subsequent commit on KCPP-official. It's compatible with KV_Quants, works in single and multi-GPU, is accessible in CLI and GUI modes, and can be configured easily in tandem with tensor split for an entirely customized loading accordingly to one's rig and needs. 
+- Since 1.71010, an enhanced model layers autoloader on GPU, based on Concedo's code and Pyroserenus formulas, but different from Henky's subsequent commit on KCPP-official. It's compatible with KV_Quants, works in single and multi-GPU, is accessible in CLI and GUI modes, and can be configured easily in tandem with tensor split for an entirely customized loading accordingly to one's rig and needs.
 
 Recommanded settings for Commande Line Interface / GUI :
 ```
