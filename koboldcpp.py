@@ -743,21 +743,19 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,qua
             if kvq == 26:
                 kvbpw = 20.5
 
-            csmul = 1.0
-            if cs and cs > 131072:
-                csmul = 2.41
-            elif cs and cs > 65536:
-                csmul = 1.94
-            elif cs and cs > 32768:
-                csmul = 1.63
-            elif cs and cs > 16384:
-                csmul = 1.42
-            elif cs and cs > 8192:
-                csmul = 1.28
-            elif cs and cs > 4096:
-                csmul = 1.16
-            elif cs and cs > 2048:
-                csmul = 1.08
+            if cs:
+                csmul = ((cs+4096)/6144) if cs >= 2048 else 1.0 #Nexes 2
+                # csmul = (cs/4096) if cs >= 8192 else (cs/(2048+(cs-2048)/3)) if cs >= 2048 else 1.0 #Nexes 1
+                # csmul = (cs/4096) if cs >= 8192 else 1.8 if cs > 4096 else 1.2 if cs > 2048 else 1.0 #Concedo
+
+            # csmul = 1.0
+
+            # if cs and cs > 8192:
+                # csmul = (cs/4096)
+            # elif cs and cs > 2048:
+                # csmul = (cs/(2048+(cs-2048)/3))
+            # else:
+                # csmul = 1.0
 
             layer_offset = poslayeroffset - neglayeroffset
 
