@@ -2992,10 +2992,21 @@ def show_gui():
         kcpp_exporting_template = False
         savdict = json.loads(json.dumps(args.__dict__))
         file_type = [("KoboldCpp LaunchTemplate", "*.kcppt")]
+        #remove blacklisted fields
         savdict["istemplate"] = True
         savdict["gpulayers"] = -1
+        savdict["threads"] = -1
+        savdict["hordekey"] = ""
+        savdict["hordeworkername"] = ""
+        savdict["sdthreads"] = 0
+        savdict["password"] = None
+        savdict["nommap"] = False
+        savdict["usemlock"] = False
+        savdict["debugmode"] = 0
+        savdict["ssl"] = None
         filename = asksaveasfile(filetypes=file_type, defaultextension=file_type)
-        if filename == None: return
+        if filename == None:
+            return
         file = open(str(filename.name), 'a')
         file.write(json.dumps(savdict))
         file.close()
@@ -4112,6 +4123,9 @@ def main(launch_args,start_server=True):
                 layeramt = autoset_gpu_layers(args.model_param, args.contextsize, MaxMemory[0], args.blasbatchsize, args.flashattention, args.quantkv, "mmq" in args.usecublas, "lowvram" in args.usecublas, args.displaygpu, args.gpu1vram, args.gpu2vram, args.gpu3vram, args.poslayeroffset, args.neglayeroffset)
                 print(f"Auto Recommended Layers: {layeramt}")
                 args.gpulayers = layeramt
+            else:
+                print(f"Could not automatically determine layers. Please set it manually.")
+                args.gpulayers = 0
 
     if args.threads == -1:
         args.threads = get_default_threads()
