@@ -19460,6 +19460,7 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
     } else if (ftype == LLAMA_FTYPE_MOSTLY_IQ4_MR) {
         if (name.find("attn_q.weight") != std::string::npos) {
             if (qs.model.hparams.n_expert >= 2) new_type = GGML_TYPE_Q5_K;
+            else if (qs.model.hparams.n_gqa() >= 2) new_type = GGML_TYPE_IQ3_S;
             else new_type = GGML_TYPE_IQ3_XXS;
         }
         else if (name.find("attn_k.weight") != std::string::npos) {
@@ -19483,7 +19484,7 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
         else if (name.find("ffn_gate") != std::string::npos) {
             auto info = layer_info(qs.i_ffn_gate, qs.n_ffn_gate, name.c_str());
             int i_layer = info.first, n_layer = info.second;
-            new_type = i_layer < n_layer/32 ? GGML_TYPE_IQ4_XS : use_more_bits(i_layer, n_layer) ?
+            new_type = i_layer < n_layer/32 ? GGML_TYPE_IQ4_XS : use_most_bits(i_layer, n_layer) ?
             GGML_TYPE_IQ4_XS : GGML_TYPE_IQ3_S;
             ++qs.i_ffn_gate;	
         }
