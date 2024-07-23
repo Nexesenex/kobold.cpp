@@ -9,9 +9,9 @@ struct EmphasisCat
 
     static bool utf8find(const std::string& d, const std::string& v)
     {
-        for (size_t i = 0; i < d.size(); i=i+utf8_len(d[i]))
+        for (size_t i = 0; i < d.size(); i=i+utf8_len3(d[i]))
         {
-           if (0 == d.compare(i, utf8_len(d[i]), v))
+           if (0 == d.compare(i, utf8_len3(d[i]), v))
                return true;
         }
         return false;
@@ -65,9 +65,9 @@ static EmphasisFsm::edge empcats_fsm_tok(const std::vector<EmphasisCat>& empcats
     uint8_t from = 0;
 
     LLAMA_EMP_LOG_DEBUG("%s: ", __func__);
-    for (size_t i = 0, oldi = 0; i < tok.size(); oldi = i, i = i + utf8_len(tok[i]))
+    for (size_t i = 0, oldi = 0; i < tok.size(); oldi = i, i = i + utf8_len3(tok[i]))
     {
-        const std::string letter = std::string(tok.cbegin() + i, tok.cbegin() + i + utf8_len(tok[i]));
+        const std::string letter = std::string(tok.cbegin() + i, tok.cbegin() + i + utf8_len3(tok[i]));
         for (size_t c=0; c < empcats.size(); ++c)
         {
             //try to enter into emphasis
@@ -215,7 +215,7 @@ static float empcats_gen(struct llama_context* ctx, const std::string& grammarst
         const std::string tok =  llama_token_to_piece(ctx, t);
 
         //LLAMA_EMP_LOG_DEBUG("%s: token %zu chars: '%s' ", __func__, t, tok.c_str());
-        //for (auto t : tok) LLAMA_EMP_LOG_DEBUG(" %.2x(%zu)", t, utf8_len(t));
+        //for (auto t : tok) LLAMA_EMP_LOG_DEBUG(" %.2x(%zu)", t, utf8_len3(t));
         //LLAMA_EMP_LOG_DEBUG("\n");
 
         LLAMA_EMP_LOG_DEBUG("%s: outside '%s': ", __func__, tok.c_str());
