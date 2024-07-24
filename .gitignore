@@ -138,3 +138,4 @@ conda/
 
 # Jetbrains idea folder
 .idea/
+kobold_benchmarks.csv
