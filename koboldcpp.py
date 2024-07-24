@@ -815,7 +815,7 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,qua
                         print(f"Initially loaded layers: {loaded_layers} ; Size per layer: {sizeperlayer} B ; Loaded layer size {loaded_layers_size} B")
                         print(f"context size: {cs} tokens ; GPU usable VRAM: {mem} B ; quant_kv_bpw : {kvbpw} bpw")
                         context_buffer = int(layers*headcount*headkvlen*cs*lvctx_ratio*kvbpw/8)
-                        compute_buffer = int(layers*bbs_ratio*mmq_ratio*fa_ratio*headkvlen*cs*lvcomp_ratio*4)
+                        compute_buffer = int(layers*bbs_ratio*mmq_ratio*fa_ratio*headkvlen*cs*lvcomp_ratio*4*1.01)
                         total_buffer = int(context_buffer + compute_buffer)
                         loaded_size = int(fsize*1.03 + context_buffer)
                         ratio_formula = (mem - compute_buffer)/loaded_size
