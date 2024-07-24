@@ -641,7 +641,7 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,qua
                 print(f"None of the declared GPUs for inference is also used for the desktop.")
 
             gpu0_smem = gpu0mem
-            mem0 = gpu0_smem - reserved_mem0
+            mem0 = gpu0_smem - reserved_mem0 
 
             print(f"GPU0 VRAM: {gpu0mem} B ; GPU0 simulated VRAM: {gpu0_smem} B")
             print(f"GPU0 reserved VRAM {reserved_mem0} B ; GPU0 usable VRAM {mem0} B")
@@ -4045,6 +4045,12 @@ def main(launch_args,start_server=True):
                     import ast
                     parsed = ast.literal_eval(args.chatcompletionsadapter)
                     chatcompl_adapter = json.loads(json.dumps(parsed))
+                    canload = True
+                except Exception as ex:
+                    print(ex)
+            elif isinstance(args.chatcompletionsadapter, dict):
+                try:
+                    chatcompl_adapter = json.loads(json.dumps(args.chatcompletionsadapter))
                     canload = True
                 except Exception as ex:
                     print(ex)
