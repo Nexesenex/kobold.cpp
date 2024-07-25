@@ -318,12 +318,6 @@ def init_library():
                 print("!!! Attempting to use FAILSAFE MODE !!!")
             else:
                 print("Attempting to use non-avx2 compatibility library.")
-    elif args.useclblast:
-        if not file_exists(lib_clblast) or (os.name=='nt' and not file_exists("clblast.dll")):
-            print("Warning: CLBlast library file not found. Non-BLAS library will be used.")
-        else:
-            print("Attempting to use CLBlast library for faster prompt ingestion. A compatible clblast will be required.")
-            use_clblast = True
     elif (args.usecublas is not None):
         if not file_exists(lib_cublas) and not file_exists(lib_hipblas):
             print("Warning: CuBLAS library file not found. Non-BLAS library will be used.")
@@ -340,7 +334,12 @@ def init_library():
         else:
             print("Attempting to use Vulkan library for faster prompt ingestion. A compatible Vulkan will be required.")
             use_vulkan = True
-
+    elif args.useclblast:
+        if not file_exists(lib_clblast) or (os.name=='nt' and not file_exists("clblast.dll")):
+            print("Warning: CLBlast library file not found. Non-BLAS library will be used.")
+        else:
+            print("Attempting to use CLBlast library for faster prompt ingestion. A compatible clblast will be required.")
+            use_clblast = True
     else:
         if not file_exists(lib_openblas) or (os.name=='nt' and not file_exists("libopenblas.dll")):
             print("Warning: OpenBLAS library file not found. Non-BLAS library will be used.")
@@ -3035,6 +3034,11 @@ def show_gui():
         savdict["usemlock"] = False
         savdict["debugmode"] = 0
         savdict["ssl"] = None
+        savdict["useclblast"] = None
+        savdict["usecublas"] = None
+        savdict["usevulkan"] = None
+        savdict["tensor_split"] = None
+        savdict["config"] = None
         filename = asksaveasfile(filetypes=file_type, defaultextension=file_type)
         if filename == None:
             return
@@ -4010,6 +4014,12 @@ def main(launch_args,start_server=True):
                 import ast
                 parsed = ast.literal_eval(args.preloadstory)
                 preloaded_story = json.dumps(parsed).encode()
+                canload = True
+            except Exception as ex:
+                print(ex)
+        elif isinstance(args.preloadstory, dict):
+            try:
+                preloaded_story = json.dumps(args.preloadstory).encode()
                 canload = True
             except Exception as ex:
                 print(ex)
