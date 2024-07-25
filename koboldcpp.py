@@ -119,8 +119,22 @@ class load_model_inputs(ctypes.Structure):
                 ("debugmode", ctypes.c_int),
                 ("forceversion", ctypes.c_int),
                 ("gpulayers", ctypes.c_int),
+                
+                ("use_linear_autorope", ctypes.c_bool),
+
                 ("rope_freq_scale", ctypes.c_float),
                 ("rope_freq_base", ctypes.c_float),
+
+                ("rope_scale", ctypes.c_float),
+
+                ("yarn_ext_factor", ctypes.c_float),
+                ("yarn_attn_factor", ctypes.c_float),
+                ("yarn_beta_fast", ctypes.c_float),
+                ("yarn_beta_slow", ctypes.c_float),
+
+                ("grp_attn_n", ctypes.c_float),
+                ("grp_attn_w", ctypes.c_float),
+
                 ("flash_attention", ctypes.c_bool),
                 ("tensor_split", ctypes.c_float * tensor_split_max),
                 ("quant_k", ctypes.c_int),
@@ -984,8 +998,19 @@ def load_model(model_filename):
     inputs.rope_freq_scale = args.ropeconfig[0]
     if len(args.ropeconfig)>1:
         inputs.rope_freq_base = args.ropeconfig[1]
-    else:
+        
+    inputs.use_linear_autorope = args.use_linera_autorope
+    if args.autorope=1:
         inputs.rope_freq_base = 10000
+
+    inputs.rope_scale = args.rope_scale
+    inputs.yarn_ext_factor = args.yarn_ext_factor
+    inputs.yarn_attn_factor = args.yarn_attn_factor
+    inputs.yarn_beta_fast = args.yarn_beta_fast
+    inputs.yarn_beta_slow = args.yarn_beta_slow
+    
+    inputs.grp_attn_n = args.grp_attn_n
+    inputs.grp_attn_w = args.grp_attn_w
 
     for n in range(tensor_split_max):
         if args.tensor_split and n < len(args.tensor_split):
@@ -2379,7 +2404,7 @@ def show_gui():
 
     tabs = ctk.CTkFrame(root, corner_radius = 0, width=windowwidth, height=windowheight-50)
     tabs.grid(row=0, stick="nsew")
-    tabnames= ["Quick Launch", "Hardware", "GPU AutoLayers", "Tokens", "Model Files", "Network", "Horde Worker","Image Gen","Audio","Extra"]
+    tabnames= ["Quick Launch", "Hardware", "GPU AutoLayers", "Tokens", "Rope Settings", "Model Files", "Network", "Horde Worker","Image Gen","Audio","Extra"]
     navbuttons = {}
     navbuttonframe = ctk.CTkFrame(tabs, width=100, height=int(tabs.cget("height")))
     navbuttonframe.grid(row=0, column=0, padx=2,pady=2)
@@ -2863,7 +2888,7 @@ def show_gui():
     global runmode_untouched
     runmode_untouched = True
 
-    # GPU layers Autoloader Tab
+    # GPU AutoLayers Tab
     gpu_al_tab = tabcontent["GPU AutoLayers"]
 
     makeslider(gpu_al_tab, "Display GPU:", displaygpu_text, displaygpu_var, 0, 4, 2, width=201, set=0,tooltip="Increases the reserved area of the GPU layers autoloader from 0.5GB to 1.25GB.")
@@ -2918,6 +2943,12 @@ def show_gui():
 
     togglerope(1,1,1)
     togglectxshift(1,1,1)
+
+    # Rope Settings Tab
+    rope_settings = tabcontent["Rope Settings"]
+
+    customrope_scale_entry, customrope_scale_label = makelabelentry(tokens_tab, "RoPE Scale:", customrope_scale, row=23, padx=100, singleline=True, tooltip="For Linear RoPE scaling. RoPE frequency scale.")
+    customrope_base_entry, customrope_base_label = makelabelentry(tokens_tab, "RoPE Base:", customrope_base, row=24, padx=100, singleline=True, tooltip="For NTK Aware Scaling. RoPE frequency base.")
 
     # Model Tab
     model_tab = tabcontent["Model Files"]
