@@ -899,16 +899,18 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                     elif line.startswith("Device Type:") and "GPU" not in line: device_name = None
                 if FetchedCUdevices:
                     getamdvram = subprocess.run(['rocm-smi', '--showmeminfo', 'vram', '--csv'], capture_output=True, text=True, check=True, encoding='utf-8').stdout # fetch VRAM of devices
-                    FetchedCUdeviceMem = [line.split(",")[1].strip() for line in getamdvram.splitlines()[1:] if line.strip()]
+                    if getamdvram:
+                        FetchedCUdeviceMem = [line.split(",")[1].strip() for line in getamdvram.splitlines()[1:] if line.strip()]
             except Exception as e:
                 pass
         for idx in range(0,4):
             if(len(FetchedCUdevices)>idx):
                 CUDevicesNames[idx] = FetchedCUdevices[idx]
-                if AMDgpu:
-                    MaxMemory[0] = max(int(FetchedCUdeviceMem[idx]),MaxMemory[0])
-                else:
-                    MaxMemory[0] = max(int(FetchedCUdeviceMem[idx])*1024*1024,MaxMemory[0])
+                if len(FetchedCUdeviceMem)>idx:
+                    if AMDgpu:
+                        MaxMemory[0] = max(int(FetchedCUdeviceMem[idx]),MaxMemory[0])
+                    else:
+                        MaxMemory[0] = max(int(FetchedCUdeviceMem[idx])*1024*1024,MaxMemory[0])
 
     if testVK:
         try: # Get Vulkan names
