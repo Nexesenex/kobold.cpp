@@ -81,7 +81,7 @@ CLDevicesNames = ["","","",""]
 CUDevicesNames = ["","","","",""]
 VKDevicesNames = ["","","",""]
 VKIsDGPU = [0,0,0,0]
-MaxMemory = [0]
+MaxMemory = [0,1,2,3]
 
 class logit_bias(ctypes.Structure):
     _fields_ = [("token_id", ctypes.c_int32),
@@ -645,24 +645,24 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,qua
             print(f"GPU0 VRAM: {gpu0mem} B ; GPU0 simulated VRAM: {gpu0_smem} B")
             print(f"GPU0 reserved VRAM {reserved_mem0} B ; GPU0 usable VRAM {mem0} B")
 
-            gpu1_svram = gpu1vram * 2**30
+            gpu1_svram = gpu1vram
             if gpu1vram > 0:
                 vram1 = gpu1_svram - reserved_vram1
-                print(f"GPU1 VRAM: {gpu1vram} GB ; GPU1 simulated VRAM: {gpu1_svram} B")
+                print(f"GPU1 VRAM: {gpu1vram} B ; GPU1 simulated VRAM: {gpu1_svram} B")
                 print(f"GPU1 reserved VRAM {reserved_vram1} B ; GPU1 usable VRAM {vram1} B")
             else: vram1 = gpu1_svram
 
-            gpu2_svram = gpu2vram * 2**30
+            gpu2_svram = gpu2vram
             if gpu2vram > 0:
                 vram2 = gpu2_svram - reserved_vram2
-                print(f"GPU2 VRAM: {gpu2vram} GB ; GPU2 simulated VRAM: {gpu2_svram} B")
+                print(f"GPU2 VRAM: {gpu2vram} B ; GPU2 simulated VRAM: {gpu2_svram} B")
                 print(f"GPU2 reserved VRAM {reserved_vram2} B ; GPU2 usable VRAM {vram2} B")
             else: vram2 = gpu2_svram
 
-            gpu3_svram = gpu3vram * 2**30
+            gpu3_svram = gpu3vram
             if gpu3vram > 0:
                 vram3 = gpu3_svram - reserved_vram3
-                print(f"GPU3 VRAM: {gpu3vram} GB ; GPU3 simulated VRAM: {gpu3_svram} B")
+                print(f"GPU3 VRAM: {gpu3vram} B ; GPU3 simulated VRAM: {gpu3_svram} B")
                 print(f"GPU3 reserved VRAM {reserved_vram3} B ; GPU3 usable VRAM {vram3} B")
             else: vram3 = gpu3_svram
 
@@ -872,7 +872,7 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                         lowestclmem = dmem if lowestclmem==0 else (dmem if dmem<lowestclmem else lowestclmem)
                     dev += 1
                 plat += 1
-            MaxMemory[0] = lowestclmem
+            MaxMemory[idx] = lowestclmem
         except Exception as e:
             pass
 
@@ -908,9 +908,10 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                 CUDevicesNames[idx] = FetchedCUdevices[idx]
                 if len(FetchedCUdeviceMem)>idx:
                     if AMDgpu:
-                        MaxMemory[0] = max(int(FetchedCUdeviceMem[idx]),MaxMemory[0])
+                        MaxMemory[idx] = max(int(FetchedCUdeviceMem[idx]),MaxMemory[idx])
                     else:
-                        MaxMemory[0] = max(int(FetchedCUdeviceMem[idx])*1024*1024,MaxMemory[0])
+                        MaxMemory[idx] = max(int(FetchedCUdeviceMem[idx])*1024*1024,MaxMemory[idx])
+                    MaxMemory.sort(reverse=True)
 
     if testVK:
         try: # Get Vulkan names
@@ -2405,14 +2406,8 @@ def show_gui():
     poslayeroffset_text = ["No positive layer offset", "Add 1 layer", "Add 2 layers", "Add 3 layers", "Add 4 layers", "Add 5 layers", "Add 6 layers", "Add 7 layers", "Add 8 layers", "Add 9 layers", "Add 10 layers"]
     neglayeroffset_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
     neglayeroffset_text = ["No negative layer offset", "Remove 1 layer", "Remove 2 layers", "Remove 3 layers", "Remove 4 layers", "Remove 5 layers", "Remove 6 layers", "Remove 7 layers", "Remove 8 layers", "Remove 9 layers", "Remove 10 layers"]
-    gpu0vram_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80"]
-    gpu0vram_text = ["No first GPU", "1GB", "2GB", "3GB", "4GB", "5GB", "6GB", "7GB", "8GB", "9GB", "10GB", "11GB", "12GB", "13GB", "14GB", "15GB", "16GB", "17GB", "18GB", "19GB", "20GB", "21GB", "22GB", "23GB", "24GB", "25GB", "26GB", "27GB", "28GB", "29GB", "30GB", "31GB", "32GB", "33GB", "34GB", "35GB", "36GB", "37GB", "38GB", "39GB", "40GB", "41GB", "42GB", "43GB", "44GB", "45GB", "46GB", "47GB", "48GB", "49GB", "50GB", "51GB", "52GB", "53GB", "54GB", "55GB", "56GB", "57GB", "58GB", "59GB", "60GB", "61GB", "62GB", "63GB", "64GB", "65GB", "66GB", "67GB", "68GB", "69GB", "70GB", "71GB", "72GB", "73GB", "74GB", "75GB", "76GB", "77GB", "78GB", "79GB", "80GB"]
-    gpu1vram_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80"]
-    gpu1vram_text = ["No second GPU", "1GB", "2GB", "3GB", "4GB", "5GB", "6GB", "7GB", "8GB", "9GB", "10GB", "11GB", "12GB", "13GB", "14GB", "15GB", "16GB", "17GB", "18GB", "19GB", "20GB", "21GB", "22GB", "23GB", "24GB", "25GB", "26GB", "27GB", "28GB", "29GB", "30GB", "31GB", "32GB", "33GB", "34GB", "35GB", "36GB", "37GB", "38GB", "39GB", "40GB", "41GB", "42GB", "43GB", "44GB", "45GB", "46GB", "47GB", "48GB", "49GB", "50GB", "51GB", "52GB", "53GB", "54GB", "55GB", "56GB", "57GB", "58GB", "59GB", "60GB", "61GB", "62GB", "63GB", "64GB", "65GB", "66GB", "67GB", "68GB", "69GB", "70GB", "71GB", "72GB", "73GB", "74GB", "75GB", "76GB", "77GB", "78GB", "79GB", "80GB"]
-    gpu2vram_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80"]
-    gpu2vram_text = ["No third GPU", "1GB", "2GB", "3GB", "4GB", "5GB", "6GB", "7GB", "8GB", "9GB", "10GB", "11GB", "12GB", "13GB", "14GB", "15GB", "16GB", "17GB", "18GB", "19GB", "20GB", "21GB", "22GB", "23GB", "24GB", "25GB", "26GB", "27GB", "28GB", "29GB", "30GB", "31GB", "32GB", "33GB", "34GB", "35GB", "36GB", "37GB", "38GB", "39GB", "40GB", "41GB", "42GB", "43GB", "44GB", "45GB", "46GB", "47GB", "48GB", "49GB", "50GB", "51GB", "52GB", "53GB", "54GB", "55GB", "56GB", "57GB", "58GB", "59GB", "60GB", "61GB", "62GB", "63GB", "64GB", "65GB", "66GB", "67GB", "68GB", "69GB", "70GB", "71GB", "72GB", "73GB", "74GB", "75GB", "76GB", "77GB", "78GB", "79GB", "80GB"]
-    gpu3vram_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80"]
-    gpu3vram_text = ["No fourth GPU", "1GB", "2GB", "3GB", "4GB", "5GB", "6GB", "7GB", "8GB", "9GB", "10GB", "11GB", "12GB", "13GB", "14GB", "15GB", "16GB", "17GB", "18GB", "19GB", "20GB", "21GB", "22GB", "23GB", "24GB", "25GB", "26GB", "27GB", "28GB", "29GB", "30GB", "31GB", "32GB", "33GB", "34GB", "35GB", "36GB", "37GB", "38GB", "39GB", "40GB", "41GB", "42GB", "43GB", "44GB", "45GB", "46GB", "47GB", "48GB", "49GB", "50GB", "51GB", "52GB", "53GB", "54GB", "55GB", "56GB", "57GB", "58GB", "59GB", "60GB", "61GB", "62GB", "63GB", "64GB", "65GB", "66GB", "67GB", "68GB", "69GB", "70GB", "71GB", "72GB", "73GB", "74GB", "75GB", "76GB", "77GB", "78GB", "79GB", "80GB"]
+    # gpu0vram_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80"]
+    # gpu0vram_text = ["No first GPU", "1GB", "2GB", "3GB", "4GB", "5GB", "6GB", "7GB", "8GB", "9GB", "10GB", "11GB", "12GB", "13GB", "14GB", "15GB", "16GB", "17GB", "18GB", "19GB", "20GB", "21GB", "22GB", "23GB", "24GB", "25GB", "26GB", "27GB", "28GB", "29GB", "30GB", "31GB", "32GB", "33GB", "34GB", "35GB", "36GB", "37GB", "38GB", "39GB", "40GB", "41GB", "42GB", "43GB", "44GB", "45GB", "46GB", "47GB", "48GB", "49GB", "50GB", "51GB", "52GB", "53GB", "54GB", "55GB", "56GB", "57GB", "58GB", "59GB", "60GB", "61GB", "62GB", "63GB", "64GB", "65GB", "66GB", "67GB", "68GB", "69GB", "70GB", "71GB", "72GB", "73GB", "74GB", "75GB", "76GB", "77GB", "78GB", "79GB", "80GB"]
     
     if not any(runopts):
         exitcounter = 999
@@ -2594,6 +2589,7 @@ def show_gui():
             fetch_gpu_properties(True,True,True)
         #autopick cublas if suitable, requires at least 3.5GB VRAM to auto pick
         #we do not want to autoselect hip/cublas if the user has already changed their desired backend!
+        CUDevicesNames.sort(reverse=True)
         if exitcounter < 100 and MaxMemory[0]>3500000000 and (("Use CuBLAS" in runopts and CUDevicesNames[0]!="") or "Use hipBLAS (ROCm)" in runopts) and (any(CUDevicesNames) or any(CLDevicesNames)) and runmode_untouched:
             if "Use CuBLAS" in runopts:
                 runopts_var.set("Use CuBLAS")
@@ -2866,9 +2862,9 @@ def show_gui():
     gpu_al_tab = tabcontent["GPU AutoLayers"]
 
     makeslider(gpu_al_tab, "Display GPU:", displaygpu_text, displaygpu_var, 0, 4, 2, width=201, set=0,tooltip="Increases the reserved area of the GPU layers autoloader from 0.5GB to 1.25GB.")
-    makeslider(gpu_al_tab, "GPU 1 VRAM:", gpu1vram_text, gpu1vram_var, 0, 80, 4, width=321, set=0,tooltip="GPU 1 VRAM size.")
-    makeslider(gpu_al_tab, "GPU 2 VRAM:", gpu2vram_text, gpu2vram_var, 0, 80, 6, width=321, set=0,tooltip="GPU 2 VRAM size.")
-    makeslider(gpu_al_tab, "GPU 3 VRAM:", gpu3vram_text, gpu3vram_var, 0, 80, 10, width=321, set=0,tooltip="GPU 3 VRAM size.")
+    # makeslider(gpu_al_tab, "GPU 1 VRAM:", gpu1vram_text, gpu1vram_var, 0, 80, 4, width=321, set=0,tooltip="GPU 1 VRAM size.")
+    # makeslider(gpu_al_tab, "GPU 2 VRAM:", gpu2vram_text, gpu2vram_var, 0, 80, 6, width=321, set=0,tooltip="GPU 2 VRAM size.")
+    # makeslider(gpu_al_tab, "GPU 3 VRAM:", gpu3vram_text, gpu3vram_var, 0, 80, 10, width=321, set=0,tooltip="GPU 3 VRAM size.")
     makeslider(gpu_al_tab, "Positive layers offset:", poslayeroffset_text, poslayeroffset_var, 0, 10, 12, width=201, set=0,tooltip="Adds layers to the GPU layers autoloader calculation in case of under-exploitation of your GPU(s)..")
     makeslider(gpu_al_tab, "Negative layers offset:", neglayeroffset_text, neglayeroffset_var, 0, 10, 14, width=201, set=0,tooltip="Removes layers to the GPU layers autoloader calculation in case of Out of Memory (OOM) error..")
 
@@ -3088,15 +3084,10 @@ def show_gui():
         args.poslayeroffset = int(poslayeroffset_values[int(poslayeroffset_var.get())])
         args.neglayeroffset = int(neglayeroffset_values[int(neglayeroffset_var.get())])
 
-        args.gpu0vram = int(gpu0vram_values[int(gpu0vram_var.get())])
-        args.gpu1vram = int(gpu1vram_values[int(gpu1vram_var.get())])
-        args.gpu2vram = int(gpu2vram_values[int(gpu2vram_var.get())])
-        args.gpu3vram = int(gpu3vram_values[int(gpu3vram_var.get())])
-
-        # args.gpu0vram = None if gpu0vram_var.get()=="" else int(gpu0vram_var.get())
-        # args.gpu1vram = None if gpu1vram_var.get()=="" else int(gpu1vram_var.get())
-        # args.gpu2vram = None if gpu2vram_var.get()=="" else int(gpu2vram_var.get())  
-        # args.gpu3vram = None if gpu3vram_var.get()=="" else int(gpu3vram_var.get())
+        # args.gpu0vram = int(gpu0vram_values[int(gpu0vram_var.get())])
+        # args.gpu1vram = int(gpu1vram_values[int(gpu1vram_var.get())])
+        # args.gpu2vram = int(gpu2vram_values[int(gpu2vram_var.get())])
+        # args.gpu3vram = int(gpu3vram_values[int(gpu3vram_var.get())])
 
         gpuchoiceidx = 0
         if gpu_choice_var.get()!="All":
@@ -3318,36 +3309,14 @@ def show_gui():
             poslayeroffset_var.set(dict["poslayeroffset"])
         if "neglayeroffset" in dict:
             neglayeroffset_var.set(dict["neglayeroffset"])
-        if "gpu0vram" in dict:
-            gpu0vram_var.set(dict["gpu0vram"])
-        if "gpu1vram" in dict:
-            gpu1vram_var.set(dict["gpu1vram"])
-        if "gpu2vram" in dict:
-            gpu2vram_var.set(dict["gpu2vram"])
-        if "gpu3vram" in dict:
-            gpu3vram_var.set(dict["gpu3vram"])
-
-        # if "displaygpu" in dict and dict["displaygpu"]:
-            # displaygpu_var.set(displaygpu_values.index(str(dict["displaygpu"])))
-        # if "gpu0vram" in dict and dict["gpu0vram"]:
-            # gpu0vram_var.set(gpu0vram_values.index(str(dict["gpu0vram"])))
-        # if "gpu1vram" in dict and dict["gpu1vram"]:
-            # gpu1vram_var.set(gpu1vram_values.index(str(dict["gpu1vram"])))
-        # if "gpu2vram" in dict and dict["gpu3vram"]:
-            # gpu2vram_var.set(gpu2vram_values.index(str(dict["gpu2vram"])))
-        # if "gpu3vram" in dict and dict["gpu3vram"]:
-            # gpu3vram_var.set(gpu3vram_values.index(str(dict["gpu3vram"])))
-
-        # if "displaygpu" in dict and dict["displaygpu"]:
-            # displaygpu_var.set(str(dict["displaygpu"]))
-        # if "gpu0vram" in dict and dict["gpu0vram"]:
-            # gpu0vram_var.set(str(dict["gpu0vram"]))
-        # if "gpu1vram" in dict and dict["gpu1vram"]:
-            # gpu1vram_var.set(str(dict["gpu1vram"]))
-        # if "gpu2vram" in dict and dict["gpu2vram"]:
-            # gpu2vram_var.set(str(dict["gpu2vram"]))
-        # if "gpu3vram" in dict and dict["gpu3vram"]:
-            # gpu3vram_var.set(str(dict["gpu3vram"]))
+        # if "gpu0vram" in dict:
+            # gpu0vram_var.set(dict["gpu0vram"])
+        # if "gpu1vram" in dict:
+            # gpu1vram_var.set(dict["gpu1vram"])
+        # if "gpu2vram" in dict:
+            # gpu2vram_var.set(dict["gpu2vram"])
+        # if "gpu3vram" in dict:
+            # gpu3vram_var.set(dict["gpu3vram"])
 
         version_var.set(str(dict["forceversion"]) if ("forceversion" in dict and dict["forceversion"]) else "0")
         model_var.set(dict["model_param"] if ("model_param" in dict and dict["model_param"]) else "")
@@ -4157,6 +4126,9 @@ def main(launch_args,start_server=True):
         if libname in nogood and sys.platform!="darwin":
             shouldavoidgpu = True
         if args.gpulayers>0:
+            if MaxMemory[0] == 0: #try to get gpu vram for cuda if not picked yet
+                fetch_gpu_properties(False,True,True)
+                pass
             if shouldavoidgpu:
                 print("WARNING: GPU layers is set, but a GPU backend was not selected!")
                 pass
@@ -4166,7 +4138,7 @@ def main(launch_args,start_server=True):
                 fetch_gpu_properties(False,True,True)
                 pass
             if MaxMemory[0] > 0:
-                layeramt = autoset_gpu_layers(args.model_param, args.contextsize, MaxMemory[0], args.blasbatchsize, args.flashattention, args.quantkv, "mmq" in args.usecublas, "lowvram" in args.usecublas, args.displaygpu, args.gpu1vram, args.gpu2vram, args.gpu3vram, args.poslayeroffset, args.neglayeroffset)
+                layeramt = autoset_gpu_layers(args.model_param, args.contextsize, MaxMemory[0], args.blasbatchsize, args.flashattention, args.quantkv, "mmq" in args.usecublas, "lowvram" in args.usecublas, args.displaygpu, MaxMemory[1], MaxMemory[2], MaxMemory[3], args.poslayeroffset, args.neglayeroffset)
                 print(f"Auto Recommended Layers: {layeramt}")
                 args.gpulayers = layeramt
             else:
@@ -4387,7 +4359,11 @@ def main(launch_args,start_server=True):
         from datetime import datetime, timezone
         start_server = False
         save_to_file = (args.benchmark!="stdout" and args.benchmark!="")
-        gpu0avram = MaxMemory[0]/1024/1024
+        gpu0avram = int(MaxMemory[0]/1024/1024)
+        gpu1avram = int(MaxMemory[1]/1024/1024)
+        gpu2avram = int(MaxMemory[2]/1024/1024)
+        gpu3avram = int(MaxMemory[3]/1024/1024)
+        gpuavram = gpu0avram + gpu1avram + gpu2avram + gpu3avram
         benchmaxctx = (maxctx - 128)
         benchtg = 128
         benchpp = (benchmaxctx - benchtg)
@@ -4423,6 +4399,10 @@ def main(launch_args,start_server=True):
         print(f"FlashAttention: {args.flashattention}")
         print(f"Threads: {args.threads}")
         print(f"GPU 0 VRAM: {gpu0avram} MiB")
+        print(f"GPU 1 VRAM: {gpu1avram} MiB")
+        print(f"GPU 2 VRAM: {gpu2avram} MiB")
+        print(f"GPU 3 VRAM: {gpu3avram} MiB")
+        print(f"GPUs Total VRAM: {gpuavram} MiB")
         print(f"Cublas_Args: {args.usecublas}")
         print(f"Layers: {args.gpulayers}")
         print(f"Tensor_Split: {args.tensor_split}")
@@ -4445,8 +4425,8 @@ def main(launch_args,start_server=True):
                 with open(args.benchmark, "a") as file:
                     file.seek(0, 2)
                     if file.tell() == 0: #empty file
-                        file.write(f"Datime,KCPPF,LCPP,Backend,CudaSpecifics,Model,NoAvx2,NoBlas,NoMmap,HighP,FlashA,Thrd,VRAM0,Layers,BlasThrd,BBSize,KVC,PPNum,PPTime,PPSpeed,TGNum,TGTime,TGSpeed,BenchCtx,TotalTime,Coher,Tensor1,Split2,Cublas1,Argument2,Argument3,Argument4")
-                    file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{CudaSpecifics},{benchmodel},{args.noavx2},{args.noblas},{args.nommap},{args.highpriority},{args.flashattention},{args.threads},{gpu0avram},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.quantkv},{benchpp},{t_pp:.3f},{s_pp:.2f},{benchtg},{t_gen:.3f},{s_gen:.2f},{benchmaxctx},{(t_pp+t_gen):.3f},{resultok},{args.tensor_split},,{args.usecublas},,,")
+                        file.write(f"Datime,KCPPF,LCPP,Backend,CudaSpecifics,Model,NoAvx2,NoBlas,NoMmap,HighP,FlashA,Thrd,VRAM,Layers,BlasThrd,BBSize,KVC,PPNum,PPTime,PPSpeed,TGNum,TGTime,TGSpeed,BenchCtx,TotalTime,Coher,Tensor1,Split2,Cublas1,Argument2,Argument3,Argument4")
+                    file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{CudaSpecifics},{benchmodel},{args.noavx2},{args.noblas},{args.nommap},{args.highpriority},{args.flashattention},{args.threads},{gpuavram},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.quantkv},{benchpp},{t_pp:.3f},{s_pp:.2f},{benchtg},{t_gen:.3f},{s_gen:.2f},{benchmaxctx},{(t_pp+t_gen):.3f},{resultok},{args.tensor_split},,{args.usecublas},,,")
             except Exception as e:
                 print(f"Error writing benchmark to file: {e}")
         global using_gui_launcher
@@ -4520,10 +4500,10 @@ if __name__ == '__main__':
     parser.add_argument("--config", metavar=('[filename]'), help="Load settings from a .kcpps file. Other arguments will be ignored", type=str, nargs=1)
 
     parser.add_argument("--displaygpu", help="Reduces the reserved area of the GPU layers autoloader from 1.25GB to 0.5GB.", type=check_range(int,0,4), default=0)
-    parser.add_argument("--gpu0vram", help="declares the amount of VRAM of GPU1 (in GB).", type=check_range(int,0,80), default=0)
-    parser.add_argument("--gpu1vram", help="declares the amount of VRAM of GPU1 (in GB).", type=check_range(int,0,80), default=0)
-    parser.add_argument("--gpu2vram", help="declares the amount of VRAM of GPU2 (in GB).", type=check_range(int,0,80), default=0)
-    parser.add_argument("--gpu3vram", help="declares the amount of VRAM of GPU3 (in GB).", type=check_range(int,0,80), default=0)
+    # parser.add_argument("--gpu0vram", help="declares the amount of VRAM of GPU1 (in GB).", type=check_range(int,0,80), default=0)
+    # parser.add_argument("--gpu1vram", help="declares the amount of VRAM of GPU1 (in GB).", type=check_range(int,0,80), default=0)
+    # parser.add_argument("--gpu2vram", help="declares the amount of VRAM of GPU2 (in GB).", type=check_range(int,0,80), default=0)
+    # parser.add_argument("--gpu3vram", help="declares the amount of VRAM of GPU3 (in GB).", type=check_range(int,0,80), default=0)
     parser.add_argument("--poslayeroffset", help="Removes or adds a layer to the GPU layers autoloader calculation in case of OOM or under-exploitation.", type=check_range(int,0,10), default=0)
     parser.add_argument("--neglayeroffset", help="Removes or adds a layer to the GPU layers autoloader calculation in case of OOM or under-exploitation.", type=check_range(int,0,10), default=0)
 
