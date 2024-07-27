@@ -1063,13 +1063,37 @@ static int GetBatchSize(int desiredBlasBatchSize,FileFormat in_file_format)
     }
     if (file_format != FileFormat::GGML && file_format != FileFormat::GGHF && file_format != FileFormat::GGJT && file_format != FileFormat::GGJT_2 && file_format != FileFormat::GGJT_3 && file_format != FileFormat::GGUF_GENERIC)
     {
-        desiredBlasBatchSize = (desiredBlasBatchSize > 256 ? 256 : desiredBlasBatchSize);
+        desiredBlasBatchSize = (desiredBlasBatchSize > 128 ? 128 : desiredBlasBatchSize);
     }
     if (file_format == FileFormat::RWKV_1 || file_format==FileFormat::RWKV_2)
     {
         desiredBlasBatchSize = 1;
     }
     return desiredBlasBatchSize;
+}
+
+static int GetUBatchSize(int desiredBlasUBatchSize,FileFormat in_file_format)
+{
+    //check if approved to use BLAS
+    bool approved_format = !(file_format == FileFormat::BADFORMAT ||
+                            file_format == FileFormat::GPT2_1 ||
+                            file_format == FileFormat::GPTJ_1 ||
+                            file_format == FileFormat::GPTJ_2 ||
+                            file_format == FileFormat::RWKV_1 ||
+                            file_format==FileFormat::RWKV_2);
+    if(!approved_format || desiredBlasUBatchSize<=0)
+    {
+        desiredBlasUBatchSize = 16;
+    }
+    if (file_format != FileFormat::GGML && file_format != FileFormat::GGHF && file_format != FileFormat::GGJT && file_format != FileFormat::GGJT_2 && file_format != FileFormat::GGJT_3 && file_format != FileFormat::GGUF_GENERIC)
+    {
+        desiredBlasUBatchSize = (desiredBlasUBatchSize > 128 ? 128 : desiredBlasUBatchSize);
+    }
+    if (file_format == FileFormat::RWKV_1 || file_format==FileFormat::RWKV_2)
+    {
+        desiredBlasUBatchSize = 1;
+    }
+    return desiredBlasUBatchSize;
 }
 
 //this function applies automatic scaling to rope freq base when the desired context exceeds trained context
@@ -1130,7 +1154,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     kcpp_params->n_threads_batch = inputs.blasthreads;
     bool isGguf = (file_format == FileFormat::GGUF_GENERIC);
     kcpp_params->n_batch = GetBatchSize(inputs.blasbatchsize, in_file_format);
-    kcpp_params->n_ubatch = kcpp_params->n_batch;
+    kcpp_params->n_ubatch = GetUBatchSize(inputs.blasubatchsize, in_file_format);
     kcpp_params->flash_attn = inputs.flash_attention;
     modelname = kcpp_params->model = inputs.model_filename;
     useSmartContext = inputs.use_smartcontext;
@@ -1289,7 +1313,8 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         llama_ctx_params.main_gpu = cu_parseinfo_maindevice;
         llama_ctx_params.rope_freq_base = rope_freq_base;
         llama_ctx_params.rope_freq_scale = rope_freq_scale;
-        llama_ctx_params.n_batch = kcpp_params->n_batch;	
+        llama_ctx_params.n_batch = kcpp_params->n_batch;
+        llama_ctx_params.n_ubatch = kcpp_params->n_ubatch;	
 //        llama_ctx_params.yarn_ext_factor = yarn_ext_factor       // YaRN extrapolation mix factor
 //        llama_ctx_params.yarn_attn_factor = yarn_attn_factor      // YaRN magnitude scaling factor
 //        llama_ctx_params.yarn_beta_fast = yarn_beta_fast        // YaRN low correction dim
@@ -2420,7 +2445,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         }
     }
 
-    bool blasmode = (embd_inp.size() >= 32 && ggml_cpu_has_blas() && kcpp_params->n_batch>=32);
+    bool blasmode = (embd_inp.size() >= 1 && ggml_cpu_has_blas() && kcpp_params->n_batch>=1);
 
     current_context_tokens.resize(n_past);
 

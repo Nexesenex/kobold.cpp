@@ -899,6 +899,7 @@ struct llama_v3_context_params llama_v3_context_default_params() {
         /*.seed                        =*/ LLAMA_V3_DEFAULT_SEED,
         /*.n_ctx                       =*/ 512,
         /*.n_batch                     =*/ 512,
+        /*.n_ubatch                    =*/ 512,
         /*.n_gqa                       =*/ 1,
         /*.rms_norm_eps                =*/ LLAMA_V3_DEFAULT_RMS_EPS,
         /*.gpu_layers                  =*/ 0,
