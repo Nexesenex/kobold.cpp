@@ -17471,11 +17471,11 @@ Current version indicated by LITEVER below.
 							<input title="Context Size" inputmode="numeric" class="justifyright flex-push-right settingsmall widerinput" id="max_context_length" oninput="
 						   document.getElementById('max_context_length_slide').value = this.value;">
 						</div>
-						<div><input title="Context Size Slider" type="range" class="form-range airange" min="512" max="2048" step="8" id="max_context_length_slide" oninput="
+						<div><input title="Context Size Slider" type="range" class="form-range airange" min="128" max="4096" step="16" id="max_context_length_slide" oninput="
 						   document.getElementById('max_context_length').value = this.value;"></div>
 						<div class="settingminmax">
-							<div class="justifyleft">512</div>
-							<div class="justifyright" id="max_context_length_slide_label">2048</div>
+							<div class="justifyleft">128</div>
+							<div class="justifyright" id="max_context_length_slide_label">4096</div>
 						</div>
 						<div id="auto_ctxlen_panel" class="settinglabel">
 							<div class="justifyleft settingsmall" title="Automatically lowers settings if incompatible with existing workers">Auto-Adjust Limits </div>
@@ -17490,11 +17490,11 @@ Current version indicated by LITEVER below.
 							<input title="Max Output" inputmode="numeric" class="justifyright flex-push-right settingsmall" id="max_length" oninput="
 						   document.getElementById('max_length_slide').value = this.value;">
 						</div>
-						<div><input title="Max Output Slider" type="range" class="form-range airange" min="16" max="512" step="2"	id="max_length_slide" oninput="
+						<div><input title="Max Output Slider" type="range" class="form-range airange" min="16" max="4096" step="16"	id="max_length_slide" oninput="
 						   document.getElementById('max_length').value = this.value;"></div>
 						<div class="settingminmax">
 							<div class="justifyleft">16</div>
-							<div class="justifyright">512</div>
+							<div class="justifyright">4096</div>
 						</div>
 						<div id="auto_genamt_panel" class="settinglabel">
 							<div class="justifyleft settingsmall" title="Automatically lowers settings if incompatible with existing workers">Auto-Adjust Limits </div>
