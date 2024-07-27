@@ -348,7 +348,7 @@ static __device__ void no_device_code(
 #ifdef __CUDA_ARCH__
 #define NO_DEVICE_CODE no_device_code(__FILE__, __LINE__, __FUNCTION__, __CUDA_ARCH__, STRINGIZE(__CUDA_ARCH_LIST__))
 #else
-#define NO_DEVICE_CODE //GGML_ASSERT(false && "NO_DEVICE_CODE not valid in host code.")
+#define NO_DEVICE_CODE //GGML_ABORT("NO_DEVICE_CODE not valid in host code.")
 #endif // __CUDA_ARCH__
 
 static __device__ __forceinline__ float warp_reduce_sum(float x) {
@@ -459,7 +459,7 @@ static __device__ __forceinline__ uint32_t __hgt2_mask(const half2 a, const half
 
 static __device__ __forceinline__ int ggml_cuda_dp4a(const int a, const int b, int c) {
 #if defined(GGML_USE_HIPBLAS) && defined(__HIP_PLATFORM_AMD__)
-#if defined(__gfx906__) || defined(__gfx908__) || defined(__gfx90a__) || defined(__gfx1030__)
+#if defined(__gfx906__) || defined(__gfx908__) || defined(__gfx90a__) || defined(RDNA2)
     c = __builtin_amdgcn_sdot4(a, b, c, false);
 #elif defined(RDNA3)
     c = __builtin_amdgcn_sudot4( true, a, true, b, c, false);

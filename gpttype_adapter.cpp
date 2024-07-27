@@ -150,6 +150,10 @@ inline bool LogitsDuplicated(std::vector<float> & arr1, std::vector<float> & arr
 
 static std::string FileFormatTokenizeID(int id, FileFormat file_format, bool return_special = false)
 {
+    if(id<0)
+    {
+        return ""; //placeholder IDs cannot be tokenized!
+    }
     if (file_format == FileFormat::GGML || file_format == FileFormat::GGHF || file_format == FileFormat::GGJT || file_format == FileFormat::GGJT_2)
     {
         return std::string(llama_v2_token_to_str(llama_ctx_v2, id));
@@ -502,7 +506,7 @@ void sample_top_a(llama_token_data_array * candidates, float a, size_t min_keep)
 }
 
 void sample_dry(int n_ctx, int penalty_range, float penalty_multiplier, float penalty_base, int allowed_length, const std::unordered_multimap<gpt_vocab::id, std::vector<gpt_vocab::id>>& restart_sequences, llama_token_data_array * candidates) {
-    if (penalty_multiplier == 0.0f || penalty_base == 0.0f) {
+    if (penalty_multiplier <= 0.0f || penalty_base <= 0.0f) {
         return;
     }
     if (penalty_range <= 0) {
@@ -1390,7 +1394,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             printf("CUBLAS: Set main device to %d\n",cu_parseinfo_maindevice);
         }
         ggml_cuda_set_mul_mat_q(inputs.use_mmq);
-        if(file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2 && kcpp_params->flash_attn)
+        if(file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2 && !kcpp_params->flash_attn)
         {
             printf("CUBLAS: Warning, you are running Qwen2 without Flash Attention and may observe incoherent output.\n");
         }
@@ -1485,16 +1489,12 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
                 lora_base_arg = lora_base.c_str();
             }
 
-            int err = llama_model_apply_lora_from_file(llamamodel,
-                                                       lora_filename.c_str(),
-                                                       1.0f,
-                                                       lora_base_arg,
-                                                       kcpp_params->n_threads);
-            if (err != 0)
-            {
+            auto adapter = llama_lora_adapter_init(llamamodel, lora_filename.c_str());
+            if (adapter == nullptr) {
                 fprintf(stderr, "%s: error: failed to apply lora adapter\n", __func__);
                 return ModelLoadResult::FAIL;
             }
+            llama_lora_adapter_set(llama_ctx_v4, adapter, 1.0f);
         }
 
         if(mmproj_filename != "" && file_format==FileFormat::GGUF_GENERIC)
@@ -2123,40 +2123,55 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
     // Parse dry sequence breakers / restart sequences
     kcpp_params->dry_sequence_breakers.clear();
-    for(int x=0;x<dry_seq_break_max;++x) {
-        std::string word = inputs.dry_sequence_breakers[x];
-        if(word!="") {
-            kcpp_params->dry_sequence_breakers.push_back(word);
-        }
-    }
     dry_sequence_breakers.clear();
-    if(kcpp_params->dry_sequence_breakers.size()>0) {
-        // Restrict the maximum length of sequences used as sequence breakers. There are
-        // very few use cases for a long sequence breaker, and limiting the max length
-        // prevents a potential denial of service attack in which long repetitive sequence
-        // breakers could result in slow DRY sampling with a suitably crafted context.
-        const int MAX_CHAR_LEN = 40;
-        const int MAX_SEQ_LEN = 20;
 
-        if(debugmode==1) {
-            printf("\nProcessing %zu dry break strings...",kcpp_params->dry_sequence_breakers.size());
-        }
-        for (auto sequence_break: kcpp_params->dry_sequence_breakers) {
-            if (sequence_break.size() > MAX_CHAR_LEN) {
-                sequence_break.resize(MAX_CHAR_LEN);
+    if (kcpp_params->dry_multiplier > 0)
+    {
+        for (int x = 0; x < dry_seq_break_max; ++x)
+        {
+            std::string word = inputs.dry_sequence_breakers[x];
+            if (word != "")
+            {
+                kcpp_params->dry_sequence_breakers.push_back(word);
             }
-            GetOverlappingTokenSequences(sequence_break, dry_sequence_breakers, MAX_SEQ_LEN);
         }
-        if(debugmode==1) {
-            int trivial = 0, non_trivial = 0;
-            for (const auto& seq: dry_sequence_breakers) {
-                if (seq.second.empty()) {
-                    ++trivial;
-                } else {
-                    ++non_trivial;
+        if (kcpp_params->dry_sequence_breakers.size() > 0)
+        {
+            // Restrict the maximum length of sequences used as sequence breakers. There are
+            // very few use cases for a long sequence breaker, and limiting the max length
+            // prevents a potential denial of service attack in which long repetitive sequence
+            // breakers could result in slow DRY sampling with a suitably crafted context.
+            const int MAX_CHAR_LEN = 40;
+            const int MAX_SEQ_LEN = 20;
+
+            if (debugmode == 1)
+            {
+                printf("\nProcessing %zu dry break strings...", kcpp_params->dry_sequence_breakers.size());
+            }
+            for (auto sequence_break : kcpp_params->dry_sequence_breakers)
+            {
+                if (sequence_break.size() > MAX_CHAR_LEN)
+                {
+                    sequence_break.resize(MAX_CHAR_LEN);
                 }
+                GetOverlappingTokenSequences(sequence_break, dry_sequence_breakers, MAX_SEQ_LEN);
             }
-            printf("\nFound a total of %zu restart heads, %d trivial, %d non-trivial.\n", dry_sequence_breakers.size(), trivial, non_trivial);
+            if (debugmode == 1)
+            {
+                int trivial = 0, non_trivial = 0;
+                for (const auto &seq : dry_sequence_breakers)
+                {
+                    if (seq.second.empty())
+                    {
+                        ++trivial;
+                    }
+                    else
+                    {
+                        ++non_trivial;
+                    }
+                }
+                printf("\nFound a total of %zu restart heads, %d trivial, %d non-trivial.\n", dry_sequence_breakers.size(), trivial, non_trivial);
+            }
         }
     }
 
@@ -2366,10 +2381,14 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     }
 
     bool is_mamba = (file_format == FileFormat::GGUF_GENERIC && file_format_meta.model_architecture==GGUFArch::ARCH_MAMBA);
+    bool blank_prompt = (addedmemory=="" && kcpp_params->prompt=="");
 
     if (file_format == FileFormat::RWKV_1 || file_format==FileFormat::RWKV_2 || is_mamba)
     {
-        ContextFastForward(current_context_tokens, embd_inp, n_past, last_n_tokens, nctx, smartcontext, false, true);
+        if(!blank_prompt)
+        {
+            ContextFastForward(current_context_tokens, embd_inp, n_past, last_n_tokens, nctx, smartcontext, false, true);
+        }
         if(is_mamba)
         {
             if(n_past==0)
@@ -2386,12 +2405,15 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     else
     {
         bool triggersc = useSmartContext;
-        if(useContextShift && (file_format == FileFormat::GGUF_GENERIC))
+        if(!blank_prompt) //special case for blank prompts, no fast forward or shifts
         {
-            PurgeMissingTokens(llama_ctx_v4, current_context_tokens, embd_inp, inputs.max_length, nctx);
-            triggersc = false;
+            if(useContextShift && (file_format == FileFormat::GGUF_GENERIC))
+            {
+                PurgeMissingTokens(llama_ctx_v4, current_context_tokens, embd_inp, inputs.max_length, nctx);
+                triggersc = false;
+            }
+            ContextFastForward(current_context_tokens, embd_inp, n_past, last_n_tokens, nctx, smartcontext, triggersc, false);
         }
-        ContextFastForward(current_context_tokens, embd_inp, n_past, last_n_tokens, nctx, smartcontext, triggersc, false);
         if(file_format == FileFormat::GGUF_GENERIC)
         {
             llama_kv_cache_seq_rm(llama_ctx_v4, 0, n_past, -1);
@@ -2891,7 +2913,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     float pt2 = (time2*1000.0/(realnpredict==0?1:realnpredict));
     float ts2 = (1000.0/pt2);
     float tokens_per_second = (realnpredict == 0 ? 0 : realnpredict / (time1 + time2));
-    printf("\nCtxLimit: %d/%d, Process:%.2fs (%.1fms/T = %.2fT/s), Generate:%.2fs (%.1fms/T = %.2fT/s), Total:%.2fs (%.2fT/s)",(int)current_context_tokens.size(),(int)nctx, time1, pt1, ts1, time2, pt2, ts2, (time1 + time2), tokens_per_second);
+    printf("\nCtxLimit:%d/%d, Amt:%d/%d, Process:%.2fs (%.1fms/T = %.2fT/s), Generate:%.2fs (%.1fms/T = %.2fT/s), Total:%.2fs (%.2fT/s)",(int)current_context_tokens.size(),(int)nctx, realnpredict, kcpp_params->n_predict, time1, pt1, ts1, time2, pt2, ts2, (time1 + time2), tokens_per_second);
     fflush(stdout);
     output.status = 1;
     output.stopreason = last_stop_reason;

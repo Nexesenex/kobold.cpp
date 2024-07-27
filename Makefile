@@ -124,14 +124,22 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686))
 		CFLAGS +=
 		NONECFLAGS +=
 		SIMPLECFLAGS += -mavx -msse3
-		FULLCFLAGS += -mavx2 -msse3 -mfma -mf16c -mavx
+		ifdef LLAMA_NOAVX2
+			FULLCFLAGS += -msse3 -mavx
+		else
+			FULLCFLAGS += -mavx2 -msse3 -mfma -mf16c -mavx
+		endif
 	else
 # if not on windows, they are clearly building it themselves, so lets just use whatever is supported
 		ifdef LLAMA_PORTABLE
 		CFLAGS +=
 		NONECFLAGS +=
 		SIMPLECFLAGS += -mavx -msse3
-		FULLCFLAGS += -mavx2 -msse3 -mfma -mf16c -mavx
+		ifdef LLAMA_NOAVX2
+			FULLCFLAGS += -msse3 -mavx
+		else
+			FULLCFLAGS += -mavx2 -msse3 -mfma -mf16c -mavx
+		endif
 		else
 		CFLAGS += -march=native -mtune=native
 		endif
@@ -567,7 +575,7 @@ whispercpp_cublas.o: otherarch/whispercpp/whisper_adapter.cpp
 	$(CXX) $(CXXFLAGS) $(CUBLAS_FLAGS) $(HIPFLAGS) -c $< -o $@
 
 # idiotic "for easier compilation"
-GPTTYPE_ADAPTER = gpttype_adapter.cpp otherarch/llama_v2.cpp otherarch/llama_v3.cpp src/llama.cpp otherarch/utils.cpp otherarch/gptj_v1.cpp otherarch/gptj_v2.cpp otherarch/gptj_v3.cpp otherarch/gpt2_v1.cpp otherarch/gpt2_v2.cpp otherarch/gpt2_v3.cpp otherarch/rwkv_v2.cpp otherarch/rwkv_v3.cpp otherarch/neox_v2.cpp otherarch/neox_v3.cpp otherarch/mpt_v3.cpp ggml/include/ggml.h ggml/include/ggml-cuda.h include/llama.h otherarch/llama-util.h
+GPTTYPE_ADAPTER = gpttype_adapter.cpp otherarch/llama_v2.cpp otherarch/llama_v3.cpp src/llama.cpp src/llama-grammar.cpp src/llama-sampling.cpp src/llama-vocab.cpp otherarch/utils.cpp otherarch/gptj_v1.cpp otherarch/gptj_v2.cpp otherarch/gptj_v3.cpp otherarch/gpt2_v1.cpp otherarch/gpt2_v2.cpp otherarch/gpt2_v3.cpp otherarch/rwkv_v2.cpp otherarch/rwkv_v3.cpp otherarch/neox_v2.cpp otherarch/neox_v3.cpp otherarch/mpt_v3.cpp ggml/include/ggml.h ggml/include/ggml-cuda.h include/llama.h otherarch/llama-util.h
 gpttype_adapter_failsafe.o: $(GPTTYPE_ADAPTER)
 	$(CXX) $(CXXFLAGS) $(FAILSAFE_FLAGS) -c $< -o $@
 gpttype_adapter.o: $(GPTTYPE_ADAPTER)
@@ -586,7 +594,7 @@ gpttype_adapter_vulkan_noavx2.o: $(GPTTYPE_ADAPTER)
 	$(CXX) $(CXXFLAGS) $(FAILSAFE_FLAGS) $(VULKAN_FLAGS) -c $< -o $@
 
 clean:
-	rm -vf *.o main sdmain whispermain quantize_gguf quantize_clip quantize_gpt2 quantize_gptj quantize_neox quantize_mpt quantize-stats perplexity embedding benchmark-matmult save-load-state gguf imatrix vulkan-shaders-gen vulkan-shaders-gen.exe imatrix.exe gguf.exe main.exe quantize_clip.exe quantize_gguf.exe quantize_gptj.exe quantize_gpt2.exe quantize_neox.exe quantize_mpt.exe koboldcpp_default.dll koboldcpp_openblas.dll koboldcpp_failsafe.dll koboldcpp_noavx2.dll koboldcpp_clblast.dll koboldcpp_clblast_noavx2.dll koboldcpp_vulkan.dll koboldcpp_vulkan_noavx2.dll koboldcpp_default.so koboldcpp_openblas.so koboldcpp_failsafe.so koboldcpp_noavx2.so koboldcpp_clblast.so koboldcpp_clblast_noavx2.so koboldcpp_cublas.so koboldcpp_hipblas.so koboldcpp_vulkan.so koboldcpp_vulkan_noavx2.so
+	rm -vf *.o main sdmain whispermain quantize_gguf quantize_clip quantize_gpt2 quantize_gptj quantize_neox quantize_mpt quantize-stats perplexity embedding benchmark-matmult save-load-state gguf imatrix vulkan-shaders-gen gguf-split gguf-split.exe vulkan-shaders-gen.exe imatrix.exe gguf.exe main.exe sdmain.exe whispermain.exe quantize_clip.exe quantize_gguf.exe quantize_gptj.exe quantize_gpt2.exe quantize_neox.exe quantize_mpt.exe koboldcpp_default.dll koboldcpp_openblas.dll koboldcpp_failsafe.dll koboldcpp_noavx2.dll koboldcpp_clblast.dll koboldcpp_clblast_noavx2.dll koboldcpp_vulkan.dll koboldcpp_vulkan_noavx2.dll koboldcpp_default.so koboldcpp_openblas.so koboldcpp_failsafe.so koboldcpp_noavx2.so koboldcpp_clblast.so koboldcpp_clblast_noavx2.so koboldcpp_cublas.so koboldcpp_hipblas.so koboldcpp_vulkan.so koboldcpp_vulkan_noavx2.so
 	rm -vrf ggml/src/ggml-cuda/*.o
 	rm -vrf ggml/src/ggml-cuda/template-instances/*.o
 
