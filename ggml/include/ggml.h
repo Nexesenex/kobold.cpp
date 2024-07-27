@@ -570,13 +570,6 @@ extern "C" {
         GGML_TENSOR_FLAG_PARAM  = 4,
     };
 
-    // Flag (used on GGML_OP_CPY nodes) on whether node is associated with K or V cache
-    // enum ggml_kv_cache_flag {
-        // GGML_KV_CACHE_FLAG_NONE = 0,
-        // GGML_KV_CACHE_FLAG_K = 1,
-        // GGML_KV_CACHE_FLAG_V = 2
-    // };
-
     // ggml object
     struct ggml_object {
         size_t offs;
@@ -611,8 +604,6 @@ extern "C" {
         // op params - allocated as int32_t for alignment
         int32_t op_params[GGML_MAX_OP_PARAMS / sizeof(int32_t)];
 
-        // enum ggml_kv_cache_flag kv_cache_flag;
-
         int32_t flags;
 
         struct ggml_tensor * grad;
@@ -628,7 +619,7 @@ extern "C" {
 
         void * extra; // extra things e.g. for ggml-cuda.cu
 
-        //char padding[4];
+        // char padding[4];
     };
 
     static const size_t GGML_TENSOR_SIZE = sizeof(struct ggml_tensor);
