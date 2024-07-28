@@ -2821,7 +2821,7 @@ def show_gui():
     quick_boxes = {
         "Launch Browser": [launchbrowser, "Launches your default browser after model loading is complete"],
         "Disable MMAP": [disablemmap, "Avoids using mmap to load models if enabled"],
-        "Use ContextShift": [contextshift, "Uses Context Shifting to reduce reprocessing.\nRecommended. Check the wiki for more info."],
+        "Use ContextShift": [contextshift, "Uses Context Shifting to reduce reprocessing.\nRecommended, but doesn't work with quantized KV Cache.\nCheck the wiki for more info."],
         "Use SmartContext": [smartcontext, "Use Smart Context. Now considered outdated and not recommended, except for KVQ with FA.\nCheck the wiki for more info."],
         "Remote Tunnel": [remotetunnel, "Creates a trycloudflare tunnel.\nAllows you to access koboldcpp from other devices over an internet URL."],
         "Use FlashAttention": [flashattention, "Enable flash attention for GGUF models."],
@@ -2928,7 +2928,7 @@ def show_gui():
     tokens_tab = tabcontent["Tokens"]
     # tokens checkboxes
     smartcontextbox = makecheckbox(tokens_tab, "Use SmartContext", smartcontext, 1,tooltiptxt="Uses SmartContext. Now considered outdated and not recommended, except for KVQ with FA.\nCheck the wiki for more info.")
-    makecheckbox(tokens_tab, "Use ContextShift", contextshift, 2,tooltiptxt="Uses Context Shifting to reduce reprocessing. Incompatible with KV modes 1 à 20, and 22 with FA.\nRecommended. Check the wiki for more info.", command=togglectxshift)
+    makecheckbox(tokens_tab, "Use ContextShift", contextshift, 2,tooltiptxt="Uses Context Shifting to reduce reprocessing.\nRecommended, but doesn't work with quantized KV Cache.\nCheck the wiki for more info.", command=togglectxshift)
 #    makecheckbox(tokens_tab, "Use Token Healing", token_healing, 3, tooltiptxt="Enable flash attention for GGUF models.")
 
 
@@ -4583,7 +4583,7 @@ if __name__ == '__main__':
     advparser.add_argument("--blasubatchsize", help="Sets the Physical batch size used in BLAS processing (default 128 for VRAM savings, optimal speed is 512, 256 is a great compromise). Setting it to 0 alignes Physical BLAS batch on logical BLAS.", type=int,choices=[0,1,2,4,8,16,32,64,128,256,512,1024,2048,4096], default=0)
     advparser.add_argument("--blasthreads", help="Use a different number of threads during BLAS if specified. Otherwise, has the same value as --threads",metavar=('[threads]'), type=int, default=0)
     advparser.add_argument("--lora", help="LLAMA models only, applies a lora file on top of model. Experimental.", metavar=('[lora_filename]', '[lora_base]'), nargs='+')
-    advparser.add_argument("--noshift", help="If set, do not attempt to Trim and Shift the GGUF context without reprocessing everything once the max context is reached. If you disable it (or need to use KV cache quantized (KVQ) with FlashAttention, aka. modes 1 to 20), you can eventually use --smartcontext instead.", action='store_true')
+    advparser.add_argument("--noshift", help="If set, do not attempt to Trim and Shift the GGUF context without reprocessing everything once the max context is reached. If you disable it (or need to use Quantized KV cache (KVQ) with FlashAttention, aka. modes 1 to 20, which are incompatible with Context Shift), you can eventually use --smartcontext instead.", action='store_true')
     advparser.add_argument("--nommap", help="If set, do not use mmap to load newer models", action='store_true')
 #    advparser.add_argument("--usedirect_io", help="Accelerate the model loading time", action='store_true')
 #    advparser.add_argument("--token_healing", help="Heal the generation of tokens", action='store_true')
