@@ -2625,7 +2625,7 @@ def show_gui():
                 dict = json.load(f)
                 import_vars(dict)
         else:
-            layerlimit = autoset_gpu_layers(filepath,int(contextsize_text[context_var.get()]),MaxMemory[0],int(blasbatchsize_values[int(blasbatchsize_var.get())]),flashattention.get(),int(quantkv_values[int(quantkv_var.get())]),mmq_var.get(),lowvram_var.get(),int(displaygpu_values[int(displaygpu_var.get())]),int(gpu1vram_values[int(gpu1vram_var.get())]),int(gpu2vram_values[int(gpu2vram_var.get())]),int(gpu3vram_values[int(gpu3vram_var.get())]),int(poslayeroffset_values[int(poslayeroffset_var.get())]),int(neglayeroffset_values[int(neglayeroffset_var.get())]))
+            layerlimit = autoset_gpu_layers(filepath,int(contextsize_text[context_var.get()]),MaxMemory[0],int(blasbatchsize_values[int(blasbatchsize_var.get())]),flashattention.get(),int(quantkv_values[int(quantkv_var.get())]),mmq_var.get(),lowvram_var.get(),int(displaygpu_values[int(displaygpu_var.get())]),MaxMemory[1],MaxMemory[2],MaxMemory[3],int(poslayeroffset_values[int(poslayeroffset_var.get())]),int(neglayeroffset_values[int(neglayeroffset_var.get())]))
             old_gui_layers_untouched = gui_layers_untouched
             gui_layers_zeroed = gpulayers_var.get()=="" or gpulayers_var.get()=="0"
             if (gui_layers_untouched or gui_layers_zeroed) and layerlimit>0:
