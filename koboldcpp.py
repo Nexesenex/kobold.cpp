@@ -2408,26 +2408,26 @@ def show_gui():
     antirunopts = [opt.replace("Use ", "") for lib, opt in lib_option_pairs if not (opt in runopts)]
     quantkv_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26"]
     quantkv_text = ["0 - F16 (16BPW) - 1616",
-    "1 - K16-V8-Bit (12.25BPW) - FA 1680",
-    "2 - K16-V5.1-Bit (11BPW) - FA 1651",
-    "3 - K16-V5-Bit (10.75BPW) - FA 1650",
-    "4 - K16-V4.1-Bit (10.50BPW) - FA 1641",
-    "5 - K16-V4-Bit (10.25BPW) - FA 1640",
-    "6 - 8-Bit (8.5BPW) - FA 8080",
-    "7 - K8-V5.1-Bit (7.25BPW) - FA 8051",
-    "8 - K8-V5-Bit (7BPW) - FA 8050",
-    "9 - K8-V4.1-Bit (6.75BPW) - FA 8041",
-    "10 - K8-V4-Bit (6.5BPW) - FA 8040",
-    "11 - 5.1-Bit (6BPW) - FA 5151",
-    "12 - K5.1-V5Bit (5.75BPW) - FA 5150",
-    "13 - K5.1-V4.1-Bit (5.5BPW) - FA 5141",
-    "14 - K5.1-V4-Bit (5.25BPW) - FA 5140",
-    "15 - 5-Bit (5.5BPW) - FA 5050",
-    "16 - K5-V4.1-Bit (5.25BPW) - FA 5041",
-    "17 - K5-V4-Bit (5BPW) - FA 5040",
-    "18 - 4.1Bit (5BPW) - FA 4141",
-    "19 - K4.1-V4-Bit (4.75BPW) - FA 4140",
-    "20 - 4-Bit (4.5BPW) - FA 4040",
+    "1 - 8-Bit (8.5BPW) - FA 8080",
+    "2 - 4-Bit (4.5BPW) - FA 4040",
+    "3 - K16-V8-Bit (12.25BPW) - FA 1680",
+    "4 - K16-V5.1-Bit (11BPW) - FA 1651",
+    "5 - K16-V5-Bit (10.75BPW) - FA 1650",
+    "6 - K16-V4.1-Bit (10.50BPW) - FA 1641",
+    "7 - K16-V4-Bit (10.25BPW) - FA 1640",
+    "8 - K8-V5.1-Bit (7.25BPW) - FA 8051",
+    "9 - K8-V5-Bit (7BPW) - FA 8050",
+    "10 - K8-V4.1-Bit (6.75BPW) - FA 8041",
+    "11 - K8-V4-Bit (6.5BPW) - FA 8040",
+    "12 - 5.1-Bit (6BPW) - FA 5151",
+    "13 - K5.1-V5Bit (5.75BPW) - FA 5150",
+    "14 - K5.1-V4.1-Bit (5.5BPW) - FA 5141",
+    "15 - K5.1-V4-Bit (5.25BPW) - FA 5140",
+    "16 - 5-Bit (5.5BPW) - FA 5050",
+    "17 - K5-V4.1-Bit (5.25BPW) - FA 5041",
+    "18 - K5-V4-Bit (5BPW) - FA 5040",
+    "19 - 4.1Bit (5BPW) - FA 4141",
+    "20 - K4.1-V4-Bit (4.75BPW) - FA 4140",
     "21 - F16 (16BPW) - 1616",
     "22 - K8-Bit-V16 (12.25BPW) - 8016",
     "23 - K5.1-Bit-V16 (11BPW) - 5116",
@@ -4598,7 +4598,7 @@ if __name__ == '__main__':
     advparser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
     advparser.add_argument("--chatcompletionsadapter", help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="")
     advparser.add_argument("--flashattention", help="Enables flash attention, which shrinks the size of the BLAS/compute cache by 50-75% (a few hundreds MB recovered in VRAM), and allows the use of the quantized KV cache.", action='store_true')
-    advparser.add_argument("--quantkv", help="Sets the KV cache data quantization (KVQ) type to save VRAM in NVidia Video Cards, 0 = 1616/F16 (16 BPW), 1 = FA1680/Kf16-Vq8_0 (12.25BPW), 2 = FA1651/Kf16-Vq5_1 (11BPW), 3 = FA1650/Kf16-Vq5_0 (10.75BPW), 4 = FA1641/Kf16-Vq4_1 (10.5BPW), 5 = FA1640/Kf16-Vq4_0 (10.25BPW), 6 = FA8080/KVq8_0 (8.5 BPW), 7 = FA8051/Kq8_0-Vq5_1 (7.25BPW), 8 = FA8050/Kq8_0-Vq5_0 (7BPW), 9 = FA8041/Kq8_0-Vq4_1 (6.75BPW), 10 = FA8040/Kq8_0-Vq4_0 (6.5BPW), 11 = FA5151/KVq5_1 (6BPW), 12 = FA5150/Kq5_1-Vq5_0 (5.75BPW), 13 = FA5141/Kq5_1-Vq4_1 (5.5BPW), 14 = FA5140/Kq5_1-Vq4_0 (5.25BPW), 15 = FA5050/Kq5_0-Vq5_0 (5.5BPW), 16 = FA5041/Kq5_0-Vq4_1 (5.25BPW), 17 = FA5040/Kq5_0-Vq4_0 (5BPW), 18 = FA4141/Kq4_1-Vq4_1 (5BPW), 19 = FA4140/Kq4_1-Vq4_0 (4.75BPW), 20 = FA4040/KVq4_0 (4.5BPW), 21 = 1616/F16 (16BPW), 22 = 8016/Kq8_0-Vf16 (12.25BPW), 23 = 5116/Kq5_1-Vf16 (11BPW), 24 = 5016/Kq5_1-Vf16 (10.75BPW), 25 = 4116/Kq4_1-Vf16 (10.50BPW), 26 = 4016/Kq4_0-Vf16 (10.25BPW). Modes 1-20 Requires Flash Attention, AND disables context shifting. Modes 0, 21, 22 can work with or without FA. Modes 23-26 work only without FA.", metavar=('[quantization level 0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22/23/24/25/26]'), type=check_range(int,0,26), default=0)
+    advparser.add_argument("--quantkv", help="Sets the KV cache data quantization (KVQ) type to save VRAM in NVidia Video Cards, 0 = 1616/F16 (16 BPW), 1 = FA8080/KVq8_0 (8.5 BPW), 2 = FA4040/KVq4_0 (4.5BPW), 3 = FA1680/Kf16-Vq8_0 (12.25BPW), 4 = FA1651/Kf16-Vq5_1 (11BPW), 5 = FA1650/Kf16-Vq5_0 (10.75BPW), 6 = FA1641/Kf16-Vq4_1 (10.5BPW), 7 = FA1640/Kf16-Vq4_0 (10.25BPW), 8 = FA8051/Kq8_0-Vq5_1 (7.25BPW), 9 = FA8050/Kq8_0-Vq5_0 (7BPW), 10 = FA8041/Kq8_0-Vq4_1 (6.75BPW), 11 = FA8040/Kq8_0-Vq4_0 (6.5BPW), 12 = FA5151/KVq5_1 (6BPW), 13 = FA5150/Kq5_1-Vq5_0 (5.75BPW), 14 = FA5141/Kq5_1-Vq4_1 (5.5BPW), 15 = FA5140/Kq5_1-Vq4_0 (5.25BPW), 16 = FA5050/Kq5_0-Vq5_0 (5.5BPW), 17 = FA5041/Kq5_0-Vq4_1 (5.25BPW), 18 = FA5040/Kq5_0-Vq4_0 (5BPW), 19 = FA4141/Kq4_1-Vq4_1 (5BPW), 20 = FA4140/Kq4_1-Vq4_0 (4.75BPW), 21 = 1616/F16 (16BPW), 22 = 8016/Kq8_0-Vf16 (12.25BPW), 23 = 5116/Kq5_1-Vf16 (11BPW), 24 = 5016/Kq5_1-Vf16 (10.75BPW), 25 = 4116/Kq4_1-Vf16 (10.50BPW), 26 = 4016/Kq4_0-Vf16 (10.25BPW). Modes 1-20 Requires Flash Attention, AND disables context shifting. Modes 0, 21, 22 can work with or without FA. Modes 23-26 work only without FA.", metavar=('[quantization level 0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22/23/24/25/26]'), type=check_range(int,0,26), default=0)
     advparser.add_argument("--forceversion", help="If the model file format detection fails (e.g. rogue modified model) you can set this to override the detected format (enter desired version, e.g. 401 for GPTNeoX-Type2).",metavar=('[version]'), type=int, default=0)
     advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated compared to ContextShift, but works with KV Cache quantized unlike ContextShift which doesn't. Not recommended except for the use of KV Cache quantized (KVQ) with FlashAttention (modes 1 to 20).", action='store_true')
     advparser.add_argument("--unpack", help="Extracts the file contents of the KoboldCpp binary into a target directory.", metavar=('destination'), type=str, default="")
