@@ -1099,7 +1099,7 @@ struct ggml_backend_sched {
 
     // char context_buffer[GGML_SCHED_MAX_SPLITS*GGML_SCHED_MAX_SPLIT_INPUTS*2*sizeof(struct ggml_tensor) + sizeof(struct ggml_cgraph)];
 
-    // struct ggml_cached_graph cached_graph;
+    struct ggml_cached_graph cached_graph;
 };
 
 #define hash_id(tensor) ggml_hash_find_or_insert(&sched->hash_set, tensor)
@@ -1998,15 +1998,16 @@ enum ggml_status ggml_backend_sched_graph_compute_async(ggml_backend_sched_t sch
 
     if(!sched->cached_graph.is_active)
     {
-    if (!sched->is_reset && !sched->is_alloc) {
-        ggml_backend_sched_reset(sched);
-    }
-
-    if (!sched->is_alloc) {
-        if (!ggml_backend_sched_alloc_graph(sched, graph)) {
-            return GGML_STATUS_ALLOC_FAILED;
+        if (!sched->is_reset && !sched->is_alloc) {
+            ggml_backend_sched_reset(sched);
         }
-    }
+
+        if (!sched->is_alloc)
+		{
+            if (!ggml_backend_sched_alloc_graph(sched, graph)) {
+                return GGML_STATUS_ALLOC_FAILED;
+            }
+        }
     }
     return ggml_backend_sched_compute_splits(sched);
 }
