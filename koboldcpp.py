@@ -608,7 +608,7 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,qua
         if fsize>10000000: #dont bother with models < 10mb
             cs = ctxsize
             print(f"Initial collection of data for the GPU layers autoloader:")
-            print(f"Model size {fsize} B ; Context size: {cs} tokens")
+            print(f"Model size {fsize/1024/1024:.3f} B ; Context size: {cs} tokens")
 
             dispgpu = displaygpu
 
@@ -643,33 +643,39 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,qua
             gpu0_smem = gpu0mem
             mem0 = gpu0_smem - reserved_mem0
 
-            print(f"GPU0 VRAM: {gpu0mem} B ; GPU0 simulated VRAM: {gpu0_smem} B")
-            print(f"GPU0 reserved VRAM {reserved_mem0} B ; GPU0 usable VRAM {mem0} B")
+            print(f"GPU0 VRAM: {gpu0mem/1024/1024} MiB ; GPU0 simulated VRAM: {gpu0_smem/1024/1024} MiB")
+            print(f"GPU0 reserved VRAM {reserved_mem0/1024/1024} MiB ; GPU0 usable VRAM {mem0/1024/1024} MiB")
 
             gpu1_svram = gpu1vram
             if gpu1vram > 0:
                 vram1 = gpu1_svram - reserved_vram1
-                print(f"GPU1 VRAM: {gpu1vram} B ; GPU1 simulated VRAM: {gpu1_svram} B")
-                print(f"GPU1 reserved VRAM {reserved_vram1} B ; GPU1 usable VRAM {vram1} B")
+                print(f"GPU1 VRAM: {gpu1vram/1024/1024} MiB ; GPU1 simulated VRAM: {gpu1_svram/1024/1024} MiB")
+                if vram1 < 0:
+                    vram1 = 0
+                    
             else: vram1 = gpu1_svram
 
             gpu2_svram = gpu2vram
             if gpu2vram > 0:
                 vram2 = gpu2_svram - reserved_vram2
-                print(f"GPU2 VRAM: {gpu2vram} B ; GPU2 simulated VRAM: {gpu2_svram} B")
-                print(f"GPU2 reserved VRAM {reserved_vram2} B ; GPU2 usable VRAM {vram2} B")
+                print(f"GPU2 VRAM: {gpu2vram/1024/1024} MiB ; GPU2 simulated VRAM: {gpu2_svram/1024/1024} MiB")
+                if vram2 < 0:
+                    vram2 = 0
+                print(f"GPU2 reserved VRAM {reserved_vram2/1024/1024} MiB ; GPU2 usable VRAM {vram2/1024/1024} MiB")
             else: vram2 = gpu2_svram
 
             gpu3_svram = gpu3vram
             if gpu3vram > 0:
                 vram3 = gpu3_svram - reserved_vram3
-                print(f"GPU3 VRAM: {gpu3vram} B ; GPU3 simulated VRAM: {gpu3_svram} B")
-                print(f"GPU3 reserved VRAM {reserved_vram3} B ; GPU3 usable VRAM {vram3} B")
+                print(f"GPU3 VRAM: {gpu3vram/1024/1024} MiB ; GPU3 simulated VRAM: {gpu3_svram/1024/1024} MiB")
+                if vram3 < 0:
+                    vram3 = 0
+                print(f"GPU3 reserved VRAM {reserved_vram3/1024/1024} MiB ; GPU3 usable VRAM {vram3/1024/1024} MiB")
             else: vram3 = gpu3_svram
 
             mem = mem0 + vram1 + vram2 + vram3
 
-            print(f"GPUs total VRAM available: {mem} B")
+            print(f"GPUs total VRAM available: {mem/1024/1024} MiB")
 
             bbs = blasbatchsize
             bbs_ratio = bbs / 128
@@ -772,19 +778,19 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,qua
             print(f"MMQ: {mmq} ; MMQ ratio: {mmq_ratio}")
             print(f"Lowvram: {lv} ; Lowvram context ratio: {lvctx_ratio} ; Lowvram compute ratio: {lvcomp_ratio}")
             print(f"Quant KV mode: {kvq} ; Quant KV bpw: {kvbpw} bits")
-            print(f"Context size: {cs} tokens ; Context compute buffer multiplier (CCBM): {csmul}")
+            print(f"Context size: {cs} tokens ; Context compute buffer multiplier (CCBM): {csmul:.3f}")
             print("***")
             print(f"Offsets :")
             print(f"Manual positive layers offset: {poslayeroffset} ; Manual negative layers offset: -{neglayeroffset}")
             print(f"Used manual layers offset: {layer_offset}")
             print("***")
             print(f"Initial calculation:")
-            size_init = int(fsize*1.42*csmul)
-            print(f"Model size {fsize} B x 1.42 x {csmul} CCBM = {size_init} B initially to load.")
+            size_init = fsize*1.42*csmul
+            print(f"Model size {fsize/1024/1024:.3f} MiB x 1.42 x {csmul:.3f} CCBM = {size_init/1024/1024:.3f} MiB initially to load.")
             ratio_init = mem/size_init
-            print(f"Initial ratio: {ratio_init} = GPU usable VRAM {mem} B / {size_init} B initially to load.")
+            print(f"Initial ratio: {ratio_init:.3f} = GPU usable VRAM {mem/1024/1024} MiB / {size_init/1024/1024:.3f} MiB initially to load.")
             if ratio_init < 1:
-                print(f"GPU usable VRAM : {mem} B < {size_init} B initially to load for the model + the context & compute buffers.")
+                print(f"GPU usable VRAM : {mem/1024/1024} MiB < {size_init/1024/1024:.3f} MiB initially to load for the model + the context & compute buffers.")
                 print(f"Partial offload is supposed.")
                 print("***")
                 print(f"More precise calculations will proceed to optimize it:")
@@ -792,9 +798,9 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,qua
                 if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
                     print(f"Failure to read metadata or no layers number declared. Fallback calculations.")
                     sizeperlayer = int(fsize*csmul*0.052)
-                    print(f"Size per layer = Model size {fsize} B x 0.052 x {csmul} (CCBM)")
+                    print(f"Size per layer = Model size {fsize/1024/1024:.3f} MiB x 0.052 x {csmul} (CCBM)")
                     layerlimit = int(min(200,mem/sizeperlayer+layer_offset))
-                    print(f"Size per layer: {sizeperlayer} B ; layers limit: {layerlimit} + offset of {layer_offset} layers.")
+                    print(f"Size per layer: {sizeperlayer/1024/1024} MiB ; layers limit: {layerlimit} + offset of {layer_offset} layers.")
                     print("***")
                 else:
                     print(f"Success to read metadata, proceeding with more elaborate calculations...")
@@ -802,7 +808,7 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,qua
                     headcount = ggufmeta[1]
                     headkvlen = (ggufmeta[2] if ggufmeta[2] > 0 else 128)
                     sizeperlayer = int(fsize/(layers+1))
-                    print(f"Model layers: {layers} ; Attention heads: {headcount} ; Head size : {headkvlen} ; Size per layer: {sizeperlayer} B")
+                    print(f"Model layers: {layers} ; Attention heads: {headcount} ; Head size : {headkvlen} ; Size per layer: {sizeperlayer/1024/1024:.3f} MiB")
                     print("***")
                     if headcount > 0:
                         print("Precise calculations of the ratio:")
@@ -812,26 +818,26 @@ def autoset_gpu_layers(filepath,ctxsize,gpu0mem,blasbatchsize,flashattention,qua
                         # ratio = min(ratio_init,mem/(fsize*1.04 + (layers*(headcount+(bbs_ratio*mmq_ratio*fa_ratio))*headkvlen*cs*kvbpw/8))) #Nexes based on Pyroserenus
                         loaded_layers = (layers*ratio_init+layer_offset)
                         loaded_layers_size = int(loaded_layers * sizeperlayer)
-                        print(f"Initially loaded layers: {loaded_layers} ; Size per layer: {sizeperlayer} B ; Loaded layer size {loaded_layers_size} B")
-                        print(f"context size: {cs} tokens ; GPU usable VRAM: {mem} B ; quant_kv_bpw : {kvbpw} bpw")
+                        print(f"Initially loaded layers: {loaded_layers:.3f} ; Size per layer: {sizeperlayer/1024/1024:.3f} MiB ; Loaded layer size {loaded_layers_size/1024/1024:.3f} MiB")
+                        print(f"context size: {cs} tokens ; GPU usable VRAM: {mem/1024/1024} MiB ; quant_kv_bpw : {kvbpw} bpw")
                         context_buffer = int(layers*headcount*headkvlen*cs*lvctx_ratio*kvbpw/8)
                         compute_buffer = int(layers*bbs_ratio*mmq_ratio*fa_ratio*headkvlen*cs*lvcomp_ratio*4*1.01)
                         total_buffer = int(context_buffer + compute_buffer)
                         loaded_size = int(fsize*1.03 + context_buffer)
                         ratio_formula = (mem - compute_buffer)/loaded_size
-                        print(f"Context buffer: {context_buffer} B + Compute buffer: {compute_buffer} B = Total_buffer: {total_buffer} B")
-                        print(f"Loaded size: {loaded_size} B ; Formula ratio: {ratio_formula}")
+                        print(f"Context buffer: {context_buffer/1024/1024} MiB + Compute buffer: {compute_buffer/1024/1024:.3f} MiB = Total_buffer: {total_buffer/1024/1024:.3f} MiB")
+                        print(f"Loaded size: {loaded_size/1024/1024:.3f} MiB ; Formula ratio: {ratio_formula:.3f}")
                         ratio = max(ratio_init,ratio_formula)
                         print("***")
                     else: ratio = ratio_init
                     layerlimit = int(ratio*layers+layer_offset)
-                    print(f"Layers limit: {layerlimit} = final ratio {ratio} x {layers} layers + offset of {layer_offset} layers.")
+                    print(f"Layers limit: {layerlimit} = final ratio {ratio:.3f} x {layers} layers + offset of {layer_offset:.3f} layers.")
                     estimated_loaded_size = int(layerlimit*sizeperlayer + total_buffer)
-                    print(f"Estimated loaded size in the GPU: {estimated_loaded_size} B")
+                    print(f"Estimated loaded size in the GPU: {estimated_loaded_size/1024/1024:.3f} MiB")
                     estimated_occupation_size = int(estimated_loaded_size + reserved_mem0)
-                    print(f"Estimated size of the occupied memory of the GPU: {estimated_occupation_size} B")
+                    print(f"Estimated size of the occupied memory of the GPU: {estimated_occupation_size/1024/1024:.3f} MiB")
             else:
-                print(f"GPU usable VRAM : {mem} B > {size_init} B initially to load.")
+                print(f"GPU usable VRAM : {mem/1024/1024} MiB > {size_init/1024/1024:.3f} MiB initially to load.")
                 print(f"The dedicated VRAM is superior to the model, context, and compute size alltogether.")
                 print(f"Best case, assume full offload. No further calculations..")
                 ggufmeta = read_gguf_metadata(filepath)
