@@ -52,31 +52,34 @@ Without Flash Attention nor MMQ (for models like Gemma) :
 <details>
 <summary>Unroll the options to set KV Quants</summary>
 
-0 = 1616/F16 (16 BPW), - present on KV3modes releases as well
+KCPP official modes (modes 1 and 2 require Flash Attention) :
 
-1 = 1680/Kf16-Vq8_0 (12.25BPW),
-2 = 1651/Kf16-Vq5_1 (11BPW),
-3 = 1650/Kf16-Vq5_0 (10.75BPW),
-4 = 1641/Kf16-Vq4_1 (10.5BPW),
-5 = 1640/Kf16-Vq4_0 (10.25BPW),
+0 = 1616/F16 (16 BPW),
+1 = FA8080/KVq8_0 (8.5 BPW),
+2 = FA4040/KVq4_0 (4.5BPW),
 
-6 = 8080/KVq8_0 (8.5 BPW), - present on KV3modes releases as well
-7 = 8051/Kq8_0-Vq5_1 (7.25BPW),
-8 = 8050/Kq8_0-Vq5_0 (7BPW),
-9 = 8041/Kq8_0-Vq4_1 (6.75BPW),
-10 = 8040/Kq8_0-Vq4_0 (6.5BPW),
-11 = 5151/KVq5_1 (6BPW),
-12 = 5150/Kq5_1-Vq5_0 (5.75BPW),
-13 = 5141/Kq5_1-Vq4_1 (5.5BPW),
-14 = 5140/Kq5_1-Vq4_0 (5.25BPW),
-15 = 5050/Kq5_0-Vq5_0 (5.5BPW),
-16 = 5041/Kq5_0-Vq4_1 (5.25BPW),
-17 = 5040/Kq5_0-Vq4_0 (5BPW),
-18 = 4141/Kq4_1-Vq4_1 (5BPW),
-19 = 4140/Kq4_1-Vq4_0 (4.75BPW),
-20 = 4040/KVq4_0 (4.5BPW) - present on KV3modes releases as well
+KCPP-F unofficial modes (require flash attention) :
 
-21 = 1616/F16 (16 BPW), - present on KV3modes releases as well (same as 0, I just used it for the GUI slider).
+3 = FA1680/Kf16-Vq8_0 (12.25BPW),
+4 = FA1651/Kf16-Vq5_1 (11BPW),
+5 = FA1650/Kf16-Vq5_0 (10.75BPW),
+6 = FA1641/Kf16-Vq4_1 (10.5BPW),
+7 = FA1640/Kf16-Vq4_0 (10.25BPW),
+8 = FA8051/Kq8_0-Vq5_1 (7.25BPW),
+9 = FA8050/Kq8_0-Vq5_0 (7BPW),
+10 = FA8041/Kq8_0-Vq4_1 (6.75BPW),
+11 = FA8040/Kq8_0-Vq4_0 (6.5BPW),
+12 = FA5151/KVq5_1 (6BPW),
+13 = FA5150/Kq5_1-Vq5_0 (5.75BPW),
+14 = FA5141/Kq5_1-Vq4_1 (5.5BPW),
+15 = FA5140/Kq5_1-Vq4_0 (5.25BPW),
+16 = FA5050/Kq5_0-Vq5_0 (5.5BPW),
+17 = FA5041/Kq5_0-Vq4_1 (5.25BPW),
+18 = FA5040/Kq5_0-Vq4_0 (5BPW),
+19 = FA4141/Kq4_1-Vq4_1 (5BPW),
+20 = FA4140/Kq4_1-Vq4_0 (4.75BPW)
+
+21 = 1616/F16 (16 BPW),  (same as 0, I just used it for the GUI slider).
 
 22 = 8016/Kq8_0, Vf16 (12.25BPW), FA and no-FA both
 
