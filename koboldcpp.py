@@ -989,8 +989,13 @@ def load_model(model_filename):
     else:
         inputs.quant_k = inputs.quant_v = 0
     inputs.blasbatchsize = args.blasbatchsize
-    if args.blasubatchsize == 0:
-        inputs.blasubatchsize = args.blasbatchsize
+    if args.blasubatchsize < 2:
+        if args.blasubatchsize ==1:
+            args.blasubatchsize = 2
+            inputs.blasubatchsize = 2
+        else:
+            args.blasubatchsize = args.blasbatchsize
+            inputs.blasubatchsize = args.blasbatchsize
     else:
         inputs.blasubatchsize = args.blasubatchsize
     inputs.forceversion = args.forceversion
@@ -4258,7 +4263,7 @@ def main(launch_args,start_server=True):
         print(f"==========", flush=True)
         print(f"==========\nLoading model: {modelname} \n[NoAVX2: {args.noavx2}, Threads: {args.threads}, HighPriority: {args.highpriority}, MMAP: {args.nommap}]", flush=True)
         print(f"[NoBlas: {args.noblas}, Cublas_Args: {args.usecublas}]", flush=True)
-        print(f"[BlasThreads: {args.blasthreads}, BlasNBatchSize: {args.blasbatchsize}, BlasUBatchSize (0=BNBS): {args.blasubatchsize}]", flush=True)        
+        print(f"[BlasThreads: {args.blasthreads}, BlasNBatchSize: {args.blasbatchsize}, BlasUBatchSize: {args.blasubatchsize}]", flush=True)        
         print(f"[Layers: {args.gpulayers}, Tensor_Split: {args.tensor_split}, FlashAttention: {args.flashattention}, KV_cache: {args.quantkv}]", flush=True)
         print(f"[Max_Context: {args.contextsize}, Rope Scale (Linear): {args.ropeconfig[0]}, Rope Base (NTK): {args.ropeconfig[1]}]", flush=True)        
         print(f"[ContextShift: {args.noshift}, NoShift: {not (args.noshift)}, SmartContext: {args.smartcontext}]", flush=True)    
@@ -4461,7 +4466,7 @@ def main(launch_args,start_server=True):
         print(f"Tensor_Split: {args.tensor_split}")
         print(f"BlasThreads: {args.blasthreads}")
         print(f"Blas_nBatchSize: {args.blasbatchsize}")
-        print(f"Blas_uBatchSize (0 = BnBS): {args.blasubatchsize}")
+        print(f"Blas_uBatchSize: {args.blasubatchsize}")
         print(f"KV_cache: {args.quantkv}")
         print(f"MaxCtx: {maxctx}\n-----")
         print(f"PPnum: {benchpp}")
