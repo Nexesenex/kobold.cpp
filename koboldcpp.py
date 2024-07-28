@@ -18,11 +18,11 @@ from concurrent.futures import ThreadPoolExecutor
 
 # constants
 sampler_order_max = 7
-stop_token_max = 16
+stop_token_max = 24
 ban_token_max = 16
 tensor_split_max = 16
-logit_bias_max = 16
-dry_seq_break_max = 16
+logit_bias_max = 24
+dry_seq_break_max = 24
 images_max = 4
 bias_min_value = -100.0
 bias_max_value = 100.0
@@ -41,10 +41,10 @@ maxhordelen = 350
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.71017"
-LcppVersion = "b3481+6"
+KcppVersion = "1.71118"
+LcppVersion = "b3482+6"
 CudaSpecifics = "CuGA_SMC2_ArGA_DmmvX32Y1"
-ReleaseDate = "2024/07/27"
+ReleaseDate = "2024/07/28"
 showdebug = True
 guimode = False
 showsamplerwarning = True

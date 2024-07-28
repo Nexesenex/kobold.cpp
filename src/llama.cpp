@@ -153,6 +153,7 @@ static void zeros(std::ofstream & file, size_t n) {
     }
 }
 
+static bool phi3swa_warning_showed = false; //to warn when old phi3 model has no SWA
 static bool clblast_offload_fallback_mode = false; //used when regular offload will segfault
 static int clblast_offload_fallback_layers = 0;
 static int layer_name_to_number(std::string inputString)
@@ -4978,7 +4979,7 @@ static void llm_load_hparams(
             } break;
         case LLM_ARCH_PHI3:
             {
-                ml.get_key(LLM_KV_ATTENTION_SLIDING_WINDOW, hparams.n_swa);
+                ml.get_key(LLM_KV_ATTENTION_SLIDING_WINDOW, hparams.n_swa,false);
                 ml.get_key(LLM_KV_ATTENTION_LAYERNORM_RMS_EPS, hparams.f_norm_rms_eps);
 
                 switch (hparams.n_layer) {
@@ -5999,7 +6000,7 @@ static bool llm_load_tensors(
     #if defined(GGML_USE_CLBLAST)
     if(clblast_offload_fallback_mode)
     {
-        printf("\nOpenCL GPU Offload Fallback...");
+        printf("\nOpenCL GPU Offload Fallback...\n");
         clblast_offload_fallback_layers = n_gpu_layers;
         i_gpu_start = std::max((int) hparams.n_layer, (int) 0);
     }
@@ -8863,7 +8864,11 @@ struct llm_build_context {
             // self-attention
             {
                 // rope freq factors for llama3; may return nullptr for llama2 and other models
+                #if defined(GGML_USE_CLBLAST)
+                struct ggml_tensor * rope_factors = nullptr; //clblast does not work with rope_factors
+                #else
                 struct ggml_tensor * rope_factors = build_rope_factors(il);
+                #endif
 
                 // compute Q and K and RoPE them
                 struct ggml_tensor * Qcur = llm_build_lora_mm(lctx, ctx0, model.layers[il].wq, cur);
@@ -10887,7 +10892,21 @@ struct llm_build_context {
         struct ggml_tensor * inp_pos = build_inp_pos();
 
         // KQ_mask (mask for 1 head, it will be broadcasted to all heads)
-        struct ggml_tensor * KQ_mask_swa = build_inp_KQ_mask_swa();
+        struct ggml_tensor * KQ_mask_swa;
+        if(hparams.n_swa==0)
+        {
+            if(!phi3swa_warning_showed)
+            {
+                phi3swa_warning_showed = true;
+                printf("\nWarning: PHI3 model did not contain sliding window!!!\nSWA is disabled. Model may need a new quant.\n");
+            }
+            KQ_mask_swa = build_inp_KQ_mask();
+        }
+        else
+        {
+            KQ_mask_swa = build_inp_KQ_mask_swa();
+        }
+
 
         for (int il = 0; il < n_layer; ++il) {
             auto residual = inpL;
