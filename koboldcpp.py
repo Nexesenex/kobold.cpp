@@ -4414,11 +4414,16 @@ def main(launch_args,start_server=True):
         print(f"HighPriority: {args.highpriority}")
         print(f"FlashAttention: {args.flashattention}")
         print(f"Threads: {args.threads}")
-        print(f"GPU 0 VRAM: {gpu0avram} MiB")
-        print(f"GPU 1 VRAM: {gpu1avram} MiB")
-        print(f"GPU 2 VRAM: {gpu2avram} MiB")
-        print(f"GPU 3 VRAM: {gpu3avram} MiB")
-        print(f"GPUs Total VRAM: {gpuavram} MiB")
+        if gpu0avram>0:
+            print(f"GPU 0 VRAM: {gpu0avram} MiB")
+        if gpu1avram>0:
+            print(f"GPU 1 VRAM: {gpu1avram} MiB")
+        if gpu2avram>0:
+            print(f"GPU 2 VRAM: {gpu2avram} MiB")
+        if gpu3avram>0:
+            print(f"GPU 3 VRAM: {gpu3avram} MiB")
+        if gpuavram > gpu0avram:
+            print(f"GPUs Total VRAM: {gpuavram} MiB")
         print(f"Cublas_Args: {args.usecublas}")
         print(f"Layers: {args.gpulayers}")
         print(f"Tensor_Split: {args.tensor_split}")
