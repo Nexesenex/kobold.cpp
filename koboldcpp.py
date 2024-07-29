@@ -882,11 +882,13 @@ def autoset_gpu_layers(ctxsize,gpu0mem,sdquanted,blasbatchsize,flashattention,qu
                 print(f"Best case, assume full offload. No further calculations..")
                 ggufmeta = read_gguf_metadata(filepath)
                 if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
-                    print(f"No metadata, arbitrary layers limit is 200.")
+                    print(f"No metadata found.")
+                    print(f"Arbitrary layers limit is 200 + selected layer offset of {layer_offset}.")
                     layerlimit = 200 + layer_offset # assume full offload
                 else:
                     layerlimit = ggufmeta[0] + 3 + layer_offset
-                    print(f"Metadata are read. Layers limit is {ggufmeta[0]} + 3 + offset {layer_offset}.")
+                    print(f"Metadata are read.")
+                    print(f"Layers limit is {ggufmeta[0]} + fixed offset of 3 + selected layer offset of {layer_offset}.")
             print("***")
         layerlimit = (0 if layerlimit<=2 else layerlimit)
         return layerlimit
@@ -3410,7 +3412,7 @@ def show_gui():
         if "gpulayers" in dict and dict["gpulayers"]:
             gpulayers_var.set(dict["gpulayers"])
         else:
-            gpulayers_var.set("0")
+            gpulayers_var.set("-1")
         if "tensor_split" in dict and dict["tensor_split"]:
             tssep = ','.join(map(str, dict["tensor_split"]))
             tensor_split_str_vars.set(tssep)
@@ -4658,7 +4660,7 @@ if __name__ == '__main__':
     compatgroup.add_argument("--useclblast", help="Use CLBlast for GPU Acceleration. Must specify exactly 2 arguments, platform ID and device ID (e.g. --useclblast 1 0).", type=int, choices=range(0,9), nargs=2)
     compatgroup.add_argument("--noblas", help="Do not use any accelerated prompt ingestion", action='store_true')
     parser.add_argument("--contextsize", help="Controls the memory allocated for maximum context size, only change if you need more RAM for big contexts. (default 4096). Supported values are [256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072,262144]. IF YOU USE ANYTHING ELSE YOU ARE ON YOUR OWN.",metavar=('[256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072,262144]'), type=check_range(int,256,1048576), default=2048)
-    parser.add_argument("--gpulayers", help="Set number of layers to offload to GPU when using GPU. Requires a GPU. Prefer a full offload (all layers on GPU) if possible. Set to -1 to try autodetect (experimental)",metavar=('[GPU layers]'), nargs='?', const=1, type=int, default=0)
+    parser.add_argument("--gpulayers", help="Set number of layers to offload to GPU when using GPU. Requires a GPU. Prefer a full offload (all layers on GPU) if possible. Set to -1 to try autodetect (experimental)",metavar=('[GPU layers]'), nargs='?', const=1, type=int, default=-1)
     parser.add_argument("--tensor_split", help="For CUDA and Vulkan only, ratio to split a model layers across multiple GPUs, space-separated list of proportions, e.g. 55 26 to run a 70b Llama2 Miqu model in IQ3_M with 16k context on a Geforce 3090 24G (55 layers) and a Geforce 3060 12G (26 layers)", metavar=('[Ratios]'), type=float, nargs='+')
 
     #more advanced params
