@@ -634,7 +634,8 @@ def autoset_gpu_layers(ctxsize,gpu0mem,sdquanted,blasbatchsize,flashattention,qu
             cs = ctxsize
             print(f"Initial collection of data for the GPU layers autoloader:")
             print(f"Model size {fsize/1024/1024:.3f} B ; Context size: {cs} tokens")
-
+            print("***")
+            
             dispgpu = displaygpu
 
             if dispgpu == 0:
@@ -677,7 +678,7 @@ def autoset_gpu_layers(ctxsize,gpu0mem,sdquanted,blasbatchsize,flashattention,qu
                 print(f"GPU1 VRAM: {gpu1vram/1024/1024} MiB ; GPU1 simulated VRAM: {gpu1_svram/1024/1024} MiB")
                 if vram1 < 0:
                     vram1 = 0
-                    
+                print(f"GPU1 reserved VRAM {reserved_vram1/1024/1024} MiB ; GPU1 usable VRAM {vram1/1024/1024} MiB")                   
             else: vram1 = gpu1_svram
 
             gpu2_svram = gpu2vram
@@ -701,7 +702,6 @@ def autoset_gpu_layers(ctxsize,gpu0mem,sdquanted,blasbatchsize,flashattention,qu
             mem = mem0 + vram1 + vram2 + vram3
 
             print(f"GPUs total VRAM available: {mem/1024/1024} MiB")
-            print("***")
 
             if modelfile_extracted_meta[2] > 1024*1024*1024*5: #sdxl tax
                 mem -= 1024*1024*1024*(6 if sdquanted else 9)
@@ -715,6 +715,7 @@ def autoset_gpu_layers(ctxsize,gpu0mem,sdquanted,blasbatchsize,flashattention,qu
             if modelfile_extracted_meta[4] > 1024*1024*10: #mmproj tax
                 mem -= 350*1024*1024
                 print(f"GPUs total VRAM available after Mmproj tax: {mem/1024/1024} MiB")
+            print("***")
 
             bbs = blasbatchsize
             bbs_ratio = bbs / 128
@@ -808,9 +809,6 @@ def autoset_gpu_layers(ctxsize,gpu0mem,sdquanted,blasbatchsize,flashattention,qu
             # else:
                 # csmul = 1.0
 
-            layer_offset = poslayeroffset - neglayeroffset
-
-            print("***")
             print(f"Coefficients :")
             print(f"Blas batch size: {bbs} ; BBS ratio: {bbs_ratio}")
             print(f"Flash Attention: {fa} ; FA ratio: {fa_ratio}")
@@ -819,6 +817,9 @@ def autoset_gpu_layers(ctxsize,gpu0mem,sdquanted,blasbatchsize,flashattention,qu
             print(f"Quant KV mode: {kvq} ; Quant KV bpw: {kvbpw} bits")
             print(f"Context size: {cs} tokens ; Context compute buffer multiplier (CCBM): {csmul:.3f}")
             print("***")
+            
+            layer_offset = poslayeroffset - neglayeroffset
+            
             print(f"Offsets :")
             print(f"Manual positive layers offset: {poslayeroffset} ; Manual negative layers offset: -{neglayeroffset}")
             print(f"Used manual layers offset: {layer_offset}")
