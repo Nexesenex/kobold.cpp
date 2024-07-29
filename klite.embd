@@ -3382,10 +3382,7 @@ Current version indicated by LITEVER below.
 		let is_local = false;
 
 		if (url) {
-			is_local = (url.toLowerCase().includes("localhost") ||
-				url.toLowerCase().includes("127.0.0.1") ||
-				url.toLowerCase().includes("192.168.") ||
-				!url.toLowerCase().includes("."));
+			is_local = is_local_url(url);
 		}
 
 		if ((uses_cors_proxy||proxy_by_default) && !is_local) {
@@ -4082,6 +4079,7 @@ Current version indicated by LITEVER below.
 
 	const default_openrouter_base = "https://openrouter.ai/api/v1";
 	const default_mistralai_base = "https://api.mistral.ai/v1";
+	const default_featherless_base = "https://api.featherless.ai/v1";
 	const default_oai_base = "https://api.openai.com";
 	const default_claude_base = "https://api.anthropic.com";
 	const default_palm_base = "https://generativelanguage.googleapis.com/v1beta2/models/text-bison-001:generateText?key=";
@@ -4215,6 +4213,7 @@ Current version indicated by LITEVER below.
 		saved_dalle_url: (default_oai_base + "/v1" + default_oai_image_endpoint),
 		saved_openrouter_key: "",
 		saved_mistralai_key: "",
+		saved_featherless_key: "",
 		saved_claude_key: "", //do not ever share this in save files!
 		saved_claude_addr: default_claude_base, //do not ever share this in save files!
 		saved_palm_key: "", //do not ever share this in save files!
@@ -5314,6 +5313,17 @@ Current version indicated by LITEVER below.
 		}
 	}
 
+	function is_local_url(target_url)
+	{
+		let is_local = (target_url.toLowerCase().includes("localhost")
+						|| target_url.toLowerCase().includes("127.0.0.1")
+						|| target_url.toLowerCase().includes("192.168.")
+						|| target_url.toLowerCase().includes("10.0.0.")
+						|| target_url.toLowerCase().includes("://10.0.")
+						|| !target_url.toLowerCase().includes(".")); //hostname without dots cannot be wan accessible
+		return is_local;
+	}
+
 	function is_browser_supports_sse()
 	{
 		return (self.TransformStream!=null && self.TextDecoderStream!=null && self.WritableStream!=null);
@@ -5881,6 +5891,7 @@ Current version indicated by LITEVER below.
 			new_save_storyobj.savedsettings.saved_kai_key = "";
 			new_save_storyobj.savedsettings.saved_openrouter_key = "";
 			new_save_storyobj.savedsettings.saved_mistralai_key = "";
+			new_save_storyobj.savedsettings.saved_featherless_key = "";
 			new_save_storyobj.savedsettings.saved_palm_key = "";
 			new_save_storyobj.savedsettings.saved_cohere_key = "";
 
@@ -6211,6 +6222,7 @@ Current version indicated by LITEVER below.
 					let tmp_oai4 = localsettings.saved_dalle_url;
 					let tmp_or1 = localsettings.saved_openrouter_key;
 					let tmp_mai = localsettings.saved_mistralai_key;
+					let tmp_fai = localsettings.saved_featherless_key;
 					let tmp_claude1 = localsettings.saved_claude_key;
 					let tmp_claude2 = localsettings.saved_claude_addr;
 					let tmp_palm1 = localsettings.saved_palm_key;
@@ -6247,6 +6259,7 @@ Current version indicated by LITEVER below.
 					localsettings.saved_dalle_url = tmp_oai4;
 					localsettings.saved_openrouter_key = tmp_or1;
 					localsettings.saved_mistralai_key = tmp_mai;
+					localsettings.saved_featherless_key = tmp_fai;
 					localsettings.saved_claude_key = tmp_claude1;
 					localsettings.saved_claude_addr = tmp_claude2;
 					localsettings.saved_palm_key = tmp_palm1;
@@ -7388,6 +7401,12 @@ Current version indicated by LITEVER below.
 			onDoneCallback([]);
 			return;
 		}
+		if(cached_worker_list!=null && cached_worker_list.length>1 && performance.now() < stale_cached_worker_time)
+		{
+			console.log("Reuse cached worker list");
+			onDoneCallback(cached_worker_list);
+			return;
+		}
 		multifetch(worker_endpoints,(resArr,errArr)=>{
 
 			if(resArr && resArr.length>0)
@@ -7410,6 +7429,8 @@ Current version indicated by LITEVER below.
 					}
 				}
 
+				cached_worker_list = wdata;
+				stale_cached_worker_time = performance.now() + 30000; //cache worker list for 30s
 				if (onDoneCallback != null) {
 					onDoneCallback(wdata);
 				}
@@ -8048,6 +8069,8 @@ Current version indicated by LITEVER below.
 				return document.getElementById("custom_openrouter_model");
 			case "7":
 				return document.getElementById("custom_mistralai_model");
+			case "8":
+				return document.getElementById("custom_featherless_model");
 			default:
 				return document.getElementById("custom_oai_model");
 		}
@@ -8055,7 +8078,7 @@ Current version indicated by LITEVER below.
 	function ep_should_always_use_chat_completions()
 	{
 		let epchoice = document.getElementById("customapidropdown").value;
-		return (epchoice==3 || epchoice==7);
+		return (epchoice==7);
 	}
 
 	function select_custom_oai_model()
@@ -8098,6 +8121,11 @@ Current version indicated by LITEVER below.
 		{
 			desired_oai_ep = desired_oai_ep.slice(0, -1);
 		}
+		if(!desired_oai_ep.includes("://")) //user did not add http/https
+		{
+			let is_local = is_local_url(desired_oai_ep);
+			desired_oai_ep = (is_local?"http://":"https://") + desired_oai_ep;
+		}
 		if (document.getElementById("oaiaddversion").checked)
 		{
 			if(desired_oai_ep!="" && desired_oai_ep.length > 4 && !desired_oai_ep.slice(-4).toLowerCase().includes("/v") && !desired_oai_ep.toLowerCase().includes("/v1/")) {
@@ -8118,6 +8146,8 @@ Current version indicated by LITEVER below.
 			}
 		}
 
+		let isOpenrouter = (document.getElementById("customapidropdown").value==3);
+		let dropdown = get_oai_model_dropdown();
 		fetch((desired_oai_ep + oai_models_endpoint), {
 			method: 'GET',
 			headers: oaiheaders,
@@ -8136,8 +8166,6 @@ Current version indicated by LITEVER below.
 
 			if (!data.error && data.data && data.data.length > 0)
 			{
-				let isOpenrouter = (document.getElementById("customapidropdown").value==3);
-				let dropdown = get_oai_model_dropdown();
 				var lastOption = dropdown.lastElementChild;
 				for (var i = dropdown.options.length - 1; i >= 0; i--) {
 					var option = dropdown.options[i];
@@ -8199,6 +8227,7 @@ Current version indicated by LITEVER below.
 		document.getElementById("custom_oai_model").classList.add("hidden");
 		document.getElementById("custom_openrouter_model").classList.add("hidden");
 		document.getElementById("custom_mistralai_model").classList.add("hidden");
+		document.getElementById("custom_featherless_model").classList.add("hidden");
 		document.getElementById("hordeloadmodelcontainer").classList.add("hidden");
 		document.getElementById("coherecustom").classList.add("hidden");
 
@@ -8216,15 +8245,17 @@ Current version indicated by LITEVER below.
 				document.getElementById("customkoboldkey").value = localsettings.saved_kai_key;
 			}
 		}
-		else if(epchoice==2 || epchoice==3 || epchoice==7)
+		else if(epchoice==2 || epchoice==3 || epchoice==7 || epchoice==8)
 		{
 			document.getElementById("oaicustom").classList.remove("hidden");
+			document.getElementById("openrouterdesc").classList.add("hidden");
+			document.getElementById("mistralaidesc").classList.add("hidden");
+			document.getElementById("featherlessdesc").classList.add("hidden");
+			document.getElementById("oaidesc").classList.add("hidden");
 			if(epchoice==2)
 			{
 				document.getElementById("oaidesc").classList.remove("hidden");
 				document.getElementById("custom_oai_model").classList.remove("hidden");
-				document.getElementById("openrouterdesc").classList.add("hidden");
-				document.getElementById("mistralaidesc").classList.add("hidden");
 				document.getElementById("custom_oai_endpoint").classList.remove("hidden");
 				document.getElementById("custom_oai_key").value = localsettings.saved_oai_key;
 				if (localflag) {
@@ -8235,19 +8266,23 @@ Current version indicated by LITEVER below.
 			}
 			else if(epchoice==7)
 			{
-				document.getElementById("oaidesc").classList.add("hidden");
 				document.getElementById("custom_mistralai_model").classList.remove("hidden");
-				document.getElementById("openrouterdesc").classList.add("hidden");
 				document.getElementById("mistralaidesc").classList.remove("hidden");
 				document.getElementById("custom_oai_endpoint").classList.add("hidden");
 				document.getElementById("custom_oai_key").value = localsettings.saved_mistralai_key;
 				document.getElementById("custom_oai_endpoint").value = default_mistralai_base;
 			}
+			else if(epchoice==8)
+			{
+				document.getElementById("custom_featherless_model").classList.remove("hidden");
+				document.getElementById("featherlessdesc").classList.remove("hidden");
+				document.getElementById("custom_oai_endpoint").classList.add("hidden");
+				document.getElementById("custom_oai_key").value = localsettings.saved_featherless_key;
+				document.getElementById("custom_oai_endpoint").value = default_featherless_base;
+			}
 			else //openrouter supports autofetch
 			{
-				document.getElementById("oaidesc").classList.add("hidden");
 				document.getElementById("openrouterdesc").classList.remove("hidden");
-				document.getElementById("mistralaidesc").classList.add("hidden");
 				document.getElementById("custom_openrouter_model").classList.remove("hidden");
 				document.getElementById("custom_oai_endpoint").value = default_openrouter_base;
 				document.getElementById("custom_oai_endpoint").classList.add("hidden");
@@ -8352,6 +8387,11 @@ Current version indicated by LITEVER below.
 				if (desiredkoboldendpoint != "" && (desiredkoboldendpoint.trim().endsWith("/api") || desiredkoboldendpoint.trim().endsWith("/api/v1")))
 				{
 					desiredkoboldendpoint = desiredkoboldendpoint.split("/api")[0];
+				}
+				if(!desiredkoboldendpoint.includes("://")) //user did not add http/https
+				{
+					let is_local = is_local_url(desiredkoboldendpoint);
+					desiredkoboldendpoint = (is_local?"http://":"https://") + desiredkoboldendpoint;
 				}
 
 				let urls1 = [
@@ -8573,10 +8613,7 @@ Current version indicated by LITEVER below.
 						//if it still fails, then show error
 						console.log("Error: " + error);
 
-						let is_local = (custom_kobold_endpoint.toLowerCase().includes("localhost")
-							|| custom_kobold_endpoint.toLowerCase().includes("127.0.0.1")
-							|| custom_kobold_endpoint.toLowerCase().includes("192.168.")
-							|| !custom_kobold_endpoint.toLowerCase().includes(".")); //hostname without dots cannot be wan accessible
+						let is_local = is_local_url(custom_kobold_endpoint);
 
 						if (uses_cors_proxy || is_local) {
 							if(is_local && sublocalpathname!="")
@@ -8609,7 +8646,7 @@ Current version indicated by LITEVER below.
 					});
 			}
 		}
-		else if(epchoice==2 || epchoice==3 || epchoice==7) //connect to OAI / OpenRouter / MistralAI Endpoint
+		else if(epchoice==2 || epchoice==3 || epchoice==7 || epchoice==8) //connect to OAI / OpenRouter / MistralAI / Featherless Endpoint
 		{
 			let desired_oai_key = document.getElementById("custom_oai_key").value.trim();
 			let desired_oai_ep = document.getElementById("custom_oai_endpoint").value.trim();
@@ -8622,6 +8659,11 @@ Current version indicated by LITEVER below.
 			if(desired_oai_ep!="" && desired_oai_ep.slice(-1)=="/")
 			{
 				desired_oai_ep = desired_oai_ep.slice(0, -1);
+			}
+			if(!desired_oai_ep.includes("://")) //user did not add http/https
+			{
+				let is_local = is_local_url(desired_oai_ep);
+				desired_oai_ep = (is_local?"http://":"https://") + desired_oai_ep;
 			}
 			if (document.getElementById("oaiaddversion").checked)
 			{
@@ -8646,6 +8688,10 @@ Current version indicated by LITEVER below.
 				else if(epchoice==7)
 				{
 					localsettings.saved_mistralai_key = custom_oai_key;
+				}
+				else if(epchoice==8)
+				{
+					localsettings.saved_featherless_key = custom_oai_key;
 				}
 				else
 				{
@@ -8926,7 +8972,9 @@ Current version indicated by LITEVER below.
 	}
 
 	var cached_model_list = null;
+	var cached_worker_list = null;
 	var stale_cached_model_time = performance.now();
+	var stale_cached_worker_time = performance.now();
 	function fetch_models(onDoneCallback)
 	{
 		if(localflag)
@@ -8961,7 +9009,7 @@ Current version indicated by LITEVER below.
 				}
 
 				cached_model_list = mdls;
-				stale_cached_model_time = performance.now() + 30000; //cache model list for 1m
+				stale_cached_model_time = performance.now() + 30000; //cache model list for 30s
 				onDoneCallback(mdls);
 			}
 			else
@@ -12107,9 +12155,9 @@ Current version indicated by LITEVER below.
 					}
 
 				}
-				else {
+				else
+				{
 					//apply custom logit bias for official OAI only
-
 					let needbaneos = (custom_oai_endpoint.toLowerCase().includes("api.openai.com") && determine_if_ban_eos(input_was_empty));
 
 					if(needbaneos)
@@ -12122,6 +12170,9 @@ Current version indicated by LITEVER below.
 						}
 					}
 					oai_payload.prompt = submit_payload.prompt;
+
+					//lets try adding stop sequences, limit to first 4
+					oai_payload.stop = get_stop_sequences().slice(0, 4);
 				}
 
 				last_request_str = JSON.stringify(oai_payload);
@@ -17149,6 +17200,7 @@ Current version indicated by LITEVER below.
 				<option value="5">PaLM/Gemini By Google API</option>
 				<option value="6">Cohere API</option>
 				<option value="7">MistralAI API</option>
+				<option value="8">Featherless API</option>
 			</select>
 			</div>
 
@@ -17218,6 +17270,11 @@ Current version indicated by LITEVER below.
 				Note that KoboldAI Lite takes no responsibility for your usage or consequences of this feature. Your API key is used directly with the MistralAI API and is not transmitted to us.<br>Only Temperature and Top-P samplers are used.<br><br>
 				<span class="color_green" style="font-weight: bold;">Please input MistralAI Key.</span><br><br>
 				</span>
+				<span id="featherlessdesc" class="hidden">
+				Entering your Featherless API key will allow you to use KoboldAI Lite with their API.<br><br>
+				Note that KoboldAI Lite takes no responsibility for your usage or consequences of this feature. Your API key is used directly with the Featherless API and is not transmitted to us.<br>Only Temperature, Top-P and Repetition Penalty samplers are used.<br><br>
+				<span class="color_green" style="font-weight: bold;">Please input Featherless Key.</span><br><br>
+				</span>
 
 				<input class="form-control" type="text" id="custom_oai_endpoint" placeholder="OpenAI API URL" value="">
 				<input class="form-control" type="password" id="custom_oai_key" placeholder="OpenAI API Key (Required)" value="" onfocus="focus_api_keys()" onblur="blur_api_keys()"><br>
@@ -17240,7 +17297,7 @@ Current version indicated by LITEVER below.
 					<option value="mistralai/mistral-7b-instruct" selected="selected">mistralai/mistral-7b-instruct</option>
 					<option value="gryphe/mythomax-l2-13b">gryphe/mythomax-l2-13b</option>
 					<option value="huggingfaceh4/zephyr-7b-beta">huggingfaceh4/zephyr-7b-beta</option>
-					<option value="anthropic/claude-2">anthropic/claude-2</option>
+					<option value="anthropic/claude-2.0">anthropic/claude-2.0</option>
 					<option style="display:none;" class="custom_model_option" value="custom">[Custom]</option>
 				</select>
 				<select style="padding:4px;display:inline;width:calc(100% - 220px)" class="form-control hidden" id="custom_mistralai_model" onchange="oai_model_change(true)">
@@ -17252,6 +17309,20 @@ Current version indicated by LITEVER below.
 					<option value="mistral-medium">mistral-medium</option>
 					<option value="mistral-large-latest">mistral-large-latest</option>
 					<option style="display:none;" class="custom_model_option" value="custom">[Custom]</option>
+				</select>
+				<select style="padding:4px;display:inline;width:calc(100% - 220px)" class="form-control hidden" id="custom_featherless_model" onchange="oai_model_change(true)">
+					<option value="Sao10K/L3-8B-Lunaris-v1">Sao10K/L3-8B-Lunaris-v1</option>
+					<option value="Sao10K/L3-8B-Stheno-v3.2">Sao10K/L3-8B-Stheno-v3.2</option>
+					<option value="unsloth/llama-3-8b-Instruct">unsloth/llama-3-8b-Instruct</option>
+					<option value="beomi/Llama-3-Open-Ko-8B">beomi/Llama-3-Open-Ko-8B</option>
+					<option value="Sao10K/Fimbulvetr-11B-v2">Sao10K/Fimbulvetr-11B-v2</option>
+					<option value="HuggingFaceH4/zephyr-7b-beta">HuggingFaceH4/zephyr-7b-beta</option>
+					<option value="upstage/SOLAR-10.7B-Instruct-v1.0">upstage/SOLAR-10.7B-Instruct-v1.0</option>
+					<option value="alpindale/magnum-72b-v1">alpindale/magnum-72b-v1</option>
+					<option value="Sao10K/L3-70B-Euryale-v2.1">Sao10K/L3-70B-Euryale-v2.1</option>
+					<option value="alpindale/WizardLM-2-8x22B">alpindale/WizardLM-2-8x22B</option>
+					<option value="meta-llama/Meta-Llama-3.1-405B-Instruct">meta-llama/Meta-Llama-3.1-405B-Instruct</option>
+				<option style="display:none;" class="custom_model_option" value="custom">[Custom]</option>
 				</select>
 				<button type="button" class="btn btn-primary" style="display:inline;width:105px;" id="oaifetchlist" onclick="oai_fetch_models()">Fetch List</button>
 				<button type="button" class="btn btn-primary" style="display:inline;width:105px;" id="oaiusecustom" onclick="select_custom_oai_model()">Use Custom</button>
