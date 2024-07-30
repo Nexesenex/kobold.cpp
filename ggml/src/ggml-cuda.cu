@@ -132,7 +132,22 @@ static cudaError_t ggml_cuda_device_malloc(void ** ptr, size_t size, int device)
     }
     return res;
 #else
+
+#if !defined(GGML_USE_HIPBLAS)
+    cudaError_t err;
+    if (getenv("GGML_CUDA_ENABLE_UNIFIED_MEMORY") != nullptr)
+    {
+        err = cudaMallocManaged(ptr, size);
+    }
+    else
+    {
+        err = cudaMalloc(ptr, size);
+    }
+    return err;
+#else
     return cudaMalloc(ptr, size);
+#endif // !defined(GGML_USE_HIPBLAS)
+
 #endif
 }
 
