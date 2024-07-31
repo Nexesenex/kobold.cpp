@@ -641,7 +641,9 @@ def autoset_gpu_layers(ctxsize,gpu0mem,sdquanted,blasbatchsize,flashattention,qu
         if fsize>10000000: #dont bother with models < 10mb
             cs = ctxsize
             print(f"Initial collection of data for the GPU layers autoloader:")
-            print(f"Model size {fsize/1024/1024:.3f} B ; Context size: {cs} tokens")
+            print(f"Model size (MiB/GiB like on MS Windows): {fsize/1024/1024:.3f} MiB ; {fsize/1024/1024/1024:.3f} GiB")
+            print(f"Model size (MB/GB like on Hugging-Face): {fsize/1000/1000:.3f} MB ; {fsize/1000/1000/1000:.3f} GB")
+            print(f"Context size: {cs} tokens")
             print("***")
             
             dispgpu = displaygpu
