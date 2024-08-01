@@ -41,10 +41,10 @@ maxhordelen = 350
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.71122"
-LcppVersion = "b3496+7"
+KcppVersion = "1.72000"
+LcppVersion = "b3499+7"
 CudaSpecifics = "CuCML_ArCML_SMC2_DmmvX32Y1"
-ReleaseDate = "2024/07/31"
+ReleaseDate = "2024/08/1"
 showdebug = True
 guimode = False
 showsamplerwarning = True
@@ -4157,7 +4157,7 @@ def main(launch_args,start_server=True):
             if not filename.endswith(".json"):
                 filename += ".json"
             premade_adapt_path = os.path.join(adapt_dir,filename)
-            if os.path.exists(premade_adapt_path):
+            if premade_adapt_path and os.path.exists(premade_adapt_path):
                 ccadapter_path = os.path.abspath(premade_adapt_path)
         if ccadapter_path:
             print(f"Loading Chat Completions Adapter: {ccadapter_path}")
@@ -4279,7 +4279,7 @@ def main(launch_args,start_server=True):
             if shouldavoidgpu:
                 print("WARNING: GPU layers is set, but a GPU backend was not selected!")
                 pass
-        elif args.gpulayers==-1 and not shouldavoidgpu and os.path.exists(args.model_param):
+        elif args.gpulayers==-1 and not shouldavoidgpu and args.model_param and os.path.exists(args.model_param):
             if not args.usecublas and not args.usevulkan and not args.useclblast:
                 print("NOTE: Auto GPU layers was set without picking a GPU backend! Trying to assign one for you automatically...")
                 auto_set_backend_cli()
