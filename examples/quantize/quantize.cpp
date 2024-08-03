@@ -115,6 +115,7 @@ static const std::vector<struct quant_option> QUANT_OPTIONS = {
     { "IQ9_LR" ,LLAMA_FTYPE_MOSTLY_IQ9_LR, " 9.3x bpw quantization mix",        },
     { "IQ9_BLR",LLAMA_FTYPE_MOSTLY_IQ9_BLR," 9.4x bpw quantization mix",        },
     { "IQ1_XS", LLAMA_FTYPE_MOSTLY_IQ1_XS, " 1.6-1.7 bpw quantization mix",     },
+    { "IQ3_XL", LLAMA_FTYPE_MOSTLY_IQ3_XL, " 4 bpw quantization mix",           },
     // Note: Ensure COPY comes after F32 to avoid ftype 0 from matching.
     { "COPY",     LLAMA_FTYPE_ALL_F32,         "only copy tensors, no quantizing",  },
 };

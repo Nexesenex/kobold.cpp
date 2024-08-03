@@ -4560,6 +4560,7 @@ static std::string llama_model_ftype_name(llama_ftype ftype) {
         case LLAMA_FTYPE_MOSTLY_IQ9_LR: return "IQ1_S mix - 9.3x bpw";
         case LLAMA_FTYPE_MOSTLY_IQ9_BLR:return "IQ1_S mix - 9.4x bpw";
         case LLAMA_FTYPE_MOSTLY_IQ1_XS :return "IQ1_S mix - 1.65 bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ3_XL :return "IQ3_XL - 4 bpw"      ;
 		
         default: return "unknown, may not work";
     }
@@ -17611,6 +17612,12 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
 			else if ((ftype == LLAMA_FTYPE_MOSTLY_IQ3_XS || ftype == LLAMA_FTYPE_MOSTLY_IQ3_S) && (qs.model.hparams.n_gqa() >= 2 || qs.model.hparams.n_expert >= 2)) {
 				new_type = GGML_TYPE_Q4_K;
 			}
+			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XL && (qs.model.hparams.n_gqa() >= 2 || qs.model.hparams.n_expert >= 2)) {
+				new_type = GGML_TYPE_Q5_K;
+			}
+			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XL) {
+				new_type = GGML_TYPE_Q4_K;
+			}
 			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_M) {
 				new_type = GGML_TYPE_Q4_K;
 			}
@@ -17682,6 +17689,9 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
 			}
 			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXS) {
 				new_type = GGML_TYPE_IQ2_S;
+			}
+			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XL && (qs.model.hparams.n_gqa() >= 2 || qs.model.hparams.n_expert >= 2)) {
+				new_type = GGML_TYPE_IQ4_XS;
 			}
 			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_MR && qs.model.hparams.n_gqa() >= 4) {
 				new_type = GGML_TYPE_IQ2_XXS;
@@ -17807,6 +17817,14 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
 			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_M && (i_layer < n_layer/8 ||
 						(qs.model.hparams.n_expert >= 8 && use_more_bits(i_layer, n_layer)))) {
 				new_type = GGML_TYPE_Q4_K;
+			}
+			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XL && (i_layer < n_layer/4 ||
+						(qs.model.hparams.n_expert >= 8 && use_more_bits(i_layer, n_layer)))) {
+				new_type = GGML_TYPE_IQ4_XS;
+			}
+			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XL && (i_layer < n_layer/8 ||
+						(qs.model.hparams.n_expert >= 8 && use_more_bits(i_layer, n_layer)))) {
+				new_type = GGML_TYPE_Q4_K;
 			}	
 			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_SR && (i_layer < n_layer/8 ||
 						(qs.model.hparams.n_expert >= 8 && use_more_bits(i_layer, n_layer)))) {
@@ -17865,7 +17883,7 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
 					if (ftype == LLAMA_FTYPE_MOSTLY_Q2_K   || ftype == LLAMA_FTYPE_MOSTLY_IQ3_XS || ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXS ||
 						ftype == LLAMA_FTYPE_MOSTLY_Q3_K_S || ftype == LLAMA_FTYPE_MOSTLY_Q3_K_M  || ftype == LLAMA_FTYPE_MOSTLY_IQ4_NL  ||
 						ftype == LLAMA_FTYPE_MOSTLY_Q4_K_S || ftype == LLAMA_FTYPE_MOSTLY_Q4_K_M  || ftype == LLAMA_FTYPE_MOSTLY_IQ3_S  ||
-						ftype == LLAMA_FTYPE_MOSTLY_IQ3_M  || ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS) {
+						ftype == LLAMA_FTYPE_MOSTLY_IQ3_M  || ftype == LLAMA_FTYPE_MOSTLY_IQ3_XL  || ftype == LLAMA_FTYPE_MOSTLY_IQ4_XS) {
 						new_type = GGML_TYPE_Q5_K;
 					}
 					else if ( ftype == LLAMA_FTYPE_MOSTLY_IQ3_XSR || ftype == LLAMA_FTYPE_MOSTLY_IQ3_SR || ftype == LLAMA_FTYPE_MOSTLY_IQ3_MR || 
@@ -17878,6 +17896,7 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
 					else if (ftype == LLAMA_FTYPE_MOSTLY_Q3_K_M ) new_type = GGML_TYPE_Q4_K;
 					else if (ftype == LLAMA_FTYPE_MOSTLY_Q3_K_L ) new_type = GGML_TYPE_Q5_K;
 					else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_M  ) new_type = GGML_TYPE_Q4_K;
+					else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XL ) new_type = GGML_TYPE_Q4_K;
 					else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XSR ) new_type = GGML_TYPE_IQ4_XS;
 					else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_SR ) new_type = GGML_TYPE_IQ4_XS;
 					else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_MR ) new_type = GGML_TYPE_IQ4_XS;
@@ -17903,7 +17922,8 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
         if (qs.params->attn_qkv_tensor_type < GGML_TYPE_COUNT) {
             new_type = qs.params->attn_qkv_tensor_type;
         } else {
-			if (ftype == LLAMA_FTYPE_MOSTLY_Q3_K_M || ftype == LLAMA_FTYPE_MOSTLY_Q3_K_L || ftype == LLAMA_FTYPE_MOSTLY_IQ3_M) {
+			if (ftype == LLAMA_FTYPE_MOSTLY_Q3_K_M || ftype == LLAMA_FTYPE_MOSTLY_Q3_K_L || 
+			ftype == LLAMA_FTYPE_MOSTLY_IQ3_M || ftype == LLAMA_FTYPE_MOSTLY_IQ3_XL) {
 				new_type = GGML_TYPE_Q4_K;
 			}
 			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_PS) {
@@ -18207,6 +18227,7 @@ static void llama_model_quantize_internal(const std::string & fname_inp, const s
         case LLAMA_FTYPE_MOSTLY_IQ9_LR:  default_type = GGML_TYPE_IQ3_XXS; break;
         case LLAMA_FTYPE_MOSTLY_IQ9_BLR: default_type = GGML_TYPE_IQ3_XXS; break;
         case LLAMA_FTYPE_MOSTLY_IQ1_XS:  default_type = GGML_TYPE_IQ1_S;   break;
+        case LLAMA_FTYPE_MOSTLY_IQ3_XL:  default_type = GGML_TYPE_IQ3_S;   break;
 
         default: throw std::runtime_error(format("invalid output file type %d\n", ftype));
     }
