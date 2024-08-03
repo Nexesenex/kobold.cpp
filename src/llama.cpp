@@ -17764,11 +17764,11 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
          if (qs.params->attn_q_tensor_type < GGML_TYPE_COUNT) {
             new_type = qs.params->attn_q_tensor_type;
         } else {
-			if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XS) {
-				new_type = GGML_TYPE_IQ3_XXS;
-			}
-			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXS) {
+			if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXS) {
 				new_type = GGML_TYPE_IQ2_S;
+			}
+			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XS) {
+				new_type = GGML_TYPE_IQ3_XXS;
 			}
 			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_XSR || ftype == LLAMA_FTYPE_MOSTLY_IQ2_SR || ftype == LLAMA_FTYPE_MOSTLY_IQ2_MR) {
 				new_type = GGML_TYPE_IQ1_S;
@@ -17809,18 +17809,18 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
 						 : GGML_TYPE_Q3_K;
 			}
 			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_M && (i_layer < n_layer/8 ||
-						(qs.model.hparams.n_expert == 8 && use_more_bits(i_layer, n_layer)))) {
+						(qs.model.hparams.n_expert >= 8 && use_more_bits(i_layer, n_layer)))) {
 				new_type = GGML_TYPE_Q4_K;
 			}	
 			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_SR && (i_layer < n_layer/8 ||
-						(qs.model.hparams.n_expert == 8 && use_more_bits(i_layer, n_layer)))) {
+						(qs.model.hparams.n_expert >= 8 && use_more_bits(i_layer, n_layer)))) {
 				new_type = GGML_TYPE_IQ3_S;
 			}
 			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_MR) {
 				new_type = GGML_TYPE_IQ3_S;
 			}
 			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_LR && (i_layer < n_layer/8 ||
-						(qs.model.hparams.n_expert == 8 && use_more_bits(i_layer, n_layer)))) {
+						(qs.model.hparams.n_expert >= 8 && use_more_bits(i_layer, n_layer)))) {
 				new_type = GGML_TYPE_IQ4_XS;
 			}
 			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_BLR) {
@@ -17865,7 +17865,7 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
             new_type = qs.params->attn_output_tensor_type;
         } else {
 			if (arch != LLM_ARCH_FALCON) {
-				if (qs.model.hparams.n_expert == 8) {
+				if (qs.model.hparams.n_expert >= 8) {
 					if (ftype == LLAMA_FTYPE_MOSTLY_Q2_K   || ftype == LLAMA_FTYPE_MOSTLY_IQ3_XS || ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXS ||
 						ftype == LLAMA_FTYPE_MOSTLY_Q3_K_S || ftype == LLAMA_FTYPE_MOSTLY_Q3_K_M  || ftype == LLAMA_FTYPE_MOSTLY_IQ4_NL  ||
 						ftype == LLAMA_FTYPE_MOSTLY_Q4_K_S || ftype == LLAMA_FTYPE_MOSTLY_Q4_K_M  || ftype == LLAMA_FTYPE_MOSTLY_IQ3_S  ||
