@@ -168,6 +168,7 @@ extern "C" {
         LLAMA_FTYPE_MOSTLY_Q4_0_8_8      = 35, // except 1d tensors
         // Nexesenex PRed quants
         LLAMA_FTYPE_MOSTLY_IQ1_XS        = 99, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ3_XL        = 100, // except 1d tensors
         // Nexesenex custom K quants
         LLAMA_FTYPE_MOSTLY_Q2_K_ML       = 40, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_Q3_K_ML       = 41, // except 1d tensors
