@@ -1,3 +1,10 @@
+//
+// Copyright (C) 2023-2024 The ggml authors
+// Copyright (C) 2024 Iwan Kawrakow
+// MIT license
+// SPDX-License-Identifier: MIT
+//
+
 #ifndef GGML_COMMON_DECL
 
 #if defined(GGML_COMMON_DECL_C)
@@ -132,8 +139,14 @@ typedef sycl::half2 ggml_half2;
 #define QI4_XS (QK_K / (4*QR4_XS))
 #define QR4_XS 2
 
+#define QI5_XS (QK_K / (4*QR5_XS))
+#define QR5_XS 2
+
 #define QI3_S (QK_K / (4*QR3_S))
 #define QR3_S 4
+
+#define QI1_BN (QK_IQ1BN / (4*QR1_BN))
+#define QR1_BN 8
 
 #endif // GGML_COMMON_DECL_CUDA || GGML_COMMON_DECL_HIP
 
@@ -198,6 +211,17 @@ typedef struct {
     int8_t qs[QK8_1]; // quants
 } block_q8_1;
 static_assert(sizeof(block_q8_1) == 2*sizeof(ggml_half) + QK8_1, "wrong q8_1 block size/padding");
+
+typedef struct {
+    ggml_half d[8];
+    int8_t qs[4*QK8_1];
+} block_q8_1_x4;
+static_assert(sizeof(block_q8_1_x4) == 4*sizeof(block_q8_1), "wrong q8_1_x4 block size/padding");
+typedef struct {
+    ggml_half d[4];
+    int8_t qs[4*QK8_0];
+} block_q8_0_x4;
+static_assert(sizeof(block_q8_0_x4) == 4*sizeof(block_q8_0), "wrong q8_0_x4 block size/padding");
 
 typedef struct {
     ggml_half d[4];        // deltas for 4 q4_0 blocks
@@ -310,6 +334,16 @@ typedef struct {
     int16_t bsums[QK_K/16]; // sum of quants in groups of 16
 } block_q8_K;
 static_assert(sizeof(block_q8_K) == sizeof(float) + QK_K + QK_K/16*sizeof(int16_t), "wrong q8_K block size/padding");
+typedef struct {
+    float   d;              // delta
+    int8_t  qs[64];       // quants
+} block_q8_K64;
+static_assert(sizeof(block_q8_K64) == sizeof(float) + 64, "wrong q8_K64 block size/padding");
+typedef struct {
+    float   d;              // delta
+    int8_t  qs[128];        // quants
+} block_q8_K128;
+static_assert(sizeof(block_q8_K128) == sizeof(float) + 128, "wrong q8_K128 block size/padding");
 
 // (Almost) "true" 2-bit quantization.
 // Due to the need to use blocks as per ggml design, it ends up using
@@ -372,6 +406,26 @@ typedef struct {
 } block_iq1_m;
 static_assert(sizeof(block_iq1_m) == QK_K/8 + QK_K/16 + QK_K/32, "wrong iq1_m block size/padding");
 
+//
+// Bitnet - implemented as 1.75 bpw
+// The block scale is a waste, but it allows us to plug it in without any additional
+// changes to ggml.
+//
+#define QK_IQ1BN 64
+typedef struct {
+    uint8_t ql[12];
+    uint8_t extra;
+} block_iq1_bn;
+static_assert(sizeof(block_iq1_bn) == 13, "wrong iq1_bn block size/padding");
+//
+// Bitnet - implemented as 2.25 bpw
+//
+#define QK_IQ2BN 64
+typedef struct {
+    uint8_t qs[QK_IQ2BN/4];
+} block_iq2_bn;
+static_assert(sizeof(block_iq2_bn) == QK_IQ2BN/4, "wrong iq2_bn block size/padding");
+
 // Used by IQ1_M quants
 typedef union {
     ggml_half f16;
@@ -393,6 +447,44 @@ typedef struct {
     uint8_t  qs[QK_K/2];
 } block_iq4_xs;
 static_assert(sizeof(block_iq4_xs) == sizeof(ggml_half) + sizeof(uint16_t) + QK_K/64 + QK_K/2, "wrong iq4_xs block size/padding");
+
+typedef struct {
+    ggml_half d;
+    uint16_t extra;
+    uint8_t  scales[QK_K/32];
+    uint8_t  qs[QK_K/4];
+} block_iq2_k;
+static_assert(sizeof(block_iq2_k) == sizeof(ggml_half) + sizeof(uint16_t) + QK_K/32 + QK_K/4, "wrong iq2_k block size/padding");
+
+typedef struct {
+    ggml_half d;
+    uint16_t extra;
+    uint16_t scales_h;
+    uint8_t scales_l[QK_K/32];
+    uint8_t qs[QK_K/4];
+    uint8_t qh[QK_K/8];
+} block_iq3_k;
+static_assert(sizeof(block_iq3_k) == sizeof(ggml_half) + 2*sizeof(uint16_t) + QK_K/32 + QK_K/4 + QK_K/8, "wrong iq3_k block size/padding");
+
+typedef struct {
+    ggml_half d;
+    uint16_t extra;
+    uint8_t  scales_h[QK_K/64];
+    uint8_t  scales_l[QK_K/32];
+    uint8_t  qs[QK_K/2];
+} block_iq4_k;
+static_assert(sizeof(block_iq4_k) == sizeof(ggml_half) + sizeof(uint16_t) + QK_K/2 + 3*QK_K/64, "wrong iq4_k block size/padding");
+
+typedef struct {
+    ggml_half d;
+    uint16_t extra;
+    uint8_t  scales_h[QK_K/64];
+    uint8_t  scales_l[QK_K/32];
+    uint8_t  qs[QK_K/2];
+    uint8_t  qh[QK_K/8];
+} block_iq5_k;
+static_assert(sizeof(block_iq5_k) == sizeof(ggml_half) + sizeof(uint16_t) + QK_K/2 + QK_K/8 + 3*QK_K/64, "wrong iq5_k block size/padding");
+
 
 #endif // GGML_COMMON_DECL
 #endif // GGML_COMMON_DECL
@@ -1824,6 +1916,26 @@ GGML_TABLE_BEGIN(uint32_t, iq1s_grid_gpu, NGRID_IQ1S)
     0x22202022, 0x22202220, 0x22202222, 0x22212121, 0x22222020, 0x22222022, 0x22222220, 0x22222222,
 GGML_TABLE_END()
 #endif
+
+GGML_TABLE_BEGIN(int8_t, iq2nl_values, 8)
+    -31, -13, 1, 17,   -26, -8, 6, 22
+GGML_TABLE_END()
+
+GGML_TABLE_BEGIN(int8_t, iq3nl_values, 16)
+    -63, -40, -23, -10, 1, 13, 28,  47,
+    -59, -36, -19,  -6, 5, 17, 32,  51,
+GGML_TABLE_END()
+
+GGML_TABLE_BEGIN(int8_t, iq4k_values, 32)
+    -127, -104, -83, -65, -49, -35, -22, -10, 1, 13, 25, 38, 53, 69, 89, 113,
+    -123, -100, -79, -61, -45, -31, -18,  -6, 5, 17, 29, 42, 57, 73, 93, 117
+GGML_TABLE_END()
+
+GGML_TABLE_BEGIN(int8_t, iq5nl_values, 64)
+    -126, -114, -103, -92, -83, -74, -65, -57, -50, -43, -36, -30, -24, -18, -12, -6, -1, 5, 11, 17, 23, 29, 36, 43, 51, 59, 68, 77, 87, 97, 109, 121,
+    -124, -112, -101, -90, -81, -72, -63, -55, -48, -41, -34, -28, -22, -16, -10, -4,  1, 7, 13, 19, 25, 31, 38, 45, 53, 61, 70, 79, 89, 99, 111, 123,
+GGML_TABLE_END()
+
 
 #endif // GGML_COMMON_IMPL
 #endif // GGML_COMMON_IMPL
