@@ -336,7 +336,7 @@ class Model:
 
                     elif self.ftype == gguf.LlamaFileType.MOSTLY_BF16:
                         data = gguf.quantize_bf16(data)
-                        assert data.dtype == np.int16
+                        assert data.dtype == np.uint16
                         data_qtype = gguf.GGMLQuantizationType.BF16
 
                     elif (
