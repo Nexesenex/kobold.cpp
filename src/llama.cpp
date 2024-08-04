@@ -15642,6 +15642,9 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
             else if (ftype == LLAMA_FTYPE_MOSTLY_Q8_OE16) {
                 new_type = GGML_TYPE_F16;
             }
+            else if (new_type != GGML_TYPE_Q8_0) {
+                new_type = GGML_TYPE_Q6_K;
+            }
         }
     } else if (name == "token_embd.weight") {
         if (qs.params->token_embedding_type < GGML_TYPE_COUNT) {
@@ -17822,10 +17825,6 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
 						(qs.model.hparams.n_expert >= 8 && use_more_bits(i_layer, n_layer)))) {
 				new_type = GGML_TYPE_IQ4_XS;
 			}
-			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XL && (i_layer < n_layer/8 ||
-						(qs.model.hparams.n_expert >= 8 && use_more_bits(i_layer, n_layer)))) {
-				new_type = GGML_TYPE_Q4_K;
-			}	
 			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_SR && (i_layer < n_layer/8 ||
 						(qs.model.hparams.n_expert >= 8 && use_more_bits(i_layer, n_layer)))) {
 				new_type = GGML_TYPE_IQ3_S;
