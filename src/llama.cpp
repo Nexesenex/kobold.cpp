@@ -17059,7 +17059,7 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
         else if (name.find("attn_output.weight") != std::string::npos) {
             if (qs.model.hparams.n_expert >= 8) new_type = GGML_TYPE_Q6_K;
             else if (qs.model.hparams.n_expert >= 2) new_type = GGML_TYPE_Q5_K;
-            else if (qs.model.hparams.n_gqa() >= 2) new_type = GGML_TYPE_IQ4_XS;
+            else if (qs.model.hparams.n_gqa() >= 2) new_type = GGML_TYPE_Q4_K;
             else new_type = GGML_TYPE_IQ4_XS;
         }
         else if (name.find("attn_qkv.weight") != std::string::npos) {
@@ -17895,8 +17895,8 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
 					else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXS) new_type = GGML_TYPE_IQ3_S;
 					else if (ftype == LLAMA_FTYPE_MOSTLY_Q3_K_M ) new_type = GGML_TYPE_Q4_K;
 					else if (ftype == LLAMA_FTYPE_MOSTLY_Q3_K_L ) new_type = GGML_TYPE_Q5_K;
-					else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_M  ) new_type = GGML_TYPE_Q4_K;
-					else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XL ) new_type = GGML_TYPE_Q4_K;
+					else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_M  ) new_type = GGML_TYPE_IQ4_XS;
+					else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XL ) new_type = GGML_TYPE_IQ4_XS;
 					else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XSR ) new_type = GGML_TYPE_IQ4_XS;
 					else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_SR ) new_type = GGML_TYPE_IQ4_XS;
 					else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_MR ) new_type = GGML_TYPE_IQ4_XS;
@@ -17922,9 +17922,14 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
         if (qs.params->attn_qkv_tensor_type < GGML_TYPE_COUNT) {
             new_type = qs.params->attn_qkv_tensor_type;
         } else {
-			if (ftype == LLAMA_FTYPE_MOSTLY_Q3_K_M || ftype == LLAMA_FTYPE_MOSTLY_Q3_K_L || 
-			ftype == LLAMA_FTYPE_MOSTLY_IQ3_M || ftype == LLAMA_FTYPE_MOSTLY_IQ3_XL) {
+			if (ftype == LLAMA_FTYPE_MOSTLY_Q3_K_M || ftype == LLAMA_FTYPE_MOSTLY_Q3_K_L) {
 				new_type = GGML_TYPE_Q4_K;
+			}
+			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_M || ftype == LLAMA_FTYPE_MOSTLY_IQ3_XL) {
+				new_type = GGML_TYPE_IQ4_XS;
+			}
+			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_PS) {
+				new_type = GGML_TYPE_Q2_K;
 			}
 			else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_PS) {
 				new_type = GGML_TYPE_Q2_K;
