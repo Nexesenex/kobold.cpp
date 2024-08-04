@@ -882,7 +882,7 @@ def autoset_gpu_layers(ctxsize,gpu0mem,sdquanted,blasbatchsize,flashattention,qu
                         print("***")
                     else: ratio = ratio_init
                     layerlimit = int(ratio*layers+layer_offset)
-                    print(f"Layers limit: {layerlimit} = final ratio {ratio:.3f} x {layers} layers + offset of {layer_offset:.3f} layers.")
+                    print(f"Layers limit: {layerlimit} = final ratio {ratio:.3f} x {layers} layers + offset of {layer_offset} layers.")
                     estimated_loaded_size = int(layerlimit*sizeperlayer + total_buffer)
                     print(f"Estimated loaded size in the GPU: {estimated_loaded_size/1024/1024:.3f} MiB")
                     estimated_occupation_size = int(estimated_loaded_size + reserved_mem0)
