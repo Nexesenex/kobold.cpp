@@ -41,7 +41,7 @@ maxhordelen = 400
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.72002"
+KcppVersion = "1.73000"
 LcppVersion = "b3509+6"
 CudaSpecifics = "CuCML_ArCML_SMC2_DmmvX32Y1"
 ReleaseDate = "2024/08/3"
@@ -49,6 +49,7 @@ showdebug = True
 guimode = False
 showsamplerwarning = True
 showmaxctxwarning = True
+showusedmemwarning = True
 session_kudos_earned = 0
 session_jobs = 0
 session_starttime = None
@@ -83,6 +84,7 @@ CUDevicesNames = ["","","","",""]
 VKDevicesNames = ["","","",""]
 VKIsDGPU = [0,0,0,0]
 MaxMemory = [0,1,2,3]
+MaxFreeMemory = [0,1,2,3]
 
 class logit_bias(ctypes.Structure):
     _fields_ = [("token_id", ctypes.c_int32),
@@ -631,8 +633,23 @@ def extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath)
         except Exception as ex:
             modelfile_extracted_meta = None
 
+
 def autoset_gpu_layers(ctxsize,gpu0mem,sdquanted,blasbatchsize,flashattention,quantkv,mmqmode,lowvram,displaygpu,gpu1vram,gpu2vram,gpu3vram,poslayeroffset,neglayeroffset): #fork of a shitty algo to determine how many layers to use
     global modelfile_extracted_meta # reference cached values instead
+
+
+def autoset_gpu_layers(ctxsize,sdquanted,bbs): #shitty algo to determine how many layers to use
+    global showusedmemwarning, modelfile_extracted_meta # reference cached values instead
+    gpumem = MaxMemory[0]
+    usedmem = 0
+    if MaxFreeMemory[0]>0:
+        usedmem = MaxMemory[0]-MaxFreeMemory[0]
+        if showusedmemwarning and usedmem > (2.5*1024*1024*1024):
+            showusedmemwarning = False
+            print(f"Note: KoboldCpp has detected that a significant amount of GPU VRAM ({usedmem/1024/1024} MB) is currently used by another application.\nFor best results, you may wish to close that application and then restart KoboldCpp.\n***")
+    reservedmem = max(1.5*1024*1024*1024,(0.5*1024*1024*1024 + usedmem)) # determine vram overhead
+
+
     try:
         if not modelfile_extracted_meta:
             return 0
@@ -806,6 +823,8 @@ def autoset_gpu_layers(ctxsize,gpu0mem,sdquanted,blasbatchsize,flashattention,qu
                 kvbpw = 20.5
 
             if cs:
+
+
                 csmul = ((cs+4096)/6144) if cs >= 2048 else 1.0 #Nexes 2
                 # csmul = (cs/4096) if cs >= 8192 else (cs/(2048+(cs-2048)/3)) if cs >= 2048 else 1.0 #Nexes 1
                 # csmul = (cs/4096) if cs >= 8192 else 1.8 if cs > 4096 else 1.2 if cs > 2048 else 1.0 #Concedo
@@ -901,6 +920,25 @@ def autoset_gpu_layers(ctxsize,gpu0mem,sdquanted,blasbatchsize,flashattention,qu
                     print(f"Metadata are read.")
                     print(f"Layers limit is {ggufmeta[0]} + fixed offset of 3 + selected layer offset of {layer_offset}.")
             print("***")
+
+
+                csmul = (cs/4096) if cs >= 8192 else 1.8 if cs > 4096 else 1.2 if cs > 2048 else 1.0
+            ggufmeta = modelfile_extracted_meta[0]
+            if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
+                sizeperlayer = fsize*csmul*0.052
+                layerlimit = int(min(200,(mem-usedmem)/sizeperlayer))
+            else:
+                layers = ggufmeta[0]
+                headcount = ggufmeta[1]
+                headkvlen = (ggufmeta[2] if ggufmeta[2] > 0 else 128)
+                ratio = (mem-usedmem)/(fsize*csmul*1.55)
+                computemem = layers*(4 if bbs <= 512 else (bbs/128))*headkvlen*cs*4*1.5 # apply blasbatchsize calculations if over 512
+                contextmem = layers*headcount*headkvlen*cs*4*1.1
+                if headcount > 0:
+                    ratio = max(ratio, (mem - reservedmem - computemem) / (fsize + contextmem))
+                layerlimit = min(int(ratio*layers), (layers + 3))
+
+
         layerlimit = (0 if layerlimit<=2 else layerlimit)
         return layerlimit
     except Exception as ex:
@@ -940,11 +978,13 @@ def fetch_gpu_properties(testCL,testCU,testVK):
     if testCU:
         FetchedCUdevices = []
         FetchedCUdeviceMem = []
+        FetchedCUfreeMem = []
         AMDgpu = None
         try: # Get NVIDIA GPU names
-            output = subprocess.run(['nvidia-smi','--query-gpu=name,memory.total','--format=csv,noheader'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
+            output = subprocess.run(['nvidia-smi','--query-gpu=name,memory.total,memory.free','--format=csv,noheader'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
             FetchedCUdevices = [line.split(",")[0].strip() for line in output.splitlines()]
             FetchedCUdeviceMem = [line.split(",")[1].strip().split(" ")[0].strip() for line in output.splitlines()]
+            FetchedCUfreeMem = [line.split(",")[2].strip().split(" ")[0].strip() for line in output.splitlines()]
         except Exception as e:
             pass
         if len(FetchedCUdevices)==0:
@@ -971,8 +1011,16 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                     if AMDgpu:
                         MaxMemory[idx] = max(int(FetchedCUdeviceMem[idx]),MaxMemory[idx])
                     else:
+
+
                         MaxMemory[idx] = max(int(FetchedCUdeviceMem[idx])*1024*1024,MaxMemory[idx])
                     MaxMemory.sort(reverse=True)
+
+
+                        MaxMemory[0] = max(int(FetchedCUdeviceMem[idx])*1024*1024,MaxMemory[0])
+                if len(FetchedCUfreeMem)>idx:
+                    MaxFreeMemory[0] = max(int(FetchedCUfreeMem[idx])*1024*1024,MaxFreeMemory[0])
+
 
     if testVK:
         try: # Get Vulkan names
@@ -2312,7 +2360,7 @@ def RunServerMultiThreaded(addr, port):
         if ipv6_sock:
             ipv6_sock = context.wrap_socket(ipv6_sock, server_side=True)
 
-    numThreads = 22
+    numThreads = 24
     ipv4_sock.bind((addr, port))
     ipv4_sock.listen(numThreads)
     if ipv6_sock:
@@ -2766,7 +2814,14 @@ def show_gui():
         pass
 
     def changed_gpulayers_estimate(*args):
+
+
         predicted_gpu_layers = autoset_gpu_layers(int(contextsize_text[context_var.get()]),MaxMemory[0],(sd_quant_var.get()==1),int(blasbatchsize_values[int(blasbatchsize_var.get())]),flashattention.get(),int(quantkv_values[int(quantkv_var.get())]),mmq_var.get(),lowvram_var.get(),int(displaygpu_values[int(displaygpu_var.get())]),MaxMemory[1],MaxMemory[2],MaxMemory[3],int(poslayeroffset_values[int(poslayeroffset_var.get())]),int(neglayeroffset_values[int(neglayeroffset_var.get())]))
+
+
+        predicted_gpu_layers = autoset_gpu_layers(int(contextsize_text[context_var.get()]),(sd_quant_var.get()==1),int(blasbatchsize_values[int(blas_size_var.get())]))
+
+
         max_gpu_layers = (f"/{modelfile_extracted_meta[0][0]+3}" if (modelfile_extracted_meta and modelfile_extracted_meta[0] and modelfile_extracted_meta[0][0]!=0) else "")
         index = runopts_var.get()
         gpu_be = (index == "Use Vulkan" or index == "Vulkan NoAVX2 (Old CPU)" or index == "Use CLBlast" or index == "CLBlast NoAVX2 (Old CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)")
@@ -2883,6 +2938,11 @@ def show_gui():
             quick_tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
 
         if index == "Use Vulkan" or index == "Vulkan NoAVX2 (Old CPU)" or index == "Use CLBlast" or index == "CLBlast NoAVX2 (Old CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
+            gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
+            gpu_layers_entry.grid(row=6, column=1, padx=8, pady=1, stick="nw")
+            quick_gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
+            quick_gpu_layers_entry.grid(row=6, column=1, padx=8, pady=1, stick="nw")
+        elif sys.platform=="darwin":
             gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
             gpu_layers_entry.grid(row=6, column=1, padx=8, pady=1, stick="nw")
             quick_gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
@@ -4314,7 +4374,14 @@ def main(launch_args,start_server=True):
                 pass
             if MaxMemory[0] > 0:
                 extract_modelfile_params(args.model_param,args.sdmodel,args.whispermodel,args.mmproj)
+
+
                 layeramt = autoset_gpu_layers(args.contextsize, MaxMemory[0], args.sdquant, args.blasbatchsize, args.flashattention, args.quantkv, "mmq" in args.usecublas, "lowvram" in args.usecublas, args.displaygpu, MaxMemory[1], MaxMemory[2], MaxMemory[3], args.poslayeroffset, args.neglayeroffset)
+
+
+                layeramt = autoset_gpu_layers(args.contextsize,args.sdquant,args.blasbatchsize)
+
+
                 print(f"Auto Recommended Layers: {layeramt}")
                 args.gpulayers = layeramt
             else:
@@ -4717,7 +4784,7 @@ if __name__ == '__main__':
     advparser.add_argument("--skiplauncher", help="Doesn't display or use the GUI launcher.", action='store_true')
     advparser.add_argument("--onready", help="An optional shell command to execute after the model has been loaded.", metavar=('[shell command]'), type=str, default="",nargs=1)
     advparser.add_argument("--benchmark", help="Do not start server, instead run benchmarks. If filename is provided, appends results to provided file.", metavar=('[filename]'), nargs='?', const="stdout", type=str, default=None)
-    advparser.add_argument("--multiuser", help="Runs in multiuser mode, which queues incoming requests instead of blocking them.", metavar=('limit'), nargs='?', const=1, type=int, default=0)
+    advparser.add_argument("--multiuser", help="Runs in multiuser mode, which queues incoming requests instead of blocking them.", metavar=('limit'), nargs='?', const=1, type=int, default=1)
     advparser.add_argument("--remotetunnel", help="Uses Cloudflare to create a remote tunnel, allowing you to access koboldcpp remotely over the internet even behind a firewall.", action='store_true')
     advparser.add_argument("--highpriority", help="Experimental flag. If set, increases the process CPU priority, potentially speeding up generation. Use caution.", action='store_true')
     advparser.add_argument("--foreground", help="Windows only. Sends the terminal to the foreground every time a new prompt is generated. This helps avoid some idle slowdown issues.", action='store_true')
