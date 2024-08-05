@@ -3844,7 +3844,6 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
                 } u = {i};
                 float f = ggml_table_f32_f16[i] = GGML_COMPUTE_FP16_TO_FP32(u.fp16);
                 ggml_table_gelu_quick_f16[i] = GGML_FP32_TO_FP16(ggml_gelu_quick_f32(f));
-                ggml_table_silu_f16[i] = GGML_FP32_TO_FP16(ggml_silu_f32(f));
 #ifdef GGML_GELU_FP16
                 ggml_table_gelu_f16[i] = GGML_COMPUTE_FP32_TO_FP16(
                     ggml_gelu_f32(GGML_COMPUTE_FP16_TO_FP32(u.fp16)));
