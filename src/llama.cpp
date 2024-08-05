@@ -126,6 +126,17 @@ static std::string trim(const std::string & str) {
     return str.substr(start, end - start);
 }
 
+static void replace_all(std::string & s, const std::string & search, const std::string & replace) {
+    if (search.empty()) {
+        return; // Avoid infinite loop if 'search' is an empty string
+    }
+    size_t pos = 0;
+    while ((pos = s.find(search, pos)) != std::string::npos) {
+        s.replace(pos, search.length(), replace);
+        pos += replace.length();
+    }
+}
+
 static bool is_float_close(float a, float b, float abs_tol) {
     // Check for non-negative tolerance
     if (abs_tol < 0.0) {
@@ -357,6 +368,7 @@ enum llm_kv {
     LLM_KV_TOKENIZER_SUFFIX_ID,
     LLM_KV_TOKENIZER_MIDDLE_ID,
     LLM_KV_TOKENIZER_EOT_ID,
+    LLM_KV_TOKENIZER_EOM_ID,
 
     LLM_KV_ADAPTER_TYPE,
     LLM_KV_ADAPTER_LORA_ALPHA,
@@ -454,6 +466,7 @@ static const std::map<llm_kv, const char *> LLM_KV_NAMES = {
     { LLM_KV_TOKENIZER_SUFFIX_ID,            "tokenizer.ggml.suffix_token_id"          },
     { LLM_KV_TOKENIZER_MIDDLE_ID,            "tokenizer.ggml.middle_token_id"          },
     { LLM_KV_TOKENIZER_EOT_ID,               "tokenizer.ggml.eot_token_id"             },
+    { LLM_KV_TOKENIZER_EOM_ID,               "tokenizer.ggml.eom_token_id"             },
 
     { LLM_KV_ADAPTER_TYPE,                  "adapter.type"       },
     { LLM_KV_ADAPTER_LORA_ALPHA,            "adapter.lora.alpha" },
@@ -5709,6 +5722,7 @@ static void llm_load_vocab(
             { LLM_KV_TOKENIZER_SUFFIX_ID, vocab.special_suffix_id },
             { LLM_KV_TOKENIZER_MIDDLE_ID, vocab.special_middle_id },
             { LLM_KV_TOKENIZER_EOT_ID,    vocab.special_eot_id    },
+            { LLM_KV_TOKENIZER_EOM_ID,    vocab.special_eom_id    },
         };
 
         for (const auto & it : special_token_types) {
@@ -5759,6 +5773,17 @@ static void llm_load_vocab(
                     vocab.special_eot_id = t.second;
                     break;
                 }
+            }
+        }
+
+        // find EOM token: "<|eom_id|>"
+        //
+        // TODO: convert scripts should provide this token through the KV metadata LLAMA_KV_TOKENIZER_EOM_ID
+        //       for now, we apply this workaround to find the EOM token based on its text
+        if (vocab.special_eom_id == -1) {
+            const auto & t = vocab.token_to_id.find("<|eom_id|>");
+            if (t != vocab.token_to_id.end()) {
+                vocab.special_eom_id = t->second;
             }
         }
     }
