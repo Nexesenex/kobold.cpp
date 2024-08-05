@@ -634,21 +634,65 @@ def extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath)
             modelfile_extracted_meta = None
 
 
-def autoset_gpu_layers(ctxsize,gpu0mem,sdquanted,blasbatchsize,flashattention,quantkv,mmqmode,lowvram,displaygpu,gpu1vram,gpu2vram,gpu3vram,poslayeroffset,neglayeroffset): #fork of a shitty algo to determine how many layers to use
-    global modelfile_extracted_meta # reference cached values instead
-
-
-def autoset_gpu_layers(ctxsize,sdquanted,bbs): #shitty algo to determine how many layers to use
+def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mmqmode,lowvram,poslayeroffset,neglayeroffset): #fork of a shitty algo to determine how many layers to use
     global showusedmemwarning, modelfile_extracted_meta # reference cached values instead
-    gpumem = MaxMemory[0]
-    usedmem = 0
-    if MaxFreeMemory[0]>0:
-        usedmem = MaxMemory[0]-MaxFreeMemory[0]
-        if showusedmemwarning and usedmem > (2.5*1024*1024*1024):
-            showusedmemwarning = False
-            print(f"Note: KoboldCpp has detected that a significant amount of GPU VRAM ({usedmem/1024/1024} MB) is currently used by another application.\nFor best results, you may wish to close that application and then restart KoboldCpp.\n***")
-    reservedmem = max(1.5*1024*1024*1024,(0.5*1024*1024*1024 + usedmem)) # determine vram overhead
+    gpu0mem = MaxMemory[0]
+    used0mem = 0
+    gpu1mem = MaxMemory[1]
+    used1mem = 0
+    gpu2mem = MaxMemory[2]
+    used2mem = 0
+    gpu3mem = MaxMemory[3]
+    used3mem = 0
 
+    if MaxFreeMemory[0]>0:
+        used0mem = MaxMemory[0]-MaxFreeMemory[0]
+        used1mem = MaxMemory[1]-MaxFreeMemory[1]
+        used2mem = MaxMemory[2]-MaxFreeMemory[2]
+        used3mem = MaxMemory[3]-MaxFreeMemory[3]
+
+        print(f"GPU0 name: {CUDevicesNames[0]} ; GPU0 VRAM: {gpu0mem/1024/1024} MiB - {MaxFreeMemory[0]/1024/1024} MiB unoccupied = {used0mem/1024/1024} MiB occupied")
+        reserved0mem = (375*1024*1024 + used0mem) # determine vram overhead
+        mem0 = gpu0mem - reserved0mem 
+        print(f"GPU0 reserved VRAM {reserved0mem/1024/1024} MiB (occupied RAM + 375MiB overhead) ; GPU0 usable VRAM {mem0/1024/1024} MiB")
+        print("***")
+
+        reserved1mem = (375*1024*1024 + used1mem) # determine vram overhead
+        mem1 = gpu1mem - reserved1mem
+        if mem1 < 0:
+            mem1 = 0
+        if used1mem > 0:
+            print(f"GPU1 name: {CUDevicesNames[1]} ; GPU1 VRAM: {gpu1mem/1024/1024} MiB - {MaxFreeMemory[1]/1024/1024} MiB unoccupied = {used1mem/1024/1024} MiB occupied")
+            print(f"GPU1 reserved VRAM {reserved1mem/1024/1024} MiB (occupied RAM + 375MiB overhead) ; GPU1 usable VRAM {mem1/1024/1024} MiB")
+            print("***")
+
+        reserved2mem = (375*1024*1024 + used2mem) # determine vram overhead
+        mem2 = gpu2mem - reserved2mem
+        if mem2 < 0:
+            mem2 = 0
+        if used2mem > 0:
+            print(f"GPU2 name: {CUDevicesNames[2]} ; GPU2 VRAM: {gpu2mem/1024/1024} MiB - {MaxFreeMemory[2]/1024/1024} MiB unoccupied = {used2mem/1024/1024} MiB occupied")
+            print(f"GPU2 reserved VRAM {reserved2mem/1024/1024} MiB (occupied RAM + 375MiB overhead) ; GPU2 usable VRAM {mem2/1024/1024} MiB")
+            print("***")
+
+        reserved3mem = (375*1024*1024 + used3mem) # determine vram overhead
+        mem3 = gpu3mem - reserved3mem
+        if mem3 < 0:
+            mem3 = 0
+        if used3mem > 0:
+            print(f"GPU3 name: {CUDevicesNames[3]} ; GPU3 VRAM: {gpu3mem/1024/1024} MiB - {MaxFreeMemory[3]/1024/1024} MiB unoccupied = {used3mem/1024/1024} MiB occupied")
+            print(f"GPU3 reserved VRAM {reserved3mem/1024/1024} MiB (occupied RAM + 375MiB overhead) ; GPU3 usable VRAM {mem3/1024/1024} MiB")
+            print("***")
+
+        mem = int(mem0 + mem1 + mem2 + mem3)
+        reservedmem = int(reserved0mem + reserved1mem + reserved2mem + reserved3mem)
+        
+        print(f"GPUs total VRAM available: {mem/1024/1024} MiB")
+        print("***")
+ 
+        if showusedmemwarning and used0mem > (2.5*1024*1024*1024):
+            showusedmemwarning = False
+            print(f"Note: KoboldCpp has detected that a significant amount of GPU VRAM ({used0mem/1024/1024} MiB) is currently used by another application.\nFor best results, you may wish to close that application and then restart KoboldCpp.\n***")
 
     try:
         if not modelfile_extracted_meta:
@@ -662,73 +706,6 @@ def autoset_gpu_layers(ctxsize,sdquanted,bbs): #shitty algo to determine how man
             print(f"Model size (MB/GB like on Hugging-Face): {fsize/1000/1000:.3f} MB ; {fsize/1000/1000/1000:.3f} GB")
             print(f"Context size: {cs} tokens")
             print("***")
-            
-            dispgpu = displaygpu
-
-            if dispgpu == 0:
-                reserved_mem0 = (2**30+2**28)
-                print(f"GPU 0 is used for displaying the desktop. 1.25 GB are reserved instead of 500 MB.")
-            else: 
-                reserved_mem0 = 2**29
-
-            if dispgpu == 1:
-                reserved_vram1 = (2**30+2**28)
-                print(f"GPU 1 is used for displaying the desktop. 1.25 GB are reserved instead of 500 MB.")
-            else: 
-                reserved_vram1 = 2**29
-
-            if dispgpu == 2:
-                reserved_vram2 = (2**30+2**28)
-                print(f"GPU 2 is used for displaying the desktop. 1.25 GB are reserved instead of 500 MB.")
-            else: 
-                reserved_vram2 = 2**29
-
-            if dispgpu == 3:
-                reserved_vram3 = (2**30+2**28)
-                print(f"GPU 3 is used for displaying the desktop. 1.25 GB are reserved instead of 500 MB.")
-            else: 
-                reserved_vram3 = 2**29
-                
-            if dispgpu == 4:
-                reserved_mem0 = 2**29
-                print(f"None of the declared GPUs for inference is also used for the desktop.")
-
-            gpu0_smem = gpu0mem
-            mem0 = gpu0_smem - reserved_mem0
-
-            print(f"GPU0 VRAM: {gpu0mem/1024/1024} MiB ; GPU0 simulated VRAM: {gpu0_smem/1024/1024} MiB")
-            print(f"GPU0 reserved VRAM {reserved_mem0/1024/1024} MiB ; GPU0 usable VRAM {mem0/1024/1024} MiB")
-
-            gpu1_svram = gpu1vram
-            if gpu1vram > 0:
-                vram1 = gpu1_svram - reserved_vram1
-                print(f"GPU1 VRAM: {gpu1vram/1024/1024} MiB ; GPU1 simulated VRAM: {gpu1_svram/1024/1024} MiB")
-                if vram1 < 0:
-                    vram1 = 0
-                print(f"GPU1 reserved VRAM {reserved_vram1/1024/1024} MiB ; GPU1 usable VRAM {vram1/1024/1024} MiB")                   
-            else: vram1 = gpu1_svram
-
-            gpu2_svram = gpu2vram
-            if gpu2vram > 0:
-                vram2 = gpu2_svram - reserved_vram2
-                print(f"GPU2 VRAM: {gpu2vram/1024/1024} MiB ; GPU2 simulated VRAM: {gpu2_svram/1024/1024} MiB")
-                if vram2 < 0:
-                    vram2 = 0
-                print(f"GPU2 reserved VRAM {reserved_vram2/1024/1024} MiB ; GPU2 usable VRAM {vram2/1024/1024} MiB")
-            else: vram2 = gpu2_svram
-
-            gpu3_svram = gpu3vram
-            if gpu3vram > 0:
-                vram3 = gpu3_svram - reserved_vram3
-                print(f"GPU3 VRAM: {gpu3vram/1024/1024} MiB ; GPU3 simulated VRAM: {gpu3_svram/1024/1024} MiB")
-                if vram3 < 0:
-                    vram3 = 0
-                print(f"GPU3 reserved VRAM {reserved_vram3/1024/1024} MiB ; GPU3 usable VRAM {vram3/1024/1024} MiB")
-            else: vram3 = gpu3_svram
-
-            mem = mem0 + vram1 + vram2 + vram3
-
-            print(f"GPUs total VRAM available: {mem/1024/1024} MiB")
 
             if modelfile_extracted_meta[2] > 1024*1024*1024*5: #sdxl tax
                 mem -= 1024*1024*1024*(6 if sdquanted else 9)
@@ -903,9 +880,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,bbs): #shitty algo to determine how man
                     layerlimit = int(ratio*layers+layer_offset)
                     print(f"Layers limit: {layerlimit} = final ratio {ratio:.3f} x {layers} layers + offset of {layer_offset} layers.")
                     estimated_loaded_size = int(layerlimit*sizeperlayer + total_buffer)
-                    print(f"Estimated loaded size in the GPU: {estimated_loaded_size/1024/1024:.3f} MiB")
-                    estimated_occupation_size = int(estimated_loaded_size + reserved_mem0)
-                    print(f"Estimated size of the occupied memory of the GPU: {estimated_occupation_size/1024/1024:.3f} MiB")
+                    print(f"Estimated loaded size in the GPU(s): {estimated_loaded_size/1024/1024:.3f} MiB")
             else:
                 print(f"GPU usable VRAM : {mem/1024/1024} MiB > {size_init/1024/1024:.3f} MiB initially to load.")
                 print(f"The dedicated VRAM is superior to the model, context, and compute size alltogether.")
@@ -920,24 +895,6 @@ def autoset_gpu_layers(ctxsize,sdquanted,bbs): #shitty algo to determine how man
                     print(f"Metadata are read.")
                     print(f"Layers limit is {ggufmeta[0]} + fixed offset of 3 + selected layer offset of {layer_offset}.")
             print("***")
-
-
-                csmul = (cs/4096) if cs >= 8192 else 1.8 if cs > 4096 else 1.2 if cs > 2048 else 1.0
-            ggufmeta = modelfile_extracted_meta[0]
-            if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
-                sizeperlayer = fsize*csmul*0.052
-                layerlimit = int(min(200,(mem-usedmem)/sizeperlayer))
-            else:
-                layers = ggufmeta[0]
-                headcount = ggufmeta[1]
-                headkvlen = (ggufmeta[2] if ggufmeta[2] > 0 else 128)
-                ratio = (mem-usedmem)/(fsize*csmul*1.55)
-                computemem = layers*(4 if bbs <= 512 else (bbs/128))*headkvlen*cs*4*1.5 # apply blasbatchsize calculations if over 512
-                contextmem = layers*headcount*headkvlen*cs*4*1.1
-                if headcount > 0:
-                    ratio = max(ratio, (mem - reservedmem - computemem) / (fsize + contextmem))
-                layerlimit = min(int(ratio*layers), (layers + 3))
-
 
         layerlimit = (0 if layerlimit<=2 else layerlimit)
         return layerlimit
@@ -1011,16 +968,14 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                     if AMDgpu:
                         MaxMemory[idx] = max(int(FetchedCUdeviceMem[idx]),MaxMemory[idx])
                     else:
-
-
                         MaxMemory[idx] = max(int(FetchedCUdeviceMem[idx])*1024*1024,MaxMemory[idx])
+
                     MaxMemory.sort(reverse=True)
 
-
-                        MaxMemory[0] = max(int(FetchedCUdeviceMem[idx])*1024*1024,MaxMemory[0])
                 if len(FetchedCUfreeMem)>idx:
-                    MaxFreeMemory[0] = max(int(FetchedCUfreeMem[idx])*1024*1024,MaxFreeMemory[0])
+                    MaxFreeMemory[idx] = max(int(FetchedCUfreeMem[idx])*1024*1024,MaxFreeMemory[idx])
 
+                    MaxFreeMemory.sort(reverse=True)
 
     if testVK:
         try: # Get Vulkan names
@@ -2578,8 +2533,8 @@ def show_gui():
     "24 - K5-Bit-V16 (11.75BPW) - 5016",
     "25 - K4.1-Bit-V16 (10.5BPW) - 4116",
     "26 - K4-Bit-V16 (10.25BPW) - 4016"]
-    displaygpu_values = ["0", "1", "2", "3", "4"]
-    displaygpu_text = ["GPU 0 used for desktop display", "GPU 1 used for desktop display", "GPU 2 used for desktop display", "GPU 3 used for desktop display", "No GPU used for desktop display"]
+    # displaygpu_values = ["0", "1", "2", "3", "4"]
+    # displaygpu_text = ["GPU 0 used for desktop display", "GPU 1 used for desktop display", "GPU 2 used for desktop display", "GPU 3 used for desktop display", "No GPU used for desktop display"]
     poslayeroffset_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
     poslayeroffset_text = ["No positive layer offset", "Add 1 layer", "Add 2 layers", "Add 3 layers", "Add 4 layers", "Add 5 layers", "Add 6 layers", "Add 7 layers", "Add 8 layers", "Add 9 layers", "Add 10 layers"]
     neglayeroffset_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
@@ -2618,7 +2573,7 @@ def show_gui():
     tensor_split_str_vars = ctk.StringVar(value="")
     rowsplit_var = ctk.IntVar()
 
-    displaygpu_var = ctk.IntVar()
+    # displaygpu_var = ctk.IntVar()
     poslayeroffset_var = ctk.IntVar()
     neglayeroffset_var = ctk.IntVar()
     gpu0vram_var = ctk.IntVar()
@@ -2815,12 +2770,7 @@ def show_gui():
 
     def changed_gpulayers_estimate(*args):
 
-
-        predicted_gpu_layers = autoset_gpu_layers(int(contextsize_text[context_var.get()]),MaxMemory[0],(sd_quant_var.get()==1),int(blasbatchsize_values[int(blasbatchsize_var.get())]),flashattention.get(),int(quantkv_values[int(quantkv_var.get())]),mmq_var.get(),lowvram_var.get(),int(displaygpu_values[int(displaygpu_var.get())]),MaxMemory[1],MaxMemory[2],MaxMemory[3],int(poslayeroffset_values[int(poslayeroffset_var.get())]),int(neglayeroffset_values[int(neglayeroffset_var.get())]))
-
-
-        predicted_gpu_layers = autoset_gpu_layers(int(contextsize_text[context_var.get()]),(sd_quant_var.get()==1),int(blasbatchsize_values[int(blas_size_var.get())]))
-
+        predicted_gpu_layers = autoset_gpu_layers(int(contextsize_text[context_var.get()]),(sd_quant_var.get()==1),int(blasbatchsize_values[int(blasbatchsize_var.get())]),flashattention.get(),int(quantkv_values[int(quantkv_var.get())]),mmq_var.get(),lowvram_var.get(),int(poslayeroffset_values[int(poslayeroffset_var.get())]),int(neglayeroffset_values[int(neglayeroffset_var.get())]))
 
         max_gpu_layers = (f"/{modelfile_extracted_meta[0][0]+3}" if (modelfile_extracted_meta and modelfile_extracted_meta[0] and modelfile_extracted_meta[0][0]!=0) else "")
         index = runopts_var.get()
@@ -3081,7 +3031,7 @@ def show_gui():
     # GPU layers Autoloader Tab
     gpu_al_tab = tabcontent["GPU AutoLayers"]
 
-    makeslider(gpu_al_tab, "Display GPU:", displaygpu_text, displaygpu_var, 0, 4, 2, width=201, set=0,tooltip="Increases the reserved area of the GPU layers autoloader from 0.5GB to 1.25GB.")
+    # makeslider(gpu_al_tab, "Display GPU:", displaygpu_text, displaygpu_var, 0, 4, 2, width=201, set=0,tooltip="Increases the reserved area of the GPU layers autoloader from 0.5GB to 1.25GB.")
     # makeslider(gpu_al_tab, "GPU 1 VRAM:", gpu1vram_text, gpu1vram_var, 0, 80, 4, width=321, set=0,tooltip="GPU 1 VRAM size.")
     # makeslider(gpu_al_tab, "GPU 2 VRAM:", gpu2vram_text, gpu2vram_var, 0, 80, 6, width=321, set=0,tooltip="GPU 2 VRAM size.")
     # makeslider(gpu_al_tab, "GPU 3 VRAM:", gpu3vram_text, gpu3vram_var, 0, 80, 10, width=321, set=0,tooltip="GPU 3 VRAM size.")
@@ -3304,7 +3254,7 @@ def show_gui():
         args.nocertify = nocertifymode.get()==1
         args.quantkv = int(quantkv_values[int(quantkv_var.get())])
 
-        args.displaygpu = int(displaygpu_values[int(displaygpu_var.get())])
+        # args.displaygpu = int(displaygpu_values[int(displaygpu_var.get())])
         args.poslayeroffset = int(poslayeroffset_values[int(poslayeroffset_var.get())])
         args.neglayeroffset = int(neglayeroffset_values[int(neglayeroffset_var.get())])
 
@@ -3532,8 +3482,8 @@ def show_gui():
         if "blasubatchsize" in dict and dict["blasubatchsize"]:
             blasubatchsize_var.set(blasubatchsize_values.index(str(dict["blasubatchsize"])))
 
-        if "displaygpu" in dict:
-            displaygpu_var.set(dict["displaygpu"])
+        # if "displaygpu" in dict:
+            # displaygpu_var.set(dict["displaygpu"])
         if "poslayeroffset" in dict:
             poslayeroffset_var.set(dict["poslayeroffset"])
         if "neglayeroffset" in dict:
@@ -4375,12 +4325,7 @@ def main(launch_args,start_server=True):
             if MaxMemory[0] > 0:
                 extract_modelfile_params(args.model_param,args.sdmodel,args.whispermodel,args.mmproj)
 
-
-                layeramt = autoset_gpu_layers(args.contextsize, MaxMemory[0], args.sdquant, args.blasbatchsize, args.flashattention, args.quantkv, "mmq" in args.usecublas, "lowvram" in args.usecublas, args.displaygpu, MaxMemory[1], MaxMemory[2], MaxMemory[3], args.poslayeroffset, args.neglayeroffset)
-
-
-                layeramt = autoset_gpu_layers(args.contextsize,args.sdquant,args.blasbatchsize)
-
+                layeramt = autoset_gpu_layers(args.contextsize, args.sdquant, args.blasbatchsize, args.flashattention, args.quantkv, "mmq" in args.usecublas, "lowvram" in args.usecublas, args.poslayeroffset, args.neglayeroffset)
 
                 print(f"Auto Recommended Layers: {layeramt}")
                 args.gpulayers = layeramt
@@ -4749,7 +4694,7 @@ if __name__ == '__main__':
     parser.add_argument("--launch", help="Launches a web browser when load is completed.", action='store_true')
     parser.add_argument("--config", metavar=('[filename]'), help="Load settings from a .kcpps file. Other arguments will be ignored", type=str, nargs=1)
 
-    parser.add_argument("--displaygpu", help="Reduces the reserved area of the GPU layers autoloader from 1.25GB to 0.5GB.", type=check_range(int,0,4), default=0)
+    # parser.add_argument("--displaygpu", help="Reduces the reserved area of the GPU layers autoloader from 1.25GB to 0.5GB.", type=check_range(int,0,4), default=0)
     # parser.add_argument("--gpu0vram", help="declares the amount of VRAM of GPU1 (in GB).", type=check_range(int,0,80), default=0)
     # parser.add_argument("--gpu1vram", help="declares the amount of VRAM of GPU1 (in GB).", type=check_range(int,0,80), default=0)
     # parser.add_argument("--gpu2vram", help="declares the amount of VRAM of GPU2 (in GB).", type=check_range(int,0,80), default=0)
