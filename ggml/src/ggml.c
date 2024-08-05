@@ -255,7 +255,7 @@ void ggml_abort(const char * file, int line, const char * fmt, ...) {
 }
 
 #define GGML_DEBUG 0
-#define GGML_GELU_FP16
+#define GGML_GELU_BF16
 #define GGML_GELU_QUICK_FP16
 
 #define GGML_SOFT_MAX_UNROLL 4
@@ -390,9 +390,9 @@ typedef double ggml_float;
 // global data
 //
 
-#ifdef GGML_GELU_FP16
+#ifdef GGML_GELU_BF16
 // precomputed gelu table in brain16 (128 KB)
-static ggml_fp16_t ggml_table_gelu_f16[1 << 16];
+static ggml_bf16_t ggml_table_gelu_f16[1 << 16];
 #endif
 
 // precomputed quick gelu table for f16 (128 KB)
@@ -2647,17 +2647,22 @@ static void ggml_vec_gelu_f32(const int n, float * y, const float * x) {
     }
 #endif
     for (; i < n; ++i) {
-#ifdef GGML_GELU_FP16
-        if (x[i] <= -10.0f) {
-            y[i] = 0.0f;
-        } else if (x[i] >= 10.0f) {
-            y[i] = x[i];
-        } else {
-            uint16_t t;
-            ggml_fp16_t fp16 = GGML_FP32_TO_FP16(x[i]);
-            memcpy(&t, &fp16, sizeof(uint16_t));
-            y[i] = GGML_FP16_TO_FP32(ggml_table_gelu_f16[t]);
-        }
+#ifdef GGML_GELU_BF16
+        // gelu brain lut goes 5x faster with ~16 bits of accuracy
+        // this is the only game in town, if not on arm64 or amd64
+        union {
+            float f;
+            uint32_t i;
+        } pun32;
+        union {
+            uint16_t i;
+            ggml_bf16_t f;
+        } pun16;
+        pun32.f = x[i];
+        int k = (pun32.i + (0x7fff + ((pun32.i >> 16) & 1))) >> 16;
+        pun16.f = ggml_table_gelu_f16[k];
+        pun32.i = (uint32_t)pun16.i << 16;
+        y[i] = pun32.f;
 #else
         // computes canonical gelu approximation with ~32 bit accuracy
         y[i] = ggml_gelu_f32(x[i]);
@@ -3773,12 +3778,13 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
                 union {
                     uint16_t u16;
                     ggml_fp16_t fp16;
+                    ggml_bf16_t bf16;
                 } u = {i};
                 float f = ggml_table_f32_f16[i] = GGML_COMPUTE_FP16_TO_FP32(u.fp16);
                 ggml_table_gelu_quick_f16[i] = GGML_FP32_TO_FP16(ggml_gelu_quick_f32(f));
-#ifdef GGML_GELU_FP16
-                ggml_table_gelu_f16[i] = GGML_COMPUTE_FP32_TO_FP16(
-                    ggml_gelu_f32(GGML_COMPUTE_FP16_TO_FP32(u.fp16)));
+#ifdef GGML_GELU_BF16
+                ggml_table_gelu_f16[i] = ggml_compute_fp32_to_bf16(
+                    ggml_gelu_f32(ggml_compute_bf16_to_fp32(u.bf16)));
 #endif
             }
 
