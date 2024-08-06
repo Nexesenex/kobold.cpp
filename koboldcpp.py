@@ -436,33 +436,33 @@ def set_backend_props(inputs):
 
     if not args.tensor_split:
         if (args.usecublas and "0" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             os.environ["CUDA_VISIBLE_DEVICES"] = "0"
             os.environ["HIP_VISIBLE_DEVICES"] = "0"
         elif (args.usecublas and "1" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             os.environ["CUDA_VISIBLE_DEVICES"] = "1"
             os.environ["HIP_VISIBLE_DEVICES"] = "1"
         elif (args.usecublas and "2" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             os.environ["CUDA_VISIBLE_DEVICES"] = "2"
             os.environ["HIP_VISIBLE_DEVICES"] = "2"
         elif (args.usecublas and "3" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             os.environ["CUDA_VISIBLE_DEVICES"] = "3"
             os.environ["HIP_VISIBLE_DEVICES"] = "3"
     else:
         if (args.usecublas and "0" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             inputs.cublas_info = 0
         elif (args.usecublas and "1" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             inputs.cublas_info = 1
         elif (args.usecublas and "2" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             inputs.cublas_info = 2
         elif (args.usecublas and "3" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             inputs.cublas_info = 3
 
     if args.usevulkan: #is an empty array if using vulkan without defined gpu
