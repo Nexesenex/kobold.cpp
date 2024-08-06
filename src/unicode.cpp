@@ -2,10 +2,10 @@
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 #endif
 
+#include "ggml.h"
 #include "unicode.h"
 #include "unicode-data.h"
 
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -119,38 +119,6 @@ uint32_t unicode_cpt_from_utf8(const std::string & utf8, size_t & offset) {
 //    return result;
 //}
 
-static std::vector<codepoint_flags> unicode_cpt_flags_array() {
-    std::vector<codepoint_flags> cpt_flags(MAX_CODEPOINTS, codepoint_flags::UNDEFINED);
-
-    assert (unicode_ranges_flags.front().first == 0);
-    assert (unicode_ranges_flags.back().first == MAX_CODEPOINTS);
-    for (size_t i = 1; i < unicode_ranges_flags.size(); ++i) {
-        const auto range_ini = unicode_ranges_flags[i-1];  // codepoint_ini, flags
-        const auto range_end = unicode_ranges_flags[i];    // codepoint_end, flags
-        for (uint32_t cpt = range_ini.first; cpt < range_end.first; ++cpt) {
-            cpt_flags[cpt] = range_ini.second;
-        }
-    }
-
-    for (auto cpt : unicode_set_whitespace) {
-        cpt_flags[cpt].is_whitespace = true;
-    }
-
-    for (auto p : unicode_map_lowercase) {
-        cpt_flags[p.second].is_lowercase = true;
-    }
-
-    for (auto p : unicode_map_uppercase) {
-        cpt_flags[p.second].is_uppercase = true;
-    }
-
-    for (auto &range : unicode_ranges_nfd) {  // start, last, nfd
-        cpt_flags[range.nfd].is_nfd = true;
-    }
-
-    return cpt_flags;
-}
-
 static std::unordered_map<uint8_t, std::string> unicode_byte_to_utf8_map() {
     std::unordered_map<uint8_t, std::string> map;
     for (int ch = 0x21; ch <= 0x7E; ++ch) {  // u'!' to u'~'
@@ -233,7 +201,7 @@ static std::vector<size_t> unicode_regex_split_custom_gpt2(const std::string & t
     for (auto offset : offsets) {
         const size_t offset_ini = start;
         const size_t offset_end = start + offset;
-        assert(offset_end <= cpts.size());
+        GGML_ASSERT(offset_end <= cpts.size());
         start = offset_end;
 
         static const uint32_t OUT_OF_RANGE = 0xFFFFFFFF;
@@ -241,13 +209,14 @@ static std::vector<size_t> unicode_regex_split_custom_gpt2(const std::string & t
             return (offset_ini <= pos && pos < offset_end) ? cpts[pos] : OUT_OF_RANGE;
         };
 
-        auto _get_flags = [&] (const size_t pos) -> codepoint_flags {
-            return (offset_ini <= pos && pos < offset_end) ? unicode_cpt_flags(cpts[pos]) : codepoint_flags{};
+        static const codepoint_categ SENTINEL = codepoint_categ::MASK + 1;
+        auto _get_categ = [&] (const size_t pos) -> codepoint_categ {
+            return (offset_ini <= pos && pos < offset_end) ? unicode_cpt_category(cpts[pos]) : SENTINEL;
         };
 
         size_t _prev_end = offset_ini;
         auto _add_token = [&] (const size_t end) -> size_t {
-            assert(_prev_end <= end && end <= offset_end);
+            GGML_ASSERT(_prev_end <= end && end <= offset_end);
             size_t len = end - _prev_end;
             if (len > 0) {
                 bpe_offsets.push_back(len);
@@ -264,7 +233,7 @@ static std::vector<size_t> unicode_regex_split_custom_gpt2(const std::string & t
 
         for (size_t pos = offset_ini; pos < offset_end; /*pos++*/ ) {
             const uint32_t cpt = _get_cpt(pos);
-            const auto flags = _get_flags(pos);
+            const auto categ = _get_categ(pos);
 
             // regex: 's|'t|'re|'ve|'m|'ll|'d
             if (cpt == '\'' && pos+1 < offset_end) {
@@ -284,37 +253,37 @@ static std::vector<size_t> unicode_regex_split_custom_gpt2(const std::string & t
                 }
             }
 
-            auto flags2 = (cpt == ' ' ? _get_flags(pos+1) : flags);
+            auto categ2 = (cpt == ' ' ? _get_categ(pos+1) : categ);
             // regex: <space>?\p{L}+
-            if (flags2.is_letter) {
+            if (categ2.is_L()) {
                 pos += (cpt == ' ');
-                while (flags2.is_letter) {
-                    flags2 = _get_flags(++pos);
+                while (categ2.is_L()) {
+                    categ2 = _get_categ(++pos);
                 }
                 _add_token(pos);
                 continue;
             }
             // regex: <space>?\p{N}+
-            if (flags2.is_number) {
+            if (categ2.is_N()) {
                 pos += (cpt == ' ');
-                while (flags2.is_number) {
-                    flags2 = _get_flags(++pos);
+                while (categ2.is_N()) {
+                    categ2 = _get_categ(++pos);
                 }
                 _add_token(pos);
                 continue;
             }
             // regex: <space>?[^\s\p{L}\p{N}]+
-            if (!(flags2.is_whitespace | flags2.is_letter | flags2.is_number) && flags2.as_uint()) {
+            if (!(categ2.is_whitespace() | categ2.is_L() | categ2.is_N()) && categ2 != SENTINEL) {
                 pos += (cpt == ' ');
-                while (!(flags2.is_whitespace | flags2.is_letter | flags2.is_number) && flags2.as_uint()) {
-                    flags2 = _get_flags(++pos);
+                while (!(categ2.is_whitespace() | categ2.is_L() | categ2.is_N()) && categ2 != SENTINEL) {
+                    categ2 = _get_categ(++pos);
                 }
                 _add_token(pos);
                 continue;
             }
 
             size_t num_whitespaces = 0;
-            while (_get_flags(pos+num_whitespaces).is_whitespace) {
+            while (_get_categ(pos+num_whitespaces).is_whitespace()) {
                 num_whitespaces++;
             }
 
@@ -351,7 +320,7 @@ static std::vector<size_t> unicode_regex_split_custom_llama3(const std::string &
     for (auto offset : offsets) {
         const size_t offset_ini = start;
         const size_t offset_end = start + offset;
-        assert(offset_end <= cpts.size());
+        GGML_ASSERT(offset_end <= cpts.size());
         start = offset_end;
 
         static const uint32_t OUT_OF_RANGE = 0xFFFFFFFF;
@@ -359,13 +328,14 @@ static std::vector<size_t> unicode_regex_split_custom_llama3(const std::string &
             return (offset_ini <= pos && pos < offset_end) ? cpts[pos] : OUT_OF_RANGE;
         };
 
-        auto _get_flags = [&] (const size_t pos) -> codepoint_flags {
-            return (offset_ini <= pos && pos < offset_end) ? unicode_cpt_flags(cpts[pos]) : codepoint_flags{};
+        static const codepoint_categ SENTINEL = codepoint_categ::MASK + 1;
+        auto _get_categ = [&] (const size_t pos) -> codepoint_categ {
+            return (offset_ini <= pos && pos < offset_end) ? unicode_cpt_category(cpts[pos]) : SENTINEL;
         };
 
         size_t _prev_end = offset_ini;
         auto _add_token = [&] (const size_t end) -> size_t {
-            assert(_prev_end <= end && end <= offset_end);
+            GGML_ASSERT(_prev_end <= end && end <= offset_end);
             size_t len = end - _prev_end;
             if (len > 0) {
                 bpe_offsets.push_back(len);
@@ -382,7 +352,7 @@ static std::vector<size_t> unicode_regex_split_custom_llama3(const std::string &
 
         for (size_t pos = offset_ini; pos < offset_end; /*pos++*/ ) {
             const uint32_t cpt = _get_cpt(pos);
-            const auto flags = _get_flags(pos);
+            const auto categ = _get_categ(pos);
 
             // regex: (?i:'s|'t|'re|'ve|'m|'ll|'d) // case insensitive
             if (cpt == '\'' && pos+1 < offset_end) {
@@ -403,10 +373,10 @@ static std::vector<size_t> unicode_regex_split_custom_llama3(const std::string &
             }
 
             // regex: [^\r\n\p{L}\p{N}]?\p{L}+
-            if (!(cpt == '\r' || cpt == '\n' || flags.is_number)) {
-                if (flags.is_letter || _get_flags(pos+1).is_letter) {  // one or more letters
+            if (!(cpt == '\r' || cpt == '\n' || categ.is_N())) {
+                if (categ.is_L() || _get_categ(pos+1).is_L()) {  // one or more letters
                     pos++;
-                    while (_get_flags(pos).is_letter) {
+                    while (_get_categ(pos).is_L()) {
                         pos++;
                     }
                     _add_token(pos);
@@ -415,9 +385,9 @@ static std::vector<size_t> unicode_regex_split_custom_llama3(const std::string &
             }
 
             // regex: \p{N}{1,3}
-            if (flags.is_number) {
+            if (categ.is_N()) {
                 size_t ini = pos;
-                while (_get_flags(pos).is_number) {
+                while (_get_categ(pos).is_N()) {
                     if (++pos - ini >= 3 ) {
                         _add_token(pos);
                         ini = pos;
@@ -428,11 +398,11 @@ static std::vector<size_t> unicode_regex_split_custom_llama3(const std::string &
             }
 
             // regex: <space>?[^\s\p{L}\p{N}]+[\r\n]*
-            auto flags2 = (cpt == ' ' ? _get_flags(pos+1) : flags);
-            if (!(flags2.is_whitespace | flags2.is_letter | flags2.is_number) && flags.as_uint()) {
+            auto categ2 = (cpt == ' ' ? _get_categ(pos+1) : categ);
+            if (!(categ2.is_whitespace() | categ2.is_L() | categ2.is_N()) && categ2 != SENTINEL) {
                 pos += (cpt == ' ');
-                while (!(flags2.is_whitespace | flags2.is_letter | flags2.is_number) && flags2.as_uint()) {
-                    flags2 = _get_flags(++pos);
+                while (!(categ2.is_whitespace() | categ2.is_L() | categ2.is_N()) && categ2 != SENTINEL) {
+                    categ2 = _get_categ(++pos);
                 }
                 uint32_t cpt2 = _get_cpt(pos);
                 while (cpt2 == '\r' || cpt2 == '\n') {
@@ -444,7 +414,7 @@ static std::vector<size_t> unicode_regex_split_custom_llama3(const std::string &
 
             size_t num_whitespaces = 0;
             size_t last_end_r_or_n = 0;
-            while (_get_flags(pos+num_whitespaces).is_whitespace) {
+            while (_get_categ(pos+num_whitespaces).is_whitespace()) {
                 uint32_t cpt2 = _get_cpt(pos+num_whitespaces);
                 if (cpt2 == '\r' || cpt2 == '\n') {
                     last_end_r_or_n = pos + num_whitespaces + 1;
@@ -612,19 +582,48 @@ std::vector<uint32_t> unicode_cpts_from_utf8(const std::string & utf8) {
     return result;
 }
 
-codepoint_flags unicode_cpt_flags(const uint32_t cp) {
-    static const codepoint_flags undef(codepoint_flags::UNDEFINED);
-    static const auto cpt_flags = unicode_cpt_flags_array();
-    return cp < cpt_flags.size() ? cpt_flags[cp] : undef;
+codepoint_categ unicode_cpt_category(const uint32_t cp) {
+    static const std::vector<codepoint_categ> cpt_categs = [] {
+        std::vector<codepoint_categ> cpt_categs(MAX_CODEPOINTS, codepoint_categ::UNDEF);
+        uint32_t cpt = 0;
+        for (uint16_t rle : unicode_rle_codepoints_categs) {
+            const uint32_t index = rle & 31;
+            const uint32_t count = rle >> 5;
+            const auto categ = codepoint_categ::from_index(index);
+            //printf( "Codepoints 0x%05X to 0x%05X categ %s\n", cpt, cpt + count, categ.c_str());
+            for (uint32_t i = 0; i <= count; ++i) {
+                cpt_categs[cpt++] = categ;
+            }
+        }
+        GGML_ASSERT(cpt == MAX_CODEPOINTS);
+
+        for (auto cpt : unicode_vec_whitespace) {
+            cpt_categs[cpt].set_flag(codepoint_categ::WHITESPACE);
+        }
+
+        for (auto p : unicode_map_lowercase) {
+            cpt_categs[p.second].set_flag(codepoint_categ::LOWERCASE);
+        }
+
+        for (auto p : unicode_map_uppercase) {
+            cpt_categs[p.second].set_flag(codepoint_categ::UPPERCASE);
+        }
+
+        //for (auto &range : unicode_ranges_nfd) {  // start, last, nfd
+        //    cpt_categs[cpt].set_flag(codepoint_categ::NORM_NFD);
+        //}
+
+        return cpt_categs;
+    }();
+    return cp < cpt_categs.size() ? cpt_categs[cp] : codepoint_categ{};
 }
 
-codepoint_flags unicode_cpt_flags(const std::string & utf8) {
-    static const codepoint_flags undef(codepoint_flags::UNDEFINED);
+codepoint_categ unicode_cpt_category(const std::string & utf8) {
     if (utf8.empty()) {
-        return undef;  // undefined
+        return codepoint_categ{};  // undefined
     }
     size_t offset = 0;
-    return unicode_cpt_flags(unicode_cpt_from_utf8(utf8, offset));
+    return unicode_cpt_category(unicode_cpt_from_utf8(utf8, offset));
 }
 
 std::string unicode_byte_to_utf8(uint8_t byte) {
@@ -643,66 +642,76 @@ uint32_t unicode_tolower(uint32_t cp) {
 }
 
 std::vector<std::string> unicode_regex_split(const std::string & text, const std::vector<std::string> & regex_exprs) {
-    // unicode categories
-    static const std::map<std::string, int> k_ucat_enum = {
-        { "\\p{N}", codepoint_flags::NUMBER },
-        { "\\p{L}", codepoint_flags::LETTER },
-        { "\\p{P}", codepoint_flags::PUNCTUATION },
-    };
+    // std::regex does not support unicode categories: \p{N}, \p{L}, \p{Lu}, \p{Ll} ...
+    // std::regex does not support unicode whitespaces \s: 0x85, 0xA0, 0x001680 ... 0x003000.
+    // Generate a "collapsed" representation of the regex, where all unicode categories are replaced by codepoints ranges.
+    // Generate a "collapsed" representation of the text, where all codepoints are forced to fall into generated category ranges.
+    //  Text codepoints not found in generated category ranges are replaced by a "collapsed" codepoint.
+    // This implementation generalizes the original implementation adding support to unicode subcategories:
+    //  https://github.com/ggerganov/llama.cpp/pull/6920#issuecomment-2081479935
 
-    static const std::map<int, int> k_ucat_cpt = {
-        { codepoint_flags::NUMBER,        0xD1 },
-        { codepoint_flags::LETTER,        0xD2 },
-        { codepoint_flags::PUNCTUATION,   0xD3 },
-    };
+    // Definitions:
+    // - Unicode cagegory: high unicode categories, \p{C}, \p{L}, \p{M}, \p{N}, \p{P}, \p{S}, \p{Z}.
+    // - Unicode subcagegory: including all unicode categories, \p{Cc}, \p{Cf}, \p{Co}, \p{Cs}, ..., \p{Zs}.
+    // - Collapsed codepoint: unused codepoint representing a unicode subcategory.
+    // - Collapsed range: sequence of "collapsed" codepoint, representing one unicode category.
+    // - Collapsed regex: original regex including "collapsed" codepoints and ranges.
 
-    static const std::map<int, std::string> k_ucat_map = {
-        { codepoint_flags::NUMBER,        "\x30-\x39" }, // 0-9
-        { codepoint_flags::LETTER,        "\x41-\x5A\x61-\x7A" }, // A-Za-z
-        { codepoint_flags::PUNCTUATION,   "\x21-\x23\x25-\x2A\x2C-\x2F\x3A-\x3B\x3F-\x40\\\x5B-\\\x5D\x5F\\\x7B\\\x7D" }, // !-#%-*,-/:-;?-@\[-\]_\{\}
-    };
+    // (1)     Build the "collapsed" regex:
+    // (1.1)     Generate a replacement list of codepoint ranges:
+    // (1.1.1)     For each unicode category.
+    // (1.1.2)     For each unicode subcategory.
+    // (1.1.3)     Expand \s adding unicode whitespaces.
+    // (1.2)     Each list includes its respective "collaped" codepoint/range.
+    // (1.3)     [Optimization] Only build lists of categories present in the regex.
+    // (1.4)     Build the "collapsed" regex replacing categories and subcategories by this "collapsed" lists.
+    // (2)     Build a list of codepoint ranges.
+    // (2.1)     If a codepoint is not found in this list, then it is "collapsable".
+    // (2.2)     [Optimization] Only build lists of ranges present in the regex.
+    // (3)     For each input text:
+    // (3.1)     Search codepoints in the regex codepoint ranges.
+    // (3.2)     If found, it is a valid codepoint (the "collapsed" regex uses it), literal copy.
+    // (3.3)     If not found, replace with its "collapsed" codepoint so the "collapsed" regex can process it.
 
-    // compute collapsed codepoints only if needed by at least one regex
-    bool need_collapse = false;
-    for (auto & regex_expr : regex_exprs) {
-        // search for unicode categories
-        for (const auto & ucat : k_ucat_enum) {
-            if (std::string::npos != regex_expr.find(ucat.first)) {
-                need_collapse = true;
-                break;
-            }
+    //TODO: Refactor optimizations
+    // Steps (1) and (2) only depends on the regex expression text.
+    // Step (3) needs 'regex_expr_ranges' for text "collapsing" and 'wregex_collapsed'.
+    // Optimization: store and reuse 'wregex_collapsed' and 'regex_expr_ranges'.
+
+    // 0xDB80 to 0xDBFF: Private Use High Surrogate (128 range values)
+    static const uint32_t COLLAPSE_CPT_RANGE_FIRST = 0xDB80;
+    static const uint32_t COLLAPSE_CPT_RANGE_LAST  = 0xDBFF;
+
+    // return the collapsed codepoint of an unicode category or subcategory
+    auto category_to_collapsed_cpt = [] (const codepoint_categ categ) {
+        const uint16_t subindex = categ.get_subcategory() >> 7;  // subcategory stored in 3 bits
+        switch(categ.get_category()) {                           // category fits in other 3 bits
+            case codepoint_categ::UNDEF: return COLLAPSE_CPT_RANGE_FIRST + ((0 << 3) | subindex);
+            case codepoint_categ::C:     return COLLAPSE_CPT_RANGE_FIRST + ((1 << 3) | subindex);
+            case codepoint_categ::L:     return COLLAPSE_CPT_RANGE_FIRST + ((2 << 3) | subindex);
+            case codepoint_categ::M:     return COLLAPSE_CPT_RANGE_FIRST + ((3 << 3) | subindex);
+            case codepoint_categ::N:     return COLLAPSE_CPT_RANGE_FIRST + ((4 << 3) | subindex);
+            case codepoint_categ::P:     return COLLAPSE_CPT_RANGE_FIRST + ((5 << 3) | subindex);
+            case codepoint_categ::S:     return COLLAPSE_CPT_RANGE_FIRST + ((6 << 3) | subindex);
+            case codepoint_categ::Z:     return COLLAPSE_CPT_RANGE_FIRST + ((7 << 3) | subindex);
+            default:                     GGML_ABORT("invalid category");
         }
-    }
+    };
+
+    // return the collapsed range of an unicode category (range including all subcategories)
+    auto category_to_collapsed_range = [&] (const codepoint_categ categ) {
+        // \p{Ll} --> \p{Ll} to \p{Ll}  // has subcategory ? yes
+        // \p{Lu} --> \p{Lu} to \p{Lu}  // has subcategory ? yes
+        // \p{L}  --> \p{Ll} to \p{Lu}  // has subcategory ? no
+        GGML_ASSERT((COLLAPSE_CPT_RANGE_FIRST & 0x7) == 0);
+        const uint32_t collapsed = category_to_collapsed_cpt(categ);
+        const uint32_t range = (collapsed & 0x7) ? 0 : 0x7;  // has subcategory ?
+        return std::pair<uint32_t, uint32_t>(collapsed, collapsed + range);
+    };
+
+    GGML_ASSERT(sizeof(wchar_t) == sizeof(u_int32_t));
 
     const auto cpts = unicode_cpts_from_utf8(text);
-
-    // generate a "collapsed" representation of the text, where all codepoints are replaced by a single byte
-    // ref: https://github.com/ggerganov/llama.cpp/pull/6920#issuecomment-2081479935
-    std::string text_collapsed;
-    if (need_collapse) {
-        // collapse all unicode categories
-        text_collapsed.resize(cpts.size());
-
-        for (size_t i = 0; i < cpts.size(); ++i) {
-            // keep single-byte codepoints as is
-            if (cpts[i] < 128) {
-                text_collapsed[i] = cpts[i];
-                continue;
-            }
-
-            const auto flags = unicode_cpt_flags(cpts[i]);
-
-            if (flags.is_whitespace) {
-                //NOTE: C++ std::regex \s does not mach 0x85, Rust and Python regex does.
-                //text_collapsed[i] = (char) 0x85;  // <Next Line> as whitespace fallback
-                text_collapsed[i] = (char) 0x0B;    // <vertical tab> as whitespace fallback
-            } else if (k_ucat_cpt.find(flags.category_flag()) != k_ucat_cpt.end()) {
-                text_collapsed[i] = k_ucat_cpt.at(flags.category_flag());
-            } else {
-                text_collapsed[i] = (char) 0xD0; // fallback
-            }
-        }
-    }
 
     std::vector<size_t> bpe_offsets = { cpts.size() };
 
@@ -715,91 +724,289 @@ std::vector<std::string> unicode_regex_split(const std::string & text, const std
             continue;
         }
 
-        // fallback to general-purpose std::regex / std::wregex
-        try {
-            // if a unicode category is used in the regex, we use the collapsed text and replace the unicode category
-            // with the corresponding collapsed representation
-            bool use_collapsed = false;
-            for (auto & ucat : k_ucat_enum) {
-                if (std::string::npos != regex_expr.find(ucat.first)) {
-                    use_collapsed = true;
+        std::vector<std::pair<uint32_t, uint32_t>> regex_expr_ranges;        // start codepoint, last codepoint
+        std::vector<std::pair<uint32_t, codepoint_categ>> regex_expr_categs; // offset, codepoint category
+        std::map<uint16_t, std::wstring> map_categ_wregex;                   // categ --> regex utf32 string
+        std::wstring wregex_collapsed;
+        std::wstring wtext_collapsed;
+        bool inside_square = false;
+        bool is_cpt_range  = false;
+
+        // (2) Build a list of codepoint ranges
+        // common ranges: \w \d
+        regex_expr_ranges.emplace_back('a', 'z');
+        regex_expr_ranges.emplace_back('A', 'Z');
+        regex_expr_ranges.emplace_back('0', '9');
+        regex_expr_ranges.emplace_back('_', '_');
+
+        // (2) Build a list of codepoint ranges
+        // common ranges: \s
+        for (uint32_t cpt : unicode_vec_whitespace) {
+            const auto categ_prev = unicode_cpt_category(regex_expr_ranges.back().second);
+            const auto categ_last = unicode_cpt_category(cpt);
+            if (categ_prev == categ_last && regex_expr_ranges.back().second + 1 == cpt) {
+                regex_expr_ranges.back().second = cpt;
+            } else {
+                regex_expr_ranges.emplace_back(cpt, cpt);
+            }
+        }
+
+        // (1.1.3) Expand \s adding unicode whitespaces.
+        // std::wregex \s does not match non-ASCII whitespaces
+        static const codepoint_categ categ_whitespace(codepoint_categ::MASK + 1);  // UNDEF category, subcategory 1
+        std::wstring & wregex_whitespaces = map_categ_wregex[categ_whitespace.get_subcategory()];
+        wregex_whitespaces += L"\\s";
+        for (uint32_t cpt : unicode_vec_whitespace) {
+            if (cpt >= 0x80) {  // non-ASCII whitespaces
+                if (wregex_whitespaces.back() + 1 == (wchar_t) cpt) {
+                    if (*(wregex_whitespaces.end() - 2) == '-') {
+                        wregex_whitespaces.back() = cpt;
+                    } else {
+                        wregex_whitespaces += '-';
+                        wregex_whitespaces += cpt;
+                    }
+                } else {
+                    wregex_whitespaces += (wchar_t) cpt;
+                }
+            }
+        }
+
+        const auto cpts_regex = unicode_cpts_from_utf8(regex_expr);
+
+        for (size_t i = 0; i < cpts_regex.size(); ++i) {
+            uint32_t cpt = cpts_regex[i];
+
+            // skip regex metacharacters
+            if (inside_square) {
+                switch(cpt) {
+                    case '^':
+                        if (cpts_regex[i - 1] != '[') {
+                            break;
+                        }
+                        continue;
+                    case ']':
+                        inside_square = false;
+                        continue;
+                    case '-':
+                        is_cpt_range = true;
+                        continue;
+                }
+            } else {
+                switch(cpt) {
+                    case '^':
+                        if (i > 0) {
+                            break;
+                        }
+                        continue;
+                    case '$':
+                        if (i + 1 < cpts_regex.size()) {
+                            break;
+                        }
+                        continue;
+                    case '[':
+                        inside_square = true;
+                        continue;
+                    case '{':
+                        while (cpt && cpt != '}') {
+                            cpt = cpts_regex[++i];
+                        }
+                        continue;
+                    case '}':
+                    case ']':
+                        GGML_ABORT("invalid regex");
+                    case '(':
+                        if (cpts_regex[i + 1] == '?') {  // (?: (?i: (?= (?! (?<= (?<!
+                            if (cpts_regex[i + 2] == ':') {
+                                i += 2;
+                            } else if (cpts_regex[i + 2] == 'i') {
+                                i += 3;
+                                GGML_ASSERT(cpts_regex[i] == ':');
+                            } else {
+                                i += 2 + (cpts_regex[i + 2] == '<');
+                                GGML_ASSERT(cpts_regex[i] == '=' || cpts_regex[i] == '!');
+                            }
+                        }
+                        continue;
+                    case ')':
+                    case '|':
+                    case '.':
+                    case '?':
+                    case '+':
+                    case '*':
+                        continue;
+                }
+            }
+
+            // parse unicode categories and subcategories
+            if (cpt == '\\' && cpts_regex[i + 1] == 'p' && cpts_regex[i + 2] == '{') {
+                GGML_ASSERT(cpts_regex[i + 3] && cpts_regex[i + 4]);
+                codepoint_categ categ = {};
+                if (cpts_regex[i + 4] == '}') {
+                    categ = codepoint_categ::from_chars((char)cpts_regex[i + 3]);
+                } else {
+                    categ = codepoint_categ::from_chars((char)cpts_regex[i + 3], (char)cpts_regex[i + 4]);
+                    GGML_ASSERT(cpts_regex[i + 5] == '}');
+                }
+                // (2) Build a list of codepoint ranges. (2.2) [Optimization] Only build lists of ranges present in the regex.
+                categ.set_flag(codepoint_categ::WHITESPACE, inside_square);  //NOTE: reusing flag 'WHITESPACE' to store 'inside square brackets'
+                regex_expr_categs.emplace_back((uint32_t)i, categ);
+                i += cpts_regex[i + 4] == '}' ? 4 : 5;
+                continue;
+            }
+
+            if (cpt == '\\') {
+                if (cpts_regex[i + 1] == 's' || cpts_regex[i + 1] == 'S') {  // \s \S
+                    // (2) Build a list of codepoint ranges. (2.2) [Optimization] Only build lists of ranges present in the regex.
+                    regex_expr_categs.emplace_back((uint32_t)i, categ_whitespace);
+                    //NOTE: reusing flag 'WHITESPACE' to store 'inside square brackets'
+                    regex_expr_categs.back().second.set_flag(codepoint_categ::WHITESPACE, inside_square);
+                    i += 1;
+                    continue;
+                }
+            }
+
+            // parse more metcharacters and espaped characters
+            if (cpt == '\\') {
+                switch (cpts_regex[i + 1]) {
+                    case 's':  ++i;  continue;  // \s whitespaces
+                    case 'w':  ++i;  continue;  // \w words
+                    case 'd':  ++i;  continue;  // \d digits
+                    case 'S':  ++i;  continue;  // \S no whitespaces
+                    case 'W':  ++i;  continue;  // \W no words
+                    case 'D':  ++i;  continue;  // \D no digits
+                    case 't':  ++i;  cpt = '\t';  break;
+                    case 'r':  ++i;  cpt = '\r';  break;
+                    case 'n':  ++i;  cpt = '\n';  break;
+                    case 'x':  GGML_ABORT("TODO");  //TODO: hex values
+                    case 'u':  GGML_ABORT("TODO");  //TODO: unicode values
+                    case 'U':  GGML_ABORT("TODO");  //TODO: unicode values
+                    default:  // escaped character
+                        GGML_ASSERT(!is_cpt_range);
+                        cpt = cpts_regex[++i];
+                        GGML_ASSERT(cpt < 0x80);
                     break;
                 }
             }
 
-            if (use_collapsed) {
-                // sanity-check that the original regex does not contain any non-ASCII characters
-                const auto cpts_regex = unicode_cpts_from_utf8(regex_expr);
-                for (size_t i = 0; i < cpts_regex.size(); ++i) {
-                    if (cpts_regex[i] >= 128) {
-                        throw std::runtime_error("Regex includes both unicode categories and non-ASCII characters - not supported");
-                    }
-                }
+            // ensure there is not a collission with any "collapsed" codepoints
+            GGML_ASSERT(cpt < COLLAPSE_CPT_RANGE_FIRST || COLLAPSE_CPT_RANGE_LAST < cpt);
 
-                // generate a collapsed representation of the regex
-                std::string regex_expr_collapsed;
-
-                // track if we are inside [], because nested [] are not allowed
-                bool inside = false;
-                for (size_t i = 0; i < regex_expr.size(); ++i) {
-                    if (regex_expr[i] == '[' && (i == 0 || regex_expr[i - 1] != '\\')) {
-                        regex_expr_collapsed += '[';
-                        inside = true;
-                        continue;
-                    }
-
-                    if (inside && regex_expr[i] == ']' && regex_expr[i - 1] != '\\') {
-                        regex_expr_collapsed += ']';
-                        inside = false;
-                        continue;
-                    }
-
-                    if (regex_expr[i + 0] == '\\' && i + 4 < regex_expr.size() &&
-                        regex_expr[i + 1] == 'p' &&
-                        regex_expr[i + 2] == '{' &&
-                        regex_expr[i + 4] == '}') {
-                        const std::string pat = regex_expr.substr(i, 5);
-                        if (k_ucat_enum.find(pat) != k_ucat_enum.end()) {
-                            if (!inside) {
-                                regex_expr_collapsed += '[';
-                            }
-                            regex_expr_collapsed += k_ucat_cpt.at(k_ucat_enum.at(pat));
-                            regex_expr_collapsed += k_ucat_map.at(k_ucat_enum.at(pat));
-                            if (!inside) {
-                                regex_expr_collapsed += ']';
-                            }
-                            i += 4;
-                            continue;
-                        }
-                    }
-
-                    regex_expr_collapsed += regex_expr[i];
-                }
-
-                //printf("text_collapsed: %s\n", text_collapsed.c_str());
-                //printf("regex_expr_collapsed: %s\n", regex_expr_collapsed.c_str());
-                bpe_offsets = unicode_regex_split_stl(text_collapsed, regex_expr_collapsed, bpe_offsets);
+            // (2) Build a list of codepoint ranges
+            if (is_cpt_range) {
+                is_cpt_range = false;
+                regex_expr_ranges.back().second = cpt;
             } else {
-                // no unicode category used, we can use std::wregex directly
-                const std::wstring wregex_expr = unicode_wstring_from_utf8(regex_expr);
+                regex_expr_ranges.emplace_back(cpt, cpt);
+            }
+        }
 
-                // std::wregex \s does not mach non-ASCII whitespaces, using 0x0B as fallback
-                std::wstring wtext(cpts.begin(), cpts.end());
-                for (size_t i = 0; i < wtext.size(); ++i) {
-                    if (wtext[i] > 0x7F && unicode_cpt_flags(wtext[i]).is_whitespace) {
-                        wtext[i] = 0x0B;
+        // assign collapsed codepoint to each category regex \p{...}
+        for (auto offset_categ : regex_expr_categs) {
+            const uint16_t subcateg = offset_categ.second.get_subcategory();
+            auto it = map_categ_wregex.find(subcateg);
+            if (it == map_categ_wregex.end()) {
+                // (1.2) Each list includes its respective "collaped" codepoint/range.
+                const auto collapsed_range = category_to_collapsed_range(offset_categ.second);
+                map_categ_wregex[subcateg] = (wchar_t) collapsed_range.first;
+                if (collapsed_range.first < collapsed_range.second) {
+                    map_categ_wregex[subcateg] += (wchar_t) '-';
+                    map_categ_wregex[subcateg] += (wchar_t) collapsed_range.second;
+                }
+            }
+        }
+
+        // copy found regex ranges to each category regex
+        uint32_t regex_expr_ranges_uniques = 0;
+        std::pair<uint32_t, uint32_t> prev_range = {0, -1};
+        std::sort(regex_expr_ranges.begin(), regex_expr_ranges.end());
+        for (auto range : regex_expr_ranges) {
+            range.first = std::max(range.first, prev_range.second + 1);  // prevent overlapping  //TODO: as error?
+            if (range.first > range.second) {  // skip overlapping and repetitions
+                continue;
+            }
+            // (1.1) Generate a replacement list of codepoint ranges
+            codepoint_categ categ = unicode_cpt_category(range.first);
+            GGML_ASSERT(categ == unicode_cpt_category(range.second));
+            auto it0 = map_categ_wregex.find(categ.get_category());
+            auto it1 = map_categ_wregex.find(categ.get_subcategory());
+            for (const auto & it : {it0, it1}) {
+                if (it != map_categ_wregex.end()) {
+                    it->second += (wchar_t) range.first;
+                    if (range.first < range.second) {
+                        it->second += (wchar_t) '-';
+                        it->second += (wchar_t) range.second;
                     }
                 }
-
-                //printf("text: %s\n", text.c_str());
-                //printf("regex_expr: %s\n", regex_expr.c_str());
-                bpe_offsets = unicode_regex_split_stl(wtext, wregex_expr, bpe_offsets);
             }
-        } catch (std::regex_error & e) {
-            fprintf(stderr, "Failed to process regex: '%s'\n", regex_expr.c_str());
-            fprintf(stderr, "Regex error: %s\n", e.what());
-            throw std::runtime_error("Failed to process regex");
+            prev_range = range;
+            regex_expr_ranges[regex_expr_ranges_uniques++] = range;
         }
+        regex_expr_ranges.resize(regex_expr_ranges_uniques);
+
+        // replace categories with respective collapsed codepoint and ranges
+        uint32_t i = 0;
+        wregex_collapsed.reserve(regex_expr.size());
+        for (auto offset_categ : regex_expr_categs) {
+            while (i < offset_categ.first) {  // copy original regex until reaching the category
+                wregex_collapsed += (wchar_t) cpts_regex[i];
+                i++;
+            }
+            GGML_ASSERT(cpts_regex[i] == '\\');
+            const uint32_t cpt_next = cpts_regex[i + 1];
+            const bool is_negated = cpt_next < 'a';  // is uppercase
+            if (cpt_next == 'p' || cpt_next == 'P') {
+                GGML_ASSERT(cpts_regex[i + 2] == '{' && cpts_regex[i + 3]);
+                i += cpts_regex[i + 4] == '}' ? 5 : 6;
+                GGML_ASSERT(cpts_regex[i - 1] == '}');
+            } else {
+                GGML_ASSERT(cpt_next == 's' || cpt_next == 'w' || cpt_next == 'd' ||  // \s \w \d
+                            cpt_next == 'S' || cpt_next == 'W' || cpt_next == 'D');   // \S \W \D
+                i += 2;
+            }
+            // (1.4) Build the "collapsed" regex replacing categories and subcategories by this "collapsed" lists.
+            const codepoint_categ categ = offset_categ.second;
+            auto it = map_categ_wregex.find(categ.get_subcategory());
+            GGML_ASSERT(it != map_categ_wregex.end());
+            if (it != map_categ_wregex.end()) {
+                if (categ.is_whitespace()) {  // inside square brackets  //NOTE: reusing flag WHITESPACE
+                    GGML_ASSERT(is_negated == false);
+                    wregex_collapsed += it->second;
+                } else if(it->second.size() == 1 && !is_negated) {
+                    wregex_collapsed += it->second;
+                } else {
+                    wregex_collapsed += '[';
+                    if (is_negated) {
+                        wregex_collapsed += '^';
+                    }
+                    wregex_collapsed += it->second;
+                    wregex_collapsed += ']';
+                }
+            }
+        }
+        while (i < (uint32_t)cpts_regex.size()) {
+            wregex_collapsed += cpts_regex[i];
+            i++;
+        }
+
+        // collapse text codepoints not included in 'regex_expr_ranges'
+        wtext_collapsed.reserve(cpts.size());
+        for (uint32_t cpt : cpts) {
+            const codepoint_categ categ = unicode_cpt_category(cpt);
+            // (3.1) Search codepoints in the regex codepoint ranges.
+            auto it = std::lower_bound(regex_expr_ranges.begin(), regex_expr_ranges.end(), cpt,
+                [] (const std::pair<uint32_t, uint32_t> range, const uint32_t cpt) {
+                    return range.second < cpt;
+                }
+            );
+            if (it == regex_expr_ranges.end() || cpt < it->first || it->second < cpt) {
+                // (3.3) If not found, replace with its "collapsed" codepoint so the "collapsed" regex can process it.
+                cpt = category_to_collapsed_cpt(categ);  // not found, collapse to category codepoint
+            }
+            // (3.2) If found, it is a valid codepoint (the "collapsed" regex uses it), literal copy.
+            wtext_collapsed += (wchar_t) cpt;
+        }
+
+        bpe_offsets = unicode_regex_split_stl(wtext_collapsed, wregex_collapsed, bpe_offsets);
     }
 
     std::vector<std::string> bpe_words;
