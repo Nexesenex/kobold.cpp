@@ -19,7 +19,6 @@
 #include <map>
 #include <memory>
 #include <mutex>
-#include <unordered_map>
 
 #include "ggml.h"
 #include "ggml-backend-impl.h"
@@ -181,7 +180,7 @@ struct vk_device_struct {
     vk_pipeline pipeline_add_f32, pipeline_add_f16_f32_f16;
     vk_pipeline pipeline_mul_f32;
     vk_pipeline pipeline_div_f32;
-    vk_pipeline pipeline_concat_f32, pipeline_concat_i32;
+    vk_pipeline pipeline_concat_f32, pipeline_concat_f16, pipeline_concat_i32;
     vk_pipeline pipeline_upscale_f32;
     vk_pipeline pipeline_scale_f32;
     vk_pipeline pipeline_sqr_f32;
@@ -195,6 +194,7 @@ struct vk_device_struct {
     vk_pipeline pipeline_gelu_quick_f32;
     vk_pipeline pipeline_silu_f32;
     vk_pipeline pipeline_relu_f32;
+    vk_pipeline pipeline_leaky_relu_f32;
     vk_pipeline pipeline_tanh_f32;
     vk_pipeline pipeline_diag_mask_inf_f32;
     vk_pipeline pipeline_soft_max_f32, pipeline_soft_max_f32_f16;
@@ -406,7 +406,7 @@ struct vk_context_struct {
     vk_submission * s;
     std::vector<vk_sequence> seqs;
 
-    ggml_tensor * exit_tensor;
+    int exit_tensor_idx;
 
     std::vector<vk_staging_memcpy> in_memcpys;
     std::vector<vk_staging_memcpy> out_memcpys;
@@ -494,7 +494,7 @@ struct ggml_backend_vk_context {
     vk_context_ref compute_ctx;
     vk_context_ref transfer_ctx;
 
-    std::unordered_map<ggml_tensor *, vk_context_ref> tensor_ctxs;
+    std::vector<vk_context_ref> tensor_ctxs;
 };
 
 #ifdef GGML_VULKAN_MEMORY_DEBUG
@@ -1646,6 +1646,7 @@ static void ggml_vk_load_shaders(vk_device& device) {
     ggml_vk_create_pipeline(device, device->pipeline_div_f32, "div_f32", div_f32_len, div_f32_data, "main", 3, sizeof(vk_op_binary_push_constants), {512, 1, 1}, {}, 1);
 
     ggml_vk_create_pipeline(device, device->pipeline_concat_f32, "concat_f32", concat_f32_len, concat_f32_data, "main", 3, sizeof(vk_op_binary_push_constants), {512, 1, 1}, {}, 1);
+    ggml_vk_create_pipeline(device, device->pipeline_concat_f16, "concat_f16", concat_f16_len, concat_f16_data, "main", 3, sizeof(vk_op_binary_push_constants), {512, 1, 1}, {}, 1);
     ggml_vk_create_pipeline(device, device->pipeline_concat_i32, "concat_i32", concat_i32_len, concat_i32_data, "main", 3, sizeof(vk_op_binary_push_constants), {512, 1, 1}, {}, 1);
 
     ggml_vk_create_pipeline(device, device->pipeline_upscale_f32, "upscale_f32", upscale_f32_len, upscale_f32_data, "main", 2, sizeof(vk_op_upscale_push_constants), {512, 1, 1}, {}, 1);
@@ -1662,6 +1663,7 @@ static void ggml_vk_load_shaders(vk_device& device) {
     ggml_vk_create_pipeline(device, device->pipeline_gelu_quick_f32, "gelu_quick_f32", gelu_quick_f32_len, gelu_quick_f32_data, "main", 2, sizeof(vk_op_push_constants), {512, 1, 1}, {}, 1);
     ggml_vk_create_pipeline(device, device->pipeline_silu_f32, "silu_f32", silu_f32_len, silu_f32_data, "main", 2, sizeof(vk_op_push_constants), {512, 1, 1}, {}, 1);
     ggml_vk_create_pipeline(device, device->pipeline_relu_f32, "relu_f32", relu_f32_len, relu_f32_data, "main", 2, sizeof(vk_op_push_constants), {512, 1, 1}, {}, 1);
+    ggml_vk_create_pipeline(device, device->pipeline_leaky_relu_f32, "leaky_relu_f32", leaky_relu_f32_len, leaky_relu_f32_data, "main", 2, sizeof(vk_op_push_constants), {512, 1, 1}, {}, 1);
     ggml_vk_create_pipeline(device, device->pipeline_tanh_f32, "tanh_f32", tanh_f32_len, tanh_f32_data, "main", 2, sizeof(vk_op_push_constants), {512, 1, 1}, {}, 1);
 
     ggml_vk_create_pipeline(device, device->pipeline_diag_mask_inf_f32, "diag_mask_inf_f32", diag_mask_inf_f32_len, diag_mask_inf_f32_data, "main", 2, sizeof(vk_op_diag_mask_push_constants), {512, 1, 1}, {}, 1);
@@ -2106,9 +2108,9 @@ void ggml_vk_instance_init() {
 }
 
 static void ggml_vk_init(ggml_backend_vk_context * ctx, size_t idx) {
+    GGML_ASSERT(idx < vk_instance.device_indices.size());
     VK_LOG_DEBUG("ggml_vk_init(" << ctx->name << ", " << idx << ")");
     ggml_vk_instance_init();
-    GGML_ASSERT(idx < vk_instance.device_indices.size());
 
     ctx->name = GGML_VK_NAME + std::to_string(idx);
 
@@ -2158,7 +2160,7 @@ static vk_pipeline ggml_vk_get_to_fp16(ggml_backend_vk_context * ctx, ggml_type 
 }
 
 static vk_matmul_pipeline ggml_vk_get_mul_mat_mat_pipeline(ggml_backend_vk_context * ctx, ggml_type src0_type, ggml_type src1_type) {
-    VK_LOG_DEBUG("ggml_vk_get_mul_mat_mat_pipeline()");
+    VK_LOG_DEBUG("ggml_vk_get_mul_mat_mat_pipeline(" << ggml_type_name(src0_type) << ", " << ggml_type_name(src1_type) << ")");
     if (src0_type == GGML_TYPE_F32 && src1_type == GGML_TYPE_F32) {
         return ctx->device->pipeline_matmul_f32;
     }
@@ -3948,6 +3950,9 @@ static vk_pipeline ggml_vk_op_get_pipeline(ggml_backend_vk_context * ctx, const 
         if (src0->type == GGML_TYPE_F32 && src1->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F32) {
             return ctx->device->pipeline_concat_f32;
         }
+        if (src0->type == GGML_TYPE_F16 && src1->type == GGML_TYPE_F16 && dst->type == GGML_TYPE_F16) {
+            return ctx->device->pipeline_concat_f16;
+        }
         if (src0->type == GGML_TYPE_I32 && src1->type == GGML_TYPE_I32 && dst->type == GGML_TYPE_I32) {
             return ctx->device->pipeline_concat_i32;
         }
@@ -4085,6 +4090,11 @@ static vk_pipeline ggml_vk_op_get_pipeline(ggml_backend_vk_context * ctx, const 
     case GGML_OP_TIMESTEP_EMBEDDING:
         if (src0->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F32) {
             return ctx->device->pipeline_timestep_embedding_f32;
+        }
+        return nullptr;
+    case GGML_OP_LEAKY_RELU:
+        if (src0->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F32) {
+            return ctx->device->pipeline_leaky_relu_f32;
         }
         return nullptr;
     default:
@@ -4752,6 +4762,11 @@ static void ggml_vk_timestep_embedding(ggml_backend_vk_context * ctx, vk_context
     ggml_vk_op_f32<vk_op_timestep_embedding_push_constants>(ctx, subctx, src0, nullptr, nullptr, dst, GGML_OP_TIMESTEP_EMBEDDING, {
         nb1, dim, max_period,
     });
+}
+
+static void ggml_vk_leaky_relu(ggml_backend_vk_context * ctx, vk_context& subctx, const ggml_tensor * src0, ggml_tensor * dst) {
+    const float * op_params = (const float *)dst->op_params;
+    ggml_vk_op_f32<vk_op_push_constants>(ctx, subctx, src0, nullptr, nullptr, dst, GGML_OP_LEAKY_RELU, { (uint32_t)ggml_nelements(src0), 0, op_params[0], 0.0f });
 }
 
 #ifdef GGML_VULKAN_RUN_TESTS
@@ -5431,7 +5446,7 @@ static void ggml_vk_preallocate_buffers_graph(ggml_backend_vk_context * ctx, ggm
 
     const bool y_f32_kernel = use_src1 && src1->type == GGML_TYPE_F32 && !y_non_contig;
 
-    bool mmp = (use_src0 && use_src1) ? ggml_vk_get_mul_mat_mat_pipeline(ctx, src0_type, y_non_contig ? GGML_TYPE_F16 : src1->type) != nullptr : false;
+    bool mmp = (use_src0 && use_src1 && (node->op == GGML_OP_MUL_MAT || node->op == GGML_OP_MUL_MAT_ID)) ? ggml_vk_get_mul_mat_mat_pipeline(ctx, src0->type, y_non_contig ? GGML_TYPE_F16 : src1->type) != nullptr : false;
 
     const bool qx_needs_dequant = use_src0 && (!mmp || x_non_contig);
     const bool qy_needs_dequant = use_src1 && ((src1->type != GGML_TYPE_F16 && !y_f32_kernel) || y_non_contig);
@@ -5485,6 +5500,7 @@ static void ggml_vk_preallocate_buffers_graph(ggml_backend_vk_context * ctx, ggm
     case GGML_OP_SUM_ROWS:
     case GGML_OP_IM2COL:
     case GGML_OP_TIMESTEP_EMBEDDING:
+    case GGML_OP_LEAKY_RELU:
         break;
     case GGML_OP_UNARY:
         switch (ggml_get_unary_op(node)) {
@@ -5701,7 +5717,7 @@ static void ggml_vk_preallocate_buffers(ggml_backend_vk_context * ctx) {
     }
 }
 
-static void ggml_vk_build_graph(ggml_backend_vk_context * ctx, ggml_tensor * node, bool last_node){
+static void ggml_vk_build_graph(ggml_backend_vk_context * ctx, ggml_tensor * node, int node_idx, bool last_node){
     ggml_tensor_extra_gpu * extra = (ggml_tensor_extra_gpu *) node->extra;
 
     if (ggml_is_empty(node) || extra == nullptr) {
@@ -5762,6 +5778,7 @@ static void ggml_vk_build_graph(ggml_backend_vk_context * ctx, ggml_tensor * nod
     case GGML_OP_SUM_ROWS:
     case GGML_OP_IM2COL:
     case GGML_OP_TIMESTEP_EMBEDDING:
+    case GGML_OP_LEAKY_RELU:
         break;
     default:
         std::cerr << "ggml_vulkan: Error: Missing op: " << ggml_op_name(node->op) << std::endl;
@@ -5883,6 +5900,10 @@ static void ggml_vk_build_graph(ggml_backend_vk_context * ctx, ggml_tensor * nod
         ggml_vk_timestep_embedding(ctx, compute_ctx, src0, node);
 
         break;
+    case GGML_OP_LEAKY_RELU:
+        ggml_vk_leaky_relu(ctx, compute_ctx, src0, node);
+
+        break;
     case GGML_OP_MUL_MAT:
         ggml_vk_mul_mat(ctx, compute_ctx, src0, src1, node);
 
@@ -5895,7 +5916,7 @@ static void ggml_vk_build_graph(ggml_backend_vk_context * ctx, ggml_tensor * nod
         return;
     }
 
-    ctx->tensor_ctxs[node] = compute_ctx;
+    ctx->tensor_ctxs[node_idx] = compute_ctx;
 
 #ifdef GGML_VULKAN_CHECK_RESULTS
     // Force context reset on each node so that each tensor ends up in its own context
@@ -5905,12 +5926,12 @@ static void ggml_vk_build_graph(ggml_backend_vk_context * ctx, ggml_tensor * nod
 
     if (last_node) {
         ggml_vk_ctx_end(compute_ctx);
-        compute_ctx->exit_tensor = node;
+        compute_ctx->exit_tensor_idx = node_idx;
         ctx->compute_ctx.reset();
     }
 }
 
-static bool ggml_vk_compute_forward(ggml_backend_vk_context * ctx, ggml_tensor * tensor){
+static bool ggml_vk_compute_forward(ggml_backend_vk_context * ctx, ggml_tensor * tensor, int tensor_idx){
     ggml_tensor_extra_gpu * extra = nullptr;
 
     switch (tensor->op) {
@@ -5942,6 +5963,7 @@ static bool ggml_vk_compute_forward(ggml_backend_vk_context * ctx, ggml_tensor *
     case GGML_OP_SUM_ROWS:
     case GGML_OP_IM2COL:
     case GGML_OP_TIMESTEP_EMBEDDING:
+    case GGML_OP_LEAKY_RELU:
     case GGML_OP_REPEAT:
         extra = (ggml_tensor_extra_gpu *) tensor->extra;
 
@@ -5978,7 +6000,7 @@ static bool ggml_vk_compute_forward(ggml_backend_vk_context * ctx, ggml_tensor *
     ggml_vk_check_results_0(tensor);
 #endif
 
-    vk_context subctx = ctx->tensor_ctxs[tensor].lock();
+    vk_context subctx = ctx->tensor_ctxs[tensor_idx].lock();
 
     // Only run if ctx hasn't been submitted yet
     if (!subctx->seqs.empty()) {
@@ -5990,7 +6012,7 @@ static bool ggml_vk_compute_forward(ggml_backend_vk_context * ctx, ggml_tensor *
         ggml_vk_submit(subctx, ctx->fence);
     }
 
-    if (tensor == subctx->exit_tensor) {
+    if (tensor_idx == subctx->exit_tensor_idx) {
         VK_CHECK(ctx->device->device.waitForFences({ ctx->fence }, true, UINT64_MAX), "ggml_vk_compute_forward waitForFences");
         ctx->device->device.resetFences({ ctx->fence });
 
@@ -6001,8 +6023,6 @@ static bool ggml_vk_compute_forward(ggml_backend_vk_context * ctx, ggml_tensor *
         subctx->in_memcpys.clear();
         subctx->out_memcpys.clear();
     }
-
-    ctx->tensor_ctxs.erase(tensor);
 
     return true;
 }
@@ -6496,8 +6516,11 @@ GGML_CALL static ggml_status ggml_backend_vk_graph_compute(ggml_backend_t backen
         last_node -= 1;
     }
 
+    // Reserve tensor context space for all nodes
+    ctx->tensor_ctxs.resize(cgraph->n_nodes);
+
     for (int i = 0; i < cgraph->n_nodes; i++) {
-        ggml_vk_build_graph(ctx,cgraph->nodes[i], i == last_node);
+        ggml_vk_build_graph(ctx, cgraph->nodes[i], i, i == last_node);
     }
 
     for (int i = 0; i < cgraph->n_nodes; i++) {
@@ -6507,7 +6530,7 @@ GGML_CALL static ggml_status ggml_backend_vk_graph_compute(ggml_backend_t backen
             continue;
         }
 
-        bool ok = ggml_vk_compute_forward(ctx, node);
+        bool ok = ggml_vk_compute_forward(ctx, node, i);
         if (!ok) {
             if (node->op == GGML_OP_UNARY) {
                 std::cerr << __func__ << ": error: op not supported UNARY " << node->name << " (" << ggml_unary_op_name(static_cast<ggml_unary_op>(node->op_params[0])) << ")" << std::endl;
@@ -6644,6 +6667,7 @@ GGML_CALL static bool ggml_backend_vk_supports_op(ggml_backend_t backend, const 
         case GGML_OP_SUM_ROWS:
         case GGML_OP_IM2COL:
         case GGML_OP_TIMESTEP_EMBEDDING:
+        case GGML_OP_LEAKY_RELU:
             return true;
         default:
             return false;
@@ -7101,12 +7125,12 @@ static void ggml_vk_check_results_0(ggml_tensor * tensor) {
         const int mode        = ((int32_t *) tensor->op_params)[2];
         //const int n_ctx_ggml       = ((int32_t *) tensor->op_params)[3];
         const int n_ctx_orig_ggml  = ((int32_t *) tensor->op_params)[4];
-        float freq_base       = ((float *)   tensor->op_params)[5];
-        float freq_scale      = ((float *)   tensor->op_params)[6];
-        float ext_factor      = ((float *)   tensor->op_params)[7];
-        float attn_factor     = ((float *)   tensor->op_params)[8];
-        float beta_fast       = ((float *)   tensor->op_params)[9];
-        float beta_slow       = ((float *)   tensor->op_params)[10];
+        const float freq_base       = ((float *) tensor->op_params)[5];
+        const float freq_scale      = ((float *) tensor->op_params)[6];
+        const float ext_factor      = ((float *) tensor->op_params)[7];
+        const float attn_factor     = ((float *) tensor->op_params)[8];
+        const float beta_fast       = ((float *) tensor->op_params)[9];
+        const float beta_slow       = ((float *) tensor->op_params)[10];
         tensor_clone = ggml_rope_ext(ggml_ctx, src0_clone, src1_clone, src2_clone, n_dims, mode, n_ctx_orig_ggml, freq_base, freq_scale, ext_factor, attn_factor, beta_fast, beta_slow);
     } else if (tensor->op == GGML_OP_UNARY) {
         switch (ggml_get_unary_op(tensor)) {
@@ -7167,6 +7191,9 @@ static void ggml_vk_check_results_0(ggml_tensor * tensor) {
         const int32_t dim = tensor->op_params[0];
         const int32_t max_period = tensor->op_params[1];
         tensor_clone = ggml_timestep_embedding(ggml_ctx, src0_clone, dim, max_period);
+    } else if (tensor->op == GGML_OP_LEAKY_RELU) {
+        const float * op_params = (const float *)tensor->op_params;
+        tensor_clone = ggml_leaky_relu(ggml_ctx, src0_clone, op_params[0], false);
     } else {
         std::cerr << "Missing vk_check_results OP: " << ggml_op_name(tensor->op) << std::endl;
         GGML_ABORT("fatal error");

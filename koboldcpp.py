@@ -2288,9 +2288,11 @@ def is_ipv6_supported():
     try:
         # Attempt to create an IPv6 socket
         sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
         sock.close()
         return True
-    except socket.error:
+    except Exception as ex:
         return False
 
 def RunServerMultiThreaded(addr, port):
@@ -2304,6 +2306,7 @@ def RunServerMultiThreaded(addr, port):
     if is_ipv6_supported():
         ipv6_sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
         ipv6_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        ipv6_sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
 
     if args.ssl and sslvalid:
         import ssl
@@ -2318,9 +2321,14 @@ def RunServerMultiThreaded(addr, port):
     numThreads = 24
     ipv4_sock.bind((addr, port))
     ipv4_sock.listen(numThreads)
+
     if ipv6_sock:
-        ipv6_sock.bind((addr, port))
-        ipv6_sock.listen(numThreads)
+        try:
+            ipv6_sock.bind((addr, port))
+            ipv6_sock.listen(numThreads)
+        except Exception as ex:
+            ipv6_sock = None
+            print("IPv6 Socket Failed to Bind. IPv6 will be unavailable.")
 
     class Thread(threading.Thread):
         def __init__(self, i):

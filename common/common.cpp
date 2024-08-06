@@ -2064,8 +2064,8 @@ std::string fs_get_cache_file(const std::string & filename) {
 //
 // Model utils
 //
-
-std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_params(gpt_params & params) {
+struct llama_init_result llama_init_from_gpt_params(gpt_params & params) {
+    llama_init_result iparams;
     auto mparams = llama_model_params_from_gpt_params(params);
 
     llama_model * model = nullptr;
@@ -2080,7 +2080,7 @@ std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_par
 
     if (model == NULL) {
         fprintf(stderr, "%s: error: failed to load model '%s'\n", __func__, params.model.c_str());
-        return std::make_tuple(nullptr, nullptr);
+        return iparams;
     }
 
     auto cparams = llama_context_params_from_gpt_params(params);
@@ -2089,7 +2089,7 @@ std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_par
     if (lctx == NULL) {
         fprintf(stderr, "%s: error: failed to create context with model '%s'\n", __func__, params.model.c_str());
         llama_free_model(model);
-        return std::make_tuple(nullptr, nullptr);
+        return iparams;
     }
 
     if (!params.control_vectors.empty()) {
@@ -2100,7 +2100,7 @@ std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_par
         if (cvec.n_embd == -1) {
             llama_free(lctx);
             llama_free_model(model);
-            return std::make_tuple(nullptr, nullptr);
+            return iparams;
         }
 
         int err = llama_control_vector_apply(lctx,
@@ -2112,7 +2112,7 @@ std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_par
         if (err) {
             llama_free(lctx);
             llama_free_model(model);
-            return std::make_tuple(nullptr, nullptr);
+            return iparams;
         }
     }
 
@@ -2124,7 +2124,7 @@ std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_par
             fprintf(stderr, "%s: error: failed to apply lora adapter\n", __func__);
             llama_free(lctx);
             llama_free_model(model);
-            return std::make_tuple(nullptr, nullptr);
+            return iparams;
         }
         llama_lora_adapter_set(lctx, adapter, lora_scale);
     }
@@ -2160,7 +2160,9 @@ std::tuple<struct llama_model *, struct llama_context *> llama_init_from_gpt_par
         llama_reset_timings(lctx);
     }
 
-    return std::make_tuple(model, lctx);
+    iparams.model   = model;
+    iparams.context = lctx;
+    return iparams;
 }
 
 struct llama_model_params llama_model_params_from_gpt_params(const gpt_params & params) {
