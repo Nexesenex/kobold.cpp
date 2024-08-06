@@ -322,6 +322,54 @@ int main(int argc, char ** argv) {
             } else {
                 usage(argv[0]);
             }
+        } else if (strcmp(argv[arg_idx], "--attn-q-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.attn_q_type = parse_ggml_type(argv[++arg_idx]);
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--attn-k-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.attn_k_type = parse_ggml_type(argv[++arg_idx]);
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--attn-v-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.attn_v_type = parse_ggml_type(argv[++arg_idx]);
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--attn-qkv-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.attn_qkv_type = parse_ggml_type(argv[++arg_idx]);
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--attn-output-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.attn_output_type = parse_ggml_type(argv[++arg_idx]);
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--ffn-gate-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.ffn_gate_type = parse_ggml_type(argv[++arg_idx]);
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--ffn-down-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.ffn_down_type = parse_ggml_type(argv[++arg_idx]);
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--ffn-up-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.ffn_up_type = parse_ggml_type(argv[++arg_idx]);
+            } else {
+                usage(argv[0]);
+            }
         } else if (strcmp(argv[arg_idx], "--override-kv") == 0) {
             if (arg_idx == argc-1 || !string_parse_kv_override(argv[++arg_idx], kv_overrides)) {
                 usage(argv[0]);
