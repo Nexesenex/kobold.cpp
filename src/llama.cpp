@@ -4529,6 +4529,7 @@ static std::string llama_model_ftype_name(llama_ftype ftype) {
         case LLAMA_FTYPE_MOSTLY_Q4_0_4_4: return "Q4_0_4_4";
         case LLAMA_FTYPE_MOSTLY_Q4_0_4_8: return "Q4_0_4_8";
         case LLAMA_FTYPE_MOSTLY_Q4_0_8_8: return "Q4_0_8_8";
+        case LLAMA_FTYPE_CQS:             return "Custom Quantization Scheme";
 
         default: return "unknown, may not work";
     }
@@ -15906,7 +15907,10 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
             else if (ftype == LLAMA_FTYPE_MOSTLY_IQ4_XSR) new_type = GGML_TYPE_IQ4_XS;
         }
     } else if (name.find("attn_v.weight") != std::string::npos) {
-        if (qs.model.hparams.n_expert >= 4) {
+        if (ftype == LLAMA_FTYPE_CQS && qs.params->attn_v_type < GGML_TYPE_COUNT) {
+            new_type = qs.params->attn_v_type;
+        }
+        else if (qs.model.hparams.n_expert >= 4) {
             // for the 8-expert model, bumping this to Q8_0 trades just ~128MB
             // TODO: explore better strategies
             if (ftype == LLAMA_FTYPE_MOSTLY_Q2_K   || ftype == LLAMA_FTYPE_MOSTLY_Q2_K_S || ftype == LLAMA_FTYPE_MOSTLY_IQ2_XXS ||
@@ -15969,7 +15973,10 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
         }
         ++qs.i_attention_wv;
     } else if (name.find("attn_k.weight") != std::string::npos) {
-        if (qs.model.hparams.n_expert >= 4) {
+        if (ftype == LLAMA_FTYPE_CQS && qs.params->attn_k_type < GGML_TYPE_COUNT) {
+            new_type = qs.params->attn_k_type;
+        }
+        else if (qs.model.hparams.n_expert >= 4) {
             // for the 8-expert model, bumping this to Q8_0 trades just ~128MB
             // TODO: explore better strategies
             if (ftype == LLAMA_FTYPE_MOSTLY_Q2_K   || ftype == LLAMA_FTYPE_MOSTLY_Q2_K_S || ftype == LLAMA_FTYPE_MOSTLY_IQ2_XXS ||
@@ -16022,7 +16029,10 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
         }
         ++qs.i_attention_wk;
     } else if (name.find("attn_q.weight") != std::string::npos) {
-        if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXS) new_type = GGML_TYPE_IQ2_S;
+        if (ftype == LLAMA_FTYPE_CQS && qs.params->attn_q_type < GGML_TYPE_COUNT) {
+            new_type = qs.params->attn_q_type;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXS) new_type = GGML_TYPE_IQ2_S;
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_S) new_type = GGML_TYPE_IQ3_XXS;
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_XXS || ftype == LLAMA_FTYPE_MOSTLY_IQ2_XS || ftype == LLAMA_FTYPE_MOSTLY_IQ1_S ||
                 ftype == LLAMA_FTYPE_MOSTLY_IQ2_S    || ftype == LLAMA_FTYPE_MOSTLY_IQ2_M  || ftype == LLAMA_FTYPE_MOSTLY_IQ1_M ||
@@ -16044,7 +16054,10 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
     } else if (name.find("ffn_down") != std::string::npos) {
         auto info = layer_info(qs.i_ffn_down, qs.n_ffn_down, name.c_str());
         int i_layer = info.first, n_layer = info.second;
-        if      (ftype == LLAMA_FTYPE_MOSTLY_Q2_K || ftype == LLAMA_FTYPE_MOSTLY_Q2_K_L) new_type = GGML_TYPE_Q3_K;
+        if (ftype == LLAMA_FTYPE_CQS && qs.params->ffn_down_type < GGML_TYPE_COUNT) {
+            new_type = qs.params->ffn_down_type;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_Q2_K || ftype == LLAMA_FTYPE_MOSTLY_Q2_K_L) new_type = GGML_TYPE_Q3_K;
         else if (ftype == LLAMA_FTYPE_MOSTLY_Q2_K_S && (use_more_bits(i_layer, n_layer))) new_type = GGML_TYPE_Q3_K;
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_XS && (i_layer < n_layer/8)) new_type = GGML_TYPE_IQ2_XXS;
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_S || ftype == LLAMA_FTYPE_MOSTLY_IQ1_M) {
@@ -16105,7 +16118,10 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
         }
         ++qs.i_ffn_down;
     } else if (name.find("attn_output.weight") != std::string::npos) {
-        if (arch != LLM_ARCH_FALCON) {
+        if (ftype == LLAMA_FTYPE_CQS && qs.params->attn_output_type < GGML_TYPE_COUNT) {
+            new_type = qs.params->attn_output_type;
+        }
+        else if (arch != LLM_ARCH_FALCON) {
             if (qs.model.hparams.n_expert >= 4) {
                 if (ftype == LLAMA_FTYPE_MOSTLY_Q2_K   || ftype == LLAMA_FTYPE_MOSTLY_IQ3_XS || ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXS ||
                     ftype == LLAMA_FTYPE_MOSTLY_Q2_K_L || ftype == LLAMA_FTYPE_MOSTLY_IQ2_XL  || ftype == LLAMA_FTYPE_MOSTLY_IQ3_XL ||
@@ -16143,7 +16159,10 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
         ++qs.i_attention_wo;
     }
     else if (name.find("attn_qkv.weight") != std::string::npos) {
-        if (ftype == LLAMA_FTYPE_MOSTLY_Q3_K_M || ftype == LLAMA_FTYPE_MOSTLY_Q3_K_L) {
+        if (ftype == LLAMA_FTYPE_CQS && qs.params->attn_qkv_type < GGML_TYPE_COUNT) {
+            new_type = qs.params->attn_qkv_type;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_Q3_K_M || ftype == LLAMA_FTYPE_MOSTLY_Q3_K_L) {
             new_type = GGML_TYPE_Q4_K;
         }
         else if (ftype == LLAMA_FTYPE_MOSTLY_Q2_K || ftype == LLAMA_FTYPE_MOSTLY_Q2_K_L) new_type = GGML_TYPE_Q3_K;
@@ -16168,7 +16187,10 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
     else if (name.find("ffn_gate") != std::string::npos) {
         auto info = layer_info(qs.i_ffn_gate, qs.n_ffn_gate, name.c_str());
         int i_layer = info.first, n_layer = info.second;
-        if (ftype == LLAMA_FTYPE_MOSTLY_Q2_K_L && (use_more_bits(i_layer, n_layer))) new_type = GGML_TYPE_Q3_K;
+        if (ftype == LLAMA_FTYPE_CQS && qs.params->ffn_gate_type < GGML_TYPE_COUNT) {
+            new_type = qs.params->ffn_gate_type;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_Q2_K_L && (use_more_bits(i_layer, n_layer))) new_type = GGML_TYPE_Q3_K;
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_S && (i_layer < n_layer/8)) new_type = GGML_TYPE_IQ2_XXS;
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_M && (i_layer < n_layer/8)) new_type = GGML_TYPE_IQ2_XXS;
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_XL && (use_more_bits(i_layer, n_layer))) new_type = GGML_TYPE_IQ2_XXS;
@@ -16183,7 +16205,10 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
     else if (name.find("ffn_up") != std::string::npos) {
         auto info = layer_info(qs.i_ffn_up, qs.n_ffn_up, name.c_str());
         int i_layer = info.first, n_layer = info.second;
-        if (ftype == LLAMA_FTYPE_MOSTLY_Q2_K_L && (use_more_bits(i_layer, n_layer))) new_type = GGML_TYPE_Q3_K;
+        if (ftype == LLAMA_FTYPE_CQS && qs.params->ffn_up_type < GGML_TYPE_COUNT) {
+            new_type = qs.params->ffn_up_type;
+        }
+        else if (ftype == LLAMA_FTYPE_MOSTLY_Q2_K_L && (use_more_bits(i_layer, n_layer))) new_type = GGML_TYPE_Q3_K;
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_S && (i_layer < n_layer/8)) new_type = GGML_TYPE_IQ2_XXS;
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_M && (i_layer < n_layer/8)) new_type = GGML_TYPE_IQ2_XXS;
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_XL && (use_more_bits(i_layer, n_layer))) new_type = GGML_TYPE_IQ2_XXS;
@@ -16346,6 +16371,9 @@ static void llama_model_quantize_internal(const std::string & fname_inp, const s
         case LLAMA_FTYPE_MOSTLY_Q4_0_4_4: default_type = GGML_TYPE_Q4_0_4_4; break;
         case LLAMA_FTYPE_MOSTLY_Q4_0_4_8: default_type = GGML_TYPE_Q4_0_4_8; break;
         case LLAMA_FTYPE_MOSTLY_Q4_0_8_8: default_type = GGML_TYPE_Q4_0_8_8; break;
+
+        // Custom Quantization Scheme
+        case LLAMA_FTYPE_CQS:            default_type = GGML_TYPE_Q2_K;    break;
 
         default: throw std::runtime_error(format("invalid output file type %d\n", ftype));
     }
@@ -16604,6 +16632,30 @@ static void llama_model_quantize_internal(const std::string & fname_inp, const s
             }
             if (params->output_tensor_type < GGML_TYPE_COUNT && strcmp(tensor->name, "output.weight") == 0) {
                 new_type = params->output_tensor_type;
+            }
+            if (params->attn_q_type < GGML_TYPE_COUNT && strcmp(tensor->name, "attn_q.weight") == 0) {
+                new_type = params->attn_q_type;
+            }
+            if (params->attn_k_type < GGML_TYPE_COUNT && strcmp(tensor->name, "attn_k.weight") == 0) {
+                new_type = params->attn_k_type;
+            }
+            if (params->attn_v_type < GGML_TYPE_COUNT && strcmp(tensor->name, "attn_v.weight") == 0) {
+                new_type = params->attn_v_type;
+            }
+            if (params->attn_qkv_type < GGML_TYPE_COUNT && strcmp(tensor->name, "attn_qkv.weight") == 0) {
+                new_type = params->attn_qkv_type;
+            }
+            if (params->attn_output_type < GGML_TYPE_COUNT && strcmp(tensor->name, "attn_output.weight") == 0) {
+                new_type = params->attn_output_type;
+            }
+            if (params->ffn_gate_type < GGML_TYPE_COUNT && strcmp(tensor->name, "ffn_gate") == 0) {
+                new_type = params->ffn_gate_type;
+            }
+            if (params->ffn_down_type < GGML_TYPE_COUNT && strcmp(tensor->name, "ffn_down") == 0) {
+                new_type = params->ffn_down_type;
+            }
+            if (params->ffn_up_type < GGML_TYPE_COUNT && strcmp(tensor->name, "ffn_up") == 0) {
+                new_type = params->ffn_up_type;
             }
 
             // If we've decided to quantize to the same type the tensor is already
@@ -17007,6 +17059,14 @@ struct llama_model_quantize_params llama_model_quantize_default_params() {
         /*.ftype                       =*/ LLAMA_FTYPE_MOSTLY_Q5_1,
         /*.output_tensor_type          =*/ GGML_TYPE_COUNT,
         /*.token_embedding_type        =*/ GGML_TYPE_COUNT,
+        /*.attn_q_type                 =*/ GGML_TYPE_COUNT,
+        /*.attn_k_type                 =*/ GGML_TYPE_COUNT,
+        /*.attn_v_type                 =*/ GGML_TYPE_COUNT,
+        /*.attn_qkv_type               =*/ GGML_TYPE_COUNT,
+        /*.attn_output_type            =*/ GGML_TYPE_COUNT,
+        /*.ffn_gate_type               =*/ GGML_TYPE_COUNT,
+        /*.ffn_down_type               =*/ GGML_TYPE_COUNT,
+        /*.ffn_up_type                 =*/ GGML_TYPE_COUNT,
         /*.allow_requantize            =*/ false,
         /*.quantize_output_tensor      =*/ true,
         /*.only_copy                   =*/ false,
