@@ -1121,15 +1121,17 @@ def generate(prompt, memory="", images=[], max_length=32, max_context_length=512
             inputs.images[n] = "".encode("UTF-8")
         else:
             inputs.images[n] = images[n].encode("UTF-8")
-    if max_length >= (max_context_length-1):
-        max_length = max_context_length-1
-        print("\nWarning: You are trying to generate with max_length near or exceeding max_context_length. Most of the context will be removed, and your outputs will not be very coherent.")
     global showmaxctxwarning
     if max_context_length > maxctx:
         if showmaxctxwarning:
             print(f"\n(Warning! Request max_context_length={max_context_length} exceeds allocated context size of {maxctx}. It will be reduced to fit. Consider launching with increased --contextsize to avoid errors. This message will only show once per session.)")
             showmaxctxwarning = False
         max_context_length = maxctx
+    min_remain = min(max_context_length-4, 16)
+    if max_length >= (max_context_length-min_remain):
+        max_length = max_context_length-min_remain
+        print("\nWarning: You are trying to generate with max_length near or exceeding max_context_length. Most of the context will be removed, and your outputs will not be very coherent.")
+
     inputs.max_context_length = max_context_length   # this will resize the context buffer if changed
     inputs.max_length = max_length
     inputs.temperature = temperature
@@ -1717,7 +1719,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
         current_token = 0
         incomplete_token_buffer = bytearray()
         async_sleep_short = 0.02
-        await asyncio.sleep(0.25) #anti race condition, prevent check from overtaking generate
+        await asyncio.sleep(0.3) #anti race condition, prevent check from overtaking generate
         try:
             tokenReserve = "" #keeps fully formed tokens that we cannot send out yet
             while True:
@@ -2288,6 +2290,7 @@ Enter Prompt:<br>
                     return
 
         finally:
+            time.sleep(0.05)
             modelbusy.release()
 
         self.send_response(404)
@@ -4609,10 +4612,20 @@ def main(launch_args,start_server=True):
         benchmaxctx = (maxctx - 128)
         benchtg = 128
         benchpp = (benchmaxctx - benchtg)
+        benchtemp = 0.1
+        benchtopk = 1
+        benchreppen = 1
+        benchbaneos = True
         benchmodel = sanitize_string(os.path.splitext(os.path.basename(modelname))[0])
         benchprompt = ""
         if args.prompt:
             benchprompt = args.prompt
+            benchtopk = 100
+            benchreppen = 1.07
+            benchtemp = 0.8
+            if not args.benchmark:
+                benchbaneos = False
+                benchlen = 256
         if args.benchmark:
             if os.path.exists(args.benchmark) and os.path.getsize(args.benchmark) > 13000000:
                 print(f"\nWarning: The benchmark CSV output file you selected exceeds 13MB. This is probably not what you want, did you select the wrong CSV file?\nFor safety, benchmark output will not be saved.")
@@ -4625,7 +4638,7 @@ def main(launch_args,start_server=True):
                 benchprompt = "1111111111111111"
                 for i in range(0,14): #generate massive prompt
                     benchprompt += benchprompt
-        genout = generate(benchprompt,memory="",images=[],max_length=benchtg,max_context_length=benchmaxctx,temperature=0.1,top_k=1,rep_pen=1,ban_eos_token=True)
+        genout = generate(benchprompt,memory="",images=[],max_length=benchtg,max_context_length=benchmaxctx,,temperature=benchtemp,top_k=benchtopk,rep_pen=benchreppen,ban_eos_token=benchbaneos)
         result = genout['text']
         if args.prompt and not args.benchmark:
             restore_stdout()

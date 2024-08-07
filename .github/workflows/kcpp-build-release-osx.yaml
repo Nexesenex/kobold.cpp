@@ -29,8 +29,8 @@ jobs:
       - name: Test
         id: test
         run: |
-          wget https://huggingface.co/concedo/KobbleTinyV2-1.1B-GGUF/resolve/main/KobbleTiny-Q4_K.gguf
-          dist/koboldcpp-mac-arm64 --model KobbleTiny-Q4_K.gguf --gpulayers 99 --benchmark dist/bench.csv
+          wget https://huggingface.co/concedo/koboldcpp/resolve/main/baby_llama.gguf
+          dist/koboldcpp-mac-arm64 --model baby_llama.gguf --gpulayers 99 --benchmark --prompt 'Hi, my name is'
 
       - name: Save artifact
         uses: actions/upload-artifact@v3
