@@ -41,10 +41,10 @@ maxhordelen = 400
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.73001"
-LcppVersion = "b3524+7"
+KcppVersion = "1.73002"
+LcppVersion = "b3542-1+7"
 CudaSpecifics = "CuCML_ArCML_SMC2_DmmvX32Y1"
-ReleaseDate = "2024/08/5"
+ReleaseDate = "2024/08/7"
 showdebug = True
 guimode = False
 showsamplerwarning = True
@@ -4638,7 +4638,7 @@ def main(launch_args,start_server=True):
                 benchprompt = "1111111111111111"
                 for i in range(0,14): #generate massive prompt
                     benchprompt += benchprompt
-        genout = generate(benchprompt,memory="",images=[],max_length=benchtg,max_context_length=benchmaxctx,,temperature=benchtemp,top_k=benchtopk,rep_pen=benchreppen,ban_eos_token=benchbaneos)
+        genout = generate(benchprompt,memory="",images=[],max_length=benchtg,max_context_length=benchmaxctx,temperature=benchtemp,top_k=benchtopk,rep_pen=benchreppen,ban_eos_token=benchbaneos)
         result = genout['text']
         if args.prompt and not args.benchmark:
             restore_stdout()
