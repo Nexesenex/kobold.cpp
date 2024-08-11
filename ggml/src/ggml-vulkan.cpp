@@ -946,7 +946,7 @@ static uint32_t find_properties(const vk::PhysicalDeviceMemoryProperties* mem_pr
 static vk_buffer ggml_vk_create_buffer(vk_device& device, size_t size, vk::MemoryPropertyFlags req_flags, vk::MemoryPropertyFlags fallback_flags = vk::MemoryPropertyFlags(0)) {
     VK_LOG_DEBUG("ggml_vk_create_buffer(" << device->name << ", " << size << ", " << to_string(req_flags) << ", " << to_string(fallback_flags) << ")");
     if (size > device->max_memory_allocation_size) {
-        throw vk::OutOfDeviceMemoryError("Requested buffer size exceeds device memory allocation limit");
+        printf("\nWARNING: Requested buffer size exceeds device memory allocation limit!\n");
     }
 
     std::lock_guard<std::mutex> guard(device->mutex);
@@ -5521,7 +5521,7 @@ static void ggml_vk_preallocate_buffers_graph(ggml_backend_vk_context * ctx, ggm
                 y_sz > ctx->device->max_memory_allocation_size ||
                 d_sz > ctx->device->max_memory_allocation_size ||
                 split_k_size > ctx->device->max_memory_allocation_size) {
-            GGML_ABORT("Requested preallocation size is too large");
+            printf("\nWARNING: Requested preallocation size is too large");
         }
         if (ctx->prealloc_size_x < x_sz) {
             ctx->prealloc_size_x = x_sz;

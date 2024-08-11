@@ -1110,9 +1110,51 @@ def load_model(model_filename):
     ret = handle.load_model(inputs)
     return ret
 
-def generate(prompt, memory="", images=[], max_length=32, max_context_length=512, temperature=0.7, top_k=100, top_a=0.0, top_p=0.92, min_p=0.0, typical_p=1.0, tfs=1.0, rep_pen=1.0, rep_pen_range=128, rep_pen_slope=1.0, presence_penalty=0.0, mirostat=0, mirostat_tau=5.0, mirostat_eta=0.1, dry_multiplier=0.0, dry_base=1.75, dry_allowed_length=2, dry_penalty_last_n=0, dry_sequence_breakers=[], sampler_order=[6,0,1,3,4,2,5], seed=-1, stop_sequence=[], ban_eos_token=False, stream_sse=False, grammar='', grammar_retain_state=False, genkey='', trimstop=False, quiet=False, dynatemp_range=0.0, dynatemp_exponent=1.0, smoothing_factor=0.0, logit_biases={}, render_special=False, banned_tokens=[], bypass_eos_token=False):
-# dry_sequence_breakers=['\n', ':', '"', '*']
+def generate(genparams, is_quiet=False, stream_flag=False):
     global maxctx, args, currentusergenkey, totalgens, pendingabortkey
+
+    prompt = genparams.get('prompt', "")
+    memory = genparams.get('memory', "")
+    images = genparams.get('images', [])
+    max_context_length = genparams.get('max_context_length', maxctx)
+    max_length = genparams.get('max_length', 128)
+    temperature = genparams.get('temperature', 0.7)
+    top_k = genparams.get('top_k', 100)
+    top_a = genparams.get('top_a', 0.0)
+    top_p = genparams.get('top_p', 0.92)
+    min_p = genparams.get('min_p', 0.0)
+    typical_p = genparams.get('typical', 1.0)
+    tfs = genparams.get('tfs', 1.0)
+    rep_pen = genparams.get('rep_pen', 1.0)
+    rep_pen_range = genparams.get('rep_pen_range', 256)
+    rep_pen_slope = genparams.get('rep_pen_slope', 1.0)
+    presence_penalty = genparams.get('presence_penalty', 0.0)
+    mirostat = genparams.get('mirostat', 0)
+    mirostat_tau = genparams.get('mirostat_tau', 5.0)
+    mirostat_eta = genparams.get('mirostat_eta', 0.1)
+    dry_multiplier = genparams.get('dry_multiplier', 0.0)
+    dry_base = genparams.get('dry_base', 1.75)
+    dry_allowed_length = genparams.get('dry_allowed_length', 2)
+    dry_penalty_last_n = genparams.get('dry_penalty_last_n', 0)
+    dry_sequence_breakers = genparams.get('dry_sequence_breakers', [])
+    sampler_order = genparams.get('sampler_order', [6, 0, 1, 3, 4, 2, 5])
+    seed = tryparseint(genparams.get('sampler_seed', -1))
+    stop_sequence = genparams.get('stop_sequence', [])
+    ban_eos_token = genparams.get('ban_eos_token', False)
+    stream_sse = stream_flag
+    grammar = genparams.get('grammar', '')
+    grammar_retain_state = genparams.get('grammar_retain_state', False)
+    genkey = genparams.get('genkey', '')
+    trimstop = genparams.get('trim_stop', False)
+    quiet = is_quiet
+    dynatemp_range = genparams.get('dynatemp_range', 0.0)
+    dynatemp_exponent = genparams.get('dynatemp_exponent', 1.0)
+    smoothing_factor = genparams.get('smoothing_factor', 0.0)
+    logit_biases = genparams.get('logit_bias', {})
+    render_special = genparams.get('render_special', False)
+    banned_tokens = genparams.get('banned_tokens', [])
+    bypass_eos_token = genparams.get('bypass_eos', False)
+
     inputs = generation_inputs()
     inputs.prompt = prompt.encode("UTF-8")
     inputs.memory = memory.encode("UTF-8")
@@ -1165,6 +1207,7 @@ def generate(prompt, memory="", images=[], max_length=32, max_context_length=512
     inputs.dry_base = dry_base
     inputs.dry_allowed_length = dry_allowed_length
     inputs.dry_penalty_last_n = dry_penalty_last_n
+    # dry_sequence_breakers=['\n', ':', '"', '*']
     # Handle dry_sequence_breakers being passed as a json-encoded array of
     # strings, rather than as an array of strings itself. This is to support
     # SillyTavern, which passes sequence breakers to Oobabooga that way.
@@ -1608,47 +1651,9 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 last_non_horde_req_time = time.time()
 
             return generate(
-                prompt=genparams.get('prompt', ""),
-                memory=genparams.get('memory', ""),
-                images=genparams.get('images', []),
-                max_context_length=genparams.get('max_context_length', maxctx),
-                max_length=genparams.get('max_length', 180),
-                temperature=genparams.get('temperature', 0.7),
-                top_k=genparams.get('top_k', 100),
-                top_a=genparams.get('top_a', 0.0),
-                top_p=genparams.get('top_p', 0.92),
-                min_p=genparams.get('min_p', 0.0),
-                typical_p=genparams.get('typical', 1.0),
-                tfs=genparams.get('tfs', 1.0),
-                rep_pen=genparams.get('rep_pen', 1.0),
-                rep_pen_range=genparams.get('rep_pen_range', 256),
-                rep_pen_slope=genparams.get('rep_pen_slope', 1.0),
-                presence_penalty=genparams.get('presence_penalty', 0.0),
-                mirostat=genparams.get('mirostat', 0),
-                mirostat_tau=genparams.get('mirostat_tau', 5.0),
-                mirostat_eta=genparams.get('mirostat_eta', 0.1),
-                dry_multiplier=genparams.get('dry_multiplier', 0.0),
-                dry_base=genparams.get('dry_base', 1.75),
-                dry_allowed_length=genparams.get('dry_allowed_length', 2),
-                dry_penalty_last_n=genparams.get('dry_penalty_last_n', 0),
-                dry_sequence_breakers=genparams.get('dry_sequence_breakers', []),
-                sampler_order=genparams.get('sampler_order', [6,0,1,3,4,2,5]),
-                seed=tryparseint(genparams.get('sampler_seed', -1)),
-                stop_sequence=genparams.get('stop_sequence', []),
-                ban_eos_token=genparams.get('ban_eos_token', False),
-                stream_sse=stream_flag,
-                grammar=genparams.get('grammar', ''),
-                grammar_retain_state = genparams.get('grammar_retain_state', False),
-                genkey=genparams.get('genkey', ''),
-                trimstop=genparams.get('trim_stop', False),
-                quiet=is_quiet,
-                dynatemp_range=genparams.get('dynatemp_range', 0.0),
-                dynatemp_exponent=genparams.get('dynatemp_exponent', 1.0),
-                smoothing_factor=genparams.get('smoothing_factor', 0.0),
-                logit_biases=genparams.get('logit_bias', {}),
-                render_special=genparams.get('render_special', False),
-                banned_tokens=genparams.get('banned_tokens', []),
-                bypass_eos_token=genparams.get('bypass_eos', False),
+                genparams=genparams,
+                is_quiet=is_quiet,
+                stream_flag=stream_flag
             )
 
         genout = {"text": "", "status": -1, "stopreason": -1}
@@ -4610,7 +4615,7 @@ def main(launch_args,start_server=True):
         gpu3avram = int(MaxMemory[3]/1024/1024)
         gpuavram = gpu0avram + gpu1avram + gpu2avram + gpu3avram
         benchmaxctx = (maxctx - 128)
-        benchtg = 128
+        benchtg = args.promptlimit
         benchpp = (benchmaxctx - benchtg)
         benchtemp = 0.1
         benchtopk = 1
@@ -4625,7 +4630,6 @@ def main(launch_args,start_server=True):
             benchtemp = 0.8
             if not args.benchmark:
                 benchbaneos = False
-                benchlen = 256
         if args.benchmark:
             if os.path.exists(args.benchmark) and os.path.getsize(args.benchmark) > 13000000:
                 print(f"\nWarning: The benchmark CSV output file you selected exceeds 13MB. This is probably not what you want, did you select the wrong CSV file?\nFor safety, benchmark output will not be saved.")
@@ -4635,10 +4639,19 @@ def main(launch_args,start_server=True):
             else:
                 print(f"\nRunning benchmark (Not Saved)...")
             if benchprompt=="":
-                benchprompt = "1111111111111111"
+                benchprompt = " 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1"
                 for i in range(0,14): #generate massive prompt
                     benchprompt += benchprompt
-        genout = generate(benchprompt,memory="",images=[],max_length=benchtg,max_context_length=benchmaxctx,temperature=benchtemp,top_k=benchtopk,rep_pen=benchreppen,ban_eos_token=benchbaneos)
+        genp = {
+            "prompt":benchprompt,
+            "max_length":benchtg,
+            "max_context_length":benchmaxctx,
+            "temperature":benchtemp,
+            "top_k":benchtopk,
+            "rep_pen":benchreppen,
+            "ban_eos_token":benchbaneos
+        }
+        genout = generate(genparams=genp)
         result = genout['text']
         if args.prompt and not args.benchmark:
             restore_stdout()
@@ -4725,10 +4738,10 @@ def run_in_queue(launch_args, input_queue, output_queue):
             while not input_queue.empty():
                 data = input_queue.get()
                 if data['command'] == 'generate':
-                    (args, kwargs) = data['data']
-                genout = generate(*args, **kwargs)
-                result = genout['text']
-                output_queue.put({'command': 'generated text', 'data': result})
+                    pl = data['data']
+                    genout = generate(genparams=pl)
+                    result = genout['text']
+                    output_queue.put({'command': 'generated text', 'data': result})
         time.sleep(0.2)
 
 def start_in_seperate_process(launch_args):
@@ -4799,6 +4812,7 @@ if __name__ == '__main__':
     advparser.add_argument("--onready", help="An optional shell command to execute after the model has been loaded.", metavar=('[shell command]'), type=str, default="",nargs=1)
     advparser.add_argument("--benchmark", help="Do not start server, instead run benchmarks. If filename is provided, appends results to provided file.", metavar=('[filename]'), nargs='?', const="stdout", type=str, default=None)
     advparser.add_argument("--prompt", metavar=('[prompt]'), help="Passing a prompt string triggers a direct inference, loading the model, outputs the response to stdout and exits. Can be used alone or with benchmark.", type=str, default="")
+    advparser.add_argument("--promptlimit", help="Sets the maximum number of generated tokens, usable only with --prompt or --benchmark",metavar=('[token limit]'), type=int, default=100)
     advparser.add_argument("--multiuser", help="Runs in multiuser mode, which queues incoming requests instead of blocking them.", metavar=('limit'), nargs='?', const=1, type=int, default=1)
     advparser.add_argument("--remotetunnel", help="Uses Cloudflare to create a remote tunnel, allowing you to access koboldcpp remotely over the internet even behind a firewall.", action='store_true')
     advparser.add_argument("--highpriority", help="Experimental flag. If set, increases the process CPU priority, potentially speeding up generation. Use caution.", action='store_true')
