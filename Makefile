@@ -249,7 +249,7 @@ endif
 # keep standard at C11 and C++11
 MK_CPPFLAGS  = -Iggml/include -Iggml/src -Iinclude -Isrc -Icommon
 MK_CFLAGS    = -std=c11   -fPIC
-MK_CXXFLAGS  = -std=c++11 -fPIC
+MK_CXXFLAGS  = -std=c++17 -fPIC
 MK_NVCCFLAGS = -std=c++11
 
 ifdef LLAMA_NO_CCACHE
@@ -326,9 +326,9 @@ ifdef LLAMA_DEBUG
 	endif
 else
 	MK_CPPFLAGS   += -DNDEBUG
-	MK_CFLAGS     += -O3 -g
-	MK_CXXFLAGS   += -O3 -g
-	MK_NVCCFLAGS  += -O3 -g
+	MK_CFLAGS     += -O3
+	MK_CXXFLAGS   += -O3
+	MK_NVCCFLAGS  += -O3
 endif
 
 ifdef LLAMA_SANITIZE_THREAD
@@ -571,6 +571,12 @@ ifdef GGML_NVPL
 	MK_LDFLAGS  += -L/usr/local/lib -lnvpl_blas_core -lnvpl_blas_ilp64_gomp
 	OBJ_GGML    += ggml/src/ggml-blas.o
 endif # GGML_NVPL
+
+OBJ_GGML    += ggml/src/iqk/iqk_quantize.o
+ifndef GGML_NO_IQKMULMAT
+	MK_CPPFLAGS += -DGGML_USE_IQK_MULMAT
+	OBJ_GGML    += ggml/src/iqk/iqk_mul_mat.o
+endif
 
 ifndef GGML_NO_LLAMAFILE
 	MK_CPPFLAGS += -DGGML_USE_LLAMAFILE
@@ -1057,6 +1063,20 @@ ggml/src/ggml-blas.o: \
 	ggml/src/ggml-blas.cpp \
 	ggml/include/ggml-blas.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+ggml/src/iqk/iqk_quantize.o: \
+	ggml/src/iqk/iqk_quantize.cpp \
+	ggml/src/iqk/iqk_quantize.h \
+	ggml/src/ggml-quants.h ggml/src/ggml-common.h ggml/include/ggml.h ggml/src/ggml-impl.h
+
+ifndef GGML_NO_IQKMULMAT
+ggml/src/iqk/iqk_mul_mat.o: \
+	ggml/src/iqk/iqk_mul_mat.cpp \
+	ggml/src/iqk/iqk_mul_mat.h \
+	ggml/src/iqk/iqk_quantize.h \
+	ggml/src/ggml-quants.h ggml/src/ggml-common.h ggml/include/ggml.h ggml/src/ggml-impl.h
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+endif # GGML_NO_IQKMULMAT
 
 ifndef GGML_NO_LLAMAFILE
 ggml/src/llamafile/sgemm.o: \

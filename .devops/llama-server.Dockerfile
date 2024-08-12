@@ -3,7 +3,7 @@ ARG UBUNTU_VERSION=22.04
 FROM ubuntu:$UBUNTU_VERSION AS build
 
 RUN apt-get update && \
-    apt-get install -y build-essential git libcurl4-openssl-dev
+    apt-get install -y build-essential git libcurl4-openssl-dev curl
 
 WORKDIR /app
 

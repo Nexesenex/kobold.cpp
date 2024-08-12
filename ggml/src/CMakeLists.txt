@@ -253,6 +253,14 @@ if (GGML_BLAS)
     endif()
 endif()
 
+set (GGML_SOURCES_IQK iqk/iqk_quantize.cpp)
+if (GGML_IQK_MUL_MAT)
+    message(STATUS "Using optimized iqk matrix multiplications")
+    add_compile_definitions(GGML_USE_IQK_MULMAT)
+    set(GGML_SOURCES_IQK_MM iqk/iqk_mul_mat.cpp)
+    set(GGML_HEADERS_IQK_MM iqk/iqk_mul_mat.h)
+endif()
+
 if (GGML_LLAMAFILE)
     message(STATUS "Using llamafile")
 
@@ -271,6 +279,9 @@ if (GGML_CUDA)
         set(CUDAToolkit_FOUND ${MUSAToolkit_FOUND})
     else()
         find_package(CUDAToolkit)
+        set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_INCLUDES 0)
+        set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_LIBRARIES 0)
+        set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_OBJECTS 0)
     endif()
 
     if (CUDAToolkit_FOUND)
@@ -1296,6 +1307,8 @@ add_library(ggml
             ${GGML_SOURCES_ROCM}      ${GGML_HEADERS_ROCM}
             ${GGML_SOURCES_BLAS}      ${GGML_HEADERS_BLAS}
             ${GGML_SOURCES_LLAMAFILE} ${GGML_HEADERS_LLAMAFILE}
+            ${GGML_SOURCES_IQK_MM}    ${GGML_HEADERS_IQK_MM}
+            ${GGML_SOURCES_IQK}
             ${GGML_SOURCES_CANN}      ${GGML_HEADERS_CANN}
             ggml-aarch64.c            ggml-aarch64.h
             )
