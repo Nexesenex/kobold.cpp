@@ -3010,7 +3010,7 @@ def show_gui():
     makeslider(quick_tab, "BLAS Physical Batch Size - same as Logical if not filled :", blasubatchsize_text, blasubatchsize_var, 0, 13, 18, width=391, set=0,tooltip="How many tokens to process at once per batch.\nLarger values use more memory.")
 
     # load model
-    makefileentry(quick_tab, "Model:", "Select GGML Model File", model_var, 40, 576, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
+    makefileentry(quick_tab, "Model:", "Select GGML or GGML Model File", model_var, 40, 576, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
     model_var.trace("w", gui_changed_modelfile)
     ctk.CTkButton(quick_tab, text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
 
@@ -3139,7 +3139,7 @@ def show_gui():
     # Model Tab
     model_tab = tabcontent["Model Files"]
 
-    makefileentry(model_tab, "Model:", "Select GGML Model File", model_var, 1,width=576, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
+    makefileentry(model_tab, "Model:", "Select GGUF or GGML Model File", model_var, 1,width=576, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
     makefileentry(model_tab, "Lora:", "Select Lora File",lora_var, 3,width=576,tooltiptxt="Select an optional GGML LoRA adapter to use.\nLeave blank to skip.")
     makefileentry(model_tab, "Lora Base:", "Select Lora Base File", lora_base_var, 5,width=576,tooltiptxt="Select an optional F16 GGML LoRA base file to use.\nLeave blank to skip.")
     makefileentry(model_tab, "LLaVA mmproj:", "Select LLaVA mmproj File", mmproj_var, 7,width=576,tooltiptxt="Select a mmproj file to use for LLaVA.\nLeave blank to skip.")
