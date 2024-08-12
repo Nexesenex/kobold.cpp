@@ -843,8 +843,8 @@ int mirostat, float mirostat_tau, float mirostat_eta, float dry_multiplier, floa
         sample_grammar(file_format, n_vocab, &candidates_p, grammar);
     }
 
-    //prefilter to top 5k tokens for improved speed
-    llama_sample_top_k(nullptr, &candidates_p, 5000, 1);
+    //prefilter to top "pick a nucmber" tokens for improved speed (KCPP-official default is 5k)
+    llama_sample_top_k(nullptr, &candidates_p, 500, 1);
 
     if (mirostat == 1 || mirostat == 2)
     {
