@@ -12941,7 +12941,6 @@ static void ggml_compute_forward_mul_mat(
         return;
     }
 #endif
-#if GGML_USE_LLAMAFILE
 
 #if GGML_USE_IQK_MULMAT || GGML_USE_LLAMAFILE
     // broadcast factors

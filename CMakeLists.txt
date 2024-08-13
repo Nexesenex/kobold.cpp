@@ -66,7 +66,6 @@ option(LLAMA_LLAMAFILE                       "llama: use llamafile SGEMM"       
 option(LLAMA_CCACHE                          "llama: use ccache if available"                   ON)
 option(LLAMA_NATIVE                          "llama: enable -march=native flag"                 OFF)
 
-IK
 # IK
 set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_INCLUDES 0)
 set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_LIBRARIES 0)
@@ -76,8 +75,8 @@ option(GGML_IQK_MUL_MAT                     "ggml: use optimized iqk matrix mult
 if (GGML_IQK_MUL_MAT)
     message(STATUS "Using optimized iqk matrix multiplications")
     add_compile_definitions(GGML_USE_IQK_MULMAT)
-    set(GGML_SOURCES_IQK_MM iqk/iqk_mul_mat.cpp)
-    set(GGML_HEADERS_IQK_MM iqk/iqk_mul_mat.h)
+    set(GGML_SOURCES_IQK_MM ggml/src/iqk/iqk_mul_mat.cpp)
+    set(GGML_HEADERS_IQK_MM ggml/src/iqk/iqk_mul_mat.h)
 endif()
 
 #
@@ -593,7 +592,7 @@ add_library(ggml
             ggml/src/llamafile/sgemm.h
             ggml/src/ggml-aarch64.c
             ggml/src/ggml-aarch64.h
-            ${GGML_SOURCES_CUDA})
+            ${GGML_SOURCES_CUDA}
             # ${GGML_SOURCES_ROCM}      ${GGML_HEADERS_ROCM}
             # ${GGML_SOURCES_BLAS}      ${GGML_HEADERS_BLAS}
             # ${GGML_SOURCES_LLAMAFILE} ${GGML_HEADERS_LLAMAFILE}

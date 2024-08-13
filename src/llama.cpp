@@ -13401,7 +13401,8 @@ struct llm_build_context {
                                 0);
                     cb(v, "v", il);
 
-                    cur_attn = ggml_flash_attn_ext(ctx0, q, k, v, KQ_mask, kq_scale, hparams.f_max_alibi_bias);
+                    cur_attn = ggml_flash_attn_ext(ctx0, q, k, v, KQ_mask, kq_scale, hparams.f_max_alibi_bias,
+                                                   hparams.attn_soft_cap ? hparams.f_attn_logit_softcapping : 0.0f);
 
                     cur_attn = ggml_reshape_2d(ctx0, cur, n_embd_head_v*n_head, n_tokens);
                 } else {
