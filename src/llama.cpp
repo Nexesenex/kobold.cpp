@@ -7794,9 +7794,7 @@ static void llm_build_kv_store(
     cb(k_cache_view, "k_cache_view", il);
 
     // note: storing RoPE-ed version of K in the KV cache
-    ggml_tensor * tmp = ggml_cpy(ctx, k_cur, k_cache_view);
-    tmp->kv_cache_flag = GGML_KV_CACHE_FLAG_K;
-    ggml_build_forward_expand(graph, tmp);
+    ggml_build_forward_expand(graph, ggml_cpy(ctx, k_cur, k_cache_view));
 
     assert(v_cur->ne[0] == n_embd_v_gqa && v_cur->ne[1] == n_tokens);
 
@@ -7814,9 +7812,7 @@ static void llm_build_kv_store(
         v_cur = ggml_transpose(ctx, v_cur);
     }
     cb(v_cache_view, "v_cache_view", il);
-    tmp=ggml_cpy(ctx, v_cur, v_cache_view);
-    tmp->kv_cache_flag = GGML_KV_CACHE_FLAG_V;
-    ggml_build_forward_expand(graph, tmp);
+    ggml_build_forward_expand(graph, ggml_cpy(ctx, v_cur, v_cache_view));
 }
 
 static struct ggml_tensor * llm_build_norm(
@@ -14607,46 +14603,41 @@ static int llama_decode_internal(
         }
         lctx.cached_graph.gf = gf;
 
-        if(ggml_use_cached_graph(lctx.sched)) {
-
-            // Temporarily store KV cache parameters that will need updated in cached graph.
+        // Update K and V cache parameters in cached graph.
+        if(gf != nullptr && gf->nodes != nullptr && ggml_use_cached_graph(lctx.sched)) {
+            
             const struct llama_hparams & hparams = model.hparams;
-            const int64_t  n_layer = hparams.n_layer;
             const int64_t kv_head = kv_self.head;
-            std::vector<void *> kv_cache_ptrs;
-            std::vector<void *> k_cache_ptrs;
-            std::vector<void *> v_cache_ptrs;
-            for (int il = 0; il < n_layer; ++il) {
-                const int64_t n_embd_k_gqa = hparams.n_embd_k_gqa();
-                const int64_t n_embd_v_gqa = hparams.n_embd_v_gqa();
-                ggml_tensor * tmp_tensor =  kv_self.k_l[il];
-                size_t tmp_offset = (ggml_row_size(kv_self.k_l[il]->type, n_embd_k_gqa))*kv_head;
-                kv_cache_ptrs.push_back(static_cast<char*>(tmp_tensor->data) + tmp_offset);
-                k_cache_ptrs.push_back(static_cast<char*>(tmp_tensor->data) + tmp_offset);
-                tmp_tensor = kv_self.v_l[il];
-                if (cparams.flash_attn) {
-                    tmp_offset = (kv_head)*ggml_row_size(kv_self.v_l[il]->type, n_embd_v_gqa);
-                } else {
-                    tmp_offset = (kv_head)*ggml_element_size(kv_self.v_l[il]);
-                }
-                kv_cache_ptrs.push_back(static_cast<char*>(tmp_tensor->data) + tmp_offset);
-                v_cache_ptrs.push_back(static_cast<char*>(tmp_tensor->data) + tmp_offset);
-            }
 
-            // Update KV cache parameters in cached graph.
-            int k_count = 0;
-            int v_count = 0;
-            if(gf != nullptr && gf->nodes != nullptr){
-                for (int i = 0; i < gf->n_nodes; i++) {
-                    ggml_tensor * node = gf->nodes[i];
-                    if (node->op == GGML_OP_CPY) {
-                        if (node->kv_cache_flag == GGML_KV_CACHE_FLAG_K) {
-                            node->src[1]->data = k_cache_ptrs[k_count++];
-                        }
-                        if (node->kv_cache_flag == GGML_KV_CACHE_FLAG_V) {
-                            node->src[1]->data = v_cache_ptrs[v_count++];
-                        }
+            for (int i = 0; i < gf->n_nodes; i++) {
+                ggml_tensor * node = gf->nodes[i];
+                if (node->op == GGML_OP_CPY) {
+
+                    // K cache
+                    const char* k_prefix = "k_cache_view-";
+                    if (strncmp(node->src[1]->name, k_prefix, strlen(k_prefix)) == 0) {
+                        int il = atoi(node->src[1]->name + strlen(k_prefix)); // Layer index from name
+                        const int64_t n_embd_k_gqa = hparams.n_embd_k_gqa(il);
+                        ggml_tensor * tmp_tensor =  kv_self.k_l[il];
+                        size_t tmp_offset = (ggml_row_size(kv_self.k_l[il]->type, n_embd_k_gqa))*kv_head;
+                        node->src[1]->data = static_cast<char*>(tmp_tensor->data) + tmp_offset;
                     }
+
+                    // V cache
+                    const char* v_prefix = "v_cache_view-";
+                    if (strncmp(node->src[1]->name, v_prefix, strlen(v_prefix)) == 0) {
+                        int il = atoi(node->src[1]->name + strlen(v_prefix)); // Layer index from name
+                        const int64_t n_embd_v_gqa = hparams.n_embd_v_gqa(il);
+                        ggml_tensor * tmp_tensor = kv_self.v_l[il];
+                        size_t tmp_offset;
+                        if (cparams.flash_attn) {
+                            tmp_offset = (kv_head)*ggml_row_size(kv_self.v_l[il]->type, n_embd_v_gqa);
+                        } else {
+                            tmp_offset = (kv_head)*ggml_element_size(kv_self.v_l[il]);
+                        }
+                        node->src[1]->data = static_cast<char*>(tmp_tensor->data) + tmp_offset;
+                    }
+
                 }
             }
 
