@@ -68,42 +68,17 @@ option(LLAMA_NATIVE                          "llama: enable -march=native flag" 
 
 IK
 # IK
-# set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_INCLUDES 0)
-# set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_LIBRARIES 0)
-# set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_OBJECTS 0)
-# option(GGML_IQK_MUL_MAT                     "ggml: use optimized iqk matrix multiplications"    ON)
+set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_INCLUDES 0)
+set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_LIBRARIES 0)
+set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_OBJECTS 0)
+option(GGML_IQK_MUL_MAT                     "ggml: use optimized iqk matrix multiplications"    ON)
 
-
-set (GGML_SOURCES_IQK iqk/iqk_quantize.cpp)
 if (GGML_IQK_MUL_MAT)
     message(STATUS "Using optimized iqk matrix multiplications")
     add_compile_definitions(GGML_USE_IQK_MULMAT)
     set(GGML_SOURCES_IQK_MM iqk/iqk_mul_mat.cpp)
     set(GGML_HEADERS_IQK_MM iqk/iqk_mul_mat.h)
 endif()
-
-if (GGML_LLAMAFILE)
-    message(STATUS "Using llamafile")
-
-
-@@ -271,6 +279,9 @@ if (GGML_CUDA)
-        set(CUDAToolkit_FOUND ${MUSAToolkit_FOUND})
-    else()
-        find_package(CUDAToolkit)
-        set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_INCLUDES 0)
-        set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_LIBRARIES 0)
-        set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_OBJECTS 0)
-    endif()
-
-    if (CUDAToolkit_FOUND)
-
-
-@@ -1296,6 +1307,8 @@ add_library(ggml
-            ${GGML_SOURCES_ROCM}      ${GGML_HEADERS_ROCM}
-            ${GGML_SOURCES_BLAS}      ${GGML_HEADERS_BLAS}
-            ${GGML_SOURCES_LLAMAFILE} ${GGML_HEADERS_LLAMAFILE}
-            ${GGML_SOURCES_IQK_MM}    ${GGML_HEADERS_IQK_MM}
-            ${GGML_SOURCES_IQK}
 
 #
 # Compile flags
@@ -138,15 +113,14 @@ if (LLAMA_CUBLAS)
     cmake_minimum_required(VERSION 3.17)
 
     find_package(CUDAToolkit)
+    #IK
+    set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_INCLUDES 0)
+    set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_LIBRARIES 0)
+    set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_OBJECTS 0)
     if (CUDAToolkit_FOUND)
         message(STATUS "cuBLAS found")
 
         enable_language(CUDA)
-
-        #IK
-        set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_INCLUDES 0)
-        set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_LIBRARIES 0)
-        set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_OBJECTS 0)
 
         add_compile_definitions(GGML_USE_CUDA)
         add_compile_definitions(SD_USE_CUBLAS)
@@ -475,8 +449,6 @@ if (LLAMA_OPENMP)
 endif()
 
 if (LLAMA_LLAMAFILE)
-    add_compile_definitions(GGML_USE_LLAMAFILE)
-
     set(GGML_HEADERS_LLAMAFILE sgemm.h)
     set(GGML_SOURCES_LLAMAFILE sgemm.cpp)
 endif()
@@ -622,6 +594,11 @@ add_library(ggml
             ggml/src/ggml-aarch64.c
             ggml/src/ggml-aarch64.h
             ${GGML_SOURCES_CUDA})
+            # ${GGML_SOURCES_ROCM}      ${GGML_HEADERS_ROCM}
+            # ${GGML_SOURCES_BLAS}      ${GGML_HEADERS_BLAS}
+            # ${GGML_SOURCES_LLAMAFILE} ${GGML_HEADERS_LLAMAFILE}
+            ${GGML_SOURCES_IQK_MM}    ${GGML_HEADERS_IQK_MM}
+            ${GGML_SOURCES_IQK})
 target_include_directories(ggml PUBLIC . ./ggml/include ./ggml/src ./include ./otherarch ./otherarch/tools)
 target_compile_features(ggml PUBLIC c_std_11) # don't bump
 target_link_libraries(ggml PUBLIC Threads::Threads ${LLAMA_EXTRA_LIBS})
