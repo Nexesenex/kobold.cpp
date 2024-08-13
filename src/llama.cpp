@@ -14984,7 +14984,7 @@ static int llama_decode_internal(
                         } else {
                             tmp_offset = (kv_head)*ggml_element_size(kv_self.v_l[il]);
                         }
-					node->src[1]->data = static_cast<char*>(tmp_tensor->data) + tmp_offset;
+                        node->src[1]->data = static_cast<char*>(tmp_tensor->data) + tmp_offset;
                     }
                 }
             }
