@@ -17,10 +17,10 @@ struct quant_option {
 };
 
 static const std::vector<struct quant_option> QUANT_OPTIONS = {
-    { "Q4_0",     LLAMA_FTYPE_MOSTLY_Q4_0,     " 4.34G, +0.4685 ppl @ Llama-3-8B",  },
-    { "Q4_1",     LLAMA_FTYPE_MOSTLY_Q4_1,     " 4.78G, +0.4511 ppl @ Llama-3-8B",  },
-    { "Q5_0",     LLAMA_FTYPE_MOSTLY_Q5_0,     " 5.21G, +0.1316 ppl @ Llama-3-8B",  },
-    { "Q5_1",     LLAMA_FTYPE_MOSTLY_Q5_1,     " 5.65G, +0.1062 ppl @ Llama-3-8B",  },
+    { "Q4_0",     LLAMA_FTYPE_MOSTLY_Q4_0,     " 3.56G, +0.2166 ppl @ LLaMA-v1-7B", },
+    { "Q4_1",     LLAMA_FTYPE_MOSTLY_Q4_1,     " 3.90G, +0.1585 ppl @ LLaMA-v1-7B", },
+    { "Q5_0",     LLAMA_FTYPE_MOSTLY_Q5_0,     " 4.33G, +0.0683 ppl @ LLaMA-v1-7B", },
+    { "Q5_1",     LLAMA_FTYPE_MOSTLY_Q5_1,     " 4.70G, +0.0349 ppl @ LLaMA-v1-7B", },
     { "IQ2_XXS",  LLAMA_FTYPE_MOSTLY_IQ2_XXS,  " 2.06 bpw quantization",            },
     { "IQ2_XS",   LLAMA_FTYPE_MOSTLY_IQ2_XS,   " 2.31 bpw quantization",            },
     { "IQ2_S",    LLAMA_FTYPE_MOSTLY_IQ2_S,    " 2.5  bpw quantization",            },
@@ -33,24 +33,32 @@ static const std::vector<struct quant_option> QUANT_OPTIONS = {
     { "Q2_2",     LLAMA_FTYPE_MOSTLY_Q2_2,     " 2.00 bpw for BitNet b1.58",        },
     { "Q2_K",     LLAMA_FTYPE_MOSTLY_Q2_K,     " 2.96G, +3.5199 ppl @ Llama-3-8B",  },
     { "Q2_K_S",   LLAMA_FTYPE_MOSTLY_Q2_K_S,   " 2.96G, +3.1836 ppl @ Llama-3-8B",  },
+    { "IQ1_BN",   LLAMA_FTYPE_MOSTLY_IQ1_BN,   " 1.62 bpw quantization (Bitnet)",   },
+    { "IQ2_BN",   LLAMA_FTYPE_MOSTLY_IQ2_BN,   " 2.00 bpw quantization (Bitnet)",   },
+    { "IQ2_TN",   LLAMA_FTYPE_MOSTLY_IQ2_TN,   " 2.06 bpw quantization (TriLM)",    },
     { "IQ3_XXS",  LLAMA_FTYPE_MOSTLY_IQ3_XXS,  " 3.06 bpw quantization",            },
     { "IQ3_S",    LLAMA_FTYPE_MOSTLY_IQ3_S,    " 3.44 bpw quantization",            },
     { "IQ3_M",    LLAMA_FTYPE_MOSTLY_IQ3_M,    " 3.66 bpw quantization mix",        },
-    { "Q3_K",     LLAMA_FTYPE_MOSTLY_Q3_K_M,   "alias for Q3_K_M"                   },
-    { "IQ3_XS",   LLAMA_FTYPE_MOSTLY_IQ3_XS,   " 3.3 bpw quantization",             },
-    { "Q3_K_S",   LLAMA_FTYPE_MOSTLY_Q3_K_S,   " 3.41G, +1.6321 ppl @ Llama-3-8B",  },
-    { "Q3_K_M",   LLAMA_FTYPE_MOSTLY_Q3_K_M,   " 3.74G, +0.6569 ppl @ Llama-3-8B",  },
-    { "Q3_K_L",   LLAMA_FTYPE_MOSTLY_Q3_K_L,   " 4.03G, +0.5562 ppl @ Llama-3-8B",  },
+    { "Q3_K",     LLAMA_FTYPE_MOSTLY_Q3_K_M,   "alias for Q3_K_M" },
+    { "IQ3_XS",   LLAMA_FTYPE_MOSTLY_IQ3_XS,   " 3.3 bpw quantization"   ,          },
+    { "Q3_K_S",   LLAMA_FTYPE_MOSTLY_Q3_K_S,   " 2.75G, +0.5551 ppl @ LLaMA-v1-7B", },
+    { "Q3_K_M",   LLAMA_FTYPE_MOSTLY_Q3_K_M,   " 3.07G, +0.2496 ppl @ LLaMA-v1-7B", },
+    { "Q3_K_L",   LLAMA_FTYPE_MOSTLY_Q3_K_L,   " 3.35G, +0.1764 ppl @ LLaMA-v1-7B", },
     { "IQ4_NL",   LLAMA_FTYPE_MOSTLY_IQ4_NL,   " 4.50 bpw non-linear quantization", },
     { "IQ4_XS",   LLAMA_FTYPE_MOSTLY_IQ4_XS,   " 4.25 bpw non-linear quantization", },
-    { "Q4_K",     LLAMA_FTYPE_MOSTLY_Q4_K_M,   "alias for Q4_K_M",                  },
-    { "Q4_K_S",   LLAMA_FTYPE_MOSTLY_Q4_K_S,   " 4.37G, +0.2689 ppl @ Llama-3-8B",  },
-    { "Q4_K_M",   LLAMA_FTYPE_MOSTLY_Q4_K_M,   " 4.58G, +0.1754 ppl @ Llama-3-8B",  },
-    { "Q5_K",     LLAMA_FTYPE_MOSTLY_Q5_K_M,   "alias for Q5_K_M",                  },
-    { "Q5_K_S",   LLAMA_FTYPE_MOSTLY_Q5_K_S,   " 5.21G, +0.1049 ppl @ Llama-3-8B",  },
-    { "Q5_K_M",   LLAMA_FTYPE_MOSTLY_Q5_K_M,   " 5.33G, +0.0569 ppl @ Llama-3-8B",  },
-    { "Q6_K",     LLAMA_FTYPE_MOSTLY_Q6_K,     " 6.14G, +0.0217 ppl @ Llama-3-8B",  },
-    { "Q8_0",     LLAMA_FTYPE_MOSTLY_Q8_0,     " 7.96G, +0.0026 ppl @ Llama-3-8B",  },
+    { "IQ2_K",    LLAMA_FTYPE_MOSTLY_IQ2_K,    " 2.375 bpw non-linear quantization",},
+    { "IQ3_K",    LLAMA_FTYPE_MOSTLY_IQ3_K,    " 3.44 bpw non-linear quantization", },
+    { "IQ4_K",    LLAMA_FTYPE_MOSTLY_IQ4_K,    " 4.5 bpw non-linear quantization",  },
+    { "IQ5_K",    LLAMA_FTYPE_MOSTLY_IQ5_K,    " 5.5 bpw non-linear quantization",  },
+    { "IQ6_K",    LLAMA_FTYPE_MOSTLY_IQ6_K,    " 6.6 bpw non-linear quantization",  },
+    { "Q4_K",     LLAMA_FTYPE_MOSTLY_Q4_K_M,   "alias for Q4_K_M", },
+    { "Q4_K_S",   LLAMA_FTYPE_MOSTLY_Q4_K_S,   " 3.59G, +0.0992 ppl @ LLaMA-v1-7B", },
+    { "Q4_K_M",   LLAMA_FTYPE_MOSTLY_Q4_K_M,   " 3.80G, +0.0532 ppl @ LLaMA-v1-7B", },
+    { "Q5_K",     LLAMA_FTYPE_MOSTLY_Q5_K_M,   "alias for Q5_K_M", },
+    { "Q5_K_S",   LLAMA_FTYPE_MOSTLY_Q5_K_S,   " 4.33G, +0.0400 ppl @ LLaMA-v1-7B", },
+    { "Q5_K_M",   LLAMA_FTYPE_MOSTLY_Q5_K_M,   " 4.45G, +0.0122 ppl @ LLaMA-v1-7B", },
+    { "Q6_K",     LLAMA_FTYPE_MOSTLY_Q6_K,     " 5.15G, +0.0008 ppl @ LLaMA-v1-7B", },
+    { "Q8_0",     LLAMA_FTYPE_MOSTLY_Q8_0,     " 6.70G, +0.0004 ppl @ LLaMA-v1-7B", },
     { "Q4_0_4_4", LLAMA_FTYPE_MOSTLY_Q4_0_4_4, " 4.34G, +0.4685 ppl @ Llama-3-8B",  },
     { "Q4_0_4_8", LLAMA_FTYPE_MOSTLY_Q4_0_4_8, " 4.34G, +0.4685 ppl @ Llama-3-8B",  },
     { "Q4_0_8_8", LLAMA_FTYPE_MOSTLY_Q4_0_8_8, " 4.34G, +0.4685 ppl @ Llama-3-8B",  },
@@ -316,6 +324,8 @@ int main(int argc, char ** argv) {
     for (; arg_idx < argc && strncmp(argv[arg_idx], "--", 2) == 0; arg_idx++) {
         if (strcmp(argv[arg_idx], "--leave-output-tensor") == 0) {
             params.quantize_output_tensor = false;
+        } else if (strcmp(argv[arg_idx], "--ignore-imatrix-rules") == 0) {
+            params.ignore_imatrix_rules = true;
         } else if (strcmp(argv[arg_idx], "--output-tensor-type") == 0) {
             if (arg_idx < argc-1) {
                 params.output_tensor_type = parse_ggml_type(argv[++arg_idx]);
@@ -470,11 +480,12 @@ int main(int argc, char ** argv) {
         }
     }
 
-    if ((params.ftype == LLAMA_FTYPE_MOSTLY_IQ2_XS || params.ftype == LLAMA_FTYPE_MOSTLY_IQ2_XXS ||
+    if (!params.ignore_imatrix_rules && imatrix_data.empty() &&
+        (params.ftype == LLAMA_FTYPE_MOSTLY_IQ2_XS || params.ftype == LLAMA_FTYPE_MOSTLY_IQ2_XXS ||
          params.ftype == LLAMA_FTYPE_MOSTLY_IQ2_S  ||
          params.ftype == LLAMA_FTYPE_MOSTLY_Q2_K_S ||
          params.ftype == LLAMA_FTYPE_MOSTLY_IQ1_S  ||
-         params.ftype == LLAMA_FTYPE_MOSTLY_IQ1_M) && imatrix_data.empty()) {
+         params.ftype == LLAMA_FTYPE_MOSTLY_IQ1_M)) {
         fprintf(stderr, "\n==========================================================================================================\n");
         fprintf(stderr, "Please do not use IQ1_S, IQ1_M, IQ2_S, IQ2_XXS, IQ2_XS or Q2_K_S quantization without an importance matrix\n");
         fprintf(stderr, "==========================================================================================================\n\n\n");

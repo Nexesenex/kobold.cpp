@@ -1170,6 +1170,17 @@ class GGMLQuantizationType(IntEnum):
     TQ2_0   = 35
     Q1_3    = 36
     Q2_2    = 37
+    IQ1_BN  = 134,
+    IQ2_BN  = 135,
+    Q8_K64  = 136,
+    IQ2_K   = 137,
+    IQ3_K   = 138,
+    IQ4_K   = 139,
+    IQ5_K   = 140,
+    IQ6_K   = 141,
+    IQ2_TN  = 142,
+
+
 
 # TODO: add GGMLFileType from ggml_ftype in ggml.h
 
@@ -1209,12 +1220,23 @@ class LlamaFileType(IntEnum):
     MOSTLY_IQ2_M         = 29  # except 1d tensors
     MOSTLY_IQ4_XS        = 30  # except 1d tensors
     MOSTLY_IQ1_M         = 31  # except 1d tensors
+    MOSTLY_IQ1_M         = 31  # except 1d tensors
+    MOSTLY_IQ1_XS        = 99  # except 1d tensors
     MOSTLY_BF16          = 32  # except 1d tensors
     MOSTLY_Q4_0_4_4      = 33  # except 1d tensors
     MOSTLY_Q4_0_4_8      = 34  # except 1d tensors
     MOSTLY_Q4_0_8_8      = 35  # except 1d tensors
     MOSTLY_Q2_2          = 36  # except 1d tensors
     MOSTLY_Q1_3          = 37  # except 1d tensors
+    MOSTLY_IQ1_BN        = 136, # except 1d tensors
+    MOSTLY_IQ2_BN        = 137, # except 1d tensors
+    MOSTLY_IQ2_K         = 138, # except 1d tensors
+    MOSTLY_IQ3_K         = 139, # except 1d tensors
+    MOSTLY_IQ4_K         = 140, # except 1d tensors
+    MOSTLY_IQ5_K         = 141, # except 1d tensors
+    MOSTLY_IQ6_K         = 142, # except 1d tensors
+    MOSTLY_IQ2_TN        = 143, # except 1d tensors
+
 
     GUESSED              = 1024  # not specified in the model file
 

@@ -48,6 +48,12 @@ LDFLAGS  =
 FASTCFLAGS = $(subst -O3,-Ofast,$(CFLAGS))
 FASTCXXFLAGS = $(subst -O3,-Ofast,$(CXXFLAGS))
 
+# MK_CPPFLAGS  = -Iggml/include -Iggml/src -Iinclude -Isrc -Icommon
+# MK_CFLAGS    = -std=c11   -fPIC
+# MK_CXXFLAGS  = -std=c++17 -fPIC
+# MK_NVCCFLAGS = -std=c++11
+
+
 # these are used on windows, to build some libraries with extra old device compatibility
 SIMPLECFLAGS =
 FULLCFLAGS =
@@ -69,9 +75,116 @@ OBJS_FULL += ggml-alloc.o ggml-aarch64.o ggml-quants.o unicode.o unicode-data.o 
 OBJS_SIMPLE += ggml-alloc.o ggml-aarch64.o ggml-quants_noavx2.o unicode.o unicode-data.o sgemm_noavx2.o common.o sampling.o grammar-parser.o
 OBJS_FAILSAFE += ggml-alloc.o ggml-aarch64.o ggml-quants_failsafe.o unicode.o unicode-data.o sgemm_failsafe.o common.o sampling.o grammar-parser.o
 
+
 #lets try enabling everything
 CFLAGS   += -pthread -s -Wno-deprecated -Wno-deprecated-declarations -Wno-unused-variable
 CXXFLAGS += -pthread -s -Wno-multichar -Wno-write-strings -Wno-deprecated -Wno-deprecated-declarations -Wno-unused-variable
+
+RLIMIT_MEMLOCK came in BSD, is not specified in POSIX.1,
+and on macOS its availability depends on enabling Darwin extensions
+similarly on DragonFly, enabling BSD extensions is necessary
+# ifeq ($(UNAME_S),Darwin)
+	# MK_CPPFLAGS += -D_DARWIN_C_SOURCE
+# endif
+# ifeq ($(UNAME_S),DragonFly)
+	# MK_CPPFLAGS += -D__BSD_VISIBLE
+# endif
+
+alloca is a non-standard interface that is not visible on BSDs when
+POSIX conformance is specified, but not all of them provide a clean way
+to enable it in such cases
+# ifeq ($(UNAME_S),FreeBSD)
+	# MK_CPPFLAGS += -D__BSD_VISIBLE
+# endif
+# ifeq ($(UNAME_S),NetBSD)
+	# MK_CPPFLAGS += -D_NETBSD_SOURCE
+# endif
+# ifeq ($(UNAME_S),OpenBSD)
+	# MK_CPPFLAGS += -D_BSD_SOURCE
+# endif
+
+# ifdef GGML_SCHED_MAX_COPIES
+	# MK_CPPFLAGS += -DGGML_SCHED_MAX_COPIES=$(GGML_SCHED_MAX_COPIES)
+# endif
+
+# ifdef LLAMA_DEBUG
+	# MK_CFLAGS    += -O0 -g
+	# MK_CXXFLAGS  += -O0 -g
+	# MK_LDFLAGS   += -g
+	# MK_NVCCFLAGS += -O0 -g
+
+	# ifeq ($(UNAME_S),Linux)
+		# MK_CPPFLAGS += -D_GLIBCXX_ASSERTIONS
+	# endif
+# else
+	# MK_CPPFLAGS   += -DNDEBUG
+	# MK_CFLAGS     += -O3
+	# MK_CXXFLAGS   += -O3
+	# MK_NVCCFLAGS  += -O3
+# endif
+
+# ifdef LLAMA_SANITIZE_THREAD
+	# MK_CFLAGS   += -fsanitize=thread -g
+	# MK_CXXFLAGS += -fsanitize=thread -g
+	# MK_LDFLAGS  += -fsanitize=thread -g
+# endif
+
+# ifdef LLAMA_SANITIZE_ADDRESS
+	# MK_CFLAGS   += -fsanitize=address -fno-omit-frame-pointer -g
+	# MK_CXXFLAGS += -fsanitize=address -fno-omit-frame-pointer -g
+	# MK_LDFLAGS  += -fsanitize=address -fno-omit-frame-pointer -g
+# endif
+
+# ifdef LLAMA_SANITIZE_UNDEFINED
+	# MK_CFLAGS   += -fsanitize=undefined -g
+	# MK_CXXFLAGS += -fsanitize=undefined -g
+	# MK_LDFLAGS  += -fsanitize=undefined -g
+# endif
+
+# ifdef LLAMA_SERVER_VERBOSE
+	# MK_CPPFLAGS += -DSERVER_VERBOSE=$(LLAMA_SERVER_VERBOSE)
+# endif
+
+# ifdef LLAMA_SERVER_SSL
+	# MK_CPPFLAGS += -DCPPHTTPLIB_OPENSSL_SUPPORT
+	# MK_LDFLAGS += -lssl -lcrypto
+# endif
+
+# ifdef LLAMA_DISABLE_LOGS
+	# MK_CPPFLAGS += -DLOG_DISABLE_LOGS
+# endif # LLAMA_DISABLE_LOGS
+
+warnings
+# WARN_FLAGS = \
+	# -Wall \
+	# -Wextra \
+	# -Wpedantic \
+	# -Wcast-qual \
+	# -Wno-unused-function
+
+# MK_CFLAGS += \
+	# $(WARN_FLAGS) \
+	# -Wshadow \
+	# -Wstrict-prototypes \
+	# -Wpointer-arith \
+	# -Wmissing-prototypes \
+	# -Werror=implicit-int \
+	# -Werror=implicit-function-declaration
+
+# MK_CXXFLAGS += \
+	# $(WARN_FLAGS) \
+	# -Wmissing-declarations \
+	# -Wmissing-noreturn
+
+# ifeq ($(LLAMA_FATAL_WARNINGS),1)
+	# MK_CFLAGS   += -Werror
+	# MK_CXXFLAGS += -Werror
+# endif
+
+this version of Apple ld64 is buggy
+# ifneq '' '$(findstring dyld-1015.7,$(shell $(CC) $(LDFLAGS) -Wl,-v 2>&1))'
+	# MK_CPPFLAGS += -DHAVE_BUGGY_APPLE_LINKER
+# endif
 
 # OS specific
 # TODO: support Windows
@@ -371,6 +484,74 @@ ifeq ($(OS),Windows_NT)
 	ifdef LLAMA_HIPBLAS
 		HIPBLAS_BUILD = $(HCXX) $(CXXFLAGS) $(HIPFLAGS) $^ -shared -o $@.dll $(HIPLDFLAGS) $(LDFLAGS)
 	endif
+
+# endif # GGML_NO_ACCELERATE
+
+# ifdef GGML_MUSA
+	# CC := clang
+	# CXX := clang++
+	# GGML_CUDA := 1
+	# MK_CPPFLAGS += -DGGML_USE_MUSA
+# endif
+
+# ifndef GGML_NO_OPENMP
+	# MK_CPPFLAGS += -DGGML_USE_OPENMP
+	# MK_CFLAGS   += -fopenmp
+	# MK_CXXFLAGS += -fopenmp
+	# ifdef GGML_MUSA
+		# MK_CPPFLAGS += -I/usr/lib/llvm-10/include/openmp
+		# MK_LDFLAGS  += -L/usr/lib/llvm-10/lib
+	# endif # GGML_MUSA
+# endif # GGML_NO_OPENMP
+
+# ifdef GGML_OPENBLAS
+	# MK_CPPFLAGS += -DGGML_USE_BLAS $(shell pkg-config --cflags-only-I openblas)
+	# MK_CFLAGS   += $(shell pkg-config --cflags-only-other openblas)
+	# MK_LDFLAGS  += $(shell pkg-config --libs openblas)
+	# OBJ_GGML    += ggml/src/ggml-blas.o
+# endif # GGML_OPENBLAS
+
+# ifdef GGML_OPENBLAS64
+	# MK_CPPFLAGS += -DGGML_USE_BLAS $(shell pkg-config --cflags-only-I openblas64)
+	# MK_CFLAGS   += $(shell pkg-config --cflags-only-other openblas64)
+	# MK_LDFLAGS  += $(shell pkg-config --libs openblas64)
+	# OBJ_GGML    += ggml/src/ggml-blas.o
+# endif # GGML_OPENBLAS64
+
+# ifdef GGML_BLIS
+	# MK_CPPFLAGS += -DGGML_USE_BLAS -DGGML_BLAS_USE_BLIS -I/usr/local/include/blis -I/usr/include/blis
+	# MK_LDFLAGS  += -lblis -L/usr/local/lib
+	# OBJ_GGML    += ggml/src/ggml-blas.o
+# endif # GGML_BLIS
+
+# ifdef GGML_NVPL
+	# MK_CPPFLAGS += -DGGML_USE_BLAS -DGGML_BLAS_USE_NVPL -DNVPL_ILP64 -I/usr/local/include/nvpl_blas -I/usr/include/nvpl_blas
+	# MK_LDFLAGS  += -L/usr/local/lib -lnvpl_blas_core -lnvpl_blas_ilp64_gomp
+	# OBJ_GGML    += ggml/src/ggml-blas.o
+# endif # GGML_NVPL
+
+# OBJ_GGML    += ggml/src/iqk/iqk_quantize.o
+# ifndef GGML_NO_IQKMULMAT
+	# MK_CPPFLAGS += -DGGML_USE_IQK_MULMAT
+	# OBJ_GGML    += ggml/src/iqk/iqk_mul_mat.o
+# endif
+
+# ifndef GGML_NO_LLAMAFILE
+	# MK_CPPFLAGS += -DGGML_USE_LLAMAFILE
+	# OBJ_GGML    += ggml/src/llamafile/sgemm.o
+# endif
+
+# ifdef GGML_RPC
+	# MK_CPPFLAGS += -DGGML_USE_RPC
+	# OBJ_GGML    += ggml/src/ggml-rpc.o
+# endif # GGML_RPC
+
+# OBJ_CUDA_TMPL      = $(patsubst %.cu,%.o,$(wildcard ggml/src/ggml-cuda/template-instances/fattn-wmma*.cu))
+# OBJ_CUDA_TMPL     += $(patsubst %.cu,%.o,$(wildcard ggml/src/ggml-cuda/template-instances/mmq*.cu))
+
+# ifdef GGML_CUDA_FA_ALL_QUANTS
+	# OBJ_CUDA_TMPL += $(patsubst %.cu,%.o,$(wildcard ggml/src/ggml-cuda/template-instances/fattn-vec*.cu))
+
 else
 	DEFAULT_BUILD = $(CXX) $(CXXFLAGS)  $^ -shared -o $@.so $(LDFLAGS)
 	ifdef LLAMA_PORTABLE
@@ -550,6 +731,27 @@ ggml-vulkan.o: ggml/src/ggml-vulkan.cpp ggml/include/ggml-vulkan.h ggml/src/ggml
 
 # intermediate objects
 llama.o: src/llama.cpp ggml/include/ggml.h ggml/include/ggml-alloc.h ggml/include/ggml-backend.h ggml/include/ggml-cuda.h ggml/include/ggml-metal.h include/llama.h otherarch/llama-util.h
+
+# ggml/src/iqk/iqk_quantize.o: \
+	# ggml/src/iqk/iqk_quantize.cpp \
+	# ggml/src/iqk/iqk_quantize.h \
+	# ggml/src/ggml-quants.h ggml/src/ggml-common.h ggml/include/ggml.h ggml/src/ggml-impl.h
+
+# ifndef GGML_NO_IQKMULMAT
+# ggml/src/iqk/iqk_mul_mat.o: \
+	# ggml/src/iqk/iqk_mul_mat.cpp \
+	# ggml/src/iqk/iqk_mul_mat.h \
+	# ggml/src/iqk/iqk_quantize.h \
+	# ggml/src/ggml-quants.h ggml/src/ggml-common.h ggml/include/ggml.h ggml/src/ggml-impl.h
+	# $(CXX) $(CXXFLAGS) -c $< -o $@
+# endif # GGML_NO_IQKMULMAT
+
+# ifndef GGML_NO_LLAMAFILE
+# ggml/src/llamafile/sgemm.o: \
+	# ggml/src/llamafile/sgemm.cpp \
+	# ggml/src/llamafile/sgemm.h \
+	# ggml/include/ggml.h
+
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 common.o: common/common.cpp common/common.h common/log.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@

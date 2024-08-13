@@ -232,6 +232,14 @@ extern "C" {
         LLAMA_FTYPE_MOSTLY_Q8_OE8        = 97, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_Q8_OE16       = 98, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_IQ1_XS        = 99, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ1_BN        = 136, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ2_BN        = 137, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ2_K         = 138, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ3_K         = 139, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ4_K         = 140, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ5_K         = 141, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ6_K         = 142, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ2_TN        = 143, // except 1d tensors
 
         LLAMA_FTYPE_GUESSED = 1024, // not specified in the model file
     };
@@ -417,6 +425,7 @@ extern "C" {
         bool only_copy;                      // only copy tensors - ftype, allow_requantize and quantize_output_tensor are ignored
         bool pure;                           // quantize all tensors to the default type
         bool keep_split;                     // quantize to the same number of shards
+        bool ignore_imatrix_rules;           // If set to true, the built-in rules for refusing to quantize into certain quants without imatrix are ignored
         void * imatrix;                      // pointer to importance matrix data
         void * kv_overrides;                 // pointer to vector containing overrides
     } llama_model_quantize_params;
