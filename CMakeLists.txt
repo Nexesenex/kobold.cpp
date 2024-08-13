@@ -66,6 +66,45 @@ option(LLAMA_LLAMAFILE                       "llama: use llamafile SGEMM"       
 option(LLAMA_CCACHE                          "llama: use ccache if available"                   ON)
 option(LLAMA_NATIVE                          "llama: enable -march=native flag"                 OFF)
 
+IK
+# IK
+# set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_INCLUDES 0)
+# set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_LIBRARIES 0)
+# set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_OBJECTS 0)
+# option(GGML_IQK_MUL_MAT                     "ggml: use optimized iqk matrix multiplications"    ON)
+
+
+set (GGML_SOURCES_IQK iqk/iqk_quantize.cpp)
+if (GGML_IQK_MUL_MAT)
+    message(STATUS "Using optimized iqk matrix multiplications")
+    add_compile_definitions(GGML_USE_IQK_MULMAT)
+    set(GGML_SOURCES_IQK_MM iqk/iqk_mul_mat.cpp)
+    set(GGML_HEADERS_IQK_MM iqk/iqk_mul_mat.h)
+endif()
+
+if (GGML_LLAMAFILE)
+    message(STATUS "Using llamafile")
+
+
+@@ -271,6 +279,9 @@ if (GGML_CUDA)
+        set(CUDAToolkit_FOUND ${MUSAToolkit_FOUND})
+    else()
+        find_package(CUDAToolkit)
+        set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_INCLUDES 0)
+        set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_LIBRARIES 0)
+        set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_OBJECTS 0)
+    endif()
+
+    if (CUDAToolkit_FOUND)
+
+
+@@ -1296,6 +1307,8 @@ add_library(ggml
+            ${GGML_SOURCES_ROCM}      ${GGML_HEADERS_ROCM}
+            ${GGML_SOURCES_BLAS}      ${GGML_HEADERS_BLAS}
+            ${GGML_SOURCES_LLAMAFILE} ${GGML_HEADERS_LLAMAFILE}
+            ${GGML_SOURCES_IQK_MM}    ${GGML_HEADERS_IQK_MM}
+            ${GGML_SOURCES_IQK}
+
 #
 # Compile flags
 #
@@ -103,6 +142,11 @@ if (LLAMA_CUBLAS)
         message(STATUS "cuBLAS found")
 
         enable_language(CUDA)
+
+        #IK
+        set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_INCLUDES 0)
+        set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_LIBRARIES 0)
+        set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_OBJECTS 0)
 
         add_compile_definitions(GGML_USE_CUDA)
         add_compile_definitions(SD_USE_CUBLAS)
