@@ -6083,10 +6083,10 @@ static bool llm_load_tensors(
     }
     #endif
 
-    // there is very little benefit to offloading the input layer, so always keep it on the CPU
-    //model.buft_input = llama_default_buffer_type_cpu(true);
+    // there is very little benefit to offloading the input layer, so mostly keep it on the CPU
+    model.buft_input = llama_default_buffer_type_cpu(true);
     //
-    // Well, this is not really true when the model uses the same tensor for token embeddings and for output
+    // IK : Well, this is not really true when the model uses the same tensor for token embeddings and for output
     // (e.g., Bitnet, Gemma). If we use the above, then the matrix multiplication with the output tensor runs
     // on the CPU, which can have quite a significant impact on performance. For instance, for 3B-Bitnet, I get
     // TG-128 = ~240 t/s on an RTX-4080 with the above, and TG-128 = 320 t/s with the version below.
@@ -6251,7 +6251,7 @@ static bool llm_load_tensors(
 
                         // if output is NULL, init from the input tok embed
                         if (model.output == NULL) {
-                            model.output = ml.create_tensor(ctx_output, tn(LLM_TENSOR_TOKEN_EMBD, "weight"), {n_embd, n_vocab}, llama_model_loader::TENSOR_DUPLICATED);
+                            model.output = ml.create_tensor(ctx_output, tn(LLM_TENSOR_TOKEN_EMBD, "weight"), {n_embd, n_vocab}, llama_model_loader::TENSOR_DUPLICATED); // same as tok_embd, duplicated to allow offloading
                         }
                     }
 
@@ -13256,7 +13256,7 @@ struct llm_build_context {
         cb(cur, "result_norm", -1);
 
         // lm_head
-        cur = ggml_mul_mat(ctx0, model.output, cur);
+        cur = ggml_mul_mat(ctx0, model.output, cur); // model.output instead of model.tok_embd
         cb(cur, "result_output", -1);
 
         ggml_build_forward_expand(gf, cur);
