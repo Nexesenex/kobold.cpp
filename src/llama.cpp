@@ -15214,10 +15214,6 @@ static int llama_decode_internal(
 
         }
 
-#ifdef GGML_USE_CUDA
-        ggml_backend_copy_kv_cache_ptrs(model.hparams.n_layer, kv_self.head, kv_self.k_l.data(), kv_self.v_l.data(), hparams.n_embd_k_gqa(), hparams.n_embd_v_gqa(), cparams.flash_attn);
-#endif
-
         llama_set_inputs(lctx, u_batch);
 
         llama_graph_compute(lctx, gf, n_threads);
