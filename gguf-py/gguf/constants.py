@@ -218,6 +218,7 @@ class MODEL_ARCH(IntEnum):
     BITNET       = auto()
     T5           = auto()
     JAIS         = auto()
+    EXAONE       = auto()
 
 
 class MODEL_TENSOR(IntEnum):
@@ -345,6 +346,7 @@ MODEL_ARCH_NAMES: dict[MODEL_ARCH, str] = {
     MODEL_ARCH.BITNET:         "bitnet",
     MODEL_ARCH.T5:             "t5",
     MODEL_ARCH.JAIS:           "jais",
+    MODEL_ARCH.EXAONE:         "exaone",
 }
 
 TENSOR_NAMES: dict[MODEL_TENSOR, str] = {
@@ -1046,6 +1048,22 @@ MODEL_TENSORS: dict[MODEL_ARCH, list[MODEL_TENSOR]] = {
         MODEL_TENSOR.FFN_NORM,
         MODEL_TENSOR.FFN_DOWN,
         MODEL_TENSOR.FFN_GATE,
+        MODEL_TENSOR.FFN_UP,
+    ],
+    MODEL_ARCH.EXAONE: [
+        MODEL_TENSOR.TOKEN_EMBD,
+        MODEL_TENSOR.OUTPUT_NORM,
+        MODEL_TENSOR.OUTPUT,
+        MODEL_TENSOR.ROPE_FREQS,
+        MODEL_TENSOR.ATTN_NORM,
+        MODEL_TENSOR.ATTN_Q,
+        MODEL_TENSOR.ATTN_K,
+        MODEL_TENSOR.ATTN_V,
+        MODEL_TENSOR.ATTN_OUT,
+        MODEL_TENSOR.ATTN_ROT_EMBD,
+        MODEL_TENSOR.FFN_NORM,
+        MODEL_TENSOR.FFN_GATE,
+        MODEL_TENSOR.FFN_DOWN,
         MODEL_TENSOR.FFN_UP,
     ],
     # TODO
