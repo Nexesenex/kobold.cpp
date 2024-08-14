@@ -835,8 +835,6 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
                 kvbpw = 20.5
 
             if cs:
-
-
                 csmul = ((cs+4096)/6144) if cs >= 2048 else 1.0 #Nexes 2
                 # csmul = (cs/4096) if cs >= 8192 else (cs/(2048+(cs-2048)/3)) if cs >= 2048 else 1.0 #Nexes 1
                 # csmul = (cs/4096) if cs >= 8192 else 1.8 if cs > 4096 else 1.2 if cs > 2048 else 1.0 #Concedo
@@ -880,9 +878,10 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
                 if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
                     print(f"Failure to read metadata or no layers number declared. Fallback calculations.")
                     sizeperlayer = int(fsize*csmul*0.052)
-                    print(f"Size per layer = Model size {fsize/1024/1024:.3f} MiB x 0.052 x {csmul} (CCBM)")
+                    layers = (fsize/sizeperlayer)
+                    print(f"Size per layer = Model size {fsize/1024/1024:.3f} MiB x 0.052 x {csmul} (CCBM); Estimated number of layers = {layers}")
                     layerlimit = int(min(200,mem/sizeperlayer+layer_offset))
-                    print(f"Size per layer: {sizeperlayer/1024/1024} MiB ; layers limit: {layerlimit} + offset of {layer_offset} layers.")
+                    print(f"Size per layer: {sizeperlayer/1024/1024} MiB ; layers limit: {layerlimit} + offset of {layer_offset} layers if <200, else 200.")
                     print("***")
                 else:
                     print(f"Success to read metadata, proceeding with more elaborate calculations...")
@@ -920,18 +919,24 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
                 print(f"GPU usable VRAM : {mem/1024/1024} MiB > {size_init/1024/1024:.3f} MiB initially to load.")
                 print(f"The dedicated VRAM is superior to the model, context, and compute size alltogether.")
                 print(f"Best case, assume full offload. No further calculations..")
-                ggufmeta = read_gguf_metadata(filepath)
+                ggufmeta = modelfile_extracted_meta[0]
                 if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
-                    print(f"No metadata found.")
-                    print(f"Arbitrary layers limit is 200 + selected layer offset of {layer_offset}.")
-                    layerlimit = 200 + layer_offset # assume full offload
+                    print(f"Failure to read metadata or no layers number declared. Fallback calculations.")
+                    sizeperlayer = int(fsize*csmul*0.052)
+                    layers = (fsize/sizeperlayer)
+                    print(f"Size per layer = Model size {fsize/1024/1024:.3f} MiB x 0.052 x {csmul} (CCBM); Estimated number of layers = {layers}")
+                    layerlimit = int(min(200,mem/sizeperlayer+layer_offset))
+                    print(f"Size per layer: {sizeperlayer/1024/1024} MiB ; layers limit: {layerlimit} + offset of {layer_offset} layers if <200, else 200.")
+                    print("***")
                 else:
                     layerlimit = ggufmeta[0] + 3 + layer_offset
                     print(f"Metadata are read.")
+                    layers = ggufmeta[0]
                     print(f"Layers limit is {ggufmeta[0]} + fixed offset of 3 + selected layer offset of {layer_offset}.")
+                print(f"Layers limit: {layerlimit} = final ratio {ratio_init:.3f} x {layers} layers + offset of {layer_offset} layers.")
             print("***")
-
         layerlimit = (0 if layerlimit<=2 else layerlimit)
+        print(f"Layers limit: {layerlimit}")
         return layerlimit
     except Exception as ex:
         return 0
