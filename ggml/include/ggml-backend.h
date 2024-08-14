@@ -238,6 +238,9 @@ extern "C" {
     // Set whether or not to use GGML graph caching
     GGML_API void ggml_set_cached_graph(ggml_backend_sched_t sched, bool set_value);
 
+    // Copy K and V cache pointers to backend
+    GGML_API void ggml_backend_copy_kv_cache_ptrs(const int64_t n_layer, const int64_t kv_self_head, struct ggml_tensor ** kv_kl, struct ggml_tensor ** kv_vl, const int64_t n_embd_k_gqa, const int64_t n_embd_v_gqa, const bool flash_attn);
+
 #ifdef  __cplusplus
 }
 #endif
