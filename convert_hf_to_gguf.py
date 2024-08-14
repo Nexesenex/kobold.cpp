@@ -3598,6 +3598,7 @@ class ChatGLMModel(Model):
         name = name.removeprefix("transformer.")
         return [(self.map_tensor_name(name), data_torch)]
 
+
 @Model.register("ExaoneForCausalLM")
 class ExaoneModel(Model):
     model_arch = gguf.MODEL_ARCH.EXAONE
