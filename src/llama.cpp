@@ -5501,14 +5501,21 @@ static void llm_load_vocab(
             vocab.tokenizer_add_space_prefix = false;
             vocab.tokenizer_clean_spaces = true;
             if (tokenizer_pre.empty()) {
-                LLAMA_LOG_WARN("%s: missing pre-tokenizer type, using: 'default'\n", __func__);
+                //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                // OK - I don't feel like recreati8ng the LLaMA-v3 models. Considering that, at least for now,
+                // LLaMA-v3 is the only model wehere we end up here, let's just force the pre-tokanizer to be
+                // llama3.
+                tokenizer_pre = "llama3";
+                vocab.type_pre = LLAMA_VOCAB_PRE_TYPE_LLAMA3;
+                LLAMA_LOG_WARN("%s: missing pre-tokenizer type, using: 'llama3'\n", __func__);
                 LLAMA_LOG_WARN("%s:                                             \n", __func__);
                 LLAMA_LOG_WARN("%s: ************************************        \n", __func__);
-                LLAMA_LOG_WARN("%s: GENERATION QUALITY WILL BE DEGRADED!        \n", __func__);
+                LLAMA_LOG_WARN("%s: GENERATION QUALITY MAY BE DEGRADED!         \n", __func__);
                 LLAMA_LOG_WARN("%s: CONSIDER REGENERATING THE MODEL             \n", __func__);
                 LLAMA_LOG_WARN("%s: ************************************        \n", __func__);
                 LLAMA_LOG_WARN("%s:                                             \n", __func__);
-                vocab.type_pre = LLAMA_VOCAB_PRE_TYPE_DEFAULT;
+                //vocab.type_pre = LLAMA_VOCAB_PRE_TYPE_DEFAULT;
+                //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             } else if (tokenizer_pre == "default") {
                 vocab.type_pre = LLAMA_VOCAB_PRE_TYPE_DEFAULT;
             } else if (
