@@ -4618,7 +4618,12 @@ def main(launch_args,start_server=True):
         gpu1avram = int(MaxMemory[1]/1024/1024)
         gpu2avram = int(MaxMemory[2]/1024/1024)
         gpu3avram = int(MaxMemory[3]/1024/1024)
+        gpu0fvram = int(MaxFreeMemory[0]/1024/1024)
+        gpu1fvram = int(MaxFreeMemory[1]/1024/1024)
+        gpu2fvram = int(MaxFreeMemory[2]/1024/1024)
+        gpu3fvram = int(MaxFreeMemory[3]/1024/1024)
         gpuavram = gpu0avram + gpu1avram + gpu2avram + gpu3avram
+        gpufvram = gpu0fvram + gpu1fvram + gpu2fvram + gpu3fvram
         benchmaxctx = (maxctx - 128)
         benchtg = args.promptlimit
         benchpp = (benchmaxctx - benchtg)
@@ -4663,7 +4668,7 @@ def main(launch_args,start_server=True):
             print(result)
         if args.benchmark:
             result = (result[:4] if len(result)>4 else "") if not args.prompt else result
-            resultok = (result=="1111")
+            resultok = ((result==" 1 1") or (result=="1 1 "))
             t_pp = float(handle.get_last_process_time())*float(benchpp)*0.001
             t_gen = float(handle.get_last_eval_time())*float(benchtg)*0.001
             s_pp = float(benchpp)/t_pp
@@ -4679,16 +4684,35 @@ def main(launch_args,start_server=True):
             print(f"HighPriority: {args.highpriority}")
             print(f"FlashAttention: {args.flashattention}")
             print(f"Threads: {args.threads}")
+            CUDevicesNames.sort(reverse=True)
+            if gpu0avram>0:
+                print(f"GPU 0 Name: {CUDevicesNames[0]}")
             if gpu0avram>0:
                 print(f"GPU 0 VRAM: {gpu0avram} MiB")
+            if gpu0fvram>0:
+                print(f"GPU 0 VRAM: {gpu0fvram} MiB")
+            if gpu1avram>0:
+                print(f"GPU 1 Name: {CUDevicesNames[1]}")
             if gpu1avram>0:
                 print(f"GPU 1 VRAM: {gpu1avram} MiB")
+            if gpu1fvram>0:
+                print(f"GPU 1 VRAM: {gpu1fvram} MiB")
+            if gpu2avram>0:
+                print(f"GPU 2 Name: {CUDevicesNames[2]}")
             if gpu2avram>0:
                 print(f"GPU 2 VRAM: {gpu2avram} MiB")
+            if gpu2fvram>0:
+                print(f"GPU 2 VRAM: {gpu2fvram} MiB")
+            if gpu3avram>0:
+                print(f"GPU 3 Name: {CUDevicesNames[3]}")
             if gpu3avram>0:
                 print(f"GPU 3 VRAM: {gpu3avram} MiB")
+            if gpu3fvram>0:
+                print(f"GPU 3 VRAM: {gpu3fvram} MiB")
             if gpuavram > gpu0avram:
                 print(f"GPUs Total VRAM: {gpuavram} MiB")
+            if gpufvram > gpu0fvram:
+                print(f"GPUs Total VRAM: {gpufvram} MiB")
             print(f"Cublas_Args: {args.usecublas}")
             print(f"Layers: {args.gpulayers}")
             print(f"Tensor_Split: {args.tensor_split}")
@@ -4712,8 +4736,8 @@ def main(launch_args,start_server=True):
                     with open(args.benchmark, "a") as file:
                         file.seek(0, 2)
                         if file.tell() == 0: #empty file
-                            file.write(f"Datime,KCPPF,LCPP,Backend,CudaSpecifics,Model,NoAvx2,NoBlas,NoMmap,HighP,FlashA,Thrd,VRAM,Layers,BlasThrd,BBSizeN,BBSizeU,KVC,PPNum,PPTime,PPSpeed,TGNum,TGTime,TGSpeed,BenchCtx,TotalTime,Coher,Tensor1,Split2,Cublas1,Argument2,Argument3,Argument4")
-                        file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{CudaSpecifics},{benchmodel},{args.noavx2},{args.noblas},{args.nommap},{args.highpriority},{args.flashattention},{args.threads},{gpuavram},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.blasubatchsize},{args.quantkv},{benchpp},{t_pp:.3f},{s_pp:.2f},{benchtg},{t_gen:.3f},{s_gen:.2f},{benchmaxctx},{(t_pp+t_gen):.3f},{resultok},{args.tensor_split},,{args.usecublas},,,")
+                            file.write(f"Datime,KCPPF,LCPP,Backend,CudaSpecifics,Model,NoAvx2,NoBlas,NoMmap,HighP,FlashA,Thrd,VRAM,FVRAM0,Layers,BlasThrd,BBSizeN,BBSizeU,KVC,PPNum,PPTime,PPSpeed,TGNum,TGTime,TGSpeed,BenchCtx,TotalTime,Coher,Tensor1,Split2,Cublas1,Argument2,Argument3,Argument4")
+                        file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{libname},{CudaSpecifics},{benchmodel},{args.noavx2},{args.noblas},{args.nommap},{args.highpriority},{args.flashattention},{args.threads},{gpuavram},{gpu0fvram},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.blasubatchsize},{args.quantkv},{benchpp},{t_pp:.3f},{s_pp:.2f},{benchtg},{t_gen:.3f},{s_gen:.2f},{benchmaxctx},{(t_pp+t_gen):.3f},{resultok},{args.tensor_split},,{args.usecublas},,,")
                 except Exception as e:
                     print(f"Error writing benchmark to file: {e}")
             global using_gui_launcher
@@ -4817,7 +4841,7 @@ if __name__ == '__main__':
     advparser.add_argument("--onready", help="An optional shell command to execute after the model has been loaded.", metavar=('[shell command]'), type=str, default="",nargs=1)
     advparser.add_argument("--benchmark", help="Do not start server, instead run benchmarks. If filename is provided, appends results to provided file.", metavar=('[filename]'), nargs='?', const="stdout", type=str, default=None)
     advparser.add_argument("--prompt", metavar=('[prompt]'), help="Passing a prompt string triggers a direct inference, loading the model, outputs the response to stdout and exits. Can be used alone or with benchmark.", type=str, default="")
-    advparser.add_argument("--promptlimit", help="Sets the maximum number of generated tokens, usable only with --prompt or --benchmark",metavar=('[token limit]'), type=int, default=100)
+    advparser.add_argument("--promptlimit", help="Sets the maximum number of generated tokens, usable only with --prompt or --benchmark",metavar=('[token limit]'), type=int, default=128)
     advparser.add_argument("--multiuser", help="Runs in multiuser mode, which queues incoming requests instead of blocking them.", metavar=('limit'), nargs='?', const=1, type=int, default=1)
     advparser.add_argument("--remotetunnel", help="Uses Cloudflare to create a remote tunnel, allowing you to access koboldcpp remotely over the internet even behind a firewall.", action='store_true')
     advparser.add_argument("--highpriority", help="Experimental flag. If set, increases the process CPU priority, potentially speeding up generation. Use caution.", action='store_true')
