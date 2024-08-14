@@ -2074,6 +2074,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     last_stop_reason = stop_reason::OUT_OF_TOKENS;
     stop_sequence.clear();
     special_stop_sequence.clear();
+    dry_repeat_count.clear();
+    dry_sequence_breakers.clear();
+    dry_max_token_repeat.clear();
+
     for(int x=0;x<stop_token_max;++x)
     {
         std::string stopper = inputs.stop_sequence[x];
