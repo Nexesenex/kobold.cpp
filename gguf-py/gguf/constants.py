@@ -1163,13 +1163,8 @@ class GGMLQuantizationType(IntEnum):
     F64     = 28
     IQ1_M   = 29
     BF16    = 30
-    Q4_0_4_4 = 31
-    Q4_0_4_8 = 32
-    Q4_0_8_8 = 33
-    TQ1_0   = 34
-    TQ2_0   = 35
-    Q1_3    = 36
-    Q2_2    = 37
+    Q2_2    = 31
+    Q1_3    = 32
 
 # TODO: add GGMLFileType from ggml_ftype in ggml.h
 
