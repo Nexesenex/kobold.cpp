@@ -61,8 +61,6 @@ option(LLAMA_HIPBLAS                         "llama: use hipBLAS"               
 
 # Other
 set(LLAMA_SCHED_MAX_COPIES  "2" CACHE STRING "llama: max input copies for pipeline parallelism")
-add_compile_definitions(GGML_SCHED_MAX_COPIES=${GGML_SCHED_MAX_COPIES})
-
 option(LLAMA_OPENMP                          "llama: use OpenMP"                                ON)
 option(LLAMA_LLAMAFILE                       "llama: use llamafile SGEMM"                       ON)
 option(LLAMA_CCACHE                          "llama: use ccache if available"                   ON)
