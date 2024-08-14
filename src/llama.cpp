@@ -14857,55 +14857,55 @@ static int llama_decode_internal(
         // Re-build graph only if graph caching is not possible
         if(!ggml_use_cached_graph(lctx.sched) || n_has_changed_since_last_token) {
 
-        gf = llama_build_graph(lctx, u_batch, false);
+            gf = llama_build_graph(lctx, u_batch, false);
 
-        // Set whether GGML graph caching is in use within GGML module, based on
-        // whether caching was activated here during the previous token
-        ggml_set_cached_graph(lctx.sched,lctx.cached_graph.is_active);
+            // Set whether GGML graph caching is in use within GGML module, based on
+            // whether caching was activated here during the previous token
+            ggml_set_cached_graph(lctx.sched,lctx.cached_graph.is_active);
 
-        // Disable future graph caching in presence of env var,
-        // if there are multiple devices, if batch size is greater than 1,
-        // or if nsplits is not 2.
-        // TO DO enable graph caching for these cases
-        bool disable_cached_ggml_graph = (getenv("GGML_DISABLE_GRAPH_CACHING") != nullptr)
-            || (llama_get_device_count(model) > 1)
-            || (ggml_backend_sched_get_n_splits(lctx.sched) != 2);
-        for (int i = 0 ; i < gf->n_nodes; i++) {
-            if (gf->nodes[i]->op == GGML_OP_ADD && gf->nodes[i]->src[1] && gf->nodes[i]->src[1]->ne[1] > 1) {
-                disable_cached_ggml_graph = true;
-                break;
-            }
-        }
-
-        // Set whether graph caching should be used for future tokens
-        lctx.cached_graph.is_active=!disable_cached_ggml_graph;
-
-        // the output is always the last tensor in the graph
-        res  = gf->nodes[gf->n_nodes - 1];
-        embd = gf->nodes[gf->n_nodes - 2];
-        if (lctx.n_outputs == 0) {
-            // no output
-            res  = nullptr;
-            embd = nullptr;
-        } else if (cparams.embeddings) {
-            res  = nullptr; // do not extract logits for embedding case
-            embd = nullptr;
-            for (int i = gf->n_nodes - 1; i >= 0; --i) {
-                if (strcmp(gf->nodes[i]->name, "result_embd_pooled") == 0) {
-                    embd = gf->nodes[i];
+            // Disable future graph caching in presence of env var,
+            // if there are multiple devices, if batch size is greater than 1,
+            // or if nsplits is not 2.
+            // TO DO enable graph caching for these cases
+            bool disable_cached_ggml_graph = (getenv("GGML_DISABLE_GRAPH_CACHING") != nullptr)
+                || (llama_get_device_count(model) > 1)
+                || (ggml_backend_sched_get_n_splits(lctx.sched) != 2);
+            for (int i = 0 ; i < gf->n_nodes; i++) {
+                if (gf->nodes[i]->op == GGML_OP_ADD && gf->nodes[i]->src[1] && gf->nodes[i]->src[1]->ne[1] > 1) {
+                    disable_cached_ggml_graph = true;
                     break;
                 }
             }
-            GGML_ASSERT(embd != nullptr && "missing embeddings tensor");
-        } else {
-            embd = nullptr; // do not extract embeddings when not needed
-            GGML_ASSERT(strcmp(res->name, "result_output") == 0 && "missing result_output tensor");
-        }
-        lctx.cached_graph.res = res;
-        lctx.cached_graph.embd = embd;
-        // LLAMA_LOG_INFO("graph build time: %.3f ms (%d nodes, %d leafs)\n", (ggml_time_us() - t_start_us)/1000.0, gf->n_nodes, gf->n_leafs);
 
-        ggml_backend_sched_alloc_graph(lctx.sched, gf);
+            // Set whether graph caching should be used for future tokens
+            lctx.cached_graph.is_active=!disable_cached_ggml_graph;
+
+            // the output is always the last tensor in the graph
+            res  = gf->nodes[gf->n_nodes - 1];
+            embd = gf->nodes[gf->n_nodes - 2];
+            if (lctx.n_outputs == 0) {
+                // no output
+                res  = nullptr;
+                embd = nullptr;
+            } else if (cparams.embeddings) {
+                res  = nullptr; // do not extract logits for embedding case
+                embd = nullptr;
+                for (int i = gf->n_nodes - 1; i >= 0; --i) {
+                    if (strcmp(gf->nodes[i]->name, "result_embd_pooled") == 0) {
+                        embd = gf->nodes[i];
+                        break;
+                    }
+                }
+                GGML_ASSERT(embd != nullptr && "missing embeddings tensor");
+            } else {
+                embd = nullptr; // do not extract embeddings when not needed
+                GGML_ASSERT(strcmp(res->name, "result_output") == 0 && "missing result_output tensor");
+            }
+            lctx.cached_graph.res = res;
+            lctx.cached_graph.embd = embd;
+            // LLAMA_LOG_INFO("graph build time: %.3f ms (%d nodes, %d leafs)\n", (ggml_time_us() - t_start_us)/1000.0, gf->n_nodes, gf->n_leafs);
+
+            ggml_backend_sched_alloc_graph(lctx.sched, gf);
 
         }
         else {
