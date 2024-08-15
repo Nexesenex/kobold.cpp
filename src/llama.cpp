@@ -5575,6 +5575,12 @@ static void llm_load_vocab(
                 vocab.type_pre = LLAMA_VOCAB_PRE_TYPE_CHAMELEON;
                 vocab.tokenizer_add_bos = true;
                 vocab.tokenizer_clean_spaces = false;
+            } else if (
+                tokenizer_pre == "bloom") {
+                vocab.type_pre = LLAMA_VOCAB_PRE_TYPE_BLOOM;
+            } else if (
+                tokenizer_pre == "gpt3-finnish") {
+                vocab.type_pre = LLAMA_VOCAB_PRE_TYPE_GPT3_FINNISH;
             } else {
                 throw std::runtime_error(format("unknown pre-tokenizer type: '%s'", tokenizer_pre.c_str()));
             }
@@ -19230,11 +19236,11 @@ llama_token llama_token_pad(const struct llama_model * model) {
     return llama_token_pad_impl(model->vocab);
 }
 
-int32_t llama_add_bos_token(const struct llama_model * model) {
+bool llama_add_bos_token(const struct llama_model * model) {
     return llama_add_bos_token_impl(model->vocab);
 }
 
-int32_t llama_add_eos_token(const struct llama_model * model) {
+bool llama_add_eos_token(const struct llama_model * model) {
     return llama_add_eos_token_impl(model->vocab);
 }
 
