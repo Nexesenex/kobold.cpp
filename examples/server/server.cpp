@@ -694,9 +694,8 @@ struct server_context {
 
         n_ctx = llama_n_ctx(ctx);
 
-        add_bos_token = llama_should_add_bos_token(model);
-        has_eos_token = llama_add_eos_token(model) != 1;
-
+        add_bos_token = llama_add_bos_token(model);
+        has_eos_token = !llama_add_eos_token(model);
         return true;
     }
 
@@ -1323,7 +1322,7 @@ struct server_context {
 
         return json {
             {"n_ctx",                     slot.n_ctx},
-            {"n_predict",                 slot.n_predict},
+            {"n_predict",                 slot.n_predict},     // Server configured n_predict
             {"model",                     params.model_alias},
             {"seed",                      slot.sparams.seed},
             {"temperature",               slot.sparams.temp},
@@ -1345,7 +1344,7 @@ struct server_context {
             {"mirostat_eta",              slot.sparams.mirostat_eta},
             {"penalize_nl",               slot.sparams.penalize_nl},
             {"stop",                      slot.params.antiprompt},
-            {"n_predict",                 slot.params.n_predict}, // TODO: fix duplicate key n_predict
+            {"max_tokens",                slot.params.n_predict}, // User configured n_predict
             {"n_keep",                    slot.params.n_keep},
             {"n_discard",                 slot.params.n_discard},
             {"ignore_eos",                ignore_eos},
@@ -1853,6 +1852,8 @@ struct server_context {
                     llama_lora_adapters_apply(ctx, lora_adapters);
                     server_task_result result;
                     result.id = task.id;
+                    result.stop = true;
+                    result.error = false;
                     result.data = json{{ "success", true }};
                     queue_results.send(result);
                 } break;
@@ -2037,7 +2038,7 @@ struct server_context {
                         slot.t_start_generation = 0;
 
                         if (slot.infill) {
-                            const bool add_bos = llama_should_add_bos_token(model);
+                            const bool add_bos = llama_add_bos_token(model);
                             bool suff_rm_leading_spc = true;
                             if (params.input_suffix.find_first_of(' ') == 0 && params.input_suffix.size() > 1) {
                                 params.input_suffix.erase(0, 1);
