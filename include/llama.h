@@ -95,6 +95,7 @@ extern "C" {
         LLAMA_VOCAB_PRE_TYPE_CODESHELL      = 22,
         LLAMA_VOCAB_PRE_TYPE_BLOOM          = 23,
         LLAMA_VOCAB_PRE_TYPE_GPT3_FINNISH   = 24,
+        LLAMA_VOCAB_PRE_TYPE_EXAONE         = 25,
     };
 
     // note: these values should be synchronized with ggml_rope
