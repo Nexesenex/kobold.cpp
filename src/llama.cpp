@@ -16221,6 +16221,12 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XL && (use_more_bits(i_layer, n_layer))) new_type = GGML_TYPE_IQ4_XS;
         ++qs.i_ffn_up;
     }
+    else if (name.find("attn_norm.weight") != std::string::npos) {
+        if (ftype == LLAMA_FTYPE_CQS && qs.params->attn_norm_type < GGML_TYPE_COUNT) new_type = qs.params->attn_norm_type;
+    }
+    else if (name.find("ffn_norm") != std::string::npos) {
+        if (ftype == LLAMA_FTYPE_CQS && qs.params->ffn_norm_type < GGML_TYPE_COUNT) new_type = qs.params->ffn_norm_type;
+    }
 
     //    if (ftype == LLAMA_FTYPE_MOSTLY_Q2_K) new_type = GGML_TYPE_Q3_K;
     //}
@@ -16649,6 +16655,12 @@ static void llama_model_quantize_internal(const std::string & fname_inp, const s
             if (params->attn_output_type < GGML_TYPE_COUNT && strcmp(tensor->name, "attn_output.weight") == 0) {
                 new_type = params->attn_output_type;
             }
+            if (params->attn_norm_type < GGML_TYPE_COUNT && strcmp(tensor->name, "attn_norm.weight") == 0) {
+                new_type = params->attn_norm_type;
+            }
+            if (params->ffn_norm_type < GGML_TYPE_COUNT && strcmp(tensor->name, "ffn_norm") == 0) {
+                new_type = params->ffn_norm_type;
+            }
             if (params->ffn_gate_type < GGML_TYPE_COUNT && strcmp(tensor->name, "ffn_gate") == 0) {
                 new_type = params->ffn_gate_type;
             }
@@ -17065,6 +17077,8 @@ struct llama_model_quantize_params llama_model_quantize_default_params() {
         /*.attn_v_type                 =*/ GGML_TYPE_COUNT,
         /*.attn_qkv_type               =*/ GGML_TYPE_COUNT,
         /*.attn_output_type            =*/ GGML_TYPE_COUNT,
+        /*.attn_norm_type              =*/ GGML_TYPE_COUNT,
+        /*.ffn_norm_type               =*/ GGML_TYPE_COUNT,
         /*.ffn_gate_type               =*/ GGML_TYPE_COUNT,
         /*.ffn_down_type               =*/ GGML_TYPE_COUNT,
         /*.ffn_up_type                 =*/ GGML_TYPE_COUNT,
