@@ -15908,9 +15908,7 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
             else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XL) new_type = GGML_TYPE_IQ4_XS;
         }
     } else if (name.find("attn_v.weight") != std::string::npos) {
-        if (ftype == LLAMA_FTYPE_CQS && qs.params->attn_v_type < GGML_TYPE_COUNT) {
-            new_type = qs.params->attn_v_type;
-        }
+        if (ftype == LLAMA_FTYPE_CQS && qs.params->attn_v_type < GGML_TYPE_COUNT) new_type = qs.params->attn_v_type;
         else if (qs.model.hparams.n_expert >= 4) {
             // for the 8-expert model, bumping this to Q8_0 trades just ~128MB
             // TODO: explore better strategies
@@ -15974,9 +15972,7 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
         }
         ++qs.i_attention_wv;
     } else if (name.find("attn_k.weight") != std::string::npos) {
-        if (ftype == LLAMA_FTYPE_CQS && qs.params->attn_k_type < GGML_TYPE_COUNT) {
-            new_type = qs.params->attn_k_type;
-        }
+        if (ftype == LLAMA_FTYPE_CQS && qs.params->attn_k_type < GGML_TYPE_COUNT) new_type = qs.params->attn_k_type;
         else if (qs.model.hparams.n_expert >= 4) {
             // for the 8-expert model, bumping this to Q8_0 trades just ~128MB
             // TODO: explore better strategies
@@ -16030,9 +16026,7 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
         }
         ++qs.i_attention_wk;
     } else if (name.find("attn_q.weight") != std::string::npos) {
-        if (ftype == LLAMA_FTYPE_CQS && qs.params->attn_q_type < GGML_TYPE_COUNT) {
-            new_type = qs.params->attn_q_type;
-        }
+        if (ftype == LLAMA_FTYPE_CQS && qs.params->attn_q_type < GGML_TYPE_COUNT) new_type = qs.params->attn_q_type;
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXS) new_type = GGML_TYPE_IQ2_S;
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_S) new_type = GGML_TYPE_IQ3_XXS;
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_XXS || ftype == LLAMA_FTYPE_MOSTLY_IQ2_XS || ftype == LLAMA_FTYPE_MOSTLY_IQ1_S ||
@@ -16055,9 +16049,7 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
     } else if (name.find("ffn_down") != std::string::npos) {
         auto info = layer_info(qs.i_ffn_down, qs.n_ffn_down, name.c_str());
         int i_layer = info.first, n_layer = info.second;
-        if (ftype == LLAMA_FTYPE_CQS && qs.params->ffn_down_type < GGML_TYPE_COUNT) {
-            new_type = qs.params->ffn_down_type;
-        }
+        if (ftype == LLAMA_FTYPE_CQS && qs.params->ffn_down_type < GGML_TYPE_COUNT) new_type = qs.params->ffn_down_type;
         else if (ftype == LLAMA_FTYPE_MOSTLY_Q2_K || ftype == LLAMA_FTYPE_MOSTLY_Q2_K_L) new_type = GGML_TYPE_Q3_K;
         else if (ftype == LLAMA_FTYPE_MOSTLY_Q2_K_S && (use_more_bits(i_layer, n_layer))) new_type = GGML_TYPE_Q3_K;
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_XS && (i_layer < n_layer/8)) new_type = GGML_TYPE_IQ2_XXS;
@@ -16119,9 +16111,7 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
         }
         ++qs.i_ffn_down;
     } else if (name.find("attn_output.weight") != std::string::npos) {
-        if (ftype == LLAMA_FTYPE_CQS && qs.params->attn_output_type < GGML_TYPE_COUNT) {
-            new_type = qs.params->attn_output_type;
-        }
+        if (ftype == LLAMA_FTYPE_CQS && qs.params->attn_output_type < GGML_TYPE_COUNT) new_type = qs.params->attn_output_type;
         else if (arch != LLM_ARCH_FALCON) {
             if (qs.model.hparams.n_expert >= 4) {
                 if (ftype == LLAMA_FTYPE_MOSTLY_Q2_K   || ftype == LLAMA_FTYPE_MOSTLY_IQ3_XS || ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXS ||
@@ -16160,9 +16150,7 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
         ++qs.i_attention_wo;
     }
     else if (name.find("attn_qkv.weight") != std::string::npos) {
-        if (ftype == LLAMA_FTYPE_CQS && qs.params->attn_qkv_type < GGML_TYPE_COUNT) {
-            new_type = qs.params->attn_qkv_type;
-        }
+        if (ftype == LLAMA_FTYPE_CQS && qs.params->attn_qkv_type < GGML_TYPE_COUNT) new_type = qs.params->attn_qkv_type;
         else if (ftype == LLAMA_FTYPE_MOSTLY_Q3_K_M || ftype == LLAMA_FTYPE_MOSTLY_Q3_K_L) {
             new_type = GGML_TYPE_Q4_K;
         }
@@ -16188,9 +16176,7 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
     else if (name.find("ffn_gate") != std::string::npos) {
         auto info = layer_info(qs.i_ffn_gate, qs.n_ffn_gate, name.c_str());
         int i_layer = info.first, n_layer = info.second;
-        if (ftype == LLAMA_FTYPE_CQS && qs.params->ffn_gate_type < GGML_TYPE_COUNT) {
-            new_type = qs.params->ffn_gate_type;
-        }
+        if (ftype == LLAMA_FTYPE_CQS && qs.params->ffn_gate_type < GGML_TYPE_COUNT) new_type = qs.params->ffn_gate_type;
         else if (ftype == LLAMA_FTYPE_MOSTLY_Q2_K_L && (use_more_bits(i_layer, n_layer))) new_type = GGML_TYPE_Q3_K;
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_S && (i_layer < n_layer/8)) new_type = GGML_TYPE_IQ2_XXS;
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_M && (i_layer < n_layer/8)) new_type = GGML_TYPE_IQ2_XXS;
@@ -16206,9 +16192,7 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
     else if (name.find("ffn_up") != std::string::npos) {
         auto info = layer_info(qs.i_ffn_up, qs.n_ffn_up, name.c_str());
         int i_layer = info.first, n_layer = info.second;
-        if (ftype == LLAMA_FTYPE_CQS && qs.params->ffn_up_type < GGML_TYPE_COUNT) {
-            new_type = qs.params->ffn_up_type;
-        }
+        if (ftype == LLAMA_FTYPE_CQS && qs.params->ffn_up_type < GGML_TYPE_COUNT) new_type = qs.params->ffn_up_type;
         else if (ftype == LLAMA_FTYPE_MOSTLY_Q2_K_L && (use_more_bits(i_layer, n_layer))) new_type = GGML_TYPE_Q3_K;
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_S && (i_layer < n_layer/8)) new_type = GGML_TYPE_IQ2_XXS;
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_M && (i_layer < n_layer/8)) new_type = GGML_TYPE_IQ2_XXS;
