@@ -102,7 +102,7 @@ static bool try_parse_ftype(const std::string & ftype_str_in, llama_ftype & ftyp
 //
 [[noreturn]]
 static void usage(const char * executable) {
-    printf("usage: %s [--help] [--allow-requantize] [--leave-output-tensor] [--pure] [--imatrix] [--include-weights] [--exclude-weights] [--output-tensor-type] [--token-embedding-type] [--attn-q-type] [--attn-k-type] [--attn-v-type] [--attn-qkv-type] [--attn-output-type] [--ffn-gate-type] [--ffn-down-type] [--ffn-up-type] [--keep-split] [--override-kv] model-f32.gguf [model-quant.gguf] type [nthreads]\n\n", executable);
+    printf("usage: %s [--help] [--allow-requantize] [--leave-output-tensor] [--pure] [--imatrix] [--include-weights] [--exclude-weights] [--output-tensor-type] [--token-embedding-type] [--attn-q-type] [--attn-k-type] [--attn-v-type] [--attn-qkv-type] [--attn-output-type] [--attn-norm-type] [--ffn-norm-type] [--ffn-gate-type] [--ffn-down-type] [--ffn-up-type] [--keep-split] [--override-kv] model-f32.gguf [model-quant.gguf] type [nthreads]\n\n", executable);
     printf("  --allow-requantize: Allows requantizing tensors that have already been quantized. Warning: This can severely reduce quality compared to quantizing from 16bit or 32bit\n");
     printf("  --leave-output-tensor: Will leave output.weight un(re)quantized. Increases model size but may also increase quality, especially when requantizing\n");
     printf("  --pure: Disable k-quant mixtures and quantize all tensors to the same type\n");
@@ -117,6 +117,8 @@ static void usage(const char * executable) {
     printf("      --attn-v-type ggml_type: use this ggml_type for the attn_v.weight tensor.\n");
     printf("      --attn-qkv-type ggml_type: use this ggml_type for the attn_qkv.weight tensor.\n");
     printf("      --attn-output-type ggml_type: use this ggml_type for the attn_output.weight tensor.\n");
+    printf("      --attn-norm-type ggml_type: use this ggml_type instead of F32 for the tiny attn_norm.weight tensor.\n");
+    printf("      --ffn-norm-type ggml_type: use this ggml_type instead of F32 for the tiny ffn_norm tensor.\n");
     printf("      --ffn-gate-type ggml_type: use this ggml_type for the ffn_gate tensor.\n");
     printf("      --ffn-down-type ggml_type: use this ggml_type for the ffn_down tensor.\n");
     printf("      --ffn-up-type ggml_type: use this ggml_type for the ffn_up tensor.\n\n");
@@ -311,6 +313,18 @@ int main(int argc, char ** argv) {
         } else if (strcmp(argv[arg_idx], "--attn-output-type") == 0) {
             if (arg_idx < argc-1) {
                 params.attn_output_type = parse_ggml_type(argv[++arg_idx]);
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--attn-norm-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.attn_norm_type = parse_ggml_type(argv[++arg_idx]);
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--ffn-norm-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.ffn_norm_type = parse_ggml_type(argv[++arg_idx]);
             } else {
                 usage(argv[0]);
             }
