@@ -41,10 +41,10 @@ maxhordelen = 400
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.73007"
-LcppVersion = "b3599-2+8+4"
+KcppVersion = "1.73008"
+LcppVersion = "b3602-2+8+4"
 CudaSpecifics = "CuCML_ArCML_SMC2_DmmvX32Y1"
-ReleaseDate = "2024/08/16"
+ReleaseDate = "2024/08/18"
 showdebug = True
 guimode = False
 showsamplerwarning = True
@@ -3151,7 +3151,7 @@ def show_gui():
         fnam = askopenfilename(title="Pick Premade ChatCompletions Adapter",filetypes=[("JSON Adapter", "*.json")], initialdir=initialDir)
         if fnam:
             chatcompletionsadapter_var.set(fnam)
-    ctk.CTkButton(model_tab, 64, text="Pick Premade", command=pickpremadetemplate).grid(row=13, column=0, padx=322, stick="nw")
+    ctk.CTkButton(model_tab, 64, text="Pick Premade", command=pickpremadetemplate).grid(row=13, column=0, padx=576, stick="nw")
 
     mmproj_var.trace("w", gui_changed_modelfile)
     ctk.CTkButton(model_tab, text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
