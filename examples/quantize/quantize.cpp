@@ -493,7 +493,8 @@ int main(int argc, char ** argv) {
     if ((params.ftype == LLAMA_FTYPE_MOSTLY_IQ2_XS || params.ftype == LLAMA_FTYPE_MOSTLY_IQ2_XXS ||
          params.ftype == LLAMA_FTYPE_MOSTLY_IQ2_S  || params.ftype == LLAMA_FTYPE_MOSTLY_IQ2_M   ||
          params.ftype == LLAMA_FTYPE_MOSTLY_Q2_K_S || params.ftype == LLAMA_FTYPE_MOSTLY_Q2_K    ||
-         params.ftype == LLAMA_FTYPE_MOSTLY_IQ1_S  ||
+         params.ftype == LLAMA_FTYPE_MOSTLY_IQ1_S  || params.ftype == LLAMA_FTYPE_MOSTLY_IQ1_XS  ||
+         params.ftype == LLAMA_FTYPE_MOSTLY_IQ1_XL || params.ftype == LLAMA_FTYPE_MOSTLY_IQ2_XL  ||
          params.ftype == LLAMA_FTYPE_MOSTLY_IQ1_M) && imatrix_data.empty()) {
         fprintf(stderr, "\n==========================================================================================\n");
         fprintf(stderr, "Please do not use IQ1_*, IQ2_*, Q2_K_S, or Q2_K quantization without an importance matrix!\n");

@@ -15823,7 +15823,7 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
                 }
             }
             else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_XS || ftype == LLAMA_FTYPE_MOSTLY_IQ1_S || ftype == LLAMA_FTYPE_MOSTLY_IQ1_M) {
-                if (qs.model.hparams.n_vocab >= 127999) new_type = GGML_TYPE_IQ2_XS;
+                if (qs.model.hparams.n_vocab >= 127999) new_type = GGML_TYPE_IQ2_S;
                 else new_type = GGML_TYPE_IQ2_S;
             }
             else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_XL || ftype == LLAMA_FTYPE_MOSTLY_IQ2_XXS || ftype == LLAMA_FTYPE_MOSTLY_IQ2_XS) {
@@ -16702,9 +16702,8 @@ static void llama_model_quantize_internal(const std::string & fname_inp, const s
                 (new_type == GGML_TYPE_Q2_K && params->ftype == LLAMA_FTYPE_MOSTLY_Q2_K_S && strcmp(tensor->name, "token_embd.weight") != 0)) && !imatrix) {
                 LLAMA_LOG_ERROR("\n\n============================================================\n");
                 LLAMA_LOG_ERROR("Missing importance matrix for tensor %s in a very low-bit quantization\n", tensor->name);
-                LLAMA_LOG_ERROR("The result will be garbage, so bailing out\n");
+                LLAMA_LOG_ERROR("The result will be garbage, but try anyway..\n");
                 LLAMA_LOG_ERROR("============================================================\n\n");
-                throw std::runtime_error(format("Missing importance matrix for tensor %s in a very low-bit quantization", tensor->name));
             }
 
             float * f32_data;
