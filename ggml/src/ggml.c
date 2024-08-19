@@ -20613,8 +20613,8 @@ void ggml_quantize_free(void) {
 
 bool ggml_quantize_requires_imatrix(enum ggml_type type) {
     return
-        type == GGML_TYPE_IQ2_XXS ||
-        type == GGML_TYPE_IQ2_XS  ||
+        // type == GGML_TYPE_IQ2_XXS ||
+        // type == GGML_TYPE_IQ2_XS  ||
         type == GGML_TYPE_IQ1_S;//   ||
         //type == GGML_TYPE_IQ1_M;
 }
