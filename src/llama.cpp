@@ -16694,9 +16694,9 @@ static void llama_model_quantize_internal(const std::string & fname_inp, const s
                     }
                 }
             }
-            if ((new_type == GGML_TYPE_IQ2_XXS ||
-                 new_type == GGML_TYPE_IQ2_XS  ||
-                 new_type == GGML_TYPE_IQ1_S   ||
+            if ((new_type == GGML_TYPE_IQ1_S   ||
+                 new_type == GGML_TYPE_IQ2_XXS ||
+                (new_type == GGML_TYPE_IQ2_XS && strcmp(tensor->name, "token_embd.weight")) ||
                 (new_type == GGML_TYPE_IQ2_S && strcmp(tensor->name, "token_embd.weight"))  ||
                 (new_type == GGML_TYPE_IQ1_M && strcmp(tensor->name, "token_embd.weight") && strcmp(tensor->name, "output.weight"))  ||
                 (new_type == GGML_TYPE_Q2_K && params->ftype == LLAMA_FTYPE_MOSTLY_Q2_K_S && strcmp(tensor->name, "token_embd.weight") != 0)) && !imatrix) {
