@@ -5910,13 +5910,13 @@ static void llm_load_print_meta(llama_model_loader & ml, llama_model & model) {
         LLAMA_LOG_INFO("%s: model params     = %.2f K\n", __func__, ml.n_elements*1e-3);
     }
 
-    LLAMA_LOG_INFO("%s: model size       = %.2f Bytes (%.2f BPW) \n", __func__, ml.n_bytes/1.0,                    ml.n_bytes*8.0/ml.n_elements);
-    LLAMA_LOG_INFO("%s: model size       =    %.2f KB (%.2f BPW) \n", __func__, ml.n_bytes/1000.0,               ml.n_bytes*8.0/ml.n_elements);
-    LLAMA_LOG_INFO("%s: model size       =    %.2f KiB (%.2f BPW) \n", __func__, ml.n_bytes/1024.0,               ml.n_bytes*8.0/ml.n_elements);
-    LLAMA_LOG_INFO("%s: model size       =       %.2f MB (%.2f BPW) \n", __func__, ml.n_bytes/1000.0/1000.0       , ml.n_bytes*8.0/ml.n_elements);
-    LLAMA_LOG_INFO("%s: model size       =       %.2f MiB (%.2f BPW) \n", __func__, ml.n_bytes/1024.0/1024.0,        ml.n_bytes*8.0/ml.n_elements);
-    LLAMA_LOG_INFO("%s: model size       =          %.2f GB (%.2f BPW) \n", __func__, ml.n_bytes/1000.0/1000.0/1000.0, ml.n_bytes*8.0/ml.n_elements);
-    LLAMA_LOG_INFO("%s: model size       =          %.2f GiB (%.2f BPW) \n", __func__, ml.n_bytes/1024.0/1024.0/1024.0, ml.n_bytes*8.0/ml.n_elements);
+    LLAMA_LOG_INFO("%s: model size       =   %.2f Bytes (%.2f BPW) \n", __func__, ml.n_bytes/1.0,                    ml.n_bytes*8.0/ml.n_elements);
+    LLAMA_LOG_INFO("%s: model size       =      %.2f KB (%.2f BPW) \n", __func__, ml.n_bytes/1000.0,               ml.n_bytes*8.0/ml.n_elements);
+    LLAMA_LOG_INFO("%s: model size       =      %.2f KiB (%.2f BPW) \n", __func__, ml.n_bytes/1024.0,               ml.n_bytes*8.0/ml.n_elements);
+    LLAMA_LOG_INFO("%s: model size       =         %.2f MB (%.2f BPW) \n", __func__, ml.n_bytes/1000.0/1000.0       , ml.n_bytes*8.0/ml.n_elements);
+    LLAMA_LOG_INFO("%s: model size       =         %.2f MiB (%.2f BPW) \n", __func__, ml.n_bytes/1024.0/1024.0,        ml.n_bytes*8.0/ml.n_elements);
+    LLAMA_LOG_INFO("%s: model size       =            %.2f GB (%.2f BPW) \n", __func__, ml.n_bytes/1000.0/1000.0/1000.0, ml.n_bytes*8.0/ml.n_elements);
+    LLAMA_LOG_INFO("%s: model size       =            %.2f GiB (%.2f BPW) \n", __func__, ml.n_bytes/1024.0/1024.0/1024.0, ml.n_bytes*8.0/ml.n_elements);
 
     // general kv
     LLAMA_LOG_INFO("%s: general.name     = %s\n",    __func__, model.name.c_str());
