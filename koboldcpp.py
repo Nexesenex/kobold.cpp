@@ -1002,33 +1002,33 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                         FetchedCUdeviceMem = [line.split(",")[1].strip() for line in getamdvram.splitlines()[1:] if line.strip()]
             except Exception as e:
                 pass
-        lowestcumem = 0
-        lowestfreecumem = 0
+        # lowestcumem= 0
+        # lowestfreecumem= 0
         for idx in range(0,4):
             if(len(FetchedCUdevices)>idx):
                 CUDevicesNames[idx] = FetchedCUdevices[idx]
                 if len(FetchedCUdeviceMem)>idx:
 
-                    # if AMDgpu:
-                        # MaxMemory[idx] = max(int(FetchedCUdeviceMem[idx]),MaxMemory[idx])
-                    # else:
-                        # MaxMemory[idx] = max(int(FetchedCUdeviceMem[idx])*1024*1024,MaxMemory[idx])
+                    if AMDgpu:
+                        MaxMemory[idx] = max(int(FetchedCUdeviceMem[idx]),MaxMemory[idx])
+                    else:
+                        MaxMemory[idx] = max(int(FetchedCUdeviceMem[idx])*1024*1024,MaxMemory[idx])
 
-                    # MaxMemory.sort(reverse=True)
+                    MaxMemory.sort(reverse=True)
 
-                # if len(FetchedCUfreeMem)>idx:
-                    # MaxFreeMemory[idx] = max(int(FetchedCUfreeMem[idx])*1024*1024,MaxFreeMemory[idx])
-
-                    # MaxFreeMemory.sort(reverse=True)
-
-                    dmem = int(FetchedCUdeviceMem[idx]) if AMDgpu else (int(FetchedCUdeviceMem[idx])*1024*1024)
-                    lowestcumem = dmem if lowestcumem==0 else (dmem if dmem<lowestcumem else lowestcumem)
                 if len(FetchedCUfreeMem)>idx:
-                    dmem = (int(FetchedCUfreeMem[idx])*1024*1024)
-                    lowestfreecumem = dmem if lowestfreecumem==0 else (dmem if dmem<lowestfreecumem else lowestfreecumem)
+                    MaxFreeMemory[idx] = max(int(FetchedCUfreeMem[idx])*1024*1024,MaxFreeMemory[idx])
 
-        MaxMemory[0] = max(lowestcumem,MaxMemory[0])
-        MaxFreeMemory[0] = max(lowestfreecumem,MaxFreeMemory[0])
+                    MaxFreeMemory.sort(reverse=True)
+
+                    # dmem = int(FetchedCUdeviceMem[idx]) if AMDgpu else (int(FetchedCUdeviceMem[idx])*1024*1024)
+                    # lowestcumem[idx] = dmem[idx] if lowestcumem[idx]==0 else (dmem[idx] if dmem[idx]<lowestcumem[idx] else lowestcumem[idx])
+                # if len(FetchedCUfreeMem)>idx:
+                    # dmem[idx] = (int(FetchedCUfreeMem[idx])*1024*1024)
+                    # lowestfreecumem[idx] = dmem[idx] if lowestfreecumem[idx]==0 else (dmem[idx] if dmem[idx]<lowestfreecumem[idx] else lowestfreecumem[idx])
+
+        # MaxMemory[idx] = max(lowestcumem,MaxMemory[idx])
+        # MaxFreeMemory[idx] = max(lowestfreecumem,MaxFreeMemory[idx])
 
     if testVK:
         try: # Get Vulkan names
