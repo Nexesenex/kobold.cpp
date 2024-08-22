@@ -17153,6 +17153,16 @@ static void llama_model_quantize_internal(const std::string & fname_inp, const s
     qs.n_ffn_down = qs.n_ffn_gate = qs.n_ffn_up = (int)model.hparams.n_layer;
 
     // sanity checks
+    //
+    //  - qs.n_attention_wv == 0                         for Mamba           models
+    //  - qs.n_attention_wv == model.hparams.n_layer     for Transformer     models
+    //  - qs.n_attention_wv == 3 * model.hparams.n_layer for Encoder-Decoder models
+    //
+    // GGML_ASSERT((qs.n_attention_wv == 0 || qs.n_attention_wv == (int)model.hparams.n_layer || qs.n_attention_wv == 3 * (int)model.hparams.n_layer) && "n_attention_wv is unexpected");
+    // GGML_ASSERT((qs.n_attention_wk == 0 || qs.n_attention_wk == (int)model.hparams.n_layer || qs.n_attention_wk == 3 * (int)model.hparams.n_layer) && "n_attention_wk is unexpected");
+    // GGML_ASSERT((qs.n_attention_wq == 0 || qs.n_attention_wq == (int)model.hparams.n_layer || qs.n_attention_wq == 3 * (int)model.hparams.n_layer) && "n_attention_wq is unexpected");
+    // GGML_ASSERT((qs.n_attention_wo == 0 || qs.n_attention_wo == (int)model.hparams.n_layer || qs.n_attention_wo == 3 * (int)model.hparams.n_layer) && "n_attention_wo is unexpected");
+
     {
         const auto & n_head_kv_iter = model.hparams.n_head_kv_arr.begin();
         // attention layers have a non-zero number of kv heads
