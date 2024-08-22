@@ -2767,6 +2767,7 @@ struct ggml_cached_graph {
     ggml_backend_t backend_embd;
     struct ggml_tensor * res;
     struct ggml_tensor * embd;
+};
 
 struct llama_sbatch_seq {
     int32_t n_seq_id;
@@ -16065,7 +16066,7 @@ static int llama_decode_internal(
         // Re-build graph only if graph caching is not possible
         if(!ggml_use_cached_graph(lctx.sched) || n_has_changed_since_last_token) {
 
-            gf = llama_build_graph(lctx, u_batch, false);
+            gf = llama_build_graph(lctx, ubatch, false);
 
             // Set whether GGML graph caching is in use within GGML module, based on
             // whether caching was activated here during the previous token
