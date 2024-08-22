@@ -505,11 +505,55 @@ void sample_top_a(llama_token_data_array * candidates, float a, size_t min_keep)
     candidates->size = last_idx;
 }
 
+void sample_xtc(llama_token_data_array * candidates, float xtc_threshold, float xtc_probability, std::mt19937 & rng, size_t min_keep)
+{
+    if (xtc_threshold <= 0.0f || xtc_probability <= 0.0f || candidates->size <= 1) {
+        return;
+    }
+
+    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    float roll = dist(rng);
+    if(roll>=xtc_probability) //if dice roll fails, skip xtc
+    {
+        return;
+    }
+
+    llama_sample_softmax(nullptr, candidates);
+
+    //calculate how many tokens cross the xtc threshold
+    size_t last_idx = candidates->size;
+    for (size_t i = 0; i < candidates->size; ++i) {
+        // Go until we reach a value under the threshold
+        float checkprob = candidates->data[i].p;
+        if (checkprob < xtc_threshold && i >= min_keep) {
+            last_idx = i;
+            break;
+        }
+    }
+
+    if(last_idx>1) //if there are 2 or more viable candidates
+    {
+        // drop all tokens except those above threshold
+        candidates->size = last_idx;
+
+        // then remove all other tokens EXCEPT the least likely one
+        for (size_t i = 0; i < candidates->size - 1; ++i) {
+            candidates->data[i].logit -= 999.0f; //infinity gets wonky results downstream, this hack works well enough
+        }
+        candidates->sorted = false;
+
+    }  //otherwise xtc does not do anything
+
+    // printf("\n\nCandidates: %d, Threshold: %f, LastIdx: %d",candidates->size,xtc_threshold,last_idx);
+    // printf("\nCandidates: %f %f %f %f\n",candidates->data[0].p,candidates->data[1].p,candidates->data[2].p,candidates->data[3].p);
+
+}
+
 void sample_dry(int n_ctx, int penalty_range, float penalty_multiplier, float penalty_base, int allowed_length, const std::unordered_multimap<gpt_vocab::id, std::vector<gpt_vocab::id>>& restart_sequences, llama_token_data_array * candidates) {
     if (penalty_multiplier <= 0.0f || penalty_base <= 0.0f) {
         return;
     }
-    if (penalty_range <= 0) {
+    if (penalty_range <= 0 || penalty_range>n_ctx) {
         penalty_range = n_ctx;
     }
     auto last_n_repeat = std::min(std::min((int)current_context_tokens.size(), penalty_range), n_ctx);
@@ -702,6 +746,10 @@ void sample_dry(int n_ctx, int penalty_range, float penalty_multiplier, float pe
         candidates->data[token].logit -= penalty;
         ++count;
     }
+    if(count>0)
+    {
+        candidates->sorted = false;
+    }
     if (debugmode==1 && !dry_max_token_repeat.empty()) {
         printf("]\n");
     }
@@ -822,7 +870,8 @@ void sample_grammar(FileFormat file_format, int32_t n_vocab, llama_token_data_ar
 }
 
 int SampleLogits(const float * logits, int n_ctx, int n_vocab, int rep_pen_range, float rep_pen, float rep_pen_slope, float presence_penalty, float top_k, float top_a, float top_p, float min_p, float typical_p, float tfs, float temp, std::mt19937 & rng,
-int mirostat, float mirostat_tau, float mirostat_eta, float dry_multiplier, float dry_base, int dry_allowed_length, int dry_penalty_last_n, const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dynatemp_range, float dynatemp_exponent, float smoothing_factor)
+int mirostat, float mirostat_tau, float mirostat_eta, float dry_multiplier, float dry_base, int dry_allowed_length, int dry_penalty_last_n, float xtc_threshold, float xtc_probability,
+const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dynatemp_range, float dynatemp_exponent, float smoothing_factor)
 {
     int id = 0;
     std::vector<llama_token_data> candidates;
@@ -843,7 +892,10 @@ int mirostat, float mirostat_tau, float mirostat_eta, float dry_multiplier, floa
         sample_grammar(file_format, n_vocab, &candidates_p, grammar);
     }
 
-    //prefilter to top "pick a nucmber" tokens for improved speed (KCPP-official default is 5k)
+    //dry always first as logits cannot be resorted
+    sample_dry(n_ctx, dry_penalty_last_n, dry_multiplier, dry_base, dry_allowed_length, dry_sequence_breakers, &candidates_p);
+
+    //prefilter to top 5k tokens for improved speed
     llama_sample_top_k(nullptr, &candidates_p, 500, 1);
 
     if (mirostat == 1 || mirostat == 2)
@@ -901,13 +953,14 @@ int mirostat, float mirostat_tau, float mirostat_eta, float dry_multiplier, floa
                     break;
                 case KCPP_SAMPLER_REP_PEN:
                     sample_rep_pen(n_ctx, rep_pen_range, rep_pen, rep_pen_slope, presence_penalty, &candidates_p);
-                    sample_dry(n_ctx, dry_penalty_last_n, dry_multiplier, dry_base, dry_allowed_length, dry_sequence_breakers, &candidates_p);
                     break;
                 default:
                     printf("\nSampleLogits: Unknown Sampler : %d",sampler_order[i]);
                     break;
             }
         }
+        //xtc always last
+        sample_xtc(&candidates_p, xtc_threshold, xtc_probability, rng, 1);
         id = sample_token(&candidates_p, rng);
     }
 
@@ -2066,6 +2119,9 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         llama_reset_timings(llama_ctx_v4);
     }
 
+    generation_finished = false; // Set current generation status
+    generated_tokens.clear(); // New Generation, new tokens
+
     concat_output_mtx.lock();
     concat_output = "";
     concat_output_reader_copy_poll = "";
@@ -2077,6 +2133,9 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     dry_repeat_count.clear();
     dry_sequence_breakers.clear();
     dry_max_token_repeat.clear();
+
+    double time0 = 0, time1 = 0, time2 = 0;
+    timer_start();
 
     for(int x=0;x<stop_token_max;++x)
     {
@@ -2202,6 +2261,8 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     kcpp_params->dry_base = inputs.dry_base;
     kcpp_params->dry_allowed_length = inputs.dry_allowed_length;
     kcpp_params->dry_penalty_last_n = inputs.dry_penalty_last_n;
+    kcpp_params->xtc_threshold = inputs.xtc_threshold;
+    kcpp_params->xtc_probability = inputs.xtc_probability;
     kcpp_params->dynatemp_range = inputs.dynatemp_range;
     kcpp_params->dynatemp_exponent = inputs.dynatemp_exponent;
     kcpp_params->n_ctx = inputs.max_context_length;
@@ -2265,8 +2326,6 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
     bool allow_regular_prints = (debugmode!=-1 && !inputs.quiet) || debugmode >= 1;
 
-    generation_finished = false; // Set current generation status
-    generated_tokens.clear(); // New Generation, new tokens
 
     std::string grammarstr = inputs.grammar;
     bool grammar_retain_state = inputs.grammar_retain_state;
@@ -2540,8 +2599,8 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     bool startedsampling = false;
     bool v3_use_scratch = true; //for normal inference always use scratch
 
+    time0 = timer_check();
     timer_start();
-    double time1 = 0, time2 = 0;
 
     if(file_format == FileFormat::RWKV_1 || file_format==FileFormat::RWKV_2)
     {
@@ -2782,7 +2841,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
             top_k, top_a, top_p, min_p, typical_p, tfs_z, temp, rng,
             kcpp_params->mirostat, kcpp_params->mirostat_tau, kcpp_params->mirostat_eta,
             kcpp_params->dry_multiplier, kcpp_params->dry_base,
-            kcpp_params->dry_allowed_length, kcpp_params->dry_penalty_last_n,
+            kcpp_params->dry_allowed_length, kcpp_params->dry_penalty_last_n, kcpp_params->xtc_threshold, kcpp_params->xtc_probability,
             sampler_order, grammar, dynatemp_range, dynatemp_exponent, smoothing_factor);
 
             if (llama_ctx_v4) {
@@ -2999,7 +3058,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     float pt2 = (time2*1000.0/(realnpredict==0?1:realnpredict));
     float ts2 = (1000.0/pt2);
     float tokens_per_second = (realnpredict == 0 ? 0 : realnpredict / (time1 + time2));
-    printf("\nCtxLimit:%d/%d, Amt:%d/%d, Process:%.3fs (%.1fms/T = %.2fT/s), Generate:%.3fs (%.1fms/T = %.2fT/s), Total:%.3fs (%.2fT/s)",(int)current_context_tokens.size(),(int)nctx, realnpredict, kcpp_params->n_predict, time1, pt1, ts1, time2, pt2, ts2, (time1 + time2), tokens_per_second);
+    printf("\nCtxLimit:%d/%d, Amt:%d/%d, Init:%.3fs, Process:%.3fs (%.1fms/T = %.2fT/s), Generate:%.3fs (%.1fms/T = %.2fT/s), Total:%.3fs (%.2fT/s)",(int)current_context_tokens.size(),(int)nctx, realnpredict, kcpp_params->n_predict, time0, time1, pt1, ts1, time2, pt2, ts2, (time1 + time2), tokens_per_second);
     fflush(stdout);
     output.status = 1;
     output.stopreason = last_stop_reason;

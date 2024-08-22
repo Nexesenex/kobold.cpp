@@ -127,6 +127,8 @@ struct gpt_params {
     int32_t dry_allowed_length = 2;    // repeated sequences longer than this are penalized
     int32_t dry_penalty_last_n = 0;    // how many tokens to scan for repetitions (0 = entire context)
     std::vector<std::string> dry_sequence_breakers; // DRY sequence breakers
+    float xtc_threshold        = 0;
+    float xtc_probability      = 0;
 
     // DynaTemp!
     float   dynatemp_range     = 0.0f;  // enables DynaTemp if greater than 0. dynatemp_min = temperature - dt_range, dynatemp_max = temperature + dt_range

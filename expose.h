@@ -96,6 +96,8 @@ struct generation_inputs
     const int dry_allowed_length = 0;
     const int dry_penalty_last_n = 0;
     const char * dry_sequence_breakers[dry_seq_break_max] = {};
+    const float xtc_threshold = 0.0f;
+    const float xtc_probability = 0.0f;
     const samplers sampler_order[KCPP_SAMPLER_MAX] = {};
     const int sampler_len = 0;
     const bool allow_eos_token = false;

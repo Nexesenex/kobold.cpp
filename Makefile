@@ -502,6 +502,8 @@ llavaclip_default.o: examples/llava/clip.cpp examples/llava/clip.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 llavaclip_cublas.o: examples/llava/clip.cpp examples/llava/clip.h
 	$(CXX) $(CXXFLAGS) $(CUBLAS_FLAGS) -c $< -o $@
+llavaclip_vulkan.o: examples/llava/clip.cpp examples/llava/clip.h
+	$(CXX) $(CXXFLAGS) $(VULKAN_FLAGS) -c $< -o $@
 
 #this is only used for openblas and accelerate
 ggml-blas.o: ggml/src/ggml-blas.cpp ggml/include/ggml-blas.h
@@ -695,10 +697,10 @@ koboldcpp_hipblas:
 endif
 
 ifdef VULKAN_BUILD
-koboldcpp_vulkan: ggml_v4_vulkan.o ggml_v3.o ggml_v2.o ggml_v1.o expose.o gpttype_adapter_vulkan.o ggml-vulkan.o sdcpp_vulkan.o whispercpp_default.o llavaclip_default.o llava.o ggml-backend_vulkan.o $(OBJS_FULL) $(OBJS)
+koboldcpp_vulkan: ggml_v4_vulkan.o ggml_v3.o ggml_v2.o ggml_v1.o expose.o gpttype_adapter_vulkan.o ggml-vulkan.o sdcpp_vulkan.o whispercpp_default.o llavaclip_vulkan.o llava.o ggml-backend_vulkan.o $(OBJS_FULL) $(OBJS)
 	$(VULKAN_BUILD)
 ifdef NOAVX2_BUILD
-koboldcpp_vulkan_noavx2: ggml_v4_vulkan_noavx2.o ggml_v3_noavx2.o ggml_v2_noavx2.o ggml_v1_failsafe.o expose.o gpttype_adapter_vulkan_noavx2.o ggml-vulkan.o sdcpp_vulkan.o whispercpp_default.o llavaclip_default.o llava.o ggml-backend_vulkan.o $(OBJS_SIMPLE) $(OBJS)
+koboldcpp_vulkan_noavx2: ggml_v4_vulkan_noavx2.o ggml_v3_noavx2.o ggml_v2_noavx2.o ggml_v1_failsafe.o expose.o gpttype_adapter_vulkan_noavx2.o ggml-vulkan.o sdcpp_vulkan.o whispercpp_default.o llavaclip_vulkan.o llava.o ggml-backend_vulkan.o $(OBJS_SIMPLE) $(OBJS)
 	$(VULKAN_BUILD)
 else
 koboldcpp_vulkan_noavx2:

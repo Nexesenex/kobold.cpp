@@ -41,10 +41,10 @@ maxhordelen = 400
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.73008"
-LcppVersion = "b3602-2+8+4"
+KcppVersion = "1.73100"
+LcppVersion = "b3613-2+8+4"
 CudaSpecifics = "CuCML_ArCML_SMC2_DmmvX32Y1"
-ReleaseDate = "2024/08/18"
+ReleaseDate = "2024/08/22"
 showdebug = True
 guimode = False
 showsamplerwarning = True
@@ -163,6 +163,8 @@ class generation_inputs(ctypes.Structure):
                 ("dry_allowed_length", ctypes.c_int),
                 ("dry_penalty_last_n", ctypes.c_int),
                 ("dry_sequence_breakers", ctypes.c_char_p * dry_seq_break_max),
+                ("xtc_threshold", ctypes.c_float),
+                ("xtc_probability", ctypes.c_float),
                 ("sampler_order", ctypes.c_int * sampler_order_max),
                 ("sampler_len", ctypes.c_int),
                 ("allow_eos_token", ctypes.c_bool),
@@ -1000,21 +1002,33 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                         FetchedCUdeviceMem = [line.split(",")[1].strip() for line in getamdvram.splitlines()[1:] if line.strip()]
             except Exception as e:
                 pass
+        lowestcumem = 0
+        lowestfreecumem = 0
         for idx in range(0,4):
             if(len(FetchedCUdevices)>idx):
                 CUDevicesNames[idx] = FetchedCUdevices[idx]
                 if len(FetchedCUdeviceMem)>idx:
-                    if AMDgpu:
-                        MaxMemory[idx] = max(int(FetchedCUdeviceMem[idx]),MaxMemory[idx])
-                    else:
-                        MaxMemory[idx] = max(int(FetchedCUdeviceMem[idx])*1024*1024,MaxMemory[idx])
 
-                    MaxMemory.sort(reverse=True)
+                    # if AMDgpu:
+                        # MaxMemory[idx] = max(int(FetchedCUdeviceMem[idx]),MaxMemory[idx])
+                    # else:
+                        # MaxMemory[idx] = max(int(FetchedCUdeviceMem[idx])*1024*1024,MaxMemory[idx])
 
+                    # MaxMemory.sort(reverse=True)
+
+                # if len(FetchedCUfreeMem)>idx:
+                    # MaxFreeMemory[idx] = max(int(FetchedCUfreeMem[idx])*1024*1024,MaxFreeMemory[idx])
+
+                    # MaxFreeMemory.sort(reverse=True)
+
+                    dmem = int(FetchedCUdeviceMem[idx]) if AMDgpu else (int(FetchedCUdeviceMem[idx])*1024*1024)
+                    lowestcumem = dmem if lowestcumem==0 else (dmem if dmem<lowestcumem else lowestcumem)
                 if len(FetchedCUfreeMem)>idx:
-                    MaxFreeMemory[idx] = max(int(FetchedCUfreeMem[idx])*1024*1024,MaxFreeMemory[idx])
+                    dmem = (int(FetchedCUfreeMem[idx])*1024*1024)
+                    lowestfreecumem = dmem if lowestfreecumem==0 else (dmem if dmem<lowestfreecumem else lowestfreecumem)
 
-                    MaxFreeMemory.sort(reverse=True)
+        MaxMemory[0] = max(lowestcumem,MaxMemory[0])
+        MaxFreeMemory[0] = max(lowestfreecumem,MaxFreeMemory[0])
 
     if testVK:
         try: # Get Vulkan names
@@ -1130,7 +1144,7 @@ def generate(genparams, is_quiet=False, stream_flag=False):
     typical_p = genparams.get('typical', 1.0)
     tfs = genparams.get('tfs', 1.0)
     rep_pen = genparams.get('rep_pen', 1.0)
-    rep_pen_range = genparams.get('rep_pen_range', 256)
+    rep_pen_range = genparams.get('rep_pen_range', 320)
     rep_pen_slope = genparams.get('rep_pen_slope', 1.0)
     presence_penalty = genparams.get('presence_penalty', 0.0)
     mirostat = genparams.get('mirostat', 0)
@@ -1139,8 +1153,10 @@ def generate(genparams, is_quiet=False, stream_flag=False):
     dry_multiplier = genparams.get('dry_multiplier', 0.0)
     dry_base = genparams.get('dry_base', 1.75)
     dry_allowed_length = genparams.get('dry_allowed_length', 2)
-    dry_penalty_last_n = genparams.get('dry_penalty_last_n', 0)
+    dry_penalty_last_n = genparams.get('dry_penalty_last_n', 320)
     dry_sequence_breakers = genparams.get('dry_sequence_breakers', [])
+    xtc_threshold = genparams.get('xtc_threshold', 0.2)
+    xtc_probability = genparams.get('xtc_probability', 0)
     sampler_order = genparams.get('sampler_order', [6, 0, 1, 3, 4, 2, 5])
     seed = tryparseint(genparams.get('sampler_seed', -1))
     stop_sequence = genparams.get('stop_sequence', [])
@@ -1209,6 +1225,8 @@ def generate(genparams, is_quiet=False, stream_flag=False):
         inputs.mirostat = inputs.mirostat_tau = inputs.mirostat_eta = 0
     inputs.dry_multiplier = dry_multiplier
     inputs.dry_base = dry_base
+    inputs.xtc_threshold = xtc_threshold
+    inputs.xtc_probability = xtc_probability
     inputs.dry_allowed_length = dry_allowed_length
     inputs.dry_penalty_last_n = dry_penalty_last_n
     # dry_sequence_breakers=['\n', ':', '"', '*']
@@ -1658,11 +1676,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 global last_non_horde_req_time
                 last_non_horde_req_time = time.time()
 
-            return generate(
-                genparams=genparams,
-                is_quiet=is_quiet,
-                stream_flag=stream_flag
-            )
+            return generate(genparams=genparams,is_quiet=is_quiet,stream_flag=stream_flag)
 
         genout = {"text": "", "status": -1, "stopreason": -1}
         if stream_flag:
@@ -1732,7 +1746,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
         current_token = 0
         incomplete_token_buffer = bytearray()
         async_sleep_short = 0.02
-        await asyncio.sleep(0.3) #anti race condition, prevent check from overtaking generate
+        await asyncio.sleep(0.35) #anti race condition, prevent check from overtaking generate
         try:
             tokenReserve = "" #keeps fully formed tokens that we cannot send out yet
             while True:
@@ -4794,7 +4808,7 @@ if __name__ == '__main__':
             return f
         return range_checker
 
-    parser = argparse.ArgumentParser(description='KoboldCpp Server')
+    parser = argparse.ArgumentParser(description=f'KoboldCpp Server - Version {KcppVersion}')
     modelgroup = parser.add_mutually_exclusive_group() #we want to be backwards compatible with the unnamed positional args
     modelgroup.add_argument("--model", metavar=('[filename]'), help="Model file to load", type=str, default="")
     modelgroup.add_argument("model_param", help="Model file to load (positional)", nargs="?")

@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 165;
+	const LITEVER = 169;
 	const urlParams = new URLSearchParams(window.location.search);
 	const localflag = true;
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -209,7 +209,7 @@ Current version indicated by LITEVER below.
 
 		.settingsbody
 		{
-			height: calc(82vh - 100px);
+			height: calc(86vh - 94px);
 			overflow-y: auto;
 			overflow-x: hidden;
 		}
@@ -733,6 +733,9 @@ Current version indicated by LITEVER below.
 		}
 		.color_gray {
 			color: #9b9b9b;
+		}
+		.color_lightgray {
+			color: #bbbbbb;
 		}
 		.color_red {
 			color: #ff7967;
@@ -4266,6 +4269,7 @@ Current version indicated by LITEVER below.
 		opmode: 4, //what mode are we in? 1=story, 2=adventure, 3=chat, 4=instruct
 		adventure_is_action: false, //in adventure mode, determine story or action
 		adventure_context_mod: true, //extra injection for adventure mode
+		fix_alpaca_leak: true, //prevents leaking when Alpaca instruct format is used on crappy models
 		chat_context_mod: true, //extra injection for chat mode
 		chatname: "User", //name to use in chat
 		chatopponent: defaultchatopponent,
@@ -4293,7 +4297,8 @@ Current version indicated by LITEVER below.
 		img_autogen: false,
 		img_allownsfw: true,
 		img_cfgscale: 7,
-		img_allowhd: false,
+		img_allowhd: true,
+		img_crop: false,
 		img_img2imgstr: 0.6,
 		img_steps: 20,
 		img_sampler: "Euler a",
@@ -4348,6 +4353,8 @@ Current version indicated by LITEVER below.
 		dry_base: 1.75,
 		dry_allowed_length: 2,
 		dry_sequence_breakers: ["\n", ":", "\"", "*"],
+		xtc_threshold: 0.2,
+		xtc_probability: 0.0,
 		sampler_order: [6, 0, 1, 3, 4, 2, 5],
 	};
 
@@ -5385,6 +5392,10 @@ Current version indicated by LITEVER below.
 	function is_using_kcpp_with_dry()
 	{
 		return (custom_kobold_endpoint!="" && koboldcpp_version && koboldcpp_version!="" && compare_version_str(koboldcpp_version, "1.6839") >= 0);
+	}
+	function is_using_kcpp_with_xtc()
+	{
+		return (custom_kobold_endpoint!="" && koboldcpp_version && koboldcpp_version!="" && compare_version_str(koboldcpp_version, "1.74") >= 0);
 	}
 
 
@@ -9570,6 +9581,8 @@ Current version indicated by LITEVER below.
 		document.getElementById("miro_tau").value = localsettings.miro_tau;
 		document.getElementById("miro_eta").value = localsettings.miro_eta;
 		document.getElementById("dry_multiplier").value = localsettings.dry_multiplier;
+		document.getElementById("xtc_threshold").value = localsettings.xtc_threshold;
+		document.getElementById("xtc_probability").value = localsettings.xtc_probability;
 		document.getElementById("dry_base").value = localsettings.dry_base;
 		document.getElementById("dry_allowed_length").value = localsettings.dry_allowed_length;
 		document.getElementById("token_count_multiplier").value = localsettings.token_count_multiplier;
@@ -9594,6 +9607,17 @@ Current version indicated by LITEVER below.
 		{
 			document.getElementById("drysupporteddiv").classList.add("hidden");
 			document.getElementById("dryunsupporteddiv").classList.remove("hidden");
+		}
+
+		if(is_using_kcpp_with_xtc())
+		{
+			document.getElementById("xtcsupporteddiv").classList.remove("hidden");
+			document.getElementById("xtcunsupporteddiv").classList.add("hidden");
+		}
+		else
+		{
+			document.getElementById("xtcsupporteddiv").classList.add("hidden");
+			document.getElementById("xtcunsupporteddiv").classList.remove("hidden");
 		}
 		pendingsequencebreakers = localsettings.dry_sequence_breakers;
 
@@ -9621,6 +9645,7 @@ Current version indicated by LITEVER below.
 		document.getElementById("inject_jailbreak_instruct").checked = localsettings.inject_jailbreak_instruct;
 		document.getElementById("idle_responses").value = localsettings.idle_responses;
 		document.getElementById("idle_duration").value = localsettings.idle_duration;
+		document.getElementById("fix_alpaca_leak").checked = localsettings.fix_alpaca_leak;
 		document.getElementById("adventure_context_mod").checked = localsettings.adventure_context_mod;
 		document.getElementById("chat_context_mod").checked = localsettings.chat_context_mod;
 		document.getElementById("instruct_has_markdown").checked = localsettings.instruct_has_markdown;
@@ -9692,6 +9717,7 @@ Current version indicated by LITEVER below.
 
 		document.getElementById("tokenstreammode").value = localsettings.tokenstreammode;
 		document.getElementById("img_allowhd").checked = localsettings.img_allowhd;
+		document.getElementById("img_crop").checked = localsettings.img_crop;
 		document.getElementById("img_autogen").checked = localsettings.img_autogen;
 		document.getElementById("save_images").checked = localsettings.save_images;
 		document.getElementById("save_remote_images").checked = localsettings.save_remote_images;
@@ -9732,6 +9758,7 @@ Current version indicated by LITEVER below.
 			document.getElementById("tfs_s").value = found.tfs;
 			document.getElementById("miro_type").value = 0;
 			document.getElementById("dry_multiplier").value = 0;
+			document.getElementById("xtc_probability").value = 0;
 			document.getElementById("rep_pen").value = document.getElementById("rep_pen_slide").value = found.rep_pen;
 			document.getElementById("rep_pen_range").value = found.rep_pen_range;
 			document.getElementById("rep_pen_slope").value = found.rep_pen_slope;
@@ -9819,6 +9846,7 @@ Current version indicated by LITEVER below.
 			document.getElementById("tfs_s").value != found.tfs ||
 			document.getElementById("miro_type").value != 0 ||
 			document.getElementById("dry_multiplier").value != 0 ||
+			document.getElementById("xtc_probability").value != 0 ||
 			document.getElementById("rep_pen").value !=  found.rep_pen ||
 			document.getElementById("rep_pen_range").value != found.rep_pen_range ||
 			document.getElementById("rep_pen_slope").value != found.rep_pen_slope ||
@@ -9933,6 +9961,7 @@ Current version indicated by LITEVER below.
 		localsettings.inject_jailbreak_instruct = (document.getElementById("inject_jailbreak_instruct").checked ? true : false);
 		localsettings.idle_responses = document.getElementById("idle_responses").value;
 		localsettings.idle_duration = document.getElementById("idle_duration").value;
+		localsettings.fix_alpaca_leak = (document.getElementById("fix_alpaca_leak").checked ? true : false);
 		localsettings.adventure_context_mod = (document.getElementById("adventure_context_mod").checked ? true : false);
 		localsettings.chat_context_mod = (document.getElementById("chat_context_mod").checked ? true : false);
 		localsettings.instruct_has_markdown = (document.getElementById("instruct_has_markdown").checked ? true : false);
@@ -9960,6 +9989,8 @@ Current version indicated by LITEVER below.
 		localsettings.dry_base = document.getElementById("dry_base").value;
 		localsettings.dry_allowed_length = document.getElementById("dry_allowed_length").value;
 		localsettings.dry_sequence_breakers = pendingsequencebreakers;
+		localsettings.xtc_threshold = document.getElementById("xtc_threshold").value;
+		localsettings.xtc_probability = document.getElementById("xtc_probability").value;
 		localsettings.token_count_multiplier = document.getElementById("token_count_multiplier").value;
 
 		localsettings.speech_synth = document.getElementById("ttsselect").value;
@@ -9978,6 +10009,7 @@ Current version indicated by LITEVER below.
 		localsettings.image_negprompt = document.getElementById("negpromptinput").value;
 		localsettings.grammar = pendinggrammar;
 		localsettings.tokenstreammode = document.getElementById("tokenstreammode").value;
+		localsettings.img_crop = (document.getElementById("img_crop").checked ? true : false);
 		localsettings.img_allowhd = (document.getElementById("img_allowhd").checked ? true : false);
 		localsettings.img_autogen = (document.getElementById("img_autogen").checked ? true : false);
 		localsettings.save_images = (document.getElementById("save_images").checked ? true : false);
@@ -10059,6 +10091,8 @@ Current version indicated by LITEVER below.
 		localsettings.dry_multiplier = cleannum(localsettings.dry_multiplier, 0.0, 100.0);
 		localsettings.dry_base = cleannum(localsettings.dry_base, 0.0, 8.0);
 		localsettings.dry_allowed_length = cleannum(Math.floor(localsettings.dry_allowed_length), 0, 100);
+		localsettings.xtc_probability = cleannum(localsettings.xtc_probability, 0.0, 1.0);
+		localsettings.xtc_threshold = cleannum(localsettings.xtc_threshold, 0.0, 1.0);
 		localsettings.sampler_seed = cleannum(localsettings.sampler_seed, -1, 999999);
 		localsettings.token_count_multiplier = cleannum(localsettings.token_count_multiplier, 70, 130);
 		toggle_invert_colors();
@@ -11983,6 +12017,10 @@ Current version indicated by LITEVER below.
 			let st = get_instruct_starttag(true);
 			let et = get_instruct_endtag(true);
 			seqs = [st, et];
+			if(localsettings.fix_alpaca_leak && st.toLowerCase().includes("### instruction"))
+			{
+				seqs.push("\n\n### ");
+			}
 			if(localsettings.inject_chatnames_instruct)
 			{
 				if(localsettings.chatname!="")
@@ -12100,8 +12138,16 @@ Current version indicated by LITEVER below.
 			submit_payload.params.dry_multiplier = localsettings.dry_multiplier;
 			submit_payload.params.dry_base = localsettings.dry_base;
 			submit_payload.params.dry_allowed_length = localsettings.dry_allowed_length;
+			submit_payload.params.dry_penalty_last_n = localsettings.rep_pen_range;
 			submit_payload.params.dry_sequence_breakers = JSON.parse(JSON.stringify(localsettings.dry_sequence_breakers));
 		}
+
+		if(custom_kobold_endpoint != "" && is_using_kcpp_with_xtc() && localsettings.xtc_probability > 0)
+		{
+			submit_payload.params.xtc_threshold = localsettings.xtc_threshold;
+			submit_payload.params.xtc_probability = localsettings.xtc_probability;
+		}
+
 		//presence pen and logit bias for OAI and newer kcpp
 		if((custom_kobold_endpoint != "" && is_using_kcpp_with_mirostat()) || custom_oai_endpoint!="")
 		{
@@ -13629,7 +13675,7 @@ Current version indicated by LITEVER below.
 		}
 	}
 
-	function compressImage(inputDataUri, onDone, isJpeg=true, fixedSize=true, maxSize=NO_HD_RES_PX, quality = 0.35, forceCrop=false) {
+	function compressImage(inputDataUri, onDone, isJpeg=true, fixedSize=true, maxSize=NO_HD_RES_PX, quality = 0.35, forceAspect=false) {
 		let img = document.createElement('img');
 		let wantedWidth = maxSize;
 		let wantedHeight = maxSize;
@@ -13663,7 +13709,7 @@ Current version indicated by LITEVER below.
 			canvas.height = wantedHeight;
 
 			// We resize the image with the canvas method
-			if(forceCrop)
+			if(forceAspect)
 			{
 				let minsizeW = Math.min(origW, origH);
 				let minsizeH = Math.min(origW, origH);
@@ -13689,9 +13735,26 @@ Current version indicated by LITEVER below.
 					canvas.height = wantedHeight = maxSize;
 				}
 
-				let mx = (origW - minsizeW) / 2;
-				let my = (origH - minsizeH) / 2;
-				ctx.drawImage(this, mx, my, minsizeW, minsizeH, 0, 0, wantedWidth, wantedHeight);
+				let newWidth, newHeight, mx, my;
+				if (wantedWidth / wantedHeight > aspectratio) {
+					newHeight = wantedHeight;
+					newWidth = wantedHeight * aspectratio;
+				} else {
+					newWidth = wantedWidth;
+					newHeight = wantedWidth / aspectratio;
+				}
+
+				if (localsettings.img_crop) {
+					mx = (origW - minsizeW) / 2;
+					my = (origH - minsizeH) / 2;
+					ctx.drawImage(this, mx, my, minsizeW, minsizeH, 0, 0, wantedWidth, wantedHeight);
+				} else {
+					mx = (wantedWidth - newWidth) / 2;
+					my = (wantedHeight - newHeight) / 2;
+					ctx.fillStyle = "black";
+					ctx.fillRect(0, 0, wantedWidth, wantedHeight);
+					ctx.drawImage(this, mx, my, newWidth, newHeight);
+				}
 			}else{
 				ctx.drawImage(this, 0, 0, wantedWidth, wantedHeight);
 			}
@@ -14262,16 +14325,25 @@ Current version indicated by LITEVER below.
 			if (isSupported) {
 				warn_on_quit = true;
 				const selection = window.getSelection();
-				if(selection.focusNode!=null && selection.focusNode.parentElement!=null
-				&& selection.focusNode.parentElement.classList.contains("txtchunk"))
+				let foundparent = null;
+				if (selection.focusNode != null && selection.focusNode.parentElement != null
+					&& selection.focusNode.parentElement.classList.contains("txtchunk")) {
+					foundparent = selection.focusNode.parentElement;
+				} else if (selection.focusNode != null && selection.focusNode.parentElement != null
+					&& selection.focusNode.parentElement.parentElement != null
+					&& selection.focusNode.parentElement.parentElement.classList.contains("txtchunk")) {
+					//double nested
+					foundparent = selection.focusNode.parentElement.parentElement;
+				}
+				if (foundparent)
 				{
-					if(prev_hl_chunk!=null)
-					{
+					if (prev_hl_chunk != null) {
 						prev_hl_chunk.classList.remove("hlchunk");
 					}
-					prev_hl_chunk = selection.focusNode.parentElement;
+					prev_hl_chunk = foundparent;
 					prev_hl_chunk.classList.add("hlchunk");
 				}
+
 				idle_timer = 0;
 			}
 		}
@@ -14499,7 +14571,7 @@ Current version indicated by LITEVER below.
 			fulltxt = fulltxt.replace(/\[<\|d\|.+?\|d\|>\]/g, stripimg_replace_str);
 
 			//always filter comments - new format
-			fulltxt = fulltxt.replace(/\[<\|.+?\|>\]/g, ""); //remove normal comments too
+			fulltxt = fulltxt.replace(/\[<\|[\s\S]+?\|>\]/g, ""); //remove normal comments too
 
 		}
 		return fulltxt;
@@ -15420,7 +15492,7 @@ Current version indicated by LITEVER below.
 					inner = render_image_html(inner, "",false,true);
 					return inner;
 				});
-				processed_msg = processed_msg.replace(/\[<\|.+?\|>\]/g, ""); //remove normal comments too
+				processed_msg = processed_msg.replace(/\[<\|[\s\S]+?\|>\]/g, ""); //remove normal comments too
 			}
 
 			let namepart = (curr.myturn ? "User" : cosmetic_corpo_ai_nick);
@@ -15448,6 +15520,16 @@ Current version indicated by LITEVER below.
 					}
 				}
 
+				let foundTimestamp = "";
+				if(localsettings.inject_timestamps)
+				{
+					let found = processed_msg.match(/(\[\d{1,2}\/\d{1,2}\/\d{4}, \d{1,2}:\d{2} [AP]M\]) /g);
+					if(found && found.length>0)
+					{
+						foundTimestamp = found[0];
+						processed_msg = processed_msg.replace(/(\[\d{1,2}\/\d{1,2}\/\d{4}, \d{1,2}:\d{2} [AP]M\]) /g, "");
+					}
+				}
 				for(let i=0;i<validprefixes.length;++i)
 				{
 					let person = validprefixes[i];
@@ -15458,6 +15540,10 @@ Current version indicated by LITEVER below.
 						processed_msg = processed_msg.slice(prefix.length);
 						break;
 					}
+				}
+				if(foundTimestamp)
+				{
+					processed_msg = foundTimestamp + "\n" + processed_msg;
 				}
 			}
 
@@ -15597,7 +15683,7 @@ Current version indicated by LITEVER below.
 		for(var i=0;i<input.length;++i)
 		{
 			let tempfullsearchable = input[i]; //strip out images
-			let txtwithnoimages = tempfullsearchable.replace(/\[<\|.+?\|>\]/g, "");
+			let txtwithnoimages = tempfullsearchable.replace(/\[<\|[\s\S]+?\|>\]/g, "");
 			var foundopponent = txtwithnoimages.match(othernamesregex);
 			var foundself = txtwithnoimages.match(mynameregex);
 
@@ -15686,7 +15772,7 @@ Current version indicated by LITEVER below.
 					inner = render_image_html(inner, "",false,true);
 					return inner;
 				});
-				curr.msg = curr.msg.replace(/\[<\|.+?\|>\]/g, ""); //remove normal comments too
+				curr.msg = curr.msg.replace(/\[<\|[\s\S]+?\|>\]/g, ""); //remove normal comments too
 
 
 			}
@@ -17515,7 +17601,8 @@ Current version indicated by LITEVER below.
 				</select>
 				<span class="color_green" style="font-weight: bold;">Please input Gemini or PaLM API Key.</span><br><br>
 				<input class="form-control" type="password" id="custom_palm_key" placeholder="PaLM/Gemini API Key (Required)" value="" onfocus="focus_api_keys()" onblur="blur_api_keys()"><br>
-				<input class="form-control" type="text" id="gemini_system_instruction" placeholder="(Enter System Instruction)"	value=""><br>
+				<textarea class="form-control" rows="3" style="resize: vertical; line-height:1.1; padding:4px; display:inline; width: 100%" type="text" id="gemini_system_instruction" placeholder="(Enter System Instruction)"
+				value=""></textarea><br>
 			</div>
 			<div id="coherecustom" class="aidgpopuplistheader anotelabel hidden">
 				Uses Cohere's models through their own API.<br><br>
@@ -17622,7 +17709,7 @@ Current version indicated by LITEVER below.
 
 	<div class="popupcontainer flex hidden" id="settingscontainer">
 		<div class="popupbg flex"></div>
-		<div class="nspopup flexsize" style="margin-top: 6vh; background-color:#102840">
+		<div class="nspopup flexsize" style="margin-top: 4vh; background-color:#102840">
 			<div class="popuptitlebar">
 				<div class="popuptitletext" title="Settings Menu">Settings</div>
 			</div>
@@ -17746,6 +17833,11 @@ Current version indicated by LITEVER below.
 							<div class="justifyleft settingsmall">Adventure PrePrompt <span class="helpicon">?<span
 								class="helptext">Modifies the context, injecting tokens to improve adventure quality for new adventures.</span></span> </div>
 							<input type="checkbox" title="Adventure PrePrompt" id="adventure_context_mod" style="margin:0px 0px 0px auto;">
+						</div>
+						<div class="settinglabel">
+							<div class="justifyleft settingsmall">Fix Alpaca Leakage <span class="helpicon">?<span
+								class="helptext">Prevents leaking when Alpaca instruct format is used on models trained with bad/different formats.</span></span> </div>
+							<input type="checkbox" title="Fix Alpaca Leakage" id="fix_alpaca_leak" style="margin:0px 0px 0px auto;">
 						</div>
 					</div>
 
@@ -18053,7 +18145,28 @@ Current version indicated by LITEVER below.
 								<div id="dryunsupporteddiv" class="color_red" style="font-weight:bold;padding:3px;font-size:12px">DRY Not Supported</div>
 							</div>
 
+							<div class="settinglabel settingcell">
+								<div title="XTC" class="justifyleft settingsmall" style="width:100%">XTC <span class="helpicon">?<span class="helptext">
+									Enables Exclude Top Choices (XTC) Sampling. May not be available depending on backend, not supported on Horde.</span></span></div>
+									<div class="justifyleft settingsmall" style="width:100%">
+									<div id="xtcsupporteddiv" style="display:flex;">
+										<div class="settinglabel settingcell">
+											<div title="XTC Threshold" class="justifyleft settingsmall" style="width:100%">Threshold</div>
+											<div class="justifyleft settingsmall" style="width:100%">
+											<input title="XTC Threshold" class="settinglabel miniinput" type="text" inputmode="decimal" placeholder="0.0" value="0.0" id="xtc_threshold"></div>
+										</div>
+										<div class="settinglabel settingcell">
+											<div title="XTC Probability" class="justifyleft settingsmall" style="width:100%">Probability</div>
+											<div class="justifyleft settingsmall" style="width:100%">
+											<input title="XTC Probability" class="settinglabel miniinput" type="text" inputmode="decimal" placeholder="0.0" value="0.0" id="xtc_probability"></div>
+										</div>
+									</div>
+									<div id="xtcunsupporteddiv" class="color_red" style="font-weight:bold;padding:3px;font-size:12px">XTC Not Supported</div>
+									</div>
+							</div>
+						</div>
 
+						<div style="display:flex;width:100%;">
 							<div class="settinglabel settingcell">
 								<div title="Grammar" class="justifyleft settingsmall" style="width:100%">Grammar <span class="helpicon">?<span class="helptext">
 									Grammar Sampling (KCPP) - Allows you to constrain output to fit specific structures. Resets grammar state every generation unless Retain is checked.</span></span></div>
@@ -18065,7 +18178,6 @@ Current version indicated by LITEVER below.
 									</div>
 								</div>
 							</div>
-
 						</div>
 					</div>
 				</div>
@@ -18229,6 +18341,12 @@ Current version indicated by LITEVER below.
 									<span class="helptext">This option will result in larger save files which may be slower. Changing this setting only applies to NEW images.</span>
 								</span>: </div>
 								<input title="Save Higher-Res Images" type="checkbox" id="img_allowhd" style="margin:0px 0 0;">
+							</div>
+							<div class="inlinelabel">
+								<div class="justifyleft" style="padding:4px">Crop Images <span class="helpicon">?
+									<span class="helptext">If enabled, oversized imported images will be cropped to fit. If disabled, images will be letterboxed instead.</span>
+								</span>: </div>
+								<input title="Crop Images" type="checkbox" id="img_crop" style="margin:0px 0 0;">
 							</div>
 						</div>
 					</div>
