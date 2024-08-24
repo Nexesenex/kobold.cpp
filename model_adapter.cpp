@@ -14,6 +14,8 @@
 
 #include <chrono>
 
+//static int debugmode;
+
 static auto bench_timer = std::chrono::high_resolution_clock().now();
 
 void timer_start()
@@ -314,10 +316,13 @@ void print_tok_vec(std::vector<float> &embd)
             {
                 fileformatmeta->model_architecture = GGUFArch::ARCH_QWEN2;
             }
+            else if(modelarch=="llama" && freq_base_train==10000.0f)
+            {
+                fileformatmeta->model_architecture = GGUFArch::ARCH_MISTRAL_LLAMA_1_AND_2;
             printf("Arch Category: %d\n",fileformatmeta->model_architecture);
-
+            }
         }
-
+        fileformatmeta->n_tensors = gguf_get_n_tensors(ctx);
         gguf_free(ctx);
     }
 
@@ -427,6 +432,10 @@ void print_tok_vec(std::vector<float> &embd)
      const float SCTruncationRatio = 0.5; //ratio for how many tokens to fast forward
      const int SCTokThreshold = 32 + (nctx*0.05); //how many tokens of similarity triggers smartcontext
 
+    //printf("\nORIGINAL CTX:\n");
+    //print_tok_vec(current_context_tokens);
+    //printf("\nORIGINAL EMBD:\n");
+    //print_tok_vec(embd_inp);
 
     //fast forward the past based on identical tokens, stop once a divergence is noted
     int embd_inp_len = embd_inp.size();
@@ -474,6 +483,10 @@ void print_tok_vec(std::vector<float> &embd)
         last_n_tokens.erase(last_n_tokens.begin(), last_n_tokens.begin() + n_past);
         embd_inp.erase(embd_inp.begin(), embd_inp.begin() + n_past);
         embd_inp_len = embd_inp.size();
+		
+        printf("\nconds: %d %d %d\n",current_context_tokens.size() >= nctx*0.8); 
+        embd_inp_len >= nctx*0.6 ,current_context_tokens.size() - n_past > nctx*0.5;
+        printf("csiz:%d par:%d eilen:%d np:%d",current_context_tokens.size(), (int)(nctx*0.8),embd_inp_len,n_past);
     }
 
     //smart context mode, detect if we have a shifted context at max length
@@ -482,7 +495,15 @@ void print_tok_vec(std::vector<float> &embd)
 
     if (fastforwardok && useSmartContext && smartcontext.size() > 0 && embd_inp_len >= SCInpLenThreshold)
     {
+        //printf("curfullcontext:\n");
+        //print_tok_vec(current_context_tokens);
+
         //see if smartcontext is still usable
+        //printf("smartctx:\n");
+        //if(debugmode==1) {print_tok_vec(smartcontext);}
+        //printf("embinp:\n");
+        //if(debugmode==1) {print_tok_vec(embd_inp);}
+		
         auto shared = LongestCommonSubseq(smartcontext, embd_inp);
         if (shared.size() > SCTokThreshold && ArrStartWith(smartcontext, shared)) //at least 32 tokens in common
         {
@@ -492,6 +513,8 @@ void print_tok_vec(std::vector<float> &embd)
                 auto trimmed = std::vector<int>(embd_inp.begin() + found, embd_inp.end());
                 embd_inp = trimmed;
                 embd_inp_len = embd_inp.size();
+                //printf("trimmed:\n");
+                //if(debugmode==1) {print_tok_vec(embd_inp);}
                 printf("\n[Reusing Smart Context: %d allowance remaining]", found);
 
                 int old_n_past = n_past;
@@ -503,6 +526,7 @@ void print_tok_vec(std::vector<float> &embd)
 
                 for (int i = n_past; i < current_context_tokens.size(); ++i)
                 {
+                    printf("\n%s and %s\n",current_context_tokens[i], embd_inp[i-offset_fix]);
                     if (current_context_tokens[i] == embd_inp[i-offset_fix])
                     {
                         n_past += 1;
@@ -520,7 +544,8 @@ void print_tok_vec(std::vector<float> &embd)
 
                 last_n_tokens.erase(last_n_tokens.begin(), last_n_tokens.begin() + (n_past-old_n_past));
                 embd_inp.erase(embd_inp.begin(), embd_inp.begin() + (n_past-old_n_past));
-
+                //printf("np:%d newembinp: \n",n_past);
+                //if (debugmode==1) {print_tok_vec(embd_inp);}
             }else{
                 smartcontext.clear();
             }
@@ -543,8 +568,9 @@ void print_tok_vec(std::vector<float> &embd)
         //determine longest common substring after removing start part
         int shiftamt = embd_inp.size() * SCTruncationRatio;
         smartcontext = std::vector<int>(embd_inp.begin() + shiftamt, embd_inp.end());
-         printf("\n[New Smart Context Triggered! Buffered Token Allowance: %d]",shiftamt);
-
+        printf("\n[New Smart Context Triggered! Buffered Token Allowance: %d]",shiftamt);
+        //printf("smartctx:\n");
+        //if(debugmode==1) {print_tok_vec(smartcontext);}
         embd_inp = smartcontext;
         //if max ctx length is exceeded, chop the prompt in half after the start part, and memorize it. The memorized part becomes LCS marker.
         //when a future prompt comes in, find the LCS again. If LCS > a length and LCS starts with memorized LCS
