@@ -1,3 +1,220 @@
+# Croco.Cpp (CCPP) :
+
+<details>
+<summary>Unroll DISCLAIMER:</summary>
+
+Croco.Cpp is a fork of KoboldCPP, already known as KoboldCPP Frankenstein, Frankenfork, or shortened in KCPP-F.
+The namechange is due to my boredom with the Frankenstein marker I myself initiated a year ago.
+As usual, the Croco.Cpp builds are NOT supported by the KoboldCPP (KCPP) team, Github, or Discord channel.
+They are for greedy-test and amusement only.
+Any potential support found them is a courtesy, not a due.
+My CCPP version number bumps as soon as the version number in the official experimental branch bumps in the following way x.xxx : (KCPP)x.xx.x.(CCPP)xx.
+They are not "upgrades" over the official version. And they might be bugged at time: only the official KCPP releases are to be considered correctly numbered, reliable and "fixed".
+The LllamaCPP version + the additional PRs integrated follow my CCPP versioning in the title, so everybody knows what version they deal with.
+Important : New models sometimes integrated in my builds (like recently Mistral Nemo, which posed problems for several users) are for personal testing only, and CAN'T be fixed if they fail because their support come from third party PRs coming from LlamaCPP merged "savagely" in my builds, sometimes before even being merged on LlamaCPP master.
+</details>
+
+Presentation :
+
+Croco.Cpp (CCPP) is a fork of the experimental branch of KoboldCPP (KCPP), mainly aimed at NVidia Cuda users (I'm myself using Ampere GPUs, it MIGHT support the other backends also, everything is compîled but Hipblas/ROCm, but it's not tested), with a few modifications accordingly to my own needs :
+- More context steps in GUI, as well as more Blas Batch Size (supports MMVQ 1-8 for example)
+- 26 different modes of quantization for the context cache (F16, 20 KV modes with Flash Attention, 5 K modes without Flash Attention for models like Gemma)  
+- A slightly different benchmark (one flag per column instead of a single flag space).
+- 8 Stories slots instead of 6 in the web-interface (KLite).
+- Often some PRs unsupported/not yet supported in KCPP.
+- More infos displayed in the CLI, without activating debug mode.
+- Smartcontext instead of contextshift by default in GUI for compatibility with Gemma
+- Since 1.71010, an enhanced model layers autoloader on GPU, based on Concedo's code and Pyroserenus formulas, but different from Henky's subsequent commit on KCPP-official. It's compatible with KV_Quants, works in single and multi-GPU, is accessible in CLI and GUI modes, and can be configured easily in tandem with tensor split for an entirely customized loading accordingly to one's rig and needs.
+
+Recommanded settings for Commande Line Interface / GUI :
+```
+--flashattention (except for Gemma)
+--blastbatchsize 128 (256 for Gemma)
+--usecublas mmq (for NVidia users, MMQ mode is faster)
+```
+Check the help section (koboldcpp.exe --help or python koboldcpp.py --help) for more infos.
+
+## Croco.Cpp specifics :
+
+<details>
+<summary>Unroll the 26 KV cache options (all should be considered experimental except F16, KV Q8_0, and KV Q4_0)</summary>
+
+With Flash Attention :
+- F16 -> Fullproof (the usual KV quant since the beginning of LCPP/KCPP)
+- K F16 with : V Q8_0, Q5_1, Q5_0, Q4_1, Q4_0
+- K Q8_0 with : V F16, Q8_0 (stable, my current main, part of the LCPP/KCPP main triplet), Q5_1 (maybe unstable), Q5_0 (maybe unstable), Q4_1 (maybe stable), the rest is untested beyond benches), Q4_0 (maybe stable)
+- K Q5_1 with : V Q5_1, Q5_0, Q4_1, Q4_0
+- K Q5_0 with : V Q5_0, Q4_1, V Q4_0
+- K Q4_1 with : V Q4_1 (stable), Q4_0 (maybe stable)
+- KV Q4_0 (quite stable, if we consider that it's part of the LCPP/KCPP main triplet)
+Works in command line, normally also via the GUI, and normally saves on .KCPPS config files.
+
+Without Flash Attention nor MMQ (for models like Gemma) :
+- V F16 with KQ8_0, Q5_1, Q5_0, Q4_1, and Q4_0.
+</details>
+
+<details>
+<summary>Unroll the options to set KV Quants</summary>
+
+KCPP official KV quantized modes (modes 1 and 2 require Flash Attention) :
+
+0 = 1616/F16 (16 BPW),
+1 = FA8080/KVq8_0 (8.5 BPW),
+2 = FA4040/KVq4_0 (4.5BPW),
+
+CCPP unofficial KV quantized modes (require flash attention) :
+
+3 = FA1680/Kf16-Vq8_0 (12.25BPW),
+4 = FA1651/Kf16-Vq5_1 (11BPW),
+5 = FA1650/Kf16-Vq5_0 (10.75BPW),
+6 = FA1641/Kf16-Vq4_1 (10.5BPW),
+7 = FA1640/Kf16-Vq4_0 (10.25BPW),
+8 = FA8051/Kq8_0-Vq5_1 (7.25BPW),
+9 = FA8050/Kq8_0-Vq5_0 (7BPW),
+10 = FA8041/Kq8_0-Vq4_1 (6.75BPW),
+11 = FA8040/Kq8_0-Vq4_0 (6.5BPW),
+12 = FA5151/KVq5_1 (6BPW),
+13 = FA5150/Kq5_1-Vq5_0 (5.75BPW),
+14 = FA5141/Kq5_1-Vq4_1 (5.5BPW),
+15 = FA5140/Kq5_1-Vq4_0 (5.25BPW),
+16 = FA5050/Kq5_0-Vq5_0 (5.5BPW),
+17 = FA5041/Kq5_0-Vq4_1 (5.25BPW),
+18 = FA5040/Kq5_0-Vq4_0 (5BPW),
+19 = FA4141/Kq4_1-Vq4_1 (5BPW),
+20 = FA4140/Kq4_1-Vq4_0 (4.75BPW)
+
+21 = 1616/F16 (16 BPW),  (same as 0, I just used it for the GUI slider).
+
+22 = 8016/Kq8_0, Vf16 (12.25BPW), FA and no-FA both
+
+23 = 5116/Kq5_1-Vf16 (11BPW), no-FA
+24 = 5016/Kq5_1-Vf16 (10.75BPW), no-FA
+25 = 4116/Kq4_1-Vf16 (10.50BPW), no-FA
+26 = 4016/Kq4_0-Vf16 (10.25BPW), no-FA
+
+choices=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26], default=0)
+</details>
+
+<details>
+<summary>Unroll the details about Emphasisfsm by Yoshqu</summary>
+
+The common problem during text generiation are misplaced emphasis characters.
+
+    *looks at you "why* this is here?"
+
+while it should be
+
+    *looks at you* "why this is here?"
+
+This emphasisfsm solves this by simple (and fast) grammar expressed by deterministic finite state machine.
+
+![Letters](emphasis-dfsm-letters.png)
+
+Single letters are not practical in LLMs as tokens often contains more than one.
+
+Emphasisfsm uses LLM tokens as its alphabet making it very fast.
+
+![Tokens](emphasis-dfsm-tokens.png)
+
+Those are only most obvious examples. There are more, eg. ' "***' is a valid token to transition from qout to star. and '*this' is vaild for quot->none or none->quot.
+
+### Usage
+
+To support variety of GUIs this extension shamefully exploits GBNF grammar string. *This is not a proper GBNF grammar, it only uses the field which is easily editable in most GUIs*
+
+![KoboldCpp hack](gbnf-kob.png) ![SillyTavern hack](gbnf-st.png)
+
+
+    emphasisfsm "_bias_[D][_emph1_][,_emphn_]"
+
+Empty string emphasisfsm is disabled. The easiest way to enable is to
+
+    emphasisfsm "-20"
+
+which defaults to
+
+    emphasisfsm "-20 \" \" * *"
+
+(no debug, only * and " are considered)
+
+
+### how it works
+
+Main loop is extended from:
+
+- retrieve logits
+- sample logits, select token (top_k and friends)
+- output token
+
+to
+
+- retrieve logits
+- ban forbidden emphasisfsm transitions from current state (stetting their logits low)
+- sample logits, select token (top_k and friends)
+- emphasisfsm trasition on selected token
+- output token
+
+
+### TODO
+
+- find split utf8 letters over more than one token (i don't plant to support it, but warning would be nice)
+- banning end tokens generation inside of emphasis - forcing LLM to finsh his 'thought' ?
+
+
+### Meta-Llama-3-8B stats for default (" *) emphasisfsm
+
+    empcats_gen: ban bias: -17.500000
+    empcats_gen: emphasis indifferent tokens: 126802
+    empcats_gen: tokens for emphasis '"' '"': 1137
+    empcats_gen: tokens for emphasis '*' '*': 315
+    empcats_gen: always banned tokens: 2
+    empcats_gen: total tokens: 128256
+
+Always banned tokens are :
+
+<pre>' "*"',  ' "*"'</pre>
+
+### Tests
+
+    emphasisfsm "-20 1 1 2 2 3 3 4 4 5 5 6 6 7 7 8 8 9 9 0 0"
+
+This forces that every digit is a citation, so example text completion looks like:
+
+
+```
+Give me math vector of random numbers.Here is a 3-dimensional math vector with random numbers:
+Vector:
+[
+    3.445,
+    -5.117,
+    7.992
+]
+```
+
+There is no other digit between two 3, two 4, two 5 and so on....
+</details>
+
+<details>
+<summary>Unroll the Dry sampler recommanded settings</summary>
+
+Multiplier : 0.8
+Base : 1.75
+Allowed length : 2
+Range : Uses the repetition penalty range (usual parameter is 2048)
+Usual sequence breakers : '\n', ':', '"', '*'
+</details>
+
+#Croco.Cpp notes :
+
+- I often mislabel the Cuda specifics of the builds. Here's the right nomenclature :
+Cuda 12.2 arch 60617075 : Cu12.2_SMC2_Ar60617075_DmmvX64Y2_MMY2_KQIt2
+Cuda 12.1 arch 52617075 : CuCML_ArCML_SMC2_DmmvX32Y1 (CML : CMakeList)
+Cuda 11.4.4/11.5 arch 35375052 : CuCML_ArCML_SMC2_DmmvX32Y1
+
+# koboldcpp-experimental
+
+KoboldCpp-experimental is a sligthly extended KoboldCpp with [custom](experimental/README.md) functionality.
+
 # koboldcpp
 
 KoboldCpp is an easy-to-use AI text-generation software for GGML and GGUF models, inspired by the original **KoboldAI**. It's a single self-contained distributable from Concedo, that builds off llama.cpp, and adds a versatile **KoboldAI API endpoint**, additional format support, Stable Diffusion image generation, speech-to-text, backward compatibility, as well as a fancy UI with persistent stories, editing tools, save formats, memory, world info, author's note, characters, scenarios and everything KoboldAI and KoboldAI Lite have to offer.
@@ -167,3 +384,4 @@ when you can't use the precompiled binary directly, we provide an automated buil
   - [Stable Diffusion 1.5 and SDXL safetensor models](https://github.com/LostRuins/koboldcpp/wiki#can-i-generate-images-with-koboldcpp)
   - [LLaVA based Vision models and multimodal projectors (mmproj)](https://github.com/LostRuins/koboldcpp/wiki#what-is-llava-and-mmproj)
   - [Whisper models for Speech-To-Text](https://huggingface.co/koboldcpp/whisper/tree/main)
+  
