@@ -34,9 +34,10 @@
 #include "mpt_v3.cpp"
 #include "examples/llava/clip.h"
 #include "examples/llava/llava.h"
+#include "experimental/emphasis.h"
 
 //const
-const int extra_context_handle_fragmentation = 80;
+const int extra_context_handle_fragmentation = 0;
 const int LLAVA_TOKEN_IDENTIFIER_A = -998; //alternate between both, changing when image changes
 const int LLAVA_TOKEN_IDENTIFIER_B = -999;
 
@@ -45,6 +46,9 @@ std::string executable_path = "";
 std::string lora_filename = "";
 std::string lora_base = "";
 std::string mmproj_filename = "";
+//std::string override_kv = "";
+//std::string cache_type_k = "";
+//std::string cache_type_v = "";
 bool generation_finished;
 float last_process_time = 0;
 float last_eval_time = 0;
@@ -889,7 +893,7 @@ const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dyna
     sample_dry(n_ctx, dry_penalty_last_n, dry_multiplier, dry_base, dry_allowed_length, dry_sequence_breakers, &candidates_p);
 
     //prefilter to top 5k tokens for improved speed
-    llama_sample_top_k(nullptr, &candidates_p, 5000, 1);
+    llama_sample_top_k(nullptr, &candidates_p, 500, 1);
 
     if (mirostat == 1 || mirostat == 2)
     {
@@ -1112,13 +1116,37 @@ static int GetBatchSize(int desiredBlasBatchSize,FileFormat in_file_format)
     }
     if (file_format != FileFormat::GGML && file_format != FileFormat::GGHF && file_format != FileFormat::GGJT && file_format != FileFormat::GGJT_2 && file_format != FileFormat::GGJT_3 && file_format != FileFormat::GGUF_GENERIC)
     {
-        desiredBlasBatchSize = (desiredBlasBatchSize > 256 ? 256 : desiredBlasBatchSize);
+        desiredBlasBatchSize = (desiredBlasBatchSize > 128 ? 128 : desiredBlasBatchSize);
     }
     if (file_format == FileFormat::RWKV_1 || file_format==FileFormat::RWKV_2)
     {
         desiredBlasBatchSize = 1;
     }
     return desiredBlasBatchSize;
+}
+
+static int GetUBatchSize(int desiredBlasUBatchSize,FileFormat in_file_format)
+{
+    //check if approved to use BLAS
+    bool approved_format = !(file_format == FileFormat::BADFORMAT ||
+                            file_format == FileFormat::GPT2_1 ||
+                            file_format == FileFormat::GPTJ_1 ||
+                            file_format == FileFormat::GPTJ_2 ||
+                            file_format == FileFormat::RWKV_1 ||
+                            file_format==FileFormat::RWKV_2);
+    if(!approved_format || desiredBlasUBatchSize<=0)
+    {
+        desiredBlasUBatchSize = 16;
+    }
+    if (file_format != FileFormat::GGML && file_format != FileFormat::GGHF && file_format != FileFormat::GGJT && file_format != FileFormat::GGJT_2 && file_format != FileFormat::GGJT_3 && file_format != FileFormat::GGUF_GENERIC)
+    {
+        desiredBlasUBatchSize = (desiredBlasUBatchSize > 128 ? 128 : desiredBlasUBatchSize);
+    }
+    if (file_format == FileFormat::RWKV_1 || file_format==FileFormat::RWKV_2)
+    {
+        desiredBlasUBatchSize = 1;
+    }
+    return desiredBlasUBatchSize;
 }
 
 //this function applies automatic scaling to rope freq base when the desired context exceeds trained context
@@ -1135,29 +1163,31 @@ static float CalcGradientAIRopeFreqBase(float original_rope_base, int n_ctx_trai
         float chi_ctx_value = (n_ctx_desired * ctx_multiplier) / 6.28318;
         float gradient_ai_rope_freq_base_value = powf(original_rope_base, log10f(chi_ctx_value) / log10f(chi_ctx_train_value));
 
-        if(debugmode==1)
-        {
-            printf("Trained max context length (value:%.d).\n", n_ctx_train);
-            printf("Desired context length (value:%.d).\n", n_ctx_desired);
-            printf("Solar context multiplier (value:%.3f).\n", ctx_multiplier);
-            printf("Chi context train (value:%.3f).\n", chi_ctx_train_value);
-            printf("Chi chosen context (value:%.3f).\n", chi_ctx_value);
-            printf("Log Chi context train (value:%.3f).\n", log10f(chi_ctx_train_value));
-            printf("Log Chi chosen context (value:%.3f).\n", log10f(chi_ctx_value));
-            printf("RoPE Frequency Base value (value:%.3f).\n", original_rope_base);
-            printf("RoPE base calculated via Gradient AI formula. (value:%.1f).\n", gradient_ai_rope_freq_base_value);
-        }
-
+        printf("Trained max context length (value:%.d).\n", n_ctx_train);
+        printf("Desired context length (value:%.d).\n", n_ctx_desired);
+        printf("Solar context multiplier (value:%.3f).\n", ctx_multiplier);
+        printf("Chi context train (value:%.3f).\n", chi_ctx_train_value);
+        printf("Chi chosen context (value:%.3f).\n", chi_ctx_value);
+        printf("Log Chi context train (value:%.3f).\n", log10f(chi_ctx_train_value));
+        printf("Log Chi chosen context (value:%.3f).\n", log10f(chi_ctx_value));
+        printf("RoPE Frequency Base value (value:%.3f).\n", original_rope_base);
+        printf("RoPE base calculated via Gradient AI formula. (value:%.1f).\n", gradient_ai_rope_freq_base_value);
+			
 	    if(model_arch==GGUFArch::ARCH_SOLAR)
         {
             float extended_rope_positive_offset_value = 1 + ((log10f(chi_ctx_value) - log10f(chi_ctx_train_value)) / ((log10f(chi_ctx_value) * log10f(chi_ctx_train_value)) - (log10f(chi_ctx_value) + log10f(chi_ctx_train_value))));
             float rope_freq_base_with_positive_offset = gradient_ai_rope_freq_base_value * extended_rope_positive_offset_value;
-            if(debugmode==1)
-            {
-                printf("Extended RoPE Positive Offset (multiplicator) for Solar based models. (value:%.3f).\n", extended_rope_positive_offset_value);
-                printf("RoPE base calculated via Gradient AI formula for Solar based models. (value:%.1f).\n", rope_freq_base_with_positive_offset);
-            }
+            printf("Extended RoPE Positive Offset (multiplicator) for Solar based models. (value:%.3f).\n", extended_rope_positive_offset_value);
+            printf("RoPE base calculated via Gradient AI formula for Solar based models. (value:%.1f).\n", rope_freq_base_with_positive_offset);
             return rope_freq_base_with_positive_offset;
+        }
+	    else if(model_arch==GGUFArch::ARCH_MISTRAL_LLAMA_1_AND_2)
+        {
+            float extended_rope_negative_offset_value = 1 + ((log10f(chi_ctx_value) - log10f(chi_ctx_train_value)) / (3.14159265358979323846 * 3.14159265358979323846));
+            float rope_freq_base_with_negative_offset = gradient_ai_rope_freq_base_value / extended_rope_negative_offset_value;
+            printf("Extended RoPE Negative Offset (divisor) for Llama 1 and 2 based models. (value:%.3f).\n", extended_rope_negative_offset_value);
+            printf("RoPE base calculated via Gradient AI formula for Llama 1 and 2 based models. (value:%.1f).\n", rope_freq_base_with_negative_offset);
+            return rope_freq_base_with_negative_offset;
         }
         else
         {
@@ -1177,12 +1207,15 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     kcpp_params->n_threads_batch = inputs.blasthreads;
     bool isGguf = (file_format == FileFormat::GGUF_GENERIC);
     kcpp_params->n_batch = GetBatchSize(inputs.blasbatchsize, in_file_format);
-    kcpp_params->n_ubatch = kcpp_params->n_batch;
+    kcpp_params->n_ubatch = GetUBatchSize(inputs.blasubatchsize, in_file_format);
     kcpp_params->flash_attn = inputs.flash_attention;
     modelname = kcpp_params->model = inputs.model_filename;
     useSmartContext = inputs.use_smartcontext;
     useContextShift = inputs.use_contextshift;
     debugmode = inputs.debugmode;
+//    kcpp_params->override_kv = inputs.override_kv;
+//    kcpp_params->cache_type_k = inputs.cache_type_k;
+//    kcpp_params->cache_type_v = inputs.cache_type_v;
 
     auto clamped_max_context_length = inputs.max_context_length;
 
@@ -1204,6 +1237,11 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     //determine rope scaling params
     float rope_freq_scale = 1.0f;
     float rope_freq_base = 10000.0f;
+//    float   yarn_ext_factor       = -1.0f; // YaRN extrapolation mix factor
+//    float   yarn_attn_factor      =  1.0f; // YaRN magnitude scaling factor
+//    float   yarn_beta_fast        = 32.0f; // YaRN low correction dim
+//    float   yarn_beta_slow        =  1.0f; // YaRN high correction dim
+//    int32_t yarn_orig_ctx         =     0; // YaRN original context length
     bool overwriteRope = false;
     if(inputs.rope_freq_scale>0.0f)
     {
@@ -1212,6 +1250,9 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         overwriteRope = true;
         printf("Using Custom RoPE scaling (scale:%.3f, base:%.1f).\n",rope_freq_scale,rope_freq_base);
     }
+//    else if (inputs.yarn>0.0f)
+//    {
+//    }		
     else
     {
         //Set freq base for all, including non GGUF. If we are using GGUF, this will be overwritten with more accurate values later.
@@ -1223,6 +1264,18 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         }
         else
         {
+            //approximate NTK aware ctx
+            auto effectivenctx = kcpp_params->n_ctx;
+            if((file_format == FileFormat::GGUF_GENERIC) && file_format_meta.n_ctx_train > 2048)
+            {
+                float factor = file_format_meta.n_ctx_train/2048;
+                effectivenctx = effectivenctx/factor;
+            }
+            float magic_multiplier = 8.0f;
+            float base_multiplier = effectivenctx*magic_multiplier;
+            float base_raw = 10000.0f;
+            rope_freq_base = (effectivenctx <= 2048 ? base_raw : base_multiplier);
+			//OLD : rope_freq_base = (effectivenctx <= 2048 ? 10000.0f : (effectivenctx <= 2176 ? 10000.0f : (effectivenctx <= 2304 ? 11000.0f : (effectivenctx <= 2432 ? 12000.0f : (effectivenctx <= 2560 ? 13000.0f : (effectivenctx <= 2688 ? 14000.0f : (effectivenctx <= 2816 ? 15000.0f : (effectivenctx <= 2944 ? 16000.0f : (effectivenctx <= 3072 ? 17000.0f : (effectivenctx <= 3200 ? 18000.0f : (effectivenctx <= 3328 ? 19000.0f : (effectivenctx <= 3456 ? 20000.0f : (effectivenctx <= 3584 ? 21000.0f : (effectivenctx <= 3712 ? 22000.0f : (effectivenctx <= 3840 ? 23000.0f : (effectivenctx <= 3968 ? 24000.0f : (effectivenctx <= 4096 ? 25000.0f : (effectivenctx <= 4224 ? 26000.0f : (effectivenctx <= 4352 ? 27000.0f : (effectivenctx <= 4480 ? 28500.0f : (effectivenctx <= 4608 ? 30000.0f : (effectivenctx <= 4736 ? 31500.0f : (effectivenctx <= 4864 ? 33000.0f : (effectivenctx <= 4992 ? 34500.0f : (effectivenctx <= 5120 ? 36000.0f : (effectivenctx <= 5248 ? 38000.0f : (effectivenctx <= 5376 ? 40000.0f : (effectivenctx <= 5504 ? 42000.0f : (effectivenctx <= 5632 ? 44000.0f : (effectivenctx <= 5760 ? 46000.0f : (effectivenctx <= 5888 ? 48000.0f : (effectivenctx <= 6016 ? 51000.0f : (effectivenctx <= 6144 ? 54000.0f : (effectivenctx <= 6288 ? 57000.0f : (effectivenctx <= 6400 ? 61000.0f : (effectivenctx <= 8192 ? 82684.0f : (effectivenctx <= 8192 ? 82684.0f : (effectivenctx <= 12288 ? 140000.0f : (effectivenctx <= 16384 ? 200000.0f : (effectivenctx <= 24576 ? 320000.0f : 440000.0f))))))))))))))))))))))))))))))))))))))));
             printf("Using Automatic RoPE scaling, Pre-GGUF (scale:%.3f, base:%.1f).\n",rope_freq_scale, rope_freq_base);
         }
     }
@@ -1314,6 +1367,14 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         llama_ctx_params.rope_freq_base = rope_freq_base;
         llama_ctx_params.rope_freq_scale = rope_freq_scale;
         llama_ctx_params.n_batch = kcpp_params->n_batch;
+        llama_ctx_params.n_ubatch = kcpp_params->n_ubatch;	
+//        llama_ctx_params.yarn_ext_factor = yarn_ext_factor       // YaRN extrapolation mix factor
+//        llama_ctx_params.yarn_attn_factor = yarn_attn_factor      // YaRN magnitude scaling factor
+//        llama_ctx_params.yarn_beta_fast = yarn_beta_fast        // YaRN low correction dim
+//        llama_ctx_params.yarn_beta_slow = yarn_beta_slow        // YaRN high correction dim
+//        llama_ctx_params.yarn_orig_ctx = yarn_orig_ctx         // YaRN original context length
+//        llama_ctx_params.grp_attn_n = grp_attn_n            // group-attention factor
+//        llama_ctx_params.grp_attn_w = grp_attn_w            // group-attention width
 
         #if defined(GGML_USE_CUDA) || defined(GGML_USE_VULKAN)
         bool ts_all_zero = true;
@@ -1386,6 +1447,8 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         llama_ctx_params.logits_all = false;
         model_params.use_mmap = inputs.use_mmap;
         model_params.use_mlock = inputs.use_mlock;
+//        model_params.use_direct_io = inputs.use_direct_io;
+//        model_params.use_token_healing = inputs.use_token_healing;	
         model_params.n_gpu_layers = inputs.gpulayers;
 
         #if defined(GGML_USE_CLBLAST)
@@ -1455,6 +1518,11 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         {
             llama_ctx_params.rope_freq_base = rope_freq_base;
             llama_ctx_params.rope_freq_scale = rope_freq_scale;
+//            llama_ctx_params.yarn_ext_factor = yarn_ext_factor       // YaRN extrapolation mix factor
+//            llama_ctx_params.yarn_attn_factor = yarn_attn_factor      // YaRN magnitude scaling factor
+//            llama_ctx_params.yarn_beta_fast = yarn_beta_fast        // YaRN low correction dim
+//            llama_ctx_params.yarn_beta_slow = yarn_beta_slow        // YaRN high correction dim
+//            llama_ctx_params.yarn_orig_ctx = yarn_orig_ctx         // YaRN original context length
         }
         else
         {
@@ -1477,8 +1545,65 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         }
 
         llama_ctx_params.flash_attn = kcpp_params->flash_attn;
-        llama_ctx_params.type_k = (inputs.quant_k>1?GGML_TYPE_Q4_0:(inputs.quant_k==1?GGML_TYPE_Q8_0:GGML_TYPE_F16));
-        llama_ctx_params.type_v = (inputs.quant_v>1?GGML_TYPE_Q4_0:(inputs.quant_v==1?GGML_TYPE_Q8_0:GGML_TYPE_F16));
+        llama_ctx_params.type_k =
+		(inputs.quant_k==26?GGML_TYPE_Q4_0:
+		(inputs.quant_k==25?GGML_TYPE_Q4_1:
+		(inputs.quant_k==24?GGML_TYPE_Q5_0:
+		(inputs.quant_k==23?GGML_TYPE_Q5_1:
+		(inputs.quant_k==22?GGML_TYPE_Q8_0:
+		(inputs.quant_k==21?GGML_TYPE_F16:
+		(inputs.quant_k==20?GGML_TYPE_Q4_1:
+		(inputs.quant_k==19?GGML_TYPE_Q4_1:
+		(inputs.quant_k==18?GGML_TYPE_Q5_0:
+		(inputs.quant_k==17?GGML_TYPE_Q5_0:
+		(inputs.quant_k==16?GGML_TYPE_Q5_0:
+		(inputs.quant_k==15?GGML_TYPE_Q5_1:
+		(inputs.quant_k==14?GGML_TYPE_Q5_1:
+		(inputs.quant_k==13?GGML_TYPE_Q5_1:
+		(inputs.quant_k==12?GGML_TYPE_Q5_1:
+		(inputs.quant_k==11?GGML_TYPE_Q8_0:
+		(inputs.quant_k==10?GGML_TYPE_Q8_0:
+		(inputs.quant_k==9?GGML_TYPE_Q8_0:
+		(inputs.quant_k==8?GGML_TYPE_Q8_0:
+		(inputs.quant_k==7?GGML_TYPE_F16:
+		(inputs.quant_k==6?GGML_TYPE_F16:
+		(inputs.quant_k==5?GGML_TYPE_F16:
+		(inputs.quant_k==4?GGML_TYPE_F16:
+		(inputs.quant_k==3?GGML_TYPE_F16:
+		(inputs.quant_k==2?GGML_TYPE_Q4_0:
+		(inputs.quant_k==1?GGML_TYPE_Q8_0:
+		GGML_TYPE_F16))))))))))))))))))))))))));
+        llama_ctx_params.type_v =
+		(inputs.quant_v==26?GGML_TYPE_F16:
+		(inputs.quant_v==25?GGML_TYPE_F16:
+		(inputs.quant_v==24?GGML_TYPE_F16:
+		(inputs.quant_v==23?GGML_TYPE_F16:
+		(inputs.quant_v==22?GGML_TYPE_F16:
+		(inputs.quant_v==21?GGML_TYPE_F16:
+		(inputs.quant_v==20?GGML_TYPE_Q4_0:
+		(inputs.quant_v==19?GGML_TYPE_Q4_1:
+		(inputs.quant_v==18?GGML_TYPE_Q4_0:
+		(inputs.quant_v==17?GGML_TYPE_Q4_1:
+		(inputs.quant_v==16?GGML_TYPE_Q5_0:
+		(inputs.quant_v==15?GGML_TYPE_Q4_0:
+		(inputs.quant_v==14?GGML_TYPE_Q4_1:
+		(inputs.quant_v==13?GGML_TYPE_Q5_0:
+		(inputs.quant_v==12?GGML_TYPE_Q5_1:
+		(inputs.quant_v==11?GGML_TYPE_Q4_0:
+		(inputs.quant_v==10?GGML_TYPE_Q4_1:
+		(inputs.quant_v==9?GGML_TYPE_Q5_0:
+		(inputs.quant_v==8?GGML_TYPE_Q5_1:
+		(inputs.quant_v==7?GGML_TYPE_Q4_0:
+		(inputs.quant_v==6?GGML_TYPE_Q4_1:
+		(inputs.quant_v==5?GGML_TYPE_Q5_0:
+		(inputs.quant_v==4?GGML_TYPE_Q5_1:
+		(inputs.quant_v==3?GGML_TYPE_Q8_0:
+		(inputs.quant_v==2?GGML_TYPE_Q4_0:
+		(inputs.quant_v==1?GGML_TYPE_Q8_0:
+		GGML_TYPE_F16))))))))))))))))))))))))));
+//        llama_ctx_params.override_kv = kcpp_params->override_kv;
+//        llama_ctx_params.cache_type_k = kcpp_params->cache_type_k;
+//        llama_ctx_params.cache_type_v = kcpp_params->cache_type_v;
         llama_ctx_v4 = llama_new_context_with_model(llamamodel, llama_ctx_params);
 
         if (llama_ctx_v4 == NULL)
@@ -2437,7 +2562,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         }
     }
 
-    bool blasmode = (embd_inp.size() >= 32 && ggml_cpu_has_blas() && kcpp_params->n_batch>=32);
+    bool blasmode = (embd_inp.size() >= 1 && ggml_cpu_has_blas() && kcpp_params->n_batch>=1);
 
     current_context_tokens.resize(n_past);
 
@@ -2709,12 +2834,20 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 }
             }
 
+            if (llama_ctx_v4) {
+                empcats_step_pre(llama_ctx_v4, logitsPtr);
+            }
+
             id = SampleLogits(logitsPtr, nctx, n_vocab, last_n_size, repeat_penalty, kcpp_params->rep_pen_slope, presence_penalty,
             top_k, top_a, top_p, min_p, typical_p, tfs_z, temp, rng,
             kcpp_params->mirostat, kcpp_params->mirostat_tau, kcpp_params->mirostat_eta,
             kcpp_params->dry_multiplier, kcpp_params->dry_base,
             kcpp_params->dry_allowed_length, kcpp_params->dry_penalty_last_n, kcpp_params->xtc_threshold, kcpp_params->xtc_probability,
             sampler_order, grammar, dynatemp_range, dynatemp_exponent, smoothing_factor);
+
+            if (llama_ctx_v4) {
+                empcats_step_post(llama_ctx_v4, id );
+            }
 
             if (grammar != nullptr) {
                 grammar_accept_token(file_format, n_vocab, grammar, id);
@@ -2926,7 +3059,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     float pt2 = (time2*1000.0/(realnpredict==0?1:realnpredict));
     float ts2 = (1000.0/pt2);
     float tokens_per_second = (realnpredict == 0 ? 0 : realnpredict / (time1 + time2));
-    printf("\nCtxLimit:%d/%d, Amt:%d/%d, Init:%.2fs, Process:%.2fs (%.1fms/T = %.2fT/s), Generate:%.2fs (%.1fms/T = %.2fT/s), Total:%.2fs (%.2fT/s)",(int)current_context_tokens.size(),(int)nctx, realnpredict, kcpp_params->n_predict, time0, time1, pt1, ts1, time2, pt2, ts2, (time1 + time2), tokens_per_second);
+    printf("\nCtxLimit:%d/%d, Amt:%d/%d, Init:%.3fs, Process:%.3fs (%.1fms/T = %.2fT/s), Generate:%.3fs (%.1fms/T = %.2fT/s), Total:%.3fs (%.2fT/s)",(int)current_context_tokens.size(),(int)nctx, realnpredict, kcpp_params->n_predict, time0, time1, pt1, ts1, time2, pt2, ts2, (time1 + time2), tokens_per_second);
     fflush(stdout);
     output.status = 1;
     output.stopreason = last_stop_reason;
