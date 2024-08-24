@@ -327,21 +327,32 @@ bool gpt_params_parse_ex(int argc, char ** argv, gpt_params & params) {
 
 void gpt_params_parse_from_env(gpt_params & params) {
     // we only care about server-related params for now
-    get_env("LLAMA_ARG_MODEL",            params.model);
-    get_env("LLAMA_ARG_THREADS",          params.n_threads);
-    get_env("LLAMA_ARG_CTX_SIZE",         params.n_ctx);
-    get_env("LLAMA_ARG_N_PARALLEL",       params.n_parallel);
-    get_env("LLAMA_ARG_BATCH",            params.n_batch);
-    get_env("LLAMA_ARG_UBATCH",           params.n_ubatch);
-    get_env("LLAMA_ARG_N_GPU_LAYERS",     params.n_gpu_layers);
-    get_env("LLAMA_ARG_THREADS_HTTP",     params.n_threads_http);
-    get_env("LLAMA_ARG_CHAT_TEMPLATE",    params.chat_template);
-    get_env("LLAMA_ARG_N_PREDICT",        params.n_predict);
-    get_env("LLAMA_ARG_ENDPOINT_METRICS", params.endpoint_metrics);
-    get_env("LLAMA_ARG_ENDPOINT_SLOTS",   params.endpoint_slots);
-    get_env("LLAMA_ARG_EMBEDDINGS",       params.embedding);
-    get_env("LLAMA_ARG_FLASH_ATTN",       params.flash_attn);
-    get_env("LLAMA_ARG_DEFRAG_THOLD",     params.defrag_thold);
+    get_env("LLAMA_ARG_MODEL",                     params.model);
+    get_env("LLAMA_ARG_THREADS",                   params.n_threads);
+    get_env("LLAMA_ARG_CTX_SIZE",                  params.n_ctx);
+    get_env("LLAMA_ARG_N_PARALLEL",                params.n_parallel);
+    get_env("LLAMA_ARG_BATCH",                     params.n_batch);
+    get_env("LLAMA_ARG_UBATCH",                    params.n_ubatch);
+    get_env("LLAMA_ARG_N_GPU_LAYERS",              params.n_gpu_layers);
+    get_env("LLAMA_ARG_THREADS_HTTP",              params.n_threads_http);
+    get_env("LLAMA_ARG_CHAT_TEMPLATE",             params.chat_template);
+    get_env("LLAMA_ARG_N_PREDICT",                 params.n_predict);
+    get_env("LLAMA_ARG_ENDPOINT_METRICS",          params.endpoint_metrics);
+    get_env("LLAMA_ARG_ENDPOINT_SLOTS",            params.endpoint_slots);
+    get_env("LLAMA_ARG_EMBEDDINGS",                params.embedding);
+    get_env("LLAMA_ARG_FLASH_ATTN",                params.flash_attn);
+    get_env("LLAMA_ARG_DEFRAG_THOLD",              params.defrag_thold);
+    get_env("LLAMA_ARG_NO_KV_OFFLOAD",             params.no_kv_offload);
+    get_env("LLAMA_ARG_ROPE_SCALING_TYPE",         params.rope_scaling_type = LLAMA_ROPE_SCALING_TYPE_YARN);
+    get_env("LLAMA_ARG_ROPE_FREQ_BASE",            params.rope_freq_base);
+    get_env("LLAMA_ARG_ROPE_FREQ_SCALE",           params.rope_freq_scale);
+    get_env("LLAMA_ARG_YARN_EXT_FACTOR",           params.yarn_ext_factor);
+    get_env("LLAMA_ARG_YARN_ATTN_FACTOR",          params.yarn_attn_factor);
+    get_env("LLAMA_ARG_YARN_BETA_FAST",            params.yarn_beta_fast);
+    get_env("LLAMA_ARG_YARN_BETA_SLOW",            params.yarn_beta_slow);
+    get_env("LLAMA_ARG_YARN_ORIG_CTX",             params.yarn_orig_ctx);
+    get_env("LLAMA_ARG_CACHE_TYPE_K",              params.cache_type_k);
+    get_env("LLAMA_ARG_CACHE_TYPE_V",              params.cache_type_v);
 }
 
 bool gpt_params_parse(int argc, char ** argv, gpt_params & params) {
@@ -519,6 +530,10 @@ bool gpt_params_find_arg(int argc, char ** argv, const std::string & arg, gpt_pa
         else if (value == "linear") { params.rope_scaling_type = LLAMA_ROPE_SCALING_TYPE_LINEAR; }
         else if (value == "yarn") { params.rope_scaling_type = LLAMA_ROPE_SCALING_TYPE_YARN; }
         else { invalid_param = true; }
+        return true;
+    }
+    if (arg == "-yarn") {
+        params.rope_scaling_type = LLAMA_ROPE_SCALING_TYPE_YARN;
         return true;
     }
     if (arg == "--rope-scale") {
