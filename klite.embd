@@ -2030,7 +2030,6 @@ Current version indicated by LITEVER below.
 	.corpo_chat_outer
 	{
 		width: calc(100% - 24px);
-		max-width: 860px;
 		background: #f4f4f4aa none repeat scroll 0 0;
 		margin-top: 6px;
 		margin-bottom: 4px;
@@ -2275,7 +2274,6 @@ Current version indicated by LITEVER below.
 	}
 	.corpostyleinner
 	{
-		max-width: 860px;
 		margin-left: auto;
     	margin-right: auto;
 		padding-left: 8px;
@@ -4104,6 +4102,7 @@ Current version indicated by LITEVER below.
 
 	const default_openrouter_base = "https://openrouter.ai/api/v1";
 	const default_mistralai_base = "https://api.mistral.ai/v1";
+	const default_featherless_base = "https://api.featherless.ai/v1";
 	const default_oai_base = "https://api.openai.com";
 	const default_claude_base = "https://api.anthropic.com";
 	const default_palm_base = "https://generativelanguage.googleapis.com/v1beta2/models/text-bison-001:generateText?key=";
@@ -4140,7 +4139,7 @@ Current version indicated by LITEVER below.
 	const ALLTALK_ID = 1001;
 	const HD_RES_PX = 512;
 	const NO_HD_RES_PX = 320;
-	const SAVE_SLOTS = 6;
+	const SAVE_SLOTS = 8;
 
 	//all configurable globals
 	var perfdata = null; //if it's null, we are not connected
@@ -4238,6 +4237,7 @@ Current version indicated by LITEVER below.
 		saved_dalle_url: (default_oai_base + "/v1" + default_oai_image_endpoint),
 		saved_openrouter_key: "",
 		saved_mistralai_key: "",
+		saved_featherless_key: "",
 		saved_claude_key: "", //do not ever share this in save files!
 		saved_claude_addr: default_claude_base, //do not ever share this in save files!
 		saved_palm_key: "", //do not ever share this in save files!
@@ -5391,7 +5391,7 @@ Current version indicated by LITEVER below.
 	}
 	function is_using_kcpp_with_dry()
 	{
-		return (custom_kobold_endpoint!="" && koboldcpp_version && koboldcpp_version!="" && compare_version_str(koboldcpp_version, "1.70") >= 0);
+		return (custom_kobold_endpoint!="" && koboldcpp_version && koboldcpp_version!="" && compare_version_str(koboldcpp_version, "1.6839") >= 0);
 	}
 	function is_using_kcpp_with_xtc()
 	{
@@ -5924,6 +5924,7 @@ Current version indicated by LITEVER below.
 			new_save_storyobj.savedsettings.saved_kai_key = "";
 			new_save_storyobj.savedsettings.saved_openrouter_key = "";
 			new_save_storyobj.savedsettings.saved_mistralai_key = "";
+			new_save_storyobj.savedsettings.saved_featherless_key = "";
 			new_save_storyobj.savedsettings.saved_palm_key = "";
 			new_save_storyobj.savedsettings.saved_cohere_key = "";
 
@@ -6260,6 +6261,7 @@ Current version indicated by LITEVER below.
 					let tmp_oai4 = localsettings.saved_dalle_url;
 					let tmp_or1 = localsettings.saved_openrouter_key;
 					let tmp_mai = localsettings.saved_mistralai_key;
+					let tmp_fai = localsettings.saved_featherless_key;
 					let tmp_claude1 = localsettings.saved_claude_key;
 					let tmp_claude2 = localsettings.saved_claude_addr;
 					let tmp_palm1 = localsettings.saved_palm_key;
@@ -6296,6 +6298,7 @@ Current version indicated by LITEVER below.
 					localsettings.saved_dalle_url = tmp_oai4;
 					localsettings.saved_openrouter_key = tmp_or1;
 					localsettings.saved_mistralai_key = tmp_mai;
+					localsettings.saved_featherless_key = tmp_fai;
 					localsettings.saved_claude_key = tmp_claude1;
 					localsettings.saved_claude_addr = tmp_claude2;
 					localsettings.saved_palm_key = tmp_palm1;
@@ -8105,6 +8108,8 @@ Current version indicated by LITEVER below.
 				return document.getElementById("custom_openrouter_model");
 			case "7":
 				return document.getElementById("custom_mistralai_model");
+			case "8":
+				return document.getElementById("custom_featherless_model");
 			default:
 				return document.getElementById("custom_oai_model");
 		}
@@ -8261,6 +8266,7 @@ Current version indicated by LITEVER below.
 		document.getElementById("custom_oai_model").classList.add("hidden");
 		document.getElementById("custom_openrouter_model").classList.add("hidden");
 		document.getElementById("custom_mistralai_model").classList.add("hidden");
+		document.getElementById("custom_featherless_model").classList.add("hidden");
 		document.getElementById("hordeloadmodelcontainer").classList.add("hidden");
 		document.getElementById("coherecustom").classList.add("hidden");
 
@@ -8278,11 +8284,12 @@ Current version indicated by LITEVER below.
 				document.getElementById("customkoboldkey").value = localsettings.saved_kai_key;
 			}
 		}
-		else if(epchoice==2 || epchoice==3 || epchoice==7)
+		else if(epchoice==2 || epchoice==3 || epchoice==7 || epchoice==8)
 		{
 			document.getElementById("oaicustom").classList.remove("hidden");
 			document.getElementById("openrouterdesc").classList.add("hidden");
 			document.getElementById("mistralaidesc").classList.add("hidden");
+			document.getElementById("featherlessdesc").classList.add("hidden");
 			document.getElementById("oaidesc").classList.add("hidden");
 			if(epchoice==2)
 			{
@@ -8303,6 +8310,14 @@ Current version indicated by LITEVER below.
 				document.getElementById("custom_oai_endpoint").classList.add("hidden");
 				document.getElementById("custom_oai_key").value = localsettings.saved_mistralai_key;
 				document.getElementById("custom_oai_endpoint").value = default_mistralai_base;
+			}
+			else if(epchoice==8)
+			{
+				document.getElementById("custom_featherless_model").classList.remove("hidden");
+				document.getElementById("featherlessdesc").classList.remove("hidden");
+				document.getElementById("custom_oai_endpoint").classList.add("hidden");
+				document.getElementById("custom_oai_key").value = localsettings.saved_featherless_key;
+				document.getElementById("custom_oai_endpoint").value = default_featherless_base;
 			}
 			else //openrouter supports autofetch
 			{
@@ -8671,7 +8686,7 @@ Current version indicated by LITEVER below.
 					});
 			}
 		}
-		else if(epchoice==2 || epchoice==3 || epchoice==7) //connect to OAI / OpenRouter / MistralAI Endpoint
+		else if(epchoice==2 || epchoice==3 || epchoice==7 || epchoice==8) //connect to OAI / OpenRouter / MistralAI / Featherless Endpoint
 		{
 			let desired_oai_key = document.getElementById("custom_oai_key").value.trim();
 			let desired_oai_ep = document.getElementById("custom_oai_endpoint").value.trim();
@@ -8713,6 +8728,10 @@ Current version indicated by LITEVER below.
 				else if(epchoice==7)
 				{
 					localsettings.saved_mistralai_key = custom_oai_key;
+				}
+				else if(epchoice==8)
+				{
+					localsettings.saved_featherless_key = custom_oai_key;
 				}
 				else
 				{
@@ -8884,8 +8903,7 @@ Current version indicated by LITEVER below.
 				<button type="button" style="font-size:12px; margin:2px;width:33%" name="localload" class="btn btn-primary" onclick="hide_popups();load_file_button()">`+"📁<br>Open File"+`</button>
 				<button type="button" style="font-size:12px; margin:2px;width:34%" name="shareurl" class="btn btn-primary" onclick="hide_popups();share_story_button()">`+"🌐<br>Share"+`</button>
 				</div>
-				<div style="margin-top:3px; text-align: center; align-self: center; width: calc(100% - 184px);">
-				<span style="font-weight:bold;text-decoration: underline;">Temporary Browser Storage</span>
+				<div style="margin-top:0px; text-align: center; align-self: center; width: calc(100% - 184px);">
 				</div>`;
 		filetable += entry;
 
@@ -8895,7 +8913,7 @@ Current version indicated by LITEVER below.
 			{
 				let testslot = localStorage.getItem(STORAGE_PREFIX + "slot_"+i+"_meta");
 				let lbl = (i+1);
-				entry = `<div style="display:flex; height:42px;">
+				entry = `<div style="display:flex; height:33px;">
 					<div style="margin:3px; text-align: center; align-self: center; width: calc(100% - 184px);">
 					`+(testslot?`[ Slot `+(lbl)+` - `+testslot+` ]`:`[ Slot `+(lbl)+` - Empty ]`)+`
 					</div>
@@ -17334,13 +17352,13 @@ Current version indicated by LITEVER below.
 		<div class="popupbg flex"></div>
 		<div class="saveloadpopup">
 			<div class="popuptitlebar">
-				<div class="popuptitletext">Save File / Load File / Export File</div>
+				<div class="popuptitletext">Save / Load Chat in Temp Browser Storage, or Export via Download</div>
 			</div>
 
 			<div style="overflow: auto;">
 				<div id="saveloadentries" class="justifyleft anotelabel saveloadgrid">
 				</div>
-				<div class="justifyleft anotelabel"><p style="padding:6px;font-size: 10px;" class="color_red">Caution: Storage Slots are saved to a tempoary cache and can be deleted by your browser. To avoid losing data, use the download file button.</p></div>
+				<div class="justifyleft anotelabel"><p style="padding:0px;font-size: 8px;" class="color_red">CAUTION: CHATS ARE SAVED TO A TEMPOARY CACHE AND CAN BE DELETED BY YOUR BROWSER. TO AVOID LOSING DATA, USE THE DOWNLOAD FILE BUTTON.</p></div>
 				<div class="popupfooter">
 					<button type="button" class="btn btn-primary" id=""
 						onclick="hide_popups()">Back</button>
@@ -17367,6 +17385,7 @@ Current version indicated by LITEVER below.
 				<option value="5">PaLM/Gemini By Google API</option>
 				<option value="6">Cohere API</option>
 				<option value="7">MistralAI API</option>
+				<option value="8">Featherless API</option>
 			</select>
 			</div>
 
@@ -17436,6 +17455,11 @@ Current version indicated by LITEVER below.
 				Note that KoboldAI Lite takes no responsibility for your usage or consequences of this feature. Your API key is used directly with the MistralAI API and is not transmitted to us.<br>Only Temperature and Top-P samplers are used.<br><br>
 				<span class="color_green" style="font-weight: bold;">Please input MistralAI Key.</span><br><br>
 				</span>
+				<span id="featherlessdesc" class="hidden">
+				Entering your Featherless API key will allow you to use KoboldAI Lite with their API.<br><br>
+				Note that KoboldAI Lite takes no responsibility for your usage or consequences of this feature. Your API key is used directly with the Featherless API and is not transmitted to us.<br>Only Temperature, Top-P and Repetition Penalty samplers are used.<br><br>
+				<span class="color_green" style="font-weight: bold;">Please input Featherless Key.</span><br><br>
+				</span>
 
 				<input class="form-control" type="text" id="custom_oai_endpoint" placeholder="OpenAI API URL" value="">
 				<input class="form-control" type="password" id="custom_oai_key" placeholder="OpenAI API Key (Required)" value="" onfocus="focus_api_keys()" onblur="blur_api_keys()"><br>
@@ -17470,6 +17494,20 @@ Current version indicated by LITEVER below.
 					<option value="mistral-medium">mistral-medium</option>
 					<option value="mistral-large-latest">mistral-large-latest</option>
 					<option style="display:none;" class="custom_model_option" value="custom">[Custom]</option>
+				</select>
+				<select style="padding:4px;display:inline;width:calc(100% - 220px)" class="form-control hidden" id="custom_featherless_model" onchange="oai_model_change(true)">
+					<option value="Sao10K/L3-8B-Lunaris-v1">Sao10K/L3-8B-Lunaris-v1</option>
+					<option value="Sao10K/L3-8B-Stheno-v3.2">Sao10K/L3-8B-Stheno-v3.2</option>
+					<option value="unsloth/llama-3-8b-Instruct">unsloth/llama-3-8b-Instruct</option>
+					<option value="beomi/Llama-3-Open-Ko-8B">beomi/Llama-3-Open-Ko-8B</option>
+					<option value="Sao10K/Fimbulvetr-11B-v2">Sao10K/Fimbulvetr-11B-v2</option>
+					<option value="HuggingFaceH4/zephyr-7b-beta">HuggingFaceH4/zephyr-7b-beta</option>
+					<option value="upstage/SOLAR-10.7B-Instruct-v1.0">upstage/SOLAR-10.7B-Instruct-v1.0</option>
+					<option value="alpindale/magnum-72b-v1">alpindale/magnum-72b-v1</option>
+					<option value="Sao10K/L3-70B-Euryale-v2.1">Sao10K/L3-70B-Euryale-v2.1</option>
+					<option value="alpindale/WizardLM-2-8x22B">alpindale/WizardLM-2-8x22B</option>
+					<option value="meta-llama/Meta-Llama-3.1-405B-Instruct">meta-llama/Meta-Llama-3.1-405B-Instruct</option>
+				<option style="display:none;" class="custom_model_option" value="custom">[Custom]</option>
 				</select>
 				<button type="button" class="btn btn-primary" style="display:inline;width:105px;" id="oaifetchlist" onclick="oai_fetch_models()">Fetch List</button>
 				<button type="button" class="btn btn-primary" style="display:inline;width:105px;" id="oaiusecustom" onclick="select_custom_oai_model()">Use Custom</button>
@@ -17864,10 +17902,10 @@ Current version indicated by LITEVER below.
 							<input title="Context Size" inputmode="numeric" class="justifyright flex-push-right settingsmall widerinput" id="max_context_length" oninput="
 						   document.getElementById('max_context_length_slide').value = this.value;">
 						</div>
-						<div><input title="Context Size Slider" type="range" class="form-range airange" min="512" max="4096" step="8" id="max_context_length_slide" oninput="
+						<div><input title="Context Size Slider" type="range" class="form-range airange" min="128" max="4096" step="16" id="max_context_length_slide" oninput="
 						   document.getElementById('max_context_length').value = this.value;"></div>
 						<div class="settingminmax">
-							<div class="justifyleft">512</div>
+							<div class="justifyleft">128</div>
 							<div class="justifyright" id="max_context_length_slide_label">4096</div>
 						</div>
 						<div id="auto_ctxlen_panel" class="settinglabel">
@@ -17883,11 +17921,11 @@ Current version indicated by LITEVER below.
 							<input title="Max Output" inputmode="numeric" class="justifyright flex-push-right settingsmall" id="max_length" oninput="
 						   document.getElementById('max_length_slide').value = this.value;">
 						</div>
-						<div><input title="Max Output Slider" type="range" class="form-range airange" min="16" max="512" step="2"	id="max_length_slide" oninput="
+						<div><input title="Max Output Slider" type="range" class="form-range airange" min="16" max="4096" step="16"	id="max_length_slide" oninput="
 						   document.getElementById('max_length').value = this.value;"></div>
 						<div class="settingminmax">
 							<div class="justifyleft">16</div>
-							<div class="justifyright">512</div>
+							<div class="justifyright">4096</div>
 						</div>
 						<div id="auto_genamt_panel" class="settinglabel">
 							<div class="justifyleft settingsmall" title="Automatically lowers settings if incompatible with existing workers">Auto-Adjust Limits </div>
@@ -17904,12 +17942,12 @@ Current version indicated by LITEVER below.
 							<input title="Temperature" inputmode="decimal" class="justifyright flex-push-right settingsmall" id="temperature" value=0.5
 								oninput="document.getElementById('temperature_slide').value = this.value;">
 						</div>
-						<div><input title="Temperature Slider" type="range" class="form-range airange" min="0.1" max="2" step="0.01"
+						<div><input title="Temperature Slider" type="range" class="form-range airange" min="0" max="5" step="0.01"
 								id="temperature_slide" oninput="
 						   document.getElementById('temperature').value = this.value;"></div>
 						<div class="settingminmax">
-							<div class="justifyleft">0.1</div>
-							<div class="justifyright">2</div>
+							<div class="justifyleft">0</div>
+							<div class="justifyright">5</div>
 						</div>
 					</div>
 
