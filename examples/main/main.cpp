@@ -138,9 +138,6 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-    // parse arguments from environment variables
-    gpt_params_parse_from_env(params);
-
     llama_sampling_params & sparams = params.sparams;
 
 #ifndef LOG_DISABLE_LOGS
