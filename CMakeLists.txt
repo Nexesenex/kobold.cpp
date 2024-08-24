@@ -18,7 +18,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(LLAMA_STANDALONE ON)
 set(BUILD_SHARED_LIBS_DEFAULT ON)
 set(LLAMA_STATIC OFF)
-set(LLAMA_NATIVE OFF)
 set(LLAMA_LTO OFF)
 set(LLAMA_ALL_WARNINGS OFF)
 set(LLAMA_ALL_WARNINGS_3RD_PARTY OFF)
@@ -26,7 +25,6 @@ set(LLAMA_GPROF OFF)
 set(LLAMA_SANITIZE_THREAD OFF)
 set(LLAMA_SANITIZE_ADDRESS OFF)
 set(LLAMA_SANITIZE_UNDEFINED OFF)
-
 
 # instruction set specific
 option(LLAMA_AVX                    "llama: enable AVX"                                     ON)
@@ -40,8 +38,13 @@ if (NOT MSVC)
     option(LLAMA_F16C               "llama: enable F16C"                                    ON)
 endif()
 
+if (WIN32)
+    set(LLAMA_WIN_VER "0x602" CACHE STRING "llama: Windows Version")
+endif()
+
 # 3rd party libs
 option(LLAMA_CUBLAS                          "llama: use CUDA"                                ON)
+option(LLAMA_CUDA                            "llama: use CUDA"                                OFF)
 set(LLAMA_CUDA_DMMV_X      "32" CACHE STRING "llama: x stride for dmmv CUDA kernels")
 set(LLAMA_CUDA_DMMV_Y       "1" CACHE STRING "llama: y block size for dmmv CUDA kernels")
 set(LLAMA_CUDA_MMV_Y        "1" CACHE STRING "llama: y block size for mmv CUDA kernels")
@@ -49,11 +52,19 @@ option(LLAMA_CUDA_F16                        "llama: use 16 bit floats for dmmv 
 set(LLAMA_CUDA_KQUANTS_ITER "2" CACHE STRING "llama: iters./thread per block for Q2_K/Q6_K")
 set(LLAMA_CUDA_PEER_MAX_BATCH_SIZE "128" CACHE STRING
                                              "llama: max. batch size for using peer access")
-set(GGML_CUDA_USE_GRAPHS                                                                        OFF)
+option(LLAMA_CUDA_NO_PEER_COPY               "llama: do not use peer to peer copies"            OFF)
+option(LLAMA_CUDA_FA_ALL_QUANTS              "llama: compile 18 quants for FlashAttention"      ON)
+option(LLAMA_CUDA_ENABLE_UNIFIED_MEMORY      "llama: enable to avoid OOM in Full Offload"       OFF)
+option(GGML_CUDA_USE_GRAPHS                                                                     OFF)
+
 option(LLAMA_HIPBLAS                         "llama: use hipBLAS"                               OFF)
 
 # Other
-option(LLAMA_OPENMP                          "llama: use OpenMP"                                OFF)
+set(LLAMA_SCHED_MAX_COPIES  "2" CACHE STRING "llama: max input copies for pipeline parallelism")
+option(LLAMA_OPENMP                          "llama: use OpenMP"                                ON)
+option(LLAMA_LLAMAFILE                       "llama: use llamafile SGEMM"                       ON)
+option(LLAMA_CCACHE                          "llama: use ccache if available"                   ON)
+option(LLAMA_NATIVE                          "llama: enable -march=native flag"                 OFF)
 
 #
 # Compile flags
@@ -72,6 +83,7 @@ file(GLOB GGML_SOURCES_CUDA "ggml/src/ggml-cuda/*.cu")
 list(APPEND GGML_SOURCES_CUDA "ggml/src/ggml-cuda.cu")
 file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-wmma*.cu")
 list(APPEND GGML_SOURCES_CUDA ${SRCS})
+# For MMQ Refactor
 file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/mmq*.cu")
 list(APPEND GGML_SOURCES_CUDA ${SRCS})
 set(GGML_V3_CUDA_SOURCES otherarch/ggml_v3-cuda.cu otherarch/ggml_v3-cuda.h)
@@ -91,7 +103,6 @@ if (LLAMA_CUBLAS)
 
         enable_language(CUDA)
 
-        add_compile_definitions(GGML_USE_LLAMAFILE)
         add_compile_definitions(GGML_USE_CUDA)
         add_compile_definitions(SD_USE_CUBLAS)
 
@@ -103,18 +114,79 @@ if (LLAMA_CUBLAS)
         endif()
         add_compile_definitions(K_QUANTS_PER_ITERATION=${LLAMA_CUDA_KQUANTS_ITER})
         add_compile_definitions(GGML_CUDA_PEER_MAX_BATCH_SIZE=${LLAMA_CUDA_PEER_MAX_BATCH_SIZE})
+        if (LLAMA_CUDA_NO_PEER_COPY)
+            add_compile_definitions(GGML_CUDA_NO_PEER_COPY)
+        endif()
+		
+        if (GGML_CUDA_USE_GRAPHS)
+            add_compile_definitions(GGML_CUDA_USE_GRAPHS)
+        endif()
 
-        # only build minimal quants required for fattn quant kv
-        file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu")
-        list(APPEND GGML_SOURCES_CUDA ${SRCS})
-        file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-q8_0.cu")
-        list(APPEND GGML_SOURCES_CUDA ${SRCS})
-        file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*f16-f16.cu")
-        list(APPEND GGML_SOURCES_CUDA ${SRCS})
+        if (LLAMA_CUDA_FA_ALL_QUANTS)
+            # all quants necessary for Kobold CPP Frankenstein are compiled
+            # the other are ignored but not deleted from the ggml_cuda templates directory
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q4_1-q4_0.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q4_1-q4_1.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q5_0-q4_0.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q5_0-q4_1.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q5_0-q5_0.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q5_1-q4_0.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q5_1-q4_1.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q5_1-q5_0.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q5_1-q5_1.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-q4_0.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-q4_1.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-q5_0.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-q5_1.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-q8_0.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-f16.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*f16-q4_0.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*f16-q4_1.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*f16-q5_0.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*f16-q5_1.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*f16-q8_0.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*f16-f16.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            add_compile_definitions(GGML_CUDA_FA_ALL_QUANTS)
+        else ()
+            # only build minimal quants required for fattn quant kv
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-q8_0.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*f16-f16.cu")
+            list(APPEND GGML_SOURCES_CUDA ${SRCS})
+        endif()
+		
+        if (LLAMA_CUDA_ENABLE_UNIFIED_MEMORY)
+            add_compile_definitions(GGML_CUDA_ENABLE_UNIFIED_MEMORY)
+        endif()
 
         if (LLAMA_STATIC)
             if (WIN32)
-                # As of 12.3.1 CUDA Tookit for Windows does not offer a static cublas library
+                # As of 12.3.1 CUDA Toolkit for Windows does not offer a static cublas library
                 set(LLAMA_EXTRA_LIBS ${LLAMA_EXTRA_LIBS} CUDA::cudart_static CUDA::cublas CUDA::cublasLt)
             else ()
                 set(LLAMA_EXTRA_LIBS ${LLAMA_EXTRA_LIBS} CUDA::cudart_static CUDA::cublas_static CUDA::cublasLt_static)
@@ -126,6 +198,7 @@ if (LLAMA_CUBLAS)
         set(LLAMA_EXTRA_LIBS ${LLAMA_EXTRA_LIBS} CUDA::cuda_driver)
 
     if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+        # 37 == Highest CUDA 11 standard for Kepler
         # 52 == lowest CUDA 12 standard
         # 60 == f16 CUDA intrinsics
         # 61 == integer CUDA intrinsics
@@ -138,7 +211,7 @@ if (LLAMA_CUBLAS)
             if(CUDAToolkit_VERSION VERSION_GREATER 12)
                  set(CMAKE_CUDA_ARCHITECTURES "52;61;70;75") # lowest CUDA 12 standard + lowest for integer intrinsics
             else()
-                 set(CMAKE_CUDA_ARCHITECTURES "37;52;61;70;75") # lowest CUDA 12 standard + lowest for integer intrinsics
+                 set(CMAKE_CUDA_ARCHITECTURES "35;37;50;52") # CUDA 11, for Kepler and Maxwell Arch <52
             endif()
         endif()
     endif()
@@ -174,6 +247,7 @@ if (LLAMA_HIPBLAS)
         list(APPEND GGML_SOURCES_ROCM "ggml/src/ggml-cuda.cu")
         file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-wmma*.cu")
         list(APPEND GGML_SOURCES_ROCM ${SRCS})
+        # For MMQ Refactor
         file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/mmq*.cu")
         list(APPEND GGML_SOURCES_ROCM ${SRCS})
         add_compile_definitions(GGML_USE_HIPBLAS GGML_USE_CUDA SD_USE_CUBLAS)
@@ -182,12 +256,63 @@ if (LLAMA_HIPBLAS)
             target_compile_definitions(ggml-rocm PUBLIC GGML_CUDA_FORCE_DMMV)
         endif()
 
-        file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu")
-        list(APPEND GGML_SOURCES_ROCM ${SRCS})
-        file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-q8_0.cu")
-        list(APPEND GGML_SOURCES_ROCM ${SRCS})
-        file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*f16-f16.cu")
-        list(APPEND GGML_SOURCES_ROCM ${SRCS})
+        if (LLAMA_CUDA_FA_ALL_QUANTS)
+            # all quants necessary for Kobold CPP Frankenstein are compiled
+            # the other are ignored but not deleted from the ggml_cuda templates directory
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q4_1-q4_0.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q4_1-q4_1.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q5_0-q4_0.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q5_0-q4_1.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q5_0-q5_0.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q5_1-q4_0.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q5_1-q4_1.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q5_1-q5_0.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q5_1-q5_1.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-q4_0.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-q4_1.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-q5_0.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-q5_1.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-q8_0.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-f16.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*f16-q4_0.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*f16-q4_1.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*f16-q5_0.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*f16-q5_1.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*f16-q8_0.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*f16-f16.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            add_compile_definitions(GGML_CUDA_FA_ALL_QUANTS)
+        else ()
+            # only build minimal quants required for fattn quant kv
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-q8_0.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+            file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*f16-f16.cu")
+            list(APPEND GGML_SOURCES_ROCM ${SRCS})
+        endif()
 
         # only build minimal quants required for fattn quant kv
         target_compile_definitions(ggml-rocm PUBLIC GGML_CUDA_DMMV_X=${LLAMA_CUDA_DMMV_X})
@@ -304,6 +429,24 @@ if (LLAMA_OPENMP)
     endif()
 endif()
 
+if (LLAMA_LLAMAFILE)
+    add_compile_definitions(GGML_USE_LLAMAFILE)
+
+    set(GGML_HEADERS_LLAMAFILE sgemm.h)
+    set(GGML_SOURCES_LLAMAFILE sgemm.cpp)
+endif()
+
+if (LLAMA_CCACHE)
+    find_program(LLAMA_CCACHE_FOUND ccache)
+    if (LLAMA_CCACHE_FOUND)
+        set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
+        set(ENV{CCACHE_SLOPPINESS} time_macros)
+        message(STATUS "ccache found, compilation results will be cached. Disable with LLAMA_CCACHE=OFF.")
+    else()
+        message(STATUS "Warning: ccache not found - consider installing it for faster compilation or disable this warning with LLAMA_CCACHE=OFF")
+    endif ()
+endif()
+
 # this version of Apple ld64 is buggy
 execute_process(
     COMMAND ${CMAKE_C_COMPILER} ${CMAKE_EXE_LINKER_FLAGS} -Wl,-v
@@ -413,7 +556,7 @@ endif()
 
 if (MINGW)
     # Target Windows 8 for PrefetchVirtualMemory
-    add_compile_definitions(_WIN32_WINNT=0x602)
+    add_compile_definitions(_WIN32_WINNT=${LLAMA_WIN_VER})
 endif()
 
 #
@@ -480,6 +623,13 @@ add_library(common2
             src/unicode.h
             src/unicode.cpp
             src/unicode-data.cpp)
+            # src/llama-impl.h
+            # src/llama-grammar.cpp
+            # src/llama-grammar.h
+            # src/llama-sampling.cpp
+            # src/llama-sampling.h
+            # src/llama-vocab.cpp
+            # src/llama-vocab.h
 target_include_directories(common2 PUBLIC . ./ggml/include ./ggml/src ./include ./otherarch ./otherarch/tools ./otherarch/sdcpp ./otherarch/sdcpp/thirdparty ./examples ./common)
 target_compile_features(common2 PUBLIC cxx_std_11) # don't bump
 target_link_libraries(common2 PRIVATE ggml ${LLAMA_EXTRA_LIBS})
