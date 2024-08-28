@@ -12,9 +12,9 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 169;
+	const LITEVER = 171;
 	const urlParams = new URLSearchParams(window.location.search);
-	const localflag = true;
+	var localflag = true;
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
 </script>
 
@@ -4332,7 +4332,7 @@ Current version indicated by LITEVER below.
 		auto_ctxlen: true,
 		auto_genamt: true,
 		rep_pen: 1.07,
-		rep_pen_range: 320,
+		rep_pen_range: 360,
 		rep_pen_slope: 0.7,
 		temperature: 0.7,
 		dynatemp_range: 0.0,
@@ -4382,7 +4382,7 @@ Current version indicated by LITEVER below.
 			rep_pen_slope: defaultsettings.rep_pen_slope,
 			sampler_order: defaultsettings.sampler_order
 		},
-		{"preset":"Simple Logical","description":"A very predictable preset with low randomness.","temp":0.25,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"genamt":200,"top_k":100,"top_p":0.6,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.01,"rep_pen_range":320,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Simple Balanced","description":"A good balanced preset with medium randomness.","temp":0.7,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"genamt":200,"top_k":100,"top_p":0.92,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.07,"rep_pen_range":320,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Simple Creative","description":"A wild and unpredictable preset with higher randomness.","temp":1.0,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"genamt":200,"top_k":100,"top_p":0.98,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.15,"rep_pen_range":320,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Basic Min-P","description":"A good default for Min-P, only works on backends with min-p.","temp":1.25,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"genamt":200,"top_k":0,"top_p":1,"min_p":0.1,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":320,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]},{"preset":"Basic DynaTemp","description":"A good default for DynaTemp, only works on backends with it.","temp":1.25,"dynatemp_range":0.75,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"genamt":200,"top_k":0,"top_p":1,"min_p":0.05,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":320,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]},{"preset":"Basic SmoothSample","description":"A good default for Smooth Sampling, only works on backends with it.","temp":1.0,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.25,"genamt":200,"top_k":0,"top_p":1,"min_p":0.05,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":320,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]},{"preset":"Basic SillyTavern","description":"Similar to default preset used in SillyTavern.","temp":0.7,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"genamt":200,"top_k":40,"top_p":0.6,"min_p":0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1.0,"rep_pen":1.18,"rep_pen_range":1024,"rep_pen_slope":0.8,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"CoherentCreativity (Legacy)","description":"Legacy preset. A good balance between coherence, creativity, and quality of prose.","genamt":200,"rep_pen":1.2,"rep_pen_range":320,"rep_pen_slope":0,"sampler_order":[6,5,0,2,3,1,4],"temp":0.5,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"tfs":0.99,"top_a":0,"top_k":0,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"typical":1},{"preset":"Godlike (Legacy)","description":"Legacy preset. Makes AI give a descriptive and sensual output.","temp":0.7,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"genamt":200,"top_k":0,"top_p":0.5,"min_p":0.0,"presence_penalty":0.0,"top_a":0.75,"typical":0.19,"tfs":0.97,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,5,4,3,2,1,0]},{"preset":"LiminalDrift (Legacy)","description":"Legacy preset. Sometimes surreal situations arise based on information already present in the story.","temp":0.66,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"genamt":200,"top_k":0,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"top_a":0.96,"typical":0.6,"tfs":1,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,4,5,1,0,2,3]}
+		{"preset":"Simple Logical","description":"A very predictable preset with low randomness.","temp":0.25,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"genamt":200,"top_k":100,"top_p":0.6,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.01,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Simple Balanced","description":"A good balanced preset with medium randomness.","temp":0.7,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"genamt":200,"top_k":100,"top_p":0.92,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.07,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Simple Creative","description":"A wild and unpredictable preset with higher randomness.","temp":1.0,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"genamt":200,"top_k":100,"top_p":0.98,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.15,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Basic Min-P","description":"A good default for Min-P, only works on backends with min-p.","temp":1.25,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"genamt":200,"top_k":0,"top_p":1,"min_p":0.1,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]},{"preset":"Basic DynaTemp","description":"A good default for DynaTemp, only works on backends with it.","temp":1.25,"dynatemp_range":0.75,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"genamt":200,"top_k":0,"top_p":1,"min_p":0.05,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]},{"preset":"Basic SmoothSample","description":"A good default for Smooth Sampling, only works on backends with it.","temp":1.0,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.25,"genamt":200,"top_k":0,"top_p":1,"min_p":0.05,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]},{"preset":"Basic SillyTavern","description":"Similar to default preset used in SillyTavern.","temp":0.7,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"genamt":200,"top_k":40,"top_p":0.6,"min_p":0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1.0,"rep_pen":1.18,"rep_pen_range":1024,"rep_pen_slope":0.8,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"CoherentCreativity (Legacy)","description":"Legacy preset. A good balance between coherence, creativity, and quality of prose.","genamt":200,"rep_pen":1.2,"rep_pen_range":360,"rep_pen_slope":0,"sampler_order":[6,5,0,2,3,1,4],"temp":0.5,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"tfs":0.99,"top_a":0,"top_k":0,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"typical":1},{"preset":"Godlike (Legacy)","description":"Legacy preset. Makes AI give a descriptive and sensual output.","temp":0.7,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"genamt":200,"top_k":0,"top_p":0.5,"min_p":0.0,"presence_penalty":0.0,"top_a":0.75,"typical":0.19,"tfs":0.97,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,5,4,3,2,1,0]},{"preset":"LiminalDrift (Legacy)","description":"Legacy preset. Sometimes surreal situations arise based on information already present in the story.","temp":0.66,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"genamt":200,"top_k":0,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"top_a":0.96,"typical":0.6,"tfs":1,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,4,5,1,0,2,3]}
 	];
 
 	const instructpresets = [
@@ -4547,6 +4547,23 @@ Current version indicated by LITEVER below.
 		}
 	}
 
+	function restore_endpoint_dropdowns()
+	{
+		var cep = document.getElementById("customapidropdown");
+		var cephide = document.getElementById("unusedcustomapidropdown");
+
+		//remove all unwanted options from the endpoint dropdown in case it is used
+		for (var i = cep.options.length - 1; i >= 0; i--) {
+			cep.remove(i);
+		}
+		for (var i = 0; i < cephide.options.length; ++i) {
+			var newOption = document.createElement("option");
+			newOption.value = cephide.options[i].value;
+			newOption.text = cephide.options[i].text;
+			cep.add(newOption);
+		}
+	}
+
 	//attempt to load settings
 	function init() {
 
@@ -4568,6 +4585,17 @@ Current version indicated by LITEVER below.
 
 		//disable debug log if not local
 		let dbgmode = urlParams.get('dbg');
+
+		//duplicate endpoint dropdown array for backup
+		var cep = document.getElementById("customapidropdown");
+		var cephide = document.getElementById("unusedcustomapidropdown");
+		var cepoptions = cep.options;
+		for (var i = 0; i < cepoptions.length; ++i) {
+			var newOption = document.createElement("option");
+			newOption.value = cepoptions[i].value;
+			newOption.text = cepoptions[i].text;
+			cephide.add(newOption);
+		}
 
 		if (localflag)
 		{
@@ -4617,8 +4645,6 @@ Current version indicated by LITEVER below.
 			}
 
 			//remove all unwanted options from the endpoint dropdown in case it is used
-			var cep = document.getElementById("customapidropdown");
-            var cepoptions = cep.options;
             for (var i = cepoptions.length - 1; i >= 0; i--) {
                 if (cepoptions[i].value !== "1" && cepoptions[i].value !== "2") {
                     cep.remove(i);
@@ -8539,7 +8565,7 @@ Current version indicated by LITEVER below.
 										koboldcpp_has_whisper = (data.transcribe?true:false);
 										let has_password = (data.protected?true:false);
 										let has_txt2img = (data.txt2img?true:false);
-										let no_model = (mdlname=="inactive");
+										let no_txt_model = (mdlname=="inactive");
 
 										//also check against kcpp's max true context length
 										fetch(apply_proxy_url(desiredkoboldendpoint + koboldcpp_truemaxctxlen_endpoint),
@@ -8630,12 +8656,24 @@ Current version indicated by LITEVER below.
 												}
 											},false,false,true);
 										}
-										else if(localflag && has_txt2img && no_model && safe_to_overwrite())
+										else if(localflag && has_txt2img && no_txt_model && safe_to_overwrite())
 										{
 											msgboxYesNo("This KoboldCpp instance seems to be running an Image Generation model without any Text Generation model loaded.\n\nWould you like to launch StableUI (Dedicated Image Generation WebUI bundled with KoboldCpp)?\n\nIf unsure, select 'No'.","Launch StableUI?", ()=>{
 												go_to_stableui();
 											},()=>{
 											});
+										}
+										else if(localflag && no_txt_model && !has_txt2img && !koboldcpp_has_vision && !koboldcpp_has_whisper)
+										{
+											msgboxYesNo("This KoboldCpp instance has no models loaded. You can still use the WebUI to edit or view existing stories.<br><br>Would you like to connect to an external API service?","No Models Loaded",
+											()=>{
+												localflag = false;
+												hide_popups();
+												restore_endpoint_dropdowns();
+												document.getElementById("customapidropdown").value = "1";
+												render_gametext(false);
+												display_endpoint_container();
+											},()=>{},true);
 										}
 
 									}else{
@@ -11036,10 +11074,52 @@ Current version indicated by LITEVER below.
 	}
 
 
+	var dragdropimgsetup = false;
 	function add_img_btn_paste()
 	{
 		document.getElementById("addimgcontainer").classList.add("hidden");
 		document.getElementById("pasteimgcontainer").classList.remove("hidden");
+
+		if(!dragdropimgsetup)
+		{
+			const dropZone = document.getElementById('pasteimgwin');
+			const onDropFn = function(e){
+				e.preventDefault();
+				e.stopPropagation();
+
+				let draggedData = e.dataTransfer;
+				let files = draggedData.files;
+
+				console.log(files);
+				if (files.length > 0 && files[0] != null && files[0].name && files[0].name != "") {
+					const file = files[0];
+					const reader = new FileReader();
+					reader.onload = function(img) {
+						let origImg = img.target.result;
+						self_upload_img(origImg);
+					}
+					reader.readAsDataURL(file);
+					document.getElementById("pasteimgcontainer").classList.add("hidden");
+				}
+			}
+
+			dropZone.addEventListener(
+				"dragover",
+				(e) => {
+					e.preventDefault();
+					e.stopPropagation();
+				},
+				false
+			);
+			dropZone.addEventListener(
+				"drop",
+				(e) => {
+					onDropFn(e);
+				},
+				false
+			);
+			dragdropimgsetup = true;
+		}
 	}
 
 	function add_img_btn_upload()
@@ -12019,7 +12099,7 @@ Current version indicated by LITEVER below.
 			seqs = [st, et];
 			if(localsettings.fix_alpaca_leak && st.toLowerCase().includes("### instruction"))
 			{
-				seqs.push("\n\n### ");
+				seqs.push("\n### ");
 			}
 			if(localsettings.inject_chatnames_instruct)
 			{
@@ -17376,6 +17456,7 @@ Current version indicated by LITEVER below.
 				<div class="popuptitletext">Select your AI provider</div>
 			</div>
 			<div style="padding: 4px;">
+			<select id="unusedcustomapidropdown" style="display: none;"></select>
 			<select title="Select your AI provider" style="padding:4px;" class="form-control" id="customapidropdown" onchange="customapi_dropdown(true)">
 				<option value="0">AI Horde</option>
 				<option value="1">KoboldAI Remote API</option>
