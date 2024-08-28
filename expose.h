@@ -4,7 +4,6 @@
 const int stop_token_max = 24;
 const int ban_token_max = 16;
 const int tensor_split_max = 16;
-const int tensor_split_w_max = 16;
 const int logit_bias_max = 24;
 const int dry_seq_break_max = 24;
 const int images_max = 4;
@@ -63,7 +62,6 @@ struct load_model_inputs
     const float rope_freq_base = 10000.0f;
     const bool flash_attention = false;
     const float tensor_split[tensor_split_max] = {};
-    const float tensor_split_w[tensor_split_w_max] = {};
 //    const char * override_kv;
 //    const char * kv_overrides;
 //    const char * cache_type_k;
