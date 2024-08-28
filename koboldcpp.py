@@ -2135,15 +2135,20 @@ Enter Prompt:<br>
                 multiuserkey = ""
                 pass
             if (multiuserkey=="" and requestsinqueue==0) or (multiuserkey!="" and multiuserkey==currentusergenkey):
+                print(f"Request in queue: {requestsinqueue}")
                 ag = handle.abort_generate()
-                time.sleep(0.1) #short delay before replying
+                time.sleep(0.5) #short delay before replying (increased just to see)
                 response_body = (json.dumps({"success": ("true" if ag else "false"), "done":"true"}).encode())
+                print(f"Response Body: {response_body}")
                 print("\nGeneration Aborted")
             elif (multiuserkey!="" and requestsinqueue>0):
+                print(f"Request in queue: {requestsinqueue}")
                 pendingabortkey = multiuserkey
                 response_body = (json.dumps({"success": "true", "done":"false"}).encode())
+                print(f"Response Body: {response_body}")
             else:
                 response_body = (json.dumps({"success": "false", "done":"false"}).encode())
+                print(f"Response Body: {response_body}")
 
         elif self.path.endswith('/api/extra/generate/check'):
             if not self.secure_endpoint():
