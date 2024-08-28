@@ -17601,23 +17601,22 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
                 else if (qs.model.hparams.n_gqa() >= 2 || qs.model.hparams.n_expert >= 2) new_type = GGML_TYPE_Q4_K;
                 else new_type = GGML_TYPE_IQ4_XS;
             }
-            else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_XL || ftype == LLAMA_FTYPE_MOSTLY_IQ2_XXS || ftype == LLAMA_FTYPE_MOSTLY_IQ2_XS ||
-            ftype == LLAMA_FTYPE_MOSTLY_IQ2_S) {
+            else if (ftype == LLAMA_FTYPE_MOSTLY_IQ1_XL || ftype == LLAMA_FTYPE_MOSTLY_IQ2_XXS || ftype == LLAMA_FTYPE_MOSTLY_IQ2_XS) {
                 if (qs.model.hparams.n_expert >= 4) new_type = GGML_TYPE_Q6_K;
                 else if (qs.model.hparams.n_head() <= 20) new_type = GGML_TYPE_IQ4_XS;
                 else new_type = GGML_TYPE_Q4_K;
             }
-            else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_M || ftype == LLAMA_FTYPE_MOSTLY_IQ2_XL) {
+            else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_S || ftype == LLAMA_FTYPE_MOSTLY_IQ2_M) {
                 if (qs.model.hparams.n_expert >= 4) new_type = GGML_TYPE_Q6_K;
-                else if (qs.model.hparams.n_vocab >= 127999) new_type = GGML_TYPE_Q4_K;
+                else if (qs.model.hparams.n_vocab >= 127999 && qs.model.hparams.n_gqa() < 12) new_type = GGML_TYPE_Q4_K;
                 else new_type = GGML_TYPE_Q5_K;
             }
-            else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXS || ftype == LLAMA_FTYPE_MOSTLY_IQ3_XS) {
-                if (qs.model.hparams.n_expert >= 4) new_type = GGML_TYPE_Q6_K;
+            else if (ftype == LLAMA_FTYPE_MOSTLY_IQ2_XL || ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXS || ftype == LLAMA_FTYPE_MOSTLY_IQ3_XS) {
+                if (qs.model.hparams.n_expert >= 4 && qs.model.hparams.n_gqa() >= 12) new_type = GGML_TYPE_Q6_K;
                 else new_type = GGML_TYPE_Q5_K;
             }
             else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_S  || ftype == LLAMA_FTYPE_MOSTLY_IQ3_M || ftype == LLAMA_FTYPE_MOSTLY_IQ3_ML) {
-                if (qs.model.hparams.n_expert >= 4) new_type = GGML_TYPE_Q6_K;
+                if (qs.model.hparams.n_expert >= 4 && qs.model.hparams.n_gqa() >= 12) new_type = GGML_TYPE_Q6_K;
                 else if (qs.model.hparams.n_vocab >= 127999 || qs.model.hparams.n_head() <= 20) new_type = GGML_TYPE_Q5_K;
                 else new_type = GGML_TYPE_Q6_K;
             }
