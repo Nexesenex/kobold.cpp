@@ -15720,7 +15720,7 @@ static int llama_decode_internal(
         }
         const uint32_t n_tokens = ubatch.n_tokens;
 
-        // count the outputs in this u_batch
+        // count the outputs in this ubatch
         {
             int32_t n_outputs_new = 0;
 
@@ -15782,7 +15782,7 @@ static int llama_decode_internal(
         // Re-build graph only if graph caching is not possible
         if(!ggml_use_cached_graph(lctx.sched) || n_has_changed_since_last_token) {
 
-            gf = llama_build_graph(lctx, u_batch, false);
+            gf = llama_build_graph(lctx, ubatch, false);
 
             // Set whether GGML graph caching is in use within GGML module, based on
             // whether caching was activated here during the previous token
