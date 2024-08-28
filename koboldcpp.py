@@ -21,7 +21,6 @@ sampler_order_max = 7
 stop_token_max = 24
 ban_token_max = 16
 tensor_split_max = 16
-tensor_split_w_max = 16
 logit_bias_max = 24
 dry_seq_break_max = 24
 images_max = 4
@@ -135,7 +134,6 @@ class load_model_inputs(ctypes.Structure):
                 ("rope_freq_base", ctypes.c_float),
                 ("flash_attention", ctypes.c_bool),
                 ("tensor_split", ctypes.c_float * tensor_split_max),
-                ("tensor_split_w", ctypes.c_float * tensor_split_w_max),
                 ("quant_k", ctypes.c_int),
                 ("quant_v", ctypes.c_int)]
 
@@ -1123,12 +1121,6 @@ def load_model(model_filename):
         else:
             inputs.tensor_split[n] = 0
 
-    for n in range(tensor_split_w_max):
-        if args.tensor_split_w and n < len(args.tensor_split_w):
-            inputs.tensor_split[n] = float(args.tensor_split_w[n])
-        else:
-            inputs.tensor_split[n] = 0
-
     inputs = set_backend_props(inputs)
 
     inputs.executable_path = (getdirpath()+"/").encode("UTF-8")
@@ -1428,11 +1420,6 @@ def whisper_load_model(model_filename):
     inputs.debugmode = args.debugmode
     inputs.executable_path = (getdirpath()+"/").encode("UTF-8")
     inputs.model_filename = model_filename.encode("UTF-8")
-    for n in range(tensor_split_w_max):
-        if args.tensor_split_w and n < len(args.tensor_split_w):
-            inputs.tensor_split[n] = float(args.tensor_split_w[n])
-        else:
-            inputs.tensor_split[n] = 0
     inputs = set_backend_props(inputs)
     ret = handle.whisper_load_model(inputs)
     return ret
@@ -2662,7 +2649,6 @@ def show_gui():
     blasubatchsize_var = ctk.IntVar()
     version_var = ctk.StringVar(value="0")
     tensor_split_str_vars = ctk.StringVar(value="")
-    tensor_split_w_str_vars = ctk.StringVar(value="")
     rowsplit_var = ctk.IntVar()
 
     # displaygpu_var = ctk.IntVar()
@@ -2963,8 +2949,6 @@ def show_gui():
             splitmode_box.grid(row=5, column=1, padx=8, pady=1,  stick="nw")
             tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
             tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
-            tensor_split_w_label.grid(row=10, column=0, padx = 8, pady=1, stick="nw")
-            tensor_split_w_entry.grid(row=10, column=1, padx=8, pady=1, stick="nw")
             quick_tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
             quick_tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
         else:
@@ -2974,8 +2958,6 @@ def show_gui():
             quick_mmq_box.grid_forget()
             tensor_split_label.grid_forget()
             tensor_split_entry.grid_forget()
-            tensor_split_w_label.grid_remove()
-            tensor_split_w_entry.grid_remove()
             quick_tensor_split_label.grid_forget()
             quick_tensor_split_entry.grid_forget()
             splitmode_box.grid_forget()
@@ -2983,8 +2965,6 @@ def show_gui():
         if index == "Use Vulkan":
             tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
             tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
-            tensor_split_w_label.grid(row=10, column=0, padx = 8, pady=1, stick="nw")
-            tensor_split_w_entry.grid(row=10, column=1, padx=8, pady=1, stick="nw")
             quick_tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
             quick_tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
 
@@ -3287,7 +3267,6 @@ def show_gui():
     # audio tab
     audio_tab = tabcontent["Audio"]
     makefileentry(audio_tab, "Whisper Model (Speech-To-Text):", "Select Whisper .bin Model File", whisper_model_var, 1, width=576, filetypes=[("*.bin","*.bin")], tooltiptxt="Select a Whisper .bin model file on disk to be loaded.")
-    tensor_split_w_entry,tensor_split_w_label = makelabelentry(audio_tab, "Tensor Split:", tensor_split_w_str_vars, 10, 80, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')    
     whisper_model_var.trace("w", gui_changed_modelfile)
 
     def kcpp_export_template():
@@ -3313,7 +3292,6 @@ def show_gui():
         savdict["usecublas"] = None
         savdict["usevulkan"] = None
         savdict["tensor_split"] = None
-        savdict["tensor_w_split"] = None
         savdict["config"] = None
         filename = asksaveasfile(filetypes=file_type, defaultextension=file_type)
         if filename == None:
@@ -3415,12 +3393,6 @@ def show_gui():
                 args.tensor_split = [float(x) for x in tssv.split(",")]
             else:
                 args.tensor_split = [float(x) for x in tssv.split(" ")]
-        if tensor_split_w_str_vars.get()!="":
-            tssv = tensor_split_w_str_vars.get()
-            if "," in tssv:
-                args.tensor_split_w = [float(x) for x in tssv.split(",")]
-            else:
-                args.tensor_split_w = [float(x) for x in tssv.split(" ")]
 
         args.blasthreads = None if blas_threads_var.get()=="" else int(blas_threads_var.get())
 
@@ -3583,9 +3555,6 @@ def show_gui():
         if "tensor_split" in dict and dict["tensor_split"]:
             tssep = ','.join(map(str, dict["tensor_split"]))
             tensor_split_str_vars.set(tssep)
-        if "tensor_split_w" in dict and dict["tensor_split_w"]:
-            tssep = ','.join(map(str, dict["tensor_split_w"]))
-            tensor_split_str_w_vars.set(tssep)
         if "blasthreads" in dict and dict["blasthreads"]:
             blas_threads_var.set(str(dict["blasthreads"]))
         else:
@@ -4953,7 +4922,6 @@ if __name__ == '__main__':
 
     whisperparsergroup = parser.add_argument_group('Whisper Transcription Commands')
     whisperparsergroup.add_argument("--whispermodel", metavar=('[filename]'), help="Specify a Whisper bin model to enable Speech-To-Text transcription.", default="")
-    whisperparsergroup.add_argument("--tensor_split_w", help="For CUDA and Vulkan only, ratio to split tensors across multiple GPUs, space-separated list of proportions, e.g. 7 3", metavar=('[Ratios]'), type=float, nargs='+')
 
     deprecatedgroup = parser.add_argument_group('Deprecated Commands, DO NOT USE!')
     deprecatedgroup.add_argument("--hordeconfig", help=argparse.SUPPRESS, nargs='+')
