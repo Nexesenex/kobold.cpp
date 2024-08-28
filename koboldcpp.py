@@ -1093,8 +1093,17 @@ def load_model(model_filename):
     inputs.use_smartcontext = args.smartcontext
     inputs.use_contextshift = (0 if args.noshift else 1)
     inputs.flash_attention = args.flashattention
-    if args.quantkv>0:
+    if args.quantkv>0 and args.quantkv<21:
         inputs.quant_k = inputs.quant_v = args.quantkv
+        inputs.flash_attention = True
+        inputs.noshift = 1
+    elif args.quantkv==22:
+        inputs.quant_k = inputs.quant_v = args.quantkv
+        inputs.noshift = 1
+    elif args.quantkv>22:
+        inputs.quant_k = inputs.quant_v = args.quantkv
+        inputs.flash_attention = False
+        inputs.noshift = 1
     else:
         inputs.quant_k = inputs.quant_v = 0
     inputs.blasbatchsize = args.blasbatchsize
@@ -2649,10 +2658,10 @@ def show_gui():
     # displaygpu_var = ctk.IntVar()
     poslayeroffset_var = ctk.IntVar()
     neglayeroffset_var = ctk.IntVar()
-    gpu0vram_var = ctk.IntVar()
-    gpu1vram_var = ctk.IntVar()
-    gpu2vram_var = ctk.IntVar()
-    gpu3vram_var = ctk.IntVar()
+    # gpu0vram_var = ctk.IntVar()
+    # gpu1vram_var = ctk.IntVar()
+    # gpu2vram_var = ctk.IntVar()
+    # gpu3vram_var = ctk.IntVar()
 
     contextshift = ctk.IntVar(value=0)
     remotetunnel = ctk.IntVar(value=0)
@@ -3319,8 +3328,8 @@ def show_gui():
         nonlocal kcpp_exporting_template
         args.threads = int(threads_var.get())
         args.usemlock   = usemlock.get() == 1
-#        args.usedirect_io   = usedirect_io.get() == 1
-#        args.token_healing  = token_healing.get()
+        # args.usedirect_io   = usedirect_io.get() == 1
+        # args.token_healing  = token_healing.get()
         args.debugmode  = debugmode.get()
         args.launch     = launchbrowser.get()==1
         args.highpriority = highpriority.get()==1
