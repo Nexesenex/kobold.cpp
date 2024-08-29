@@ -12,9 +12,9 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 171;
+	const LITEVER = 172;
 	const urlParams = new URLSearchParams(window.location.search);
-	var localflag = true;
+    var localflag = true;
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
 </script>
 
@@ -1228,13 +1228,13 @@ Current version indicated by LITEVER below.
 		.saveloadpopup {
 			width: 660px;
 			background-color: #262626;
-			margin-top: 80px;
+			margin-top: 60px;
 		}
 		@media (max-width: 768px) {
 			.saveloadpopup {
 				width: 100%;
 				background-color: #262626;
-				margin-top: 80px;
+				margin-top: 60px;
 			}
 		}
 		.saveloadgrid
@@ -2367,7 +2367,10 @@ Current version indicated by LITEVER below.
 	0% {
 		background-color: #9e9e9e;
 	}
-	50%, 100% {
+	29.9% {
+		background-color: #9e9e9e;
+	}
+	30%, 100% {
 		background-color: #9e9e9e33;
 	}
 	}
@@ -2420,7 +2423,7 @@ Current version indicated by LITEVER below.
 		const scenario_db = [
 		{
 			"title":"New Story",
-			"desc":"Starts a new game in story mode, using your current settings.",
+			"desc":"Starts a new session in story mode, using your current settings.",
 			"opmode":1,
 			"prefmodel1":storymodels1,
 			"prefmodel2":storymodels2,
@@ -2431,7 +2434,7 @@ Current version indicated by LITEVER below.
 		},
 		{
 			"title":"New Adventure",
-			"desc":"Starts a new game in adventure mode, using your current settings.",
+			"desc":"Starts a new session in adventure mode, using your current settings.",
 			"opmode":2,
 			"prefmodel1":adventuremodels1,
 			"prefmodel2":adventuremodels2,
@@ -2443,7 +2446,7 @@ Current version indicated by LITEVER below.
 		},
 		{
 			"title":"New Chat",
-			"desc":"Starts a new game in chat mode, using your current settings.",
+			"desc":"Starts a new session in chat mode, using your current settings.",
 			"opmode":3,
 			"chatname": "User",
 			"chatopponent": "KoboldAI",
@@ -2457,7 +2460,7 @@ Current version indicated by LITEVER below.
 		},
 		{
 			"title":"New Instruct",
-			"desc":"Starts a new game in instruct mode, using your current settings.",
+			"desc":"Starts a new session in instruct mode, using your current settings.",
 			"opmode":4,
 			"instruct_starttag": "\\n### Instruction:\\n",
 			"instruct_endtag": "\\n### Response:\\n",
@@ -2471,7 +2474,7 @@ Current version indicated by LITEVER below.
 		{
 			"title":"New Adventure (Instruct)",
 			"author":"Henky!!",
-			"desc":"Starts a new game in adventure mode, with a prompt designed for Instruction-Trained models. Begin by submitting a text describing the setting and your character. For the best experience avoid actions that make your goals to easy such as inputting the instant solution to your goals.",
+			"desc":"Starts a new session in adventure mode, with a prompt designed for Instruction-Trained models. Begin by submitting a text describing the setting and your character. For the best experience avoid actions that make your goals to easy such as inputting the instant solution to your goals.",
 			"opmode":2,
 			"prefmodel1":adventuremodels1,
 			"prefmodel2":adventuremodels2,
@@ -4139,7 +4142,7 @@ Current version indicated by LITEVER below.
 	const ALLTALK_ID = 1001;
 	const HD_RES_PX = 512;
 	const NO_HD_RES_PX = 320;
-	const SAVE_SLOTS = 8;
+	const SAVE_SLOTS = 50;
 
 	//all configurable globals
 	var perfdata = null; //if it's null, we are not connected
@@ -6540,7 +6543,7 @@ Current version indicated by LITEVER below.
 
 		if(localsettings.import_tavern_prompt)
 		{
-			msgboxYesNo("Import Character Card in Instruct Mode?\n\nYes = Instruct Mode Used\nNo = Chat Mode Used\n\nIf unsure, select 'No'.","Import Tavern Card", ()=>{
+			msgboxYesNo("Import Character Card in Instruct Mode?\n\nYes = Instruct Mode Used\nNo = Chat Mode Used\n\nIf unsure, select 'No'.","Import Tavern Card Mode", ()=>{
 				load_tav_obj_confirm_p1(false);
 			},()=>{
 				load_tav_obj_confirm_p1(true);
@@ -15703,7 +15706,6 @@ Current version indicated by LITEVER below.
 	{
 		let panel = document.getElementById('corpoleftpanelitems');
 		let panelitems = `
-		<div onclick="display_newgame();" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_nikosquare); padding-left: 44px;">New Chat</div>
 		<div onclick="btn_memory()" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_gear); padding-left: 44px;">Context</div>
 		<div onclick="btn_editmode()" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_corpo_edit); padding-left: 44px;">Raw Editor</div>
 		<div onclick="update_toggle_theme(true)" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_corpo_theme); padding-left: 44px;">Light / Dark Theme</div>
@@ -17256,7 +17258,7 @@ Current version indicated by LITEVER below.
 								</li>
 								<li class="nav-item hidden" id="topbtn_settings">
 									<a class="nav-link mainnav" href="#" id="btn_settings"
-										onclick="closeTopNav();display_settings()">Settings</a>
+										onclick="closeTopNav();display_settings()">KLite/KCPP Settings</a>
 								</li>
 
 							</ul>
@@ -17715,7 +17717,7 @@ Current version indicated by LITEVER below.
 		<div class="popupbg flex"></div>
 		<div class="nspopup flexsizevsmall">
 			<div class="popuptitlebar">
-				<div class="popuptitletext">Really Start A New Story?</div>
+				<div class="popuptitletext">Really Start A New Session?</div>
 			</div>
 			<div class="aidgpopuplistheader anotelabel">
 				Unsaved data will be lost.<br><br>
@@ -17792,7 +17794,7 @@ Current version indicated by LITEVER below.
 		<div class="popupbg flex"></div>
 		<div class="nspopup flexsize" style="margin-top: 4vh; background-color:#102840">
 			<div class="popuptitlebar">
-				<div class="popuptitletext" title="Settings Menu">Settings</div>
+				<div class="popuptitletext" title="Settings Menu">KCPP Settings</div>
 			</div>
 			<div><ul class="nav nav-tabs settingsnav">
 				<li id="settingsmenuformat_tab" class="active"><a class="" href="#" title="Open Format Menu" onclick="display_settings_tab(0)">Format</a></li>
