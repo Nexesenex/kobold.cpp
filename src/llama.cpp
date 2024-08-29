@@ -17521,9 +17521,9 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
     const llm_arch arch = qs.model.arch;
     const auto       tn = LLM_TN(arch);
 
-    // difquant_first_last_tensors has a broad 13.75-16.66% bump to the upper quant. Ex : 6/32
+    // difquant_first_last_tensors has a broad 13.75-17.75% bump to the upper quant. Ex : 6/32
     auto difquant_first_last_tensors = [](int i_layer, int n_layers) -> bool {
-        return i_layer < n_layers/8 || i_layer >= n_layers-2;
+        return i_layer < n_layers/8 || i_layer > 15*n_layers/16 || i_layer >= n_layers-2;
     };
     // difquant_fl_more_tensors has a broad 26-29% bump to the upper quant. Ex : 9/32
     auto difquant_fl_more_tensors = [](int i_layer, int n_layers) -> bool {
@@ -17540,6 +17540,8 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
     // In the case of a 40 layers model, layers 6-9 and layers 15-20 are always skipped.
     // difquant_half_tensors replaces it and keeps the broad 50% bump to the upper quant. Ex : 16/32
     auto difquant_half_tensors = [](int i_layer, int n_layers) -> bool {
+        // return i_layer <= n_layers/8 || (i_layer >= 2*n_layers/8 && i_layer < 3*n_layers/8) ||
+              // (i_layer > 5*n_layers/8 && i_layer <= 6*n_layers/8) || i_layer > 7*n_layers/8;
         return i_layer <= n_layers/8 || (i_layer >= 2*n_layers/8 && i_layer < 3*n_layers/8) || i_layer > 6*n_layers/8;
     };
     // difquant_five_eights_tensors has a broad 62.5% bump to the upper quant. Ex : 20/32
@@ -17548,7 +17550,14 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
     };
     // difquant_six_eights_tensors has a broad 75% bump to the upper quant. Ex : 24/32
     auto difquant_six_eights_tensors = [](int i_layer, int n_layers) -> bool {
+        // return i_layer <= 4*n_layers/8 || (i_layer > 5*n_layers/8 && i_layer <= 6*n_layers/8) || i_layer > 7*n_layers/8; (cata)
         return i_layer <= n_layers/8 || (i_layer >= 2*n_layers/8 && i_layer < 3*n_layers/8) || i_layer > 4*n_layers/8;
+    };
+    // difquant_seven_eights_tensors has a broad 87.5% bump to the upper quant. Ex : 28/32
+    auto difquant_seven_eights_tensors = [](int i_layer, int n_layers) -> bool {
+        return i_layer <= 6*n_layers/8 || i_layer > 7*n_layers/8; //best ppl
+        // return i_layer <= 5*n_layers/8 || i_layer > 6*n_layers/8 (cata)
+        // return i_layer <= 4*n_layers/8 || i_layer > 5*n_layers/8 for my 36GB VRAM use;
     };
     // difquant_all_tensors has a broad 100% bump to the upper quant. Ex : 32/32. This, for easy mass edit purpose during tests.
     auto difquant_all_tensors = [](int i_layer, int n_layers) -> bool {
@@ -18081,7 +18090,7 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXL) {
             if (qs.model.hparams.n_gqa() >= 2 || qs.model.hparams.n_expert >= 2)
                 new_type = difquant_five_eights_tensors(qs.i_attention_wk, qs.n_attention_wk) ? GGML_TYPE_Q6_K : GGML_TYPE_Q5_K;
-            else new_type = GGML_TYPE_IQ4_XS;
+            else new_type = difquant_seven_eights_tensors(qs.i_attention_wk, qs.n_attention_wk) ? GGML_TYPE_IQ4_XS : GGML_TYPE_IQ3_S;
         }
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXXL) {
             if (qs.model.hparams.n_gqa() >= 2 || qs.model.hparams.n_expert >= 2)
@@ -18238,7 +18247,7 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
         // else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXL) {
             // if (qs.model.hparams.n_gqa() >= 2 || qs.model.hparams.n_expert >= 2)
                 // new_type = difquant_five_eights_tensors(qs.i_attention_wq, qs.n_attention_wq) ? GGML_TYPE_IQ3_S : GGML_TYPE_IQ3_XXS;
-            // else new_type = GGML_TYPE_IQ3_S;
+            // else new_type = difquant_seven_eights_tensors(qs.i_attention_wq, qs.n_attention_wq) ? GGML_TYPE_IQ3_S : GGML_TYPE_IQ3_XXS;
         // }
         // else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXXL) {
             // if (qs.model.hparams.n_gqa() >= 2 || qs.model.hparams.n_expert >= 2)
@@ -18390,7 +18399,7 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXL) {
             if (qs.model.hparams.n_gqa() >= 2 || qs.model.hparams.n_expert >= 2)
                 new_type = (difquant_five_eights_tensors(i_layer, n_layer)) ? GGML_TYPE_IQ4_XS : GGML_TYPE_IQ3_S;
-            else new_type = GGML_TYPE_IQ4_XS;
+            else new_type = (difquant_seven_eights_tensors(i_layer, n_layer)) ? GGML_TYPE_IQ4_XS : GGML_TYPE_IQ3_S;
         }
         else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXXL) {
             if (qs.model.hparams.n_gqa() >= 2 || qs.model.hparams.n_expert >= 2)
@@ -18566,7 +18575,7 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
             else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXL) {
                 if (qs.model.hparams.n_gqa() >= 2 || qs.model.hparams.n_expert >= 2)
                     new_type = difquant_five_eights_tensors(qs.i_attention_wo, qs.n_attention_wo) ? GGML_TYPE_IQ4_XS : GGML_TYPE_IQ3_S;
-                else new_type = GGML_TYPE_IQ4_XS;
+                else new_type = difquant_seven_eights_tensors(qs.i_attention_wo, qs.n_attention_wo) ? GGML_TYPE_IQ4_XS : GGML_TYPE_IQ3_S;
             }
             else if (ftype == LLAMA_FTYPE_MOSTLY_IQ3_XXXL) {
                 if (qs.model.hparams.n_gqa() >= 2 || qs.model.hparams.n_expert >= 2)
