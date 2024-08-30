@@ -3094,8 +3094,6 @@ static void ggml_barrier(struct ggml_compute_state_shared * shared) {
                 }
             #if defined(__SSE3__)
                 _mm_pause();
-            #elif defined __ARM_NEON
-                __asm__ __volatile__("isb\n");
             #endif
             }
             sched_yield();
