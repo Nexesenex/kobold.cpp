@@ -3326,6 +3326,16 @@ def show_gui():
         root.withdraw()
         root.quit()
         pass
+        
+    def guilaunchmodel():
+        if model_var.get() == "" and sd_model_var.get() == "" and whisper_model_var.get() == "" and nomodel.get()!=1:
+            tmp = askopenfilename(title="Select ggml model .gguf or .bin file", filetypes=[("*.bin","*.gguf")])
+            model_var.set(tmp)
+        nonlocal nextstate
+        nextstate = 1
+        root.withdraw()
+        root.quit()
+        pass
 
     def export_vars():
         nonlocal kcpp_exporting_template
@@ -3668,6 +3678,7 @@ def show_gui():
             print("Cannot launch updates in browser.")
 
     ctk.CTkButton(tabs , text = "Launch", fg_color="#2f8d3c", hover_color="#2faa3c", command = guilaunch, width=80, height = 35 ).grid(row=1,column=1, stick="se", padx= 25, pady=5)
+    ctk.CTkButton(tabs , text = "Launch Model Only", fg_color="#2f8d3c", hover_color="#2faa3c", command = guilaunchmodel, width=160, height = 35 ).grid(row=1,column=1, stick="se", padx= 110, pady=5)
 
     ctk.CTkButton(tabs , text = "Update", fg_color="#9900cc", hover_color="#aa11dd", command = display_updates, width=90, height = 35 ).grid(row=1,column=0, stick="sw", padx= 5, pady=5)
     ctk.CTkButton(tabs , text = "Save", fg_color="#084a66", hover_color="#085a88", command = save_config_gui, width=60, height = 35 ).grid(row=1,column=1, stick="sw", padx= 5, pady=5)
