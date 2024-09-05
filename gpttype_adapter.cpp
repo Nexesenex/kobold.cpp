@@ -1203,8 +1203,8 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
 
     file_format = in_file_format;
     file_format_meta = in_file_format_meta;
-    kcpp_params->n_threads = inputs.threads;
-    kcpp_params->n_threads_batch = inputs.blasthreads;
+    kcpp_params->cpuparams.n_threads = inputs.threads;
+    kcpp_params->cpuparams_batch.n_threads = inputs.blasthreads;
     bool isGguf = (file_format == FileFormat::GGUF_GENERIC);
     kcpp_params->n_batch = GetBatchSize(inputs.blasbatchsize, in_file_format);
     kcpp_params->n_ubatch = GetUBatchSize(inputs.blasubatchsize, in_file_format);
@@ -1336,7 +1336,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             int err = llama_v2_apply_lora_from_file(llama_ctx_v2,
                                                  lora_filename.c_str(),
                                                  lora_base_arg,
-                                                 kcpp_params->n_threads);
+                                                 kcpp_params->cpuparams.n_threads);
             if (err != 0)
             {
                 fprintf(stderr, "%s: error: failed to apply lora adapter\n", __func__);
@@ -1348,7 +1348,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
 
         //determine mem per token
         const std::vector<int> tmp = {1, 2, 3, 4};
-        llama_v2_eval(llama_ctx_v2, tmp.data(), tmp.size(), 0, kcpp_params->n_threads);
+        llama_v2_eval(llama_ctx_v2, tmp.data(), tmp.size(), 0, kcpp_params->cpuparams.n_threads);
         return ModelLoadResult::SUCCESS;
     }
     else if(file_format == FileFormat::GGJT_3)
@@ -1411,7 +1411,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             int err = llama_v3_apply_lora_from_file(llama_ctx_v3,
                                                  lora_filename.c_str(),
                                                  lora_base_arg,
-                                                 kcpp_params->n_threads);
+                                                 kcpp_params->cpuparams.n_threads);
             if (err != 0)
             {
                 fprintf(stderr, "%s: error: failed to apply lora adapter\n", __func__);
@@ -1423,7 +1423,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
 
         //determine mem per token
         const std::vector<int> tmp = {1, 2, 3, 4};
-        auto er = llama_v3_eval(llama_ctx_v3, tmp.data(), tmp.size(), 0, kcpp_params->n_threads);
+        auto er = llama_v3_eval(llama_ctx_v3, tmp.data(), tmp.size(), 0, kcpp_params->cpuparams.n_threads);
         if(er!=0)
         {
             printf("\nLLAMA EVAL returned nonzero!\n");
@@ -1487,8 +1487,8 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
 
         llama_ctx_params.n_batch = kcpp_params->n_batch;
         llama_ctx_params.n_ubatch = kcpp_params->n_ubatch;
-        llama_ctx_params.n_threads = kcpp_params->n_threads;
-        llama_ctx_params.n_threads_batch = kcpp_params->n_threads_batch;
+        llama_ctx_params.n_threads = kcpp_params->cpuparams.n_threads;
+        llama_ctx_params.n_threads_batch = kcpp_params->cpuparams_batch.n_threads;
 
         #if defined(GGML_USE_CUDA) || defined(GGML_USE_VULKAN)
         bool ts_all_zero = true;
@@ -1664,11 +1664,11 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         bool useWorldTokenizer = false;
         if (file_format == FileFormat::RWKV_1)
         {
-            rwkv_ctx_v2 = rwkv_v2_init_from_file(modelname.c_str(), kcpp_params->n_threads);
+            rwkv_ctx_v2 = rwkv_v2_init_from_file(modelname.c_str(), kcpp_params->cpuparams.n_threads);
         }
         else //rwkv_2
         {
-            rwkv_ctx_v3 = rwkv_init_from_file(modelname.c_str(), kcpp_params->n_threads);
+            rwkv_ctx_v3 = rwkv_init_from_file(modelname.c_str(), kcpp_params->cpuparams.n_threads);
 
             if(inputs.gpulayers>0)
             {
@@ -1747,7 +1747,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             rwkv_ctx_v3->logits_out = (float *)malloc(logitbufsiz);
             rwkv_ctx_v3->state_in = nullptr;
 
-            bool testeval = rwkv_eval(rwkv_ctx_v3, kcpp_params->n_threads, 0, rwkv_ctx_v3->state_in, rwkv_ctx_v3->state_out, rwkv_ctx_v3->logits_out);
+            bool testeval = rwkv_eval(rwkv_ctx_v3, kcpp_params->cpuparams.n_threads, 0, rwkv_ctx_v3->state_in, rwkv_ctx_v3->state_out, rwkv_ctx_v3->logits_out);
             if (!testeval)
             {
                 printf("\nError: RWKV Init Eval Failed!\n");
@@ -1779,7 +1779,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         n_vocab = gpt2_ctx_v1.hparams.n_vocab;
 
          // determine the required inference memory per token:
-        legacy_gpt2_eval(gpt2_ctx_v1, kcpp_params->n_threads, 0, { 0, 1, 2, 3 }, logits, mem_per_token, file_format);
+        legacy_gpt2_eval(gpt2_ctx_v1, kcpp_params->cpuparams.n_threads, 0, { 0, 1, 2, 3 }, logits, mem_per_token, file_format);
         return ModelLoadResult::SUCCESS;
     }
     else if (file_format == FileFormat::GPT2_2 || file_format==FileFormat::GPT2_3 || file_format==FileFormat::GPT2_4)
@@ -1801,7 +1801,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             n_vocab = gpt2_ctx_v3.hparams.n_vocab;
 
             // determine the required inference memory per token:
-            gpt2_eval(gpt2_ctx_v3, kcpp_params->n_threads, 0, { 0, 1, 2, 3 }, logits, mem_per_token, v3_use_scratch);
+            gpt2_eval(gpt2_ctx_v3, kcpp_params->cpuparams.n_threads, 0, { 0, 1, 2, 3 }, logits, mem_per_token, v3_use_scratch);
             return ModelLoadResult::SUCCESS;
         }
         else
@@ -1824,7 +1824,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             n_vocab = gpt2_ctx_v2.hparams.n_vocab;
 
             // determine the required inference memory per token:
-            gpt2_v2_eval(gpt2_ctx_v2, kcpp_params->n_threads, 0, { 0, 1, 2, 3 }, logits, mem_per_token, file_format);
+            gpt2_v2_eval(gpt2_ctx_v2, kcpp_params->cpuparams.n_threads, 0, { 0, 1, 2, 3 }, logits, mem_per_token, file_format);
             return ModelLoadResult::SUCCESS;
         }
     }
@@ -1845,7 +1845,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         n_vocab = gptj_ctx_v1.hparams.n_vocab;
 
          // determine the required inference memory per token:
-        legacy_gptj_eval(gptj_ctx_v1, kcpp_params->n_threads, 0, { 0, 1, 2, 3 }, logits, mem_per_token, file_format);
+        legacy_gptj_eval(gptj_ctx_v1, kcpp_params->cpuparams.n_threads, 0, { 0, 1, 2, 3 }, logits, mem_per_token, file_format);
 
         //if the logits are NAN or duplicated, it means the model is incompatible
         if(logits.size()>0 && IsNanCheck(logits[0]))
@@ -1876,14 +1876,14 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             n_vocab = gptj_ctx_v3.hparams.n_vocab;
 
             // determine the required inference memory per token:
-            gptj_eval(gptj_ctx_v3, kcpp_params->n_threads, 0, { 0, 1, 2, 3 }, logits, mem_per_token, v3_use_scratch);
+            gptj_eval(gptj_ctx_v3, kcpp_params->cpuparams.n_threads, 0, { 0, 1, 2, 3 }, logits, mem_per_token, v3_use_scratch);
 
             //if the logits are NAN or duplicated, it means the model is incompatible
             std::vector<float> oldlogits(logits);
 
             //this is another hack because they change the library - we run the eval through the model
             //twice and compare logits. if they give the same logits for different inputs, model is broken
-            gptj_eval(gptj_ctx_v3, kcpp_params->n_threads, 0, {4, 5, 6, 7}, logits, mem_per_token, v3_use_scratch);
+            gptj_eval(gptj_ctx_v3, kcpp_params->cpuparams.n_threads, 0, {4, 5, 6, 7}, logits, mem_per_token, v3_use_scratch);
 
             if(logits.size()>0 && (IsNanCheck(logits[0]) || LogitsDuplicated(oldlogits,logits)))
             {
@@ -1914,14 +1914,14 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             n_vocab = gptj_ctx_v2.hparams.n_vocab;
 
             // determine the required inference memory per token:
-            gptj_v2_eval(gptj_ctx_v2, kcpp_params->n_threads, 0, { 0, 1, 2, 3 }, logits, mem_per_token);
+            gptj_v2_eval(gptj_ctx_v2, kcpp_params->cpuparams.n_threads, 0, { 0, 1, 2, 3 }, logits, mem_per_token);
 
             //if the logits are NAN or duplicated, it means the model is incompatible
             std::vector<float> oldlogits(logits);
 
             //this is another hack because they change the library - we run the eval through the model
             //twice and compare logits. if they give the same logits for different inputs, model is broken
-            gptj_v2_eval(gptj_ctx_v2, kcpp_params->n_threads, 0, {4, 5, 6, 7}, logits, mem_per_token);
+            gptj_v2_eval(gptj_ctx_v2, kcpp_params->cpuparams.n_threads, 0, {4, 5, 6, 7}, logits, mem_per_token);
 
             if(logits.size()>0 && (IsNanCheck(logits[0]) || LogitsDuplicated(oldlogits,logits)))
             {
@@ -1952,7 +1952,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             n_vocab = neox_ctx_v3.hparams.n_vocab;
 
             // determine the required inference memory per token:
-            gpt_neox_eval(neox_ctx_v3, kcpp_params->n_threads, 0, { 0, 1, 2, 3 }, logits, mem_per_token, v3_use_scratch);
+            gpt_neox_eval(neox_ctx_v3, kcpp_params->cpuparams.n_threads, 0, { 0, 1, 2, 3 }, logits, mem_per_token, v3_use_scratch);
 
             return ModelLoadResult::SUCCESS;
         }
@@ -1976,7 +1976,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             n_vocab = neox_ctx_v2.hparams.n_vocab;
 
             // determine the required inference memory per token:
-            gpt_neox_v2_eval(neox_ctx_v2, kcpp_params->n_threads, 0, { 0, 1, 2, 3 }, logits, mem_per_token);
+            gpt_neox_v2_eval(neox_ctx_v2, kcpp_params->cpuparams.n_threads, 0, { 0, 1, 2, 3 }, logits, mem_per_token);
 
             if(logits.size()>0 && file_format==FileFormat::NEOX_2 && !IsNanCheck(logits[0]))
             {
@@ -1984,7 +1984,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
                 std::vector<int> test_embd = ::gpt_tokenize(vocab, "1 2 3 4 5 6 7");
                 auto orig_par_res = neox_ctx_v2.hparams.par_res;
                 neox_ctx_v2.hparams.par_res = 0; //test with residual false
-                gpt_neox_v2_eval(neox_ctx_v2, kcpp_params->n_threads, 0, test_embd, logits, mem_per_token);
+                gpt_neox_v2_eval(neox_ctx_v2, kcpp_params->cpuparams.n_threads, 0, test_embd, logits, mem_per_token);
                 neox_ctx_v2.hparams.par_res = orig_par_res;
                 int topid = std::max_element(logits.begin(),logits.end())-logits.begin();
                 std::string predicted = vocab.id_to_token[topid].c_str();
@@ -2013,7 +2013,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         n_vocab = mpt_ctx_v3.hparams.n_vocab;
 
         // determine the required inference memory per token:
-        mpt_eval(mpt_ctx_v3, kcpp_params->n_threads, 0, { 0, 1, 2, 3 }, logits, false, mem_per_token, v3_use_scratch);
+        mpt_eval(mpt_ctx_v3, kcpp_params->cpuparams.n_threads, 0, { 0, 1, 2, 3 }, logits, false, mem_per_token, v3_use_scratch);
         return ModelLoadResult::SUCCESS;
     }
     else
@@ -2091,10 +2091,10 @@ int GetThreadsToUse(bool blasmode)
         }
         else
         {
-             return kcpp_params->n_threads_batch;
+             return kcpp_params->cpuparams_batch.n_threads;
         }
     }
-    return kcpp_params->n_threads;
+    return kcpp_params->cpuparams.n_threads;
 }
 
 generation_outputs gpttype_generate(const generation_inputs inputs)
@@ -2388,7 +2388,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
             else
             {
                 llava_images[i].clp_image_tokens = 0;
-                if (!llava_image_embed_make_with_clip_img(clp_ctx, kcpp_params->n_threads, clp_img_data, &llava_images[i].clp_img_embd, &llava_images[i].clp_image_tokens)) {
+                if (!llava_image_embed_make_with_clip_img(clp_ctx, kcpp_params->cpuparams.n_threads, clp_img_data, &llava_images[i].clp_img_embd, &llava_images[i].clp_image_tokens)) {
                     printf("\nError: Clip image %d failed to create embd!",i);
                 }
                 if(debugmode==1)
