@@ -485,7 +485,7 @@ void print_tok_vec(std::vector<float> &embd)
         embd_inp_len = embd_inp.size();
 		
         printf("\nconds: %d %d %d\n",current_context_tokens.size() >= nctx*0.8); 
-        embd_inp_len >= nctx*0.6 ,current_context_tokens.size() - n_past > nctx*0.5;
+        // embd_inp_len >= nctx*0.6 ,current_context_tokens.size() - n_past > nctx*0.5;
         printf("csiz:%d par:%d eilen:%d np:%d",current_context_tokens.size(), (int)(nctx*0.8),embd_inp_len,n_past);
     }
 
