@@ -13,7 +13,11 @@
 #include <unordered_map>
 #include "model_adapter.h"
 #include "otherarch.h"
-#include "grammar-parser.h"
+#include "llama.h"
+#include <vector>
+#include <map>
+#include <cstdint>
+#include <string>
 
 //for easier compilation
 //concat source files into one file for compilation purposes
@@ -59,7 +63,7 @@ stop_reason last_stop_reason = stop_reason::INVALID;
 std::vector<std::string> generated_tokens;
 
 llama_grammar *  grammar = nullptr; //currently used grammar
-grammar_parser::parse_state parsed_grammar;
+llama_grammar_parser parsed_grammar;
 static std::string current_grammar = "";
 
 //return val: 0=fail, 1=(original ggml, alpaca), 2=(ggmf), 3=(ggjt)
@@ -194,15 +198,18 @@ static void TokenizeString(const std::string & str_to_tokenize, std::vector<int>
             if(add_bos)
             {
                 llama_token bostoadd = llama_token_bos(&(llama_ctx_v4->model));
-                if(output_tokens.size()==0)
+                if(bostoadd != LLAMA_TOKEN_NULL) //if bos does not exist, do not add it
                 {
-                    output_tokens.push_back(bostoadd);
-                }
-                else
-                {
-                    if(output_tokens[0]!=bostoadd)
+                    if(output_tokens.size()==0)
                     {
-                        output_tokens.insert(output_tokens.begin(), 1, bostoadd);
+                        output_tokens.push_back(bostoadd);
+                    }
+                    else
+                    {
+                        if(output_tokens[0]!=bostoadd)
+                        {
+                            output_tokens.insert(output_tokens.begin(), 1, bostoadd);
+                        }
                     }
                 }
             }
@@ -401,9 +408,112 @@ static void GetOverlappingTokenSequences(const std::string& str, std::unordered_
     }
 }
 
+// KCPP SAMPLING FUNCTIONS
+void sample_softmax(llama_token_data_array * cur_p) {
+    GGML_ASSERT(cur_p->size > 0);
+
+    // Sort the logits in descending order
+    if (!cur_p->sorted) {
+        std::sort(cur_p->data, cur_p->data + cur_p->size, [](const llama_token_data & a, const llama_token_data & b) {
+            return a.logit > b.logit;
+        });
+        cur_p->sorted = true;
+    }
+
+    float max_l = cur_p->data[0].logit;
+    float cum_sum = 0.0f;
+
+    for (size_t i = 0; i < cur_p->size; ++i) {
+        float p = expf(cur_p->data[i].logit - max_l);
+        cur_p->data[i].p = p;
+        cum_sum += p;
+    }
+
+    for (size_t i = 0; i < cur_p->size; ++i) {
+        cur_p->data[i].p /= cum_sum;
+    }
+}
+
+void sample_top_k(llama_token_data_array * cur_p, int32_t k) {
+    // TODO: move bucket sort to separate function so that top_p/tail_free/typical/softmax first is equally fast
+    // if (k >= (int32_t)cur_p->size) {
+    //     return;
+    // }
+
+    if (k <= 0) {
+        k = cur_p->size;
+    }
+
+    k = std::max(k, (int) 1); //min keep of 1
+    k = std::min(k, (int) cur_p->size);
+
+    // Sort scores in descending order
+    if (!cur_p->sorted) {
+        auto comp = [](const llama_token_data & a, const llama_token_data & b) {
+            return a.logit > b.logit;
+        };
+        if (k <= 128) {
+            std::partial_sort(cur_p->data, cur_p->data + k, cur_p->data + cur_p->size, comp);
+        } else {
+            constexpr int   nbuckets     = 128;
+            constexpr float bucket_low   = -10.0f;
+            constexpr float bucket_high  =  10.0f;
+            constexpr float bucket_scale = nbuckets/(bucket_high - bucket_low);
+            constexpr float bucket_inter = -bucket_low * bucket_scale;
+
+            std::vector<int> bucket_idx(cur_p->size);
+            std::vector<int> histo(nbuckets, 0);
+
+            for (int i = 0; i < (int)cur_p->size; ++i) {
+                const float val = cur_p->data[i].logit;
+                int ib = int(bucket_scale * val + bucket_inter); //nbuckets * (val - bucket_low) / (bucket_high - bucket_low);
+                ib = std::max(0, std::min(nbuckets-1, ib));
+                bucket_idx[i] = ib;
+                ++histo[ib];
+            }
+            int nhave = 0;
+            int ib = nbuckets - 1;
+            for ( ; ib >= 0; --ib) {
+                nhave += histo[ib];
+                if (nhave >= k) {
+                    break;
+                }
+            }
+            std::vector<llama_token_data> tmp_tokens(nhave);
+            auto * ptr = tmp_tokens.data();
+            std::vector<llama_token_data*> bucket_ptrs;
+            bucket_ptrs.reserve(nbuckets - ib);
+            for (int j = nbuckets - 1; j >= ib; --j) {
+                bucket_ptrs.push_back(ptr);
+                ptr += histo[j];
+            }
+            for (int i = 0; i < (int)cur_p->size; ++i) {
+                int j = bucket_idx[i];
+                if (j >= ib) {
+                    *bucket_ptrs[nbuckets-1-j]++ = cur_p->data[i];
+                }
+            }
+
+            ptr = tmp_tokens.data();
+            int ndone = 0;
+            for (int j = nbuckets-1; j > ib; --j) {
+                std::sort(ptr, ptr + histo[j], comp);
+                ptr += histo[j];
+                ndone += histo[j];
+            }
+            std::partial_sort(ptr, ptr + k - ndone, ptr + histo[ib], comp);
+
+            std::memcpy(cur_p->data, tmp_tokens.data(), k*sizeof(llama_token_data));
+
+        }
+        cur_p->sorted = true;
+    }
+    cur_p->size = k;
+}
+
 llama_token sample_token(llama_token_data_array * candidates, std::mt19937 & rng)
 {
-    llama_sample_softmax(nullptr, candidates);
+    sample_softmax(candidates);
     std::vector<float> probs;
     probs.reserve(candidates->size);
     top_picks.clear();
@@ -433,7 +543,7 @@ llama_token sample_token(llama_token_data_array * candidates, std::mt19937 & rng
 llama_token sample_token_mirostat(int n_vocab, llama_token_data_array * candidates, std::mt19937 & rng, float tau, float eta, int m, float * mu)
 {
     float N = float(n_vocab);
-    llama_sample_softmax(nullptr, candidates);
+    sample_softmax(candidates);
     // Estimate s_hat using the most probable m tokens
     float s_hat = 0.0;
     float sum_ti_bi = 0.0;
@@ -449,7 +559,7 @@ llama_token sample_token_mirostat(int n_vocab, llama_token_data_array * candidat
     float epsilon_hat = s_hat - 1;
     float k = powf((epsilon_hat * powf(2, *mu)) / (1 - powf(N, -epsilon_hat)), 1 / s_hat);
     // Sample the next word X using top-k sampling
-    llama_sample_top_k(nullptr, candidates, int(k),1);
+    sample_top_k(candidates, int(k));
     llama_token X = sample_token(candidates, rng);    // Compute error as the difference between observed surprise and target surprise value
     size_t X_idx = std::distance(candidates->data, std::find_if(candidates->data, candidates->data + candidates->size, [&](const llama_token_data & candidate) {
         return candidate.id == X;
@@ -463,7 +573,7 @@ llama_token sample_token_mirostat(int n_vocab, llama_token_data_array * candidat
 
 llama_token sample_token_mirostat_v2(llama_token_data_array * candidates, std::mt19937 & rng, float tau, float eta, float * mu)
 {
-    llama_sample_softmax(nullptr, candidates);
+    sample_softmax(candidates);
     // Truncate the words with surprise values greater than mu
     candidates->size = std::distance(candidates->data, std::find_if(candidates->data, candidates->data + candidates->size, [&](const llama_token_data & candidate) {
         return -log2f(candidate.p) > *mu;
@@ -474,7 +584,7 @@ llama_token sample_token_mirostat_v2(llama_token_data_array * candidates, std::m
     }
 
     // Normalize the probabilities of the remaining words
-    llama_sample_softmax(nullptr, candidates);
+    sample_softmax(candidates);
     // Sample the next word X from the remaining words
     llama_token X = sample_token(candidates,rng);
 
@@ -496,7 +606,7 @@ void sample_top_a(llama_token_data_array * candidates, float a, size_t min_keep)
         return;
     }
 
-    llama_sample_softmax(nullptr, candidates);
+    sample_softmax(candidates);
 
     // Compute the cumulative probabilities
     float maxprob = candidates->data[0].p;
@@ -532,7 +642,7 @@ void sample_xtc(llama_token_data_array * candidates, float xtc_threshold, float 
         return;
     }
 
-    llama_sample_softmax(nullptr, candidates);
+    sample_softmax(candidates);
 
     //calculate how many tokens cross the xtc threshold
     size_t last_idx = candidates->size;
@@ -825,18 +935,292 @@ void sample_rep_pen(int n_ctx, int rep_pen_range, float rep_pen, float rep_pen_s
 
 }
 
+void sample_top_p(llama_token_data_array * cur_p, float p, size_t min_keep) {
+    if (p >= 1.0f) {
+        return;
+    }
+
+    sample_softmax(cur_p);
+
+    // Compute the cumulative probabilities
+    float cum_sum = 0.0f;
+    size_t last_idx = cur_p->size;
+
+    for (size_t i = 0; i < cur_p->size; ++i) {
+        cum_sum += cur_p->data[i].p;
+
+        // Check if the running sum is at least p or if we have kept at least min_keep tokens
+        // we set the last index to i+1 to indicate that the current iterate should be included in the set
+        if (cum_sum >= p && i + 1 >= min_keep) {
+            last_idx = i + 1;
+            break;
+        }
+    }
+
+    // Resize the output vector to keep only the top-p tokens
+    cur_p->size = last_idx;
+}
+
+void sample_min_p(llama_token_data_array * cur_p, float p, size_t min_keep) {
+    if (p <= 0.0f || !cur_p->size) {
+        return;
+    }
+
+    bool min_p_applied = false;
+
+    // if the cur_p aren't sorted, try the unsorted implementation first
+    if (!cur_p->sorted) {
+        std::vector<llama_token_data> filtered_tokens;
+
+        float max_logit = -FLT_MAX;
+        for (size_t i = 0; i < cur_p->size; ++i) {
+            max_logit = std::max(max_logit, cur_p->data[i].logit);
+        }
+        const float min_logit = max_logit + logf(p); // min logit for p_i >= p * p_max
+
+        for (size_t i = 0; i < cur_p->size; ++i) {
+            if (cur_p->data[i].logit >= min_logit) {
+                filtered_tokens.push_back(cur_p->data[i]);
+            }
+        }
+
+        // if we have enough values the operation was a success
+        if (filtered_tokens.size() >= min_keep) {
+            memcpy(cur_p->data, filtered_tokens.data(), filtered_tokens.size()*sizeof(llama_token_data));
+            cur_p->size = filtered_tokens.size();
+            min_p_applied = true;
+        }
+    }
+
+    // if the cur_p are sorted or the unsorted implementation failed, use this implementation
+    if (!min_p_applied) {
+        // Sort the logits in descending order
+        if (!cur_p->sorted) {
+            std::sort(cur_p->data, cur_p->data + cur_p->size, [](const llama_token_data & a, const llama_token_data & b) {
+                return a.logit > b.logit;
+            });
+            cur_p->sorted = true;
+        }
+
+        const float min_logit = cur_p->data[0].logit + logf(p); // min logit for p_i >= p * p_max
+        size_t i = 1; // first token always matches
+
+        for (; i < cur_p->size; ++i) {
+            if (cur_p->data[i].logit < min_logit && i >= min_keep) {
+                break; // prob too small
+            }
+        }
+
+        // Resize the output vector to keep only the matching tokens
+        cur_p->size = i;
+    }
+}
+
+void sample_tail_free(llama_token_data_array * cur_p, float z, size_t min_keep) {
+    if (z >= 1.0f || cur_p->size <= 2) {
+        return;
+    }
+
+    sample_softmax(cur_p);
+
+    // Compute the first and second derivatives
+    std::vector<float> first_derivatives(cur_p->size - 1);
+    std::vector<float> second_derivatives(cur_p->size - 2);
+
+    for (size_t i = 0; i < first_derivatives.size(); ++i) {
+        first_derivatives[i] = cur_p->data[i].p - cur_p->data[i + 1].p;
+    }
+    for (size_t i = 0; i < second_derivatives.size(); ++i) {
+        second_derivatives[i] = first_derivatives[i] - first_derivatives[i + 1];
+    }
+
+    // Calculate absolute value of second derivatives
+    for (size_t i = 0; i < second_derivatives.size(); ++i) {
+        second_derivatives[i] = std::abs(second_derivatives[i]);
+    }
+
+    // Normalize the second derivatives
+    {
+        const float second_derivatives_sum = std::accumulate(second_derivatives.begin(), second_derivatives.end(), 0.0f);
+
+        if (second_derivatives_sum > 1e-6f) {
+            for (float & value : second_derivatives) {
+                value /= second_derivatives_sum;
+            }
+        } else {
+            for (float & value : second_derivatives) {
+                value = 1.0f / second_derivatives.size();
+            }
+        }
+    }
+
+    float cum_sum = 0.0f;
+    size_t last_idx = cur_p->size;
+    for (size_t i = 0; i < second_derivatives.size(); ++i) {
+        cum_sum += second_derivatives[i];
+
+        // Check if the running sum is greater than z or if we have kept at least min_keep tokens
+        if (cum_sum > z && i >= min_keep) {
+            last_idx = i;
+            break;
+        }
+    }
+
+    // Resize the output vector to keep only the tokens above the tail location
+    cur_p->size = last_idx;
+}
+
+void sampler_typical(llama_token_data_array * cur_p, float p, size_t min_keep) {
+    // Reference implementation:
+    // https://github.com/huggingface/transformers/compare/main...cimeister:typical-sampling:typical-pr
+    if (p >= 1.0f) {
+        return;
+    }
+
+    // Compute the softmax of logits and calculate entropy
+    sample_softmax(cur_p);
+
+    float entropy = 0.0f;
+    for (size_t i = 0; i < cur_p->size; ++i) {
+        if(cur_p->data[i].p>0)
+        {
+            entropy += -cur_p->data[i].p * logf(cur_p->data[i].p);
+        }
+    }
+
+    // Compute the absolute difference between negative log probability and entropy for each candidate
+    std::vector<float> shifted_scores;
+    for (size_t i = 0; i < cur_p->size; ++i) {
+        float shifted_score = fabsf(-logf(cur_p->data[i].p) - entropy);
+        shifted_scores.push_back(shifted_score);
+    }
+
+    // Sort tokens based on the shifted_scores and their corresponding indices
+    std::vector<size_t> indices(cur_p->size);
+    std::iota(indices.begin(), indices.end(), 0);
+
+    std::sort(indices.begin(), indices.end(), [&](size_t a, size_t b) {
+        return shifted_scores[a] < shifted_scores[b];
+    });
+
+    // Compute the cumulative probabilities
+    float cum_sum = 0.0f;
+    size_t last_idx = indices.size();
+
+    for (size_t i = 0; i < indices.size(); ++i) {
+        size_t idx = indices[i];
+        cum_sum += cur_p->data[idx].p;
+
+        // Check if the running sum is greater than typical or if we have kept at least min_keep tokens
+        if (cum_sum > p && i >= min_keep - 1) {
+            last_idx = i + 1;
+            break;
+        }
+    }
+
+    // Resize the output vector to keep only the locally typical tokens
+    std::vector<llama_token_data> cur_p_new;
+    for (size_t i = 0; i < last_idx; ++i) {
+        size_t idx = indices[i];
+        cur_p_new.push_back(cur_p->data[idx]);
+    }
+
+    // Replace the data in cur_p with the cur_p_new data
+    std::copy(cur_p_new.begin(), cur_p_new.end(), cur_p->data);
+    cur_p->size = cur_p_new.size();
+    cur_p->sorted = false;
+}
+
+void sample_entropy(llama_token_data_array * cur_p, float min_temp, float max_temp, float exponent_val, float smoothing_factor) {
+    // no need to do anything if there is only one (or zero) candidates
+    if (cur_p->size <= 1) {
+        return;
+    }
+
+    // Calculate maximum possible entropy
+    float max_entropy = -logf(1.0f / cur_p->size);
+
+    sample_softmax(cur_p);
+
+    // Calculate entropy of the softmax probabilities
+    float entropy = 0.0f;
+    for (size_t i = 0; i < cur_p->size; ++i) {
+        float prob = cur_p->data[i].p;
+        if (prob > 0.0f) { // Ensure no log(0)
+            entropy -= prob * logf(prob);
+        }
+    }
+
+    // Normalize the entropy (max_entropy cannot be 0 here because we checked cur_p->size != 1 above)
+    float normalized_entropy = entropy / max_entropy;
+
+    // Map the normalized entropy to the desired temperature range using the power function
+    float dyn_temp = min_temp + (max_temp - min_temp) * powf(normalized_entropy, exponent_val);
+
+    // Apply the dynamically calculated temperature scaling
+    for (size_t i = 0; i < cur_p->size; ++i) {
+        cur_p->data[i].logit /= dyn_temp;
+    }
+
+    // Re-compute softmax probabilities after scaling logits with dynamic temperature
+    const double max_l_double = cur_p->data[0].logit;
+
+    double cum_sum_double = 0.0;
+    for (size_t i = 0; i < cur_p->size; ++i) {
+        double p = exp(cur_p->data[i].logit - max_l_double);
+        cur_p->data[i].p = p; // Store the scaled probability
+        cum_sum_double += p;
+    }
+
+    for (size_t i = 0; i < cur_p->size; ++i) {
+        cur_p->data[i].p /= cum_sum_double; // Re-normalize the probabilities
+    }
+
+    // Only apply smoothing if smoothing_factor is > 0. Do not change base implementation otherwise.
+    if (smoothing_factor > 0 && cur_p->size > 1) {
+        sample_softmax(cur_p);
+        float h = cur_p->data[0].logit; // Find the maximum logit for h to be added after the transformation
+        // Apply quadratic transformation using the smoothing_factor
+        for (size_t i = 0; i < cur_p->size; ++i)
+        {
+            float logit_shifted = cur_p->data[i].logit - h;
+            cur_p->data[i].logit = -smoothing_factor * logit_shifted * logit_shifted + h;
+        }
+        sample_softmax(cur_p);
+    }
+
+}
+
 void sample_temperature(llama_token_data_array * candidates_p, float temp, float smoothing_factor)
 {
+    bool isgreedy = false;
     if (temp <= 0)
     {
         // Imitate greedy sampling
         temp = 0.00390625f; //cannot be zero else div0, this is 1/256
-        llama_sample_temp(nullptr, candidates_p, temp, 0);
-        llama_sample_top_k(nullptr, candidates_p, 1, 1); //only want first candidate
+        smoothing_factor = 0;
+        isgreedy = true;
     }
-    else
+
+    for (size_t i = 0; i < candidates_p->size; ++i) {
+        candidates_p->data[i].logit /= temp;
+    }
+    // Only apply smoothing if smoothing_factor is > 0. Do not change base implementation otherwise.
+    if (smoothing_factor > 0 && candidates_p->size > 1) {
+        sample_softmax(candidates_p);
+        float h = candidates_p->data[0].logit; // Find the maximum logit for h to be added after the transformation
+        // Apply quadratic transformation using the smoothing_factor
+        for (size_t i = 0; i < candidates_p->size; ++i)
+        {
+            float logit_shifted = candidates_p->data[i].logit - h;
+            candidates_p->data[i].logit = -smoothing_factor * logit_shifted * logit_shifted + h;
+        }
+        sample_softmax(candidates_p);
+    }
+
+    if(isgreedy)
     {
-        llama_sample_temp(nullptr, candidates_p, temp, smoothing_factor);
+        sample_top_k(candidates_p, 1); //only want first candidate
     }
 }
 
@@ -907,7 +1291,7 @@ const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dyna
     sample_dry(n_ctx, dry_penalty_last_n, dry_multiplier, dry_base, dry_allowed_length, dry_sequence_breakers, &candidates_p);
 
     //prefilter to top 5k tokens for improved speed
-    llama_sample_top_k(nullptr, &candidates_p, 500, 1);
+    sample_top_k(&candidates_p, 500);
 
     if (mirostat == 1 || mirostat == 2)
     {
@@ -931,20 +1315,20 @@ const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dyna
             switch (sampler_order[i])
             {
                 case KCPP_SAMPLER_TOP_K:
-                    llama_sample_top_k(nullptr, &candidates_p, top_k,1);
+                    sample_top_k(&candidates_p, top_k);
                     break;
                 case KCPP_SAMPLER_TOP_A:
-                    sample_top_a(&candidates_p,top_a,1);
+                    sample_top_a(&candidates_p, top_a, 1);
                     break;
                 case KCPP_SAMPLER_TOP_P:
-                    llama_sample_top_p(nullptr, &candidates_p, top_p,1);
-                    llama_sample_min_p(nullptr, &candidates_p, min_p,1);
+                    sample_top_p(&candidates_p, top_p, 1);
+                    sample_min_p(&candidates_p, min_p, 1);
                     break;
                 case KCPP_SAMPLER_TFS:
-                    llama_sample_tail_free(nullptr, &candidates_p, tfs,1);
+                    sample_tail_free(&candidates_p, tfs, 1);
                     break;
                 case KCPP_SAMPLER_TYP:
-                    llama_sample_typical(nullptr, &candidates_p, typical_p,1);
+                    sampler_typical(&candidates_p, typical_p, 1);
                     break;
                 case KCPP_SAMPLER_TEMP:
                     if (dynatemp_range>0)
@@ -955,7 +1339,7 @@ const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dyna
                         dynatemp_min = dynatemp_min<0?0:dynatemp_min;
                         dynatemp_max = dynatemp_max<0?0:dynatemp_max;
                         dynatemp_exponent = dynatemp_exponent<0?0:dynatemp_exponent;
-                        llama_sample_entropy(nullptr, &candidates_p, dynatemp_min, dynatemp_max, dynatemp_exponent, smoothing_factor);
+                        sample_entropy(&candidates_p, dynatemp_min, dynatemp_max, dynatemp_exponent, smoothing_factor);
                     }
                     else
                     {
@@ -1006,12 +1390,12 @@ static void load_grammar(const std::string & gammarstr)
 {
     if(grammar!=nullptr) //on demand free when next grammar is loaded
     {
-        llama_grammar_free(grammar);
+        llama_grammar_free_impl(grammar);
         grammar = nullptr;
     }
 
     if (!gammarstr.empty()) {
-        parsed_grammar = grammar_parser::parse(gammarstr.c_str());
+        parsed_grammar.parse(gammarstr.c_str());
         // will be empty (default) if there are parse errors
         if (parsed_grammar.rules.empty()) {
             printf("\nIgnored invalid grammar sampler.");
@@ -1019,10 +1403,10 @@ static void load_grammar(const std::string & gammarstr)
         }
         if(debugmode==1)
         {
-            grammar_parser::print_grammar(stderr, parsed_grammar);
+            parsed_grammar.print(stderr);
         }
         std::vector<const llama_grammar_element *> grammar_rules(parsed_grammar.c_rules());
-        grammar = llama_grammar_init(grammar_rules.data(), grammar_rules.size(), parsed_grammar.symbol_ids.at("root"));
+        grammar = llama_grammar_init_impl(nullptr,grammar_rules.data(), grammar_rules.size(), parsed_grammar.symbol_ids.at("root"));
     }
 }
 
@@ -1456,7 +1840,6 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
            llama_ctx_params.n_ctx += extra_context_handle_fragmentation;
         }
 
-        llama_ctx_params.seed = -1;
         llama_ctx_params.offload_kqv = !inputs.low_vram;
         llama_ctx_params.logits_all = false;
         model_params.use_mmap = inputs.use_mmap;
@@ -1556,6 +1939,12 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
                 llama_ctx_params.rope_freq_scale = rope_freq_scale;
                 printf("Automatic RoPE Scaling: Using (scale:%.3f, base:%.1f).\n", rope_freq_scale, rope_freq_base);
             }
+        }
+
+        if(file_format_meta.model_architecture==GGUFArch::ARCH_RWKV)
+        {
+            printf("\nRWKV6 Overriding EOS and BOS IDs to 0\n");
+            llamamodel->vocab.special_bos_id = llamamodel->vocab.special_eos_id = 0;
         }
 
         llama_ctx_params.flash_attn = kcpp_params->flash_attn;
@@ -2127,7 +2516,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
     if(debugmode==1 && file_format == FileFormat::GGUF_GENERIC)
     {
-        llama_reset_timings(llama_ctx_v4);
+        llama_perf_reset(llama_ctx_v4, LLAMA_PERF_TYPE_CONTEXT);
     }
 
     generation_finished = false; // Set current generation status
@@ -2834,7 +3223,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
             if (!inputs.allow_eos_token && !inputs.bypass_eos_token)
             {
                 // set the logit of the eos token to very low to avoid sampling it
-                logitsPtr[eosID] = lowestLogit;
+                if(eosID!=LLAMA_TOKEN_NULL)
+                {
+                    logitsPtr[eosID] = lowestLogit;
+                }
                 if(eotID!=-1)
                 {
                     logitsPtr[eotID] = lowestLogit;
@@ -3063,7 +3455,8 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
     if(debugmode==1 && file_format == FileFormat::GGUF_GENERIC)
     {
-        llama_print_timings(llama_ctx_v4);
+        printf("\n");
+        llama_perf_print(llama_ctx_v4, LLAMA_PERF_TYPE_CONTEXT);
     }
 
     time2 = timer_check();

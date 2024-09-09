@@ -614,8 +614,6 @@ add_library(common2
             common/common.h
             common/sampling.cpp
             common/sampling.h
-            common/grammar-parser.h
-            common/grammar-parser.cpp
             examples/llava/llava.cpp
             examples/llava/llava.h
             examples/llava/clip.cpp

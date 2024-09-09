@@ -21,6 +21,7 @@ gcovr-report/
 build*/
 out/
 tmp/
+autogen-*.md
 
 models/*
 models-mnt
@@ -89,7 +90,6 @@ poetry.toml
 ggml-metal-merged.metal
 
 # Test binaries
-tests/test-grammar-parser
 /tests/test-llama-grammar
 tests/test-double-float
 tests/test-grad0

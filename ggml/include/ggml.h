@@ -401,6 +401,8 @@ extern "C" {
         GGML_TYPE_Q4_0_4_4 = 31,
         GGML_TYPE_Q4_0_4_8 = 32,
         GGML_TYPE_Q4_0_8_8 = 33,
+        GGML_TYPE_TQ1_0   = 34,
+        GGML_TYPE_TQ2_0   = 35,
         GGML_TYPE_COUNT,
     };
 
@@ -694,8 +696,8 @@ extern "C" {
 
     struct ggml_hash_set {
         size_t size;
-        ggml_bitset_t * used;
-        struct ggml_tensor ** keys;
+        ggml_bitset_t * used;       // whether or not the keys are in use i.e. set
+        struct ggml_tensor ** keys; // actual tensors in the set, keys[i] is only defined if ggml_bitset_get(used, i)
     };
 
     // computation graph
@@ -1287,7 +1289,7 @@ extern "C" {
             size_t                nb1,
             size_t                nb2,
             size_t                nb3,
-            size_t                offset);
+            size_t                offset); // in bytes
 
     // b -> view(a,offset,nb1,nb2,3), return view(a)
     GGML_API struct ggml_tensor * ggml_set_inplace(
@@ -1297,19 +1299,19 @@ extern "C" {
             size_t                nb1,
             size_t                nb2,
             size_t                nb3,
-            size_t                offset);
+            size_t                offset); // in bytes
 
     GGML_API struct ggml_tensor * ggml_set_1d(
             struct ggml_context * ctx,
             struct ggml_tensor  * a,
             struct ggml_tensor  * b,
-            size_t                offset);
+            size_t                offset); // in bytes
 
     GGML_API struct ggml_tensor * ggml_set_1d_inplace(
             struct ggml_context * ctx,
             struct ggml_tensor  * a,
             struct ggml_tensor  * b,
-            size_t                offset);
+            size_t                offset); // in bytes
 
     // b -> view(a,offset,nb1,nb2,3), return modified a
     GGML_API struct ggml_tensor * ggml_set_2d(
@@ -1317,7 +1319,7 @@ extern "C" {
             struct ggml_tensor  * a,
             struct ggml_tensor  * b,
             size_t                nb1,
-            size_t                offset);
+            size_t                offset); // in bytes
 
     // b -> view(a,offset,nb1,nb2,3), return view(a)
     GGML_API struct ggml_tensor * ggml_set_2d_inplace(
@@ -1325,7 +1327,7 @@ extern "C" {
             struct ggml_tensor  * a,
             struct ggml_tensor  * b,
             size_t                nb1,
-            size_t                offset);
+            size_t                offset); // in bytes
 
     // a -> b, return view(b)
     GGML_API struct ggml_tensor * ggml_cpy(
