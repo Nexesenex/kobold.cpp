@@ -9354,7 +9354,7 @@ static struct ggml_tensor * llm_build_copy_mask_state(
     // FIXME: zero-out NANs?
     states = ggml_mul(ctx, states, state_mask);
 
-    // copy states which won't be changed further (between n_seqs and n_rs)
+    // copy states which won't be changed further (between n_seqs and n_kv)
     ggml_build_forward_expand(graph,
         ggml_cpy(ctx,
             ggml_view_1d(ctx, states, n_state*(n_kv - n_seqs), n_seqs*n_state*ggml_element_size(states)),
@@ -17736,6 +17736,8 @@ static void llama_model_quantize_internal(const std::string & fname_inp, const s
         quantize &= name.find("time_mix_first.weight") == std::string::npos;
         quantize &= name.find("time_mix_w1.weight") == std::string::npos;
         quantize &= name.find("time_mix_w2.weight") == std::string::npos;
+        quantize &= name.find("time_mix_decay_w1.weight") == std::string::npos;
+        quantize &= name.find("time_mix_decay_w2.weight") == std::string::npos;
 
         // do not quantize relative position bias (T5)
         quantize &= name.find("attn_rel_b.weight") == std::string::npos;
