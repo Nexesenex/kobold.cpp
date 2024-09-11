@@ -1660,7 +1660,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         else
         {
             //approximate NTK aware ctx
-            auto effectivenctx = kcpp_params->n_ctx;
+            auto effectivenctx = kcpp_data->n_ctx;
             if((file_format == FileFormat::GGUF_GENERIC) && file_format_meta.n_ctx_train > 2048)
             {
                 float factor = file_format_meta.n_ctx_train/2048;
