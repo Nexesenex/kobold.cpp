@@ -2923,9 +2923,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     }
 
     bool is_mamba = (file_format == FileFormat::GGUF_GENERIC && file_format_meta.model_architecture==GGUFArch::ARCH_MAMBA);
+    bool is_rwkv_new = (file_format == FileFormat::GGUF_GENERIC && file_format_meta.model_architecture==GGUFArch::ARCH_RWKV);
     bool blank_prompt = (addedmemory=="" && kcpp_data->prompt=="");
 
-    if (file_format == FileFormat::RWKV_1 || file_format==FileFormat::RWKV_2 || is_mamba)
+    if (file_format == FileFormat::RWKV_1 || file_format==FileFormat::RWKV_2 || is_mamba || is_rwkv_new)
     {
         if(!blank_prompt)
         {
