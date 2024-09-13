@@ -1455,6 +1455,7 @@ llama-server: \
 	examples/server/system-prompts.js.hpp \
 	examples/server/prompt-formats.js.hpp \
 	examples/server/json-schema-to-grammar.mjs.hpp \
+	examples/server/loading.html.hpp \
 	common/json.hpp \
 	common/stb_image.h \
 	$(OBJ_ALL)
