@@ -944,6 +944,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
 
 def fetch_gpu_properties(testCL,testCU,testVK):
     import subprocess
+    time.sleep(0.1)
     if testCL:
         try: # Get OpenCL GPU names on windows using a special binary. overwrite at known index if found.
             basepath = os.path.abspath(os.path.dirname(__file__))

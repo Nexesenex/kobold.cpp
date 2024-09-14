@@ -8498,7 +8498,7 @@ Current version indicated by LITEVER below.
 			let desiredkoboldkey = document.getElementById("customkoboldkey").value;
 
 			if (desiredkoboldendpoint != null && desiredkoboldendpoint.trim() != "") {
-				hide_popups();
+				dismiss_endpoint_container();
 				desiredkoboldendpoint = desiredkoboldendpoint.trim();
 
 				//remove trailing slash and pound
@@ -8809,7 +8809,7 @@ Current version indicated by LITEVER below.
 			}
 			if(desired_oai_key!="" && desired_oai_ep!="")
 			{
-				hide_popups();
+				dismiss_endpoint_container();
 
 				//good to go
 				custom_oai_endpoint = desired_oai_ep;
@@ -8882,7 +8882,7 @@ Current version indicated by LITEVER below.
 			}
 			if(desired_claude_key!="" && desired_claude_ep!="")
 			{
-				hide_popups();
+				dismiss_endpoint_container();
 
 				//good to go
 				custom_claude_endpoint = desired_claude_ep;
@@ -8918,7 +8918,7 @@ Current version indicated by LITEVER below.
 
 			if(desired_palm_key!="")
 			{
-				hide_popups();
+				dismiss_endpoint_container();
 
 				//good to go
 				custom_palm_key = desired_palm_key;
@@ -8949,7 +8949,7 @@ Current version indicated by LITEVER below.
 
 			if(desired_cohere_key!="")
 			{
-				hide_popups();
+				dismiss_endpoint_container();
 
 				//good to go
 				custom_cohere_key = desired_cohere_key;
@@ -17334,6 +17334,43 @@ Current version indicated by LITEVER below.
 
 <body id="outerbody" class="darkmode" onkeydown="handle_escape_button(event)" onbeforeunload="return handle_quit()">
 
+	<div class="popupcontainer flex hidden" id="welcomecontainer">
+		<div class="popupbg flex"></div>
+		<div class="nspopup flexsize higher">
+			<div class="popuptitlebar">
+				<div class="popuptitletext">Welcome To KoboldAI Lite</div>
+			</div>
+			<div class="aidgpopuplistheader anotelabel">
+				<div style="padding-bottom: 6px;">
+					Welcome to KoboldAI Lite!<br>Pick a UI Style to get started. You can always change it later in the Settings menu.
+				</div>
+				<div class="welcome-theme-selector">
+					<div class="welcome-theme-option">
+						<label><div class="welcome-theme-image welcomeimg1"></div>
+						<input onchange="select_welcome_ui()" type="radio" title="Classic UI Theme" name="welcometheme" value="0" checked="true"> Classic UI </label>
+					</div>
+					<div class="welcome-theme-option">
+						<label><div class="welcome-theme-image welcomeimg2"></div>
+						<input onchange="select_welcome_ui()" type="radio" title="Aesthetic UI Theme" name="welcometheme" value="2"> Aesthetic UI </label>
+					</div>
+					<div class="welcome-theme-option">
+						<label><div class="welcome-theme-image welcomeimg3"></div>
+						<input onchange="select_welcome_ui()" type="radio" title="Corpo UI Theme" name="welcometheme" value="3"> Corpo UI </label>
+					</div>
+				</div>
+
+				<div style="margin-top: 10px;">
+					<p class="color_lightgray" id="welcomeuidesc"></p>
+					<p>Alternatively, you can <a href="#" class="color_blueurl" onclick="close_welcome_panel(false);load_file_button()">Load A Savefile</a> or <a href="#" class="color_blueurl" onclick="close_welcome_panel(false);display_scenarios()">Quick Start Scenario</a></p>
+				</div>
+			</div>
+			<div class="popupfooter">
+				<button type="button" class="btn btn-primary" onclick="close_welcome_panel(true)">Set UI</button>
+				<button type="button" class="btn btn-primary" onclick="close_welcome_panel()">Cancel</button>
+			</div>
+		</div>
+	</div>
+
 	<div id="maincontainer" class="adaptivecontainer maincontainer">
 		<div id="outerbodybg"></div>
 		<div class="" id="topmenu">
@@ -17568,8 +17605,6 @@ Current version indicated by LITEVER below.
 			</div>
 		</div>
 	</div>
-
-
 
 	<div class="popupcontainer flex hidden" id="customendpointcontainer">
 		<div class="popupbg flex"></div>
@@ -19063,43 +19098,6 @@ Current version indicated by LITEVER below.
 			<div class="popupfooter">
 				<button type="button" class="btn btn-primary" onclick="confirm_groupchat_select()">Ok</button>
 				<button type="button" class="btn btn-primary" onclick="hide_popups()">Cancel</button>
-			</div>
-		</div>
-	</div>
-
-	<div class="popupcontainer flex hidden" id="welcomecontainer">
-		<div class="popupbg flex"></div>
-		<div class="nspopup flexsize higher">
-			<div class="popuptitlebar">
-				<div class="popuptitletext">Welcome To KoboldAI Lite</div>
-			</div>
-			<div class="aidgpopuplistheader anotelabel">
-				<div style="padding-bottom: 6px;">
-					Welcome to KoboldAI Lite!<br>Pick a UI Style to get started. You can always change it later in the Settings menu.
-				</div>
-				<div class="welcome-theme-selector">
-					<div class="welcome-theme-option">
-						<label><div class="welcome-theme-image welcomeimg1"></div>
-						<input onchange="select_welcome_ui()" type="radio" title="Classic UI Theme" name="welcometheme" value="0" checked="true"> Classic UI </label>
-					</div>
-					<div class="welcome-theme-option">
-						<label><div class="welcome-theme-image welcomeimg2"></div>
-						<input onchange="select_welcome_ui()" type="radio" title="Aesthetic UI Theme" name="welcometheme" value="2"> Aesthetic UI </label>
-					</div>
-					<div class="welcome-theme-option">
-						<label><div class="welcome-theme-image welcomeimg3"></div>
-						<input onchange="select_welcome_ui()" type="radio" title="Corpo UI Theme" name="welcometheme" value="3"> Corpo UI </label>
-					</div>
-				</div>
-
-				<div style="margin-top: 10px;">
-					<p class="color_lightgray" id="welcomeuidesc"></p>
-					<p>Alternatively, you can <a href="#" class="color_blueurl" onclick="close_welcome_panel(false);load_file_button()">Load A Savefile</a> or <a href="#" class="color_blueurl" onclick="close_welcome_panel(false);display_scenarios()">Quick Start Scenario</a></p>
-				</div>
-			</div>
-			<div class="popupfooter">
-				<button type="button" class="btn btn-primary" onclick="close_welcome_panel(true)">Set UI</button>
-				<button type="button" class="btn btn-primary" onclick="close_welcome_panel()">Cancel</button>
 			</div>
 		</div>
 	</div>
