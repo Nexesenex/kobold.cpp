@@ -19714,8 +19714,23 @@ static void llama_model_quantize_internal(const std::string & fname_inp, const s
         gguf_free(c);
     }
 
-    LLAMA_LOG_INFO("%s: model size  = %8.2f MB\n", __func__, total_size_org/1024.0/1024.0);
-    LLAMA_LOG_INFO("%s: quant size  = %8.2f MB\n", __func__, total_size_new/1024.0/1024.0);
+    LLAMA_LOG_INFO("\n===========================================\n");
+    LLAMA_LOG_INFO("%s: model size  =   %8.2f B\n", __func__, total_size_org/1.0);
+    LLAMA_LOG_INFO("%s: model size  =      %8.2f KB\n", __func__, total_size_org/1000.0);
+    LLAMA_LOG_INFO("%s: model size  =      %8.2f KiB\n", __func__, total_size_org/1024.0);
+    LLAMA_LOG_INFO("%s: model size  =         %8.2f MB\n", __func__, total_size_org/1000.0/1000.0);
+    LLAMA_LOG_INFO("%s: model size  =         %8.2f MiB\n", __func__, total_size_org/1024.0/1024.0);
+    LLAMA_LOG_INFO("%s: model size  =         %8.2f GB\n", __func__, total_size_org/1000.0/1000.0/1000.0);
+    LLAMA_LOG_INFO("%s: model size  =         %8.2f GiB\n", __func__, total_size_org/1024.0/1024.0/1024.0);
+    LLAMA_LOG_INFO("===========================================\n");
+    LLAMA_LOG_INFO("%s: quant size  =    %8.2f B\n", __func__, total_size_new/1.0);
+    LLAMA_LOG_INFO("%s: quant size  =       %8.2f KB\n", __func__, total_size_new/1000.0);
+    LLAMA_LOG_INFO("%s: quant size  =       %8.2f KiB\n", __func__, total_size_new/1024.0);
+    LLAMA_LOG_INFO("%s: quant size  =         %8.2f MB\n", __func__, total_size_new/1000.0/1000.0);
+    LLAMA_LOG_INFO("%s: quant size  =         %8.2f MiB\n", __func__, total_size_new/1024.0/1024.0);
+    LLAMA_LOG_INFO("%s: quant size  =         %8.2f GB\n", __func__, total_size_new/1000.0/1000.0/1000.0);
+    LLAMA_LOG_INFO("%s: quant size  =         %8.2f GiB\n", __func__, total_size_new/1024.0/1024.0/1024.0);
+    LLAMA_LOG_INFO("===========================================");
 
     if (qs.n_fallback > 0) {
         LLAMA_LOG_WARN("%s: WARNING: %d of %d tensor(s) required fallback quantization\n",
