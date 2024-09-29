@@ -338,27 +338,27 @@ def init_library():
         use_noavx2 = True
         if args.useclblast:
             if not file_exists(lib_clblast_noavx2) or (os.name=='nt' and not file_exists("clblast.dll")):
-                print("Warning: NoAVX2 CLBlast library file not found. CPU library will be used.")
+                print("Warning: NoAVX2 CLBlast library file not found. Non-BLAS library will be used.")
             else:
                 print("Attempting to use NoAVX2 CLBlast library for faster prompt ingestion. A compatible clblast will be required.")
                 use_clblast = True
         elif (args.usevulkan is not None):
             if not file_exists(lib_vulkan_noavx2):
-                print("Warning: NoAVX2 Vulkan library file not found. CPU library will be used.")
+                print("Warning: NoAVX2 Vulkan library file not found. Non-BLAS library will be used.")
             else:
                 print("Attempting to use NoAVX2 Vulkan library for faster prompt ingestion. A compatible Vulkan will be required.")
                 use_vulkan = True
         else:
             if not file_exists(lib_noavx2):
                 print("Warning: NoAVX2 library file not found. Failsafe library will be used.")
-            elif (args.usecpu and args.nommap):
+            elif (args.noblas and args.nommap):
                 use_failsafe = True
                 print("!!! Attempting to use FAILSAFE MODE !!!")
             else:
                 print("Attempting to use non-avx2 compatibility library.")
     elif (args.usecublas is not None):
         if not file_exists(lib_cublas) and not file_exists(lib_hipblas):
-            print("Warning: CuBLAS library file not found. CPU library will be used.")
+            print("Warning: CuBLAS library file not found. Non-BLAS library will be used.")
         else:
             if file_exists(lib_cublas):
                 print("Attempting to use CuBLAS library for faster prompt ingestion. A compatible CuBLAS will be required.")
@@ -368,13 +368,13 @@ def init_library():
                 use_hipblas = True
     elif (args.usevulkan is not None):
         if not file_exists(lib_vulkan):
-            print("Warning: Vulkan library file not found. CPU library will be used.")
+            print("Warning: Vulkan library file not found. Non-BLAS library will be used.")
         else:
             print("Attempting to use Vulkan library for faster prompt ingestion. A compatible Vulkan will be required.")
             use_vulkan = True
     elif args.useclblast:
         if not file_exists(lib_clblast) or (os.name=='nt' and not file_exists("clblast.dll")):
-            print("Warning: CLBlast library file not found. CPU library will be used.")
+            print("Warning: CLBlast library file not found. Non-BLAS library will be used.")
         else:
             print("Attempting to use CLBlast library for faster prompt ingestion. A compatible clblast will be required.")
             use_clblast = True
@@ -388,7 +388,8 @@ def init_library():
             # print("Attempting to use OpenBLAS library for faster prompt ingestion. A compatible libopenblas will be required.")
             # if sys.platform=="darwin":
                 # print("Mac OSX note: Some people have found Accelerate actually faster than OpenBLAS. To compare, run Crococpp with --noblas instead.")
-        print("Attempting to use CPU library.")
+        # print("Attempting to use CPU library.")
+        print("Attempting to use Non-BLAS library.")
 
     if use_noavx2:
         if use_failsafe:
@@ -3443,12 +3444,12 @@ def show_gui():
         if gpulayers_var.get():
             args.gpulayers = int(gpulayers_var.get())
         if runopts_var.get()=="Use CPU":
-            args.usecpu = True
+            args.noblas = True
         if runopts_var.get()=="Use CPU (Old CPU)":
             args.noavx2 = True
         if runopts_var.get()=="Failsafe Mode (Old CPU)":
             args.noavx2 = True
-            args.usecpu = True
+            args.noblas = True
             args.nommap = True
         if tensor_split_str_vars.get()!="":
             tssv = tensor_split_str_vars.get()
@@ -3600,13 +3601,13 @@ def show_gui():
                             gpu_choice_var.set(str(opt+1))
                             break
 
-        elif "noavx2" in dict and "usecpu" in dict and dict["usecpu"] and dict["noavx2"]:
+        elif "noavx2" in dict and "noblas" in dict and dict["noblas"] and dict["noavx2"]:
             if failsafe_option is not None:
                 runopts_var.set(failsafe_option)
         elif "noavx2" in dict and dict["noavx2"]:
             if noavx2_option is not None:
                 runopts_var.set(noavx2_option)
-        elif "usecpu" in dict and dict["usecpu"]:
+        elif "noblas" in dict and dict["noblas"]:
             if default_option is not None:
                 runopts_var.set(default_option)
         if "gpulayers" in dict and dict["gpulayers"]:
@@ -4013,9 +4014,6 @@ def convert_outdated_args(args):
         if len(dict["hordeconfig"]) > 4:
             dict["hordekey"] = dict["hordeconfig"][3]
             dict["hordeworkername"] = dict["hordeconfig"][4]
-    if "noblas" in dict and dict["noblas"]:
-        dict["usecpu"] = True
-
     check_deprecation_warning()
     return args
 
@@ -4486,7 +4484,7 @@ def main(launch_args,start_server=True):
 
     if args.gpulayers:
         shouldavoidgpu = False
-        if args.usecpu and sys.platform!="darwin":
+        if args.noblas and sys.platform!="darwin":
             shouldavoidgpu = True
             if args.gpulayers and args.gpulayers>0:
                 print("WARNING: GPU layers is set, but a GPU backend was not selected! GPU will not be used!")
@@ -4502,26 +4500,26 @@ def main(launch_args,start_server=True):
                 fetch_gpu_properties(False,True,True)
                 pass
 
-            if MaxMemory[0] > 0:
-                extract_modelfile_params(args.model_param,args.sdmodel,args.whispermodel,args.mmproj)
+            # if MaxMemory[0] > 0:
+                # extract_modelfile_params(args.model_param,args.sdmodel,args.whispermodel,args.mmproj)
 
-                layeramt = autoset_gpu_layers(args.contextsize, args.sdquant, args.blasbatchsize, args.flashattention, args.quantkv, "mmq" in args.usecublas, "lowvram" in args.usecublas, args.poslayeroffset, args.neglayeroffset)
+                # layeramt = autoset_gpu_layers(args.contextsize, args.sdquant, args.blasbatchsize, args.flashattention, args.quantkv, "mmq" in args.usecublas, "lowvram" in args.usecublas, args.poslayeroffset, args.neglayeroffset)
 
-                print(f"Auto Recommended Layers: {layeramt}")
-                args.gpulayers = layeramt
-            else:
-                print(f"Could not automatically determine layers. Please set it manually.")
-                args.gpulayers = 0
+                # print(f"Auto Recommended Layers: {layeramt}")
+                # args.gpulayers = layeramt
+            # else:
+                # print(f"Could not automatically determine layers. Please set it manually.")
+                # args.gpulayers = 0
 
-            # if args.gpulayers==-1:
-                # if MaxMemory[0] > 0 and (not args.usecpu) and (args.usecublas or (args.usevulkan is not None) or args.useclblast or sys.platform=="darwin"):
-                    # extract_modelfile_params(args.model_param,args.sdmodel,args.whispermodel,args.mmproj)
-                    # layeramt = autoset_gpu_layers(args.contextsize,args.sdquant,args.blasbatchsize)
-                    # print(f"Auto Recommended GPU Layers: {layeramt}")
-                    # args.gpulayers = layeramt
-                # else:
-                    # print(f"No GPU backend found, or could not automatically determine GPU layers. Please set it manually.")
-                    # args.gpulayers = 0
+            if args.gpulayers==-1:
+                if MaxMemory[0] > 0 and (not args.noblas) and (args.usecublas or (args.usevulkan is not None) or args.useclblast or sys.platform=="darwin"):
+                    extract_modelfile_params(args.model_param,args.sdmodel,args.whispermodel,args.mmproj)
+                    layeramt = autoset_gpu_layers(args.contextsize,args.sdquant,args.blasbatchsize)
+                    print(f"Auto Recommended GPU Layers: {layeramt}")
+                    args.gpulayers = layeramt
+                else:
+                    print(f"No GPU backend found, or could not automatically determine GPU layers. Please set it manually.")
+                    args.gpulayers = 0
 
     if args.threads == -1:
         args.threads = get_default_threads()
@@ -4801,10 +4799,9 @@ def main(launch_args,start_server=True):
 
             print(f"\nBench Completed - v{KcppVersion} ; LlamaCPP {LcppVersion}\nIf Cuda mode: {CudaSpecifics} ; Release date: {ReleaseDate}; Results:")
 
-            # benchflagstr = f"NoAVX2={args.noavx2} Threads={args.threads} HighPriority={args.highpriority} Cublas_Args={args.usecublas} Tensor_Split={args.tensor_split} BlasThreads={args.blasthreads} BlasBatchSize={args.blasbatchsize} FlashAttention={args.flashattention} KvCache={args.quantkv}"
-            # print(f"\nBenchmark Completed - v{KcppVersion} Results:\n======")
-            # print(f"Flags: {benchflagstr}")
-
+            benchflagstr = f"NoAVX2={args.noavx2} Threads={args.threads} HighPriority={args.highpriority} NoBlas={args.noblas} Cublas_Args={args.usecublas} Tensor_Split={args.tensor_split} BlasThreads={args.blasthreads} BlasBatchSize={args.blasbatchsize} FlashAttention={args.flashattention} KvCache={args.quantkv}"
+            print(f"\nBenchmark Completed - v{KcppVersion} Results:\n======")
+            print(f"Flags: {benchflagstr}")
             print(f"Timestamp: {datetimestamp}")
             print(f"Backend: {libname}")
             print(f"Model: {benchmodel}")
@@ -4948,10 +4945,10 @@ if __name__ == '__main__':
     compatgroup.add_argument("--usecublas", help="Use CuBLAS for GPU Acceleration (NVIDIA Geforce RTX cards, GTX 1xxx and 9xx are also compatible to some extend). Requires CUDA. Select lowvram to not allocate the context KV cache in VRAM, but instead in RAM. Enter a number afterwards to select and use 1 GPU. Leaving no number will use all GPUs. For hipBLAS binaries, please check YellowRoseCx rocm fork.", nargs='*',metavar=('[lowvram|normal] [main GPU ID] [mmq] [rowsplit]'), choices=['normal', 'lowvram', '0', '1', '2', '3', 'mmq', 'rowsplit'])
     compatgroup.add_argument("--usevulkan", help="Use Vulkan for GPU Acceleration. Can optionally specify GPU Device ID (e.g. --usevulkan 0).", metavar=('[Device ID]'), nargs='*', type=int, default=None)
     compatgroup.add_argument("--useclblast", help="Use CLBlast for GPU Acceleration. Must specify exactly 2 arguments, platform ID and device ID (e.g. --useclblast 1 0).", type=int, choices=range(0,9), nargs=2)
-
-    parser.add_argument("--contextsize", help="Controls the memory allocated for maximum context size, only change if you need more RAM for big contexts. (default 4096). Supported values are [256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072,262144]. IF YOU USE ANYTHING ELSE YOU ARE ON YOUR OWN.",metavar=('[256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072,262144]'), type=check_range(int,256,1048576), default=2048)
-    parser.add_argument("--gpulayers", help="Set number of layers to offload to GPU when using GPU. Requires a GPU. Prefer a full offload (all layers on GPU) if possible. Set to -1 to try autodetect (experimental)",metavar=('[GPU layers]'), nargs='?', const=1, type=int, default=-1)
-    parser.add_argument("--tensor_split", help="For CUDA and Vulkan only, ratio to split a model layers across multiple GPUs, space-separated list of proportions, e.g. 55 26 to run a 70b Llama2 Miqu model in IQ3_M with 16k context on a Geforce 3090 24G (55 layers) and a Geforce 3060 12G (26 layers)", metavar=('[Ratios]'), type=float, nargs='+')
+    compatgroup.add_argument("--noblas", help="Do not use any GPU acceleration (CPU Only)", action='store_true')
+    parser.add_argument("--contextsize", help="Controls the memory allocated for maximum context size, only change if you need more RAM for big contexts. (default 4096). Supported values are [256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072]. IF YOU USE ANYTHING ELSE YOU ARE ON YOUR OWN.",metavar=('[256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072]'), type=check_range(int,256,262144), default=4096)
+    parser.add_argument("--gpulayers", help="Set number of layers to offload to GPU when using GPU. Requires GPU. Set to -1 to try autodetect, set to 0 to disable GPU offload.",metavar=('[GPU layers]'), nargs='?', const=1, type=int, default=-1)
+    parser.add_argument("--tensor_split", help="For CUDA and Vulkan only, ratio to split tensors across multiple GPUs, space-separated list of proportions, e.g. 7 3", metavar=('[Ratios]'), type=float, nargs='+')
 
     #more advanced params
     advparser = parser.add_argument_group('Advanced Commands')
@@ -5021,6 +5018,5 @@ if __name__ == '__main__':
     deprecatedgroup = parser.add_argument_group('Deprecated Commands, DO NOT USE!')
     deprecatedgroup.add_argument("--hordeconfig", help=argparse.SUPPRESS, nargs='+')
     deprecatedgroup.add_argument("--sdconfig", help=argparse.SUPPRESS, nargs='+')
-    compatgroup.add_argument("--noblas", help=argparse.SUPPRESS, action='store_true')
 
     main(parser.parse_args(),start_server=True)
