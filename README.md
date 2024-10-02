@@ -213,7 +213,7 @@ Cuda 11.4.4/11.5 arch 35375052 : CuCML_ArCML_SMC2_DmmvX32Y1
 
 # koboldcpp-experimental
 
-KoboldCpp-experimental is a sligthly extended KoboldCpp with [custom](experimental/README.md) functionality.
+KoboldCpp-experimental is a slightly extended KoboldCpp with [custom](experimental/README.md) functionality.
 
 # koboldcpp
 
@@ -391,3 +391,4 @@ when you can't use the precompiled binary directly, we provide an automated buil
   - [Stable Diffusion 1.5 and SDXL safetensor models](https://github.com/LostRuins/koboldcpp/wiki#can-i-generate-images-with-koboldcpp)
   - [LLaVA based Vision models and multimodal projectors (mmproj)](https://github.com/LostRuins/koboldcpp/wiki#what-is-llava-and-mmproj)
   - [Whisper models for Speech-To-Text](https://huggingface.co/koboldcpp/whisper/tree/main)
+  
