@@ -1363,7 +1363,7 @@ const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dyna
     sample_dry(n_ctx, dry_penalty_last_n, dry_multiplier, dry_base, dry_allowed_length, dry_sequence_breakers, &candidates_p);
 
     //prefilter to top 3k tokens for improved speed
-    sample_top_k(&candidates_p, 3000);
+    sample_top_k(&candidates_p, 512);
 
     if (mirostat == 1 || mirostat == 2)
     {
