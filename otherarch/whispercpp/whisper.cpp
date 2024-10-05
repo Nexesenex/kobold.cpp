@@ -183,11 +183,11 @@ static bool ggml_graph_compute_helper(
     if (ggml_backend_is_cpu(backend)) {
         ggml_backend_cpu_set_n_threads(backend, n_threads);
     }
-#ifdef GGML_USE_METAL
-    if (ggml_backend_is_metal(backend)) {
-        ggml_backend_metal_set_n_cb(backend, n_threads);
-    }
-#endif
+// #ifdef GGML_USE_METAL
+//     if (ggml_backend_is_metal(backend)) {
+//         ggml_backend_metal_set_n_cb(backend, n_threads);
+//     }
+// #endif
     return ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS;
 }
 

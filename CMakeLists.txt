@@ -568,7 +568,8 @@ add_library(ggml
             ggml/include/ggml.h
             ggml/src/ggml-alloc.c
             ggml/include/ggml-alloc.h
-            ggml/src/ggml-backend.c
+            ggml/src/ggml-backend.cpp
+            ggml/src/ggml-backend-impl.h
             ggml/include/ggml-backend.h
             ggml/src/ggml-quants.c
             ggml/src/ggml-quants.h

@@ -878,11 +878,11 @@ public:
             ggml_backend_cpu_set_n_threads(backend, n_threads);
         }
 
-#ifdef SD_USE_METAL
-        if (ggml_backend_is_metal(backend)) {
-            ggml_backend_metal_set_n_cb(backend, n_threads);
-        }
-#endif
+// #ifdef SD_USE_METAL
+//         if (ggml_backend_is_metal(backend)) {
+//             ggml_backend_metal_set_n_cb(backend, n_threads);
+//         }
+// #endif
 
         ggml_backend_graph_compute(backend, gf);
 

@@ -4255,7 +4255,7 @@ def main(launch_args,start_server=True):
     global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath
 
     args = launch_args
-    if (args.model_param or args.model) and args.prompt and not args.benchmark:
+    if (args.model_param or args.model) and args.prompt and not args.benchmark and not (args.debugmode >= 1):
         suppress_stdout()
 
     print(f"***\nWelcome to Croco.Cpp, fork of KoboldCpp - Version {KcppVersion}") # just update version manually

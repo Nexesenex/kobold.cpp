@@ -391,4 +391,4 @@ when you can't use the precompiled binary directly, we provide an automated buil
   - [Stable Diffusion 1.5 and SDXL safetensor models](https://github.com/LostRuins/koboldcpp/wiki#can-i-generate-images-with-koboldcpp)
   - [LLaVA based Vision models and multimodal projectors (mmproj)](https://github.com/LostRuins/koboldcpp/wiki#what-is-llava-and-mmproj)
   - [Whisper models for Speech-To-Text](https://huggingface.co/koboldcpp/whisper/tree/main)
-  
+

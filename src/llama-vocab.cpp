@@ -1513,6 +1513,7 @@ std::vector<llama_vocab::id> llama_tokenize_internal(
                 llm_tokenizer_bpe_session session(vocab);
                 // it calls some other methods that are not exist in llm_tokenizer,
                 // here just cast it to bpe tokenizer object
+
                 if (add_special) {
                     session.append_bos(output);
                 }
