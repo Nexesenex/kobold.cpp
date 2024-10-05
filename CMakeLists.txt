@@ -63,7 +63,8 @@ option(LLAMA_OPENMP                          "llama: use OpenMP"                
 # Croco.Cpp Specifics
 option(LLAMA_CUDA_FA_ALL_QUANTS              "llama: compile 18 quants for FlashAttention"      OFF)
 option(GGML_CUDA_USE_GRAPHS                  "Use Cuda Graphs to increase a bit performancess"  OFF)
-SET(GGML_SCHED_MAX_COPIES "1" CACHE STRING   "llama: max input copies for pipeline parallelism")
+set(GGML_SCHED_MAX_COPIES   "1" CACHE STRING "llama: max input copies for pipeline parallelism")
+set(LLAMA_SCHED_MAX_COPIES  "1" CACHE STRING "llama: max input copies for pipeline parallelism")
 option(LLAMA_CUDA_ENABLE_UNIFIED_MEMORY      "llama: enable to avoid OOM in Full Offload"       OFF)
 
 #
