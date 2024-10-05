@@ -60,7 +60,7 @@ option(GGML_CUDA_USE_GRAPHS                                                     
 option(LLAMA_HIPBLAS                         "llama: use hipBLAS"                               OFF)
 
 # Other
-set(LLAMA_SCHED_MAX_COPIES  "2" CACHE STRING "llama: max input copies for pipeline parallelism")
+set(LLAMA_SCHED_MAX_COPIES  "1" CACHE STRING "llama: max input copies for pipeline parallelism")
 option(LLAMA_OPENMP                          "llama: use OpenMP"                                ON)
 option(LLAMA_LLAMAFILE                       "llama: use llamafile SGEMM"                       ON)
 option(LLAMA_CCACHE                          "llama: use ccache if available"                   ON)
