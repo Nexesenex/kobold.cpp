@@ -19,7 +19,7 @@ extern "C" {
 #endif
 #define GGML_CUDA_MAX_DEVICES       16
 
-GGML_API GGML_CALL void   ggml_cuda_set_mul_mat_q(bool mul_mat_q);
+GGML_API void ggml_cuda_set_mul_mat_q(bool mul_mat_q);
 // backend API
 GGML_API ggml_backend_t ggml_backend_cuda_init(int device);
 

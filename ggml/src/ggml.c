@@ -3730,7 +3730,7 @@ bool ggml_is_empty(const struct ggml_tensor * tensor) {
     return false;
 }
 
-GGML_CALL bool ggml_is_noop(const struct ggml_tensor * tensor) {
+bool ggml_is_noop(const struct ggml_tensor * tensor) {
     return tensor->op == GGML_OP_NONE || tensor->op == GGML_OP_RESHAPE ||
            tensor->op == GGML_OP_VIEW || tensor->op == GGML_OP_PERMUTE || tensor->op == GGML_OP_TRANSPOSE ||
            ggml_is_empty(tensor) ? true : false;
