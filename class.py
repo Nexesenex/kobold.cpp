@@ -57,7 +57,7 @@ class model_backend(InferenceModel):
         self.kcpp_ropebase = 10000.0
         self.kcpp_useclblast = None
         self.kcpp_usecublas = None
-        self.kcpp_usecpu = False
+        self.kcpp_noblas = False
         self.kcpp_noavx2 = False
         self.kcpp_nommap = False
         self.kcpp_usevulkan = None
@@ -236,7 +236,7 @@ class model_backend(InferenceModel):
 
         accel = parameters["kcpp_accelerator"]
         if accel==0:
-            self.kcpp_usecpu = True
+            self.kcpp_noblas = True
         elif accel==1:
             self.kcpp_usecublas = ["normal"]
         elif accel==2:
@@ -249,7 +249,7 @@ class model_backend(InferenceModel):
             self.kcpp_noavx2 = True
         elif accel==6:
             self.kcpp_noavx2 = True
-            self.kcpp_usecpu = True
+            self.kcpp_noblas = True
             self.kcpp_nommap = True
         elif accel==7:
             self.kcpp_usevulkan = [0]
@@ -268,7 +268,7 @@ class model_backend(InferenceModel):
         port=5001, port_param=5001, host='', launch=False, lora=None, threads=self.kcpp_threads, blasthreads=self.kcpp_threads,
         psutil_set_threads=False, highpriority=False, contextsize=self.kcpp_ctxsize, blasbatchsize=self.kcpp_blasbatchsize,
         ropeconfig=[self.kcpp_ropescale, self.kcpp_ropebase], stream=False, smartcontext=self.kcpp_smartcontext, forceversion=0,
-        nommap=self.kcpp_nommap, usemlock=False, noavx2=self.kcpp_noavx2, debugmode=self.kcpp_debugmode, skiplauncher=True, usecpu=self.kcpp_usecpu,
+        nommap=self.kcpp_nommap, usemlock=False, noavx2=self.kcpp_noavx2, debugmode=self.kcpp_debugmode, skiplauncher=True, noblas=self.kcpp_noblas,
         useclblast=self.kcpp_useclblast, usecublas=self.kcpp_usecublas, usevulkan=self.kcpp_usevulkan, gpulayers=self.kcpp_gpulayers,
         tensor_split=self.kcpp_tensor_split, config=None, onready='', multiuser=False, foreground=False, preloadstory=None, noshift=False,
         remotetunnel=False, ssl=False, benchmark=None, nocertify=False, mmproj=None, password=None, chatcompletionsadapter=None)
