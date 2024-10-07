@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 sampler_order_max = 7
 stop_token_max = 24
 ban_token_max = 16
+ban_phrase_max = 16
 tensor_split_max = 16
 logit_bias_max = 24
 dry_seq_break_max = 24
@@ -180,7 +181,8 @@ class generation_inputs(ctypes.Structure):
                 ("dynatemp_exponent", ctypes.c_float),
                 ("smoothing_factor", ctypes.c_float),
                 ("logit_biases", logit_bias * logit_bias_max),
-                ("banned_tokens", ctypes.c_char_p * ban_token_max)]
+                ("banned_tokens", ctypes.c_char_p * ban_token_max),
+                ("banned_phrases", ctypes.c_char_p * ban_phrase_max)]
 
 class generation_outputs(ctypes.Structure):
     _fields_ = [("status", ctypes.c_int),
@@ -1214,6 +1216,7 @@ def generate(genparams, is_quiet=False, stream_flag=False):
     logit_biases = genparams.get('logit_bias', {})
     render_special = genparams.get('render_special', False)
     banned_tokens = genparams.get('banned_tokens', [])
+    banned_phrases = genparams.get('banned_phrases', [])
     bypass_eos_token = genparams.get('bypass_eos', False)
 
     inputs = generation_inputs()
@@ -1332,6 +1335,12 @@ def generate(genparams, is_quiet=False, stream_flag=False):
             inputs.banned_tokens[n] = "".encode("UTF-8")
         else:
             inputs.banned_tokens[n] = banned_tokens[n].encode("UTF-8")
+
+    for n in range(ban_phrase_max):
+        if not banned_phrases or n >= len(banned_phrases):
+            inputs.banned_phrases[n] = "".encode("UTF-8")
+        else:
+            inputs.banned_phrases[n] = banned_phrases[n].encode("UTF-8")
 
     currentusergenkey = genkey
     totalgens += 1
@@ -3726,10 +3735,10 @@ def show_gui():
     def load_config_gui(): #this is used to populate the GUI with a config file, whereas load_config_cli simply overwrites cli args
         file_type = [("KoboldCpp Settings", "*.kcpps *.kcppt")]
         global runmode_untouched
-        runmode_untouched = False
         filename = askopenfilename(filetypes=file_type, defaultextension=file_type, initialdir=None)
         if not filename or filename=="":
             return
+        runmode_untouched = False
         with open(filename, 'r') as f:
             dict = json.load(f)
             import_vars(dict)
