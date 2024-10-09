@@ -3343,10 +3343,6 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 }
             }
 
-            if (llama_ctx_v4) {
-                empcats_step_pre(llama_ctx_v4, logitsPtr);
-            }
-
             //handle temp bans from antislop
             if (antislop_banned_token_ids.find(n_past) != antislop_banned_token_ids.end()) {
                 std::vector<int>& bans = antislop_banned_token_ids[n_past];
@@ -3355,6 +3351,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 {
                     logitsPtr[bans[t]]=lowestLogit;
                 }
+            }
+			
+            if (llama_ctx_v4) {
+                empcats_step_pre(llama_ctx_v4, logitsPtr);
             }
 
             id = SampleLogits(logitsPtr, nctx, n_vocab, last_n_size, repeat_penalty, kcpp_data->rep_pen_slope, presence_penalty,
