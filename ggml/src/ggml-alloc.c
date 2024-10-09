@@ -342,7 +342,6 @@ struct tensor_alloc {
 };
 
 struct leaf_alloc {
-    int buffer_id;
     struct tensor_alloc leaf;
 };
 
@@ -734,7 +733,6 @@ bool ggml_gallocr_reserve_n(ggml_gallocr_t galloc, struct ggml_cgraph * graph, c
     for (int i = 0; i < graph->n_leafs; i++) {
         struct ggml_tensor * leaf = graph->leafs[i];
         struct hash_node * hn = ggml_gallocr_hash_get(galloc, leaf);
-        galloc->leaf_allocs[i].buffer_id = hn->buffer_id;
         if (leaf->view_src || leaf->data) {
             galloc->leaf_allocs[i].leaf.buffer_id = -1;
             galloc->leaf_allocs[i].leaf.offset = SIZE_MAX;
