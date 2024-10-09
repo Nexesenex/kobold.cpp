@@ -18,6 +18,8 @@
 #include <map>
 #include <cstdint>
 #include <string>
+#include <cctype>
+#include <locale>
 
 //for easier compilation
 //concat source files into one file for compilation purposes
@@ -112,6 +114,7 @@ static std::vector<std::string> stop_sequence;
 static std::vector<int> special_stop_sequence; //for stop sequences that don't have a string representation
 static std::vector<std::string> banned_tokens;
 static std::vector<int> banned_token_ids;
+static std::vector<std::string> banned_phrases;
 static std::unordered_multimap<gpt_vocab::id, std::vector<gpt_vocab::id>> dry_sequence_breakers; // Multi-mapping from first token of sequence to tail of sequence (tail is empty for a single token)
 static std::vector<int> dry_repeat_count; // Indexed as last_n_tokens
 static std::unordered_map<gpt_vocab::id, int> dry_max_token_repeat;
@@ -123,6 +126,10 @@ static std::string concat_output = "";
 static std::string concat_output_reader_copy_poll = ""; //for streaming
 static std::string concat_output_reader_copy_res = ""; //for gen response
 static std::vector<logit_bias> logit_biases;
+
+static int delayed_generated_tokens_limit = 0;
+std::deque<std::string> delayed_generated_tokens; //for use with antislop sampling
+static std::map<int,std::vector<int>> antislop_banned_token_ids; //first is the npast position, second is the array of banned ids at that index
 
 inline bool IsNanCheck(float f)
 {
@@ -318,7 +325,7 @@ static std::string get_tok_vec_str(std::vector<int> &embd)
 }
 static void print_tok_vec_str(std::vector<int> &vec)
 {
-    printf("\n%s", get_tok_vec_str(vec).c_str());
+    printf("\n[%s]\n", get_tok_vec_str(vec).c_str());
 }
 
 bool allExtendedUnicode(const std::string& str) {
@@ -402,6 +409,77 @@ static void GetOverlappingTokenSequences(const std::string& str, std::unordered_
                 }
             }
         }
+    }
+}
+
+// Function to convert a UTF-8 encoded string to lowercase
+static std::string toLowerCase(const std::string& str) {
+    std::string result;
+    std::locale loc;
+
+    for (char ch : str) {
+        result += std::tolower(ch, loc); // Use locale-aware tolower
+    }
+
+    return result;
+}
+
+
+void ContextRewind(std::vector<int> &embd, std::vector<int> &current_context_tokens, int &n_past, std::vector<int> &last_n_tokens, const int amount_rewind)
+{
+    if(amount_rewind<=0 || current_context_tokens.size()==0)
+    {
+        return; //do nothing
+    }
+    if(embd.size()>1)
+    {
+        printf("\nWARNING: Don't use context rewind when in batch processing phase!\n");
+        return;
+    }
+    bool is_mamba = (file_format == FileFormat::GGUF_GENERIC && file_format_meta.model_architecture==GGUFArch::ARCH_MAMBA);
+    bool is_rwkv_new = (file_format == FileFormat::GGUF_GENERIC && file_format_meta.model_architecture==GGUFArch::ARCH_RWKV);
+    if(file_format == FileFormat::RWKV_1 || file_format==FileFormat::RWKV_2 || is_mamba || is_rwkv_new)
+    {
+        printf("\nWARNING: RNN models do not support context rewind!\n");
+        return;
+    }
+
+    if (amount_rewind >= last_n_tokens.size())
+    {
+        last_n_tokens.clear();
+    }
+    else
+    {
+        last_n_tokens.resize(last_n_tokens.size() - amount_rewind);
+    }
+
+    if (amount_rewind >= current_context_tokens.size())
+    {
+        current_context_tokens.clear();
+    }
+    else
+    {
+        current_context_tokens.resize(current_context_tokens.size() - amount_rewind);
+    }
+
+    if (amount_rewind >= n_past)
+    {
+        n_past = 0;
+    }
+    else
+    {
+        n_past -= amount_rewind;
+    }
+
+    if (file_format == FileFormat::GGUF_GENERIC)
+    {
+        llama_kv_cache_seq_rm(llama_ctx_v4, 0, n_past, -1);
+    }
+
+    embd.clear();
+    if(current_context_tokens.size()>0)
+    {
+        embd.push_back(current_context_tokens[current_context_tokens.size()-1]);
     }
 }
 
@@ -2519,6 +2597,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
     generation_finished = false; // Set current generation status
     generated_tokens.clear(); // New Generation, new tokens
+    delayed_generated_tokens.clear();
 
     concat_output_mtx.lock();
     concat_output = "";
@@ -2591,6 +2670,31 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         {
             printf("\nBanned a total of %zu tokens.\n",banned_token_ids.size());
         }
+    }
+
+    //antislop phrase banning
+    banned_phrases.clear();
+    delayed_generated_tokens_limit = 0;
+    antislop_banned_token_ids.clear();
+    for(int x=0;x<ban_phrase_max;++x)
+    {
+        std::string word = inputs.banned_phrases[x];
+        if(word!="")
+        {
+            std::vector<int> toks;
+            TokenizeString(word, toks, file_format, false);
+            int tokcount = toks.size();
+            if(tokcount>0)
+            {
+                tokcount += 3; //add some extra buffer
+            }
+            delayed_generated_tokens_limit = (tokcount>delayed_generated_tokens_limit?tokcount:delayed_generated_tokens_limit);
+            banned_phrases.push_back(word);
+        }
+    }
+    if(debugmode==1 && banned_phrases.size()>0)
+    {
+        printf("\nBanned a total of %zu phrases, with max token count of %d.\n",banned_phrases.size(),delayed_generated_tokens_limit);
     }
 
     logit_biases.clear();
@@ -3243,6 +3347,16 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 empcats_step_pre(llama_ctx_v4, logitsPtr);
             }
 
+            //handle temp bans from antislop
+            if (antislop_banned_token_ids.find(n_past) != antislop_banned_token_ids.end()) {
+                std::vector<int>& bans = antislop_banned_token_ids[n_past];
+                print_tok_vec_str(bans);
+                for(int t=0;t<bans.size();++t)
+                {
+                    logitsPtr[bans[t]]=lowestLogit;
+                }
+            }
+
             id = SampleLogits(logitsPtr, nctx, n_vocab, last_n_size, repeat_penalty, kcpp_data->rep_pen_slope, presence_penalty,
             top_k, top_a, top_p, min_p, typical_p, tfs_z, temp, rng,
             kcpp_data->mirostat, kcpp_data->mirostat_tau, kcpp_data->mirostat_eta,
@@ -3275,13 +3389,16 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 {
                     tokenizedstr = ""; //prevent render
                 }
-                if(stream_sse)
+
+                delayed_generated_tokens.push_back(tokenizedstr);
+                while(delayed_generated_tokens.size() > delayed_generated_tokens_limit && delayed_generated_tokens.size() > 0)
                 {
-                    generated_tokens.push_back(tokenizedstr);
+                    generated_tokens.push_back(delayed_generated_tokens[0]);
+                    concat_output_mtx.lock();
+                    concat_output += delayed_generated_tokens[0];
+                    concat_output_mtx.unlock();
+                    delayed_generated_tokens.pop_front();
                 }
-                concat_output_mtx.lock();
-                concat_output += tokenizedstr;
-                concat_output_mtx.unlock();
             }
 
             if (startedsampling && allow_regular_prints)
@@ -3304,6 +3421,59 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                     printf("(%s %.2f%%)", RemoveBell(tokenizedstr).c_str(), pick.p*100);
                 }
                 printf("]\n");
+            }
+
+            //anti slop detection
+            if (banned_phrases.size() > 0)
+            {
+                std::string scanstr = "";
+                for (int i = 0; i < delayed_generated_tokens.size(); ++i)
+                {
+                    scanstr += delayed_generated_tokens[i];
+                }
+                scanstr = toLowerCase(scanstr);
+                for (const auto &matched : banned_phrases)
+                {
+                    std::string matched_lower = toLowerCase(matched);
+                    if (scanstr.find(matched_lower) != std::string::npos)
+                    {
+                        //find the position in the string that contains all necessary tokens
+                        std::string checkstr = "";
+                        int rewind_amt = 0;
+                        for (int i = delayed_generated_tokens.size() - 1; i >= 0; --i)
+                        {
+                            checkstr = delayed_generated_tokens[i] + checkstr;
+                            ++rewind_amt;
+                            if (toLowerCase(checkstr).find(matched_lower) != std::string::npos)
+                            {
+                                break;
+                            }
+                        }
+                        if (rewind_amt > 0 && (current_context_tokens.size() - rewind_amt) > 0)
+                        {
+                            int last_tok = current_context_tokens[current_context_tokens.size() - rewind_amt];
+                            delayed_generated_tokens.resize(delayed_generated_tokens.size() - rewind_amt);
+                            ContextRewind(embd, current_context_tokens, n_past, last_n_tokens, rewind_amt);
+
+                            // Check if the key exists
+                            int banindex = n_past+1;
+                            if (antislop_banned_token_ids.find(banindex) == antislop_banned_token_ids.end()) {
+                                antislop_banned_token_ids[banindex] = std::vector<int>();
+                            }
+                            std::vector<int>& current_ids = antislop_banned_token_ids[banindex];
+                            current_ids.push_back(last_tok);
+
+                            if (allow_regular_prints && debugmode == 1)
+                            {
+                                auto match_clean = matched;
+                                replace_all(match_clean, "\n", "\\n");
+                                printf("\n(Banned Phrase Detected: %s - Add ID %d to banlist at index %d, and rewinding %d tokens)\n", match_clean.c_str(), last_tok, banindex, rewind_amt);
+                            }
+
+                            break;
+                        }
+                    }
+                }
             }
 
             bool earlystopped = false;
@@ -3452,6 +3622,16 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         }
     }
 
+    //flush any remaining delayed tokens
+    while(delayed_generated_tokens.size() > 0)
+    {
+        generated_tokens.push_back(delayed_generated_tokens[0]);
+        concat_output_mtx.lock();
+        concat_output += delayed_generated_tokens[0];
+        concat_output_mtx.unlock();
+        delayed_generated_tokens.pop_front();
+    }
+
     if(debugmode==1 && file_format == FileFormat::GGUF_GENERIC)
     {
         printf("\n");
@@ -3469,7 +3649,6 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     fflush(stdout);
     output.status = 1;
     output.stopreason = last_stop_reason;
-    generation_finished = true;
     last_eval_time = pt2;
     last_process_time = pt1;
     last_token_count = realnpredict;
@@ -3479,5 +3658,6 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     concat_output_reader_copy_res = concat_output;
     concat_output_mtx.unlock();
     output.text = concat_output_reader_copy_res.c_str();
+    generation_finished = true;
     return output;
 }
