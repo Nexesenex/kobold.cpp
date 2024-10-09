@@ -15,9 +15,7 @@
 #  include "ggml-rpc.h"
 #endif
 
-#ifdef GGML_USE_CUDA
-#  include "ggml-cuda.h"
-#elif defined(GGML_USE_CLBLAST)
+#if defined(GGML_USE_CLBLAST)
 #  include "ggml-opencl.h"
 #elif defined(GGML_USE_VULKAN)
 #  include "ggml-vulkan.h"
