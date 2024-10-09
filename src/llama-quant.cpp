@@ -405,6 +405,7 @@ static ggml_type llama_tensor_get_type(quantize_state_impl & qs, ggml_type new_t
             case GGML_TYPE_IQ2_KS:
             case GGML_TYPE_IQ2_K:
             case GGML_TYPE_IQ3_K:
+            case GGML_TYPE_IQ3_KS:
             case GGML_TYPE_IQ2_KT:
             case GGML_TYPE_IQ3_KT:
             case GGML_TYPE_IQ4_KSS:
@@ -536,6 +537,7 @@ static void llama_model_quantize_impl(const std::string & fname_inp, const std::
         case LLAMA_FTYPE_MOSTLY_IQ4_K:   default_type = GGML_TYPE_IQ4_K;   break;
         case LLAMA_FTYPE_MOSTLY_IQ5_K:   default_type = GGML_TYPE_IQ5_K;   break;
         case LLAMA_FTYPE_MOSTLY_IQ5_KS:  default_type = GGML_TYPE_IQ5_KS;  break;
+        case LLAMA_FTYPE_MOSTLY_IQ3_KS:  default_type = GGML_TYPE_IQ3_KS;  break;
         case LLAMA_FTYPE_MOSTLY_IQ6_K:   default_type = GGML_TYPE_IQ6_K;   break;
         case LLAMA_FTYPE_MOSTLY_IQ3_S:   default_type = GGML_TYPE_IQ3_S;   break;
         case LLAMA_FTYPE_MOSTLY_IQ3_M:   default_type = GGML_TYPE_IQ3_S;   break;
