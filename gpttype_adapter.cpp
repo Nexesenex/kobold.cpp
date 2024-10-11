@@ -172,7 +172,7 @@ static std::string FileFormatTokenizeID(int id, FileFormat file_format, bool ret
     }
     else if(file_format == FileFormat::GGUF_GENERIC)
     {
-        return std::string(llama_token_to_piece(llama_ctx_v4, id, return_special));
+        return std::string(common_token_to_piece(llama_ctx_v4, id, return_special));
     }
     else
     {
@@ -198,7 +198,7 @@ static void TokenizeString(const std::string & str_to_tokenize, std::vector<int>
         }
         else
         {
-            output_tokens = ::llama_tokenize(llama_ctx_v4, str_to_tokenize, add_bos, true);
+            output_tokens = ::common_tokenize(llama_ctx_v4, str_to_tokenize, add_bos, true);
             if(add_bos)
             {
                 llama_token bostoadd = llama_token_bos(&(llama_ctx_v4->model));
@@ -2637,26 +2637,48 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         }
     }
 
-    //handle custom token bans
+    //handle custom token bans and antislop phrase banning
+    banned_phrases.clear();
+    delayed_generated_tokens_limit = 0;
+    antislop_banned_token_ids.clear();
     banned_tokens.clear();
     for(int x=0;x<ban_token_max;++x)
     {
         std::string word = inputs.banned_tokens[x];
+        word = toLowerCase(word);
         if(word!="")
         {
-            banned_tokens.push_back(word);
+            std::vector<int> toks;
+            TokenizeString(word, toks, file_format, false);
+            int tokcount = toks.size();
+            if(tokcount==0)
+            {
+                continue;
+            }
+            if(tokcount==1 && word.length()<2) //only use banned tokens for single characters
+            {
+                banned_tokens.push_back(word);
+            }
+            else
+            {
+                tokcount += 3; //add some extra buffer
+                delayed_generated_tokens_limit = (tokcount > delayed_generated_tokens_limit ? tokcount : delayed_generated_tokens_limit);
+                banned_phrases.push_back(word);
+            }
         }
     }
+
     banned_token_ids.clear();
     if(banned_tokens.size()>0)
     {
         if(debugmode==1)
         {
-            printf("\nBanning %zu token sequences...",banned_tokens.size());
+            printf("\nBanning %zu single character sequences...",banned_tokens.size());
         }
         for(int v=0;v<n_vocab;++v)
         {
             std::string word = FileFormatTokenizeID(v,file_format, true);
+            word = toLowerCase(word);
             for(int i=0;i<banned_tokens.size();++i)
             {
                 if (word.find(banned_tokens[i]) != std::string::npos)
@@ -2668,30 +2690,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         }
         if(debugmode==1)
         {
-            printf("\nBanned a total of %zu tokens.\n",banned_token_ids.size());
+            printf("\nBanned a total of %zu individual tokens.\n",banned_token_ids.size());
         }
     }
 
-    //antislop phrase banning
-    banned_phrases.clear();
-    delayed_generated_tokens_limit = 0;
-    antislop_banned_token_ids.clear();
-    for(int x=0;x<ban_phrase_max;++x)
-    {
-        std::string word = inputs.banned_phrases[x];
-        if(word!="")
-        {
-            std::vector<int> toks;
-            TokenizeString(word, toks, file_format, false);
-            int tokcount = toks.size();
-            if(tokcount>0)
-            {
-                tokcount += 3; //add some extra buffer
-            }
-            delayed_generated_tokens_limit = (tokcount>delayed_generated_tokens_limit?tokcount:delayed_generated_tokens_limit);
-            banned_phrases.push_back(word);
-        }
-    }
     if(debugmode==1 && banned_phrases.size()>0)
     {
         printf("\nBanned a total of %zu phrases, with max token count of %d.\n",banned_phrases.size(),delayed_generated_tokens_limit);
@@ -3346,7 +3348,6 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
             //handle temp bans from antislop
             if (antislop_banned_token_ids.find(n_past) != antislop_banned_token_ids.end()) {
                 std::vector<int>& bans = antislop_banned_token_ids[n_past];
-                print_tok_vec_str(bans);
                 for(int t=0;t<bans.size();++t)
                 {
                     logitsPtr[bans[t]]=lowestLogit;
@@ -3372,7 +3373,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 grammar_accept_token(file_format, n_vocab, grammar, id);
             }
 
-            last_n_tokens.erase(last_n_tokens.begin());
+            if (!last_n_tokens.empty())
+            {
+                last_n_tokens.erase(last_n_tokens.begin());
+            }
             last_n_tokens.push_back(id);
             current_context_tokens.push_back(id);
 
@@ -3552,7 +3556,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                         int sepsize = llava_sep.size();
                         while(input_consumed < embd_inp.size() && (embd_inp[input_consumed]==LLAVA_TOKEN_IDENTIFIER_A || embd_inp[input_consumed]==LLAVA_TOKEN_IDENTIFIER_B))
                         {
-                            last_n_tokens.erase(last_n_tokens.begin());
+                            if (!last_n_tokens.empty())
+                            {
+                                last_n_tokens.erase(last_n_tokens.begin());
+                            }
                             last_n_tokens.push_back(currtoken);
                             current_context_tokens.push_back(currtoken);
                             ++input_consumed;
@@ -3608,7 +3615,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 else
                 {
                     embd.push_back(currtoken);
-                    last_n_tokens.erase(last_n_tokens.begin());
+                    if (!last_n_tokens.empty())
+                    {
+                        last_n_tokens.erase(last_n_tokens.begin());
+                    }
                     last_n_tokens.push_back(currtoken);
                     current_context_tokens.push_back(currtoken);
                     ++input_consumed;

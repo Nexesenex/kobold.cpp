@@ -19,11 +19,10 @@ from datetime import datetime, timezone
 
 # constants
 sampler_order_max = 7
-stop_token_max = 24
-ban_token_max = 16
-ban_phrase_max = 16
+stop_token_max = 32
+ban_token_max = 48
 tensor_split_max = 16
-logit_bias_max = 24
+logit_bias_max = 32
 dry_seq_break_max = 24
 images_max = 4
 bias_min_value = -100.0
@@ -181,8 +180,7 @@ class generation_inputs(ctypes.Structure):
                 ("dynatemp_exponent", ctypes.c_float),
                 ("smoothing_factor", ctypes.c_float),
                 ("logit_biases", logit_bias * logit_bias_max),
-                ("banned_tokens", ctypes.c_char_p * ban_token_max),
-                ("banned_phrases", ctypes.c_char_p * ban_phrase_max)]
+                ("banned_tokens", ctypes.c_char_p * ban_token_max)]
 
 class generation_outputs(ctypes.Structure):
     _fields_ = [("status", ctypes.c_int),
@@ -1185,9 +1183,15 @@ def generate(genparams, is_quiet=False, stream_flag=False):
     smoothing_factor = genparams.get('smoothing_factor', 0.0)
     logit_biases = genparams.get('logit_bias', {})
     render_special = genparams.get('render_special', False)
-    banned_tokens = genparams.get('banned_tokens', [])
-    banned_phrases = genparams.get('banned_phrases', [])
+    banned_strings = genparams.get('banned_strings', []) # SillyTavern uses that name
+    banned_tokens = genparams.get('banned_tokens', banned_strings)
     bypass_eos_token = genparams.get('bypass_eos', False)
+    custom_token_bans = genparams.get('custom_token_bans', '')
+
+    for tok in custom_token_bans.split(','):
+        tok = tok.strip()  # Remove leading/trailing whitespace
+        if tok.isdigit():
+            logit_biases[tok] = bias_min_value
 
     inputs = generation_inputs()
     inputs.prompt = prompt.encode("UTF-8")
@@ -1305,12 +1309,6 @@ def generate(genparams, is_quiet=False, stream_flag=False):
             inputs.banned_tokens[n] = "".encode("UTF-8")
         else:
             inputs.banned_tokens[n] = banned_tokens[n].encode("UTF-8")
-
-    for n in range(ban_phrase_max):
-        if not banned_phrases or n >= len(banned_phrases):
-            inputs.banned_phrases[n] = "".encode("UTF-8")
-        else:
-            inputs.banned_phrases[n] = banned_phrases[n].encode("UTF-8")
 
     currentusergenkey = genkey
     totalgens += 1
@@ -3401,6 +3399,11 @@ def show_gui():
             # args.quantkv = 0
 
         gpuchoiceidx = 0
+        args.usecpu = False
+        args.usevulkan = None
+        args.usecublas = None
+        args.useclblast = None
+        args.noavx2 = False
         if gpu_choice_var.get()!="All":
             gpuchoiceidx = int(gpu_choice_var.get())-1
         if runopts_var.get() == "Use CLBlast" or runopts_var.get() == "CLBlast NoAVX2 (Old CPU)":

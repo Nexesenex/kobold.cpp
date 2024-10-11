@@ -1,11 +1,10 @@
 #pragma once
 #include <cstdint>
 
-const int stop_token_max = 24;
-const int ban_token_max = 16;
-const int ban_phrase_max = 16;
+const int stop_token_max = 32;
+const int ban_token_max = 48;
 const int tensor_split_max = 16;
-const int logit_bias_max = 24;
+const int logit_bias_max = 32;
 const int dry_seq_break_max = 24;
 const int images_max = 4;
 
@@ -114,7 +113,6 @@ struct generation_inputs
     const float smoothing_factor = 0.0f;
     const logit_bias logit_biases[logit_bias_max] = {};
     const char * banned_tokens[ban_token_max] = {};
-    const char * banned_phrases[ban_phrase_max] = {};
 };
 struct generation_outputs
 {

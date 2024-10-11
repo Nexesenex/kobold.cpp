@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 179;
+	const LITEVER = 180;
 	const urlParams = new URLSearchParams(window.location.search);
 	var localflag = true;
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -185,6 +185,7 @@ Current version indicated by LITEVER below.
 
 		#navbar {
 			margin: 0px;
+			margin-left: -6px;
 		}
 
 		#navbar li {
@@ -199,8 +200,9 @@ Current version indicated by LITEVER below.
 		}
 
 		#navbar li>a {
-			color: #ffffff;
+			color: #f2f2f2;
 			font-weight: bold;
+			text-shadow: rgb(33, 33, 33);
 		}
 
 		.settingsmenu {
@@ -1003,12 +1005,12 @@ Current version indicated by LITEVER below.
 
 		.navbar .navbar-nav .nav-link:hover {
 			border-radius: 5px;
-			background-color: #bababa;
+			background-color: #4db4ea;
 		}
 
 		body.connected .navbar .navbar-nav .nav-link:hover,
 		.navbar .navbar-nav .nav-link.always-available:hover {
-			background-color: #98bcdb;
+			background-color: #4db4ea;
 		}
 
 		body .navbar .navbar-nav .dropdown-item.always-available {
@@ -1021,7 +1023,7 @@ Current version indicated by LITEVER below.
 
 		.navbar .navbar-nav .nav-link:focus {
 			border-radius: 5px;
-			background-color: #bababa;
+			background-color: #4db4ea;
 		}
 
 		body.connected .navbar .navbar-nav .nav-link:focus,
@@ -2033,6 +2035,7 @@ Current version indicated by LITEVER below.
 		{
 			padding-left: 6px;
 			padding-right: 6px;
+			margin-top: 0px;
 		}
 		.corpostyleitem
 		{
@@ -2182,8 +2185,8 @@ Current version indicated by LITEVER below.
 
 	.corpoleftpanel
 	{
-		width:240px;
-		background-color: #f4f4f4;
+		width:256px;
+		background-color: #e2e5e6;
 		padding-left: 8px;
 		padding-right: 8px;
 		transition: transform 0.3s ease;
@@ -2199,12 +2202,13 @@ Current version indicated by LITEVER below.
 	{
 		display: flex;
 		flex-direction: column;
+		margin-top: 16px;
 		padding: 2px;
 	}
 	.corpo_leftpanel_btn
 	{
-		padding: 6px;
-		margin: 4px;
+		padding: 4px;
+		margin: 2px;
 		background: #f4f4f400;
 		border:none;
 		border-radius: 8px;
@@ -2217,15 +2221,20 @@ Current version indicated by LITEVER below.
     	text-overflow: ellipsis;
 		display: inline-block;
 		white-space: nowrap;
+		user-select: none;
 	}
 	.corpo_leftpanel_btn:hover {
-		background: #dddddd;
+		background: #9dcef5;
 		background-repeat: no-repeat;
     	background-position: 8px;
 		background-size: 24px;
 	}
+	.corpo_leftpanel_btn:active {
+		transform: translateY(1px);
+	}
 	body.darkmode .corpo_leftpanel_btn:hover
 	{
+		color: #76a8ee;
 		background: #454545;
 		background-repeat: no-repeat;
     	background-position: 8px;
@@ -2278,6 +2287,11 @@ Current version indicated by LITEVER below.
 	}
 	@media (max-width: 768px) {
 
+		.corpostylemain
+		{
+			margin-top: 0px;
+		}
+
 		.corpoleftpanel {
 			position: fixed;
 			left: 0;
@@ -2305,7 +2319,7 @@ Current version indicated by LITEVER below.
 		display: flex;
 		justify-content: center;
 		align-items: center;
-		height: 60vh;
+		height: 75vh;
 		flex-direction: column;
 		text-align: center;
 	}
@@ -2320,6 +2334,7 @@ Current version indicated by LITEVER below.
 		overflow-y: auto;
 		padding-left: 2px;
 		padding-right: 2px;
+		margin-top: 12px;
 	}
 	.corpostyleinner
 	{
@@ -4256,7 +4271,6 @@ Current version indicated by LITEVER below.
 	var current_anotetemplate = "[Author\'s note: <|>]";
 	var extrastopseq = "";
 	var tokenbans = "";
-	var phrasebans = "";
 	var anote_strength = 320; //distance from end
 	var newlineaftermemory = true;
 	var current_wi = []; //each item stores a wi object.
@@ -6091,7 +6105,6 @@ Current version indicated by LITEVER below.
 		//extra unofficial fields for the story
 		new_save_storyobj.extrastopseq = extrastopseq;
 		new_save_storyobj.tokenbans = tokenbans;
-		new_save_storyobj.phrasebans = phrasebans;
 		new_save_storyobj.anotestr = anote_strength;
 		new_save_storyobj.wisearchdepth = wi_searchdepth;
 		new_save_storyobj.wiinsertlocation = wi_insertlocation;
@@ -6283,7 +6296,6 @@ Current version indicated by LITEVER below.
 			let old_current_wi = current_wi;
 			let old_extrastopseq = extrastopseq;
 			let old_tokenbans = tokenbans;
-			let old_phrasebans = phrasebans;
 			let old_notes = personal_notes;
 			let old_regexreplace_data = regexreplace_data;
 			let old_placeholder_tags_data = placeholder_tags_data;
@@ -6342,10 +6354,6 @@ Current version indicated by LITEVER below.
 				if(storyobj.tokenbans)
 				{
 					tokenbans = storyobj.tokenbans;
-				}
-				if(storyobj.phrasebans)
-				{
-					phrasebans = storyobj.phrasebans;
 				}
 				if (storyobj.anotestr) {
 					anote_strength = storyobj.anotestr;
@@ -6444,7 +6452,6 @@ Current version indicated by LITEVER below.
 					extrastopseq = old_extrastopseq;
 					regexreplace_data = old_regexreplace_data;
 					tokenbans = old_tokenbans;
-					phrasebans = old_phrasebans;
 					placeholder_tags_data = old_placeholder_tags_data;
 				}
 
@@ -7087,7 +7094,7 @@ Current version indicated by LITEVER below.
 					});
 				}else{
 					temp_scenario = null;
-					document.getElementById("scenariodesc").innerText = "Error: User input is invalid\n\n Please ensure you have input a valid Pygmalion.Chat UUID.";
+					document.getElementById("scenariodesc").innerText = "Error: User input is invalid\n\n Please ensure you have input a valid Pygmalion.Chat UUID or URL.";
 				}
 			}
 		}
@@ -7309,6 +7316,62 @@ Current version indicated by LITEVER below.
 		}
 	}
 
+	function character_creator()
+	{
+		hide_popups();
+		document.getElementById("charcreator_name").value = document.getElementById("charcreator_persona").value = document.getElementById("charcreator_scenario").value = document.getElementById("charcreator_greeting").value = "";
+		document.getElementById("charactercreator").classList.remove("hidden");
+		tempAestheticInstructUISettings = deepCopyAestheticSettings(aestheticInstructUISettings);
+		character_creator_updateimg();
+	}
+	function character_creator_updateimg()
+	{
+		document.getElementById("charcreator_avatar").style.backgroundImage = `url(` + (aestheticInstructUISettings.AI_portrait != "default" ? aestheticInstructUISettings.AI_portrait : niko_square) + `)`;
+	}
+	function character_creator_done(confirm)
+	{
+		if (!confirm)
+		{
+			aestheticInstructUISettings = deepCopyAestheticSettings(tempAestheticInstructUISettings);
+			updateUIFromData();
+		}
+		else
+		{
+			let chatopponent = document.getElementById("charcreator_name").value;
+			chatopponent = chatopponent?chatopponent:"Bot";
+
+			let persona = document.getElementById("charcreator_persona").value;
+			let scenario = document.getElementById("charcreator_scenario").value;
+			scenario = scenario?scenario:"";
+			let memory = persona?("{{char}} Persona: "+persona):"";
+			let greeting = document.getElementById("charcreator_greeting").value;
+			greeting = greeting?greeting:"Hello there!";
+			if(scenario!="")
+			{
+				scenario = "\n[Scenario: "+scenario+"]";
+			}
+			let combinedmem = memory + scenario;
+			greeting = "\n{{char}}: "+ greeting;
+			restart_new_game(false);
+
+			gametext_arr = [];
+			if(!localsettings.placeholder_tags) //do a one-time replace instead
+			{
+				greeting = replace_placeholders(greeting, false, true);
+				combinedmem = replace_placeholders(combinedmem, false, true);
+			}
+			gametext_arr.push(greeting);
+			if (combinedmem != "") {
+				current_memory = combinedmem;
+			}
+			localsettings.opmode = 3;
+			localsettings.gui_type_chat = 2;
+			localsettings.chatopponent = chatopponent;
+			render_gametext();
+		}
+		tempAestheticInstructUISettings = null;
+		hide_popups();
+	}
 
 	function click_scenario(idx)
 	{
@@ -7559,7 +7622,8 @@ Current version indicated by LITEVER below.
 		let scenarios = `<button type="button" name="" class="scenarioitem purple btn btn-primary" onclick="get_aetherroom_scenario()">Import from<br>aetherroom.club</button>`+
 		`<button type="button" name="" class="scenarioitem purple btn btn-primary" onclick="get_chubai_scenario()">Import from<br>characterhub.org / chub.ai</button>` +
 		`<button type="button" name="" class="scenarioitem purple btn btn-primary" onclick="get_pygchat_scenario()">Import from<br>pygmalion.chat</button>` +
-		`<button type="button" name="" class="scenarioitem purple btn btn-primary" onclick="get_aicc_scenario()">Import from<br>aicharactercards.com</button>`;
+		`<button type="button" name="" class="scenarioitem purple btn btn-primary" onclick="get_aicc_scenario()">Import from<br>aicharactercards.com</button>` +
+		`<button type="button" name="" class="scenarioitem purple btn btn-primary" onclick="character_creator()">New Character Creator</button>`;
 		for(let i=0;i<scenario_db.length;++i)
 		{
 			let curr = scenario_db[i];
@@ -7880,6 +7944,7 @@ Current version indicated by LITEVER below.
 			document.getElementById("sharecontainer").classList.contains("hidden") &&
 			document.getElementById("customendpointcontainer").classList.contains("hidden") &&
 			document.getElementById("quickstartcontainer").classList.contains("hidden") &&
+			document.getElementById("charactercreator").classList.contains("hidden") &&
 			document.getElementById("zoomedimgcontainer").classList.contains("hidden") &&
 			document.getElementById("groupselectcontainer").classList.contains("hidden") &&
 			document.getElementById("addimgcontainer").classList.contains("hidden") &&
@@ -7913,6 +7978,7 @@ Current version indicated by LITEVER below.
 		document.getElementById("sharecontainer").classList.add("hidden");
 		document.getElementById("customendpointcontainer").classList.add("hidden");
 		document.getElementById("quickstartcontainer").classList.add("hidden");
+		document.getElementById("charactercreator").classList.add("hidden");
 		document.getElementById("zoomedimgcontainer").classList.add("hidden");
 		document.getElementById("groupselectcontainer").classList.add("hidden");
 		document.getElementById("addimgcontainer").classList.add("hidden");
@@ -8002,7 +8068,7 @@ Current version indicated by LITEVER below.
 
 	function expand_tokens_section(targetid)
 	{
-		let tablist = ["expandregexreplace","expandtokenbans","expandphrasebans","expandlogitbias","expandplaceholdertags"];
+		let tablist = ["expandregexreplace","expandtokenbans","expandlogitbias","expandplaceholdertags"];
 
 		for(let i=0;i<tablist.length;++i)
 		{
@@ -8098,7 +8164,7 @@ Current version indicated by LITEVER below.
 
 	function add_token_ban()
 	{
-		inputBox("Enter a token substring to be banned. ALL matching tokens will be removed.\nFor example adding 'ice' will also ban 'nice' and 'rice', assuming they are individual tokens.","Add Banned Token Substring","","Enter a Token Substring",()=>{
+		inputBox("Enter a string to be banned (e.g. Slop text to remove). If it's generated, the AI will try something else. Work for both individual words or long phrases, not case-sensitive. All substring matches will be prevented.\nFor example adding 'ice bag' will also ban 'nice bag' and 'rice bag'.","Add Banned String","","Enter String To Ban",()=>{
 			let userinput = getInputBoxValue();
 			if(userinput.trim()!="")
 			{
@@ -8109,23 +8175,6 @@ Current version indicated by LITEVER below.
 				}
 				ov += userinput.trim();
 				document.getElementById("tokenbans").value = ov;
-			}
-		},false);
-	}
-
-	function add_phrase_ban()
-	{
-		inputBox("Enter a string to be banned (e.g. Slop text to remove). If it's generated, the AI backtracks and tries something else.","Add Banned Phrase String","","Enter String To Ban",()=>{
-			let userinput = getInputBoxValue();
-			if(userinput.trim()!="")
-			{
-				let ov = document.getElementById("phrasebans").value;
-				if(ov!="")
-				{
-					ov += "||$||";
-				}
-				ov += userinput.trim();
-				document.getElementById("phrasebans").value = ov;
 			}
 		},false);
 	}
@@ -10664,7 +10713,6 @@ Current version indicated by LITEVER below.
 		anote_strength = document.getElementById("anote_strength").value;
 		extrastopseq = document.getElementById("extrastopseq").value;
 		tokenbans = document.getElementById("tokenbans").value;
-		phrasebans = document.getElementById("phrasebans").value;
 		newlineaftermemory = (document.getElementById("newlineaftermemory").checked?true:false);
 		try
 		{
@@ -10860,8 +10908,11 @@ Current version indicated by LITEVER below.
 
 	function simplemodexample()
 	{
-		let simplemodscript = `// This mod changes your top menu to yellow color, then displays the current temperature setting as a popup\n\n`+
-		`document.getElementById("topmenu").style.backgroundColor = 'yellow';\nalert("Congrats, your top menu turned yellow. Also, your temperature was " + localsettings.temperature);`;
+		let simplemodscript = `// This mod changes your top menu to a yellow gradient, then displays the current temperature setting as a popup\n`
+			+`\ndocument.getElementById("topmenu").style.backgroundImage = 'linear-gradient(90deg, #daa121, #daa121, #ac7a2e, #ac7a2e)';`
+			+`\ndocument.getElementById("topmenu").style.outline = '3px solid #daa121';`
+			+"\n"
+			+`alert("Congrats, your top menu turned yellow. Also, your temperature was " + localsettings.temperature);`;
 		document.getElementById("inputboxcontainerinputarea").value = simplemodscript;
 	}
 	function apply_user_mod()
@@ -10933,7 +10984,6 @@ Current version indicated by LITEVER below.
 			current_wi = [];
 			extrastopseq = "";
 			tokenbans = "";
-			phrasebans = "";
 			anote_strength = 320;
 			logitbiasdict = {};
 			wi_searchdepth = 0;
@@ -12499,24 +12549,6 @@ Current version indicated by LITEVER below.
 		return seqs;
 	}
 
-	function get_phrase_bans()
-	{
-		let seqs = [];
-		if (phrasebans != "") {
-			let rep = replaceAll(phrasebans, "\\n", "\n");
-			let srep = rep.split("||$||");
-			if (srep.length > 0 && !seqs) {
-				seqs = [];
-			}
-			for (let i = 0; i < srep.length; ++i) {
-				if (srep[i] && srep[i] != "") {
-					seqs.push(srep[i]);
-				}
-			}
-		}
-		return seqs;
-	}
-
 	function cleanup_story_completion(resp)
 	{
 		if(gametext_arr.length>0)
@@ -12574,7 +12606,6 @@ Current version indicated by LITEVER below.
 			submit_payload.params.dynatemp_exponent = localsettings.dynatemp_exponent;
 			submit_payload.params.smoothing_factor = localsettings.smoothing_factor;
 			submit_payload.params.banned_tokens = get_token_bans();
-			submit_payload.params.banned_phrases = get_phrase_bans();
 			submit_payload.params.render_special = localsettings.render_special_tags;
 		}
 		if(custom_kobold_endpoint != "" && is_using_kcpp_with_dry() && localsettings.dry_multiplier > 0)
@@ -16110,7 +16141,8 @@ Current version indicated by LITEVER below.
 		<div onclick="btn_memory()" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_gear); padding-left: 44px;">Context</div>
 		<div onclick="btn_editmode()" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_corpo_edit); padding-left: 44px;">Raw Editor</div>
 		<div onclick="update_toggle_lightmode(true)" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_corpo_theme); padding-left: 44px;">Light / Dark Theme</div>
-		<div style="padding:2px;font-size:14px;margin-left:8px;font-weight:600;line-height:1.1;margin-top:20px">Quick Slot Load</div>
+		<div style="padding:2px;font-size:14px;margin-left:8px;font-weight:600;line-height:1.1;margin-top:22px">Quick Slot Load</div>
+		<hr style="margin-top:4px;margin-bottom:6px" />
 		`;
 
 		for(let i=0;i<SAVE_SLOTS;++i)
@@ -16479,7 +16511,6 @@ Current version indicated by LITEVER below.
 		document.getElementById("anote_strength").value = anote_strength;
 		document.getElementById("extrastopseq").value = extrastopseq;
 		document.getElementById("tokenbans").value = tokenbans;
-		document.getElementById("phrasebans").value = phrasebans;
 		document.getElementById("newlineaftermemory").checked = (newlineaftermemory?true:false);
 		document.getElementById("logitbiastxtarea").value = JSON.stringify(logitbiasdict,null,2);
 
@@ -16503,7 +16534,6 @@ Current version indicated by LITEVER below.
 		{
 			document.getElementById("nologitbias").classList.add("hidden");
 			document.getElementById("notokenbans").classList.add("hidden");
-			document.getElementById("nophrasebans").classList.add("hidden");
 			if(is_using_kcpp_with_added_memory())
 			{
 				document.getElementById("newlogitbiasstringtogglesection").classList.remove("hidden");
@@ -16516,7 +16546,6 @@ Current version indicated by LITEVER below.
 		{
 			document.getElementById("nologitbias").classList.remove("hidden");
 			document.getElementById("notokenbans").classList.remove("hidden");
-			document.getElementById("nophrasebans").classList.remove("hidden");
 			document.getElementById("newlogitbiasstringtogglesection").classList.add("hidden");
 			document.getElementById("newlogitbiasstringtoggle").checked = false;
 		}
@@ -17158,6 +17187,37 @@ Current version indicated by LITEVER below.
 	let aestheticInstructUISettings = new AestheticInstructUISettings();
 	let tempAestheticInstructUISettings = null; // These exist to act as backup when customizing, to revert when pressing the 'Cancel' button.
 
+	function selectAvatarImage(isSelfPortrait)
+	{
+		let finput = document.getElementById('portraitFileInput');
+		finput.click();
+		finput.onchange = (event) => {
+			if (event.target.files.length > 0 && event.target.files[0]) {
+				const file = event.target.files[0];
+				const reader = new FileReader();
+				reader.onload = function(img) {
+					compressImage(img.target.result, loadCompressedImage, true);
+					function loadCompressedImage(compressedImageURI, aspectratio) {
+
+						if(isSelfPortrait)
+						{
+							aestheticInstructUISettings.you_portrait = compressedImageURI;
+							document.getElementById('portrait_ratio_you').value = aspectratio.toFixed(2);
+						}
+						else
+						{
+							aestheticInstructUISettings.AI_portrait = compressedImageURI;
+							document.getElementById('portrait_ratio_AI').value = aspectratio.toFixed(2);
+						}
+						refreshPreview(true);
+					}
+				}
+				reader.readAsDataURL(file);
+			}
+			finput.value = "";
+		};
+	}
+
 	function initializeInstructUIFunctionality() {
 
 		// Initialize foregroundColorPickers and backgroundColorPickers.
@@ -17219,33 +17279,7 @@ Current version indicated by LITEVER below.
 		// Initialize functionality for the portrait pickers.
 		document.querySelectorAll('#you-portrait, #AI-portrait').forEach(element => {
 		element.addEventListener('click', (e) => {
-			let finput = document.getElementById('portraitFileInput');
-			finput.click();
-			finput.onchange = (event) => {
-				if (event.target.files.length > 0 && event.target.files[0]) {
-					const file = event.target.files[0];
-					const reader = new FileReader();
-					reader.onload = function(img) {
-						compressImage(img.target.result, loadCompressedImage, true);
-						function loadCompressedImage(compressedImageURI, aspectratio) {
-							let isSelfPortrait = (element.id=="you-portrait");
-							if(isSelfPortrait)
-							{
-								aestheticInstructUISettings.you_portrait = compressedImageURI;
-								document.getElementById('portrait_ratio_you').value = aspectratio.toFixed(2);
-							}
-							else
-							{
-								aestheticInstructUISettings.AI_portrait = compressedImageURI;
-								document.getElementById('portrait_ratio_AI').value = aspectratio.toFixed(2);
-							}
-							refreshPreview(true);
-						}
-					}
-					reader.readAsDataURL(file);
-				}
-				finput.value = "";
-			};
+			selectAvatarImage(element.id=="you-portrait");
 		});
 		element.addEventListener('mouseover', () => element.style.cursor = "pointer");
 		});
@@ -17296,6 +17330,7 @@ Current version indicated by LITEVER below.
 		if (updateFromUI) { updateDataFromUI(); }
 		updateUIFromData();
 		updateTextPreview();
+		character_creator_updateimg();
 	}
 
 	function updateDataFromUI() {
@@ -17904,6 +17939,46 @@ Current version indicated by LITEVER below.
 		</div>
 	</div>
 
+	<div class="popupcontainer hidden flex" id="charactercreator">
+		<div class="popupbg flex"></div>
+		<div class="nspopup flexsize higher">
+			<div class="popuptitlebar">
+				<div class="popuptitletext">Roleplay Character Creator</div>
+			</div>
+			<div class="aidgpopuplistheader anotelabel">
+				This tool is an easy way to create your own roleplay characters.<br>Alternatively, you can <a href="#" class="color_blueurl" onclick="hide_popups();document.getElementById('loadfileinput').click()"><b>click here to import an existing Tavern Character Card</b></a>.<br><br>
+
+				<div class="inlinelabel">
+					<div class="justifyleft" style="padding:4px">Character Name: </div>
+					<input title="Character Name" style="width:calc(100% - 136px);" type="text" placeholder="Enter Bot's Name (e.g. Arthur Green)" value="" id="charcreator_name">
+				</div>
+				<div class="inlinelabel">
+					<div class="justifyleft" style="padding:4px">Character Avatar: </div>
+					<button type="button" class="btn btn-primary" style="padding:2px 4px;margin:2px;" onclick="selectAvatarImage(false)">Select Image</button>
+					<div id="charcreator_avatar" style="background-position: 50% 50%; background-size: 100% 100%; background-origin: content-box; background-repeat: no-repeat; width: 32px; height:32px; border-radius:100rem; background-clip: content-box; margin: 4px 4px; border:none;"></div>
+				</div>
+				<div class="inlinelabel">
+					<div class="justifyleft" style="padding:4px">Character Persona: </div>
+					<input title="Character Persona" style="width:calc(100% - 136px);" type="text" placeholder="Describe this character (e.g. 25yo Male Elf, Brave, Chatty)" value="" id="charcreator_persona">
+				</div>
+				<div class="inlinelabel">
+					<div class="justifyleft" style="padding:4px">Describe Scenario: </div>
+					<input title="Describe Scenario" style="width:calc(100% - 136px);" type="text" placeholder="Describe the scenario (e.g. A fireside chat at the spooky campsite)" value="" id="charcreator_scenario">
+				</div>
+				<div class="inlinelabel">
+					<div class="justifyleft" style="padding:4px">Character Greeting: </div>
+					<input title="Character Greeting" style="width:calc(100% - 136px);" type="text" placeholder="First message greeting (e.g. Hello, traveller!)" value="" id="charcreator_greeting">
+				</div>
+
+				After creating your character, you can edit it further at any time in the 'Context' memory window.
+			</div>
+			<div class="popupfooter">
+				<button type="button" class="btn btn-primary" onclick="character_creator_done(true);">Confirm</button>
+				<button type="button" class="btn btn-primary" onclick="character_creator_done(false);">Cancel</button>
+			</div>
+		</div>
+	</div>
+
 	<div class="popupcontainer flex hidden" id="saveloadcontainer">
 		<div class="popupbg flex"></div>
 		<div class="saveloadpopup">
@@ -17985,7 +18060,7 @@ Current version indicated by LITEVER below.
 
 			<div id="koboldcustom" class="aidgpopuplistheader anotelabel">
 				You can use this to connect to a KoboldAI instance running via a remote tunnel such as <span class="color_orange" style="font-weight: bold;">trycloudflare, localtunnel, ngrok</span>.<br><br>
-				Localhost IPs require host mode enabled. You can use the remote address displayed in the <span class="color_orange" style="font-weight: bold;">remote-play.bat</span> window or <span class="color_orange" style="font-weight: bold;">colab window</span>, note that the model must be loaded first.<br><br>
+				Localhost IPs require host mode enabled. You can use the remote address displayed in the <span class="color_orange" style="font-weight: bold;">terminal console</span> or <span class="color_orange" style="font-weight: bold;">colab window</span>, note that the model must be loaded first.<br><br>
 				<span class="color_green" style="font-weight: bold;">Please input URL of the KoboldAI instance.</span><br><br>
 				<input class="form-control" id="customkoboldendpoint" placeholder="https://sample-remote-address.trycloudflare.com" value="">
 				<input class="form-control" type="password" id="customkoboldkey" placeholder="KoboldAI API Key (Optional)" value="" onfocus="focus_api_keys()" onblur="blur_api_keys()"><br>
@@ -19197,29 +19272,16 @@ Current version indicated by LITEVER below.
 					</div>
 				</div>
 
-				<div style="padding:3px;" class="justifyleft settinglabel">Token Filter <span class="helpicon">?<span
-					class="helptext">Outright removal for ANY tokens containing a specific substring from model vocab. If you want multiple sequences, separate them with the following delimiter: ||$||</span></span>
-					<button type="button" title="Token Filter" class="btn btn-primary" style="font-size:12px;padding:2px 2px;" onclick="expand_tokens_section('expandtokenbans')">Expand Section</button>
+				<div style="padding:3px;" class="justifyleft settinglabel">Phrase / Word Ban (Anti-Slop) <span class="helpicon">?<span
+					class="helptext">Prevents specific words or phrases from being generated, either modifying model vocab or by backtracking and regenerating when they appear. If you want multiple sequences, separate them with the following delimiter: ||$||</span></span>
+					<button type="button" title="Phrase / Token Ban (Anti-Slop)" class="btn btn-primary" style="font-size:12px;padding:2px 2px;" onclick="expand_tokens_section('expandtokenbans')">Expand Section</button>
 				</div>
 				<div id="expandtokenbans" class="hidden">
-					<div class="color_red hidden" id="notokenbans">Token filter may be unavailable.</div>
-					<div style="color:#ffffff;">Outright removal for ANY tokens containing a specific substring from model vocab. If you want multiple sequences, separate them with the following delimiter: ||$||<br><em>Note: If you're trying to ban a specific token ID, you should use Logit Bias instead!</em><br></div>
+					<div class="color_red hidden" id="notokenbans">Phrase banning may be unavailable.</div>
+					<div style="color:#ffffff;">Prevents specific words or phrases from being generated, either modifying model vocab or by backtracking and regenerating when they appear. If you want multiple sequences, separate them with the following delimiter: ||$||<br><em>Note: If you're trying to ban a specific token by ID, you should use Logit Bias instead!</em><br></div>
 					<div style="display: flex; column-gap: 4px; margin-bottom: 4px;">
 					<input class="form-control stopseqbox inlineinput" type="text" placeholder="None" value="" id="tokenbans">
 					<button type="button" class="btn btn-primary" style="width:90px;padding:6px 6px;" onclick="add_token_ban()">Add New</button>
-					</div>
-				</div>
-
-				<div style="padding:3px;" class="justifyleft settinglabel">Phrase Ban (Anti-Slop) <span class="helpicon">?<span
-					class="helptext">Prevents specific phrases from being generated by backtracking and regenerating when they appear. If you want multiple sequences, separate them with the following delimiter: ||$||</span></span>
-					<button type="button" title="Phrase Ban (Anti-Slop)" class="btn btn-primary" style="font-size:12px;padding:2px 2px;" onclick="expand_tokens_section('expandphrasebans')">Expand Section</button>
-				</div>
-				<div id="expandphrasebans" class="hidden">
-					<div class="color_red hidden" id="nophrasebans">Phrase Ban (Anti-Slop) may be unavailable.</div>
-					<div style="color:#ffffff;">Prevents specific phrases from being generated by backtracking and regenerating when they appear. If you want multiple sequences, separate them with the following delimiter: ||$||<br></div>
-					<div style="display: flex; column-gap: 4px; margin-bottom: 4px;">
-					<input class="form-control stopseqbox inlineinput" type="text" placeholder="None" value="" id="phrasebans">
-					<button type="button" class="btn btn-primary" style="width:90px;padding:6px 6px;" onclick="add_phrase_ban()">Add New</button>
 					</div>
 				</div>
 
