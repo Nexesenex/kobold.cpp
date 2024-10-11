@@ -3348,6 +3348,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
             //handle temp bans from antislop
             if (antislop_banned_token_ids.find(n_past) != antislop_banned_token_ids.end()) {
                 std::vector<int>& bans = antislop_banned_token_ids[n_past];
+                print_tok_vec_str(bans);
                 for(int t=0;t<bans.size();++t)
                 {
                     logitsPtr[bans[t]]=lowestLogit;
