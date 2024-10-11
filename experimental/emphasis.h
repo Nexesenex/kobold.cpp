@@ -212,7 +212,7 @@ static float empcats_gen(struct llama_context* ctx, const std::string& grammarst
     int badones = 0;
     for (size_t t = 0; t < n; ++t)
     {
-        const std::string tok =  llama_token_to_piece(ctx, t);
+        const std::string tok =  common_token_to_piece(ctx, t);
 
         //LLAMA_EMP_LOG_DEBUG("%s: token %zu chars: '%s' ", __func__, t, tok.c_str());
         //for (auto t : tok) LLAMA_EMP_LOG_DEBUG(" %.2x(%zu)", t, utf8_len3(t));
@@ -306,20 +306,20 @@ void empcats_step_post(struct llama_context* ctx, gpt_vocab::id id)
         if (emphasisfsm.current == 0)
         {
             if (emphasisfsm.current !=  t.outside.from)
-               LLAMA_EMP_LOG_DEBUG("%s: wrong emphasis %i %i %s\n", __func__ , emphasisfsm.current, t.outside.from, llama_token_to_piece(ctx, id).c_str());
+               LLAMA_EMP_LOG_DEBUG("%s: wrong emphasis %i %i %s\n", __func__ , emphasisfsm.current, t.outside.from, common_token_to_piece(ctx, id).c_str());
             emphasisfsm.current = t.outside.to;
         }
         else
         {
             if (emphasisfsm.current !=  t.inside.from)
-               LLAMA_EMP_LOG_DEBUG("%s: wrong emphasis %i %i %s\n", __func__ , emphasisfsm.current, t.inside.from, llama_token_to_piece(ctx, id).c_str());
+               LLAMA_EMP_LOG_DEBUG("%s: wrong emphasis %i %i %s\n", __func__ , emphasisfsm.current, t.inside.from, common_token_to_piece(ctx, id).c_str());
             emphasisfsm.current = t.inside.to;
         }
     }
 
     if (old != emphasisfsm.current)
     {
-        LLAMA_EMP_LOG_DEBUG("%s: %i--->%i (%s)\n", __func__, old, emphasisfsm.current, llama_token_to_piece(ctx, id).c_str());
+        LLAMA_EMP_LOG_DEBUG("%s: %i--->%i (%s)\n", __func__, old, emphasisfsm.current, common_token_to_piece(ctx, id).c_str());
     }
 }
 
