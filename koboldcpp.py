@@ -3725,6 +3725,12 @@ def show_gui():
             wb.open("https://github.com/LostRuins/koboldcpp/wiki")
         except:
             print("Cannot launch help in browser.")
+    def display_help_models():
+        try:
+            import webbrowser as wb
+            wb.open("https://github.com/LostRuins/koboldcpp/wiki#what-models-does-koboldcpp-support-what-architectures-are-supported")
+        except:
+            print("Cannot launch help in browser.")
     def display_updates():
         try:
             import webbrowser as wb
@@ -3763,7 +3769,16 @@ def show_gui():
 
         if not args.model_param and not args.sdmodel and not args.whispermodel and not args.nomodel:
             exitcounter = 999
-            exit_with_error(2,"No text or image model file was selected. Exiting.")
+            print("")
+            time.sleep(0.5)
+            if guimode:
+                givehelp = show_gui_yesnobox("No Model Loaded","No text or image model file was selected. Cannot continue.\n\nDo you want help finding a GGUF model?")
+                if givehelp == 'yes':
+                    display_help_models()
+            else:
+                print("No text or image model file was selected. Cannot continue.", flush=True)
+            time.sleep(2)
+            sys.exit(2)
 
 def show_gui_msgbox(title,message):
     print(title + ": " + message, flush=True)
@@ -3776,6 +3791,21 @@ def show_gui_msgbox(title,message):
         root.withdraw()
         root.quit()
     except Exception as ex2:
+        pass
+
+def show_gui_yesnobox(title,message):
+    print(title + ": " + message, flush=True)
+    try:
+        from tkinter import messagebox
+        import tkinter as tk
+        root = tk.Tk()
+        root.attributes("-alpha", 0)
+        result = messagebox.askquestion(title=title, message=message,icon='error')
+        root.withdraw()
+        root.quit()
+        return result
+    except Exception as ex2:
+        return False
         pass
 
 def print_with_time(txt):
