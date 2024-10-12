@@ -1,11 +1,7 @@
 #pragma once
 #include <cstdint>
 
-const int stop_token_max = 32;
-const int ban_token_max = 48;
 const int tensor_split_max = 16;
-const int logit_bias_max = 32;
-const int dry_seq_break_max = 24;
 const int images_max = 4;
 
 // match kobold's sampler list and order
@@ -95,7 +91,8 @@ struct generation_inputs
     const float dry_base = 0.0f;
     const int dry_allowed_length = 0;
     const int dry_penalty_last_n = 0;
-    const char * dry_sequence_breakers[dry_seq_break_max] = {};
+    const char ** dry_sequence_breakers = nullptr;
+    const int dry_sequence_breakers_len = 0;
     const float xtc_threshold = 0.0f;
     const float xtc_probability = 0.0f;
     const samplers sampler_order[KCPP_SAMPLER_MAX] = {};
@@ -103,7 +100,8 @@ struct generation_inputs
     const bool allow_eos_token = false;
     const bool bypass_eos_token = false;
     const bool render_special = false;
-    const char * stop_sequence[stop_token_max] = {};
+    const char ** stop_sequence = nullptr;
+    const int stop_sequence_len = 0;
     const bool stream_sse = false;
     const char * grammar = nullptr;
     const bool grammar_retain_state = false;
@@ -111,8 +109,10 @@ struct generation_inputs
     const float dynatemp_range = 0.0f;
     const float dynatemp_exponent = 1.0f;
     const float smoothing_factor = 0.0f;
-    const logit_bias logit_biases[logit_bias_max] = {};
-    const char * banned_tokens[ban_token_max] = {};
+    const logit_bias * logit_biases = nullptr;
+    const int logit_biases_len = 0;
+    const char ** banned_tokens = nullptr;
+    const int banned_tokens_len = 0;
 };
 struct generation_outputs
 {
