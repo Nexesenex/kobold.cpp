@@ -13,22 +13,22 @@
 // Data structures to map n-grams to empirical token probabilities:
 
 struct common_ngram {
-    llama_token tokens[LLAMA_NGRAM_MAX];
+    llama_token tokens[common_ngram_MAX];
 
     common_ngram() {
-        for (int i = 0; i < LLAMA_NGRAM_MAX; ++i) {
+        for (int i = 0; i < common_ngram_MAX; ++i) {
             tokens[i] = -1;
         }
     }
 
     common_ngram(const llama_token * input, const int ngram_size) {
-        for (int i = 0; i < LLAMA_NGRAM_MAX; ++i) {
+        for (int i = 0; i < common_ngram_MAX; ++i) {
             tokens[i] = i < ngram_size ? input[i] : -1;
         }
     }
 
     bool operator==(const common_ngram & other) const {
-        for (int i = 0; i < LLAMA_NGRAM_MAX; ++i) {
+        for (int i = 0; i < common_ngram_MAX; ++i) {
             if (tokens[i] != other.tokens[i]) {
                 return false;
             }
@@ -47,7 +47,7 @@ struct common_token_hash_function {
 struct common_ngram_hash_function {
     size_t operator()(const common_ngram & ngram) const {
         size_t hash = common_token_hash_function{}(ngram.tokens[0]);
-        for (int i = 1; i < LLAMA_NGRAM_MAX; ++i) {
+        for (int i = 1; i < common_ngram_MAX; ++i) {
             hash ^= common_token_hash_function{}(ngram.tokens[i]);
         }
         return hash;
@@ -60,6 +60,7 @@ typedef std::unordered_map<llama_token, int32_t> common_ngram_cache_part;
 // n-gram -> empirical distribution of following tokens
 typedef std::unordered_map<common_ngram, common_ngram_cache_part, common_ngram_hash_function> common_ngram_cache;
 
+typedef std::vector<llama_token> llama_draft_t;
 
 // Update an ngram cache with tokens.
 // ngram_cache:         the cache to modify.
@@ -82,7 +83,7 @@ void common_ngram_cache_update(
 // nc_dynamic:         ngram cache based on previous user generations.
 // nc_static:          ngram cache generated from a large text corpus, used for validation.
 void common_ngram_cache_draft(
-    std::vector<llama_token> & inp, std::vector<llama_token> & draft, int n_draft, int ngram_min, int ngram_max,
+    std::vector<llama_token> & inp, std::vector<llama_draft_t> & drafts, int n_draft, int ngram_min, int ngram_max,
     common_ngram_cache & nc_context, common_ngram_cache & nc_dynamic, common_ngram_cache & nc_static);
 
 // Save an ngram cache to a file.
