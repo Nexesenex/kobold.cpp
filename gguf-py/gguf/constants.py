@@ -1460,9 +1460,10 @@ class LlamaFileType(IntEnum):
     MOSTLY_IQ3_ML        = 45  # except 1d tensors
     MOSTLY_IQ3_XXXL      = 46  # except 1d tensors
     MOSTLY_IQ3_UXL       = 47  # except 1d tensors
-    MOSTLY_IQ4_XSR       = 48  # except 1d tensors
-    MOSTLY_IQ4_MR        = 49  # except 1d tensors
-    MOSTLY_IQ4_LR        = 50  # except 1d tensors
+    MOSTLY_IQ4_XXSR      = 48  # except 1d tensors
+    MOSTLY_IQ4_XSR       = 49  # except 1d tensors
+    MOSTLY_IQ4_MR        = 50  # except 1d tensors
+    MOSTLY_IQ4_LR        = 51  # except 1d tensors
     MOSTLY_CQS           = 99  # except 1d tensors
 
     GUESSED              = 1024  # not specified in the model file
