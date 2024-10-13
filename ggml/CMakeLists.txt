@@ -112,7 +112,7 @@ if (WIN32)
 endif()
 
 # ggml core
-set(GGML_SCHED_MAX_COPIES  "4" CACHE STRING "ggml: max input copies for pipeline parallelism")
+set(GGML_SCHED_MAX_COPIES  "1" CACHE STRING "ggml: max input copies for pipeline parallelism")
 
 # 3rd party libs / backends
 option(GGML_ACCELERATE                      "ggml: enable Accelerate framework"               ON)
