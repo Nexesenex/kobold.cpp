@@ -128,7 +128,7 @@ option(GGML_CUDA_FORCE_MMQ                  "ggml: use mmq kernels instead of cu
 option(GGML_CUDA_FORCE_CUBLAS               "ggml: always use cuBLAS instead of mmq kernels"  OFF)
 set   (GGML_CUDA_DMMV_X   "32" CACHE STRING "ggml: x stride for dmmv CUDA kernels")
 set   (GGML_CUDA_MMV_Y     "1" CACHE STRING "ggml: y block size for mmv CUDA kernels")
-option(GGML_CUDA_F16                        "ggml: use 16 bit floats for some calculations"   OFF)
+option(GGML_CUDA_F16                        "ggml: use 16 bit floats for some calculations"   ON)
 set   (GGML_CUDA_KQUANTS_ITER "2" CACHE STRING
                                             "ggml: iters./thread per block for Q2_K/Q6_K")
 set   (GGML_CUDA_PEER_MAX_BATCH_SIZE "128" CACHE STRING
