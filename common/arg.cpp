@@ -1164,14 +1164,14 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         [](common_params & params, int value) {
             params.grp_attn_n = value;
         }
-    ).set_env("LLAMA_ARG_GRP_ATTN_N"));
+    ).set_env("LLAMA_ARG_GRP_ATTN_N").set_examples({LLAMA_EXAMPLE_MAIN, LLAMA_EXAMPLE_PASSKEY}));
     add_opt(common_arg(
         {"-gaw", "--grp-attn-w"}, "N",
-        string_format("group-attention width (default: %.1f)", (double)params.grp_attn_w),
+        string_format("group-attention width (default: %d)", params.grp_attn_w),
         [](common_params & params, int value) {
             params.grp_attn_w = value;
         }
-    ).set_env("LLAMA_ARG_GRP_ATTN_W"));
+    ).set_env("LLAMA_ARG_GRP_ATTN_W").set_examples({LLAMA_EXAMPLE_MAIN}));
     add_opt(common_arg(
         {"-dkvc", "--dump-kv-cache"},
         "verbose print of the KV cache",
@@ -1790,22 +1790,12 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         }
     ).set_examples({LLAMA_EXAMPLE_SERVER}).set_env("LLAMA_ARG_THREADS_HTTP"));
     add_opt(common_arg(
-        {"-spf", "--system-prompt-file"}, "FNAME",
-        "set a file to load a system prompt (initial prompt of all slots), this is useful for chat applications",
-        [](common_params & params, const std::string & value) {
-            std::ifstream file(value);
-            if (!file) {
-                throw std::runtime_error(string_format("error: failed to open file '%s'\n", value.c_str()));
-            }
-            std::string system_prompt;
-            std::copy(
-                        std::istreambuf_iterator<char>(file),
-                        std::istreambuf_iterator<char>(),
-                        std::back_inserter(system_prompt)
-                        );
-            params.system_prompt = system_prompt;
+        {"--cache-reuse"}, "N",
+        string_format("min chunk size to attempt reusing from the cache via KV shifting (default: %d)", params.n_cache_reuse),
+        [](common_params & params, int value) {
+            params.n_cache_reuse = value;
         }
-    ).set_examples({LLAMA_EXAMPLE_SERVER}));
+    ).set_examples({LLAMA_EXAMPLE_SERVER}).set_env("LLAMA_ARG_CACHE_REUSE"));
     add_opt(common_arg(
         {"--metrics"},
         string_format("enable prometheus compatible metrics endpoint (default: %s)", params.endpoint_metrics ? "enabled" : "disabled"),
