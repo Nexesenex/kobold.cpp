@@ -1,6 +1,8 @@
 #pragma once
 #include <cstdint>
 
+// const int stop_token_max = 32;
+// const int ban_token_max = 64;
 const int tensor_split_max = 16;
 const int images_max = 4;
 
