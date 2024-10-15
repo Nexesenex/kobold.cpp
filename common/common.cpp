@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cinttypes>
+#include <climits>
 #include <cmath>
 #include <codecvt>
 #include <cstdarg>
@@ -23,10 +24,10 @@
 #include <regex>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <thread>
 
 #if defined(__APPLE__) && defined(__MACH__)
 #include <sys/types.h>
@@ -399,6 +400,21 @@ std::string common_params_get_system_info(const common_params & params) {
 //
 // String utils
 //
+
+std::string string_format(const char * fmt, ...) {
+    va_list ap;
+    va_list ap2;
+    va_start(ap, fmt);
+    va_copy(ap2, ap);
+    int size = vsnprintf(NULL, 0, fmt, ap);
+    GGML_ASSERT(size >= 0 && size < INT_MAX); // NOLINT
+    std::vector<char> buf(size + 1);
+    int size2 = vsnprintf(buf.data(), size + 1, fmt, ap2);
+    GGML_ASSERT(size2 == size);
+    va_end(ap2);
+    va_end(ap);
+    return std::string(buf.data(), size);
+}
 
 std::vector<std::string> string_split(std::string input, char separator) {
     std::vector<std::string> parts;
@@ -939,7 +955,7 @@ struct common_init_result common_init_from_params(common_params & params) {
         }
 
         if (llama_model_has_encoder(model)) {
-            llama_encode(lctx, llama_batch_get_one(tmp.data(), tmp.size(), 0, 0));
+            llama_encode(lctx, llama_batch_get_one(tmp.data(), tmp.size()));
             llama_token decoder_start_token_id = llama_model_decoder_start_token(model);
             if (decoder_start_token_id == -1) {
                 decoder_start_token_id = bos;
@@ -948,7 +964,7 @@ struct common_init_result common_init_from_params(common_params & params) {
             tmp.push_back(decoder_start_token_id);
         }
         if (llama_model_has_decoder(model)) {
-            llama_decode(lctx, llama_batch_get_one(tmp.data(), std::min(tmp.size(), (size_t) params.n_batch), 0, 0));
+            llama_decode(lctx, llama_batch_get_one(tmp.data(), std::min(tmp.size(), (size_t) params.n_batch)));
         }
         llama_kv_cache_clear(lctx);
         llama_synchronize(lctx);
