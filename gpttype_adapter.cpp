@@ -104,6 +104,7 @@ static int current_llava_identifier = LLAVA_TOKEN_IDENTIFIER_A;
 static kcpp_params * kcpp_data = nullptr;
 static int max_context_limit_at_load = 0;
 static int n_past = 0;
+static int n_eval = 0;
 static int debugmode = 0; //-1 = hide all, 0 = normal, 1 = showall
 static std::vector<gpt_vocab::id> last_n_tokens;
 static std::vector<gpt_vocab::id> current_context_tokens;
@@ -1485,23 +1486,23 @@ static void load_grammar(const std::string & gammarstr)
     }
 }
 
-static bool kcpp_eval_image(llama_context * ctx_llama, float * img_embd, int num_img_tokens, int n_batch, int * n_past) {
-    int n_embd  = llama_n_embd(llama_get_model(ctx_llama));
+// static bool kcpp_eval_image(llama_context * ctx_llama, float * img_embd, int num_img_tokens, int n_batch, int * n_past) {
+    // int n_embd  = llama_n_embd(llama_get_model(ctx_llama));
 
-    for (int i = 0; i < num_img_tokens; i += n_batch) {
-        int n_eval = num_img_tokens - i;
-        if (n_eval > n_batch) {
-            n_eval = n_batch;
-        }
-        llama_batch batch = {int32_t(n_eval), nullptr, (img_embd+i*n_embd), nullptr, nullptr, nullptr, nullptr, *n_past, 1, 0, };
-        if (llama_decode(ctx_llama, batch)) {
-            fprintf(stderr, "\n%s : failed to eval image\n", __func__);
-            return false;
-        }
-        *n_past += n_eval;
-    }
-    return true;
-}
+    // for (int i = 0; i < num_img_tokens; i += n_batch) {
+        // int n_eval = num_img_tokens - i;
+        // if (n_eval > n_batch) {
+            // n_eval = n_batch;
+        // }
+        // llama_batch batch = {int32_t(n_eval), nullptr, (img_embd+i*n_embd), nullptr, nullptr, nullptr, nullptr, *n_past, 1, 0, };
+        // if (llama_decode(ctx_llama, batch)) { {		
+            // fprintf(stderr, "\n%s : failed to eval image\n", __func__);
+            // return false;
+        // }
+        // *n_past += n_eval;
+    // }
+    // return true;
+// }
 
 //given an old GGUF context and a new context that has some middle portion removed,
 //find and remove the middle portion from the old context from the KV. Does not fast forward after this destructive action
@@ -2129,7 +2130,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         //determine mem per token
         std::vector<int> tmp = {1, 2, 3, 4};
         llama_kv_cache_clear(llama_ctx_v4);
-        auto er = llama_decode(llama_ctx_v4, llama_batch_get_one(tmp.data(), tmp.size(), 0, 0));
+        auto er = llama_decode(llama_ctx_v4, llama_batch_get_one(tmp.data(), tmp.size()));
         if(er!=0)
         {
             printf("\nLLAMA EVAL returned nonzero: %d\n",er);
@@ -3191,7 +3192,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
             }
             else if(file_format == FileFormat::GGUF_GENERIC)
             {
-                evalres = (llama_decode(llama_ctx_v4, llama_batch_get_one(embd.data(), embdsize, n_past, 0))==0);
+                evalres = (llama_decode(llama_ctx_v4, llama_batch_get_one(embd.data(), embdsize, n_eval))==0);
             }
             else if(file_format==FileFormat::RWKV_1 || file_format==FileFormat::RWKV_2)
             {
@@ -3571,7 +3572,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                             if(i>0 && sepsize>0)
                             {
                                 //add a separator between each image
-                                auto evr = llama_decode(llama_ctx_v4, llama_batch_get_one(llava_sep.data(), sepsize, n_past, 0));
+                                auto evr = llama_decode(llama_ctx_v4, llama_batch_get_one(llava_sep.data(), sepsize, n_eval));
                                 if(evr!=0)
                                 {
                                     printf("\nError when appending llava separator: %d\n",evr);
