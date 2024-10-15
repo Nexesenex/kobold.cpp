@@ -131,7 +131,7 @@ static bool run(llama_context * ctx, const common_params & params) {
 
     std::vector<llama_token> tokens = common_tokenize(ctx, params.prompt, add_bos);
 
-    if (llama_decode(ctx, llama_batch_get_one(tokens.data(), tokens.size()))) {
+    if (llama_decode(ctx, llama_batch_get_one(tokens.data(), tokens.size(), 0, 0))) {
         LOG_ERR("%s : failed to eval\n", __func__);
         return false;
     }

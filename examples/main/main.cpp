@@ -529,7 +529,7 @@ int main(int argc, char ** argv) {
         int enc_input_size = embd_inp.size();
         llama_token * enc_input_buf = embd_inp.data();
 
-        if (llama_encode(ctx, llama_batch_get_one(enc_input_buf, enc_input_size))) {
+        if (llama_encode(ctx, llama_batch_get_one(enc_input_buf, enc_input_size, 0, 0))) {
             LOG_ERR("%s : failed to eval\n", __func__);
             return 1;
         }
@@ -570,29 +570,6 @@ int main(int argc, char ** argv) {
                     if (!params.ctx_shift){
                         LOG_DBG("\n\n%s: context full and context shift is disabled => stopping\n", __func__);
                         break;
-                    } else {
-                        if (params.n_predict == -2) {
-                            LOG_DBG("\n\n%s: context full and n_predict == -%d => stopping\n", __func__, params.n_predict);
-                            break;
-                        }
-
-                        const int n_left    = n_past - params.n_keep;
-                        const int n_discard = n_left/2;
-
-                        LOG_DBG("context full, swapping: n_past = %d, n_left = %d, n_ctx = %d, n_keep = %d, n_discard = %d\n",
-                                n_past, n_left, n_ctx, params.n_keep, n_discard);
-
-                        llama_kv_cache_seq_rm (ctx, 0, params.n_keep            , params.n_keep + n_discard);
-                        llama_kv_cache_seq_add(ctx, 0, params.n_keep + n_discard, n_past + 1   , -n_discard);
-
-                        n_past -= n_discard;
-
-                        LOG_DBG("after swap: n_past = %d\n", n_past);
-
-                        LOG_DBG("embd: %s\n", string_from(ctx, embd).c_str());
-
-                        LOG_DBG("clear session path\n");
-                        path_session.clear();
                     }
 
                     if (params.n_predict == -2) {
@@ -672,7 +649,7 @@ int main(int argc, char ** argv) {
 
                 LOG_DBG("eval: %s\n", string_from(ctx, embd).c_str());
 
-                if (llama_decode(ctx, llama_batch_get_one(&embd[i], n_eval))) {
+                if (llama_decode(ctx, llama_batch_get_one(&embd[i], n_eval, n_past, 0))) {
                     LOG_ERR("%s : failed to eval\n", __func__);
                     return 1;
                 }
