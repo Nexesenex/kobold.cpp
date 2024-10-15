@@ -1764,6 +1764,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
     async def handle_sse_stream(self, genparams, api_format):
         global friendlymodelname, currfinishreason
         self.send_response(200)
+        self.send_header("X-Accel-Buffering", "no")
         self.send_header("cache-control", "no-cache")
         self.send_header("connection", "keep-alive")
         self.end_headers(content_type='text/event-stream')
