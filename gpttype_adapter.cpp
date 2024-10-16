@@ -2614,7 +2614,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     double time0 = 0, time1 = 0, time2 = 0;
     timer_start();
 
-    for(int x=0;x<inputs.stop_sequence_len;++x)
+    for(int x=0;x<stop_token_max;++x)
     {
         std::string stopper = inputs.stop_sequence[x];
         if(stopper!="")
@@ -2642,7 +2642,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     delayed_generated_tokens_limit = 0;
     antislop_banned_token_ids.clear();
     banned_tokens.clear();
-    for(int x=0;x<inputs.banned_tokens_len;++x)
+    for(int x=0;x<ban_token_max;++x)
     {
         std::string word = inputs.banned_tokens[x];
         word = toLowerCase(word);
@@ -2700,7 +2700,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     }
 
     logit_biases.clear();
-    for(int x=0;x<inputs.logit_biases_len;++x)
+    for(int x=0;x<logit_bias_max;++x)
     {
         int32_t t_id = inputs.logit_biases[x].token_id;
         float bias = inputs.logit_biases[x].bias;
@@ -2778,7 +2778,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
     if (kcpp_data->dry_multiplier > 0)
     {
-        for (int x = 0; x < inputs.dry_sequence_breakers_len; ++x)
+        for (int x = 0; x < dry_seq_break_max; ++x)
         {
             std::string word = inputs.dry_sequence_breakers[x];
             if (word != "")
