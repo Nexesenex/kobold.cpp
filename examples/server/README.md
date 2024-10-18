@@ -333,6 +333,8 @@ node index.js
 
     `n_predict`: Set the maximum number of tokens to predict when generating text. **Note:** May exceed the set limit slightly if the last token is a partial multibyte character. When 0, no tokens will be generated but the prompt is evaluated into the cache. Default: `-1`, where `-1` is infinity.
 
+    `n_indent`: Specify the minimum line indentation for the generated text in number of whitespace characters. Useful for code completion tasks. Default: `0`
+
     `n_keep`: Specify the number of tokens from the prompt to retain when the context size is exceeded and tokens need to be discarded. The number excludes the BOS token.
     By default, this value is set to `0`, meaning no tokens are kept. Use `-1` to retain all tokens from the prompt.
 
@@ -524,10 +526,12 @@ Takes a prefix and a suffix and returns the predicted completion as stream.
 
 - `input_prefix`: Set the prefix of the code to infill.
 - `input_suffix`: Set the suffix of the code to infill.
-- `prompt`: Added after the `FIM_MID` token
-- `extra_context`: Additional context inserted before the FIM prefix. See https://github.com/ggerganov/llama.cpp/pull/9874
+- `input_extra`:  Additional context inserted before the FIM prefix.
+- `prompt`:       Added after the `FIM_MID` token
 
-It also accepts all the options of `/completion`.
+`input_extra` is array of `{"filename": string, "text": string}` objects.
+
+The endpoint also accepts all the options of `/completion`.
 
 If the model has `FIM_REPO` and `FIM_FILE_SEP` tokens, the [repo-level pattern](https://arxiv.org/pdf/2409.12186) is used:
 
@@ -545,7 +549,7 @@ If the model has `FIM_REPO` and `FIM_FILE_SEP` tokens, the [repo-level pattern](
 If the tokens are missing, then the extra context is simply prefixed at the start:
 
 ```txt
-[extra_context]<FIM_PRE>[input_prefix]<FIM_SUF>[input_suffix]<FIM_MID>[prompt]
+[input_extra]<FIM_PRE>[input_prefix]<FIM_SUF>[input_suffix]<FIM_MID>[prompt]
 ```
 
 ### **GET** `/props`: Get server global properties.

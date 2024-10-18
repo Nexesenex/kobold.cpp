@@ -131,15 +131,12 @@ struct slot_params {
     int32_t n_keep    =  0; // number of tokens to keep from initial prompt
     int32_t n_discard =  0; // number of tokens after n_keep that may be discarded when shifting context, 0 defaults to half
     int32_t n_predict = -1; // new tokens to predict
+    int32_t n_indent  =  0; // mininum line indentation for the generated text in number of whitespace characters
 
     int64_t t_max_prompt_ms  = -1; // TODO: implement
     int64_t t_max_predict_ms = -1; // if positive, limit the generation phase to this time limit
 
     std::vector<std::string> antiprompt;
-
-    json input_prefix;
-    json input_suffix;
-    json extra_context;
 };
 
 struct server_slot {
@@ -169,9 +166,15 @@ struct server_slot {
 
     json prompt; // can be either a string, array of strings or array of token ids
 
+    json input_prefix;
+    json input_suffix;
+    json input_extra;
+
     // when a task is submitted, we first tokenize the prompt and store it here
     std::vector<llama_token> prompt_tokens;
     std::vector<llama_token> extra_tokens;
+
+    size_t last_nl_pos = 0;
 
     std::string generated_text;
     std::vector<llama_token> cache_tokens;
@@ -215,6 +218,7 @@ struct server_slot {
         SLT_DBG(*this, "%s", "\n");
 
         n_prompt_tokens    = 0;
+        last_nl_pos        = 0;
         generated_text     = "";
         has_new_line       = false;
         truncated          = false;
@@ -860,9 +864,12 @@ struct server_context {
         slot.params.stream             = json_value(data, "stream",            false);
         slot.params.cache_prompt       = json_value(data, "cache_prompt",      false);
         slot.params.n_predict          = json_value(data, "n_predict",         json_value(data, "max_tokens", default_params.n_predict));
+        slot.params.n_indent           = json_value(data, "n_indent",          default_params.n_indent);
         slot.sparams.top_k             = json_value(data, "top_k",             default_sparams.top_k);
         slot.sparams.top_p             = json_value(data, "top_p",             default_sparams.top_p);
         slot.sparams.min_p             = json_value(data, "min_p",             default_sparams.min_p);
+        slot.sparams.xtc_probability   = json_value(data, "xtc_probability",   default_sparams.xtc_probability);
+        slot.sparams.xtc_threshold     = json_value(data, "xtc_threshold",     default_sparams.xtc_threshold);
         slot.sparams.tfs_z             = json_value(data, "tfs_z",             default_sparams.tfs_z);
         slot.sparams.typ_p             = json_value(data, "typical_p",         default_sparams.typ_p);
         slot.sparams.temp              = json_value(data, "temperature",       default_sparams.temp);
@@ -876,7 +883,7 @@ struct server_context {
         slot.sparams.mirostat_tau      = json_value(data, "mirostat_tau",      default_sparams.mirostat_tau);
         slot.sparams.mirostat_eta      = json_value(data, "mirostat_eta",      default_sparams.mirostat_eta);
         slot.sparams.penalize_nl       = json_value(data, "penalize_nl",       default_sparams.penalize_nl);
-        slot.params.n_keep             = json_value(data, "n_keep",            slot.params.n_keep);
+        slot.params.n_keep             = json_value(data, "n_keep",            default_params.n_keep);
         slot.params.n_discard          = json_value(data, "n_discard",         default_params.n_discard);
         slot.sparams.seed              = json_value(data, "seed",              default_sparams.seed);
         slot.sparams.n_probs           = json_value(data, "n_probs",           default_sparams.n_probs);
@@ -908,12 +915,12 @@ struct server_context {
         }
 
         // infill
-        slot.params.input_prefix  = json_value(data, "input_prefix",  default_params.input_prefix);
-        slot.params.input_suffix  = json_value(data, "input_suffix",  default_params.input_suffix);
-        slot.params.extra_context = json_value(data, "extra_context", default_params.extra_context);
+        slot.input_prefix = json_value(data, "input_prefix", json());
+        slot.input_suffix = json_value(data, "input_suffix", json());
+        slot.input_extra  = json_value(data, "input_extra",  json());
 
-        SLT_DBG(slot, "extra_context chunks: %d\n", (int) slot.params.extra_context.size());
-        for (const auto & chunk : slot.params.extra_context) {
+        SLT_DBG(slot, "extra_context chunks: %d\n", (int) slot.input_extra.size());
+        for (const auto & chunk : slot.input_extra) {
             // { "text": string, "filename": string }
             if (!chunk.contains("text") || !chunk["text"].is_string()) {
                 send_error(task, "extra_context chunk must contain a \"text\" field with a string value", ERROR_TYPE_INVALID_REQUEST);
@@ -930,7 +937,7 @@ struct server_context {
         }
 
         // get prompt
-        if (task.cmpl_type != SERVER_TASK_CMPL_TYPE_INFILL) {
+        {
             const auto & prompt = data.find("prompt");
             if (prompt == data.end()) {
                 send_error(task, "\"prompt\" must be provided", ERROR_TYPE_INVALID_REQUEST);
@@ -1088,22 +1095,21 @@ struct server_context {
             size_t pos = std::min(slot.n_sent_text, slot.generated_text.size());
 
             const std::string str_test = slot.generated_text.substr(pos);
-            bool is_stop_full = false;
+            bool send_text = true;
 
             size_t stop_pos = slot.find_stopping_strings(str_test, token_str.size(), STOP_TYPE_FULL);
             if (stop_pos != std::string::npos) {
-                is_stop_full = true;
                 slot.generated_text.erase(
                     slot.generated_text.begin() + pos + stop_pos,
                     slot.generated_text.end());
                 pos = std::min(slot.n_sent_text, slot.generated_text.size());
-            } else {
-                is_stop_full = false;
+            } else if (slot.has_next_token) {
                 stop_pos = slot.find_stopping_strings(str_test, token_str.size(), STOP_TYPE_PARTIAL);
+                send_text = stop_pos == std::string::npos;
             }
 
             // check if there is any token to predict
-            if (stop_pos == std::string::npos || (!slot.has_next_token && !is_stop_full && stop_pos > 0)) {
+            if (send_text) {
                 // no send the stop word in the response
                 result.text_to_send = slot.generated_text.substr(pos, std::string::npos);
                 slot.n_sent_text += result.text_to_send.size();
@@ -1128,13 +1134,48 @@ struct server_context {
             SLT_DBG(slot, "stopped by limit, n_decoded = %d, n_predict = %d\n", slot.n_decoded, slot.params.n_predict);
         }
 
-        // if we have already seen a new line, we stop after a certain time limit
-        if (slot.has_new_line && slot.params.t_max_predict_ms > 0 &&
-            (ggml_time_us() - slot.t_start_generation > 1000.0f*slot.params.t_max_predict_ms)) {
-            slot.stopped_limit  = true;
-            slot.has_next_token = false;
+        if (slot.has_new_line) {
+            // if we have already seen a new line, we stop after a certain time limit
+            if (slot.params.t_max_predict_ms > 0 && (ggml_time_us() - slot.t_start_generation > 1000.0f*slot.params.t_max_predict_ms)) {
+                slot.stopped_limit  = true;
+                slot.has_next_token = false;
 
-            SLT_DBG(slot, "stopped by time limit, n_decoded = %d, t_max_predict_ms = %d ms\n", slot.n_decoded, (int) slot.params.t_max_predict_ms);
+                SLT_DBG(slot, "stopped by time limit, n_decoded = %d, t_max_predict_ms = %d ms\n", slot.n_decoded, (int) slot.params.t_max_predict_ms);
+            }
+
+            // require that each new line has a whitespace prefix (i.e. indentation) of at least slot.params.n_indent
+            if (slot.params.n_indent > 0) {
+                // check the current indentation
+                // TODO: improve by not doing it more than once for each new line
+                if (slot.last_nl_pos > 0) {
+                    size_t pos = slot.last_nl_pos;
+
+                    int n_indent = 0;
+                    while (pos < slot.generated_text.size() && (slot.generated_text[pos] == ' ' || slot.generated_text[pos] == '\t')) {
+                        n_indent++;
+                        pos++;
+                    }
+
+                    if (pos < slot.generated_text.size() && n_indent < slot.params.n_indent) {
+                        slot.stopped_limit  = true;
+                        slot.has_next_token = false;
+
+                        // cut the last line
+                        slot.generated_text.erase(pos, std::string::npos);
+
+                        SLT_DBG(slot, "stopped by indentation limit, n_decoded = %d, n_indent = %d\n", slot.n_decoded, n_indent);
+                    }
+                }
+
+                // find the next new line
+                {
+                    const size_t pos = slot.generated_text.find('\n', slot.last_nl_pos);
+
+                    if (pos != std::string::npos) {
+                        slot.last_nl_pos = pos + 1;
+                    }
+                }
+            }
         }
 
         // check if there is a new line in the generated text
@@ -1196,6 +1237,8 @@ struct server_context {
             {"top_k",                     slot.sparams.top_k},
             {"top_p",                     slot.sparams.top_p},
             {"min_p",                     slot.sparams.min_p},
+            {"xtc_probability",           slot.sparams.xtc_probability},
+            {"xtc_threshold",             slot.sparams.xtc_threshold},
             {"tfs_z",                     slot.sparams.tfs_z},
             {"typical_p",                 slot.sparams.typ_p},
             {"repeat_last_n",             slot.sparams.penalty_last_n},
@@ -1954,6 +1997,8 @@ struct server_context {
                                 } break;
                             case SERVER_TASK_CMPL_TYPE_INFILL:
                                 {
+                                    // TODO: optimize this block by reducing memory allocations and movement
+
                                     // use FIM repo-level pattern:
                                     // ref: https://arxiv.org/pdf/2409.12186
                                     //
@@ -1964,10 +2009,11 @@ struct server_context {
                                     // extra chunk 1
                                     // ...
                                     // [FIM_SEP]filename
-                                    // [FIM_PRE]prefix[FIM_SUF]suffix[FIM_MID]
+                                    // [FIM_PRE]prefix[FIM_SUF]suffix[FIM_MID]prompt
                                     //
-                                    auto prefix_tokens = tokenize(slot.params.input_prefix, false, false);
-                                    auto suffix_tokens = tokenize(slot.params.input_suffix, false, false);
+                                    auto tokens_prefix = tokenize(slot.input_prefix, false, false);
+                                    auto tokens_suffix = tokenize(slot.input_suffix, false, false);
+                                    auto tokens_prompt = tokenize(slot.prompt,       false, false);
 
                                     slot.extra_tokens.clear();
                                     if (llama_token_fim_rep(model) != LLAMA_TOKEN_NULL) {
@@ -1977,7 +2023,7 @@ struct server_context {
                                         slot.extra_tokens.insert(slot.extra_tokens.end(), k_fim_repo.begin(), k_fim_repo.end());
                                     }
 
-                                    for (const auto & chunk : slot.params.extra_context) {
+                                    for (const auto & chunk : slot.input_extra) {
                                         // { "text": string, "filename": string }
                                         const std::string text     = chunk.value("text", "");
                                         const std::string filename = chunk.value("filename", "tmp");
@@ -2008,20 +2054,21 @@ struct server_context {
                                     }
 
                                     // for now pick FIM context to fit in a batch (ratio prefix:suffix = 3:1, TODO: configurable?)
-                                    const int n_suffix_take = std::min<int>(suffix_tokens.size(), (n_batch)/4);
-                                    const int n_prefix_take = std::min<int>(prefix_tokens.size(), (n_batch - 3) - n_suffix_take);
+                                    const int n_suffix_take = std::min<int>(tokens_suffix.size(),   (n_batch/4));
+                                    const int n_prefix_take = std::min<int>(tokens_prefix.size(), 3*(n_batch/4) - 3);
 
                                     // fill the rest of the context with extra chunks
                                     const int n_extra_take = std::min<int>(std::max<int>(0, slot.n_ctx - (n_batch) - 2*slot.n_predict), slot.extra_tokens.size());
 
-                                    prefix_tokens.erase(prefix_tokens.begin(), prefix_tokens.begin() + prefix_tokens.size() - n_prefix_take);
-                                    suffix_tokens.resize(n_suffix_take);
+                                    tokens_prefix.erase(tokens_prefix.begin(), tokens_prefix.begin() + tokens_prefix.size() - n_prefix_take);
+                                    tokens_suffix.resize(n_suffix_take);
 
-                                    prefix_tokens.insert(prefix_tokens.begin(), llama_token_fim_pre(model));
-                                    suffix_tokens.insert(suffix_tokens.begin(), llama_token_fim_suf(model));
+                                    tokens_prefix.insert(tokens_prefix.begin(), llama_token_fim_pre(model));
+                                    tokens_prefix.insert(tokens_prefix.end(),   tokens_prompt.begin(), tokens_prompt.end());
+                                    tokens_suffix.insert(tokens_suffix.begin(), llama_token_fim_suf(model));
 
-                                    auto embd_inp = params.spm_infill ? suffix_tokens : prefix_tokens;
-                                    auto embd_end = params.spm_infill ? prefix_tokens : suffix_tokens;
+                                    auto embd_inp = params.spm_infill ? tokens_suffix : tokens_prefix;
+                                    auto embd_end = params.spm_infill ? tokens_prefix : tokens_suffix;
 
                                     if (llama_add_bos_token(model)) {
                                         embd_inp.insert(embd_inp.begin(), llama_token_bos(model));
@@ -2136,40 +2183,17 @@ struct server_context {
 
                                     while (head_c < slot.cache_tokens.size() &&
                                            head_p < prompt_tokens.size()) {
-                                        if (llama_token_is_control(model, slot.cache_tokens[head_c]) &&
-                                            slot.cache_tokens[head_c] != llama_token_fim_rep(model) &&
-                                            slot.cache_tokens[head_c] != llama_token_fim_sep(model)) {
-                                            break;
-                                        }
-
-                                        if (llama_token_is_control(model, prompt_tokens[head_p]) &&
-                                            prompt_tokens[head_p] != llama_token_fim_rep(model) &&
-                                            prompt_tokens[head_p] != llama_token_fim_sep(model)) {
-                                            break;
-                                        }
 
                                         size_t n_match = 0;
-
                                         while (head_c + n_match < slot.cache_tokens.size() &&
                                                head_p + n_match < prompt_tokens.size()     &&
                                                slot.cache_tokens[head_c + n_match] == prompt_tokens[head_p + n_match]) {
-                                            if (llama_token_is_control(model, slot.cache_tokens[head_c + n_match]) &&
-                                                slot.cache_tokens[head_c + n_match] != llama_token_fim_rep(model) &&
-                                                slot.cache_tokens[head_c + n_match] != llama_token_fim_sep(model)) {
-                                                break;
-                                            }
-
-                                            if (llama_token_is_control(model, prompt_tokens[head_p + n_match]) &&
-                                                prompt_tokens[head_p + n_match] != llama_token_fim_rep(model) &&
-                                                prompt_tokens[head_p + n_match] != llama_token_fim_sep(model)) {
-                                                break;
-                                            }
 
                                             n_match++;
                                         }
 
                                         if (n_match >= (size_t) params.n_cache_reuse) {
-                                            SLT_DBG(slot, "reusing chunk with size %zu, shifting KV cache [%zu, %zu) -> [%zu, %zu)\n", n_match, head_c, head_c + n_match, head_p, head_p + n_match);
+                                            SLT_INF(slot, "reusing chunk with size %zu, shifting KV cache [%zu, %zu) -> [%zu, %zu)\n", n_match, head_c, head_c + n_match, head_p, head_p + n_match);
                                             //for (size_t i = head_p; i < head_p + n_match; i++) {
                                             //    SLT_DBG(slot, "cache token %3zu: %6d '%s'\n", i, prompt_tokens[i], common_token_to_piece(ctx, prompt_tokens[i]).c_str());
                                             //}
