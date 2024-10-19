@@ -18071,11 +18071,26 @@ static ggml_type llama_tensor_get_type(quantize_state_internal & qs, ggml_type n
     auto difquant_three_eights_alt_tensors = [](int i_layer, int n_layers) -> bool {
         return i_layer <= n_layers/8 || (i_layer > 4*n_layers/8 && i_layer < 5*n_layers/8) || i_layer >= 7*n_layers/8;
     };
+	
+    // original formula use_some_bits :
+    auto use_some_bits = [](int i_layer, int n_layers) -> bool {
+    return i_layer < n_layers/8 || i_layer >= 7*n_layers/8 || (i_layer - n_layers/8)%4 == 2;
+    };
+
     // original formula use_more_bits :
-    // return i_layer < n_layers/8 || i_layer >= 7*n_layers/8 || (i_layer - n_layers/8)%3 == 2;
+    auto use_more_bits = [](int i_layer, int n_layers) -> bool {
+    return i_layer < n_layers/8 || i_layer >= 7*n_layers/8 || (i_layer - n_layers/8)%3 == 2;
+    };
+
     // The intervals of 3 are replaced by a broad bump in the central layers.
     // In the case of a 32 layers model, layers 5-7 and layers 12-16 are always skipped.
     // In the case of a 40 layers model, layers 6-9 and layers 15-20 are always skipped.
+	
+    // new formula use_most_bits :
+    auto use_most_bits = [](int i_layer, int n_layers) -> bool {
+    return i_layer < n_layers/8 || i_layer >= 7*n_layers/8 || (i_layer - n_layers/8)%2 == 1;
+    };
+
     // difquant_half_tensors replaces it and keeps the broad 50% bump to the upper quant. Ex : 16/32
     auto difquant_half_tensors = [](int i_layer, int n_layers) -> bool {
         // return i_layer <= n_layers/8 || (i_layer >= 2*n_layers/8 && i_layer < 3*n_layers/8) ||
