@@ -338,12 +338,12 @@ static void empcats_init(struct llama_context* ctx, const std::vector<int>& toks
 
     // emphasisfsm.bias = empcats_gen(ctx, emphasisfsm.grammar);
 	
-    if (grammarstr == emphasisfsm.grammar) {
-        emphasisfsm.grammar = grammarstr;
-        LLAMA_LOG_INFO("%s: reloaded emphasis %s\n", __func__, emphasisfsm.grammar.c_str());
+    // if (grammarstr == emphasisfsm.grammar) {
+        // emphasisfsm.grammar = grammarstr;
+        // LLAMA_LOG_INFO("%s: reloaded emphasis %s\n", __func__, emphasisfsm.grammar.c_str());
 
-        emphasisfsm.bias = empcats_gen(ctx, emphasisfsm.grammar);
-    }
+        // emphasisfsm.bias = empcats_gen(ctx, emphasisfsm.grammar);
+    // }
 
     if (emphasisfsm.bias == 0.0)
         return;
