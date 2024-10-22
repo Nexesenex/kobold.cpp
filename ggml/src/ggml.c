@@ -12801,17 +12801,17 @@ UseGgmlGemm1:;
                 }
             }
         }
-    }
 
-    if (ith == 0) {
-        wdata -= GGML_MAX_NAME;
-        memcpy(wdata, src1->name, GGML_MAX_NAME);
-        // Every thread starts at ith, so the first unprocessed chunk is nth.  This save a bit of coordination right at the start.
-        atomic_store_explicit(&params->threadpool->current_chunk, nth, memory_order_relaxed);
-    }
+        ggml_barrier(params->threadpool);
+
+        if (ith == 0) {
+            wdata -= GGML_MAX_NAME;
+            memcpy(wdata, src1->name, GGML_MAX_NAME);
+            // Every thread starts at ith, so the first unprocessed chunk is nth.  This save a bit of coordination right at the start.
+            atomic_store_explicit(&params->threadpool->current_chunk, nth, memory_order_relaxed);
+        }
 
 AlreadyQunatized:;
-    ggml_barrier(params->threadpool);
     }
 
     const void * wdata = (src1->type == vec_dot_type) ? src1->data
