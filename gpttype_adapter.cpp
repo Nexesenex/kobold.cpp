@@ -1485,16 +1485,50 @@ static void load_grammar(const std::string & gammarstr)
     }
 }
 
-static bool kcpp_eval_image(llama_context * ctx_llama, float * img_embd, int num_img_tokens, int n_batch, int * n_past) {
+struct llava_embd_batch {
+    std::vector<llama_pos>      pos;
+    std::vector<int32_t>        n_seq_id;
+    std::vector<llama_seq_id>   seq_id_0;
+    std::vector<llama_seq_id *> seq_ids;
+    std::vector<int8_t>         logits;
+    llama_batch batch;
+    llava_embd_batch(float * embd, int32_t n_tokens, llama_pos pos_0, llama_seq_id seq_id) {
+        pos     .resize(n_tokens);
+        n_seq_id.resize(n_tokens);
+        seq_ids .resize(n_tokens + 1);
+        logits  .resize(n_tokens);
+        seq_id_0.resize(1);
+        seq_id_0[0] = seq_id;
+        seq_ids [n_tokens] = nullptr;
+        batch = {
+            /*n_tokens       =*/ n_tokens,
+            /*tokens         =*/ nullptr,
+            /*embd           =*/ embd,
+            /*pos            =*/ pos.data(),
+            /*n_seq_id       =*/ n_seq_id.data(),
+            /*seq_id         =*/ seq_ids.data(),
+            /*logits         =*/ logits.data(),
+        };
+        for (int i = 0; i < n_tokens; i++) {
+            batch.pos     [i] = pos_0 + i;
+            batch.n_seq_id[i] = 1;
+            batch.seq_id  [i] = seq_id_0.data();
+            batch.logits  [i] = false;
+        }
+    }
+};
+
+static bool kcpp_eval_image(llama_context * ctx_llama, const struct llava_image_embed * image_embed, int n_batch, int * n_past) {
     int n_embd  = llama_n_embd(llama_get_model(ctx_llama));
 
-    for (int i = 0; i < num_img_tokens; i += n_batch) {
-        int n_eval = num_img_tokens - i;
+    for (int i = 0; i < image_embed->n_image_pos; i += n_batch) {
+        int n_eval = image_embed->n_image_pos - i;
         if (n_eval > n_batch) {
             n_eval = n_batch;
         }
-        llama_batch batch = {int32_t(n_eval), nullptr, (img_embd+i*n_embd), nullptr, nullptr, nullptr, nullptr, *n_past, 1, 0, };
-        if (llama_decode(ctx_llama, batch)) {
+        float * embd = image_embed->embed+i*n_embd;
+        llava_embd_batch llava_batch = llava_embd_batch(embd, n_eval, *n_past, 0);
+        if (llama_decode(ctx_llama, llava_batch.batch)) {
             fprintf(stderr, "\n%s : failed to eval image\n", __func__);
             return false;
         }
@@ -1502,6 +1536,43 @@ static bool kcpp_eval_image(llama_context * ctx_llama, float * img_embd, int num
     }
     return true;
 }
+
+// static bool kcpp_eval_image(llama_context * ctx_llama, float * img_embd, int num_img_tokens, int n_batch, int * n_past) {
+    // int n_embd  = llama_n_embd(llama_get_model(ctx_llama));
+
+    // for (int i = 0; i < num_img_tokens; i += n_batch) {
+        // int n_eval = num_img_tokens - i;
+        // if (n_eval > n_batch) {
+            // n_eval = n_batch;
+        // }
+        // llama_batch batch = {int32_t(n_eval), nullptr, (img_embd+i*n_embd), nullptr, nullptr, nullptr, nullptr, *n_past, 1, 0, };
+        // if (llama_decode(ctx_llama, batch)) {
+            // fprintf(stderr, "\n%s : failed to eval image\n", __func__);
+            // return false;
+        // }
+        // *n_past += n_eval;
+    // }
+    // return true;
+// }
+
+// bool llava_eval_image_embed(llama_context * ctx_llama, const struct llava_image_embed * image_embed, int n_batch, int * n_past) {
+    // int n_embd  = llama_n_embd(llama_get_model(ctx_llama));
+
+    // for (int i = 0; i < image_embed->n_image_pos; i += n_batch) {
+        // int n_eval = image_embed->n_image_pos - i;
+        // if (n_eval > n_batch) {
+            // n_eval = n_batch;
+        // }
+        // float * embd = image_embed->embed+i*n_embd;
+        // llava_embd_batch llava_batch = llava_embd_batch(embd, n_eval, *n_past, 0);
+        // if (llama_decode(ctx_llama, llava_batch.batch)) {
+            // LOG_ERR("%s : failed to eval\n", __func__);
+            // return false;
+        // }
+        // *n_past += n_eval;
+    // }
+    // return true;
+// }
 
 //given an old GGUF context and a new context that has some middle portion removed,
 //find and remove the middle portion from the old context from the KV. Does not fast forward after this destructive action
@@ -2119,7 +2190,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         //determine mem per token
         std::vector<int> tmp = {1, 2, 3, 4};
         llama_kv_cache_clear(llama_ctx_v4);
-        auto er = llama_decode(llama_ctx_v4, llama_batch_get_one(tmp.data(), tmp.size(), 0, 0));
+        auto er = llama_decode(llama_ctx_v4, llama_batch_get_one(tmp.data(), tmp.size()));
         if(er!=0)
         {
             printf("\nLLAMA EVAL returned nonzero: %d\n",er);
@@ -3182,7 +3253,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
             }
             else if(file_format == FileFormat::GGUF_GENERIC)
             {
-                evalres = (llama_decode(llama_ctx_v4, llama_batch_get_one(embd.data(), embdsize, n_past, 0))==0);
+                evalres = (llama_decode(llama_ctx_v4, llama_batch_get_one(embd.data(), embdsize))==0);
             }
             else if(file_format==FileFormat::RWKV_1 || file_format==FileFormat::RWKV_2)
             {
@@ -3563,7 +3634,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                             if(i>0 && sepsize>0)
                             {
                                 //add a separator between each image
-                                auto evr = llama_decode(llama_ctx_v4, llama_batch_get_one(llava_sep.data(), sepsize, n_past, 0));
+                                auto evr = llama_decode(llama_ctx_v4, llama_batch_get_one(llava_sep.data(), sepsize));
                                 if(evr!=0)
                                 {
                                     printf("\nError when appending llava separator: %d\n",evr);
@@ -3580,18 +3651,18 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                             {
                                 printf("\rProcessing LLaVa Embedding %d (%d tokens)",(i+1), llava_images[i].clp_image_tokens);
                             }
-                            bool err = kcpp_eval_image(llama_ctx_v4,llava_images[i].clp_img_embd,llava_images[i].clp_image_tokens,kcpp_data->n_batch,&n_past);
-                            llavatokensevaled += llava_images[i].clp_image_tokens;
-                            if(!err)
-                            {
-                                llava_composite_image_signature = ""; //force invalidate
-                                fprintf(stderr, "\nFailed to eval llava image at %d!\n",n_past);
-                                output.text = nullptr;
-                                output.status = 0;
-                                output.stopreason = stop_reason::INVALID;
-                                generation_finished = true;
-                                return output;
-                            }
+                            // bool err = kcpp_eval_image(llama_ctx_v4,llava_images[i].clp_img_embd,llava_images[i].clp_image_tokens,kcpp_data->n_batch,&n_past);
+                            // llavatokensevaled += llava_images[i].clp_image_tokens;
+                            // if(!err)
+                            // {
+                                // llava_composite_image_signature = ""; //force invalidate
+                                // fprintf(stderr, "\nFailed to eval llava image at %d!\n",n_past);
+                                // output.text = nullptr;
+                                // output.status = 0;
+                                // output.stopreason = stop_reason::INVALID;
+                                // generation_finished = true;
+                                // return output;
+                            // }
                         }
                         if(llavatokenscounted!=llavatokensevaled)
                         {
