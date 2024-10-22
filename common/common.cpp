@@ -957,7 +957,7 @@ struct common_init_result common_init_from_params(common_params & params) {
         }
 
         if (llama_model_has_encoder(model)) {
-            llama_encode(lctx, llama_batch_get_one(tmp.data(), tmp.size(), 0, 0));
+            llama_encode(lctx, llama_batch_get_one(tmp.data(), tmp.size()));
             llama_token decoder_start_token_id = llama_model_decoder_start_token(model);
             if (decoder_start_token_id == -1) {
                 decoder_start_token_id = bos;
@@ -966,7 +966,7 @@ struct common_init_result common_init_from_params(common_params & params) {
             tmp.push_back(decoder_start_token_id);
         }
         if (llama_model_has_decoder(model)) {
-            llama_decode(lctx, llama_batch_get_one(tmp.data(), std::min(tmp.size(), (size_t) params.n_batch), 0, 0));
+            llama_decode(lctx, llama_batch_get_one(tmp.data(), std::min(tmp.size(), (size_t) params.n_batch)));
         }
         llama_kv_cache_clear(lctx);
         llama_synchronize(lctx);
@@ -1040,7 +1040,7 @@ static ggml_type kv_cache_type_from_str(const std::string & s) {
         return GGML_TYPE_Q6_0;
     }
 
-    throw std::runtime_error("Invalid cache type: " + s);
+    throw std::runtime_error("Unsupported cache type: " + s);
 }
 
 struct llama_context_params common_context_params_to_llama(const common_params & params) {
@@ -1052,7 +1052,7 @@ struct llama_context_params common_context_params_to_llama(const common_params &
     cparams.n_ubatch          = params.n_ubatch;
     cparams.n_threads         = params.cpuparams.n_threads;
     cparams.n_threads_batch   = params.cpuparams_batch.n_threads == -1 ?
-                                    params.cpuparams.n_threads : params.cpuparams_batch.n_threads;
+                                params.cpuparams.n_threads : params.cpuparams_batch.n_threads;
     cparams.logits_all        = params.logits_all;
     cparams.embeddings        = params.embedding;
     cparams.rope_scaling_type = params.rope_scaling_type;

@@ -324,8 +324,9 @@ struct ggml_logger_state {
 static struct ggml_logger_state g_logger_state = {ggml_log_callback_default, NULL};
 
 static void ggml_log_internal_v(enum ggml_log_level level, const char * format, va_list args) {
-    if (format == NULL)
+    if (format == NULL) {
         return;
+    }
     va_list args_copy;
     va_copy(args_copy, args);
     char buffer[128];
@@ -16003,6 +16004,9 @@ static void ggml_compute_forward_flash_attn_ext_f16(
     ggml_vec_dot_t    const kq_vec_dot     = type_traits[k->type].vec_dot;
     ggml_to_float_t   const v_to_float     = type_traits[v->type].to_float;
 
+    GGML_ASSERT(q_to_vec_dot && "fattn: unsupported K-type");
+    GGML_ASSERT(v_to_float   && "fattn: unsupported V-type");
+
     // loop over n_batch and n_head
     for (int ir = ir0; ir < ir1; ++ir) {
         // q indices
@@ -23599,6 +23603,14 @@ int ggml_cpu_has_avx512_vnni(void) {
 
 int ggml_cpu_has_avx512_bf16(void) {
 #if defined(__AVX512BF16__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+int ggml_cpu_has_amx_int8(void) {
+#if defined(__AMX_INT8__)
     return 1;
 #else
     return 0;

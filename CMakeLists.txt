@@ -441,6 +441,7 @@ endif()
 if (WIN32)
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 
+
     if (BUILD_SHARED_LIBS)
         set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
     endif()
@@ -483,6 +484,19 @@ if (LLAMA_CCACHE)
     else()
         message(STATUS "Warning: ccache not found - consider installing it for faster compilation or disable this warning with LLAMA_CCACHE=OFF")
     endif ()
+endif()
+
+# change the default for these ggml options
+if (NOT DEFINED GGML_LLAMAFILE)
+    set(GGML_LLAMAFILE_DEFAULT ON)
+endif()
+
+if (NOT DEFINED GGML_AMX)
+    set(GGML_AMX ON)
+endif()
+
+if (NOT DEFINED GGML_CUDA_GRAPHS)
+    set(GGML_CUDA_GRAPHS_DEFAULT ON)
 endif()
 
 # this version of Apple ld64 is buggy
