@@ -71,6 +71,7 @@ MK_NVCCFLAGS = -std=c++17
 ifdef LLAMA_NO_CCACHE
 GGML_NO_CCACHE := 1
 DEPRECATE_WARNING := 1
+endif
 
 #lets try enabling everything
 CFLAGS   += -pthread -Wno-deprecated -Wno-deprecated-declarations -Wno-unused-variable
