@@ -7099,6 +7099,12 @@ static bool llm_load_tensors(
     const int i_gpu_start = std::max((int) hparams.n_layer - n_gpu_layers, (int) 0);
     bool use_mmap_buffer = true;
 
+    if (model.arch == LLM_ARCH_COMMAND_R) {
+        model.buft_input = llama_default_buffer_type_offload(main_gpu);
+    } else {
+        model.buft_input = llama_default_buffer_type_cpu(model, true);
+    } 
+
     // there is very little benefit to offloading the input layer, so always keep it on the CPU
     model.buft_input = llama_default_buffer_type_cpu(model, true);
     //model.buft_input = llama_default_buffer_type_offload(main_gpu);
