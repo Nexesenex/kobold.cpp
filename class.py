@@ -270,7 +270,7 @@ class model_backend(InferenceModel):
         ropeconfig=[self.kcpp_ropescale, self.kcpp_ropebase], stream=False, smartcontext=self.kcpp_smartcontext, forceversion=0,
         nommap=self.kcpp_nommap, usemlock=False, noavx2=self.kcpp_noavx2, debugmode=self.kcpp_debugmode, skiplauncher=True, usecpu=self.kcpp_usecpu,
         useclblast=self.kcpp_useclblast, usecublas=self.kcpp_usecublas, usevulkan=self.kcpp_usevulkan, gpulayers=self.kcpp_gpulayers,
-        tensor_split=self.kcpp_tensor_split, config=None, onready='', multiuser=False, foreground=False, preloadstory=None, noshift=False,
+        tensor_split=self.kcpp_tensor_split, config=None, onready='', multiuser=False, foreground=False, preloadstory=None, contextshift=self.kcpp_contextshift,
         remotetunnel=False, ssl=False, benchmark=None, nocertify=False, mmproj=None, password=None, chatcompletionsadapter=None)
 
 
