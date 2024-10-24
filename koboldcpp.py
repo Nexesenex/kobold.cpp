@@ -1713,10 +1713,13 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                         detected_upload_filename = re.findall(r'Content-Disposition.*name="file"; filename="(.*)"', fpart.decode('utf-8',errors='ignore'))
                         if detected_upload_filename and len(detected_upload_filename)>0:
                             utfprint(f"Detected uploaded file: {detected_upload_filename[0]}")
-                            file_data = fpart.split(b'\r\n\r\n')[1].rsplit(b'\r\n', 1)[0]
-                            file_data_base64 = base64.b64encode(file_data).decode('utf-8',"ignore")
-                            base64_string = f"data:audio/wav;base64,{file_data_base64}"
-                            return base64_string
+                            file_content_start = fpart.find(b'\r\n\r\n') + 4  # Position after headers
+                            file_content_end = fpart.rfind(b'\r\n')  # Ending boundary
+                            if file_content_start != -1 and file_content_end != -1:
+                                file_data = fpart[file_content_start:file_content_end]
+                                file_data_base64 = base64.b64encode(file_data).decode('utf-8',"ignore")
+                                base64_string = f"data:audio/wav;base64,{file_data_base64}"
+                                return base64_string
             print("Uploaded file not found.")
             return None
         except Exception as e:
@@ -3034,11 +3037,14 @@ def show_gui():
             quick_tensor_split_entry.grid_forget()
             splitmode_box.grid_forget()
 
-        if index == "Use Vulkan":
+        if index == "Use Vulkan" or index == "Use Vulkan (Old CPU)":
             tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
             tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
-            quick_tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
-            quick_tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
+            # quick_tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
+            # quick_tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
+            quick_use_flashattn.grid_remove()
+        else:
+            quick_use_flashattn.grid(row=22, column=1, padx=8, pady=1,  stick="nw")
 
         if index == "Use Vulkan" or index == "Vulkan NoAVX2 (Old CPU)" or index == "Use CLBlast" or index == "CLBlast NoAVX2 (Old CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
             gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
@@ -3110,6 +3116,11 @@ def show_gui():
     # blas batch size
     makeslider(quick_tab, "BLAS Logical Batch Size - optimum of 128 if not filled :", blasbatchsize_text, blasbatchsize_var, 0, 29, 16, width=391, set=17,tooltip="How many tokens to process at once per batch.\nLarger values use more memory unless Physical Batch supersedes it.")
     makeslider(quick_tab, "BLAS Physical Batch Size - same as Logical if not filled :", blasubatchsize_text, blasubatchsize_var, 0, 29, 18, width=391, set=0,tooltip="How many tokens to process at once per batch.\nLarger values use more memory.")
+
+    # quick_use_flashattn = makecheckbox(quick_tab, "Use FlashAttention", flashattention, 22, 1, tooltiptxt="Enable flash attention for GGUF models.")
+
+    # context size
+    # makeslider(quick_tab, "Context Size:", contextsize_text, context_var, 0, len(contextsize_text)-1, 30, width=280, set=5,tooltip="What is the maximum context size to support. Model specific. You cannot exceed it.\nLarger contexts require more memory, and not all models support it.")
 
     # load model
     makefileentry(quick_tab, "Model:", "Select GGML or GGML Model File", model_var, 40, 576, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")

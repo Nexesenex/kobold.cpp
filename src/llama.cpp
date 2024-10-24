@@ -19354,8 +19354,7 @@ bool llama_supports_mlock(void) {
 }
 
 bool llama_supports_gpu_offload(void) {
-#if defined(GGML_USE_CLBLAST) || \
-    defined(GGML_USE_KOMPUTE)
+#if defined(GGML_USE_CLBLAST) || defined(GGML_USE_KOMPUTE)
     // Defined when llama.cpp is compiled with support for offloading model layers to GPU.
     return true;
 #else

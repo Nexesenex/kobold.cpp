@@ -441,7 +441,6 @@ endif()
 if (WIN32)
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 
-
     if (BUILD_SHARED_LIBS)
         set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
     endif()

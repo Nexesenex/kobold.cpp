@@ -102,6 +102,11 @@ static bool read_wav(const std::string & b64data, std::vector<float>& pcmf32, st
     std::vector<float> raw_pcm;
     raw_pcm.resize(n);
 
+    if(whisperdebugmode==1)
+    {
+        printf("\nwav_data_size: %d, n:%d",wav_data.size(),n);
+    }
+
     // convert to mono, float
     if (wav.channels == 1) {
         for (uint64_t i = 0; i < n; i++) {
