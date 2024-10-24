@@ -1119,7 +1119,7 @@ def load_model(model_filename):
 
     inputs.mmproj_filename = args.mmproj.encode("UTF-8") if args.mmproj else "".encode("UTF-8")
     inputs.use_smartcontext = args.smartcontext
-    inputs.use_contextshift = (0 if args.noshift else 1)
+    inputs.use_contextshift = (1 if args.contextshift else 0)
 
     inputs.flash_attention = args.flashattention
     if args.quantkv==0:
@@ -1127,13 +1127,13 @@ def load_model(model_filename):
     elif args.quantkv>0 and args.quantkv<15:
         inputs.quant_k = inputs.quant_v = args.quantkv
         inputs.flash_attention = True
-        inputs.noshift = 1
+        inputs.use_contextshift = 0
     elif args.quantkv==15:
         inputs.quant_k = inputs.quant_v = 0
     elif args.quantkv>15 and args.quantkv<23:
         inputs.quant_k = inputs.quant_v = args.quantkv
         inputs.flash_attention = False
-        inputs.noshift = 1
+        inputs.use_contextshift = 0
     else:
         inputs.quant_k = inputs.quant_v = 0
 
@@ -3425,7 +3425,7 @@ def show_gui():
         args.nommap = disablemmap.get()==1
         args.smartcontext = smartcontext.get()==1
         args.flashattention = flashattention.get()==1
-        args.noshift = contextshift.get()==0
+        args.contextshift = contextshift.get()==1
         args.remotetunnel = remotetunnel.get()==1
         args.foreground = keepforeground.get()==1
         args.quiet = quietmode.get()==1
@@ -3586,7 +3586,7 @@ def show_gui():
         disablemmap.set(1 if "nommap" in dict and dict["nommap"] else 0)
         smartcontext.set(1 if "smartcontext" in dict and dict["smartcontext"] else 0)
         flashattention.set(1 if "flashattention" in dict and dict["flashattention"] else 0)
-        contextshift.set(0 if "noshift" in dict and dict["noshift"] else 1)
+        contextshift.set(1 if "contextshift" in dict and dict["contextshift"] else 0)
         remotetunnel.set(1 if "remotetunnel" in dict and dict["remotetunnel"] else 0)
         keepforeground.set(1 if "foreground" in dict and dict["foreground"] else 0)
         quietmode.set(1 if "quiet" in dict and dict["quiet"] else 0)
@@ -4658,7 +4658,7 @@ def main(launch_args,start_server=True):
         print(f"[BlasThreads: {args.blasthreads}, BlasNBatchSize: {args.blasbatchsize}, BlasUBatchSize: {args.blasubatchsize}]", flush=True)        
         print(f"[Layers: {args.gpulayers}, Tensor_Split: {args.tensor_split}, FlashAttention: {args.flashattention}, KV_cache: {args.quantkv}]", flush=True)
         print(f"[Max_Context: {args.contextsize}, Rope Scale (Linear): {args.ropeconfig[0]}, Rope Base (NTK): {args.ropeconfig[1]}]", flush=True)        
-        print(f"[ContextShift: {args.noshift}, NoShift: {not (args.noshift)}, SmartContext: {args.smartcontext}]", flush=True)    
+        print(f"[ContextShift: {args.contextshift}, NoShift: {not (args.contextshift)}, SmartContext: {args.smartcontext}]", flush=True)    
         print(f"==========", flush=True)
         loadok = load_model(modelname)
         print("Load Text Model OK: " + str(loadok))
@@ -5025,7 +5025,7 @@ if __name__ == '__main__':
 
     advparser.add_argument("--blasthreads", help="Use a different number of threads during BLAS if specified. Otherwise, has the same value as --threads",metavar=('[threads]'), type=int, default=0)
     advparser.add_argument("--lora", help="LLAMA models only, applies a lora file on top of model. Experimental.", metavar=('[lora_filename]', '[lora_base]'), nargs='+')
-    advparser.add_argument("--noshift", help="If set, do not attempt to Trim and Shift the GGUF context without reprocessing everything once the max context is reached. If you disable it (or need to use Quantized KV cache (KVQ) with FlashAttention, aka. modes 1 to 20, which are incompatible with Context Shift), you can eventually use --smartcontext instead.", action='store_true')
+    advparser.add_argument("--contextshift", help="If set, do attempt to Trim and Shift the GGUF context without reprocessing everything once the max context is reached. If you disable it (or need to use Quantized KV cache (KVQ) with FlashAttention, aka. modes 1 to 14, which are incompatible with Context Shift), you can eventually use --smartcontext instead.", action='store_true')
     advparser.add_argument("--nommap", help="If set, do not use mmap to load newer models", action='store_true')
 #    advparser.add_argument("--usedirect_io", help="Accelerate the model loading time", action='store_true')
 #    advparser.add_argument("--token_healing", help="Heal the generation of tokens", action='store_true')
