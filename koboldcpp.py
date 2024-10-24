@@ -44,7 +44,7 @@ maxhordelen = 400
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.77008"
+KcppVersion = "1.77009"
 LcppVersion = "b3972"
 CudaSpecifics = "CuCML_ArCML_SMC2_DmmvX32Y1"
 ReleaseDate = "2024/10/24"
@@ -1119,7 +1119,7 @@ def load_model(model_filename):
 
     inputs.mmproj_filename = args.mmproj.encode("UTF-8") if args.mmproj else "".encode("UTF-8")
     inputs.use_smartcontext = args.smartcontext
-    inputs.use_contextshift = (1 if args.contextshift else 0)
+    inputs.use_contextshift = args.contextshift
 
     inputs.flash_attention = args.flashattention
     if args.quantkv==0:
