@@ -2659,7 +2659,7 @@ def show_gui():
     quantkv_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22"]
     quantkv_text = ["0 - F16 (16BPW) - FA or not",
     "1 - q8_0 - (8.5BPW) - FA",
-    "2 - q4_0 - (4.5BPW) - FA",
+    "2 - q4_0 - (4.5BPW) - FA - possibly faulty on some models",
     "3 - K F16 - V q8_0 (12.25BPW) - FA",
     "4 - K F16 - V q6_0 (11.25BPW) - FA",   
     "5 - K q8_0 - V q6_0 (7.5BPW) - FA",
@@ -2667,18 +2667,18 @@ def show_gui():
     "7 - K q8_0 - V iq4_nl (6.5BPW) - FA",
     "8 - K q6_0 - V q6_0 (6.5BPW) - FA",
     "9 - K q6_0 - V q5_0 (6BPW) - FA, best game in FA town.",
-    "10 - K q6_0 - V iq4_nl (5.5BPW) - FA",
-    "11 - K q5_1 - V q5_0 (5.5BPW) - FA",
+    "10 - K q6_0 - V iq4_nl (5.5BPW) - FA - possibly faulty on some models (Qwen 2.5 1.5b?)",
+    "11 - K q5_1 - V q5_0 (5.5BPW) - FA - possibly faulty on some models (Qwen 2.5 1.5b?)",
     "12 - K q5_1 - V iq4_nl (5.25BPW) - FA",
-    "13 - K q5_0 - V iq4_nl (5BPW) - FA",
+    "13 - K q5_0 - V iq4_nl (5BPW) - FA - possibly faulty on some models (Qwen 2.5 1.5b?)",
     "14 - K iq4_nl - V iq4_nl (4.5BPW) - FA",
     "15 - F16 (16BPW) - FA or not",
     "16 - K q8_0 - V F16 (12.25BPW) - NO FA, slower",
     "17 - K q6_0 - V F16 (11.25BPW) - NO FA, slower, best game in non-FA town.",
-    "18 - K q5_1 - V F16 (11BPW) - NO FA, slower",
-    "19 - K q5_0 - V F16 (11.75BPW) - NO FA, slower",
-    "20 - K q4_1 - V F16 (10.5BPW) - NO FA, slower",
-    "21 - K q4-0 - V F16 (10.25BPW) - NO FA, slower",
+    "18 - K q5_1 - V F16 (11BPW) - NO FA, slower - possibly faulty on some models (Qwen 2.5 1.5b?)",
+    "19 - K q5_0 - V F16 (11.75BPW) - NO FA, slower - possibly faulty on some models (Qwen 2.5 1.5b?)",
+    "20 - K q4_1 - V F16 (10.5BPW) - NO FA, slower - possibly faulty on some models (Qwen 2.5 1.5b?)",
+    "21 - K q4-0 - V F16 (10.25BPW) - NO FA, slower - possibly faulty on some models (Qwen 2.5 1.5b?)",
     "22 - K iq4_nl - V F16 (10.25BPW) - NO FA, slower"]
     # displaygpu_values = ["0", "1", "2", "3", "4"]
     # displaygpu_text = ["GPU 0 used for desktop display", "GPU 1 used for desktop display", "GPU 2 used for desktop display", "GPU 3 used for desktop display", "No GPU used for desktop display"]
@@ -3040,11 +3040,11 @@ def show_gui():
         if index == "Use Vulkan" or index == "Use Vulkan (Old CPU)":
             tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
             tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
-            # quick_tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
-            # quick_tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
-            quick_use_flashattn.grid_remove()
-        else:
-            quick_use_flashattn.grid(row=22, column=1, padx=8, pady=1,  stick="nw")
+            quick_tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
+            quick_tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
+            # quick_use_flashattn.grid_remove()
+        # else:
+            # quick_use_flashattn.grid(row=22, column=1, padx=8, pady=1,  stick="nw")
 
         if index == "Use Vulkan" or index == "Vulkan NoAVX2 (Old CPU)" or index == "Use CLBlast" or index == "CLBlast NoAVX2 (Old CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
             gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
