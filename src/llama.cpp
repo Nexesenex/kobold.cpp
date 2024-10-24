@@ -7148,7 +7148,7 @@ static bool llm_load_tensors(
     #endif
 
     // there is very little benefit to offloading the input layer, so mostly keep it on the CPU
-    // model.buft_input = llama_default_buffer_type_cpu(model, true);
+    model.buft_input = llama_default_buffer_type_cpu(model, true);
     //
     // IK : Well, this is not really true when the model uses the same tensor for token embeddings and for output
     // (e.g., Bitnet, Gemma). If we use the above, then the matrix multiplication with the output tensor runs
@@ -7159,11 +7159,8 @@ static bool llm_load_tensors(
     // are quantized with a k- or i-quant (which is almost always true). The back-end related stuff and offloading
     // to the GPU has become quite opaque and hard to understand, so for now we fix this just for Bitnet
     // (where token_embeddings is quantized with Q8_0).
-    if (model.arch == LLM_ARCH_BITNET || model.arch == LLM_ARCH_COMMAND_R) {
+    if (model.arch == LLM_ARCH_BITNET) {
         model.buft_input = llama_default_buffer_type_offload(model, main_gpu);
-    // } else if (tensor->name, "token_embd.weight" || tensor->name, "output.weight") {
-          // if (tensor->type == GGML_TYPE_Q5_0 || tensor->type == GGML_TYPE_Q5_1)
-              // model.buft_input = llama_default_buffer_type_offload(model, main_gpu);
     } else {
         model.buft_input = llama_default_buffer_type_cpu(model, true);
     }
