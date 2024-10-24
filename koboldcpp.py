@@ -844,7 +844,8 @@ def load_model(model_filename):
 
     inputs.mmproj_filename = args.mmproj.encode("UTF-8") if args.mmproj else "".encode("UTF-8")
     inputs.use_smartcontext = args.smartcontext
-    inputs.use_contextshift = (0 if args.noshift else 1)
+    inputs.use_contextshift = (1 if args.contextshift else 0)
+
     inputs.flash_attention = args.flashattention
     if args.quantkv==0:
         inputs.quant_k = inputs.quant_v = 0
@@ -3066,7 +3067,7 @@ def show_gui():
         args.nommap = disablemmap.get()==1
         args.smartcontext = smartcontext.get()==1
         args.flashattention = flashattention.get()==1
-        args.noshift = contextshift.get()==0
+        args.contextshift = contextshift.get()==1
         args.remotetunnel = remotetunnel.get()==1
         args.foreground = keepforeground.get()==1
         args.quiet = quietmode.get()==1
@@ -3209,7 +3210,7 @@ def show_gui():
         disablemmap.set(1 if "nommap" in dict and dict["nommap"] else 0)
         smartcontext.set(1 if "smartcontext" in dict and dict["smartcontext"] else 0)
         flashattention.set(1 if "flashattention" in dict and dict["flashattention"] else 0)
-        contextshift.set(0 if "noshift" in dict and dict["noshift"] else 1)
+        contextshift.set(1 if "contextshift" in dict and dict["contextshift"] else 0)
         remotetunnel.set(1 if "remotetunnel" in dict and dict["remotetunnel"] else 0)
         keepforeground.set(1 if "foreground" in dict and dict["foreground"] else 0)
         quietmode.set(1 if "quiet" in dict and dict["quiet"] else 0)
@@ -4527,7 +4528,7 @@ if __name__ == '__main__':
     advparser.add_argument("--blasbatchsize", help="Sets the Logical batch size used in BLAS processing (default 128 for VRAM savings, optimal speed is 512, 256 is a great compromise). Setting it to -1 disables BLAS mode, but keeps other benefits like GPU offload. Steps : 1,2,4,8,16,20,24,28,32,40,48,56,64,80,96,112,128,160,192,224,256,384,512,768,1024,1536,2048,3072, max 4096.", type=check_range(int,-1,4096), default=128)
     advparser.add_argument("--blasthreads", help="Use a different number of threads during BLAS if specified. Otherwise, has the same value as --threads",metavar=('[threads]'), type=int, default=0)
     advparser.add_argument("--lora", help="LLAMA models only, applies a lora file on top of model. Experimental.", metavar=('[lora_filename]', '[lora_base]'), nargs='+')
-    advparser.add_argument("--noshift", help="If set, do not attempt to Trim and Shift the GGUF context.", action='store_true')
+    advparser.add_argument("--contextshift", help="If set, do attempt to Trim and Shift the GGUF context without reprocessing everything once the max context is reached. If you disable it (or need to use Quantized KV cache (KVQ) with FlashAttention, aka. modes 1 to 14, which are incompatible with Context Shift), you can eventually use --smartcontext instead.", action='store_true')
     advparser.add_argument("--nommap", help="If set, do not use mmap to load newer models", action='store_true')
     advparser.add_argument("--usemlock", help="Enables mlock, preventing the RAM used to load the model from being paged out. Not usually recommended.", action='store_true')
     advparser.add_argument("--noavx2", help="Do not use AVX2 instructions, a slower compatibility mode for older devices.", action='store_true')
