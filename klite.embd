@@ -1275,13 +1275,13 @@ Current version indicated by LITEVER below.
 		.saveloadpopup {
 			width: 660px;
 			background-color: #262626;
-			margin-top: 80px;
+			margin-top: 60px;
 		}
 		@media (max-width: 768px) {
 			.saveloadpopup {
 				width: 100%;
 				background-color: #262626;
-				margin-top: 80px;
+				margin-top: 60px;
 			}
 		}
 		.saveloadgrid
@@ -2082,7 +2082,6 @@ Current version indicated by LITEVER below.
 	.corpo_chat_outer
 	{
 		width: calc(100% - 24px);
-		max-width: 860px;
 		background: #f4f4f4aa none repeat scroll 0 0;
 		margin-top: 6px;
 		margin-bottom: 4px;
@@ -2339,7 +2338,6 @@ Current version indicated by LITEVER below.
 	}
 	.corpostyleinner
 	{
-		max-width: 860px;
 		margin-left: auto;
     	margin-right: auto;
 		padding-left: 8px;
@@ -4274,7 +4272,7 @@ Current version indicated by LITEVER below.
 	const OAI_TTS_ID = 1002;
 	const HD_RES_PX = 512;
 	const NO_HD_RES_PX = 320;
-	const SAVE_SLOTS = 6;
+	const SAVE_SLOTS = 10;
 
 	//all configurable globals
 	var perfdata = null; //if it's null, we are not connected
@@ -5782,7 +5780,7 @@ Current version indicated by LITEVER below.
 	}
 	function is_using_kcpp_with_dry()
 	{
-		return (custom_kobold_endpoint!="" && koboldcpp_version && koboldcpp_version!="" && compare_version_str(koboldcpp_version, "1.70") >= 0);
+		return (custom_kobold_endpoint!="" && koboldcpp_version && koboldcpp_version!="" && compare_version_str(koboldcpp_version, "1.6839") >= 0);
 	}
 	function is_using_kcpp_with_xtc()
 	{
@@ -9422,12 +9420,11 @@ Current version indicated by LITEVER below.
 		let filetable = ``;
 
 		let entry = `<div style="display:flex">
-				<button type="button" style="font-size:12px; margin:2px;width:33%" name="localsave" class="btn btn-primary" onclick="hide_popups();save_file_button()">`+"💾<br>Download File"+`</button>
-				<button type="button" style="font-size:12px; margin:2px;width:33%" name="localload" class="btn btn-primary" onclick="hide_popups();load_file_button()">`+"📁<br>Open File"+`</button>
-				<button type="button" style="font-size:12px; margin:2px;width:34%" name="shareurl" class="btn btn-primary" onclick="hide_popups();share_story_button()">`+"🌐<br>Share"+`</button>
+				<button type="button" style="font-size:12px; margin:2px;width:33%" name="localsave" class="btn btn-primary" onclick="hide_popups();save_file_button()">`+"💾<br>Download File to avoid data-loss"+`</button>
+				<button type="button" style="font-size:12px; margin:2px;width:33%" name="localload" class="btn btn-primary" onclick="hide_popups();load_file_button()">`+"📁<br>Open File from storage location"+`</button>
+				<button type="button" style="font-size:12px; margin:2px;width:34%" name="shareurl" class="btn btn-primary" onclick="hide_popups();share_story_button()">`+"🌐<br>Import / Export / Share Story"+`</button>
 				</div>
-				<div style="margin-top:3px; text-align: center; align-self: center; width: calc(100% - 184px);">
-				<span style="font-weight:bold;text-decoration: underline;">Temporary Browser Storage</span>
+				<div style="margin-top:0px; text-align: center; align-self: center; width: calc(100% - 184px);">
 				</div>`;
 		filetable += entry;
 
@@ -9437,7 +9434,7 @@ Current version indicated by LITEVER below.
 			{
 				let testslot = localStorage.getItem(STORAGE_PREFIX + "slot_"+i+"_meta");
 				let lbl = (i+1);
-				entry = `<div style="display:flex; height:42px;">
+				entry = `<div style="display:flex; height:33px;">
 					<div style="margin:3px; text-align: center; align-self: center; width: calc(100% - 184px);">
 					`+(testslot?`[ Slot `+(lbl)+` - `+testslot+` ]`:`[ Slot `+(lbl)+` - Empty ]`)+`
 					</div>
@@ -18033,7 +18030,7 @@ Current version indicated by LITEVER below.
 								</li>
 								<li class="nav-item hidden" id="topbtn_settings">
 									<a class="nav-link mainnav" href="#" id="btn_settings"
-										onclick="closeTopNav();display_settings()">Settings</a>
+										onclick="closeTopNav();display_settings()">KLite / KCPP / CCPP Settings</a>
 								</li>
 
 							</ul>
@@ -18248,13 +18245,13 @@ Current version indicated by LITEVER below.
 		<div class="popupbg flex"></div>
 		<div class="saveloadpopup">
 			<div class="popuptitlebar">
-				<div class="popuptitletext">Save File / Load File / Export File</div>
+				<div class="popuptitletext">Save / Load Chat in Temp Browser Storage, or Export via Download</div>
 			</div>
 
 			<div style="overflow: auto;">
 				<div id="saveloadentries" class="justifyleft anotelabel saveloadgrid">
 				</div>
-				<div class="justifyleft anotelabel"><p style="padding:6px;font-size: 10px;" class="color_red">Caution: Storage Slots are saved to a tempoary cache and can be deleted by your browser. To avoid losing data, use the download file button.</p></div>
+				<!-- <div class="justifyleft anotelabel"><p style="padding:0px;font-size: 8px;" class="color_red">CAUTION: CHATS ARE SAVED TO A TEMPOARY CACHE AND CAN BE DELETED BY YOUR BROWSER. TO AVOID LOSING DATA, USE THE DOWNLOAD FILE BUTTON.</p></div> -->
 				<div class="popupfooter">
 					<button type="button" class="btn btn-primary" id=""
 						onclick="hide_popups()">Back</button>
@@ -18615,7 +18612,7 @@ Current version indicated by LITEVER below.
 		<div class="popupbg flex"></div>
 		<div class="nspopup flexsize" style="margin-top: 4vh; background-color:#102840">
 			<div class="popuptitlebar">
-				<div class="popuptitletext" title="Settings Menu">Settings</div>
+				<div class="popuptitletext" title="Settings Menu">Kobold Lite / KoboldCPP / Croco.CPP Settings</div>
 			</div>
 			<div><ul class="nav nav-tabs settingsnav">
 				<li id="settingsmenuformat_tab" class="active"><a class="" href="#" title="Open Format Menu" onclick="display_settings_tab(0)">Format</a></li>
@@ -18811,10 +18808,10 @@ Current version indicated by LITEVER below.
 							<input title="Context Size" inputmode="numeric" class="justifyright flex-push-right settingsmall widerinput" id="max_context_length" oninput="
 						   document.getElementById('max_context_length_slide').value = this.value;">
 						</div>
-						<div><input title="Context Size Slider" type="range" class="form-range airange" min="512" max="4096" step="8" id="max_context_length_slide" oninput="
+						<div><input title="Context Size Slider" type="range" class="form-range airange" min="128" max="4096" step="16" id="max_context_length_slide" oninput="
 						   document.getElementById('max_context_length').value = this.value;"></div>
 						<div class="settingminmax">
-							<div class="justifyleft">512</div>
+							<div class="justifyleft">128</div>
 							<div class="justifyright" id="max_context_length_slide_label">4096</div>
 						</div>
 						<div id="auto_ctxlen_panel" class="settinglabel">
@@ -18830,11 +18827,11 @@ Current version indicated by LITEVER below.
 							<input title="Max Output" inputmode="numeric" class="justifyright flex-push-right settingsmall" id="max_length" oninput="
 						   document.getElementById('max_length_slide').value = this.value;">
 						</div>
-						<div><input title="Max Output Slider" type="range" class="form-range airange" min="16" max="512" step="2"	id="max_length_slide" oninput="
+						<div><input title="Max Output Slider" type="range" class="form-range airange" min="16" max="4096" step="16"	id="max_length_slide" oninput="
 						   document.getElementById('max_length').value = this.value;"></div>
 						<div class="settingminmax">
 							<div class="justifyleft">16</div>
-							<div class="justifyright">512</div>
+							<div class="justifyright">4096</div>
 						</div>
 						<div id="auto_genamt_panel" class="settinglabel">
 							<div class="justifyleft settingsmall" title="Automatically lowers settings if incompatible with existing workers">Auto-Adjust Limits </div>
@@ -18851,12 +18848,12 @@ Current version indicated by LITEVER below.
 							<input title="Temperature" inputmode="decimal" class="justifyright flex-push-right settingsmall" id="temperature" value=0.5
 								oninput="document.getElementById('temperature_slide').value = this.value;">
 						</div>
-						<div><input title="Temperature Slider" type="range" class="form-range airange" min="0.1" max="2" step="0.01"
+						<div><input title="Temperature Slider" type="range" class="form-range airange" min="0" max="5" step="0.01"
 								id="temperature_slide" oninput="
 						   document.getElementById('temperature').value = this.value;"></div>
 						<div class="settingminmax">
-							<div class="justifyleft">0.1</div>
-							<div class="justifyright">2</div>
+							<div class="justifyleft">0</div>
+							<div class="justifyright">5</div>
 						</div>
 					</div>
 
