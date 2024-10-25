@@ -47,7 +47,8 @@ struct load_model_inputs
     const int clblast_info = 0;
     const int cublas_info = 0;
     const char * vulkan_info = nullptr;
-    const int blasbatchsize = 512;
+    const int blasbatchsize = 128;
+    const int blasubatchsize = 128;
     const int debugmode = 0;
     const int forceversion = 0;
     const int gpulayers = 0;
