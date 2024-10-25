@@ -102,7 +102,8 @@ extern "C" {
     struct llama_v3_context_params {
         uint32_t seed;         // RNG seed, -1 for random
         int32_t  n_ctx;        // text context
-        int32_t  n_batch;      // prompt processing batch size
+        int32_t  n_batch;      // prompt processing logical batch size
+        int32_t  n_ubatch;     // prompt processing physical batch size
         int32_t  n_gqa;        // grouped-query attention (TEMP - will be moved to model hparams)
         float    rms_norm_eps; // rms norm epsilon (TEMP - will be moved to model hparams)
         int32_t  n_gpu_layers; // number of layers to store in VRAM
