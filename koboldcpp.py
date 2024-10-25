@@ -677,74 +677,90 @@ def extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath)
         except Exception as ex:
             modelfile_extracted_meta = None
 
-
-def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mmqmode,lowvram,poslayeroffset,neglayeroffset): #fork of a shitty algo to determine how many layers to use
+#fork of a shitty algo to determine how many layers to use
+def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mmqmode,lowvram,poslayeroffset,neglayeroffset):
     global showusedmemwarning, modelfile_extracted_meta # reference cached values instead
-    gpu0mem = MaxMemory[0]
-    used0mem = 0
-    gpu1mem = MaxMemory[1]
-    used1mem = 0
-    gpu2mem = MaxMemory[2]
-    used2mem = 0
-    gpu3mem = MaxMemory[3]
-    used3mem = 0
+    gpumem0 = MaxMemory[0]
+    usedmem0 = 0
+    gpumem1 = MaxMemory[1]
+    usedmem1 = 0
+    gpumem2 = MaxMemory[2]
+    usedmem2 = 0
+    gpumem3 = MaxMemory[3]
+    usedmem3 = 0
 
     if MaxFreeMemory[0]>0:
-        used0mem = MaxMemory[0]-MaxFreeMemory[0]
-        used1mem = MaxMemory[1]-MaxFreeMemory[1]
-        used2mem = MaxMemory[2]-MaxFreeMemory[2]
-        used3mem = MaxMemory[3]-MaxFreeMemory[3]
+        usedmem0 = MaxMemory[0]-MaxFreeMemory[0]
  
-        if showusedmemwarning and used0mem > (2.5*1024*1024*1024):
+        if showusedmemwarning and usedmem0 > (2.5*1024*1024*1024):
             showusedmemwarning = False
-            print(f"Note: KoboldCpp/Croco.Cpp has detected that a significant amount of GPU VRAM ({used0mem/1024/1024} MiB) is currently used by another application.\nFor best results, you may wish to close that application and then restart KoboldCpp/Croco.Cpp.\n***")
+            print(f"Note: KoboldCpp/Croco.Cpp has detected that a significant amount of GPU0 VRAM ({usedmem0/1024/1024} MiB) is currently used by another application.\nFor best results, you may wish to close that application and then restart KoboldCpp/Croco.Cpp.\n***")
+
+            print(f"Initial collection of data for the GPU layers autoloader:")
+            print(f"Model size (MiB/GiB like on MS Windows): {fsize/1024/1024:.3f} MiB ; {fsize/1024/1024/1024:.3f} GiB")
+            print(f"Model size (MB/GB like on Hugging-Face): {fsize/1000/1000:.3f} MB ; {fsize/1000/1000/1000:.3f} GB")
+            print("***")
+
+    overhead = 250*1024*1024
+    reservedmem0 = (overhead + usedmem0) # determine vram overhead
+    mem0 = gpumem0 - reservedmem0 
+    if mem0 < 0:
+        mem0 = 0
+        reservedmem0 = 0
+    if usedmem0 > 0:
+        print(f"GPU0 name: {CUDevicesNames[0]} ; GPU0 VRAM: {gpumem0/1024/1024} MiB - {MaxFreeMemory[0]/1024/1024} MiB unoccupied = {usedmem0/1024/1024} MiB occupied")
+        print(f"GPU0 reserved VRAM {reservedmem0/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU0 usable VRAM {mem0/1024/1024} MiB")
+
+    if MaxMemory[1] >0:
+        usedmem1 = MaxMemory[1]-MaxFreeMemory[1]
+        reservedmem1 = (overhead + usedmem1) # determine vram overhead
+        mem1 = gpumem1 - reservedmem1
+        if mem1 < 0:
+            mem1 = 0
+            reservedmem1 = 0
+        if usedmem1 > 0:
+            print(f"GPU1 name: {CUDevicesNames[1]} ; GPU1 VRAM: {gpumem1/1024/1024} MiB - {MaxFreeMemory[1]/1024/1024} MiB unoccupied = {usedmem1/1024/1024} MiB occupied")
+            print(f"GPU1 reserved VRAM {reservedmem1/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU1 usable VRAM {mem1/1024/1024} MiB")
+
+    if MaxMemory[2] >0:
+        usedmem2 = MaxMemory[2]-MaxFreeMemory[2]
+        reservedmem2 = (overhead + usedmem2) # determine vram overhead
+        mem2 = gpumem2 - reservedmem2
+        if mem2 < 0:
+            mem2 = 0
+            reservedmem2 = 0
+        if usedmem2 > 0:
+            print(f"GPU2 name: {CUDevicesNames[2]} ; GPU2 VRAM: {gpumem2/1024/1024} MiB - {MaxFreeMemory[2]/1024/1024} MiB unoccupied = {usedmem2/1024/1024} MiB occupied")
+            print(f"GPU2 reserved VRAM {reservedmem2/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU2 usable VRAM {mem2/1024/1024} MiB")
+
+    if MaxMemory[3] >0:
+        usedmem3 = MaxMemory[3]-MaxFreeMemory[3]
+        reservedmem3 = (overhead + usedmem3) # determine vram overhead
+        mem3 = gpumem3 - reservedmem3
+        if mem3 < 0:
+            mem3 = 0
+            reservedmem3 = 0
+        if usedmem3 > 0:
+            print(f"GPU3 name: {CUDevicesNames[3]} ; GPU3 VRAM: {gpumem3/1024/1024} MiB - {MaxFreeMemory[3]/1024/1024} MiB unoccupied = {usedmem3/1024/1024} MiB occupied")
+            print(f"GPU3 reserved VRAM {reservedmem3/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU3 usable VRAM {mem3/1024/1024} MiB")
+
+    mem = int(mem0 + mem1 + mem2 + mem3)
+    usedmem = int(usedmem0 + usedmem1 + usedmem2 + usedmem3)
+    reservedmem = int(reservedmem0 + reservedmem1 + reservedmem2 + reservedmem3)
+
+    if mem > 0:
+        print(f"GPUs global reserved VRAM: {reservedmem/1024/1024} MiB (Toral occupied VRAM + Total overhead) ; GPUs total usable VRAM: {mem/1024/1024} MiB")
+        print("***")
 
     try:
         if not modelfile_extracted_meta:
             return 0
         layerlimit = 0
         fsize = modelfile_extracted_meta[1]
+        print(f"Initial layer limit: {layerlimit} ; Model size: {fsize} MiB ; context size: {ctxsize} tokens")
+        print(f"GPUs global reserved VRAM: {reservedmem/1024/1024} MiB (Toral occupied VRAM + Total overhead) ; GPUs total usable VRAM: {mem/1024/1024} MiB")     
         if fsize>10000000: #dont bother with models < 10mb
             cs = ctxsize
-            print(f"Initial collection of data for the GPU layers autoloader:")
-            print(f"Model size (MiB/GiB like on MS Windows): {fsize/1024/1024:.3f} MiB ; {fsize/1024/1024/1024:.3f} GiB")
-            print(f"Model size (MB/GB like on Hugging-Face): {fsize/1000/1000:.3f} MB ; {fsize/1000/1000/1000:.3f} GB")
-            print("***")
-
-            print(f"GPU0 name: {CUDevicesNames[0]} ; GPU0 VRAM: {gpu0mem/1024/1024} MiB - {MaxFreeMemory[0]/1024/1024} MiB unoccupied = {used0mem/1024/1024} MiB occupied")
-            reserved0mem = (375*1024*1024 + used0mem) # determine vram overhead
-            mem0 = gpu0mem - reserved0mem 
-            print(f"GPU0 reserved VRAM {reserved0mem/1024/1024} MiB (occupied RAM + 375MiB overhead) ; GPU0 usable VRAM {mem0/1024/1024} MiB")
-
-            reserved1mem = (375*1024*1024 + used1mem) # determine vram overhead
-            mem1 = gpu1mem - reserved1mem
-            if mem1 < 0:
-                mem1 = 0
-            if used1mem > 0:
-                print(f"GPU1 name: {CUDevicesNames[1]} ; GPU1 VRAM: {gpu1mem/1024/1024} MiB - {MaxFreeMemory[1]/1024/1024} MiB unoccupied = {used1mem/1024/1024} MiB occupied")
-                print(f"GPU1 reserved VRAM {reserved1mem/1024/1024} MiB (occupied RAM + 375MiB overhead) ; GPU1 usable VRAM {mem1/1024/1024} MiB")
-
-            reserved2mem = (375*1024*1024 + used2mem) # determine vram overhead
-            mem2 = gpu2mem - reserved2mem
-            if mem2 < 0:
-                mem2 = 0
-            if used2mem > 0:
-                print(f"GPU2 name: {CUDevicesNames[2]} ; GPU2 VRAM: {gpu2mem/1024/1024} MiB - {MaxFreeMemory[2]/1024/1024} MiB unoccupied = {used2mem/1024/1024} MiB occupied")
-                print(f"GPU2 reserved VRAM {reserved2mem/1024/1024} MiB (occupied RAM + 375MiB overhead) ; GPU2 usable VRAM {mem2/1024/1024} MiB")
-
-            reserved3mem = (375*1024*1024 + used3mem) # determine vram overhead
-            mem3 = gpu3mem - reserved3mem
-            if mem3 < 0:
-                mem3 = 0
-            if used3mem > 0:
-                print(f"GPU3 name: {CUDevicesNames[3]} ; GPU3 VRAM: {gpu3mem/1024/1024} MiB - {MaxFreeMemory[3]/1024/1024} MiB unoccupied = {used3mem/1024/1024} MiB occupied")
-                print(f"GPU3 reserved VRAM {reserved3mem/1024/1024} MiB (occupied RAM + 375MiB overhead) ; GPU3 usable VRAM {mem3/1024/1024} MiB")
-
-            mem = int(mem0 + mem1 + mem2 + mem3)
-            reservedmem = int(reserved0mem + reserved1mem + reserved2mem + reserved3mem)
-            
-            print(f"GPUs total VRAM available: {mem/1024/1024} MiB")
-            print("***")
 
             if modelfile_extracted_meta[2] > 1024*1024*1024*5: #sdxl tax
                 mem -= 1024*1024*1024*(6 if sdquanted else 9)
