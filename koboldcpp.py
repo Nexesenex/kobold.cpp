@@ -744,7 +744,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
 
         if fsize>10000000: #dont bother with models < 10mb
             cs = ctxsize
-            mem = gpumem
+
             if modelfile_extracted_meta[2] > 1024*1024*1024*5: #sdxl tax
                 mem -= 1024*1024*1024*(6 if sdquanted else 9)
                 print(f"GPUs total VRAM available after SDXL tax: {mem/1024/1024} MiB")
@@ -762,34 +762,181 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
                 print(f"GPUs total VRAM available after Mmproj tax: {mem/1024/1024} MiB")
                 print("***")
 
-            csmul = 1.0
-            if cs:
-                csmul = (cs/4096) if cs >= 8192 else 1.8 if cs > 4096 else 1.2 if cs > 2048 else 1.0
-            print(f"Coefficients :")
-            print(f"Blas batch size: {bbs}")
-            print(f"Context size: {cs} tokens ; Context compute buffer multiplier (CCBM): {csmul:.3f}")
-            ggufmeta = modelfile_extracted_meta[0]
-            if not ggufmeta or ggufmeta[0]==0: #fail to read or no layerssizeperlayer))
-                layerlimit = int(min(200,(mem-reservedmem)/sizeperlayer))
+            bbs = blasbatchsize
+            bbs_ratio = bbs / 128
 
-            csmul = 1.0
+            fa = flashattention
+            fa_ratio = 1
+            if fa == 1:
+                fa_ratio = 0.5
+
+            mmq = mmqmode
+            mmq_ratio = 1
+            if mmq == 1:
+                mmq_ratio = 0.5
+
+            lv = lowvram
+            lvctx_ratio = 1
+            if lv == 1:
+                lvctx_ratio = 0
+            lvcomp_ratio = 1
+            if lv == 1:
+                lvcomp_ratio = 0.5
+
+            kvq = quantkv
+            kvbpw = 0
+            if kvq == 0:
+                kvbpw = 32
+            if kvq == 1:
+                kvbpw = 17
+            if kvq == 2:
+                kvbpw = 9
+            if kvq == 3:
+                kvbpw = 24.5
+            if kvq == 4:
+                kvbpw = 22.5
+            if kvq == 5:
+                kvbpw = 15
+            if kvq == 6:
+                kvbpw = 14
+            if kvq == 7:
+                kvbpw = 13
+            if kvq == 8:
+                kvbpw = 13
+            if kvq == 9:
+                kvbpw = 12
+            if kvq == 10:
+                kvbpw = 11
+            if kvq == 11:
+                kvbpw = 11
+            if kvq == 12:
+                kvbpw = 10.5
+            if kvq == 13:
+                kvbpw = 10
+            if kvq == 14:
+                kvbpw = 9
+            if kvq == 15:
+                kvbpw = 32
+            if kvq == 16:
+                kvbpw = 24.5
+            if kvq == 17:
+                kvbpw = 22.5
+            if kvq == 18:
+                kvbpw = 22
+            if kvq == 19:
+                kvbpw = 21.5
+            if kvq == 20:
+                kvbpw = 21
+            if kvq == 21:
+                kvbpw = 20.5
+            if kvq == 22:
+                kvbpw = 20.5
+
             if cs:
-                csmul = (cs/4096) if cs >= 8192 else 1.8 if cs > 4096 else 1.2 if cs > 2048 else 1.0
-            ggufmeta = modelfile_extracted_meta[0]
-            if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
-                sizeperlayer = fsize*csmul*0.052
-                layerlimit = int(min(200,(mem-usedmem)/sizeperlayer))
+                csmul = ((cs+4096)/6144) if cs >= 2048 else 1.0 #Nexes 2
+                # csmul = (cs/4096) if cs >= 8192 else (cs/(2048+(cs-2048)/3)) if cs >= 2048 else 1.0 #Nexes 1
+                # csmul = (cs/4096) if cs >= 8192 else 1.8 if cs > 4096 else 1.2 if cs > 2048 else 1.0 #Concedo
+
+            # csmul = 1.0
+
+            # if cs and cs > 8192:
+                # csmul = (cs/4096)
+            # elif cs and cs > 2048:
+                # csmul = (cs/(2048+(cs-2048)/3))
+            # else:
+                # csmul = 1.0
+
+            print(f"Coefficients :")
+            print(f"Blas batch size: {bbs} ; BBS ratio: {bbs_ratio} ; Flash Attention: {fa} ; FA ratio: {fa_ratio}")
+            print(f"MMQ: {mmq} ; MMQ ratio: {mmq_ratio} ; Quant KV mode: {kvq} ; Quant KV bpw: {kvbpw} bits")
+            print(f"Context size: {cs} tokens ; Context compute buffer multiplier (CCBM): {csmul:.3f}")
+            print(f"Lowvram: {lv} ; Lowvram context ratio: {lvctx_ratio} ; Lowvram compute ratio: {lvcomp_ratio}")
+            print("***")
+            
+            layer_offset = int(poslayeroffset - neglayeroffset)
+            
+            print(f"Offsets :")
+            print(f"Manual layers offset: positive {poslayeroffset} + negative {neglayeroffset} = {layer_offset} ")
+            print("***")
+            print(f"Initial calculation:")
+            size_init = fsize*1.42*csmul
+            print(f"Model size {fsize/1024/1024:.3f} MiB x 1.42 x {csmul:.3f} CCBM = {size_init/1024/1024:.3f} MiB initially to load.")
+            ratio_init = mem/size_init
+            print(f"Initial ratio: {ratio_init:.3f} = GPU usable VRAM {mem/1024/1024} MiB / {size_init/1024/1024:.3f} MiB initially to load.")
+            if ratio_init < 1:
+                print(f"GPU usable VRAM : {mem/1024/1024} MiB < {size_init/1024/1024:.3f} MiB initially to load for the model + the context & compute buffers.")
+                print(f"Partial offload is supposed.")
+                print("***")
+                print(f"More precise calculations will proceed to optimize it:")
+                ggufmeta = modelfile_extracted_meta[0]
+                # ggufmeta = read_gguf_metadata(filepath)
+                if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
+                    print(f"Failure to read metadata or no layers number declared. Fallback calculations.")
+                    sizeperlayer = int(fsize*csmul*0.025)
+                    layers = (fsize/sizeperlayer)
+                    print(f"Size per layer = Model size {fsize/1024/1024:.3f} MiB x 0.052 x {csmul} (CCBM); Estimated number of layers = {layers}")
+                    layerlimit = int(min(200,mem/sizeperlayer))
+                    print(f"Size per layer: {sizeperlayer/1024/1024} MiB ; layers limit: {layerlimit} + offset of {layer_offset} layers if <200, else 200.")
+                    print("***")
+                else:
+                    print(f"Success to read metadata, proceeding with more elaborate calculations...")
+                    layers = ggufmeta[0]
+                    headcount = ggufmeta[1]
+                    if headcount == 0:
+                        headcount = layers
+                        print(f"Retrieved number of Model layers: {layers} ; Missing number of attention heads, thus based on the number of layers: {headcount}")
+                    headkvlen = (ggufmeta[2] if ggufmeta[2] > 0 else 128)
+                    sizeperlayer = int(fsize/(layers+1))
+                    print(f"Model layers: {layers} ; Attention heads: {headcount} ; Head size : {headkvlen} ; Size per layer: {sizeperlayer/1024/1024:.3f} MiB")
+                    print("***")
+                    if headcount > 0:
+                        print(f"Precise calculation of the ratio, because attention heads: {headcount} > 0")
+                        # ratio = max(ratio_init,mem/(fsize*1.34 + (layers*headcount*headkvlen*cs*4.25))) #Concedo
+                        # ratio = max(ratio_init,mem/(fsize*1.025 + (layers*headcount*headkvlen*cs*4) + (layers*4*headkvlen*cs*4) + (1.5*1024*1024*1024))) #Henky
+                        # ratio = min(ratio_init,mem/(fsize*1.04 + (layers*(headcount+(bbs_ratio*mmq_ratio*fa_ratio))*headkvlen*cs*kvbpw/8))) #Nexes based on Pyroserenus
+                        loaded_layers = (layers*ratio_init)
+                        loaded_layers_size = int(loaded_layers * sizeperlayer)
+                        print(f"Initially loaded layers: {loaded_layers:.3f} ; Size per layer: {sizeperlayer/1024/1024:.3f} MiB ; Loaded layer size {loaded_layers_size/1024/1024:.3f} MiB")
+                        print(f"context size: {cs} tokens ; GPU usable VRAM: {mem/1024/1024} MiB ; quant_kv_bpw : {kvbpw} bpw")
+                        context_buffer = int(layers*headcount*headkvlen*cs*lvctx_ratio*kvbpw/8)
+                        compute_buffer = int(layers*bbs_ratio*mmq_ratio*fa_ratio*headkvlen*cs*lvcomp_ratio*4*1.01)
+                        total_buffer = int(context_buffer + compute_buffer)
+                        loaded_size = int(fsize*1.03 + context_buffer)
+                        ratio_formula = (mem - compute_buffer)/loaded_size
+                        print(f"Context buffer: {context_buffer/1024/1024} MiB + Compute buffer: {compute_buffer/1024/1024:.3f} MiB = Total_buffer: {total_buffer/1024/1024:.3f} MiB")
+                        print(f"Loaded size: {loaded_size/1024/1024:.3f} MiB ; Formula ratio: {ratio_formula:.3f}")
+                        ratio = max(ratio_init,ratio_formula)
+                        print("***")
+                    else:
+                        ratio = ratio_init
+                    layerlimit = int(ratio*layers)
+                    print(f"Layers limit: {layerlimit} = final ratio {ratio:.3f} x {layers} layers + eventual manual offset.")
+                    estimated_loaded_size = int(layerlimit*sizeperlayer + total_buffer)
+                    print(f"Estimated loaded size in the GPU(s): {estimated_loaded_size/1024/1024:.3f} MiB")
             else:
-                layers = ggufmeta[0]
-                headcount = ggufmeta[1]
-                headkvlen = (ggufmeta[2] if ggufmeta[2] > 0 else 128)
-                ratio = (mem-usedmem)/(fsize*csmul*1.55)
-                computemem = layers*(4 if bbs <= 512 else (bbs/128))*headkvlen*cs*4*1.5 # apply blasbatchsize calculations if over 512
-                contextmem = layers*headcount*headkvlen*cs*4*1.1
-                if headcount > 0:
-                    ratio = max(ratio, (mem - reservedmem - computemem) / (fsize + contextmem))
-                layerlimit = min(int(ratio*layers), (layers + 3))
-        layerlimit = (0 if layerlimit<=2 else layerlimit)
+                print(f"GPU usable VRAM : {mem/1024/1024} MiB > {size_init/1024/1024:.3f} MiB initially to load.")
+                print(f"The dedicated VRAM is superior to the model, context, and compute size alltogether.")
+                print(f"Best case, assume full offload. No further calculations..")
+                ggufmeta = modelfile_extracted_meta[0]
+                if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
+                    print(f"Failure to read metadata or no layers number declared. Fallback calculations.")
+                    sizeperlayer = int(fsize*csmul*0.052)
+                    layers = (fsize/sizeperlayer)
+                    print(f"Size per layer = Model size {fsize/1024/1024:.3f} MiB x 0.052 x {csmul} (CCBM); Estimated number of layers = {layers}")
+                    layerlimit = int(min(200,mem/sizeperlayer))
+                    print(f"Size per layer: {sizeperlayer/1024/1024} MiB ; layers limit: {layerlimit} + eventual offset if <200, else 200.")
+                    print("***")
+                else:
+                    layerlimit = ggufmeta[0] + 3
+                    print(f"Metadata are read.")
+                    layers = ggufmeta[0]
+                    print(f"Layers limit is {ggufmeta[0]} + fixed offset of 3.")
+                print(f"Layers limit: {layerlimit} = final ratio {ratio_init:.3f} x {layers} layers.")
+            print("***")
+        layerlimit = (0 if layerlimit<=2 else (layerlimit+layer_offset))
+        print(f"Layers limit: {layerlimit}, including manual layer offset of {layer_offset}.")
+        print("***")
+        print("***")
         return layerlimit
     except Exception as ex:
         return 0
