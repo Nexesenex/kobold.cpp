@@ -2944,7 +2944,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         }
     }
 
-    bool blasmode = (embd_inp.size() >= 32 && ggml_cpu_has_blas() && kcpp_data->n_batch>=32);
+    bool blasmode = (embd_inp.size() >= 1 && ggml_cpu_has_blas() && kcpp_data->n_batch>=1);
 
     current_context_tokens.resize(n_past);
 
