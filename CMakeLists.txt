@@ -40,8 +40,13 @@ if (NOT MSVC)
     option(LLAMA_F16C               "llama: enable F16C"                                    ON)
 endif()
 
+if (WIN32)
+    set(LLAMA_WIN_VER "0x602" CACHE STRING "llama: Windows Version")
+endif()
+
 # 3rd party libs
 option(LLAMA_CUBLAS                          "llama: use CUDA"                                ON)
+option(LLAMA_CUDA                            "llama: use CUDA"                                OFF)
 set(LLAMA_CUDA_DMMV_X      "32" CACHE STRING "llama: x stride for dmmv CUDA kernels")
 set(LLAMA_CUDA_DMMV_Y       "1" CACHE STRING "llama: y block size for dmmv CUDA kernels")
 set(LLAMA_CUDA_MMV_Y        "1" CACHE STRING "llama: y block size for mmv CUDA kernels")
@@ -54,6 +59,11 @@ option(LLAMA_HIPBLAS                         "llama: use hipBLAS"               
 
 # Other
 option(LLAMA_OPENMP                          "llama: use OpenMP"                                OFF)
+
+# Croco.Cpp Specifics
+option(GGML_CUDA_USE_GRAPHS                  "Use Cuda Graphs to increase a bit performancess"  OFF)
+SET(GGML_SCHED_MAX_COPIES "1" CACHE STRING   "llama: max input copies for pipeline parallelism")
+option(LLAMA_CUDA_ENABLE_UNIFIED_MEMORY      "llama: enable to avoid OOM in Full Offload"       OFF)
 
 #
 # Compile flags
@@ -100,6 +110,10 @@ if (LLAMA_CUBLAS)
         endif()
         add_compile_definitions(K_QUANTS_PER_ITERATION=${LLAMA_CUDA_KQUANTS_ITER})
         add_compile_definitions(GGML_CUDA_PEER_MAX_BATCH_SIZE=${LLAMA_CUDA_PEER_MAX_BATCH_SIZE})
+        
+        if (GGML_CUDA_USE_GRAPHS)
+            add_compile_definitions(GGML_CUDA_USE_GRAPHS)
+        endif()
 
         # only build minimal quants required for fattn quant kv
         file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu")
@@ -108,6 +122,10 @@ if (LLAMA_CUBLAS)
         list(APPEND GGML_SOURCES_CUDA ${SRCS})
         file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*f16-f16.cu")
         list(APPEND GGML_SOURCES_CUDA ${SRCS})
+		
+        if (LLAMA_CUDA_ENABLE_UNIFIED_MEMORY)
+            add_compile_definitions(GGML_CUDA_ENABLE_UNIFIED_MEMORY)
+        endif()
 
         if (LLAMA_STATIC)
             if (WIN32)
@@ -123,6 +141,9 @@ if (LLAMA_CUBLAS)
         set(LLAMA_EXTRA_LIBS ${LLAMA_EXTRA_LIBS} CUDA::cuda_driver)
 
     if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+
+        # 35 == Lowest CUDA 11 standard for Kepler
+        # 37 == Highest CUDA 11 standard for Kepler
         # 52 == lowest CUDA 12 standard
         # 60 == f16 CUDA intrinsics
         # 61 == integer CUDA intrinsics
@@ -134,9 +155,9 @@ if (LLAMA_CUBLAS)
             message("CUDA Toolkit Version: ${CUDAToolkit_VERSION}")
             if(CUDAToolkit_VERSION VERSION_GREATER 12)
                  add_compile_definitions(GGML_CUDA_USE_GRAPHS) #try enable cuda graphs on cu12 build
-                 set(CMAKE_CUDA_ARCHITECTURES "52;61;70;75") # lowest CUDA 12 standard + lowest for integer intrinsics
+                 set(CMAKE_CUDA_ARCHITECTURES "50;52;60;61;75") # lowest CUDA 12 standard + lowest for integer intrinsics
             else()
-                 set(CMAKE_CUDA_ARCHITECTURES "37;52;61;70;75") # lowest CUDA 12 standard + lowest for integer intrinsics
+                 set(CMAKE_CUDA_ARCHITECTURES "35;37") # lowest CUDA 12 standard + lowest for integer intrinsics
             endif()
         endif()
     endif()
@@ -180,6 +201,7 @@ if (LLAMA_HIPBLAS)
             target_compile_definitions(ggml-rocm PUBLIC GGML_CUDA_FORCE_DMMV)
         endif()
 
+        # only build minimal quants required for fattn quant kv
         file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu")
         list(APPEND GGML_SOURCES_ROCM ${SRCS})
         file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-q8_0.cu")
@@ -411,7 +433,7 @@ endif()
 
 if (MINGW)
     # Target Windows 8 for PrefetchVirtualMemory
-    add_compile_definitions(_WIN32_WINNT=0x602)
+    add_compile_definitions(_WIN32_WINNT=${LLAMA_WIN_VER})
 endif()
 
 #
