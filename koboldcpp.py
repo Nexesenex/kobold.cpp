@@ -659,7 +659,7 @@ def extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath)
             modelfile_extracted_meta = None
 
 #fork of a shitty algo to determine how many layers to use
-def autoset_gpu_layers(ctxsize,sdquanted,bbs):
+def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mmqmode,lowvram,poslayeroffset,neglayeroffset):
     global showusedmemwarning, modelfile_extracted_meta # reference cached values instead
     gpumem0 = MaxMemory[0]
     usedmem0 = 0
@@ -740,7 +740,8 @@ def autoset_gpu_layers(ctxsize,sdquanted,bbs):
         layerlimit = 0
         fsize = modelfile_extracted_meta[1]
         print(f"Initial layer limit: {layerlimit} ; Model size: {fsize} MiB ; context size: {ctxsize} tokens")
-        print(f"GPUs global reserved VRAM: {reservedmem/1024/1024} MiB (Toral occupied VRAM + Total overhead) ; GPUs total usable VRAM: {mem/1024/1024} MiB")     
+        print(f"GPUs global reserved VRAM: {reservedmem/1024/1024} MiB (Toral occupied VRAM + Total overhead) ; GPUs total usable VRAM: {mem/1024/1024} MiB")    
+
         if fsize>10000000: #dont bother with models < 10mb
             cs = ctxsize
             mem = gpumem
@@ -767,6 +768,13 @@ def autoset_gpu_layers(ctxsize,sdquanted,bbs):
             print(f"Coefficients :")
             print(f"Blas batch size: {bbs}")
             print(f"Context size: {cs} tokens ; Context compute buffer multiplier (CCBM): {csmul:.3f}")
+            ggufmeta = modelfile_extracted_meta[0]
+            if not ggufmeta or ggufmeta[0]==0: #fail to read or no layerssizeperlayer))
+                layerlimit = int(min(200,(mem-reservedmem)/sizeperlayer))
+
+            csmul = 1.0
+            if cs:
+                csmul = (cs/4096) if cs >= 8192 else 1.8 if cs > 4096 else 1.2 if cs > 2048 else 1.0
             ggufmeta = modelfile_extracted_meta[0]
             if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
                 sizeperlayer = fsize*csmul*0.052
@@ -2445,7 +2453,7 @@ def show_gui():
 
     tabs = ctk.CTkFrame(root, corner_radius = 0, width=windowwidth, height=windowheight-50)
     tabs.grid(row=0, stick="nsew")
-    tabnames= ["Quick Launch", "Hardware", "Tokens", "Model Files", "Network", "Horde Worker","Image Gen","Audio","Extra"]
+    tabnames= ["Quick Launch", "Hardware", "Tokens", "GPU AutoLayers", "Model Files", "Network", "Horde Worker","Image Gen","Audio","Extra"]
     navbuttons = {}
     navbuttonframe = ctk.CTkFrame(tabs, width=100, height=int(tabs.cget("height")))
     navbuttonframe.grid(row=0, column=0, padx=2,pady=2)
@@ -2485,6 +2493,10 @@ def show_gui():
     "20 - K q4_1 - V F16 (10.5BPW) - NO FA, slower - possibly faulty on some models (Qwen 2.5 1.5b?)",
     "21 - K q4-0 - V F16 (10.25BPW) - NO FA, slower - possibly faulty on some models (Qwen 2.5 1.5b?)",
     "22 - K iq4_nl - V F16 (10.25BPW) - NO FA, slower"]
+    poslayeroffset_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+    poslayeroffset_text = ["No positive layer offset", "Add 1 layer", "Add 2 layers", "Add 3 layers", "Add 4 layers", "Add 5 layers", "Add 6 layers", "Add 7 layers", "Add 8 layers", "Add 9 layers", "Add 10 layers"]
+    neglayeroffset_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+    neglayeroffset_text = ["No negative layer offset", "Remove 1 layer", "Remove 2 layers", "Remove 3 layers", "Remove 4 layers", "Remove 5 layers", "Remove 6 layers", "Remove 7 layers", "Remove 8 layers", "Remove 9 layers", "Remove 10 layers"]
 
     if not any(runopts):
         exitcounter = 999
@@ -2513,6 +2525,9 @@ def show_gui():
     version_var = ctk.StringVar(value="0")
     tensor_split_str_vars = ctk.StringVar(value="")
     rowsplit_var = ctk.IntVar()
+
+    poslayeroffset_var = ctk.IntVar()
+    neglayeroffset_var = ctk.IntVar()
 
     contextshift = ctk.IntVar(value=1)
     remotetunnel = ctk.IntVar(value=0)
@@ -2704,7 +2719,7 @@ def show_gui():
         pass
 
     def changed_gpulayers_estimate(*args):
-        predicted_gpu_layers = autoset_gpu_layers(int(contextsize_text[context_var.get()]),(sd_quant_var.get()==1),int(blasbatchsize_values[int(blas_size_var.get())]))
+        predicted_gpu_layers = autoset_gpu_layers(int(contextsize_text[context_var.get()]),(sd_quant_var.get()==1),int(blasbatchsize_values[int(blas_size_var.get())]),flashattention.get(),int(quantkv_values[int(quantkv_var.get())]),mmq_var.get(),lowvram_var.get(),int(poslayeroffset_values[int(poslayeroffset_var.get())]),int(neglayeroffset_values[int(neglayeroffset_var.get())]))
         max_gpu_layers = (f"/{modelfile_extracted_meta[0][0]+3}" if (modelfile_extracted_meta and modelfile_extracted_meta[0] and modelfile_extracted_meta[0][0]!=0) else "")
         index = runopts_var.get()
         gpu_be = (index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Old CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)")
@@ -2924,7 +2939,7 @@ def show_gui():
     layercounter_label = ctk.CTkLabel(hardware_tab, text="")
     layercounter_label.grid(row=6, column=1, padx=75, sticky="W")
     layercounter_label.configure(text_color="#ffff00")
-    tensor_split_entry,tensor_split_label = makelabelentry(hardware_tab, "Tensor Split:", tensor_split_str_vars, 8, 80, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
+    tensor_split_entry,tensor_split_label = makelabelentry(hardware_tab, "Tensor Split:", tensor_split_str_vars, 8, 160, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
     lowvram_box = makecheckbox(hardware_tab,  "Low VRAM (No KV offload)", lowvram_var, 4,0, tooltiptxt='Avoid offloading KV Cache or scratch buffers to VRAM.\nAllows more layers to fit, but may result in a speed loss.')
     mmq_box = makecheckbox(hardware_tab,  "Use QuantMatMul (mmq)", mmq_var, 4,1, tooltiptxt="Enable MMQ mode to use finetuned kernels instead of default CuBLAS/HipBLAS for prompt processing.\nRead the wiki. Speed may vary.")
     splitmode_box = makecheckbox(hardware_tab,  "Row-Split", rowsplit_var, 5,0, tooltiptxt="Split rows across GPUs instead of splitting layers and KV across GPUs.\nUses the main GPU for small tensors and intermediate results. Speed may vary.")
@@ -2960,6 +2975,19 @@ def show_gui():
     changerunmode(1,1,1)
     global runmode_untouched
     runmode_untouched = True
+
+    # GPU layers Autoloader Tab
+    gpu_al_tab = tabcontent["GPU AutoLayers"]
+
+    makeslider(gpu_al_tab, "Positive layers offset:", poslayeroffset_text, poslayeroffset_var, 0, 10, 12, width=201, set=0,tooltip="Adds layers to the GPU layers autoloader calculation in case of under-exploitation of your GPU(s)..")
+    makeslider(gpu_al_tab, "Negative layers offset:", neglayeroffset_text, neglayeroffset_var, 0, 10, 14, width=201, set=0,tooltip="Removes layers to the GPU layers autoloader calculation in case of Out of Memory (OOM) error..")
+
+    tensor_split_entry,tensor_split_label = makelabelentry(gpu_al_tab, "Tensor Split:", tensor_split_str_vars, 8, 160, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
+
+    # load model
+    makefileentry(gpu_al_tab, "Model:", "Select GGML Model File", model_var, 40, 576, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
+    
+    ctk.CTkButton(gpu_al_tab, text = "Run Benchmark", command = guibench ).grid(row=45,column=0, stick="se", padx= 0, pady=2)
 
     # Tokens Tab
     tokens_tab = tabcontent["Tokens"]
@@ -3165,6 +3193,11 @@ def show_gui():
         args.quiet = quietmode.get()==1
         args.nocertify = nocertifymode.get()==1
         args.nomodel = nomodel.get()==1
+        args.quantkv = int(quantkv_values[int(quantkv_var.get())])
+
+        args.poslayeroffset = int(poslayeroffset_values[int(poslayeroffset_var.get())])
+        args.neglayeroffset = int(neglayeroffset_values[int(neglayeroffset_var.get())])
+
         if contextshift.get()==0 and flashattention.get()==1:
             args.quantkv = quantkv_var.get()
         else:
@@ -3383,6 +3416,11 @@ def show_gui():
 
         if "blasbatchsize" in dict and dict["blasbatchsize"]:
             blas_size_var.set(blasbatchsize_values.index(str(dict["blasbatchsize"])))
+
+        if "poslayeroffset" in dict:
+            poslayeroffset_var.set(dict["poslayeroffset"])
+        if "neglayeroffset" in dict:
+            neglayeroffset_var.set(dict["neglayeroffset"])
 
         version_var.set(str(dict["forceversion"]) if ("forceversion" in dict and dict["forceversion"]) else "0")
         model_var.set(dict["model_param"] if ("model_param" in dict and dict["model_param"]) else "")
@@ -4253,7 +4291,7 @@ def main(launch_args,start_server=True):
             if args.gpulayers==-1:
                 if MaxMemory[0] > 0 and (not args.usecpu) and ((args.usecublas is not None) or (args.usevulkan is not None) or (args.useclblast is not None) or sys.platform=="darwin"):
                     extract_modelfile_params(args.model_param,args.sdmodel,args.whispermodel,args.mmproj)
-                    layeramt = autoset_gpu_layers(args.contextsize,args.sdquant,args.blasbatchsize)
+                    layeramt = autoset_gpu_layers(args.contextsize,args.sdquant,args.blasbatchsize, args.flashattention, args.quantkv, "mmq" in args.usecublas, "lowvram" in args.usecublas, args.poslayeroffset, args.neglayeroffset)
                     print(f"Auto Recommended GPU Layers: {layeramt}")
                     args.gpulayers = layeramt
                 else:
@@ -4647,6 +4685,10 @@ if __name__ == '__main__':
     advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated. Not recommended.", action='store_true')
     advparser.add_argument("--unpack", help="Extracts the file contents of the KoboldCpp/Croco.Cpp binary into a target directory.", metavar=('destination'), type=str, default="")
     advparser.add_argument("--nomodel", help="Allows you to launch the GUI alone, without selecting any model.", action='store_true')
+
+    parser.add_argument("--poslayeroffset", help="Removes or adds a layer to the GPU layers autoloader calculation in case of OOM or under-exploitation.", type=check_range(int,0,10), default=0)
+    parser.add_argument("--neglayeroffset", help="Removes or adds a layer to the GPU layers autoloader calculation in case of OOM or under-exploitation.", type=check_range(int,0,10), default=0)
+
     compatgroup2 = parser.add_mutually_exclusive_group()
     compatgroup2.add_argument("--showgui", help="Always show the GUI instead of launching the model right away when loading settings from a .kcpps file.", action='store_true')
     compatgroup2.add_argument("--skiplauncher", help="Doesn't display or use the GUI launcher.", action='store_true')
