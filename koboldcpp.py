@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #-*- coding: utf-8 -*-
 
-# KoboldCpp is an easy-to-use AI text-generation software for GGML models.
+# Croco.Cpp, fork of KoboldCpp is an easy-to-use AI text-generation software for GGUF and GGML models.
 # It's a single self contained distributable from Concedo, that builds off llama.cpp,
 # and adds a versatile Kobold API endpoint, additional format support,
 # backward compatibility, as well as a fancy UI with persistent stories,
@@ -44,7 +44,10 @@ maxhordelen = 400
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.77"
+KcppVersion = "1.77050"
+LcppVersion = "b3972"
+CudaSpecifics = "CuCML_ArCML_SMC2_DmmvX32Y1"
+ReleaseDate = "2024/10/24"
 showdebug = True
 guimode = False
 showsamplerwarning = True
@@ -517,21 +520,21 @@ def unpack_to_dir(destpath = ""):
     import shutil
     srcpath = os.path.abspath(os.path.dirname(__file__))
     cliunpack = False if destpath == "" else True
-    print("Attempt to unpack KoboldCpp into directory...")
+    print("Attempt to unpack KoboldCpp/Croco.Cpp into directory...")
 
     if not cliunpack:
         from tkinter.filedialog import askdirectory
         from tkinter import messagebox
-        destpath = askdirectory(title='Select an empty folder to unpack KoboldCpp')
+        destpath = askdirectory(title='Select an empty folder to unpack KoboldCpp/Croco.Cpp')
         if not destpath:
             return
 
     if os.path.isdir(srcpath) and os.path.isdir(destpath) and not os.listdir(destpath):
         try:
             if cliunpack:
-                print(f"KoboldCpp will be extracted to {destpath}\nThis process may take several seconds to complete.")
+                print(f"KoboldCpp/Croco.Cpp will be extracted to {destpath}\nThis process may take several seconds to complete.")
             else:
-                messagebox.showinfo("Unpack Starting", f"KoboldCpp will be extracted to {destpath}\nThis process may take several seconds to complete.")
+                messagebox.showinfo("Unpack Starting", f"KoboldCpp/Croco.Cpp will be extracted to {destpath}\nThis process may take several seconds to complete.")
             for item in os.listdir(srcpath):
                 s = os.path.join(srcpath, item)
                 d = os.path.join(destpath, item)
@@ -542,9 +545,9 @@ def unpack_to_dir(destpath = ""):
                 else:
                     shutil.copy2(s, d)
             if cliunpack:
-                print(f"KoboldCpp successfully extracted to {destpath}")
+                print(f"KoboldCpp/Croco.Cpp successfully extracted to {destpath}")
             else:
-                messagebox.showinfo("KoboldCpp Unpack Success", f"KoboldCpp successfully extracted to {destpath}")
+                messagebox.showinfo("KoboldCpp/Croco.Cpp Unpack Success", f"KoboldCpp/Croco.Cpp successfully extracted to {destpath}")
         except Exception as e:
             if cliunpack:
                 print(f"An error occurred while unpacking: {e}")
@@ -663,7 +666,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,bbs): #shitty algo to determine how man
         usedmem = MaxMemory[0]-MaxFreeMemory[0]
         if showusedmemwarning and usedmem > (2.5*1024*1024*1024):
             showusedmemwarning = False
-            print(f"Note: KoboldCpp has detected that a significant amount of GPU VRAM ({usedmem/1024/1024} MB) is currently used by another application.\nFor best results, you may wish to close that application and then restart KoboldCpp.\n***")
+            print(f"Note: KoboldCpp/Croco.Cpp has detected that a significant amount of GPU VRAM ({usedmem/1024/1024} MB) is currently used by another application.\nFor best results, you may wish to close that application and then restart KoboldCpp/Croco.Cpp.\n***")
     reservedmem = max(1.5*1024*1024*1024,(0.5*1024*1024*1024 + usedmem)) # determine vram overhead
     try:
         if not modelfile_extracted_meta:
@@ -1773,7 +1776,7 @@ Enter Prompt:<br>
             has_vision = (mmprojpath!="")
             has_password = (password!="")
             has_whisper = (fullwhispermodelpath!="")
-            response_body = (json.dumps({"result":"KoboldCpp","version":KcppVersion, "protected":has_password ,"txt2img":has_txt2img,"vision":has_vision,"transcribe":has_whisper}).encode())
+            response_body = (json.dumps({"result":"KoboldCpp/Croco.Cpp","version":KcppVersion, "protected":has_password ,"txt2img":has_txt2img,"vision":has_vision,"transcribe":has_whisper}).encode())
 
         elif self.path.endswith(('/api/extra/perf')):
             global last_req_time, start_time
@@ -2253,14 +2256,14 @@ def show_gui():
 
     import customtkinter as ctk
     nextstate = 0 #0=exit, 1=launch
-    original_windowwidth = 580
-    original_windowheight = 560
+    original_windowwidth = 966
+    original_windowheight = 644
     windowwidth = original_windowwidth
     windowheight = original_windowheight
     ctk.set_appearance_mode("dark")
     root = ctk.CTk()
     root.geometry(str(windowwidth) + "x" + str(windowheight))
-    root.title(f"KoboldCpp v{KcppVersion}")
+    root.title(f"A fork of KoboldCpp, for enthusiasts and power-users : Croco.Cpp v{KcppVersion}")
 
     gtooltip_box = None
     gtooltip_label = None
@@ -2807,11 +2810,11 @@ def show_gui():
     # hardware checkboxes
     hardware_boxes = {
         "Launch Browser": [launchbrowser, "Launches your default browser after model loading is complete"],
-        "High Priority": [highpriority, "Increases the koboldcpp process priority.\nMay cause lag or slowdown instead. Not recommended."],
+        "High Priority": [highpriority, "Increases the KoboldCpp/Croco.Cpp process priority.\nMay cause lag or slowdown instead. Not recommended."],
         "Disable MMAP": [disablemmap, "Avoids using mmap to load models if enabled"],
         "Use mlock": [usemlock, "Enables mlock, preventing the RAM used to load the model from being paged out."],
         "Debug Mode": [debugmode, "Enables debug mode, with extra info printed to the terminal."],
-        "Keep Foreground": [keepforeground, "Bring KoboldCpp to the foreground every time there is a new generation."]
+        "Keep Foreground": [keepforeground, "Bring KoboldCpp/Croco.Cpp to the foreground every time there is a new generation."]
     }
 
     for idx, (name, properties) in enumerate(hardware_boxes.items()):
@@ -2891,7 +2894,7 @@ def show_gui():
     makelabelentry(network_tab, "Host: ", host_var, 2, 150,tooltip="Select a specific host interface to bind to.\n(Defaults to all)")
 
     makecheckbox(network_tab, "Multiuser Mode", multiuser_var, 3,tooltiptxt="Allows requests by multiple different clients to be queued and handled in sequence.")
-    makecheckbox(network_tab, "Remote Tunnel", remotetunnel, 3, 1,tooltiptxt="Creates a trycloudflare tunnel.\nAllows you to access koboldcpp from other devices over an internet URL.")
+    makecheckbox(network_tab, "Remote Tunnel", remotetunnel, 3, 1,tooltiptxt="Creates a trycloudflare tunnel.\nAllows you to access KoboldCpp/Croco.Cpp from other devices over an internet URL.")
     makecheckbox(network_tab, "Quiet Mode", quietmode, 4,tooltiptxt="Prevents all generation related terminal output from being displayed.")
     makecheckbox(network_tab, "NoCertify Mode (Insecure)", nocertifymode, 4, 1,tooltiptxt="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.")
 
@@ -2976,7 +2979,7 @@ def show_gui():
         export_vars()
         kcpp_exporting_template = False
         savdict = json.loads(json.dumps(args.__dict__))
-        file_type = [("KoboldCpp LaunchTemplate", "*.kcppt")]
+        file_type = [("KoboldCpp/Croco.Cpp LaunchTemplate", "*.kcppt")]
         #remove blacklisted fields
         savdict["istemplate"] = True
         savdict["gpulayers"] = -1
@@ -3004,9 +3007,9 @@ def show_gui():
 
     # extra tab
     extra_tab = tabcontent["Extra"]
-    makelabel(extra_tab, "Unpack KoboldCpp to a local directory to modify its files.", 1, 0)
+    makelabel(extra_tab, "Unpack KoboldCpp/Croco.Cpp to a local directory to modify its files.", 1, 0)
     makelabel(extra_tab, "You can also launch via koboldcpp.py for faster startup.", 2, 0)
-    ctk.CTkButton(extra_tab , text = "Unpack KoboldCpp To Folder", command = unpack_to_dir ).grid(row=3,column=0, stick="w", padx= 8, pady=2)
+    ctk.CTkButton(extra_tab , text = "Unpack KoboldCpp/Croco.Cpp To Folder", command = unpack_to_dir ).grid(row=3,column=0, stick="w", padx= 8, pady=2)
     makelabel(extra_tab, "Export as launcher .kcppt template (Expert Only)", 4, 0,tooltiptxt="Creates a KoboldCpp launch template for others to use.\nEmbeds JSON files directly into exported file when saving.\nWhen loaded, forces the backend to be automatically determined.\nWarning! Not recommended for beginners!")
     ctk.CTkButton(extra_tab , text = "Generate LaunchTemplate", command = kcpp_export_template ).grid(row=5,column=0, stick="w", padx= 8, pady=2)
 
@@ -3312,7 +3315,7 @@ def show_gui():
         kcpp_exporting_template = False
         export_vars()
         savdict = json.loads(json.dumps(args.__dict__))
-        file_type = [("KoboldCpp Settings", "*.kcpps")]
+        file_type = [("KoboldCpp/Croco.Cpp Settings", "*.kcpps")]
         filename = asksaveasfile(filetypes=file_type, defaultextension=file_type)
         if filename == None: return
         file = open(str(filename.name), 'a')
@@ -3347,7 +3350,7 @@ def show_gui():
     def display_updates():
         try:
             import webbrowser as wb
-            wb.open("https://github.com/LostRuins/koboldcpp/releases/latest")
+            wb.open("https://github.com/Nexesenex/croco.cpp/releases")
         except:
             print("Cannot launch updates in browser.")
 
@@ -3665,7 +3668,7 @@ def check_deprecation_warning():
 
 
 def setuptunnel(has_sd):
-    # This script will help setup a cloudflared tunnel for accessing KoboldCpp over the internet
+    # This script will help setup a cloudflared tunnel for accessing KoboldCpp/Croco.Cpp over the internet
     # It should work out of the box on both linux and windows
     try:
         import subprocess, re
@@ -3887,8 +3890,11 @@ def main(launch_args,start_server=True):
     if (args.model_param or args.model) and args.prompt and not args.benchmark and not (args.debugmode >= 1):
         suppress_stdout()
 
-    print(f"***\nWelcome to KoboldCpp - Version {KcppVersion}") # just update version manually
-    # print("Python version: " + sys.version)
+    print(f"***\nWelcome to Croco.Cpp, fork of KoboldCpp - Version {KcppVersion}") # just update version manually
+    print(f"***\nBased on LlamaCpp - Version {LcppVersion}") # just update LlamaCPP version manually
+    print(f"***\nRelease date: {ReleaseDate}") # just update date manually
+    print(f"***\nCuda mode compiled, if any: {CudaSpecifics}") # just update Cuda options used in CMake manually
+    print("***")    # print("Python version: " + sys.version)
 
     #perform some basic cleanup of old temporary directories
     try:
@@ -4493,7 +4499,7 @@ if __name__ == '__main__':
     advparser.add_argument("--prompt", metavar=('[prompt]'), help="Passing a prompt string triggers a direct inference, loading the model, outputs the response to stdout and exits. Can be used alone or with benchmark.", type=str, default="")
     advparser.add_argument("--promptlimit", help="Sets the maximum number of generated tokens, usable only with --prompt or --benchmark",metavar=('[token limit]'), type=int, default=100)
     advparser.add_argument("--multiuser", help="Runs in multiuser mode, which queues incoming requests instead of blocking them.", metavar=('limit'), nargs='?', const=1, type=int, default=1)
-    advparser.add_argument("--remotetunnel", help="Uses Cloudflare to create a remote tunnel, allowing you to access koboldcpp remotely over the internet even behind a firewall.", action='store_true')
+    advparser.add_argument("--remotetunnel", help="Uses Cloudflare to create a remote tunnel, allowing you to access KoboldCpp/Croco.Cpp remotely over the internet even behind a firewall.", action='store_true')
     advparser.add_argument("--highpriority", help="Experimental flag. If set, increases the process CPU priority, potentially speeding up generation. Use caution.", action='store_true')
     advparser.add_argument("--foreground", help="Windows only. Sends the terminal to the foreground every time a new prompt is generated. This helps avoid some idle slowdown issues.", action='store_true')
     advparser.add_argument("--preloadstory", help="Configures a prepared story json save file to be hosted on the server, which frontends (such as KoboldAI Lite) can access over the API.", default="")
@@ -4508,7 +4514,7 @@ if __name__ == '__main__':
     advparser.add_argument("--quantkv", help="Sets the KV cache data type quantization, 0=f16, 1=q8, 2=q4. Requires Flash Attention, and disables context shifting.",metavar=('[quantization level 0/1/2]'), type=int, choices=[0,1,2], default=0)
     advparser.add_argument("--forceversion", help="If the model file format detection fails (e.g. rogue modified model) you can set this to override the detected format (enter desired version, e.g. 401 for GPTNeoX-Type2).",metavar=('[version]'), type=int, default=0)
     advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated. Not recommended.", action='store_true')
-    advparser.add_argument("--unpack", help="Extracts the file contents of the KoboldCpp binary into a target directory.", metavar=('destination'), type=str, default="")
+    advparser.add_argument("--unpack", help="Extracts the file contents of the KoboldCpp/Croco.Cpp binary into a target directory.", metavar=('destination'), type=str, default="")
     advparser.add_argument("--nomodel", help="Allows you to launch the GUI alone, without selecting any model.", action='store_true')
     compatgroup2 = parser.add_mutually_exclusive_group()
     compatgroup2.add_argument("--showgui", help="Always show the GUI instead of launching the model right away when loading settings from a .kcpps file.", action='store_true')
