@@ -153,7 +153,7 @@ static constexpr __device__ int get_mmq_y_device() {
 
 static constexpr __host__ __device__ tile_x_sizes mmq_get_dp4a_tile_x_sizes(ggml_type type, int mmq_y) {
     return type == GGML_TYPE_Q4_0 ? MMQ_DP4A_TXS_Q4_0 :
-        type == GGML_TYPE_Q4_1    ? MMQ_DP4A_TXS_Q4_1 :
+        //type == GGML_TYPE_Q4_1    ? MMQ_DP4A_TXS_Q4_1 :
         type == GGML_TYPE_Q5_0    ? MMQ_DP4A_TXS_Q8_0 :
         type == GGML_TYPE_Q5_1    ? MMQ_DP4A_TXS_Q8_1 :
         type == GGML_TYPE_Q8_0    ? MMQ_DP4A_TXS_Q8_0 :
@@ -167,7 +167,7 @@ static constexpr __host__ __device__ tile_x_sizes mmq_get_dp4a_tile_x_sizes(ggml
         type == GGML_TYPE_IQ2_S   ? MMQ_DP4A_TXS_Q8_0_16 :
         type == GGML_TYPE_IQ3_XXS ? MMQ_DP4A_TXS_Q8_0 :
         type == GGML_TYPE_IQ3_S   ? MMQ_DP4A_TXS_Q8_0 :
-        type == GGML_TYPE_IQ1_S   ? MMQ_DP4A_TXS_Q8_0 :
+        //type == GGML_TYPE_IQ1_S   ? MMQ_DP4A_TXS_Q8_0 :
         type == GGML_TYPE_IQ4_XS  ? MMQ_DP4A_TXS_Q8_0 :
         type == GGML_TYPE_IQ4_NL  ? MMQ_DP4A_TXS_Q8_0 :
         tile_x_sizes{0, 0, 0};
@@ -187,7 +187,7 @@ static_assert(MMQ_MMA_TILE_X_K_Q6_K % 8 == 4, "Wrong padding.");
 
 static constexpr __host__ __device__ int mmq_get_mma_tile_x_k(ggml_type type) {
     return type == GGML_TYPE_Q4_0 ? MMQ_MMA_TILE_X_K_Q8_0 :
-        type == GGML_TYPE_Q4_1    ? MMQ_MMA_TILE_X_K_Q8_1 :
+        //type == GGML_TYPE_Q4_1    ? MMQ_MMA_TILE_X_K_Q8_1 :
         type == GGML_TYPE_Q5_0    ? MMQ_MMA_TILE_X_K_Q8_0 :
         type == GGML_TYPE_Q5_1    ? MMQ_MMA_TILE_X_K_Q8_1 :
         type == GGML_TYPE_Q8_0    ? MMQ_MMA_TILE_X_K_Q8_0 :
@@ -201,7 +201,7 @@ static constexpr __host__ __device__ int mmq_get_mma_tile_x_k(ggml_type type) {
         type == GGML_TYPE_IQ2_S   ? MMQ_MMA_TILE_X_K_Q3_K :
         type == GGML_TYPE_IQ3_XXS ? MMQ_MMA_TILE_X_K_Q8_0 :
         type == GGML_TYPE_IQ3_S   ? MMQ_MMA_TILE_X_K_Q8_0 :
-        type == GGML_TYPE_IQ1_S   ? MMQ_MMA_TILE_X_K_Q8_0 :
+        //type == GGML_TYPE_IQ1_S   ? MMQ_MMA_TILE_X_K_Q8_0 :
         type == GGML_TYPE_IQ4_XS  ? MMQ_MMA_TILE_X_K_Q8_0 :
         type == GGML_TYPE_IQ4_NL  ? MMQ_MMA_TILE_X_K_Q8_0 :
         0;
@@ -2908,7 +2908,7 @@ void mul_mat_q_case(ggml_backend_cuda_context & ctx, const mmq_args & args, cuda
     template void mul_mat_q_case<type>(ggml_backend_cuda_context & ctx, const mmq_args & args, cudaStream_t stream) \
 
 extern DECL_MMQ_CASE(GGML_TYPE_Q4_0);
-extern DECL_MMQ_CASE(GGML_TYPE_Q4_1);
+//extern DECL_MMQ_CASE(GGML_TYPE_Q4_1);
 extern DECL_MMQ_CASE(GGML_TYPE_Q5_0);
 extern DECL_MMQ_CASE(GGML_TYPE_Q5_1);
 extern DECL_MMQ_CASE(GGML_TYPE_Q8_0);
@@ -2922,7 +2922,7 @@ extern DECL_MMQ_CASE(GGML_TYPE_IQ2_XS);
 extern DECL_MMQ_CASE(GGML_TYPE_IQ2_S);
 extern DECL_MMQ_CASE(GGML_TYPE_IQ3_XXS);
 extern DECL_MMQ_CASE(GGML_TYPE_IQ3_S);
-extern DECL_MMQ_CASE(GGML_TYPE_IQ1_S);
+//extern DECL_MMQ_CASE(GGML_TYPE_IQ1_S);
 extern DECL_MMQ_CASE(GGML_TYPE_IQ4_NL);
 extern DECL_MMQ_CASE(GGML_TYPE_IQ4_XS);
 
