@@ -1633,29 +1633,37 @@ static float CalcGradientAIRopeFreqBase(float original_rope_base, int n_ctx_trai
         float chi_ctx_value = (n_ctx_desired * ctx_multiplier) / 6.28318;
         float gradient_ai_rope_freq_base_value = powf(original_rope_base, log10f(chi_ctx_value) / log10f(chi_ctx_train_value));
 
-        if(debugmode==1)
-        {
-            printf("Trained max context length (value:%.d).\n", n_ctx_train);
-            printf("Desired context length (value:%.d).\n", n_ctx_desired);
-            printf("Solar context multiplier (value:%.3f).\n", ctx_multiplier);
-            printf("Chi context train (value:%.3f).\n", chi_ctx_train_value);
-            printf("Chi chosen context (value:%.3f).\n", chi_ctx_value);
-            printf("Log Chi context train (value:%.3f).\n", log10f(chi_ctx_train_value));
-            printf("Log Chi chosen context (value:%.3f).\n", log10f(chi_ctx_value));
-            printf("RoPE Frequency Base value (value:%.3f).\n", original_rope_base);
-            printf("RoPE base calculated via Gradient AI formula. (value:%.1f).\n", gradient_ai_rope_freq_base_value);
-        }
+        // if(debugmode==1)
+        // {
+        printf("Trained max context length (value:%.d).\n", n_ctx_train);
+        printf("Desired context length (value:%.d).\n", n_ctx_desired);
+        printf("Solar context multiplier (value:%.3f).\n", ctx_multiplier);
+        printf("Chi context train (value:%.3f).\n", chi_ctx_train_value);
+        printf("Chi chosen context (value:%.3f).\n", chi_ctx_value);
+        printf("Log Chi context train (value:%.3f).\n", log10f(chi_ctx_train_value));
+        printf("Log Chi chosen context (value:%.3f).\n", log10f(chi_ctx_value));
+        printf("RoPE Frequency Base value (value:%.3f).\n", original_rope_base);
+        printf("RoPE base calculated via Gradient AI formula. (value:%.1f).\n", gradient_ai_rope_freq_base_value);
+        // }
 
 	    if(model_arch==GGUFArch::ARCH_SOLAR)
         {
             float extended_rope_positive_offset_value = 1 + ((log10f(chi_ctx_value) - log10f(chi_ctx_train_value)) / ((log10f(chi_ctx_value) * log10f(chi_ctx_train_value)) - (log10f(chi_ctx_value) + log10f(chi_ctx_train_value))));
             float rope_freq_base_with_positive_offset = gradient_ai_rope_freq_base_value * extended_rope_positive_offset_value;
-            if(debugmode==1)
-            {
-                printf("Extended RoPE Positive Offset (multiplicator) for Solar based models. (value:%.3f).\n", extended_rope_positive_offset_value);
-                printf("RoPE base calculated via Gradient AI formula for Solar based models. (value:%.1f).\n", rope_freq_base_with_positive_offset);
-            }
+            // if(debugmode==1)
+            // {
+            printf("Extended RoPE Positive Offset (multiplicator) for Solar based models. (value:%.3f).\n", extended_rope_positive_offset_value);
+            printf("RoPE base calculated via Gradient AI formula for Solar based models. (value:%.1f).\n", rope_freq_base_with_positive_offset);
+            // }
             return rope_freq_base_with_positive_offset;
+        }
+	    else if(model_arch==GGUFArch::ARCH_MISTRAL_LLAMA_1_AND_2)
+        {
+            float extended_rope_negative_offset_value = 1 + ((log10f(chi_ctx_value) - log10f(chi_ctx_train_value)) / (3.14159265358979323846 * 3.14159265358979323846));
+            float rope_freq_base_with_negative_offset = gradient_ai_rope_freq_base_value / extended_rope_negative_offset_value;
+            printf("Extended RoPE Negative Offset (divisor) for Llama 1 and 2 based models. (value:%.3f).\n", extended_rope_negative_offset_value);
+            printf("RoPE base calculated via Gradient AI formula for Llama 1 and 2 based models. (value:%.1f).\n", rope_freq_base_with_negative_offset);
+            return rope_freq_base_with_negative_offset;
         }
         else
         {
@@ -1721,6 +1729,18 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         }
         else
         {
+            //approximate NTK aware ctx
+            auto effectivenctx = kcpp_data->n_ctx;
+            if((file_format == FileFormat::GGUF_GENERIC) && file_format_meta.n_ctx_train > 2048)
+            {
+                float factor = file_format_meta.n_ctx_train/2048;
+                effectivenctx = effectivenctx/factor;
+            }
+            float magic_multiplier = 8.0f;
+            float base_multiplier = effectivenctx*magic_multiplier;
+            float base_raw = 10000.0f;
+            rope_freq_base = (effectivenctx <= 2048 ? base_raw : base_multiplier);
+			//OLD : rope_freq_base = (effectivenctx <= 2048 ? 10000.0f : (effectivenctx <= 2176 ? 10000.0f : (effectivenctx <= 2304 ? 11000.0f : (effectivenctx <= 2432 ? 12000.0f : (effectivenctx <= 2560 ? 13000.0f : (effectivenctx <= 2688 ? 14000.0f : (effectivenctx <= 2816 ? 15000.0f : (effectivenctx <= 2944 ? 16000.0f : (effectivenctx <= 3072 ? 17000.0f : (effectivenctx <= 3200 ? 18000.0f : (effectivenctx <= 3328 ? 19000.0f : (effectivenctx <= 3456 ? 20000.0f : (effectivenctx <= 3584 ? 21000.0f : (effectivenctx <= 3712 ? 22000.0f : (effectivenctx <= 3840 ? 23000.0f : (effectivenctx <= 3968 ? 24000.0f : (effectivenctx <= 4096 ? 25000.0f : (effectivenctx <= 4224 ? 26000.0f : (effectivenctx <= 4352 ? 27000.0f : (effectivenctx <= 4480 ? 28500.0f : (effectivenctx <= 4608 ? 30000.0f : (effectivenctx <= 4736 ? 31500.0f : (effectivenctx <= 4864 ? 33000.0f : (effectivenctx <= 4992 ? 34500.0f : (effectivenctx <= 5120 ? 36000.0f : (effectivenctx <= 5248 ? 38000.0f : (effectivenctx <= 5376 ? 40000.0f : (effectivenctx <= 5504 ? 42000.0f : (effectivenctx <= 5632 ? 44000.0f : (effectivenctx <= 5760 ? 46000.0f : (effectivenctx <= 5888 ? 48000.0f : (effectivenctx <= 6016 ? 51000.0f : (effectivenctx <= 6144 ? 54000.0f : (effectivenctx <= 6288 ? 57000.0f : (effectivenctx <= 6400 ? 61000.0f : (effectivenctx <= 8192 ? 82684.0f : (effectivenctx <= 8192 ? 82684.0f : (effectivenctx <= 12288 ? 140000.0f : (effectivenctx <= 16384 ? 200000.0f : (effectivenctx <= 24576 ? 320000.0f : 440000.0f))))))))))))))))))))))))))))))))))))))));
             printf("Using Automatic RoPE scaling, Pre-GGUF (scale:%.3f, base:%.1f).\n",rope_freq_scale, rope_freq_base);
         }
     }
