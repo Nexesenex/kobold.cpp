@@ -3082,8 +3082,9 @@ def show_gui():
     context_var.trace("w", changed_gpulayers_estimate)
 
     # load model
-    makefileentry(quick_tab, "Model:", "Select GGUF or GGML Model File", model_var, 40, 280, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
+    makefileentry(quick_tab, "Model:", "Select GGML or GGML Model File", model_var, 50, 576, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
     model_var.trace("w", gui_changed_modelfile)
+    ctk.CTkButton(quick_tab, text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
 
     # Hardware Tab
     hardware_tab = tabcontent["Hardware"]
@@ -3140,7 +3141,11 @@ def show_gui():
 
     # force version
     makelabelentry(hardware_tab, "Force Version:" , version_var, 100, 50,tooltip="If the autodetected version is wrong, you can change it here.\nLeave as 0 for default.")
-    ctk.CTkButton(hardware_tab , text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
+
+    # load model
+    makefileentry(hardware_tab, "Model:", "Select GGML or GGML Model File", model_var, 50, 576, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
+    model_var.trace("w", gui_changed_modelfile)
+    ctk.CTkButton(hardware_tab, text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
 
 
     runopts_var.trace('w', changerunmode)
@@ -3187,6 +3192,9 @@ def show_gui():
     noqkvlabel.configure(text_color="#ff5555")
     qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 22, 30, set=0,tooltip="Enable quantization of KV cache (KVQ). Mode 0 (F16) is default. Modes 1-12 requires FlashAttention and disables ContextShift.\nModes 15-20 work without FA, for incompatible models. 0,13,14 can work with or without.")
 
+    # load model
+    makefileentry(tokens_tab, "Model:", "Select GGML or GGML Model File", model_var, 50, 576, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
+
     togglerope(1,1,1)
     toggleflashattn(1,1,1)
     togglectxshift(1,1,1)
@@ -3211,6 +3219,7 @@ def show_gui():
     mmproj_var.trace("w", gui_changed_modelfile)
     makecheckbox(model_tab, "Allow Launch Without Models", nomodel, 15, tooltiptxt="Allows running the WebUI with no model loaded.")
 
+    ctk.CTkButton(model_tab, text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
     # Network Tab
     network_tab = tabcontent["Network"]
 
