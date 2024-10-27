@@ -591,13 +591,22 @@ def bring_terminal_to_foreground():
         ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 9)
         ctypes.windll.user32.SetForegroundWindow(ctypes.windll.kernel32.GetConsoleWindow())
 
-def string_contains_sequence_substring(inputstr,sequences):
+def string_has_overlap(str_a, str_b, maxcheck):
+    max_overlap = min(maxcheck, len(str_a), len(str_b))
+    for i in range(1, max_overlap + 1):
+        if str_a[-i:] == str_b[:i]:
+            return True
+    return False
+
+def string_contains_or_overlaps_sequence_substring(inputstr, sequences):
     if inputstr.strip()=="":
         return False
     for s in sequences:
         if s.strip()=="":
             continue
         if s.strip() in inputstr.strip() or inputstr.strip() in s.strip():
+            return True
+        if string_has_overlap(inputstr, s, 10):
             return True
     return False
 
@@ -1810,7 +1819,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 if tokenStr!="" or streamDone:
                     sseq = genparams.get('stop_sequence', [])
                     trimstop = genparams.get('trim_stop', False)
-                    if trimstop and not streamDone and string_contains_sequence_substring(tokenStr,sseq):
+                    if trimstop and not streamDone and string_contains_or_overlaps_sequence_substring(tokenStr,sseq):
                         tokenReserve += tokenStr
                         await asyncio.sleep(async_sleep_short) #if a stop sequence could trigger soon, do not send output
                     else:
