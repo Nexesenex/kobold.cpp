@@ -688,6 +688,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             print(f"Note: KoboldCpp/Croco.Cpp has detected that a significant amount of GPU0 VRAM ({usedmem0/1024/1024} MiB) is currently used by another application.\nFor best results, you may wish to close that application and then restart KoboldCpp/Croco.Cpp.\n***")
 
             print(f"Initial collection of data for the GPU layers autoloader:")
+            fsize = 0
             print(f"Model size (MiB/GiB like on MS Windows): {fsize/1024/1024:.3f} MiB ; {fsize/1024/1024/1024:.3f} GiB")
             print(f"Model size (MB/GB like on Hugging-Face): {fsize/1000/1000:.3f} MB ; {fsize/1000/1000/1000:.3f} GB")
             print("***")
