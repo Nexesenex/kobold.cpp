@@ -3,6 +3,7 @@
 
 const int tensor_split_max = 16;
 const int images_max = 4;
+const int logprobs_max = 5;
 
 // match kobold's sampler list and order
 enum samplers
@@ -112,12 +113,26 @@ struct generation_outputs
 {
     int status = -1;
     int stopreason = stop_reason::INVALID;
+    int prompt_tokens = 0;
+    int completion_tokens = 0;
     const char * text; //response will now be stored in c++ allocated memory
 };
 struct token_count_outputs
 {
     int count = 0;
     int * ids; //we'll just use shared memory for this one, bit of a hack
+};
+
+struct logprob_item {
+    int option_count;
+    const char * selected_token;
+    float selected_logprob;
+    const char * tokens[logprobs_max];
+    float * logprobs = nullptr;
+};
+struct last_logprobs_outputs {
+    int count = 0;
+    logprob_item * logprob_items = nullptr;
 };
 struct sd_load_model_inputs
 {

@@ -1091,9 +1091,6 @@ extern "C" {
     /// @details Minimum P sampling as described in https://github.com/ggerganov/llama.cpp/pull/3841
     LLAMA_API struct llama_sampler * llama_sampler_init_min_p      (float   p, size_t min_keep);
 
-    /// @details Tail Free Sampling described in https://www.trentonbricken.com/Tail-Free-Sampling/.
-    LLAMA_API struct llama_sampler * llama_sampler_init_tail_free  (float   z, size_t min_keep);
-
     /// @details Locally Typical Sampling implementation described in the paper https://arxiv.org/abs/2202.00666.
     LLAMA_API struct llama_sampler * llama_sampler_init_typical    (float   p, size_t min_keep);
 
@@ -1144,6 +1141,16 @@ extern "C" {
                                float   penalty_present, // 0.0 = disabled
                                 bool   penalize_nl,     // consider newlines as a repeatable token
                                 bool   ignore_eos);     // ignore the end-of-sequence token
+
+    ///  @details DRY sampler, designed by p-e-w, as described in: https://github.com/oobabooga/text-generation-webui/pull/5677, porting Koboldcpp implementation authored by pi6am: https://github.com/LostRuins/koboldcpp/pull/982
+    LLAMA_API struct llama_sampler *    llama_sampler_init_dry(
+            const struct llama_model *  model,
+                               float    dry_multiplier,
+                               float    dry_base,
+                             int32_t    dry_allowed_length,
+                             int32_t    dry_penalty_last_n,
+                          const char ** seq_breakers,
+                              size_t    num_breakers);
 
     LLAMA_API struct llama_sampler * llama_sampler_init_logit_bias(
                              int32_t   n_vocab,

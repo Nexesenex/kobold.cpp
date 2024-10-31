@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 182;
+	const LITEVER = 183;
 	const urlParams = new URLSearchParams(window.location.search);
 	var localflag = true;
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -1265,6 +1265,20 @@ Current version indicated by LITEVER below.
 		}
 		.workerTable>tbody>tr>td{
 			padding: min(0.4vw, 5px);
+		}
+
+		.logprobstable
+		{
+			font-size: 11px;
+			width: 100%;
+			border-spacing: 2px;
+		}
+		.logprobstable table, th, td {
+			border: 2px solid #5d5d5d;
+		}
+		.logprobstable>tbody>tr>td
+		{
+			width: 16.4%;
 		}
 
 		.tablelines
@@ -3555,6 +3569,8 @@ Current version indicated by LITEVER below.
 						last_stop_reason = "stop";
 					}
 
+					last_response_obj = JSON.parse(JSON.stringify(data));
+
 					//handle some early stopping criterias
 					if (localsettings.opmode == 3) //stop on selfname found
 					{
@@ -4345,6 +4361,7 @@ Current version indicated by LITEVER below.
 	var koboldcpp_version_obj = {};
 	var koboldcpp_has_vision = false;
 	var last_request_str = "No Requests Available"; //full context of last submitted request
+	var last_response_obj = null;
 	var lastcheckgenkey = ""; //for checking polled-streaming unique id when generating in kcpp
 	var globalabortcontroller = null;
 	var passed_ai_warning_local = false;
@@ -4417,6 +4434,7 @@ Current version indicated by LITEVER below.
 		instruct_has_markdown: true,
 		placeholder_tags: true,
 		render_special_tags: false,
+		request_logprobs: false,
 		persist_session: true,
 		speech_synth: 0, //0 is disabled, 1000 is xtts
 		xtts_voice: "female_calm",
@@ -6393,6 +6411,10 @@ Current version indicated by LITEVER below.
 					{
 						current_wi = load_nai_wi(new_loaded_storyobj);
 					}
+					else if(new_loaded_storyobj.length>=1 && new_loaded_storyobj[0].keys!="" && new_loaded_storyobj[0].value!="" && (new_loaded_storyobj[0].useForCharacterCreation === true || new_loaded_storyobj[0].useForCharacterCreation === false))
+					{
+						current_wi = load_aid_wi(new_loaded_storyobj);
+					}
 					else {
 						msgbox("Could not load selected json file. Does not appear to be a KoboldAI story or compatible format.");
 					}
@@ -7002,6 +7024,34 @@ Current version indicated by LITEVER below.
 				"keysecondary": "",
 				"keyanti": "",
 				"content": itm.text,
+				"comment": "",
+				"folder": null,
+				"selective": false,
+				"constant": false,
+				"probability":100
+			};
+			loadedwi.push(nwi);
+		}
+		return loadedwi;
+	}
+
+	function load_aid_wi(obj)
+	{
+		console.log("Loading aid wi");
+		let loadedwi = [];
+		for (let i=0;i<obj.length;++i) {
+			var itm = obj[i];
+			var key = "";
+			if(itm.keys && itm.keys!="")
+			{
+				key = itm.keys;
+			}
+
+			let nwi = {
+				"key": key,
+				"keysecondary": "",
+				"keyanti": "",
+				"content": itm.value,
 				"comment": "",
 				"folder": null,
 				"selective": false,
@@ -7860,7 +7910,56 @@ Current version indicated by LITEVER below.
 
 	function show_last_req()
 	{
-		msgbox(last_request_str,"Last Request Sent",false);
+		let lr = "Request:\n" + last_request_str;
+		if(last_response_obj!=null)
+		{
+			lr += "\n\nResponse:\n" + JSON.stringify(last_response_obj);
+		}
+		msgbox(lr,"Last Request Info",false);
+	}
+	function show_last_logprobs()
+	{
+		let lastlogprobsstr = "";
+		let kcpp_has_logprobs = (last_response_obj!=null && last_response_obj.results && last_response_obj.results.length > 0 && last_response_obj.results[0].logprobs!=null);
+		let oai_has_logprobs = (last_response_obj!=null && last_response_obj.choices && last_response_obj.choices.length > 0 && last_response_obj.choices[0].logprobs!=null);
+		if(kcpp_has_logprobs || oai_has_logprobs)
+		{
+			let lpc = (kcpp_has_logprobs?last_response_obj.results[0].logprobs.content:last_response_obj.choices[0].logprobs.content);
+			if(lpc)
+			{
+				lastlogprobsstr += `<table class="logprobstable">`;
+				for(let i=0;i<lpc.length;++i)
+				{
+					lastlogprobsstr += "<tr>";
+					let cn = lpc[i];
+					lastlogprobsstr += `<td style="color:lime">${escapeHtml(cn.token)}<br>(${(Math.exp(cn.logprob)*100).toFixed(2)}%)</td>`;
+					let addspace = false;
+					for(let j=0;j<5;++j)
+					{
+						if(j>=cn.top_logprobs.length)
+						{
+							lastlogprobsstr += `<td></td>`;
+							continue;
+						}
+						if(cn.top_logprobs[j].token==cn.token)
+						{
+							addspace = true;
+							continue;
+						}
+						lastlogprobsstr += `<td>${escapeHtml(cn.top_logprobs[j].token)}<br>(${(Math.exp(cn.top_logprobs[j].logprob)*100).toFixed(2)}%)</td>`
+					}
+					if(addspace)
+					{
+						lastlogprobsstr += `<td></td>`;
+					}
+					lastlogprobsstr += "</tr>";
+				}
+				lastlogprobsstr += "</table>";
+			}
+		} else {
+			lastlogprobsstr = "Not Available";
+		}
+		msgbox(lastlogprobsstr,"Token Probability Viewer",true);
 	}
 
 	var worker_data_showonly = []; //only for table display, dont mix
@@ -10076,6 +10175,7 @@ Current version indicated by LITEVER below.
 		document.getElementById("trimwhitespace").checked = localsettings.trimwhitespace;
 		document.getElementById("compressnewlines").checked = localsettings.compressnewlines;
 		document.getElementById("render_special_tags").checked = localsettings.render_special_tags;
+		document.getElementById("request_logprobs").checked = localsettings.request_logprobs;
 		document.getElementById("eos_ban_mode").value = localsettings.eos_ban_mode;
 		document.getElementById("persist_session").checked = localsettings.persist_session;
 		document.getElementById("opmode").value = localsettings.opmode;
@@ -10460,6 +10560,7 @@ Current version indicated by LITEVER below.
 		localsettings.trimwhitespace = (document.getElementById("trimwhitespace").checked ? true : false);
 		localsettings.compressnewlines = (document.getElementById("compressnewlines").checked ? true : false);
 		localsettings.render_special_tags = (document.getElementById("render_special_tags").checked ? true : false);
+		localsettings.request_logprobs = (document.getElementById("request_logprobs").checked ? true : false);
 		localsettings.eos_ban_mode = document.getElementById("eos_ban_mode").value;
 		localsettings.persist_session = (document.getElementById("persist_session").checked ? true : false);
 		if(document.getElementById("opmode").value==1)
@@ -11143,6 +11244,7 @@ Current version indicated by LITEVER below.
 		gametext_arr = [];
 		redo_arr = [];
 		last_request_str = "No Requests Available";
+		last_response_obj = null;
 		retry_prev_text = [];
 		retry_preserve_last = false;
 		redo_prev_text = [];
@@ -11301,7 +11403,13 @@ Current version indicated by LITEVER below.
 				{
 					let escapedpat = escapeHtml(regexreplace_data[i].p);
 					let pat = new RegExp(escapedpat, "gm");
-					inputtxt = inputtxt.replace(pat, regexreplace_data[i].r);
+					let rep = regexreplace_data[i].r;
+					rep = rep.replace(/\\\\/g, "[temp_rr_seq]")
+					.replace(/\\n/g, "\n")
+					.replace(/\\t/g, "\t")
+					.replace(/\\r/g, "\r")
+					.replace(/\[temp_rr_seq\]/g, "\\\\");
+					inputtxt = inputtxt.replace(pat, rep);
 				}
 			}
 		}
@@ -12818,6 +12926,7 @@ Current version indicated by LITEVER below.
 			submit_payload.params.smoothing_factor = localsettings.smoothing_factor;
 			submit_payload.params.banned_tokens = get_token_bans();
 			submit_payload.params.render_special = localsettings.render_special_tags;
+			submit_payload.params.logprobs = localsettings.request_logprobs;
 		}
 		if(custom_kobold_endpoint != "" && is_using_kcpp_with_dry() && localsettings.dry_multiplier > 0)
 		{
@@ -12886,6 +12995,7 @@ Current version indicated by LITEVER below.
 					streamchunk = ((pstreamamount != null && pstreamamount > 0) ? pstreamamount:8); //8 tokens per stream tick by default
 				}
 				last_request_str = JSON.stringify(submit_payload);
+				last_response_obj = null;
 				if (localsettings.tokenstreammode==2 && is_using_kcpp_with_sse()) {
 					let sub_endpt = apply_proxy_url(custom_kobold_endpoint + kobold_custom_gen_stream_endpoint);
 					kobold_api_stream_sse(sub_endpt, submit_payload);
@@ -13008,6 +13118,7 @@ Current version indicated by LITEVER below.
 				}
 
 				last_request_str = JSON.stringify(oai_payload);
+				last_response_obj = null;
 				let oaiheaders = {
 					'Content-Type': 'application/json',
 					'Authorization': 'Bearer ' + custom_oai_key
@@ -13116,6 +13227,7 @@ Current version indicated by LITEVER below.
 
 
 				last_request_str = JSON.stringify(claude_payload);
+				last_response_obj = null;
 
 				let claudeheaders = {
 					'Content-Type': 'application/json',
@@ -13265,6 +13377,7 @@ Current version indicated by LITEVER below.
 
 				let targetep = urlbase + custom_palm_key;
 				last_request_str = JSON.stringify(payload);
+				last_response_obj = null;
 
 				fetch(targetep, {
 					method: 'POST',
@@ -13335,6 +13448,7 @@ Current version indicated by LITEVER below.
 				}
 
 				last_request_str = JSON.stringify(cohere_payload);
+				last_response_obj = null;
 				let cohere_headers = {
 					'Content-Type': 'application/json',
 					'Authorization': 'Bearer ' + custom_cohere_key
@@ -13435,6 +13549,7 @@ Current version indicated by LITEVER below.
 			}
 
 			last_request_str = JSON.stringify(submit_payload);
+			last_response_obj = null;
 
 			fetch(selectedhorde.submit_endpoint, {
 				method: 'POST', // or 'PUT'
@@ -14255,7 +14370,8 @@ Current version indicated by LITEVER below.
 		{
 			shownotify();
 		}
-		let lastreq = `<a href="#" onclick="show_last_req()">Last request</a> served by <a href="#" onclick="get_and_show_workers()">${genworker}</a> using <span class="color_darkgreen">${genmdl}</span>${(genkudos>0?` for ${genkudos} kudos`:``)} in ${getTimeTaken()} seconds.`;
+		let lastresp = ` <a href="#" class="color_blueurl" onclick="show_last_logprobs()">(View Logprobs)</a>`;
+		let lastreq = `<a href="#" onclick="show_last_req()">Last request</a> served by <a href="#" onclick="get_and_show_workers()">${genworker}</a> using <span class="color_darkgreen">${genmdl}</span>${(genkudos>0?` for ${genkudos} kudos`:``)} in ${getTimeTaken()} seconds.${(last_response_obj!=null && (last_response_obj.results && last_response_obj.results.length > 0 && last_response_obj.results[0].logprobs!=null))?lastresp:""}`;
 		document.getElementById("lastreq1").innerHTML = lastreq;
 		document.getElementById("lastreq2").innerHTML = lastreq;
 		document.getElementById("lastreq3").innerHTML = lastreq;
@@ -18470,7 +18586,9 @@ Current version indicated by LITEVER below.
 					<option value="claude-3-opus-20240229">claude-3-opus</option>
 					<option value="claude-3-sonnet-20240229">claude-3-sonnet</option>
 					<option value="claude-3-haiku-20240307">claude-3-haiku</option>
-					<option value="claude-3-5-sonnet-20240620">claude-3.5-sonnet</option>
+					<option value="claude-3-5-sonnet-20240620">claude-3-5-sonnet-20240620</option>
+					<option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet-20241022</option>
+					<option value="claude-3-5-sonnet-latest">claude-3-5-sonnet-latest</option>
 				</select>
 				<input type="checkbox" id="claudeaddversion" onchange="" checked>
 				<div class="box-label" title="Add endpoint version">Add Endpoint Version</div>
@@ -19329,6 +19447,11 @@ Current version indicated by LITEVER below.
 							<div class="justifyleft settingsmall">Render Sp.Tags <span class="helpicon">?<span
 								class="helptext">If enabled, renders special tags like EOS and padding tokens. Not recommended.</span></span></div>
 						   <input title="Render Special Tags" type="checkbox" id="render_special_tags" style="margin:0px 0px 0px auto;">
+						</div>
+						<div class="settinglabel">
+							<div class="justifyleft settingsmall">Request Logprobs <span class="helpicon">?<span
+								class="helptext">If enabled, request top 5 alternative token log-probabilities for each generated token. Incurs an overhead.</span></span></div>
+						   <input title="Request Logprobs" type="checkbox" id="request_logprobs" style="margin:0px 0px 0px auto;">
 						</div>
 					</div>
 

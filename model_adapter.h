@@ -71,6 +71,18 @@ struct FileFormatExtraMeta
     int32_t n_tensors;
 };
 
+struct TopPicksData
+{
+    std::string selected_token;
+    int32_t selected_tokenid;
+    float selected_logprob;
+    float selected_probability;
+    std::vector<std::string> tokens;
+    std::vector<int> tokenid;
+    std::vector<float> logprobs;
+    std::vector<float> p;
+};
+
 enum ModelLoadResult
 {
     FAIL = 0,
@@ -83,6 +95,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs);
 bool gpttype_generate_abort();
 const std::string & gpttype_get_pending_output();
 std::vector<int> gpttype_get_token_arr(const std::string & input, bool addbos);
+const std::vector<TopPicksData> gpttype_get_top_picks_data();
 
 bool sdtype_load_model(const sd_load_model_inputs inputs);
 sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs);

@@ -294,5 +294,31 @@ extern "C"
         return output;
     }
 
+    static std::vector<TopPicksData> last_logprob_toppicks;
+    static std::vector<logprob_item> last_logprob_items;
+    last_logprobs_outputs last_logprobs()
+    {
+        last_logprobs_outputs output;
+        last_logprob_items.clear();
+        last_logprob_toppicks.clear();
+        last_logprob_toppicks = gpttype_get_top_picks_data(); //copy top picks
+        for(int i=0;i<last_logprob_toppicks.size();++i)
+        {
+            logprob_item itm;
+            itm.option_count = last_logprob_toppicks[i].tokenid.size();
+            itm.selected_token = last_logprob_toppicks[i].selected_token.c_str();
+            itm.selected_logprob = last_logprob_toppicks[i].selected_logprob;
+            itm.logprobs = last_logprob_toppicks[i].logprobs.data();
+            for(int j=0;j<itm.option_count && j<logprobs_max;++j)
+            {
+                itm.tokens[j] = last_logprob_toppicks[i].tokens[j].c_str();
+            }
+            last_logprob_items.push_back(itm);
+        }
+        output.count = last_logprob_items.size();
+        output.logprob_items = last_logprob_items.data();
+        return output;
+    }
+
 
 }
