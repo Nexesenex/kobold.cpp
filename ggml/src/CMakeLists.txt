@@ -801,6 +801,7 @@ if (GGML_KOMPUTE)
             kompute-shaders/op_mul_mat_q8_0.comp
             kompute-shaders/op_mul_mat_q4_0.comp
             kompute-shaders/op_mul_mat_q4_1.comp
+            kompute-shaders/op_mul_mat_q4_k.comp
             kompute-shaders/op_mul_mat_q6_k.comp
             kompute-shaders/op_getrows_f32.comp
             kompute-shaders/op_getrows_f16.comp
@@ -834,6 +835,7 @@ if (GGML_KOMPUTE)
             shaderop_mul_mat_q8_0.h
             shaderop_mul_mat_q4_0.h
             shaderop_mul_mat_q4_1.h
+            shaderop_mul_mat_q4_k.h
             shaderop_mul_mat_q6_k.h
             shaderop_getrows_f32.h
             shaderop_getrows_f16.h
@@ -1401,7 +1403,7 @@ list(APPEND GGML_EXTRA_LIBS_PRIVATE Threads::Threads)
 
 find_library(MATH_LIBRARY m)
 if (MATH_LIBRARY)
-    if (NOT WIN32 OR NOT GGML_SYCL)
+    if (NOT WIN32 OR NOT DEFINED ENV{ONEAPI_ROOT})
         list(APPEND GGML_EXTRA_LIBS_PRIVATE m)
     endif()
 endif()
