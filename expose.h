@@ -50,6 +50,7 @@ struct load_model_inputs
     const char * vulkan_info = nullptr;
     const int blasbatchsize = 128;
     const int blasubatchsize = 128;
+    const int experts_used = 0;
     const int debugmode = 0;
     const int forceversion = 0;
     const int gpulayers = 0;
