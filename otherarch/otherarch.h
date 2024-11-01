@@ -23,7 +23,6 @@ struct kcpp_params {
     int32_t n_ubatch              =   512; // physical batch size for prompt processing (must be >=32 to use BLAS)
     int      n_threads                   = -1;
     int      n_blasthreads               = -1;
-    int      n_experts_used              = 0;
 
     // sampling parameters
     int32_t top_k             = 40;    // <= 0 to use vocab size

@@ -130,7 +130,6 @@ class load_model_inputs(ctypes.Structure):
                 ("mmproj_filename", ctypes.c_char_p),
                 ("use_mmap", ctypes.c_bool),
                 ("use_mlock", ctypes.c_bool),
-                ("experts_used", ctypes.c_int),
                 ("use_smartcontext", ctypes.c_bool),
                 ("use_contextshift", ctypes.c_bool),
                 ("clblast_info", ctypes.c_int),
@@ -1120,7 +1119,6 @@ def load_model(model_filename):
     inputs.blasthreads = args.blasthreads
     inputs.use_mmap = (not args.nommap)
     inputs.use_mlock = args.usemlock
-    inputs.experts_used = args.experts_used
     inputs.lora_filename = "".encode("UTF-8")
     inputs.lora_base = "".encode("UTF-8")
     if args.lora:
@@ -2691,7 +2689,7 @@ def show_gui():
 
     tabs = ctk.CTkFrame(root, corner_radius = 0, width=windowwidth, height=windowheight-50)
     tabs.grid(row=0, stick="nsew")
-    tabnames= ["Quick Launch", "Hardware", "Tokens", "GPU AutoLayers", "Model Files", "Network", "Horde Worker","Image Gen","Audio","Extra", "Croco"]
+    tabnames= ["Quick Launch", "Hardware", "Tokens", "GPU AutoLayers", "Model Files", "Network", "Horde Worker","Image Gen","Audio","Extra"]
     navbuttons = {}
     navbuttonframe = ctk.CTkFrame(tabs, width=100, height=int(tabs.cget("height")))
     navbuttonframe.grid(row=0, column=0, padx=2,pady=2)
@@ -2766,8 +2764,6 @@ def show_gui():
     blas_size_var = ctk.IntVar()
 
     blasubatchsize_var = ctk.IntVar()
-
-    experts_used_var = ctk.StringVar(value="0")
 
     version_var = ctk.StringVar(value="0")
     tensor_split_str_vars = ctk.StringVar(value="")
@@ -3242,8 +3238,6 @@ def show_gui():
 
     tensor_split_entry,tensor_split_label = makelabelentry(gpu_al_tab, "Tensor Split:", tensor_split_str_vars, 8, 160, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
 
-    makelabelentry(gpu_al_tab, "Opt. model metadata KV override:", experts_used_var, 26, 420, tooltip="Supersede metadata of a model, like Epislon _ e.g : llama.attention.layer_norm_rms_epsilon=float:1e5, 1.25e5, 3e6, etc.")
-
     # load model
     makefileentry(gpu_al_tab, "Model:", "Select GGML Model File", model_var, 40, 576, onchoosefile=on_picked_model_file, filetypes=[("GGML bin or GGUF", ("*.bin","*.gguf"))] ,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
     
@@ -3274,8 +3268,6 @@ def show_gui():
     noqkvlabel = makelabel(tokens_tab,"Requirments Not Met",31,0,"Requires FlashAttention ENABLED and ContextShift DISABLED.")
     noqkvlabel.configure(text_color="#ff5555")
     qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 22, 30, set=0,tooltip="Enable quantization of KV cache (KVQ). Mode 0 (F16) is default. Modes 1-12 requires FlashAttention and disables ContextShift.\nModes 15-20 work without FA, for incompatible models. 0,13,14 can work with or without.")
-
-
 
     # load model
     makefileentry(tokens_tab, "Model:", "Select GGML or GGML Model File", model_var, 50, 576, onchoosefile=on_picked_model_file, filetypes=[("GGML bin or GGUF", ("*.bin","*.gguf"))] ,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
@@ -3432,40 +3424,6 @@ def show_gui():
     makelabel(extra_tab, "Export as launcher .kcppt template (Expert Only)", 4, 0,tooltiptxt="Creates a KoboldCpp launch template for others to use.\nEmbeds JSON files directly into exported file when saving.\nWhen loaded, forces the backend to be automatically determined.\nWarning! Not recommended for beginners!")
     ctk.CTkButton(extra_tab , text = "Generate LaunchTemplate", command = kcpp_export_template ).grid(row=5,column=0, stick="w", padx= 8, pady=2)
 
-    # croco tab
-    croco_tab = tabcontent["Croco"]
-
-    # makelabelentry(croco_tab, "Context Size:" , context_var, 2, 160,tooltip="How many threads to use during BLAS processing.\nIf left blank, uses same value as regular thread count.")
-
-    makelabelentry(croco_tab, "Threads:" , threads_var, 4, 80,tooltip="How many threads to use.\nRecommended value is your CPU core count, defaults are usually OK.")
-
-    makelabelentry(croco_tab, "BLAS threads:" , blas_threads_var, 6, 80,tooltip="How many threads to use during BLAS processing.\nIf left blank, uses same value as regular thread count.")
-    
-    # makelabelentry(croco_tab, "Logical Blas Batch Size:" , blas_size_var, 8, 160,tooltip="How many tokens to process at once per batch.\nLarger values use more memory unless Physical Batch supersedes it.")
-    
-    # makelabelentry(croco_tab, "Physical Blas Batch Size:" , blasubatchsize_var, 10, 160,tooltip="How many tokens to process at once per batch.\nLarger values use more memory.")
-
-    makelabelentry(croco_tab, "GPU Layers:", gpulayers_var, 12, 80,tooltip="How many layers to offload onto the GPU.\nVRAM intensive, usage increases with model and context size.\nRequires some trial and error to find the best fit value.\n\nCommon values for total layers, accuracy not guaranteed.\n\nLlama/Mistral 7b/8b: 33\nSolar 10.7b/11b: 49\nLlama 13b: 41\nLlama 20b(stack): 63\nLlama/Yi 34b: 61\nMixtral 8x7b: 33\nLlama 70b: 81")
-
-    makelabelentry(croco_tab, "Positive Layer offset:", poslayeroffset_var, 14, 80, tooltip="Adds layers to the GPU layers autoloader calculation in case of under-exploitation of your GPU(s)..")
-
-    makelabelentry(croco_tab, "Negative Layer Offset:", neglayeroffset_var, 16, 80, tooltip="Removes layers to the GPU layers autoloader calculation in case of Out of Memory (OOM) error..")
-
-    makelabelentry(croco_tab, "Tensor Split:", tensor_split_str_vars, 18, 280, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
-
-    makelabelentry(croco_tab, "RoPE Scale:", customrope_scale, 20, 80, tooltip="For Linear RoPE scaling. RoPE frequency scale.")
-
-    makelabelentry(croco_tab, "RoPE Base:", customrope_base, 22, 160, tooltip="For NTK Aware Scaling. RoPE frequency base.")
-
-    makelabelentry(croco_tab, "Quantize KV Cache:", quantkv_var, 24, 80, tooltip="Enable quantization of KV cache (KVQ). Mode 0 (F16) is default. Modes 1-12 requires FlashAttention and disables ContextShift.\nModes 15-20 work without FA, for incompatible models. 0,13,14 can work with or without.")
-
-    # makelabelentry(croco_tab, "Opt. model metadata KV override:", kv_override_var, 26, 420, tooltip="Supersede metadata of a model, like Epislon _ e.g : llama.attention.layer_norm_rms_epsilon=float:1e5, 1.25e5, 3e6, etc.")
-
-    makefileentry(croco_tab, "Model:", "Select GGML or GGML Model File", model_var, 28, 576, onchoosefile=on_picked_model_file, filetypes=[("GGML bin or GGUF", ("*.bin","*.gguf"))] ,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
-    model_var.trace("w", gui_changed_modelfile)
-
-    ctk.CTkButton(croco_tab, text = "Run Benchmark", command = guibench ).grid(row=32, stick="se", padx= 0, pady=0)
-
     # launch
     def guilaunch():
         if model_var.get() == "" and sd_model_var.get() == "" and whisper_model_var.get() == "" and nomodel.get()!=1:
@@ -3563,8 +3521,6 @@ def show_gui():
         args.blasbatchsize = int(blasbatchsize_values[int(blas_size_var.get())])
 
         args.blasubatchsize = int(blasubatchsize_values[int(blasubatchsize_var.get())])
-        
-        args.experts_used = None if experts_used_var.get() == "" else int(experts_used_var.get())
 
         args.forceversion = 0 if version_var.get()=="" else int(version_var.get())
 
@@ -3719,10 +3675,6 @@ def show_gui():
             blas_threads_var.set(str(dict["blasthreads"]))
         else:
             blas_threads_var.set("")
-        if "experts_used" in dict and dict["experts_used"]:
-            experts_used_var.set(str(dict["experts_used"]))
-        else:
-            experts_used_var.set("0")
         if "contextsize" in dict and dict["contextsize"]:
             context_var.set(contextsize_text.index(str(dict["contextsize"])))
         if "ropeconfig" in dict and dict["ropeconfig"] and len(dict["ropeconfig"])>1:
@@ -4680,9 +4632,6 @@ def main(launch_args,start_server=True):
         if not args.blasthreads or args.blasthreads <= 0:
             args.blasthreads = args.threads
 
-        if not args.experts_used or args.experts_used <= 0:
-            args.experts_used = 0
-
         modelname = os.path.abspath(args.model_param)
         print(args)
         # Flush stdout for win32 issue with regards to piping in terminals,
@@ -5046,9 +4995,6 @@ if __name__ == '__main__':
     advparser.add_argument("--blasubatchsize", help="Sets the Physical batch size used in BLAS processing (default 128 for VRAM savings, optimal speed is 512, 256 is a great compromise). Setting it to 0 alignes Physical BLAS batch on logical BLAS. Same steps as for logical BBS.", type=check_range(int,0,4096), default=0)
 
     advparser.add_argument("--blasthreads", help="Use a different number of threads during BLAS if specified. Otherwise, has the same value as --threads",metavar=('[threads]'), type=int, default=0)
-
-    advparser.add_argument("--experts_used", help="Supersede metadata of a model, like Epislon (e.g : llama.attention.layer_norm_rms_epsilon=float:1e5, 1.25e5, 3e6, etc)", metavar=('[experts_used]'), type=int, default=0)
-
     advparser.add_argument("--lora", help="LLAMA models only, applies a lora file on top of model. Experimental.", metavar=('[lora_filename]', '[lora_base]'), nargs='+')
     advparser.add_argument("--contextshift", help="If set, do attempt to Trim and Shift the GGUF context without reprocessing everything once the max context is reached. If you disable it (or need to use Quantized KV cache (KVQ) with FlashAttention, aka. modes 1 to 14, which are incompatible with Context Shift), you can eventually use --smartcontext instead.", action='store_true')
     advparser.add_argument("--nommap", help="If set, do not use mmap to load newer models", action='store_true')
@@ -5068,7 +5014,6 @@ if __name__ == '__main__':
     advparser.add_argument("--ssl", help="Allows all content to be served over SSL instead. A valid UNENCRYPTED SSL cert and key .pem files must be provided", metavar=('[cert_pem]', '[key_pem]'), nargs='+')
     advparser.add_argument("--nocertify", help="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.", action='store_true')
     advparser.add_argument("--mmproj", help="Select a multimodal projector file for LLaVA.", default="")
-
     advparser.add_argument("--password", help="Enter a password required to use this instance. This key will be required for all text endpoints. Image endpoints are not secured.", default=None)
     advparser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
     advparser.add_argument("--chatcompletionsadapter", help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="")
