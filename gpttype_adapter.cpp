@@ -52,8 +52,6 @@ std::string executable_path = "";
 std::string lora_filename = "";
 std::string lora_base = "";
 std::string mmproj_filename = "";
-
-std::vector<llama_model_kv_override> kv_overrides;
 bool generation_finished;
 float last_process_time = 0;
 float last_eval_time = 0;
@@ -1691,7 +1689,6 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     kcpp_data->n_ubatch = GetUBatchSize(inputs.blasubatchsize, in_file_format);
     kcpp_data->flash_attn = inputs.flash_attention;
     kcpp_data->model_filename = inputs.model_filename;
-    kcpp_data->kv_override = inputs.kv_override;
     kcpp_data->use_smartcontext = inputs.use_smartcontext;
     kcpp_data->use_contextshift = inputs.use_contextshift;
     debugmode = inputs.debugmode;
@@ -1901,8 +1898,6 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         llama_model_params model_params = llama_model_default_params();
         llama_context_params llama_ctx_params = llama_context_default_params();
         llama_ctx_params.n_ctx = clamped_max_context_length;
-        llama_model_kv_override kv_override = imputs.kv_override;
-		
         if(kcpp_data->use_contextshift)
         {
            llama_ctx_params.n_ctx += extra_context_handle_fragmentation;
