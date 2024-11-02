@@ -33,6 +33,15 @@ jobs:
         run: |
           echo "$(Get-Location)\w64devkit\bin" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
 
+      - name: Print System Environment Variables
+        id: printvars
+        run: |
+          echo "Number of processors: $NUMBER_OF_PROCESSORS"
+          echo "Processor Architecture: $PROCESSOR_ARCHITECTURE"
+          echo "Computer Name: $COMPUTERNAME"
+          wmic cpu get name
+          wmic os get TotalVisibleMemorySize, FreePhysicalMemory
+
       - name: Build Non-CUDA
         id: make_build
         run: |

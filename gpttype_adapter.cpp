@@ -450,6 +450,15 @@ void ContextRewind(std::vector<int> &embd, std::vector<int> &current_context_tok
         last_n_tokens.resize(last_n_tokens.size() - amount_rewind);
     }
 
+    if(amount_rewind >= top_picks_history.size())
+    {
+        top_picks_history.clear();
+    }
+    else
+    {
+        top_picks_history.resize(top_picks_history.size() - amount_rewind);
+    }
+
     if (amount_rewind >= current_context_tokens.size())
     {
         current_context_tokens.clear();

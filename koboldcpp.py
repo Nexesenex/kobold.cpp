@@ -31,6 +31,13 @@ ban_token_max = 4096
 logit_bias_max = 4096
 dry_seq_break_max = 512
 
+# KCPP :
+# abuse prevention
+# stop_token_max = 256
+# ban_token_max = 512
+# logit_bias_max = 512
+# dry_seq_break_max = 128
+
 # global vars
 handle = None
 friendlymodelname = "inactive"
@@ -45,10 +52,10 @@ maxhordelen = 400
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.77070"
+KcppVersion = "1.77071"
 LcppVersion = "b3989"
 CudaSpecifics = "CuCML_ArCML_SMC2_DmmvX64Y1"
-ReleaseDate = "2024/10/31"
+ReleaseDate = "2024/11/01"
 showdebug = True
 guimode = False
 showsamplerwarning = True
@@ -1368,7 +1375,7 @@ def generate(genparams, is_quiet=False, stream_flag=False):
     if pendingabortkey!="" and pendingabortkey==genkey:
         print(f"\nDeferred Abort for GenKey: {pendingabortkey}")
         pendingabortkey = ""
-        return {"text":"","status":-1,"stopreason":-1, "prompt_tokens":0, "completion_tokens": 0}
+        return {"text":"","status":-1,"stopreason":-1, "prompt_tokens":0, "completion_tokens": 0, "total_tokens": 0}
     else:
         ret = handle.generate(inputs)
         outstr = ""
@@ -1541,6 +1548,41 @@ def extract_json_from_string(input_string):
     except Exception as e:
         pass
     return []
+
+def parse_last_logprobs(lastlogprobs):
+    if not lastlogprobs:
+        return None
+    logprobsdict = {}
+    logprobsdict['content'] = []
+    logprobsdict['tokens'] = []
+    logprobsdict['token_logprobs'] = []
+    logprobsdict['top_logprobs'] = []
+    logprobsdict['text_offset'] = []
+    text_offset_counter = 0
+    for i in range(lastlogprobs.count):
+        lp_content_item = {}
+        logprob_item = lastlogprobs.logprob_items[i]
+        toptoken = ctypes.string_at(logprob_item.selected_token).decode("UTF-8","ignore")
+        logprobsdict['tokens'].append(toptoken)
+        lp_content_item['token'] = toptoken
+        logprobsdict['token_logprobs'].append(logprob_item.selected_logprob)
+        lp_content_item['logprob'] = logprob_item.selected_logprob
+        lp_content_item['bytes'] = list(toptoken.encode('utf-8'))
+        lp_content_item['top_logprobs'] = []
+        logprobsdict['text_offset'].append(text_offset_counter)
+        text_offset_counter += len(toptoken)
+        tops = {}
+        for j in range(min(logprob_item.option_count,logprobs_max)):
+            tl_item = {}
+            tl_item['logprob'] = logprob_item.logprobs[j]
+            tokstr = ctypes.string_at(logprob_item.tokens[j]).decode("UTF-8","ignore")
+            tops[tokstr] = logprob_item.logprobs[j]
+            tl_item['token'] = tokstr
+            tl_item['bytes'] = list(tokstr.encode('utf-8'))
+            lp_content_item['top_logprobs'].append(tl_item)
+        logprobsdict['top_logprobs'].append(tops)
+        logprobsdict['content'].append(lp_content_item)
+    return logprobsdict
 
 def transform_genparams(genparams, api_format):
     global chatcompl_adapter
@@ -1751,7 +1793,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
 
             return generate(genparams=genparams,is_quiet=is_quiet,stream_flag=stream_flag)
 
-        genout = {"text": "", "status": -1, "stopreason": -1, "prompt_tokens":0, "completion_tokens": 0}
+        genout = {"text": "", "status": -1, "stopreason": -1, "prompt_tokens":0, "completion_tokens": 0, "total_tokens": 0}
         if stream_flag:
             loop = asyncio.get_event_loop()
             executor = ThreadPoolExecutor()
@@ -1768,36 +1810,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
         logprobsdict = None
         if not stream_flag and ("logprobs" in genparams and genparams["logprobs"]):
             lastlogprobs = handle.last_logprobs()
-            logprobsdict = {}
-            logprobsdict['content'] = []
-            logprobsdict['tokens'] = []
-            logprobsdict['token_logprobs'] = []
-            logprobsdict['top_logprobs'] = []
-            logprobsdict['text_offset'] = []
-            text_offset_counter = 0
-            for i in range(lastlogprobs.count):
-                lp_content_item = {}
-                logprob_item = lastlogprobs.logprob_items[i]
-                toptoken = ctypes.string_at(logprob_item.selected_token).decode("UTF-8","ignore")
-                logprobsdict['tokens'].append(toptoken)
-                lp_content_item['token'] = toptoken
-                logprobsdict['token_logprobs'].append(logprob_item.selected_logprob)
-                lp_content_item['logprob'] = logprob_item.selected_logprob
-                lp_content_item['bytes'] = list(toptoken.encode('utf-8'))
-                lp_content_item['top_logprobs'] = []
-                logprobsdict['text_offset'].append(text_offset_counter)
-                text_offset_counter += len(toptoken)
-                tops = {}
-                for j in range(min(logprob_item.option_count,logprobs_max)):
-                    tl_item = {}
-                    tl_item['logprob'] = logprob_item.logprobs[j]
-                    tokstr = ctypes.string_at(logprob_item.tokens[j]).decode("UTF-8","ignore")
-                    tops[tokstr] = logprob_item.logprobs[j]
-                    tl_item['token'] = tokstr
-                    tl_item['bytes'] = list(tokstr.encode('utf-8'))
-                    lp_content_item['top_logprobs'].append(tl_item)
-                logprobsdict['top_logprobs'].append(tops)
-                logprobsdict['content'].append(lp_content_item)
+            logprobsdict = parse_last_logprobs(lastlogprobs)
 
         # flag instance as non-idle for a while
         washordereq = genparams.get('genkey', '').startswith('HORDEREQ_')
@@ -2144,6 +2157,15 @@ Enter Prompt:<br>
                 pendtxtStr = ctypes.string_at(pendtxt).decode("UTF-8","ignore")
             response_body = (json.dumps({"results": [{"text": pendtxtStr}]}).encode())
 
+        elif self.path.endswith('/api/extra/last_logprobs'):
+            if not self.secure_endpoint():
+                return
+            logprobsdict = None
+            if requestsinqueue==0 and totalgens>0 and currentusergenkey=="":
+                lastlogprobs = handle.last_logprobs()
+                logprobsdict = parse_last_logprobs(lastlogprobs)
+            response_body = (json.dumps({"logprobs":logprobsdict}).encode())
+
         elif self.path.endswith('/v1/models'):
             response_body = (json.dumps({"object":"list","data":[{"id":friendlymodelname,"object":"model","created":int(time.time()),"owned_by":"koboldcpp","permission":[],"root":"koboldcpp"}]}).encode())
 
@@ -2287,6 +2309,24 @@ Enter Prompt:<br>
                     pendtxt = handle.get_pending_output()
                     pendtxtStr = ctypes.string_at(pendtxt).decode("UTF-8","ignore")
             response_body = (json.dumps({"results": [{"text": pendtxtStr}]}).encode())
+
+        elif self.path.endswith('/api/extra/last_logprobs'):
+            if not self.secure_endpoint():
+                return
+            logprobsdict = None
+            multiuserkey = ""
+            try:
+                tempbody = json.loads(body)
+                if isinstance(tempbody, dict):
+                    multiuserkey = tempbody.get('genkey', "")
+            except Exception as e:
+                multiuserkey = ""
+
+            if totalgens>0:
+                if (multiuserkey=="" and multiuserkey==currentusergenkey and requestsinqueue==0) or (multiuserkey!="" and multiuserkey==currentusergenkey): #avoid leaking prompts in multiuser
+                    lastlogprobs = handle.last_logprobs()
+                    logprobsdict = parse_last_logprobs(lastlogprobs)
+            response_body = (json.dumps({"logprobs":logprobsdict}).encode())
 
         if response_body is not None:
             self.send_response(response_code)

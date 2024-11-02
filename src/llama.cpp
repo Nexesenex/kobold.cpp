@@ -6786,8 +6786,8 @@ static void llm_load_vocab(
             } else {
                 // token is control, but not marked as EOG -> print a debug log
                 if (vocab.id_to_token[t.second].attr & LLAMA_TOKEN_ATTR_CONTROL && vocab.special_eog_ids.count(t.second) == 0) {
-                    LLAMA_LOG_DEBUG("%s: control token: %6d '%s' is not marked as EOG\n",
-                            __func__, t.second, t.first.c_str());
+                    // LLAMA_LOG_DEBUG("%s: control token: %6d '%s' is not marked as EOG\n",
+                    //         __func__, t.second, t.first.c_str());
                 }
             }
         }
