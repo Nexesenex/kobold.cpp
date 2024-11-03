@@ -1369,6 +1369,7 @@ add_library(ggml
             ../include/ggml.h
             ../include/ggml-alloc.h
             ../include/ggml-backend.h
+            ../include/ggml-cpp.h
             ggml.c
             ggml-alloc.c
             ggml-backend.cpp
