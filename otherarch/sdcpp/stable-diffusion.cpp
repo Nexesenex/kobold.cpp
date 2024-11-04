@@ -1054,6 +1054,16 @@ struct sd_ctx_t {
     StableDiffusionGGML* sd = NULL;
 };
 
+void set_sd_vae_tiling(sd_ctx_t* ctx, bool tiling)
+{
+    ctx->sd->vae_tiling = tiling;
+}
+
+int get_loaded_sd_version(sd_ctx_t* ctx)
+{
+    return ctx->sd->version;
+}
+
 sd_ctx_t* new_sd_ctx(const char* model_path_c_str,
                      const char* clip_l_path_c_str,
                      const char* clip_g_path_c_str,
