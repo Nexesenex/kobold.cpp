@@ -1035,7 +1035,7 @@ static uint32_t find_properties(const vk::PhysicalDeviceMemoryProperties* mem_pr
 static vk_buffer ggml_vk_create_buffer(vk_device& device, size_t size, vk::MemoryPropertyFlags req_flags, vk::MemoryPropertyFlags fallback_flags = vk::MemoryPropertyFlags(0)) {
     VK_LOG_DEBUG("ggml_vk_create_buffer(" << device->name << ", " << size << ", " << to_string(req_flags) << ", " << to_string(fallback_flags) << ")");
     if (size > device->max_memory_allocation_size) {
-        printf("\nWARNING: Requested buffer size exceeds device memory allocation limit!\n");
+        printf("\nWARNING: Requested buffer size (%zu) exceeds device memory allocation limit (%zu)!\n",size,device->max_memory_allocation_size);
     }
 
     std::lock_guard<std::mutex> guard(device->mutex);
