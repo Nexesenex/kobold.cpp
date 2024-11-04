@@ -1047,7 +1047,6 @@ static vk_buffer ggml_vk_create_buffer(vk_device& device, size_t size, vk::Memor
         return buf;
     }
 
-    buf->size = size;
     vk::BufferCreateInfo buffer_create_info{
         vk::BufferCreateFlags(),
         size,
@@ -1075,7 +1074,6 @@ static vk_buffer ggml_vk_create_buffer(vk_device& device, size_t size, vk::Memor
 
     if (memory_type_index == UINT32_MAX) {
         device->device.destroyBuffer(buf->buffer);
-        buf->size = 0;
         throw vk::OutOfDeviceMemoryError("No suitable memory type found");
     }
 
@@ -1092,13 +1090,11 @@ static vk_buffer ggml_vk_create_buffer(vk_device& device, size_t size, vk::Memor
             }
             catch (const vk::SystemError& e) {
                 device->device.destroyBuffer(buf->buffer);
-                buf->size = 0;
                 throw e;
             }
         } else {
             // Out of Host/Device memory, clean up buffer
             device->device.destroyBuffer(buf->buffer);
-            buf->size = 0;
             throw e;
         }
     }
@@ -1111,6 +1107,7 @@ static vk_buffer ggml_vk_create_buffer(vk_device& device, size_t size, vk::Memor
     device->device.bindBufferMemory(buf->buffer, buf->device_memory, 0);
 
     buf->device = device;
+    buf->size = size;
 
 #ifdef GGML_VULKAN_MEMORY_DEBUG
     device->memory_logger->log_allocation(buf, size);
@@ -6247,13 +6244,8 @@ static void ggml_vk_get_device_description(int device, char * description, size_
 
 // device backend
 
-static const char * ggml_backend_vk_buffer_get_name(ggml_backend_buffer_t buffer) {
-    ggml_backend_vk_buffer_context * ctx = (ggml_backend_vk_buffer_context *)buffer->context;
-    return ctx->name.c_str();
-}
-
 static bool ggml_backend_buffer_is_vk(ggml_backend_buffer_t buffer) {
-    return buffer->iface.get_name == ggml_backend_vk_buffer_get_name;
+    return buffer->buft->iface.get_name == ggml_backend_vk_buffer_type_name;
 }
 
 static void ggml_backend_vk_buffer_free_buffer(ggml_backend_buffer_t buffer) {
@@ -6317,7 +6309,6 @@ static void ggml_backend_vk_buffer_clear(ggml_backend_buffer_t buffer, uint8_t v
 }
 
 static ggml_backend_buffer_i ggml_backend_vk_buffer_interface = {
-    /* .get_name        = */ ggml_backend_vk_buffer_get_name,
     /* .free_buffer     = */ ggml_backend_vk_buffer_free_buffer,
     /* .get_base        = */ ggml_backend_vk_buffer_get_base,
     /* .init_tensor     = */ ggml_backend_vk_buffer_init_tensor,
@@ -6413,7 +6404,6 @@ static ggml_backend_buffer_t ggml_backend_vk_host_buffer_type_alloc_buffer(ggml_
 
     ggml_backend_buffer_t buffer = ggml_backend_cpu_buffer_from_ptr(ptr, size);
     buffer->buft = buft;
-    buffer->iface.get_name = ggml_backend_vk_host_buffer_name;
     buffer->iface.free_buffer = ggml_backend_vk_host_buffer_free_buffer;
 
     return buffer;
@@ -6646,7 +6636,6 @@ static ggml_status ggml_backend_vk_graph_compute(ggml_backend_t backend, ggml_cg
 static ggml_backend_i ggml_backend_vk_interface = {
     /* .get_name                = */ ggml_backend_vk_name,
     /* .free                    = */ ggml_backend_vk_free,
-    /* .get_default_buffer_type = */ ggml_backend_vk_get_default_buffer_type,
     /* .set_tensor_async        = */ NULL,  // ggml_backend_vk_set_tensor_async,
     /* .get_tensor_async        = */ NULL,  // ggml_backend_vk_get_tensor_async,
     /* .cpy_tensor_async        = */ NULL,  // ggml_backend_vk_cpy_tensor_async,
@@ -6656,9 +6645,6 @@ static ggml_backend_i ggml_backend_vk_interface = {
     /* .graph_plan_update       = */ NULL,
     /* .graph_plan_compute      = */ NULL,
     /* .graph_compute           = */ ggml_backend_vk_graph_compute,
-    /* .supports_op             = */ NULL,
-    /* .supports_buft           = */ NULL,
-    /* .offload_op              = */ NULL,
     /* .event_record            = */ NULL,
     /* .event_wait              = */ NULL,
 };
@@ -6717,7 +6703,7 @@ void ggml_backend_vk_get_device_memory(int device, size_t * free, size_t * total
 //////////////////////////
 
 struct ggml_backend_vk_device_context {
-    int device;
+    size_t device;
     std::string name;
     std::string description;
 };
@@ -6749,7 +6735,7 @@ static ggml_backend_buffer_type_t ggml_backend_vk_device_get_host_buffer_type(gg
 
 static enum ggml_backend_dev_type ggml_backend_vk_device_get_type(ggml_backend_dev_t dev) {
     UNUSED(dev);
-    return GGML_BACKEND_DEVICE_TYPE_GPU_FULL;
+    return GGML_BACKEND_DEVICE_TYPE_GPU;
 }
 
 static void ggml_backend_vk_device_get_props(ggml_backend_dev_t dev, struct ggml_backend_dev_props * props) {
@@ -6758,9 +6744,10 @@ static void ggml_backend_vk_device_get_props(ggml_backend_dev_t dev, struct ggml
     props->type        = ggml_backend_vk_device_get_type(dev);
     ggml_backend_vk_device_get_memory(dev, &props->memory_free, &props->memory_total);
     props->caps = {
-        /* async       */ false,
-        /* host_buffer */ true,
-        /* events      */ false,
+        /* .async                 = */ false,
+        /* .host_buffer           = */ true,
+        /* .buffer_from_host_ptr  = */ false,
+        /* .events                = */ false,
     };
 }
 
@@ -6949,7 +6936,7 @@ static ggml_backend_dev_t ggml_backend_vk_reg_get_device(ggml_backend_reg_t reg,
         static std::mutex mutex;
         std::lock_guard<std::mutex> lock(mutex);
         if (!initialized) {
-            for (size_t i = 0; i < ggml_backend_vk_get_device_count(); i++) {
+            for (int i = 0; i < ggml_backend_vk_get_device_count(); i++) {
                 ggml_backend_vk_device_context * ctx = new ggml_backend_vk_device_context;
                 char desc[256];
                 ggml_backend_vk_get_device_description(i, desc, sizeof(desc));

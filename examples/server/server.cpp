@@ -726,12 +726,12 @@ struct server_context {
         return nullptr;
     }
 
-    server_slot * get_available_slot(const std::string & prompt) {
+    server_slot * get_available_slot(const server_task & task) {
         server_slot * ret = nullptr;
 
         // find the slot that has at least n% prompt similarity
-        if (ret == nullptr && slot_prompt_similarity != 0.0f && !prompt.empty()) {
-            int max_lcp_len = 0;
+        if (ret == nullptr && slot_prompt_similarity != 0.0f) {
+            int max_lcs_len = 0;
             float similarity = 0;
 
             for (server_slot & slot : slots) {
@@ -741,25 +741,25 @@ struct server_context {
                 }
 
                 // skip the slot if it does not contains cached tokens
-                if (slot.prompt_tokens.empty()) {
+                if (slot.cache_tokens.empty()) {
                     continue;
                 }
 
-                // length of the Longest Common Prefix between the current slot's prompt and the input prompt
-                int lcp_len = longest_common_prefix(slot.cache_tokens, slot.prompt_tokens);
+                // length of the Longest Common Subsequence between the current slot's prompt and the input prompt
+                int lcs_len = longest_common_subsequence(slot.cache_tokens, task.prompt_tokens);
 
-                // fraction of the common substring length compared to the current slot's prompt length
-                similarity = static_cast<float>(lcp_len) / static_cast<int>(slot.prompt_tokens.size());
+                // fraction of the common subsequence length compared to the current slot's prompt length
+                similarity = static_cast<float>(lcs_len) / static_cast<int>(slot.cache_tokens.size());
 
                 // select the current slot if the criteria match
-                if (lcp_len > max_lcp_len && similarity > slot_prompt_similarity) {
-                    max_lcp_len = lcp_len;
+                if (lcs_len > max_lcs_len && similarity > slot_prompt_similarity) {
+                    max_lcs_len = lcs_len;
                     ret = &slot;
                 }
             }
 
             if (ret != nullptr) {
-                SLT_DBG(*ret, "selected slot by lcp similarity, max_lcp_len = %d, similarity = %f\n", max_lcp_len, similarity);
+                SLT_DBG(*ret, "selected slot by lcs similarity, max_lcs_len = %d, similarity = %f\n", max_lcs_len, similarity);
             }
         }
 
@@ -1515,18 +1515,7 @@ struct server_context {
                 {
                     const int id_slot = json_value(task.data, "id_slot", -1);
 
-                    server_slot * slot;
-
-                    if (id_slot != -1) {
-                        slot = get_slot_by_id(id_slot);
-                    } else {
-                        std::string prompt;
-                        if (task.data.contains("prompt") && task.data.at("prompt").is_string()) {
-                            prompt = json_value(task.data, "prompt", std::string());
-                        }
-
-                        slot = get_available_slot(prompt);
-                    }
+                    server_slot * slot = id_slot != -1 ? get_slot_by_id(id_slot) : get_available_slot(task);
 
                     if (slot == nullptr) {
                         // if no slot is available, we defer this task for processing later
@@ -3260,7 +3249,7 @@ int main(int argc, char ** argv) {
         ctx_server.queue_tasks.terminate();
     };
 
-    LOG_INF("%s: server is listening on %s:%d - starting the main loop\n", __func__, params.hostname.c_str(), params.port);
+    LOG_INF("%s: server is listening on http://%s:%d - starting the main loop\n", __func__, params.hostname.c_str(), params.port);
 
     ctx_server.queue_tasks.start_loop();
 

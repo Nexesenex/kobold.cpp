@@ -2095,7 +2095,6 @@ static void ggml_backend_opencl_buffer_reset(ggml_backend_buffer_t buffer) {
 }
 
 static ggml_backend_buffer_i ggml_backend_opencl_buffer_interface = {
-    /* .get_name        = */ ggml_backend_opencl_buffer_get_name,
     /* .free_buffer     = */ ggml_backend_opencl_buffer_free_buffer,
     /* .get_base        = */ ggml_backend_opencl_buffer_get_base,
     /* .init_tensor     = */ ggml_backend_opencl_buffer_init_tensor,

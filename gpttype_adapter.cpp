@@ -1929,7 +1929,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             else if(file_format_meta.n_expert_count>1)
             {
                 printf("\nOpenCL cannot use regular GPU offloading for this model architecture. A fallback GPU offloader will be used with degraded performance.\n");
-                clblast_offload_fallback_mode = true;
+
             }
         }
         #endif

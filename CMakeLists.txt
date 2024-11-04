@@ -656,6 +656,7 @@ add_library(ggml
             ggml/src/ggml-backend.cpp
             ggml/src/ggml-backend-impl.h
             ggml/include/ggml-backend.h
+            ggml/include/ggml-cpp.h
             ggml/src/ggml-quants.c
             ggml/src/ggml-quants.h
             ggml/src/llamafile/sgemm.cpp

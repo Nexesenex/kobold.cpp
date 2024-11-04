@@ -21,11 +21,16 @@ struct UpscalerGGML {
 #endif
 #ifdef SD_USE_METAL
         LOG_DEBUG("Using Metal backend");
+        ggml_backend_metal_log_set_callback(ggml_log_callback_default, nullptr);
         backend = ggml_backend_metal_init();
 #endif
 #ifdef SD_USE_VULKAN
         LOG_DEBUG("Using Vulkan backend");
         backend = ggml_backend_vk_init(0);
+#endif
+#ifdef SD_USE_SYCL
+        LOG_DEBUG("Using SYCL backend");
+        backend = ggml_backend_sycl_init(0);
 #endif
 
         if (!backend) {

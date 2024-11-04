@@ -12,6 +12,7 @@
 
 #include "model_adapter.h"
 
+#include "flux.hpp"
 #include "stable-diffusion.cpp"
 #include "util.cpp"
 #include "upscaler.cpp"
@@ -47,6 +48,8 @@ const char* sample_method_str[] = {
     "dpm++2s_a",
     "dpm++2m",
     "dpm++2mv2",
+    "ipndm",
+    "ipndm_v",
     "lcm",
 };
 
@@ -55,6 +58,9 @@ const char* schedule_str[] = {
     "default",
     "discrete",
     "karras",
+    "exponential",
+    "ays",
+    "gits",
 };
 
 const char* modes_str[] = {
@@ -75,13 +81,18 @@ enum SDMode {
 struct SDParams {
     int n_threads = -1;
     SDMode mode   = TXT2IMG;
-
     std::string model_path;
+    std::string clip_l_path;
+    std::string clip_g_path;
+    std::string t5xxl_path;
+    std::string diffusion_model_path;
     std::string vae_path;
     std::string taesd_path;
     std::string esrgan_path;
     std::string controlnet_path;
     std::string embeddings_path;
+    std::string stacked_id_embeddings_path;
+    std::string input_id_images_path;
     sd_type_t wtype = SD_TYPE_COUNT;
     std::string lora_model_dir;
     std::string output_path = "output.png";
@@ -90,12 +101,14 @@ struct SDParams {
 
     std::string prompt;
     std::string negative_prompt;
-    float min_cfg   = 1.0f;
-    float cfg_scale = 7.0f;
-    int clip_skip   = -1;  // <= 0 represents unspecified
-    int width       = 512;
-    int height      = 512;
-    int batch_count = 1;
+    float min_cfg     = 1.0f;
+    float cfg_scale   = 7.0f;
+    float guidance    = 3.5f;
+    float style_ratio = 20.f;
+    int clip_skip     = -1;  // <= 0 represents unspecified
+    int width         = 512;
+    int height        = 512;
+    int batch_count   = 1;
 
     int video_frames         = 6;
     int motion_bucket_id     = 127;
@@ -112,7 +125,11 @@ struct SDParams {
     bool verbose                  = false;
     bool vae_tiling               = false;
     bool control_net_cpu          = false;
+    bool normalize_input          = false;
+    bool clip_on_cpu              = false;
+    bool vae_on_cpu               = false;
     bool canny_preprocess         = false;
+    bool color                    = false;
     int upscale_repeats           = 1;
 };
 
@@ -229,11 +246,16 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
     }
 
     sd_ctx = new_sd_ctx(sd_params->model_path.c_str(),
+                        sd_params->clip_l_path.c_str(),
+                        sd_params->clip_g_path.c_str(),
+                        sd_params->t5xxl_path.c_str(),
+                        sd_params->diffusion_model_path.c_str(),
                         sd_params->vae_path.c_str(),
                         sd_params->taesd_path.c_str(),
                         sd_params->controlnet_path.c_str(),
                         sd_params->lora_model_dir.c_str(),
                         sd_params->embeddings_path.c_str(),
+                        sd_params->stacked_id_embeddings_path.c_str(),
                         vae_decode_only,
                         sd_params->vae_tiling,
                         free_param,
@@ -241,7 +263,9 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
                         sd_params->wtype,
                         sd_params->rng_type,
                         sd_params->schedule,
-                        sd_params->control_net_cpu);
+                        sd_params->clip_on_cpu,
+                        sd_params->control_net_cpu,
+                        sd_params->vae_on_cpu);
 
     if (sd_ctx == NULL) {
         printf("\nError: KCPP SD Failed to create context!\n");
@@ -378,6 +402,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
                           sd_params->negative_prompt.c_str(),
                           sd_params->clip_skip,
                           sd_params->cfg_scale,
+                          sd_params->guidance,
                           sd_params->width,
                           sd_params->height,
                           sd_params->sample_method,
@@ -385,7 +410,10 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
                           sd_params->seed,
                           sd_params->batch_count,
                           control_image,
-                          sd_params->control_strength);
+                          sd_params->control_strength,
+                          sd_params->style_ratio,
+                          sd_params->normalize_input,
+                          sd_params->input_id_images_path.c_str());
     } else {
 
         if (sd_params->width <= 0 || sd_params->width % 64 != 0 || sd_params->height <= 0 || sd_params->height % 64 != 0) {
@@ -455,13 +483,19 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
                             sd_params->negative_prompt.c_str(),
                             sd_params->clip_skip,
                             sd_params->cfg_scale,
+                            sd_params->guidance,
                             sd_params->width,
                             sd_params->height,
                             sd_params->sample_method,
                             sd_params->sample_steps,
                             sd_params->strength,
                             sd_params->seed,
-                            sd_params->batch_count);
+                            sd_params->batch_count,
+                            control_image,
+                            sd_params->control_strength,
+                            sd_params->style_ratio,
+                            sd_params->normalize_input,
+                            sd_params->input_id_images_path.c_str());
     }
 
     if (results == NULL) {
