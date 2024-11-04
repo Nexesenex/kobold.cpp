@@ -213,7 +213,7 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
 
     sd_params = new SDParams();
     sd_params->model_path = inputs.model_filename;
-    sd_params->wtype = (inputs.quant==0?SD_TYPE_F16:SD_TYPE_Q4_0);
+    sd_params->wtype = (inputs.quant==0?SD_TYPE_COUNT:SD_TYPE_Q4_0);
     sd_params->n_threads = inputs.threads; //if -1 use physical cores
     sd_params->input_path = ""; //unused
     sd_params->batch_count = 1;
@@ -320,6 +320,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
     std::string cleanprompt = clean_input_prompt(inputs.prompt);
     std::string cleannegprompt = clean_input_prompt(inputs.negative_prompt);
     std::string img2img_data = std::string(inputs.init_images);
+    std::string sampler = inputs.sample_method;
 
     sd_params->prompt = cleanprompt;
     sd_params->negative_prompt = cleannegprompt;
@@ -333,8 +334,16 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
     sd_params->mode = (img2img_data==""?SDMode::TXT2IMG:SDMode::IMG2IMG);
 
     //ensure unsupported dimensions are fixed
-    int biggestdim = std::max(sd_params->width,sd_params->height);
+    int biggestdim = (sd_params->width>sd_params->height?sd_params->width:sd_params->height);
     auto loadedsdver = get_loaded_sd_version(sd_ctx);
+    if(loadedsdver==SDVersion::VERSION_FLUX_DEV || loadedsdver==SDVersion::VERSION_FLUX_SCHNELL)
+    {
+        sd_params->cfg_scale = 1;
+        if(sampler=="euler a"||sampler=="k_euler_a"||sampler=="euler_a")
+        {
+            sampler = "euler"; //euler a broken on flux
+        }
+    }
     int reslimit = (loadedsdver==SDVersion::VERSION_SD1 || loadedsdver==SDVersion::VERSION_SD2)?832:1024;
     if(biggestdim > reslimit)
     {
@@ -366,7 +375,6 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
     }
 
     fflush(stdout);
-    std::string sampler = inputs.sample_method;
 
     if(sampler=="euler a"||sampler=="k_euler_a"||sampler=="euler_a") //all lowercase
     {
