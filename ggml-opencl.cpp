@@ -1,6 +1,7 @@
 #include "ggml.h"
 #include "ggml-opencl.h"
 #include "ggml-backend-impl.h"
+#include "ggml-cpu.h"
 
 #include <array>
 #include <atomic>

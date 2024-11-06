@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ggml.h"
+#include "ggml-cpu.h"
 #include "ggml-backend.h"
 
 #ifdef  __cplusplus

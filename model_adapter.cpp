@@ -11,6 +11,7 @@
 
 #include "model_adapter.h"
 #include "ggml.h"
+#include "ggml-cpu.h"
 
 #include <chrono>
 

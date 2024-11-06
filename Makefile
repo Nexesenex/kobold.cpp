@@ -480,6 +480,17 @@ ggml_v4_vulkan.o: ggml/src/ggml.c ggml/include/ggml.h
 ggml_v4_vulkan_noavx2.o: ggml/src/ggml.c ggml/include/ggml.h
 	$(CC)  $(FASTCFLAGS) $(SIMPLECFLAGS) $(VULKAN_FLAGS) -c $< -o $@
 
+ggml-cpu.o: ggml/src/ggml-cpu.c ggml/include/ggml-cpu.h
+	$(CC)  $(FASTCFLAGS) $(FULLCFLAGS) -c $< -o $@
+ggml-cpu_v4_failsafe.o: ggml/src/ggml-cpu.c ggml/include/ggml-cpu.h
+	$(CC)  $(FASTCFLAGS) $(NONECFLAGS) -c $< -o $@
+ggml-cpu_v4_noavx2.o: ggml/src/ggml-cpu.c ggml/include/ggml-cpu.h
+	$(CC)  $(FASTCFLAGS) $(SIMPLECFLAGS) -c $< -o $@
+ggml-cpu_v4_clblast.o: ggml/src/ggml-cpu.c ggml/include/ggml-cpu.h
+	$(CC)  $(FASTCFLAGS) $(FULLCFLAGS) $(CLBLAST_FLAGS) -c $< -o $@
+ggml-cpu_v4_clblast_noavx2.o: ggml/src/ggml-cpu.c ggml/include/ggml-cpu.h
+	$(CC)  $(FASTCFLAGS) $(SIMPLECFLAGS) $(CLBLAST_FLAGS) -c $< -o $@
+
 #quants
 ggml-quants.o: ggml/src/ggml-quants.c ggml/include/ggml.h ggml/src/ggml-quants.h ggml/src/ggml-common.h
 	$(CC)  $(CFLAGS) $(FULLCFLAGS) -c $< -o $@
@@ -629,18 +640,18 @@ cleanocuda:
 	rm -vrf ggml/src/ggml-cuda/template-instances/*.o
 
 # useful tools
-main: examples/main/main.cpp common/json-schema-to-grammar.cpp common/arg.cpp build-info.h ggml.o llama.o console.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
+main: examples/main/main.cpp common/json-schema-to-grammar.cpp common/arg.cpp build-info.h ggml.o ggml-cpu.o llama.o console.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 	@echo '====  Run ./main -h for help.  ===='
-sdmain: otherarch/sdcpp/util.cpp otherarch/sdcpp/main.cpp otherarch/sdcpp/stable-diffusion.cpp otherarch/sdcpp/upscaler.cpp otherarch/sdcpp/model.cpp otherarch/sdcpp/thirdparty/zip.c build-info.h ggml.o llama.o console.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
+sdmain: otherarch/sdcpp/util.cpp otherarch/sdcpp/main.cpp otherarch/sdcpp/stable-diffusion.cpp otherarch/sdcpp/upscaler.cpp otherarch/sdcpp/model.cpp otherarch/sdcpp/thirdparty/zip.c build-info.h ggml.o ggml-cpu.o llama.o console.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
-whispermain: otherarch/whispercpp/main.cpp otherarch/whispercpp/whisper.cpp build-info.h ggml.o llama.o console.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
+whispermain: otherarch/whispercpp/main.cpp otherarch/whispercpp/whisper.cpp build-info.h ggml.o ggml-cpu.o llama.o console.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
-imatrix: examples/imatrix/imatrix.cpp build-info.h ggml.o llama.o console.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
+imatrix: examples/imatrix/imatrix.cpp build-info.h ggml.o ggml-cpu.o llama.o console.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
-gguf: examples/gguf/gguf.cpp build-info.h ggml.o llama.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
+gguf: examples/gguf/gguf.cpp build-info.h ggml.o ggml-cpu.o llama.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
-gguf-split: examples/gguf-split/gguf-split.cpp ggml.o llama.o build-info.h llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
+gguf-split: examples/gguf-split/gguf-split.cpp ggml.o ggml-cpu.o llama.o build-info.h llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 
 vulkan-shaders-gen: ggml/src/vulkan-shaders/vulkan-shaders-gen.cpp
@@ -650,11 +661,11 @@ vulkan-shaders-gen: ggml/src/vulkan-shaders/vulkan-shaders-gen.cpp
 	$(shell) vulkan-shaders-gen --glslc glslc --input-dir ggml/src/vulkan-shaders --target-hpp ggml/src/ggml-vulkan-shaders.hpp --target-cpp ggml/src/ggml-vulkan-shaders.cpp
 
 #generated libraries
-koboldcpp_default: ggml.o ggml_v3.o ggml_v2.o ggml_v1.o expose.o gpttype_adapter.o sdcpp_default.o whispercpp_default.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
+koboldcpp_default: ggml.o ggml-cpu.o ggml_v3.o ggml_v2.o ggml_v1.o expose.o gpttype_adapter.o sdcpp_default.o whispercpp_default.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
 	$(DEFAULT_BUILD)
 
 ifdef FAILSAFE_BUILD
-koboldcpp_failsafe: ggml_v4_failsafe.o ggml_v3_failsafe.o ggml_v2_failsafe.o ggml_v1_failsafe.o expose.o gpttype_adapter_failsafe.o sdcpp_default.o whispercpp_default.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FAILSAFE) $(OBJS)
+koboldcpp_failsafe: ggml_v4_failsafe.o ggml-cpu_v4_failsafe.o ggml_v3_failsafe.o ggml_v2_failsafe.o ggml_v1_failsafe.o expose.o gpttype_adapter_failsafe.o sdcpp_default.o whispercpp_default.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FAILSAFE) $(OBJS)
 	$(FAILSAFE_BUILD)
 else
 koboldcpp_failsafe:
@@ -662,7 +673,7 @@ koboldcpp_failsafe:
 endif
 
 ifdef NOAVX2_BUILD
-koboldcpp_noavx2: ggml_v4_noavx2.o ggml_v3_noavx2.o ggml_v2_noavx2.o ggml_v1_failsafe.o expose.o gpttype_adapter_failsafe.o sdcpp_default.o whispercpp_default.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_SIMPLE) $(OBJS)
+koboldcpp_noavx2: ggml_v4_noavx2.o ggml-cpu_v4_noavx2.o ggml_v3_noavx2.o ggml_v2_noavx2.o ggml_v1_failsafe.o expose.o gpttype_adapter_failsafe.o sdcpp_default.o whispercpp_default.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_SIMPLE) $(OBJS)
 	$(NOAVX2_BUILD)
 else
 koboldcpp_noavx2:
@@ -670,10 +681,10 @@ koboldcpp_noavx2:
 endif
 
 ifdef CLBLAST_BUILD
-koboldcpp_clblast: ggml_v4_clblast.o ggml_v3_clblast.o ggml_v2_clblast.o ggml_v1.o expose.o gpttype_adapter_clblast.o ggml-opencl.o ggml_v3-opencl.o ggml_v2-opencl.o ggml_v2-opencl-legacy.o sdcpp_default.o whispercpp_default.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
+koboldcpp_clblast: ggml_v4_clblast.o ggml-cpu_v4_clblast.o ggml_v3_clblast.o ggml_v2_clblast.o ggml_v1.o expose.o gpttype_adapter_clblast.o ggml-opencl.o ggml_v3-opencl.o ggml_v2-opencl.o ggml_v2-opencl-legacy.o sdcpp_default.o whispercpp_default.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL) $(OBJS)
 	$(CLBLAST_BUILD)
 ifdef NOAVX2_BUILD
-koboldcpp_clblast_noavx2: ggml_v4_clblast_noavx2.o ggml_v3_clblast_noavx2.o ggml_v2_clblast_noavx2.o ggml_v1_failsafe.o expose.o gpttype_adapter_clblast_noavx2.o ggml-opencl.o ggml_v3-opencl.o ggml_v2-opencl.o ggml_v2-opencl-legacy.o sdcpp_default.o whispercpp_default.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_SIMPLE) $(OBJS)
+koboldcpp_clblast_noavx2: ggml_v4_clblast_noavx2.o ggml-cpu_v4_clblast_noavx2.o ggml_v3_clblast_noavx2.o ggml_v2_clblast_noavx2.o ggml_v1_failsafe.o expose.o gpttype_adapter_clblast_noavx2.o ggml-opencl.o ggml_v3-opencl.o ggml_v2-opencl.o ggml_v2-opencl-legacy.o sdcpp_default.o whispercpp_default.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_SIMPLE) $(OBJS)
 	$(CLBLAST_BUILD)
 else
 koboldcpp_clblast_noavx2:
@@ -687,7 +698,7 @@ koboldcpp_clblast_noavx2:
 endif
 
 ifdef CUBLAS_BUILD
-koboldcpp_cublas: ggml_v4_cublas.o ggml_v3_cublas.o ggml_v2_cublas.o ggml_v1.o expose.o gpttype_adapter_cublas.o sdcpp_cublas.o whispercpp_cublas.o llavaclip_cublas.o llava.o ggml-backend_cublas.o $(CUBLAS_OBJS) $(OBJS_FULL) $(OBJS)
+koboldcpp_cublas: ggml_v4_cublas.o ggml.o ggml_v3_cublas.o ggml_v2_cublas.o ggml_v1.o expose.o gpttype_adapter_cublas.o sdcpp_cublas.o whispercpp_cublas.o llavaclip_cublas.o llava.o ggml-backend_cublas.o $(CUBLAS_OBJS) $(OBJS_FULL) $(OBJS)
 	$(CUBLAS_BUILD)
 else
 koboldcpp_cublas:
@@ -695,7 +706,7 @@ koboldcpp_cublas:
 endif
 
 ifdef HIPBLAS_BUILD
-koboldcpp_hipblas: ggml_v4_cublas.o ggml_v3_cublas.o ggml_v2_cublas.o ggml_v1.o expose.o gpttype_adapter_cublas.o sdcpp_cublas.o whispercpp_cublas.o llavaclip_cublas.o llava.o ggml-backend_cublas.o $(HIP_OBJS) $(OBJS_FULL) $(OBJS)
+koboldcpp_hipblas: ggml_v4_cublas.o ggml.o ggml_v3_cublas.o ggml_v2_cublas.o ggml_v1.o expose.o gpttype_adapter_cublas.o sdcpp_cublas.o whispercpp_cublas.o llavaclip_cublas.o llava.o ggml-backend_cublas.o $(HIP_OBJS) $(OBJS_FULL) $(OBJS)
 	$(HIPBLAS_BUILD)
 else
 koboldcpp_hipblas:
@@ -703,10 +714,10 @@ koboldcpp_hipblas:
 endif
 
 ifdef VULKAN_BUILD
-koboldcpp_vulkan: ggml_v4_vulkan.o ggml_v3.o ggml_v2.o ggml_v1.o expose.o gpttype_adapter_vulkan.o ggml-vulkan.o sdcpp_vulkan.o whispercpp_default.o llavaclip_vulkan.o llava.o ggml-backend_vulkan.o $(OBJS_FULL) $(OBJS)
+koboldcpp_vulkan: ggml_v4_vulkan.o ggml-cpu.o ggml_v3.o ggml_v2.o ggml_v1.o expose.o gpttype_adapter_vulkan.o ggml-vulkan.o sdcpp_vulkan.o whispercpp_default.o llavaclip_vulkan.o llava.o ggml-backend_vulkan.o $(OBJS_FULL) $(OBJS)
 	$(VULKAN_BUILD)
 ifdef NOAVX2_BUILD
-koboldcpp_vulkan_noavx2: ggml_v4_vulkan_noavx2.o ggml_v3_noavx2.o ggml_v2_noavx2.o ggml_v1_failsafe.o expose.o gpttype_adapter_vulkan_noavx2.o ggml-vulkan.o sdcpp_vulkan.o whispercpp_default.o llavaclip_vulkan.o llava.o ggml-backend_vulkan.o $(OBJS_SIMPLE) $(OBJS)
+koboldcpp_vulkan_noavx2: ggml_v4_vulkan_noavx2.o ggml_v4_noavx2.o ggml_v3_noavx2.o ggml_v2_noavx2.o ggml_v1_failsafe.o expose.o gpttype_adapter_vulkan_noavx2.o ggml-vulkan.o sdcpp_vulkan.o whispercpp_default.o llavaclip_vulkan.o llava.o ggml-backend_vulkan.o $(OBJS_SIMPLE) $(OBJS)
 	$(VULKAN_BUILD)
 else
 koboldcpp_vulkan_noavx2:
@@ -720,17 +731,17 @@ koboldcpp_vulkan_noavx2:
 endif
 
 # tools
-quantize_gguf: examples/quantize/quantize.cpp ggml.o llama.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL)
+quantize_gguf: examples/quantize/quantize.cpp ggml.o ggml-cpu.o llama.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
-quantize_gptj: otherarch/tools/gptj_quantize.cpp otherarch/tools/common-ggml.cpp ggml_v3.o ggml.o llama.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL)
+quantize_gptj: otherarch/tools/gptj_quantize.cpp otherarch/tools/common-ggml.cpp ggml_v3.o ggml.o ggml-cpu.o llama.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
-quantize_gpt2: otherarch/tools/gpt2_quantize.cpp otherarch/tools/common-ggml.cpp ggml_v3.o ggml.o llama.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL)
+quantize_gpt2: otherarch/tools/gpt2_quantize.cpp otherarch/tools/common-ggml.cpp ggml_v3.o ggml.o ggml-cpu.o llama.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
-quantize_neox: otherarch/tools/neox_quantize.cpp otherarch/tools/common-ggml.cpp ggml_v3.o ggml.o llama.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL)
+quantize_neox: otherarch/tools/neox_quantize.cpp otherarch/tools/common-ggml.cpp ggml_v3.o ggml.o ggml-cpu.o llama.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
-quantize_mpt: otherarch/tools/mpt_quantize.cpp otherarch/tools/common-ggml.cpp ggml_v3.o ggml.o llama.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL)
+quantize_mpt: otherarch/tools/mpt_quantize.cpp otherarch/tools/common-ggml.cpp ggml_v3.o ggml.o ggml-cpu.o llama.o llavaclip_default.o llava.o ggml-backend_default.o $(OBJS_FULL)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
-quantize_clip: examples/llava/clip.cpp examples/llava/clip.h examples/llava/quantclip.cpp ggml_v3.o ggml.o llama.o ggml-backend_default.o $(OBJS_FULL)
+quantize_clip: examples/llava/clip.cpp examples/llava/clip.h examples/llava/quantclip.cpp ggml_v3.o ggml.o ggml-cpu.o llama.o ggml-backend_default.o $(OBJS_FULL)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
 #window simple clinfo

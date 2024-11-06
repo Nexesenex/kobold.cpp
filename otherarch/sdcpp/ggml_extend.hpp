@@ -23,6 +23,7 @@
 #include "ggml-alloc.h"
 #include "ggml-backend.h"
 #include "ggml.h"
+#include "ggml-cpu.h"
 
 #ifdef SD_USE_CUBLAS
 #include "ggml-cuda.h"
