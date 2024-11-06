@@ -648,10 +648,6 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .to_float                 = (ggml_to_float_t) dequantize_row_q6_0,
         .from_float               = quantize_row_q6_0,
         .from_float_ref           = (ggml_from_float_t) quantize_row_q6_0_ref,
-        .vec_dot                  = ggml_vec_dot_q6_0_q8_0,
-        .vec_dot_type             = GGML_TYPE_Q8_0,
-        .nrows                    = 1,
-        // .row_meta_size            = 0,
     },
     [GGML_TYPE_Q8_0] = {
         .type_name                = "q8_0",
