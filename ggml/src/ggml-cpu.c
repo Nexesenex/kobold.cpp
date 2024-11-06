@@ -2074,15 +2074,15 @@ inline static __m128 ggml_v_tanh(__m128 x) {
 
 static void ggml_vec_silu_f32(const int n, float * y, const float * x) {
     int i = 0;
-#if TRUE //todo: this reverts a working SILU FOR STABLE DIFFUSION CPP CPU
-    uint16_t t;
-    for (int i = 0; i < n; ++i) {
-        ggml_fp16_t fp16 = GGML_FP32_TO_FP16(x[i]);
-        memcpy(&t, &fp16, sizeof(uint16_t));
-        y[i] = GGML_FP16_TO_FP32(ggml_table_silu_f16[t]);
-    }
-    return;
-#endif
+// #if TRUE //todo: this reverts a working SILU FOR STABLE DIFFUSION CPP CPU
+    // uint16_t t;
+    // for (int i = 0; i < n; ++i) {
+        // ggml_fp16_t fp16 = GGML_FP32_TO_FP16(x[i]);
+        // memcpy(&t, &fp16, sizeof(uint16_t));
+        // y[i] = GGML_FP16_TO_FP32(ggml_table_silu_f16[t]);
+    // }
+    // return;
+// #endif
 #if defined(__AVX512F__) && defined(__AVX512DQ__)
     for (; i + 15 < n; i += 16) {
         _mm512_storeu_ps(y + i, ggml_v_silu(_mm512_loadu_ps(x + i)));
