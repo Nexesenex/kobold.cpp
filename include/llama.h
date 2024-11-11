@@ -176,6 +176,29 @@ extern "C" {
         LLAMA_FTYPE_MOSTLY_Q4_0_8_8      = 35, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_TQ1_0         = 36, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_TQ2_0         = 37, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ2_XL        = 100, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q2_K_L        = 101, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ1_XS        = 102, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ1_XL        = 103, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ3_S2L       = 104, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ3_M3L       = 105, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ3_X4L       = 106, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ3_X5L       = 107, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ3_X6L       = 108, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ3_X7L       = 109, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ3_EXL       = 110, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ3_SXL       = 111, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ3_UXL       = 112, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q3_K_XL       = 113, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ4_XXSR      = 114, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ4_XSR       = 115, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ4_MR        = 116, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ4_LR        = 117, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q5_K_XS1R     = 118, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q5_K_S2R      = 119, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q5_K_M3L      = 120, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q5_K_X4L      = 121, // except 1d tensors
+        LLAMA_FTYPE_CQS                  = 199, // except 1d tensors
 
         LLAMA_FTYPE_GUESSED = 1024, // not specified in the model file
     };
@@ -353,6 +376,14 @@ extern "C" {
         enum llama_ftype ftype;              // quantize to this llama_ftype
         enum ggml_type output_tensor_type;   // output tensor type
         enum ggml_type token_embedding_type; // token embeddings tensor type
+        enum ggml_type attn_q_type;          // attention query tensor type
+        enum ggml_type attn_k_type;          // attention key tensor type
+        enum ggml_type attn_v_type;          // attention value tensor type
+        enum ggml_type attn_qkv_type;        // attention query-key-value tensor type
+        enum ggml_type attn_output_type;     // attention output tensor type
+        enum ggml_type ffn_gate_type;        // feedforward network gate type
+        enum ggml_type ffn_down_type;        // feedforward network down type
+        enum ggml_type ffn_up_type;          // feedforward network up type
         bool allow_requantize;               // allow quantizing non-f32/f16 tensors
         bool quantize_output_tensor;         // quantize output.weight
         bool only_copy;                      // only copy tensors - ftype, allow_requantize and quantize_output_tensor are ignored
