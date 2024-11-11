@@ -25,8 +25,11 @@ static const std::vector<struct quant_option> QUANT_OPTIONS = {
     { "IQ2_XS",   LLAMA_FTYPE_MOSTLY_IQ2_XS,   " 2.31 bpw quantization",            },
     { "IQ2_S",    LLAMA_FTYPE_MOSTLY_IQ2_S,    " 2.5  bpw quantization",            },
     { "IQ2_M",    LLAMA_FTYPE_MOSTLY_IQ2_M,    " 2.7  bpw quantization",            },
+    { "IQ2_XL",   LLAMA_FTYPE_MOSTLY_IQ2_XL,   " 2.85 bpw quantization mix",        },
+    { "IQ1_XS",   LLAMA_FTYPE_MOSTLY_IQ1_XS,   " 1.6-1.7 bpw quantization mix",     },
     { "IQ1_S",    LLAMA_FTYPE_MOSTLY_IQ1_S,    " 1.56 bpw quantization",            },
     { "IQ1_M",    LLAMA_FTYPE_MOSTLY_IQ1_M,    " 1.75 bpw quantization",            },
+
     { "IQ1_BN",   LLAMA_FTYPE_MOSTLY_IQ1_BN,   " 1.62 bpw quantization (Bitnet)",   },
     { "IQ2_BN",   LLAMA_FTYPE_MOSTLY_IQ2_BN,   " 2.00 bpw quantization (Bitnet)",   },
     { "Q2_K",     LLAMA_FTYPE_MOSTLY_Q2_K,     " 2.63G, +0.6717 ppl @ LLaMA-v1-7B", },
@@ -58,6 +61,50 @@ static const std::vector<struct quant_option> QUANT_OPTIONS = {
     { "Q5_K_M",   LLAMA_FTYPE_MOSTLY_Q5_K_M,   " 4.45G, +0.0122 ppl @ LLaMA-v1-7B", },
     { "Q6_K",     LLAMA_FTYPE_MOSTLY_Q6_K,     " 5.15G, +0.0008 ppl @ LLaMA-v1-7B", },
     { "Q8_0",     LLAMA_FTYPE_MOSTLY_Q8_0,     " 6.70G, +0.0004 ppl @ LLaMA-v1-7B", },
+
+    { "IQ1_XL",   LLAMA_FTYPE_MOSTLY_IQ1_XL,   " 1.90 bpw quantization",            },
+    { "TQ1_0",    LLAMA_FTYPE_MOSTLY_TQ1_0,    " 1.69 bpw ternarization",           },
+    { "TQ2_0",    LLAMA_FTYPE_MOSTLY_TQ2_0,    " 2.06 bpw ternarization",           },
+    { "Q2_K",     LLAMA_FTYPE_MOSTLY_Q2_K,     " 2.96G, +3.5199 ppl @ Llama-3-8B",  },
+    { "Q2_K_S",   LLAMA_FTYPE_MOSTLY_Q2_K_S,   " 2.96G, +3.1836 ppl @ Llama-3-8B",  },
+    { "Q2_K_L",   LLAMA_FTYPE_MOSTLY_Q2_K_L,   " 3.20G, +3.1836 ppl @ Llama-3-8B",  },
+    { "IQ3_XXS",  LLAMA_FTYPE_MOSTLY_IQ3_XXS,  " 3.06 bpw quantization",            },
+    { "IQ3_S",    LLAMA_FTYPE_MOSTLY_IQ3_S,    " 3.44 bpw quantization",            },
+    { "IQ3_S2L",  LLAMA_FTYPE_MOSTLY_IQ3_S2L,  " 3.55 bpw quantization",            },
+    { "IQ3_M",    LLAMA_FTYPE_MOSTLY_IQ3_M,    " 3.60 bpw quantization mix",        },
+    { "IQ3_M3L",  LLAMA_FTYPE_MOSTLY_IQ3_M3L,  " 3.70 bpw quantization mix",        },
+    { "IQ3_X4L",  LLAMA_FTYPE_MOSTLY_IQ3_X4L,  " 3.80 bpw quantization mix",        },
+    { "IQ3_X5L",  LLAMA_FTYPE_MOSTLY_IQ3_X5L,  " 3.90 bpw quantization mix",        },
+    { "IQ3_X6L",  LLAMA_FTYPE_MOSTLY_IQ3_X6L,  " 4.00 bpw quantization mix",        },
+    { "IQ3_X7L",  LLAMA_FTYPE_MOSTLY_IQ3_X7L,  " 4.10 bpw quantization mix",        },
+    { "IQ3_EXL",  LLAMA_FTYPE_MOSTLY_IQ3_EXL,  " 3.75 bpw quantization mix",        },
+    { "IQ3_SXL",  LLAMA_FTYPE_MOSTLY_IQ3_SXL,  " 3.90 bpw quantization mix",        },
+    { "IQ3_UXL",  LLAMA_FTYPE_MOSTLY_IQ3_UXL,  " 4.05 bpw quantization mix",        },
+    { "Q3_K",     LLAMA_FTYPE_MOSTLY_Q3_K_M,   "alias for Q3_K_M"                   },
+    { "IQ3_XS",   LLAMA_FTYPE_MOSTLY_IQ3_XS,   " 3.3 bpw quantization",             },
+    { "Q3_K_S",   LLAMA_FTYPE_MOSTLY_Q3_K_S,   " 3.41G, +1.6321 ppl @ Llama-3-8B",  },
+    { "Q3_K_M",   LLAMA_FTYPE_MOSTLY_Q3_K_M,   " 3.74G, +0.6569 ppl @ Llama-3-8B",  },
+    { "Q3_K_L",   LLAMA_FTYPE_MOSTLY_Q3_K_L,   " 4.10 bpw quantization mix",        },
+    { "Q3_K_XL",  LLAMA_FTYPE_MOSTLY_Q3_K_XL,  " 4.03G, +0.5562 ppl @ Llama-3-8B",  },
+    { "IQ4_NL",   LLAMA_FTYPE_MOSTLY_IQ4_NL,   " 4.1x bpw non-linear quantization", },
+    { "IQ4_XS",   LLAMA_FTYPE_MOSTLY_IQ4_XS,   " 4.25 bpw non-linear quantization", },
+    { "IQ4_XXSR", LLAMA_FTYPE_MOSTLY_IQ4_XXSR, " 4.xx bpw non-linear quantization", },
+    { "IQ4_XSR",  LLAMA_FTYPE_MOSTLY_IQ4_XSR,  " 4.xx bpw non-linear quantization", },
+    { "IQ4_MR",   LLAMA_FTYPE_MOSTLY_IQ4_MR,   " 4.xx bpw non-linear quantization", },
+    { "IQ4_LR",   LLAMA_FTYPE_MOSTLY_IQ4_LR,   " 4.xx bpw non-linear quantization", },
+    { "Q4_K",     LLAMA_FTYPE_MOSTLY_Q4_K_M,   "alias for Q4_K_M",                  },
+    { "Q4_K_S",   LLAMA_FTYPE_MOSTLY_Q4_K_S,   " 4.37G, +0.2689 ppl @ Llama-3-8B",  },
+    { "Q4_K_M",   LLAMA_FTYPE_MOSTLY_Q4_K_M,   " 4.58G, +0.1754 ppl @ Llama-3-8B",  },
+    { "Q5_K",     LLAMA_FTYPE_MOSTLY_Q5_K_M,   "alias for Q5_K_M",                  },
+    { "Q5_K_S",   LLAMA_FTYPE_MOSTLY_Q5_K_S,   " 5.21G, +0.1049 ppl @ Llama-3-8B",  },
+    { "Q5_K_M",   LLAMA_FTYPE_MOSTLY_Q5_K_M,   " 5.33G, +0.0569 ppl @ Llama-3-8B",  },
+    { "Q5_K_XS1R", LLAMA_FTYPE_MOSTLY_Q5_K_XS1R, " 5.4 bpw quantization mix",       },
+    { "Q5_K_S2R",  LLAMA_FTYPE_MOSTLY_Q5_K_S2R,  " 5.6 bpw quantization mix",       },
+    { "Q5_K_M3L",  LLAMA_FTYPE_MOSTLY_Q5_K_M3L,  " 5.8 bpw quantization mix",       },
+    { "Q5_K_X4L",  LLAMA_FTYPE_MOSTLY_Q5_K_X4L,  " 6 bpw quantization mix",         },
+    { "Q6_K",     LLAMA_FTYPE_MOSTLY_Q6_K,     " 6.14G, +0.0217 ppl @ Llama-3-8B",  },
+    { "Q8_0",     LLAMA_FTYPE_MOSTLY_Q8_0,     " 7.96G, +0.0026 ppl @ Llama-3-8B",  },
+
     { "Q4_0_4_4", LLAMA_FTYPE_MOSTLY_Q4_0_4_4, " 4.34G, +0.4685 ppl @ Llama-3-8B",  },
     { "Q4_0_4_8", LLAMA_FTYPE_MOSTLY_Q4_0_4_8, " 4.34G, +0.4685 ppl @ Llama-3-8B",  },
     { "Q4_0_8_8", LLAMA_FTYPE_MOSTLY_Q4_0_8_8, " 4.34G, +0.4685 ppl @ Llama-3-8B",  },
@@ -339,6 +386,54 @@ int main(int argc, char ** argv) {
             } else {
                 usage(argv[0]);
             }
+        } else if (strcmp(argv[arg_idx], "--attn-q-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.attn_q_type = parse_ggml_type(argv[++arg_idx]);
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--attn-k-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.attn_k_type = parse_ggml_type(argv[++arg_idx]);
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--attn-v-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.attn_v_type = parse_ggml_type(argv[++arg_idx]);
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--attn-qkv-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.attn_qkv_type = parse_ggml_type(argv[++arg_idx]);
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--attn-output-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.attn_output_type = parse_ggml_type(argv[++arg_idx]);
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--ffn-gate-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.ffn_gate_type = parse_ggml_type(argv[++arg_idx]);
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--ffn-down-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.ffn_down_type = parse_ggml_type(argv[++arg_idx]);
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--ffn-up-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.ffn_up_type = parse_ggml_type(argv[++arg_idx]);
+            } else {
+                usage(argv[0]);
+            }
         } else if (strcmp(argv[arg_idx], "--override-kv") == 0) {
             if (arg_idx == argc-1 || !string_parse_kv_override(argv[++arg_idx], kv_overrides)) {
                 usage(argv[0]);
@@ -482,14 +577,14 @@ int main(int argc, char ** argv) {
     }
 
     if (!params.ignore_imatrix_rules && imatrix_data.empty() &&
-        (params.ftype == LLAMA_FTYPE_MOSTLY_IQ2_XS || params.ftype == LLAMA_FTYPE_MOSTLY_IQ2_XXS ||
-         params.ftype == LLAMA_FTYPE_MOSTLY_IQ2_S  ||
-         params.ftype == LLAMA_FTYPE_MOSTLY_Q2_K_S ||
+         params.ftype == LLAMA_FTYPE_MOSTLY_IQ2_XS || params.ftype == LLAMA_FTYPE_MOSTLY_IQ2_XXS ||
+         params.ftype == LLAMA_FTYPE_MOSTLY_IQ2_S  || params.ftype == LLAMA_FTYPE_MOSTLY_IQ2_M   ||
+         params.ftype == LLAMA_FTYPE_MOSTLY_Q2_K_S || params.ftype == LLAMA_FTYPE_MOSTLY_Q2_K    ||
          params.ftype == LLAMA_FTYPE_MOSTLY_IQ1_S  ||
          params.ftype == LLAMA_FTYPE_MOSTLY_IQ1_M)) {
-        fprintf(stderr, "\n==========================================================================================================\n");
-        fprintf(stderr, "Please do not use IQ1_S, IQ1_M, IQ2_S, IQ2_XXS, IQ2_XS or Q2_K_S quantization without an importance matrix\n");
-        fprintf(stderr, "==========================================================================================================\n\n\n");
+        fprintf(stderr, "\n==========================================================================================\n");
+        fprintf(stderr, "Please do not use IQ1_*, IQ2_*, Q2_K_S, or Q2_K quantization without an importance matrix!\n");
+        fprintf(stderr, "==========================================================================================\n\n\n");
         return 1;
     }
 
