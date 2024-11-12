@@ -1,7 +1,6 @@
 # Define the default target now so that it is always the first target
 BUILD_TARGETS = \
 	libllava.a \
-	llama-baby-llama \
 	llama-batched \
 	llama-batched-bench \
 	llama-bench \
@@ -56,7 +55,6 @@ TEST_TARGETS = \
 	tests/test-llama-grammar \
 	tests/test-log \
 	tests/test-model-load-cancel \
-	tests/test-opt \
 	tests/test-quantize-fns \
 	tests/test-quantize-perf \
 	tests/test-rope \
@@ -64,6 +62,7 @@ TEST_TARGETS = \
 	tests/test-tokenizer-0 \
 	tests/test-tokenizer-1-bpe \
 	tests/test-tokenizer-1-spm
+#	tests/test-opt \
 
 # Legacy build targets that were renamed in #7809, but should still be removed when the project is cleaned
 LEGACY_TARGETS_CLEAN = main quantize quantize-stats perplexity imatrix embedding vdot q8dot convert-llama2c-to-ggml \
@@ -879,6 +878,10 @@ ifdef GGML_METAL
 	MK_CPPFLAGS += -DGGML_USE_METAL
 	MK_LDFLAGS  += -framework Foundation -framework Metal -framework MetalKit
 	OBJ_GGML	+= ggml/src/ggml-metal.o
+
+ifdef GGML_METAL_USE_BF16
+	MK_CPPFLAGS += -DGGML_METAL_USE_BF16
+endif # GGML_METAL_USE_BF16
 ifdef GGML_METAL_NDEBUG
 	MK_CPPFLAGS += -DGGML_METAL_NDEBUG
 endif
@@ -916,6 +919,7 @@ endif # GGML_METAL
 
 OBJ_GGML += \
 	ggml/src/ggml.o \
+	ggml/src/ggml-cpu.o \
 	ggml/src/ggml-alloc.o \
 	ggml/src/ggml-backend.o \
 	ggml/src/ggml-quants.o \
@@ -936,7 +940,6 @@ OBJ_COMMON = \
 	common/console.o \
 	common/ngram-cache.o \
 	common/sampling.o \
-	common/train.o \
 	common/build-info.o \
 	common/json-schema-to-grammar.o
 
@@ -1046,6 +1049,12 @@ endif
 ggml/src/ggml.o: \
 	ggml/src/ggml.c \
 	ggml/include/ggml.h
+	$(CC)  $(CFLAGS)   -c $< -o $@
+
+ggml/src/ggml-cpu.o: \
+	ggml/src/ggml-cpu.c \
+	ggml/include/ggml.h \
+	ggml/src/ggml-common.h
 	$(CC)  $(CFLAGS)   -c $< -o $@
 
 ggml/src/ggml-alloc.o: \
@@ -1211,11 +1220,6 @@ common/console.o: \
 common/json-schema-to-grammar.o: \
 	common/json-schema-to-grammar.cpp \
 	common/json-schema-to-grammar.h
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-common/train.o: \
-	common/train.cpp \
-	common/train.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 common/ngram-cache.o: \
@@ -1390,11 +1394,6 @@ llama-bench: examples/llama-bench/llama-bench.cpp \
 	$(CXX) $(CXXFLAGS) -c $< -o $(call GET_OBJ_FILE, $<)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS)
 
-llama-baby-llama: examples/baby-llama/baby-llama.cpp \
-	$(OBJ_ALL)
-	$(CXX) $(CXXFLAGS) -c $< -o $(call GET_OBJ_FILE, $<)
-	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS)
-
 llama-export-lora: examples/export-lora/export-lora.cpp \
 	$(OBJ_ALL)
 	$(CXX) $(CXXFLAGS) -c $< -o $(call GET_OBJ_FILE, $<)
@@ -1460,22 +1459,13 @@ llama-server: \
 	examples/server/server.cpp \
 	examples/server/utils.hpp \
 	examples/server/httplib.h \
-	examples/server/colorthemes.css.hpp \
-	examples/server/style.css.hpp \
-	examples/server/theme-beeninorder.css.hpp \
-	examples/server/theme-ketivah.css.hpp \
-	examples/server/theme-mangotango.css.hpp \
-	examples/server/theme-playground.css.hpp \
-	examples/server/theme-polarnight.css.hpp \
-	examples/server/theme-snowstorm.css.hpp \
 	examples/server/index.html.hpp \
-	examples/server/index-new.html.hpp \
-	examples/server/index.js.hpp \
 	examples/server/completion.js.hpp \
-	examples/server/system-prompts.js.hpp \
-	examples/server/prompt-formats.js.hpp \
-	examples/server/json-schema-to-grammar.mjs.hpp \
 	examples/server/loading.html.hpp \
+	examples/server/deps_daisyui.min.css.hpp \
+	examples/server/deps_markdown-it.js.hpp \
+	examples/server/deps_tailwindcss.js.hpp \
+	examples/server/deps_vue.esm-browser.js.hpp \
 	common/json.hpp \
 	common/stb_image.h \
 	$(OBJ_ALL)
