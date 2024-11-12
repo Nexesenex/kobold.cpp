@@ -39,7 +39,7 @@ The project is under active development, and we are [looking for feedback and co
 | `--cpu-strict-batch <0\|1>` | use strict CPU placement (default: same as --cpu-strict) |
 | `--prio-batch N` | set process/thread priority : 0-normal, 1-medium, 2-high, 3-realtime (default: 0)<br/> |
 | `--poll-batch <0\|1>` | use polling to wait for work (default: same as --poll) |
-| `-c, --ctx-size N` | size of the prompt context (default: 0, 0 = loaded from model)<br/>(env: LLAMA_ARG_CTX_SIZE) |
+| `-c, --ctx-size N` | size of the prompt context (default: 4096, 0 = loaded from model)<br/>(env: LLAMA_ARG_CTX_SIZE) |
 | `-n, --predict, --n-predict N` | number of tokens to predict (default: -1, -1 = infinity, -2 = until context filled)<br/>(env: LLAMA_ARG_N_PREDICT) |
 | `-b, --batch-size N` | logical maximum batch size (default: 2048)<br/>(env: LLAMA_ARG_BATCH) |
 | `-ub, --ubatch-size N` | physical maximum batch size (default: 512)<br/>(env: LLAMA_ARG_UBATCH) |
@@ -64,7 +64,7 @@ The project is under active development, and we are [looking for feedback and co
 | `-nkvo, --no-kv-offload` | disable KV offload<br/>(env: LLAMA_ARG_NO_KV_OFFLOAD) |
 | `-ctk, --cache-type-k TYPE` | KV cache data type for K (default: f16)<br/>(env: LLAMA_ARG_CACHE_TYPE_K) |
 | `-ctv, --cache-type-v TYPE` | KV cache data type for V (default: f16)<br/>(env: LLAMA_ARG_CACHE_TYPE_V) |
-| `-dt, --defrag-thold N` | KV cache defragmentation threshold (default: -1.0, < 0 - disabled)<br/>(env: LLAMA_ARG_DEFRAG_THOLD) |
+| `-dt, --defrag-thold N` | KV cache defragmentation threshold (default: 0.1, < 0 - disabled)<br/>(env: LLAMA_ARG_DEFRAG_THOLD) |
 | `-np, --parallel N` | number of parallel sequences to decode (default: 1)<br/>(env: LLAMA_ARG_N_PARALLEL) |
 | `--mlock` | force system to keep model in RAM rather than swapping or compressing<br/>(env: LLAMA_ARG_MLOCK) |
 | `--no-mmap` | do not memory-map model (slower load but may reduce pageouts if not using mlock)<br/>(env: LLAMA_ARG_NO_MMAP) |
@@ -99,29 +99,30 @@ The project is under active development, and we are [looking for feedback and co
 
 | Argument | Explanation |
 | -------- | ----------- |
-| `--samplers SAMPLERS` | samplers that will be used for generation in the order, separated by ';'<br/>(default: top_k;tfs_z;typ_p;top_p;min_p;temperature) |
+| `--samplers SAMPLERS` | samplers that will be used for generation in the order, separated by ';'<br/>(default: dry;top_k;typ_p;top_p;min_p;xtc;temperature) |
 | `-s, --seed SEED` | RNG seed (default: -1, use random seed for -1) |
-| `--sampling-seq SEQUENCE` | simplified sequence for samplers that will be used (default: kfypmt) |
+| `--sampling-seq SEQUENCE` | simplified sequence for samplers that will be used (default: dkypmxt) |
 | `--ignore-eos` | ignore end of stream token and continue generating (implies --logit-bias EOS-inf) |
 | `--penalize-nl` | penalize newline tokens (default: false) |
 | `--temp N` | temperature (default: 0.8) |
 | `--top-k N` | top-k sampling (default: 40, 0 = disabled) |
 | `--top-p N` | top-p sampling (default: 0.9, 1.0 = disabled) |
 | `--min-p N` | min-p sampling (default: 0.1, 0.0 = disabled) |
-| `--tfs N` | tail free sampling, parameter z (default: 1.0, 1.0 = disabled) |
+| `--xtc-probability N` | xtc probability (default: 0.0, 0.0 = disabled) |
+| `--xtc-threshold N` | xtc threshold (default: 0.1, 1.0 = disabled) |
 | `--typical N` | locally typical sampling, parameter p (default: 1.0, 1.0 = disabled) |
 | `--repeat-last-n N` | last n tokens to consider for penalize (default: 64, 0 = disabled, -1 = ctx_size) |
 | `--repeat-penalty N` | penalize repeat sequence of tokens (default: 1.0, 1.0 = disabled) |
 | `--presence-penalty N` | repeat alpha presence penalty (default: 0.0, 0.0 = disabled) |
 | `--frequency-penalty N` | repeat alpha frequency penalty (default: 0.0, 0.0 = disabled) |
-| `--dry-multiplier N` | DRY sampling multiplier (default: 0.0, 0.0 = disabled) |
-| `--dry-base N` | DRY sampling base value (default: 1.75) |
-| `--dry-allowed-length N` | allowed length for DRY sampling (default: 2) |
-| `--dry-penalty-last-n N` | DRY penalty for the last n tokens (default: -1, 0 = disable, -1 = context size) |
-| `--dry-sequence-breaker STRING` | add sequence breaker for DRY sampling, clearing out default breakers (`['\n', ':', '"', '*']`) in the process; use `"none"` to not use any sequence breakers
+| `--dry-multiplier N` | set DRY sampling multiplier (default: 0.0, 0.0 = disabled) |
+| `--dry-base N` | set DRY sampling base value (default: 1.75) |
+| `--dry-allowed-length N` | set allowed length for DRY sampling (default: 2) |
+| `--dry-penalty-last-n N` | set DRY penalty for the last n tokens (default: -1, 0 = disable, -1 = context size) |
+| `--dry-sequence-breaker STRING` | add sequence breaker for DRY sampling, clearing out default breakers ('\n', ':', '"', '*') in the process; use "none" to not use any sequence breakers<br/> |
 | `--dynatemp-range N` | dynamic temperature range (default: 0.0, 0.0 = disabled) |
 | `--dynatemp-exp N` | dynamic temperature exponent (default: 1.0) |
-| `--mirostat N` | use Mirostat sampling.<br/>Top K, Nucleus, Tail Free and Locally Typical samplers are ignored if used.<br/>(default: 0, 0 = disabled, 1 = Mirostat, 2 = Mirostat 2.0) |
+| `--mirostat N` | use Mirostat sampling.<br/>Top K, Nucleus and Locally Typical samplers are ignored if used.<br/>(default: 0, 0 = disabled, 1 = Mirostat, 2 = Mirostat 2.0) |
 | `--mirostat-lr N` | Mirostat learning rate, parameter eta (default: 0.1) |
 | `--mirostat-ent N` | Mirostat target entropy, parameter tau (default: 5.0) |
 | `-l, --logit-bias TOKEN_ID(+/-)BIAS` | modifies the likelihood of token appearing in the completion,<br/>i.e. `--logit-bias 15043+1` to increase likelihood of token ' Hello',<br/>or `--logit-bias 15043-1` to decrease likelihood of token ' Hello' |
@@ -360,8 +361,6 @@ node index.js
     `stop`: Specify a JSON array of stopping strings.
     These words will not be included in the completion, so make sure to add them to the prompt for the next iteration. Default: `[]`
 
-    `tfs_z`: Enable tail free sampling with parameter z. Default: `1.0`, which is disabled.
-
     `typical_p`: Enable locally typical sampling with parameter p. Default: `1.0`, which is disabled.
 
     `repeat_penalty`: Control the repetition of token sequences in the generated text. Default: `1.1`
@@ -412,7 +411,7 @@ node index.js
 
     `cache_prompt`: Re-use KV cache from a previous request if possible. This way the common prefix does not have to be re-processed, only the suffix that differs between the requests. Because (depending on the backend) the logits are **not** guaranteed to be bit-for-bit identical for different batch sizes (prompt processing vs. token generation) enabling this option can cause nondeterministic results. Default: `false`
 
-    `samplers`: The order the samplers should be applied in. An array of strings representing sampler type names. If a sampler is not set, it will not be used. If a sampler is specified more than once, it will be applied multiple times. Default: `["top_k", "tfs_z", "typical_p", "top_p", "min_p", "temperature"]` - these are all the available values.
+    `samplers`: The order the samplers should be applied in. An array of strings representing sampler type names. If a sampler is not set, it will not be used. If a sampler is specified more than once, it will be applied multiple times. Default: `["top_k", "typical_p", "top_p", "min_p", "temperature"]` - these are all the available values.
 
 **Response format**
 
@@ -695,7 +694,10 @@ Given a ChatML-formatted json description in `messages`, it returns the predicte
 
 ### GET `/slots`: Returns the current slots processing state
 
-This endpoint can be disabled with `--no-slots`
+> [!WARNING]
+> This endpoint is intended for debugging and may be modified in future versions. For security reasons, we strongly advise against enabling it in production environments.
+
+This endpoint is disabled by default and can be enabled with `--slots`
 
 If query param `?fail_on_no_slot=1` is set, this endpoint will respond with status code 503 if there is no available slots.
 
@@ -712,6 +714,7 @@ Example:
         "grammar": "",
         "id": 0,
         "ignore_eos": false,
+        "is_processing": false,
         "logit_bias": [],
         "min_p": 0.05000000074505806,
         "mirostat": 0,
@@ -738,31 +741,24 @@ Example:
         "repeat_penalty": 1.100000023841858,
         "samplers": [
             "top_k",
-            "tfs_z",
             "typical_p",
             "top_p",
             "min_p",
             "temperature"
         ],
         "seed": 42,
-        "state": 1,
         "stop": [
             "\n"
         ],
         "stream": false,
         "task_id": 0,
         "temperature": 0.0,
-        "tfs_z": 1.0,
         "top_k": 40,
         "top_p": 0.949999988079071,
         "typical_p": 1.0
     }
 ]
 ```
-
-Possible values for `slot[i].state` are:
-- `0`: SLOT_STATE_IDLE
-- `1`: SLOT_STATE_PROCESSING
 
 ### GET `/metrics`: Prometheus compatible metrics exporter
 
@@ -932,6 +928,16 @@ Apart from error types supported by OAI, we also have custom types that are spec
         "type": "invalid_request_error"
     }
 }
+```
+
+### Legacy completion web UI
+
+A new chat-based UI has replaced the old completion-based since [this PR](https://github.com/ggerganov/llama.cpp/pull/10175). If you want to use the old completion, start the server with `--path ./examples/server/public_legacy`
+
+For example:
+
+```sh
+./llama-server -m my_model.gguf -c 8192 --path ./examples/server/public_legacy
 ```
 
 ### Extending or building alternative Web Front End

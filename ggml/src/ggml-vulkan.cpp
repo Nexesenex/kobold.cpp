@@ -213,6 +213,7 @@ struct vk_device_struct {
     vk_pipeline pipeline_sum_rows_f32;
     vk_pipeline pipeline_im2col_f32, pipeline_im2col_f32_f16;
     vk_pipeline pipeline_timestep_embedding_f32;
+    vk_pipeline pipeline_pool2d_f32;
 
     std::unordered_map<std::string, vk_pipeline_ref> pipelines;
     std::unordered_map<std::string, uint64_t> pipeline_descriptor_set_requirements;
@@ -401,6 +402,17 @@ struct vk_op_timestep_embedding_push_constants {
     uint32_t nb1;
     uint32_t dim;
     uint32_t max_period;
+};
+
+struct vk_op_pool2d_push_constants {
+    uint32_t IW; uint32_t IH;
+    uint32_t OW; uint32_t OH;
+    uint32_t OC;
+    uint32_t pelements;
+    uint32_t op;
+    int32_t k0; int32_t k1;
+    int32_t s0; int32_t s1;
+    int32_t p0; int32_t p1;
 };
 
 // Allow pre-recording command buffers
@@ -1035,7 +1047,6 @@ static vk_buffer ggml_vk_create_buffer(vk_device& device, size_t size, vk::Memor
         return buf;
     }
 
-    buf->size = size;
     vk::BufferCreateInfo buffer_create_info{
         vk::BufferCreateFlags(),
         size,
@@ -1063,7 +1074,6 @@ static vk_buffer ggml_vk_create_buffer(vk_device& device, size_t size, vk::Memor
 
     if (memory_type_index == UINT32_MAX) {
         device->device.destroyBuffer(buf->buffer);
-        buf->size = 0;
         throw vk::OutOfDeviceMemoryError("No suitable memory type found");
     }
 
@@ -1080,13 +1090,11 @@ static vk_buffer ggml_vk_create_buffer(vk_device& device, size_t size, vk::Memor
             }
             catch (const vk::SystemError& e) {
                 device->device.destroyBuffer(buf->buffer);
-                buf->size = 0;
                 throw e;
             }
         } else {
             // Out of Host/Device memory, clean up buffer
             device->device.destroyBuffer(buf->buffer);
-            buf->size = 0;
             throw e;
         }
     }
@@ -1099,6 +1107,7 @@ static vk_buffer ggml_vk_create_buffer(vk_device& device, size_t size, vk::Memor
     device->device.bindBufferMemory(buf->buffer, buf->device_memory, 0);
 
     buf->device = device;
+    buf->size = size;
 
 #ifdef GGML_VULKAN_MEMORY_DEBUG
     device->memory_logger->log_allocation(buf, size);
@@ -1802,6 +1811,8 @@ static void ggml_vk_load_shaders(vk_device& device) {
     ggml_vk_create_pipeline(device, device->pipeline_im2col_f32_f16, "im2col_f32_f16", im2col_f32_f16_len, im2col_f32_f16_data, "main", 2, sizeof(vk_op_im2col_push_constants), {256, 1, 1}, {}, 1);
 
     ggml_vk_create_pipeline(device, device->pipeline_timestep_embedding_f32, "timestep_embedding_f32", timestep_embedding_f32_len, timestep_embedding_f32_data, "main", 2, sizeof(vk_op_timestep_embedding_push_constants), {256, 1, 1}, {}, 1);
+
+    ggml_vk_create_pipeline(device, device->pipeline_pool2d_f32, "pool2d_f32", pool2d_f32_len, pool2d_f32_data, "main", 2, sizeof(vk_op_pool2d_push_constants), {512, 1, 1}, {}, 1);
 
     for (auto &c : compiles) {
         c.wait();
@@ -3136,7 +3147,7 @@ static void ggml_vk_mul_mat_q_f16(ggml_backend_vk_context * ctx, vk_context& sub
     const bool qx_needs_dequant = mmp == nullptr || x_non_contig;
     const bool qy_needs_dequant = (src1->type != GGML_TYPE_F16 && !y_f32_kernel) || y_non_contig;
 
-    if (mmp == nullptr) {
+    if (qx_needs_dequant) {
         // Fall back to dequant + f16 mulmat
         mmp = ggml_vk_get_mul_mat_mat_pipeline(ctx, GGML_TYPE_F16, y_f32_kernel ? GGML_TYPE_F32 : GGML_TYPE_F16);
     }
@@ -3619,9 +3630,19 @@ static void ggml_vk_mul_mat_vec_nc_f16_f32(ggml_backend_vk_context * ctx, vk_con
 
 static void ggml_vk_mul_mat(ggml_backend_vk_context * ctx, vk_context& subctx, const ggml_tensor * src0, const ggml_tensor * src1, ggml_tensor * dst, bool dryrun = false) {
     VK_LOG_DEBUG("ggml_vk_mul_mat(" << src0 << ", " << src1 << ", " << dst << ")");
-    if (src0->type == GGML_TYPE_F16 && ggml_is_permuted(src0) && ggml_is_permuted(src1) && dst->ne[1] == 1) {
+    if (src0->type == GGML_TYPE_F16 && ggml_is_permuted(src0) && ggml_is_permuted(src1) && dst->ne[1] == 1 &&
+        // detect 0213 permutation, and batch size of 1
+        src0->nb[0] <= src0->nb[2] &&
+        src0->nb[2] <= src0->nb[1] &&
+        src0->nb[1] <= src0->nb[3] &&
+        src1->nb[0] <= src1->nb[2] &&
+        src1->nb[2] <= src1->nb[1] &&
+        src1->nb[1] <= src1->nb[3] &&
+        src0->ne[3] == 1 &&
+        src1->ne[3] == 1) {
         ggml_vk_mul_mat_vec_p021_f16_f32(ctx, subctx, src0, src1, dst, dryrun);
-    } else if (src0->type == GGML_TYPE_F16 && !ggml_is_contiguous(src0) && !ggml_is_transposed(src1) && dst->ne[1] == 1) {
+    } else if (src0->type == GGML_TYPE_F16 && !ggml_is_contiguous(src0) && !ggml_is_transposed(src1) && dst->ne[1] == 1 &&
+               !ggml_is_permuted(src0) && !ggml_is_permuted(src1)) {
         ggml_vk_mul_mat_vec_nc_f16_f32(ctx, subctx, src0, src1, dst, dryrun);
     } else if (dst->ne[1] == 1 && (src0->type == GGML_TYPE_F32 || src0->type == GGML_TYPE_F16 || ggml_is_quantized(src0->type))) {
         ggml_vk_mul_mat_vec_q_f16(ctx, subctx, src0, src1, dst, dryrun);
@@ -3697,7 +3718,7 @@ static void ggml_vk_mul_mat_id_q_f16(ggml_backend_vk_context * ctx, vk_context& 
     const bool qx_needs_dequant = mmp == nullptr || x_non_contig;
     const bool qy_needs_dequant = (src1->type != GGML_TYPE_F16 && !y_f32_kernel) || y_non_contig;
 
-    if (mmp == nullptr) {
+    if (qx_needs_dequant) {
         GGML_ABORT("fatal error");
     }
 
@@ -4234,6 +4255,11 @@ static vk_pipeline ggml_vk_op_get_pipeline(ggml_backend_vk_context * ctx, const 
             return ctx->device->pipeline_timestep_embedding_f32;
         }
         return nullptr;
+    case GGML_OP_POOL_2D:
+        if (src0->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F32) {
+            return ctx->device->pipeline_pool2d_f32;
+        }
+        return nullptr;
     case GGML_OP_LEAKY_RELU:
         if (src0->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F32) {
             return ctx->device->pipeline_leaky_relu_f32;
@@ -4454,7 +4480,7 @@ static void ggml_vk_op_f32(ggml_backend_vk_context * ctx, vk_context& subctx, co
             const uint32_t OH = is_2D ? dst->ne[2] : 1;
             const uint32_t OW =         dst->ne[1];
 
-            const uint32_t batch = src1->ne[3];
+            const uint32_t batch = src1->ne[is_2D ? 3 : 2];
 
             elements = { OW * KW * KH, OH, batch * IC };
         } break;
@@ -4463,6 +4489,14 @@ static void ggml_vk_op_f32(ggml_backend_vk_context * ctx, vk_context& subctx, co
             const uint32_t dim = dst->op_params[0];
             uint32_t half_ceil = (dim + 1) / 2;
             elements = { half_ceil, (uint32_t)src0->ne[0], 1 };
+        } break;
+    case GGML_OP_POOL_2D:
+        {
+            const uint32_t N = dst->ne[3];
+            const uint32_t OC = dst->ne[2];
+            const uint32_t OH = dst->ne[1];
+            const uint32_t OW = dst->ne[0];
+            elements = { N * OC * OH * OW, 1, 1};
         } break;
     case GGML_OP_ADD:
     case GGML_OP_DIV:
@@ -4891,7 +4925,7 @@ static void ggml_vk_im2col(ggml_backend_vk_context * ctx, vk_context& subctx, co
     const uint32_t OW =         dst->ne[1];
 
     const uint32_t offset_delta = src1->nb[is_2D ? 2 : 1] / 4; // nb is byte offset, src is type float32
-    const uint32_t batch_offset = src1->nb[3] / 4; // nb is byte offset, src is type float32
+    const uint32_t batch_offset = src1->nb[is_2D ? 3 : 2] / 4; // nb is byte offset, src is type float32
 
     const uint32_t pelements = OW * KW * KH;
 
@@ -4911,6 +4945,34 @@ static void ggml_vk_timestep_embedding(ggml_backend_vk_context * ctx, vk_context
 
     ggml_vk_op_f32<vk_op_timestep_embedding_push_constants>(ctx, subctx, src0, nullptr, nullptr, dst, GGML_OP_TIMESTEP_EMBEDDING, {
         nb1, dim, max_period,
+    }, dryrun);
+}
+
+static void ggml_vk_pool_2d(ggml_backend_vk_context * ctx, vk_context& subctx, const ggml_tensor * src0, ggml_tensor * dst, bool dryrun = false) {
+    uint32_t op = static_cast<uint32_t>(dst->op_params[0]);
+    const int32_t k1 = dst->op_params[1];
+    const int32_t k0 = dst->op_params[2];
+    const int32_t s1 = dst->op_params[3];
+    const int32_t s0 = dst->op_params[4];
+    const int32_t p1 = dst->op_params[5];
+    const int32_t p0 = dst->op_params[6];
+
+    const uint32_t IH = src0->ne[1];
+    const uint32_t IW = src0->ne[0];
+
+    const uint32_t N = dst->ne[3];
+
+    const uint32_t OC = dst->ne[2];
+    const uint32_t OH = dst->ne[1];
+    const uint32_t OW = dst->ne[0];
+
+    const uint32_t parallel_elements = N * OC * OH * OW;
+
+    ggml_vk_op_f32<vk_op_pool2d_push_constants>(ctx, subctx, src0, nullptr, nullptr, dst, GGML_OP_POOL_2D, {
+        IW, IH, OW, OH, OC,
+        parallel_elements,
+        op,
+        k0, k1, s0, s1, p0, p1,
     }, dryrun);
 }
 
@@ -5792,6 +5854,7 @@ static bool ggml_vk_build_graph(ggml_backend_vk_context * ctx, ggml_tensor * nod
     case GGML_OP_SUM_ROWS:
     case GGML_OP_IM2COL:
     case GGML_OP_TIMESTEP_EMBEDDING:
+    case GGML_OP_POOL_2D:
     case GGML_OP_LEAKY_RELU:
         break;
     default:
@@ -5928,6 +5991,10 @@ static bool ggml_vk_build_graph(ggml_backend_vk_context * ctx, ggml_tensor * nod
         ggml_vk_timestep_embedding(ctx, compute_ctx, src0, node, dryrun);
 
         break;
+    case GGML_OP_POOL_2D:
+        ggml_vk_pool_2d(ctx, compute_ctx, src0, node, dryrun);
+
+        break;
     case GGML_OP_LEAKY_RELU:
         ggml_vk_leaky_relu(ctx, compute_ctx, src0, node, dryrun);
 
@@ -6018,6 +6085,7 @@ static bool ggml_vk_compute_forward(ggml_backend_vk_context * ctx, ggml_tensor *
     case GGML_OP_SUM_ROWS:
     case GGML_OP_IM2COL:
     case GGML_OP_TIMESTEP_EMBEDDING:
+    case GGML_OP_POOL_2D:
     case GGML_OP_LEAKY_RELU:
     case GGML_OP_REPEAT:
         buf = tensor->buffer;
@@ -6186,13 +6254,8 @@ static void ggml_vk_get_device_description(int device, char * description, size_
 
 // device backend
 
-static const char * ggml_backend_vk_buffer_get_name(ggml_backend_buffer_t buffer) {
-    ggml_backend_vk_buffer_context * ctx = (ggml_backend_vk_buffer_context *)buffer->context;
-    return ctx->name.c_str();
-}
-
 static bool ggml_backend_buffer_is_vk(ggml_backend_buffer_t buffer) {
-    return buffer->iface.get_name == ggml_backend_vk_buffer_get_name;
+    return buffer->buft->iface.get_name == ggml_backend_vk_buffer_type_name;
 }
 
 static void ggml_backend_vk_buffer_free_buffer(ggml_backend_buffer_t buffer) {
@@ -6256,7 +6319,6 @@ static void ggml_backend_vk_buffer_clear(ggml_backend_buffer_t buffer, uint8_t v
 }
 
 static ggml_backend_buffer_i ggml_backend_vk_buffer_interface = {
-    /* .get_name        = */ ggml_backend_vk_buffer_get_name,
     /* .free_buffer     = */ ggml_backend_vk_buffer_free_buffer,
     /* .get_base        = */ ggml_backend_vk_buffer_get_base,
     /* .init_tensor     = */ ggml_backend_vk_buffer_init_tensor,
@@ -6352,7 +6414,6 @@ static ggml_backend_buffer_t ggml_backend_vk_host_buffer_type_alloc_buffer(ggml_
 
     ggml_backend_buffer_t buffer = ggml_backend_cpu_buffer_from_ptr(ptr, size);
     buffer->buft = buft;
-    buffer->iface.get_name = ggml_backend_vk_host_buffer_name;
     buffer->iface.free_buffer = ggml_backend_vk_host_buffer_free_buffer;
 
     return buffer;
@@ -6585,7 +6646,6 @@ static ggml_status ggml_backend_vk_graph_compute(ggml_backend_t backend, ggml_cg
 static ggml_backend_i ggml_backend_vk_interface = {
     /* .get_name                = */ ggml_backend_vk_name,
     /* .free                    = */ ggml_backend_vk_free,
-    /* .get_default_buffer_type = */ ggml_backend_vk_get_default_buffer_type,
     /* .set_tensor_async        = */ NULL,  // ggml_backend_vk_set_tensor_async,
     /* .get_tensor_async        = */ NULL,  // ggml_backend_vk_get_tensor_async,
     /* .cpy_tensor_async        = */ NULL,  // ggml_backend_vk_cpy_tensor_async,
@@ -6595,9 +6655,6 @@ static ggml_backend_i ggml_backend_vk_interface = {
     /* .graph_plan_update       = */ NULL,
     /* .graph_plan_compute      = */ NULL,
     /* .graph_compute           = */ ggml_backend_vk_graph_compute,
-    /* .supports_op             = */ NULL,
-    /* .supports_buft           = */ NULL,
-    /* .offload_op              = */ NULL,
     /* .event_record            = */ NULL,
     /* .event_wait              = */ NULL,
 };
@@ -6656,7 +6713,7 @@ void ggml_backend_vk_get_device_memory(int device, size_t * free, size_t * total
 //////////////////////////
 
 struct ggml_backend_vk_device_context {
-    int device;
+    size_t device;
     std::string name;
     std::string description;
 };
@@ -6688,7 +6745,7 @@ static ggml_backend_buffer_type_t ggml_backend_vk_device_get_host_buffer_type(gg
 
 static enum ggml_backend_dev_type ggml_backend_vk_device_get_type(ggml_backend_dev_t dev) {
     UNUSED(dev);
-    return GGML_BACKEND_DEVICE_TYPE_GPU_FULL;
+    return GGML_BACKEND_DEVICE_TYPE_GPU;
 }
 
 static void ggml_backend_vk_device_get_props(ggml_backend_dev_t dev, struct ggml_backend_dev_props * props) {
@@ -6697,9 +6754,10 @@ static void ggml_backend_vk_device_get_props(ggml_backend_dev_t dev, struct ggml
     props->type        = ggml_backend_vk_device_get_type(dev);
     ggml_backend_vk_device_get_memory(dev, &props->memory_free, &props->memory_total);
     props->caps = {
-        /* async       */ false,
-        /* host_buffer */ true,
-        /* events      */ false,
+        /* .async                 = */ false,
+        /* .host_buffer           = */ true,
+        /* .buffer_from_host_ptr  = */ false,
+        /* .events                = */ false,
     };
 }
 
@@ -6756,6 +6814,11 @@ static bool ggml_backend_vk_device_supports_op(ggml_backend_dev_t dev, const ggm
                 if (a->ne[3] != b->ne[3]) {
                     return false;
                 }
+                if (!(ggml_vk_dim01_contiguous(op->src[0]) || op->src[0]->type == GGML_TYPE_F32 || op->src[0]->type == GGML_TYPE_F16) ||
+                    !(ggml_vk_dim01_contiguous(op->src[1]) || op->src[1]->type == GGML_TYPE_F32 || op->src[1]->type == GGML_TYPE_F16)) {
+                    return false;
+                }
+
                 return true;
             } break;
         case GGML_OP_GET_ROWS:
@@ -6821,6 +6884,7 @@ static bool ggml_backend_vk_device_supports_op(ggml_backend_dev_t dev, const ggm
         case GGML_OP_SUM_ROWS:
         case GGML_OP_IM2COL:
         case GGML_OP_TIMESTEP_EMBEDDING:
+        case GGML_OP_POOL_2D:
         case GGML_OP_LEAKY_RELU:
             return true;
         default:
@@ -6887,7 +6951,7 @@ static ggml_backend_dev_t ggml_backend_vk_reg_get_device(ggml_backend_reg_t reg,
         static std::mutex mutex;
         std::lock_guard<std::mutex> lock(mutex);
         if (!initialized) {
-            for (size_t i = 0; i < ggml_backend_vk_get_device_count(); i++) {
+            for (int i = 0; i < ggml_backend_vk_get_device_count(); i++) {
                 ggml_backend_vk_device_context * ctx = new ggml_backend_vk_device_context;
                 char desc[256];
                 ggml_backend_vk_get_device_description(i, desc, sizeof(desc));
@@ -7334,6 +7398,16 @@ static void ggml_vk_check_results_0(ggml_tensor * tensor) {
         const int32_t dim = tensor->op_params[0];
         const int32_t max_period = tensor->op_params[1];
         tensor_clone = ggml_timestep_embedding(ggml_ctx, src0_clone, dim, max_period);
+    } else if (tensor->op == GGML_OP_POOL_2D) {
+        enum ggml_op_pool op = static_cast<ggml_op_pool>(dst->op_params[0]);
+        const int32_t k0 = tensor->op_params[1];
+        const int32_t k1 = tensor->op_params[2];
+        const int32_t s0 = tensor->op_params[3];
+        const int32_t s1 = tensor->op_params[4];
+        const int32_t p0 = tensor->op_params[5];
+        const int32_t p1 = tensor->op_params[6];
+
+        tensor_clone = ggml_pool_2d(ggml_ctx, src0_clone, op, k0, k1, s0, s1, p0, p1);
     } else if (tensor->op == GGML_OP_LEAKY_RELU) {
         const float * op_params = (const float *)tensor->op_params;
         tensor_clone = ggml_leaky_relu(ggml_ctx, src0_clone, op_params[0], false);

@@ -59,6 +59,10 @@ if (GGML_METAL)
         add_compile_definitions(GGML_METAL_NDEBUG)
     endif()
 
+    if (GGML_METAL_USE_BF16)
+        add_compile_definitions(GGML_METAL_USE_BF16)
+    endif()
+
     # copy ggml-common.h and ggml-metal.metal to bin directory
     configure_file(ggml-common.h    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/ggml-common.h    COPYONLY)
     configure_file(ggml-metal.metal ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/ggml-metal.metal COPYONLY)
@@ -801,6 +805,7 @@ if (GGML_KOMPUTE)
             kompute-shaders/op_mul_mat_q8_0.comp
             kompute-shaders/op_mul_mat_q4_0.comp
             kompute-shaders/op_mul_mat_q4_1.comp
+            kompute-shaders/op_mul_mat_q4_k.comp
             kompute-shaders/op_mul_mat_q6_k.comp
             kompute-shaders/op_getrows_f32.comp
             kompute-shaders/op_getrows_f16.comp
@@ -834,6 +839,7 @@ if (GGML_KOMPUTE)
             shaderop_mul_mat_q8_0.h
             shaderop_mul_mat_q4_0.h
             shaderop_mul_mat_q4_1.h
+            shaderop_mul_mat_q4_k.h
             shaderop_mul_mat_q6_k.h
             shaderop_getrows_f32.h
             shaderop_getrows_f16.h
@@ -1260,8 +1266,13 @@ elseif (CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64" OR CMAKE_GENERATOR_PLATFORM_LW
     endif()
 elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "ppc64")
     message(STATUS "PowerPC detected")
-    if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "ppc64le")
-        list(APPEND ARCH_FLAGS -mcpu=powerpc64le)
+    execute_process(COMMAND bash -c "grep POWER10 /proc/cpuinfo | head -n 1"
+                   OUTPUT_VARIABLE POWER10_M)
+    string(FIND ${POWER10_M} "POWER10" substring_index)
+    if(${substring_index} GREATER_EQUAL 0)
+       list(APPEND ARCH_FLAGS -mcpu=power10)
+    elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "ppc64le")
+       list(APPEND ARCH_FLAGS -mcpu=powerpc64le)
     else()
         list(APPEND ARCH_FLAGS -mcpu=native -mtune=native)
         #TODO: Add  targets for Power8/Power9 (Altivec/VSX) and Power10(MMA) and query for big endian systems (ppc64/le/be)
@@ -1365,9 +1376,12 @@ endif()
 
 add_library(ggml
             ../include/ggml.h
+            ../include/ggml-cpu.h
             ../include/ggml-alloc.h
             ../include/ggml-backend.h
+            ../include/ggml-cpp.h
             ggml.c
+            ggml-cpu.c
             ggml-alloc.c
             ggml-backend.cpp
             ggml-quants.c
@@ -1392,7 +1406,7 @@ if (EMSCRIPTEN)
 endif()
 
 target_compile_definitions(ggml PUBLIC    ${GGML_CDEF_PUBLIC})
-target_include_directories(ggml PUBLIC  ../include)
+target_include_directories(ggml PUBLIC    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include> $<INSTALL_INTERFACE:include>)
 target_include_directories(ggml PRIVATE . ${GGML_EXTRA_INCLUDES})
 target_link_directories   (ggml PRIVATE   ${GGML_EXTRA_LIBDIRS})
 target_compile_features   (ggml PRIVATE c_std_11) # don't bump
@@ -1401,7 +1415,7 @@ list(APPEND GGML_EXTRA_LIBS_PRIVATE Threads::Threads)
 
 find_library(MATH_LIBRARY m)
 if (MATH_LIBRARY)
-    if (NOT WIN32 OR NOT GGML_SYCL)
+    if (NOT WIN32 OR NOT DEFINED ENV{ONEAPI_ROOT})
         list(APPEND GGML_EXTRA_LIBS_PRIVATE m)
     endif()
 endif()
