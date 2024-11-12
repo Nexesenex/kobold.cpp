@@ -7350,6 +7350,29 @@ static bool llm_load_tensors(
     const int n_layer     = hparams.n_layer;
     bool use_mmap_buffer = true;
 
+    // if (model.arch == LLM_ARCH_COMMAND_R) {
+        // model.buft_input = llama_default_buffer_type_offload(main_gpu);
+    // } else {
+        // model.buft_input = llama_default_buffer_type_cpu(model, true);
+    // } 
+
+    // there is very little benefit to offloading the input layer, so always keep it on the CPU
+    // model.buft_input = llama_default_buffer_type_cpu(model, true);
+    //model.buft_input = llama_default_buffer_type_offload(main_gpu);
+
+    // model.buft_layer.resize(n_layer);
+
+    // assign cpu layers
+    // for (int i = 0; i < i_gpu_start; ++i) {
+// #ifdef GGML_USE_AMX
+        // model.buft_layer[i] = {
+            // ggml_backend_amx_buffer_type(),
+            // llama_default_buffer_type_cpu(model, true)
+        // };
+// #else
+        // model.buft_layer[i] = llama_default_buffer_type_cpu(model, true);
+// #endif
+
     // build a list of buffer types for the CPU and GPU devices
     model.cpu_buft_list = make_cpu_buft_list(model);
     for (auto * dev : model.devices) {
