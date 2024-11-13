@@ -28,6 +28,7 @@ Finally, obtain and load a GGUF model. See [here](#Obtaining-a-GGUF-model)
 ## MacOS (Precompiled Binary)
 - PyInstaller binaries for Modern ARM64 MacOS (M1, M2, M3) are now available! **[Simply download the MacOS binary](https://github.com/LostRuins/koboldcpp/releases/latest)**
 - In a MacOS terminal window, set the file to executable `chmod +x koboldcpp-mac-arm64` and run it with `./koboldcpp-mac-arm64`.
+- In newer MacOS you may also have to whitelist it in security settings if it's blocked. [Here's a video guide](https://youtube.com/watch?v=NOW5dyA_JgY).
 - Alternatively, or for older x86 MacOS computers, you can clone the repo and compile from source code, see Compiling for MacOS below.
 - Finally, obtain and load a GGUF model. See [here](#Obtaining-a-GGUF-model)
 
@@ -120,7 +121,8 @@ when you can't use the precompiled binary directly, we provide an automated buil
 - GPU acceleration for Termux may be possible but I have not explored it. If you find a good cross-device solution, do share or PR it.
 
 ## AMD Users
-- Please check out https://github.com/YellowRoseCx/koboldcpp-rocm
+- For most users, you can get very decent speeds by selecting the **Vulkan** option instead, which supports both Nvidia and AMD GPUs.
+- Alternatively, you can try the ROCM fork at https://github.com/YellowRoseCx/koboldcpp-rocm
 
 ## Third Party Resources
 - These unofficial resources have been contributed by the community, and may be outdated or unmaintained. No official support will be provided for them!

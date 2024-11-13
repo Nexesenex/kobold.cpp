@@ -52,10 +52,10 @@ maxhordelen = 400
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.77071"
-LcppVersion = "b3989"
+KcppVersion = "1.78002"
+LcppVersion = "b405x"
 CudaSpecifics = "CuCML_ArCML_SMC2_DmmvX64Y1"
-ReleaseDate = "2024/11/01"
+ReleaseDate = "2024/11/13"
 showdebug = True
 guimode = False
 showsamplerwarning = True
@@ -218,6 +218,9 @@ class sd_load_model_inputs(ctypes.Structure):
                 ("threads", ctypes.c_int),
                 ("quant", ctypes.c_int),
                 ("taesd", ctypes.c_bool),
+                ("t5xxl_filename", ctypes.c_char_p),
+                ("clipl_filename", ctypes.c_char_p),
+                ("clipg_filename", ctypes.c_char_p),
                 ("vae_filename", ctypes.c_char_p),
                 ("lora_filename", ctypes.c_char_p),
                 ("lora_multiplier", ctypes.c_float),
@@ -1389,7 +1392,7 @@ def generate(genparams, is_quiet=False, stream_flag=False):
         return {"text":outstr,"status":ret.status,"stopreason":ret.stopreason,"prompt_tokens":ret.prompt_tokens, "completion_tokens": ret.completion_tokens}
 
 
-def sd_load_model(model_filename,vae_filename,lora_filename):
+def sd_load_model(model_filename,vae_filename,lora_filename,t5xxl_filename,clipl_filename,clipg_filename):
     global args
     inputs = sd_load_model_inputs()
     inputs.debugmode = args.debugmode
@@ -1411,6 +1414,9 @@ def sd_load_model(model_filename,vae_filename,lora_filename):
     inputs.vae_filename = vae_filename.encode("UTF-8")
     inputs.lora_filename = lora_filename.encode("UTF-8")
     inputs.lora_multiplier = args.sdloramult
+    inputs.t5xxl_filename = t5xxl_filename.encode("UTF-8")
+    inputs.clipl_filename = clipl_filename.encode("UTF-8")
+    inputs.clipg_filename = clipg_filename.encode("UTF-8")
     inputs = set_backend_props(inputs)
     ret = handle.sd_load_model(inputs)
     return ret
@@ -2189,6 +2195,9 @@ Enter Prompt:<br>
         elif self.path.endswith(('/api/tags')): #ollama compatible
             response_body = (json.dumps({"models":[{"name":"koboldcpp","model":friendlymodelname,"modified_at":"2024-07-19T15:26:55.6122841+08:00","size":394998579,"digest":"b5dc5e784f2a3ee1582373093acf69a2f4e2ac1710b253a001712b86a61f88bb","details":{"parent_model":"","format":"gguf","family":"koboldcpp","families":["koboldcpp"],"parameter_size":"128M","quantization_level":"Q4_0"}}]}).encode())
 
+        elif self.path.endswith(('/.well-known/serviceinfo')):
+            response_body = (json.dumps({"version":"0.2","software":{"name":"KoboldCpp","version":KcppVersion,"repository":"https://github.com/LostRuins/koboldcpp","homepage":"https://github.com/LostRuins/koboldcpp","logo":"https://raw.githubusercontent.com/LostRuins/koboldcpp/refs/heads/concedo/niko.ico"},"api":{"koboldai":{"name":"KoboldAI API","rel_url":"/api","documentation":"https://lite.koboldai.net/koboldcpp_api","version":KcppVersion},"openai":{"name":"OpenAI API","rel_url ":"/v1","documentation":"https://openai.com/documentation/api","version":KcppVersion}}}).encode())
+
         elif self.path=="/api" or self.path=="/docs" or self.path.startswith(('/api/?json=','/api?json=','/docs/?json=','/docs?json=')):
             content_type = 'text/html'
             if embedded_kcpp_docs is None:
@@ -2384,7 +2393,7 @@ Enter Prompt:<br>
                     self.send_response(503)
                     self.end_headers(content_type='application/json')
                     self.wfile.write(json.dumps({"detail": {
-                            "msg": "No LLaVA model loaded",
+                            "msg": "No Vision model loaded",
                             "type": "service_unavailable",
                         }}).encode())
                     return
@@ -2710,7 +2719,7 @@ def show_gui():
             gtooltip_box.withdraw()
             gtooltip_box.overrideredirect(True)
             gtooltip_label = ctk.CTkLabel(gtooltip_box, text=tooltip_text, text_color="#000000", fg_color="#ffffe0")
-            gtooltip_label.pack(expand=True, padx=2, pady=1)
+            gtooltip_label.pack(expand=True, ipadx=2, ipady=1)
         else:
             gtooltip_label.configure(text=tooltip_text)
 
@@ -2846,6 +2855,9 @@ def show_gui():
     sd_lora_var = ctk.StringVar()
     sd_loramult_var = ctk.StringVar(value="1.0")
     sd_vae_var = ctk.StringVar()
+    sd_t5xxl_var = ctk.StringVar()
+    sd_clipl_var = ctk.StringVar()
+    sd_clipg_var = ctk.StringVar()
     sd_vaeauto_var = ctk.IntVar(value=0)
     sd_clamped_var = ctk.StringVar(value="0")
     sd_threads_var = ctk.StringVar(value=str(default_threads))
@@ -2928,8 +2940,12 @@ def show_gui():
         entry = ctk.CTkEntry(parent, width, textvariable=var)
         button = ctk.CTkButton(parent, 50, text="Browse", command= lambda a=var,b=searchtext:getfilename(a,b))
         if singlerow:
-            entry.grid(row=row, column=1, padx=8, stick="w")
-            button.grid(row=row, column=1, padx=(width+12), stick="nw")
+            if singlecol:
+                entry.grid(row=row, column=0, padx=(84+8), stick="w")
+                button.grid(row=row, column=0, padx=(84+width+12), stick="nw")
+            else:
+                entry.grid(row=row, column=1, padx=8, stick="w")
+                button.grid(row=row, column=1, padx=(width+12), stick="nw")
         else:
             if singlecol:
                 entry.grid(row=row+1, column=0, columnspan=3, padx=8, stick="nw")
@@ -3322,7 +3338,7 @@ def show_gui():
     makefileentry(model_tab, "Model:", "Select GGUF or GGML Model File", model_var, 1,width=280, onchoosefile=on_picked_model_file, filetypes=[("GGML bin or GGUF", ("*.bin","*.gguf"))] ,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
     makefileentry(model_tab, "Lora:", "Select Lora File",lora_var, 3,width=280,tooltiptxt="Select an optional GGML LoRA adapter to use.\nLeave blank to skip.")
     makefileentry(model_tab, "Lora Base:", "Select Lora Base File", lora_base_var, 5,width=280,tooltiptxt="Select an optional F16 GGML LoRA base file to use.\nLeave blank to skip.")
-    makefileentry(model_tab, "LLaVA mmproj:", "Select LLaVA mmproj File", mmproj_var, 7,width=280,tooltiptxt="Select a mmproj file to use for LLaVA.\nLeave blank to skip.")
+    makefileentry(model_tab, "Vision mmproj:", "Select Vision mmproj File", mmproj_var, 7,width=280,tooltiptxt="Select a mmproj file to use for vision models like LLaVA.\nLeave blank to skip.")
     makefileentry(model_tab, "Preloaded Story:", "Select Preloaded Story File", preloadstory_var, 9,width=280,tooltiptxt="Select an optional KoboldAI JSON savefile \nto be served on launch to any client.")
     makefileentry(model_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 12, width=250, filetypes=[("JSON Adapter", "*.json")], tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
     def pickpremadetemplate():
@@ -3349,8 +3365,8 @@ def show_gui():
     makecheckbox(network_tab, "Quiet Mode", quietmode, 4,tooltiptxt="Prevents all generation related terminal output from being displayed.")
     makecheckbox(network_tab, "NoCertify Mode (Insecure)", nocertifymode, 4, 1,tooltiptxt="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.")
 
-    makefileentry(network_tab, "SSL Cert:", "Select SSL cert.pem file",ssl_cert_var, 5, width=200 ,filetypes=[("Unencrypted Certificate PEM", "*.pem")], singlerow=True,tooltiptxt="Select your unencrypted .pem SSL certificate file for https.\nCan be generated with OpenSSL.")
-    makefileentry(network_tab, "SSL Key:", "Select SSL key.pem file", ssl_key_var, 7, width=200, filetypes=[("Unencrypted Key PEM", "*.pem")], singlerow=True,tooltiptxt="Select your unencrypted .pem SSL key file for https.\nCan be generated with OpenSSL.")
+    makefileentry(network_tab, "SSL Cert:", "Select SSL cert.pem file",ssl_cert_var, 5, width=200 ,filetypes=[("Unencrypted Certificate PEM", "*.pem")], singlerow=True, singlecol=False,tooltiptxt="Select your unencrypted .pem SSL certificate file for https.\nCan be generated with OpenSSL.")
+    makefileentry(network_tab, "SSL Key:", "Select SSL key.pem file", ssl_key_var, 7, width=200, filetypes=[("Unencrypted Key PEM", "*.pem")], singlerow=True, singlecol=False, tooltiptxt="Select your unencrypted .pem SSL key file for https.\nCan be generated with OpenSSL.")
     makelabelentry(network_tab, "Password: ", password_var, 8, 200,tooltip="Enter a password required to use this instance.\nThis key will be required for all text endpoints.\nImage endpoints are not secured.")
 
     # Horde Tab
@@ -3384,13 +3400,13 @@ def show_gui():
     # Image Gen Tab
 
     images_tab = tabcontent["Image Gen"]
-    makefileentry(images_tab, "Stable Diffusion Model (safetensors/gguf):", "Select Stable Diffusion Model File", sd_model_var, 1, width=280, singlecol=False, filetypes=[("*.safetensors *.gguf","*.safetensors *.gguf")], tooltiptxt="Select a .safetensors or .gguf Stable Diffusion model file on disk to be loaded.")
-    makelabelentry(images_tab, "Clamped Mode (Limit Resolution)", sd_clamped_var, 4, 50,tooltip="Limit generation steps and resolution settings for shared use.\nSet to 0 to disable, otherwise value is the size limit (min 512px).")
-    makelabelentry(images_tab, "Image Threads:" , sd_threads_var, 6, 50,tooltip="How many threads to use during image generation.\nIf left blank, uses same value as threads.")
+    makefileentry(images_tab, "Stable Diffusion Model (safetensors/gguf):", "Select Stable Diffusion Model File", sd_model_var, 1, width=280, singlecol=True, filetypes=[("*.safetensors *.gguf","*.safetensors *.gguf")], tooltiptxt="Select a .safetensors or .gguf Stable Diffusion model file on disk to be loaded.")
+    makelabelentry(images_tab, "Clamped Mode (Limit Resolution):", sd_clamped_var, 4, 50, padx=290,singleline=True,tooltip="Limit generation steps and resolution settings for shared use.\nSet to 0 to disable, otherwise value is the size limit (min 512px).")
+    makelabelentry(images_tab, "Image Threads:" , sd_threads_var, 6, 50,padx=290,singleline=True,tooltip="How many threads to use during image generation.\nIf left blank, uses same value as threads.")
     sd_model_var.trace("w", gui_changed_modelfile)
 
-    sdloritem1,sdloritem2,sdloritem3 = makefileentry(images_tab, "Image LoRA (Must be non-quant):", "Select SD lora file",sd_lora_var, 10, width=280, singlecol=False, filetypes=[("*.safetensors *.gguf", "*.safetensors *.gguf")],tooltiptxt="Select a .safetensors or .gguf SD LoRA model file to be loaded.")
-    sdloritem4,sdloritem5 = makelabelentry(images_tab, "Image LoRA Multiplier:" , sd_loramult_var, 12, 50,tooltip="What mutiplier value to apply the SD LoRA with.")
+    sdloritem1,sdloritem2,sdloritem3 = makefileentry(images_tab, "Image LoRA (Must be non-quant):", "Select SD lora file",sd_lora_var, 10, width=280, singlecol=True, filetypes=[("*.safetensors *.gguf", "*.safetensors *.gguf")],tooltiptxt="Select a .safetensors or .gguf SD LoRA model file to be loaded.")
+    sdloritem4,sdloritem5 = makelabelentry(images_tab, "Image LoRA Multiplier:" , sd_loramult_var, 12, 50,padx=290,singleline=True,tooltip="What mutiplier value to apply the SD LoRA with.")
     def togglesdquant(a,b,c):
         if sd_quant_var.get()==1:
             sdloritem1.grid_remove()
@@ -3399,25 +3415,31 @@ def show_gui():
             sdloritem4.grid_remove()
             sdloritem5.grid_remove()
         else:
-            sdloritem1.grid()
-            sdloritem2.grid()
-            sdloritem3.grid()
-            sdloritem4.grid()
-            sdloritem5.grid()
+            if not sdloritem1.grid_info() or not sdloritem2.grid_info() or not sdloritem3.grid_info() or not sdloritem4.grid_info() or not sdloritem5.grid_info():
+                sdloritem1.grid()
+                sdloritem2.grid()
+                sdloritem3.grid()
+                sdloritem4.grid()
+                sdloritem5.grid()
     makecheckbox(images_tab, "Compress Weights (Saves Memory)", sd_quant_var, 8,command=togglesdquant,tooltiptxt="Quantizes the SD model weights to save memory. May degrade quality.")
     sd_quant_var.trace("w", changed_gpulayers_estimate)
 
-    sdvaeitem1,sdvaeitem2,sdvaeitem3 = makefileentry(images_tab, "Image VAE:", "Select SD VAE file",sd_vae_var, 14, width=280, singlecol=False, filetypes=[("*.safetensors *.gguf", "*.safetensors *.gguf")],tooltiptxt="Select a .safetensors or .gguf SD VAE file to be loaded.")
+    makefileentry(images_tab, "T5-XXL File:", "Select Optional T5-XXL model file (SD3 or flux)",sd_t5xxl_var, 14, width=280, singlerow=True, filetypes=[("*.safetensors", "*.safetensors")],tooltiptxt="Select a .safetensors t5xxl file to be loaded.")
+    makefileentry(images_tab, "Clip-L File:", "Select Optional Clip-L model file (SD3 or flux)",sd_clipl_var, 16, width=280, singlerow=True, filetypes=[("*.safetensors", "*.safetensors")],tooltiptxt="Select a .safetensors t5xxl file to be loaded.")
+    makefileentry(images_tab, "Clip-G File:", "Select Optional Clip-G model file (SD3)",sd_clipg_var, 18, width=280, singlerow=True, filetypes=[("*.safetensors", "*.safetensors")],tooltiptxt="Select a .safetensors t5xxl file to be loaded.")
+
+    sdvaeitem1,sdvaeitem2,sdvaeitem3 = makefileentry(images_tab, "Image VAE:", "Select Optional SD VAE file",sd_vae_var, 20, width=280, singlerow=True, filetypes=[("*.safetensors *.gguf", "*.safetensors *.gguf")],tooltiptxt="Select a .safetensors or .gguf SD VAE file to be loaded.")
     def toggletaesd(a,b,c):
         if sd_vaeauto_var.get()==1:
             sdvaeitem1.grid_remove()
             sdvaeitem2.grid_remove()
             sdvaeitem3.grid_remove()
         else:
-            sdvaeitem1.grid()
-            sdvaeitem2.grid()
-            sdvaeitem3.grid()
-    makecheckbox(images_tab, "Use TAE SD (AutoFix Broken VAE)", sd_vaeauto_var, 16,command=toggletaesd,tooltiptxt="Replace VAE with TAESD. May fix bad VAE.")
+            if not sdvaeitem1.grid_info() or not sdvaeitem2.grid_info() or not sdvaeitem3.grid_info():
+                sdvaeitem1.grid()
+                sdvaeitem2.grid()
+                sdvaeitem3.grid()
+    makecheckbox(images_tab, "Use TAE SD (AutoFix Broken VAE)", sd_vaeauto_var, 22,command=toggletaesd,tooltiptxt="Replace VAE with TAESD. May fix bad VAE.")
 
     # audio tab
     audio_tab = tabcontent["Audio"]
@@ -3618,6 +3640,12 @@ def show_gui():
             args.sdvae = ""
             if sd_vae_var.get() != "":
                 args.sdvae = sd_vae_var.get()
+        if sd_t5xxl_var.get() != "":
+            args.sdt5xxl = sd_t5xxl_var.get()
+        if sd_clipl_var.get() != "":
+            args.sdclipl = sd_clipl_var.get()
+        if sd_clipg_var.get() != "":
+            args.sdclipg = sd_clipg_var.get()
         if sd_quant_var.get()==1:
             args.sdquant = True
             args.sdlora = ""
@@ -3776,6 +3804,9 @@ def show_gui():
         sd_threads_var.set(str(dict["sdthreads"]) if ("sdthreads" in dict and dict["sdthreads"]) else str(default_threads))
         sd_quant_var.set(1 if ("sdquant" in dict and dict["sdquant"]) else 0)
         sd_vae_var.set(dict["sdvae"] if ("sdvae" in dict and dict["sdvae"]) else "")
+        sd_t5xxl_var.set(dict["sdt5xxl"] if ("sdt5xxl" in dict and dict["sdt5xxl"]) else "")
+        sd_clipl_var.set(dict["sdclipl"] if ("sdclipl" in dict and dict["sdclipl"]) else "")
+        sd_clipg_var.set(dict["sdclipg"] if ("sdclipg" in dict and dict["sdclipg"]) else "")
         sd_vaeauto_var.set(1 if ("sdvaeauto" in dict and dict["sdvaeauto"]) else 0)
         sd_lora_var.set(dict["sdlora"] if ("sdlora" in dict and dict["sdlora"]) else "")
         sd_loramult_var.set(str(dict["sdloramult"]) if ("sdloramult" in dict and dict["sdloramult"]) else "1.0")
@@ -4342,7 +4373,7 @@ def sanitize_string(input_string):
     sanitized_string = re.sub( r'[^\w\d\.\-_]', '', input_string)
     return sanitized_string
 
-def download_model_from_url(url): #returns path to downloaded model when done
+def download_model_from_url_internal(url): #returns path to downloaded model when done
     import subprocess
     mdlfilename = os.path.basename(url)
     #check if file already exists
@@ -4358,6 +4389,19 @@ def download_model_from_url(url): #returns path to downloaded model when done
             subprocess.run(f"curl -fL {dl_url} -o {mdlfilename}", shell=True, capture_output=True, text=True, check=True, encoding='utf-8')
             print(f"Download {mdlfilename} completed.", flush=True)
             return mdlfilename
+    return None
+def download_model_from_url(url,permitted_types=[".gguf",".safetensors"]):
+    if url and url!="":
+        if url.endswith("?download=true"):
+            url = url.replace("?download=true","")
+        end_ext_ok = False
+        for t in permitted_types:
+            if url.endswith(t):
+                end_ext_ok = True
+                break
+        if ((url.startswith("http://") or url.startswith("https://")) and end_ext_ok):
+            dlfile = download_model_from_url_internal(url)
+            return dlfile
     return None
 
 def main(launch_args,start_server=True):
@@ -4386,10 +4430,8 @@ def main(launch_args,start_server=True):
 
     if args.config and len(args.config)==1:
         cfgname = args.config[0]
-        if cfgname.endswith("?download=true"):
-            cfgname = cfgname.replace("?download=true","")
-        if isinstance(cfgname, str) and (cfgname.startswith("http://") or cfgname.startswith("https://")) and (cfgname.endswith(".kcpps") or cfgname.endswith(".kcppt")):
-            dlfile = download_model_from_url(cfgname)
+        if isinstance(cfgname, str):
+            dlfile = download_model_from_url(cfgname,[".kcpps",".kcppt"])
             if dlfile:
                 cfgname = dlfile
         if isinstance(cfgname, str) and os.path.exists(cfgname):
@@ -4506,33 +4548,37 @@ def main(launch_args,start_server=True):
 
     # handle model downloads if needed
     if args.model_param and args.model_param!="":
-        if args.model_param.endswith("?download=true"):
-            args.model_param = args.model_param.replace("?download=true","")
-        if (args.model_param.startswith("http://") or args.model_param.startswith("https://")) and (args.model_param.endswith(".gguf") or args.model_param.endswith(".bin")):
-            dlfile = download_model_from_url(args.model_param)
-            if dlfile:
-                args.model_param = dlfile
+        dlfile = download_model_from_url(args.model_param,[".gguf",".bin"])
+        if dlfile:
+            args.model_param = dlfile
     if args.sdmodel and args.sdmodel!="":
-        if args.sdmodel.endswith("?download=true"):
-            args.sdmodel = args.sdmodel.replace("?download=true","")
-        if (args.sdmodel.startswith("http://") or args.sdmodel.startswith("https://")) and (args.sdmodel.endswith(".gguf") or args.sdmodel.endswith(".safetensors")):
-            dlfile = download_model_from_url(args.sdmodel)
-            if dlfile:
-                args.sdmodel = dlfile
+        dlfile = download_model_from_url(args.sdmodel,[".gguf",".safetensors"])
+        if dlfile:
+            args.sdmodel = dlfile
+    if args.sdt5xxl and args.sdt5xxl!="":
+        dlfile = download_model_from_url(args.sdt5xxl,[".safetensors"])
+        if dlfile:
+            args.sdt5xxl = dlfile
+    if args.sdclipl and args.sdclipl!="":
+        dlfile = download_model_from_url(args.sdclipl,[".safetensors"])
+        if dlfile:
+            args.sdclipl = dlfile
+    if args.sdclipg and args.sdclipg!="":
+        dlfile = download_model_from_url(args.sdclipg,[".safetensors"])
+        if dlfile:
+            args.sdclipg = dlfile
+    if args.sdvae and args.sdvae!="":
+        dlfile = download_model_from_url(args.sdvae,[".safetensors"])
+        if dlfile:
+            args.sdvae = dlfile
     if args.mmproj and args.mmproj!="":
-        if args.mmproj.endswith("?download=true"):
-            args.mmproj = args.mmproj.replace("?download=true","")
-        if (args.mmproj.startswith("http://") or args.mmproj.startswith("https://")) and (args.mmproj.endswith(".gguf")):
-            dlfile = download_model_from_url(args.mmproj)
-            if dlfile:
-                args.mmproj = dlfile
+        dlfile = download_model_from_url(args.mmproj,[".gguf"])
+        if dlfile:
+            args.mmproj = dlfile
     if args.whispermodel and args.whispermodel!="":
-        if args.whispermodel.endswith("?download=true"):
-            args.whispermodel = args.whispermodel.replace("?download=true","")
-        if (args.whispermodel.startswith("http://") or args.whispermodel.startswith("https://")) and (args.whispermodel.endswith(".gguf") or args.whispermodel.endswith(".bin")):
-            dlfile = download_model_from_url(args.whispermodel)
-            if dlfile:
-                args.whispermodel = dlfile
+        dlfile = download_model_from_url(args.whispermodel,[".gguf",".bin"])
+        if dlfile:
+            args.whispermodel = dlfile
 
     # sanitize and replace the default vanity name. remember me....
     if args.model_param and args.model_param!="":
@@ -4697,6 +4743,9 @@ def main(launch_args,start_server=True):
         else:
             imglora = ""
             imgvae = ""
+            imgt5xxl = ""
+            imgclipl = ""
+            imgclipg = ""
             if args.sdlora:
                 if os.path.exists(args.sdlora):
                     imglora = os.path.abspath(args.sdlora)
@@ -4707,13 +4756,28 @@ def main(launch_args,start_server=True):
                     imgvae = os.path.abspath(args.sdvae)
                 else:
                     print(f"Missing SD VAE model file...")
+            if args.sdt5xxl:
+                if os.path.exists(args.sdt5xxl):
+                    imgt5xxl = os.path.abspath(args.sdt5xxl)
+                else:
+                    print(f"Missing SD T5-XXL model file...")
+            if args.sdclipl:
+                if os.path.exists(args.sdclipl):
+                    imgclipl = os.path.abspath(args.sdclipl)
+                else:
+                    print(f"Missing SD Clip-L model file...")
+            if args.sdclipg:
+                if os.path.exists(args.sdclipg):
+                    imgclipg = os.path.abspath(args.sdclipg)
+                else:
+                    print(f"Missing SD Clip-G model file...")
 
             imgmodel = os.path.abspath(imgmodel)
             fullsdmodelpath = imgmodel
             friendlysdmodelname = os.path.basename(imgmodel)
             friendlysdmodelname = os.path.splitext(friendlysdmodelname)[0]
             friendlysdmodelname = sanitize_string(friendlysdmodelname)
-            loadok = sd_load_model(imgmodel,imgvae,imglora)
+            loadok = sd_load_model(imgmodel,imgvae,imglora,imgt5xxl,imgclipl,imgclipg)
             print("Load Image Model OK: " + str(loadok))
             if not loadok:
                 exitcounter = 999
@@ -5053,7 +5117,7 @@ if __name__ == '__main__':
     advparser.add_argument("--quiet", help="Enable quiet mode, which hides generation inputs and outputs in the terminal. Quiet mode is automatically enabled when running a horde worker.", action='store_true')
     advparser.add_argument("--ssl", help="Allows all content to be served over SSL instead. A valid UNENCRYPTED SSL cert and key .pem files must be provided", metavar=('[cert_pem]', '[key_pem]'), nargs='+')
     advparser.add_argument("--nocertify", help="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.", action='store_true')
-    advparser.add_argument("--mmproj", help="Select a multimodal projector file for LLaVA.", default="")
+    advparser.add_argument("--mmproj", help="Select a multimodal projector file for vision models like LLaVA.", default="")
     advparser.add_argument("--password", help="Enter a password required to use this instance. This key will be required for all text endpoints. Image endpoints are not secured.", default=None)
     advparser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
     advparser.add_argument("--chatcompletionsadapter", help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="")
@@ -5082,6 +5146,9 @@ if __name__ == '__main__':
     sdparsergroup.add_argument("--sdmodel", metavar=('[filename]'), help="Specify a stable diffusion safetensors or gguf model to enable image generation.", default="")
     sdparsergroup.add_argument("--sdthreads", metavar=('[threads]'), help="Use a different number of threads for image generation if specified. Otherwise, has the same value as --threads.", type=int, default=0)
     sdparsergroup.add_argument("--sdclamped", help="If specified, limit generation steps and resolution settings for shared use. Accepts an extra optional parameter that indicates maximum resolution (eg. 768 clamps to 768x768, min 512px, disabled if 0).", nargs='?', const=512, type=int, default=0)
+    sdparsergroup.add_argument("--sdt5xxl", metavar=('[filename]'), help="Specify a T5-XXL safetensors model for use in SD3 or Flux. Leave blank if prebaked or unused.", default="")
+    sdparsergroup.add_argument("--sdclipl", metavar=('[filename]'), help="Specify a Clip-L safetensors model for use in SD3 or Flux. Leave blank if prebaked or unused.", default="")
+    sdparsergroup.add_argument("--sdclipg", metavar=('[filename]'), help="Specify a Clip-G safetensors model for use in SD3. Leave blank if prebaked or unused.", default="")
     sdparsergroupvae = sdparsergroup.add_mutually_exclusive_group()
     sdparsergroupvae.add_argument("--sdvae", metavar=('[filename]'), help="Specify a stable diffusion safetensors VAE which replaces the one in the model.", default="")
     sdparsergroupvae.add_argument("--sdvaeauto", help="Uses a built-in VAE via TAE SD, which is very fast, and fixed bad VAEs.", action='store_true')

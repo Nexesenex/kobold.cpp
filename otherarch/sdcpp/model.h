@@ -149,6 +149,7 @@ protected:
 
 public:
     bool init_from_file(const std::string& file_path, const std::string& prefix = "");
+    bool has_diffusion_model_tensors();
     SDVersion get_sd_version();
     ggml_type get_sd_wtype();
     ggml_type get_conditioner_wtype();

@@ -220,8 +220,10 @@ void ggml_log_callback_default(enum ggml_log_level level, const char * text, voi
 
 
 void * ggml_aligned_malloc(size_t size) {
+    const int alignment = 64;
+
 #if defined(_MSC_VER) || defined(__MINGW32__)
-    return _aligned_malloc(size, TENSOR_ALIGNMENT);
+    return _aligned_malloc(size, alignment);
 #else
     if (size == 0) {
         GGML_LOG_WARN("Behavior may be unexpected when allocating 0 bytes for ggml_aligned_malloc!\n");
@@ -229,8 +231,9 @@ void * ggml_aligned_malloc(size_t size) {
     }
     void * aligned_memory = NULL;
   #ifdef GGML_USE_CPU_HBM
-    int result = hbw_posix_memalign(&aligned_memory, TENSOR_ALIGNMENT, size);
+    int result = hbw_posix_memalign(&aligned_memory, alignment, size);
   #elif TARGET_OS_OSX
+    GGML_UNUSED(alignment);
     kern_return_t alloc_status = vm_allocate((vm_map_t) mach_task_self(), (vm_address_t *) &aligned_memory, size, VM_FLAGS_ANYWHERE);
     int result = EFAULT;
     switch (alloc_status) {
@@ -248,7 +251,7 @@ void * ggml_aligned_malloc(size_t size) {
             break;
     }
   #else
-    int result = posix_memalign(&aligned_memory, TENSOR_ALIGNMENT, size);
+    int result = posix_memalign(&aligned_memory, alignment, size);
   #endif
     if (result != 0) {
         // Handle allocation failure
@@ -392,6 +395,8 @@ void ggml_bf16_to_fp32_row(const ggml_bf16_t * x, float * y, int64_t n) {
                                     16)));
         }
     }
+#endif
+#if defined(__AVX2__)
     if (ggml_cpu_has_avx2()) {
         for (; i + 8 <= n; i += 8) {
             _mm256_storeu_ps(y + i,
@@ -980,7 +985,7 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
     "WIN_UNPART",
     "GET_REL_POS",
     "ADD_REL_POS",
-    "RWKV_WKV",
+    "RWKV_WKV6",
 
     "UNARY",
 
@@ -1076,7 +1081,7 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "win_unpart(x)",
     "get_rel_pos(x)",
     "add_rel_pos(x)",
-    "rwkv_wkv(k, v, r, tf, td, s)",
+    "rwkv_wkv6(k, v, r, tf, td, s)",
 
     "unary(x)",
 
@@ -1420,11 +1425,11 @@ static inline bool ggml_can_repeat_rows(const struct ggml_tensor * t0, const str
 ////////////////////////////////////////////////////////////////////////////////
 
 struct ggml_context * ggml_init(struct ggml_init_params params) {
-    static bool is_first_call = false;
+    static bool is_first_call = true;
 
     ggml_critical_section_start();
 
-    if (!is_first_call) {
+    if (is_first_call) {
         // initialize time system (required on Windows)
         ggml_time_init();
 
@@ -1435,7 +1440,8 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
             } u = {i};
             ggml_table_f32_f16[i] = GGML_COMPUTE_FP16_TO_FP32(u.fp16);
         }
-        is_first_call = true;
+
+        is_first_call = false;
     }
 
     ggml_critical_section_end();
@@ -4291,6 +4297,15 @@ void ggml_flash_attn_ext_set_prec(
     ggml_set_op_params_i32(a, 3, prec_i32); // scale is on first pos, max_bias on second
 }
 
+enum ggml_prec ggml_flash_attn_ext_get_prec(
+        const struct ggml_tensor * a) {
+    GGML_ASSERT(a->op == GGML_OP_FLASH_ATTN_EXT);
+
+    const int32_t prec_i32 = ggml_get_op_params_i32(a, 3);
+
+    return (enum ggml_prec) prec_i32;
+}
+
 // ggml_flash_attn_back
 
 struct ggml_tensor * ggml_flash_attn_back(
@@ -4566,9 +4581,9 @@ struct ggml_tensor * ggml_add_rel_pos_inplace(
     return ggml_add_rel_pos_impl(ctx, a, pw, ph, true);
 }
 
-// ggml_rwkv_wkv
+// ggml_rwkv_wkv6
 
-struct ggml_tensor * ggml_rwkv_wkv(
+struct ggml_tensor * ggml_rwkv_wkv6(
         struct ggml_context * ctx,
         struct ggml_tensor  * k,
         struct ggml_tensor  * v,
@@ -4600,7 +4615,7 @@ struct ggml_tensor * ggml_rwkv_wkv(
     const int64_t ne[4] = { S * H, n_tokens + S * n_seqs, 1, 1 };
     struct ggml_tensor * result = ggml_new_tensor(ctx, GGML_TYPE_F32, 4, ne);
 
-    result->op     = GGML_OP_RWKV_WKV;
+    result->op     = GGML_OP_RWKV_WKV6;
     result->src[0] = k;
     result->src[1] = v;
     result->src[2] = r;
@@ -6152,7 +6167,7 @@ static void ggml_compute_backward(struct ggml_context * ctx, struct ggml_tensor 
             } break;
         case GGML_OP_GET_REL_POS:
         case GGML_OP_ADD_REL_POS:
-        case GGML_OP_RWKV_WKV:
+        case GGML_OP_RWKV_WKV6:
         case GGML_OP_MAP_UNARY:
         case GGML_OP_MAP_BINARY:
         case GGML_OP_MAP_CUSTOM1_F32:

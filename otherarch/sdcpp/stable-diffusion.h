@@ -93,6 +93,8 @@ enum sd_type_t {
     SD_TYPE_Q4_0_4_4 = 31,
     SD_TYPE_Q4_0_4_8 = 32,
     SD_TYPE_Q4_0_8_8 = 33,
+    SD_TYPE_TQ1_0   = 34,
+    SD_TYPE_TQ2_0   = 35,
     SD_TYPE_COUNT,
 };
 
@@ -121,6 +123,9 @@ typedef struct {
 } sd_image_t;
 
 typedef struct sd_ctx_t sd_ctx_t;
+
+SD_API void set_sd_vae_tiling(sd_ctx_t* ctx, bool tiling);
+SD_API int get_loaded_sd_version(sd_ctx_t* ctx);
 
 SD_API sd_ctx_t* new_sd_ctx(const char* model_path,
                             const char* clip_l_path,

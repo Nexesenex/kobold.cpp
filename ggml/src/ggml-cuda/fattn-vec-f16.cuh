@@ -315,7 +315,7 @@ void ggml_cuda_flash_attn_ext_vec_f16_case(ggml_backend_cuda_context & ctx, ggml
     const ggml_tensor * V   = dst->src[2];
 
     const int32_t precision = KQV->op_params[3];
-    GGML_ASSERT(precision == GGML_PREC_DEFAULT);
+    // GGML_ASSERT_CONTINUE(precision == GGML_PREC_DEFAULT);
 
     GGML_ASSERT(K->type == type_K);
     GGML_ASSERT(V->type == type_V);

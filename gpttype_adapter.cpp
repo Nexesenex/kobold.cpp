@@ -607,13 +607,21 @@ llama_token sample_token(llama_token_data_array * candidates, std::mt19937 & rng
     int idx = dist(rng);
 
     newpick.selected_token = FileFormatTokenizeID(candidates->data[idx].id, file_format, true);
-    newpick.selected_logprob = logf(candidates->data[idx].p);
+    float rp1 = (candidates->data[idx].p<=0.0001?0.0001f:candidates->data[idx].p);
+    float sprob = logf(rp1);
+    sprob = (sprob > 999.0f?999.0f:sprob);
+    sprob = (sprob < -999.0f?-999.0f:sprob);
+    newpick.selected_logprob = sprob;
     newpick.selected_probability = candidates->data[idx].p;
     newpick.selected_tokenid = candidates->data[idx].id;
     for (size_t i = 0; (i < candidates->size && i<logprobs_max); ++i)
     {
         newpick.tokens.push_back(FileFormatTokenizeID(candidates->data[i].id, file_format, true));
-        newpick.logprobs.push_back(logf(candidates->data[i].p));
+        float rp2 = (candidates->data[i].p<=0.0001?0.0001f:candidates->data[i].p);
+        float prob = logf(rp2);
+        prob = (prob > 999.0f?999.0f:prob);
+        prob = (prob < -999.0f?-999.0f:prob);
+        newpick.logprobs.push_back(prob);
         newpick.p.push_back(candidates->data[i].p);
         newpick.tokenid.push_back(candidates->data[i].id);
     }
@@ -741,9 +749,22 @@ void sample_xtc(llama_token_data_array * candidates, float xtc_threshold, float 
 
     if(last_idx>1) //if there are 2 or more viable candidates
     {
+        if (debugmode==1) {
+            printf("XTC penalties [");
+        }
         // then remove all other tokens above threshold EXCEPT the least likely one
         for (size_t i = 0; i < last_idx - 1; ++i) {
+            if (debugmode==1)
+            {
+                gpt_vocab::id token = candidates->data[i].id;
+                std::string tokenizedstr = FileFormatTokenizeID(token, file_format);
+                ::utreplace(tokenizedstr, "\n", "\\n");
+                printf("%s(%s %.02f%%)", i == 0 ? "" : " ", RemoveBell(tokenizedstr).c_str(), 100.f * candidates->data[i].p);
+            }
             candidates->data[i].logit -= 999.0f; //infinity gets wonky results downstream, this hack works well enough
+        }
+        if (debugmode==1) {
+            printf("]\n");
         }
         candidates->sorted = false;
 

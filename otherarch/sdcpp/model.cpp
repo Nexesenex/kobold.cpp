@@ -14,6 +14,7 @@
 #include "ggml-alloc.h"
 #include "ggml-backend.h"
 #include "ggml.h"
+#include "ggml-cpu.h"
 
 #include "stable-diffusion.h"
 
@@ -1363,6 +1364,16 @@ bool ModelLoader::init_from_ckpt_file(const std::string& file_path, const std::s
     }
     zip_close(zip);
     return true;
+}
+
+bool ModelLoader::has_diffusion_model_tensors()
+{
+    for (auto& tensor_storage : tensor_storages) {
+        if (tensor_storage.name.find("model.diffusion_model.") != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
 }
 
 SDVersion ModelLoader::get_sd_version() {
