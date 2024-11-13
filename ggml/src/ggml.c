@@ -1,12 +1,28 @@
 #define _CRT_SECURE_NO_DEPRECATE // Disables "unsafe" warnings on Windows
 #define _USE_MATH_DEFINES // For M_PI on MSVC
 
+#if GGML_USE_IQK_MULMAT
+#include "ggml-backend.h"
+#include "ggml-impl_ik.h"
+#include "ggml-quants_ik.h"
+#include "ggml_ik.h"
+#include "ggml-aarch64.h"
+#include "iqk/iqk_mul_mat.h"
+#elif GGML_USE_LLAMA_CPP_MAINLINE
 #include "ggml-backend.h"
 #include "ggml-impl.h"
 #include "ggml-cpu-impl.h"
 #include "ggml-quants.h"
 #include "ggml.h"
 #include "ggml-aarch64.h"
+#else
+#include "ggml-backend.h"
+#include "ggml-impl.h"
+#include "ggml-cpu-impl.h"
+#include "ggml-quants.h"
+#include "ggml.h"
+#include "ggml-aarch64.h"
+#endif
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <malloc.h> // using malloc.h with MSC/MINGW

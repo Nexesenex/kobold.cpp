@@ -68,6 +68,9 @@ set(GGML_SCHED_MAX_COPIES   "1" CACHE STRING "llama: max input copies for pipeli
 set(LLAMA_SCHED_MAX_COPIES  "1" CACHE STRING "llama: max input copies for pipeline parallelism")
 option(LLAMA_CUDA_ENABLE_UNIFIED_MEMORY      "llama: enable to avoid OOM in Full Offload"       OFF)
 
+option(GGML_IQK_MUL_MAT                     "ggml: use optimized iqk matrix multiplications"    OFF)
+option(GGML_USE_LLAMA_CPP_MAINLINE          "ggml: use Llama CPP mainline MatMul           "    ON)
+
 #
 # Compile flags
 #
@@ -89,6 +92,14 @@ set(GGML_V3_CUDA_SOURCES otherarch/ggml_v3-cuda.cu otherarch/ggml_v3-cuda.h)
 set(GGML_V2_CUDA_SOURCES otherarch/ggml_v2-cuda.cu otherarch/ggml_v2-cuda.h)
 set(GGML_V2_LEGACY_CUDA_SOURCES otherarch/ggml_v2-cuda-legacy.cu otherarch/ggml_v2-cuda-legacy.h)
 
+
+# Croco.Cpp with IK MM
+if (GGML_IQK_MUL_MAT)
+    message(STATUS "Using optimized iqk matrix multiplications")
+    add_compile_definitions(GGML_USE_IQK_MULMAT)
+    set(GGML_SOURCES_IQK_MM iqk/iqk_mul_mat.cpp)
+    set(GGML_HEADERS_IQK_MM iqk/iqk_mul_mat.h)
+endif()
 
 if (LLAMA_CUBLAS)
     cmake_minimum_required(VERSION 3.17)
@@ -648,28 +659,80 @@ endif()
 # Build libraries
 #
 
-add_library(ggml
-            ggml/src/ggml.c
-            ggml/include/ggml.h
-            ggml/src/ggml-cpu.c
-            ggml/include/ggml-cpu.h
-            ggml/src/ggml-alloc.c
-            ggml/include/ggml-alloc.h
-            ggml/src/ggml-backend.cpp
-            ggml/src/ggml-backend-impl.h
-            ggml/include/ggml-backend.h
-            ggml/include/ggml-cpp.h
-            ggml/src/ggml-quants.c
-            ggml/src/ggml-quants.h
-            ggml/src/llamafile/sgemm.cpp
-            ggml/src/llamafile/sgemm.h
-            ggml/src/ggml-aarch64.c
-            ggml/src/ggml-aarch64.h
-            ${GGML_SOURCES_CUDA})
-target_include_directories(ggml PUBLIC . ./ggml/include ./ggml/src ./include ./otherarch ./otherarch/tools)
-target_compile_features(ggml PUBLIC c_std_11) # don't bump
-target_link_libraries(ggml PUBLIC Threads::Threads ${LLAMA_EXTRA_LIBS})
-set_target_properties(ggml PROPERTIES POSITION_INDEPENDENT_CODE ON)
+if (GGML_IQK_MUL_MAT)
+	add_library(ggml
+				ggml/src/ggml.c
+				ggml/include/ggml_ik.h
+				ggml/src/ggml-cpu.c
+				ggml/include/ggml-cpu.h
+				ggml/src/iqk/iqk_mul_mat.cpp
+				ggml/src/iqk/iqk_mul_mat.h
+				ggml/src/ggml-alloc.c
+				ggml/include/ggml-alloc.h
+				ggml/src/ggml-backend.cpp
+				ggml/src/ggml-backend-impl.h
+				ggml/include/ggml-backend.h
+				ggml/include/ggml-cpp.h
+				ggml/src/ggml-quants_ik.c
+				ggml/src/ggml-quants_ik.h
+				ggml/src/llamafile/sgemm.cpp
+				ggml/src/llamafile/sgemm.h
+				ggml/src/ggml-aarch64.c
+				ggml/src/ggml-aarch64.h
+				${GGML_SOURCES_CUDA})
+	target_include_directories(ggml PUBLIC . ./ggml/include ./ggml/src ./include ./otherarch ./otherarch/tools)
+	target_compile_features(ggml PUBLIC c_std_11) # don't bump
+	target_link_libraries(ggml PUBLIC Threads::Threads ${LLAMA_EXTRA_LIBS})
+	set_target_properties(ggml PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    add_compile_definitions(GGML_USE_IQK_MULMAT)
+elseif (GGML_USE_LLAMA_CPP_MAINLINE)
+	add_library(ggml
+				ggml/src/ggml.c
+				ggml/include/ggml.h
+				ggml/src/ggml-cpu.c
+				ggml/include/ggml-cpu.h
+				ggml/src/ggml-alloc.c
+				ggml/include/ggml-alloc.h
+				ggml/src/ggml-backend.cpp
+				ggml/src/ggml-backend-impl.h
+				ggml/include/ggml-backend.h
+				ggml/include/ggml-cpp.h
+				ggml/src/ggml-quants.c
+				ggml/src/ggml-quants.h
+				ggml/src/llamafile/sgemm.cpp
+				ggml/src/llamafile/sgemm.h
+				ggml/src/ggml-aarch64.c
+				ggml/src/ggml-aarch64.h
+				${GGML_SOURCES_CUDA})
+	target_include_directories(ggml PUBLIC . ./ggml/include ./ggml/src ./include ./otherarch ./otherarch/tools)
+	target_compile_features(ggml PUBLIC c_std_11) # don't bump
+	target_link_libraries(ggml PUBLIC Threads::Threads ${LLAMA_EXTRA_LIBS})
+	set_target_properties(ggml PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    add_compile_definitions(GGML_USE_LLAMA_CPP_MAINLINE)
+else ()
+	add_library(ggml
+				ggml/src/ggml.c
+				ggml/include/ggml.h
+				ggml/src/ggml-cpu.c
+				ggml/include/ggml-cpu.h
+				ggml/src/ggml-alloc.c
+				ggml/include/ggml-alloc.h
+				ggml/src/ggml-backend.cpp
+				ggml/src/ggml-backend-impl.h
+				ggml/include/ggml-backend.h
+				ggml/include/ggml-cpp.h
+				ggml/src/ggml-quants.c
+				ggml/src/ggml-quants.h
+				ggml/src/llamafile/sgemm.cpp
+				ggml/src/llamafile/sgemm.h
+				ggml/src/ggml-aarch64.c
+				ggml/src/ggml-aarch64.h
+				${GGML_SOURCES_CUDA})
+	target_include_directories(ggml PUBLIC . ./ggml/include ./ggml/src ./include ./otherarch ./otherarch/tools)
+	target_compile_features(ggml PUBLIC c_std_11) # don't bump
+	target_link_libraries(ggml PUBLIC Threads::Threads ${LLAMA_EXTRA_LIBS})
+	set_target_properties(ggml PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()
 
 add_library(ggml_v1
             otherarch/ggml_v1.c
