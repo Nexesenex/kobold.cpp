@@ -3040,6 +3040,7 @@ kernel void kernel_flash_attn_ext(
                 half smax = -INFINITY;
 
                 // load the mask in shared memory
+                #pragma unroll(Q)
                 for (short j = 0; j < Q; ++j) {
                     device const half * pm = (device const half *) ((device const char *) mask + (iq1 + j)*nb31);
 
@@ -3066,7 +3067,7 @@ kernel void kernel_flash_attn_ext(
                         // we can read directly from global memory
                         device const k_t * pk = (device const k_t *) ((device const char *) k + ((ic + 8*cc)*nb_12_1 + ikv2*nb_12_2 + ikv3*nb_12_3));
 
-#pragma unroll
+                        #pragma unroll(D8)
                         for (short i = 0; i < D8; ++i) {
                             k8x8_t mk;
                             simdgroup_load(mk, pk + i*8, nb_12_1/sizeof(k_t), 0, true); // transpose // TODO: use ne10
@@ -3087,7 +3088,7 @@ kernel void kernel_flash_attn_ext(
 
                                 simdgroup_barrier(mem_flags::mem_threadgroup);
 
-#pragma unroll
+                                #pragma unroll(4)
                                 for (short k = 0; k < 4; ++k) {
                                     k8x8_t mk;
 
@@ -3165,7 +3166,7 @@ kernel void kernel_flash_attn_ext(
                 s8x8_t mm;
                 simdgroup_load(mm, ss + 2*C, TS, 0, false);
 
-#pragma unroll
+                #pragma unroll(D8)
                 for (short i = 0; i < D8; ++i) {
                     simdgroup_multiply(lo[i], mm, lo[i]);
                 }
@@ -3180,7 +3181,8 @@ kernel void kernel_flash_attn_ext(
                     if (is_same<vd4x4_t, v4x4_t>::value) {
                         // we can read directly from global memory
                         device const v_t * pv = (device const v_t *) ((device const char *) v + ((ic + 8*cc)*nb_12_1 + ikv2*nb_12_2 + ikv3*nb_12_3));
-#pragma unroll
+
+                        #pragma unroll(D8)
                         for (short i = 0; i < D8; ++i) {
                             v8x8_t mv;
                             simdgroup_load(mv, pv + i*8, nb_12_1/sizeof(v_t), 0, false); // TODO: use ne20
@@ -3201,7 +3203,7 @@ kernel void kernel_flash_attn_ext(
 
                                 simdgroup_barrier(mem_flags::mem_threadgroup);
 
-#pragma unroll
+                                #pragma unroll(4)
                                 for (short k = 0; k < 4; ++k) {
                                     v8x8_t mv;
 
@@ -3294,6 +3296,7 @@ kernel void kernel_flash_attn_ext(
                 simdgroup_load(ms0, ss + 2*C,         TS, 0, false);
                 simdgroup_load(ms1, ss + 2*C + sg*SH, TS, 0, false);
 
+                #pragma unroll(D8)
                 for (short i = 0; i < D8; ++i) {
                     o8x8_t t;
 
@@ -3454,8 +3457,8 @@ kernel void kernel_flash_attn_ext_vec(
     const short D4  = D/4;
     const short D16 = D/16;
     const short NW  = N_SIMDWIDTH;
-    const short NL  = NW/4;
-    const short SH  = 2*C; // shared memory per simdgroup
+    const short NL  = NW/4; // note: this can be adjusted to support D%64 == 0 and D%32 == 0
+    const short SH  = 2*C;  // shared memory per simdgroup
 
     const short T = D + nsg*SH; // shared memory size per query in (half)
 
@@ -3511,6 +3514,7 @@ kernel void kernel_flash_attn_ext_vec(
         // load the queries from shared memory into local memory
         q4x4_t mq[D16/NL];
 
+        #pragma unroll(D16/NL)
         for (short ii = 0; ii < D16; ii += NL) {
             mq[ii/NL] = sq4x4[ii + tx];
         }
@@ -3546,25 +3550,32 @@ kernel void kernel_flash_attn_ext_vec(
 
             // Q*K^T
             {
-                // each simdgroup processes 1 query and 4 keys
+                // each simdgroup processes 1 query and 4 (NW/NL) keys
                 for (short cc = 0; cc < C/4; ++cc) {
-                    qk_t mqk = 0.0;
+                    qk_t mqka[4] = { 0.0, 0.0, 0.0, 0.0 };
 
                     device const kd4x4_t * pk = (device const kd4x4_t *) ((device const char *) k + ((ic + 4*cc + ty)*nb_12_1 + ikv2*nb_12_2 + ikv3*nb_12_3));
 
-#pragma unroll
+                    #pragma unroll(D16/NL)
                     for (short ii = 0; ii < D16; ii += NL) {
                         const short i = ii + tx;
 
                         k4x4_t mk;
                         deq_k(pk + i/nl_k, i%nl_k, mk);
 
-                        mqk +=
-                            dot(mq[ii/NL][0], mk[0]) +
-                            dot(mq[ii/NL][1], mk[1]) +
-                            dot(mq[ii/NL][2], mk[2]) +
-                            dot(mq[ii/NL][3], mk[3]);
+                        // note: this is less precise than the version below
+                        //mqka[0] += dot(mq[ii/NL][0], mk[0]);
+                        //mqka[1] += dot(mq[ii/NL][1], mk[1]);
+                        //mqka[2] += dot(mq[ii/NL][2], mk[2]);
+                        //mqka[3] += dot(mq[ii/NL][3], mk[3]);
+
+                        mqka[0] += dot((float4) mq[ii/NL][0], (float4) mk[0]);
+                        mqka[1] += dot((float4) mq[ii/NL][1], (float4) mk[1]);
+                        mqka[2] += dot((float4) mq[ii/NL][2], (float4) mk[2]);
+                        mqka[3] += dot((float4) mq[ii/NL][3], (float4) mk[3]);
                     }
+
+                    qk_t mqk = mqka[0] + mqka[1] + mqka[2] + mqka[3];
 
                     // simdgroup reduce
                     // [ 0 ..  7] -> [ 0]
@@ -3610,7 +3621,7 @@ kernel void kernel_flash_attn_ext_vec(
                 ss[tiisg] = vs;
 
                 // O = diag(ms)*O
-#pragma unroll
+                #pragma unroll(D16/NL)
                 for (short ii = 0; ii < D16; ii += NL) {
                     lo[ii/NL] *= ms;
                 }
@@ -3620,13 +3631,12 @@ kernel void kernel_flash_attn_ext_vec(
 
             // O = O + (Q*K^T)*V
             {
-#pragma unroll
                 for (short cc = 0; cc < C/4; ++cc) {
                     device const vd4x4_t * pv4 = (device const vd4x4_t *) ((device const char *) v + ((ic + 4*cc + ty)*nb_12_1 + ikv2*nb_12_2 + ikv3*nb_12_3));
 
                     const s4x4_t ms(ss[4*cc + ty]);
 
-#pragma unroll
+                    #pragma unroll(D16/NL)
                     for (short ii = 0; ii < D16; ii += NL) {
                         const short i = ii + tx;
 
@@ -3743,7 +3753,7 @@ kernel void kernel_flash_attn_ext_vec(
     half,  half4,  half4x4, \
                    half4x4
 
-typedef decltype(kernel_flash_attn_ext_vec<FA_TYPES, half4x4, 1, dequantize_f16, half4x4, 1, dequantize_f16, 64>) flash_attn_ext_vec_t;
+typedef decltype(kernel_flash_attn_ext_vec<FA_TYPES, half4x4, 1, dequantize_f16, half4x4, 1, dequantize_f16, 128>) flash_attn_ext_vec_t;
 
 template [[host_name("kernel_flash_attn_ext_vec_f16_h128")]]  kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, half4x4,    1, dequantize_f16,  half4x4,     1, dequantize_f16,  128>;
 #if defined(GGML_METAL_USE_BF16)
@@ -6939,8 +6949,8 @@ kernel void kernel_mul_mm(device const  uchar * src0,
     const uint im = tgpig.z;
 
     // if this block is of 64x32 shape or smaller
-    short n_rows = (ne0 - r0 * BLOCK_SIZE_M < BLOCK_SIZE_M) ? (ne0 - r0 * BLOCK_SIZE_M) : BLOCK_SIZE_M;
-    short n_cols = (ne1 - r1 * BLOCK_SIZE_N < BLOCK_SIZE_N) ? (ne1 - r1 * BLOCK_SIZE_N) : BLOCK_SIZE_N;
+    short n_rows = (ne0 - r0*BLOCK_SIZE_M < BLOCK_SIZE_M) ? (ne0 - r0*BLOCK_SIZE_M) : BLOCK_SIZE_M;
+    short n_cols = (ne1 - r1*BLOCK_SIZE_N < BLOCK_SIZE_N) ? (ne1 - r1*BLOCK_SIZE_N) : BLOCK_SIZE_N;
 
     // a thread shouldn't load data outside of the matrix
     short thread_row = ((short)tiitg/THREAD_PER_ROW) < n_rows ? ((short)tiitg/THREAD_PER_ROW) : n_rows - 1;
@@ -6948,9 +6958,10 @@ kernel void kernel_mul_mm(device const  uchar * src0,
 
     simdgroup_T8x8     ma[4];
     simdgroup_float8x8 mb[2];
-    simdgroup_float8x8 c_res[8];
-    for (int i = 0; i < 8; i++){
-        c_res[i] = make_filled_simdgroup_matrix<float, 8>(0.f);
+    simdgroup_float8x8 mc[8];
+
+    for (short i = 0; i < 8; i++){
+        mc[i] = make_filled_simdgroup_matrix<float, 8>(0.f);
     }
 
     short il = (tiitg % THREAD_PER_ROW);
@@ -6961,7 +6972,7 @@ kernel void kernel_mul_mm(device const  uchar * src0,
     uint   offset0 = (i12/r2)*nb02 + (i13/r3)*nb03;
     ushort offset1 = il/nl;
 
-    device const block_q * x = (device const block_q *)(src0 + (r0 * BLOCK_SIZE_M + thread_row) * nb01 + offset0) + offset1;
+    device const block_q * x = (device const block_q *)(src0 + (r0*BLOCK_SIZE_M + thread_row)*nb01 + offset0) + offset1;
     device const float   * y = (device const float   *)(src1
         + nb13 * i13
         + nb12 * i12
@@ -6975,13 +6986,13 @@ kernel void kernel_mul_mm(device const  uchar * src0,
         threadgroup_barrier(mem_flags::mem_threadgroup);
 
         #pragma unroll(16)
-        for (int i = 0; i < 16; i++) {
-            *(sa + SG_MAT_SIZE * ((tiitg / THREAD_PER_ROW / 8) \
-            +                     (tiitg % THREAD_PER_ROW) * 16 + (i / 8) * 8) \
-            +                     (tiitg / THREAD_PER_ROW) % 8  + (i & 7) * 8) = temp_a[i/4][i%4];
+        for (short i = 0; i < 16; i++) {
+            *(sa + SG_MAT_SIZE * ((tiitg/THREAD_PER_ROW/8) \
+            +                     (tiitg%THREAD_PER_ROW)*16 + (i/8)*8) \
+            +                     (tiitg/THREAD_PER_ROW)%8  + (i&7)*8) = temp_a[i/4][i%4];
         }
 
-        *(threadgroup float2x4 *)(sb + (tiitg % THREAD_PER_COL) * 8 * 32 + 8 * (tiitg / THREAD_PER_COL)) = *((device float2x4 *)y);
+        *(threadgroup float2x4 *)(sb + (tiitg % THREAD_PER_COL)*8*32 + 8*(tiitg/THREAD_PER_COL)) = *((device float2x4 *) y);
 
         il = (il + 2 < nl) ? il + 2 : il % 2;
         x  = (il < 2) ? x + (2+nl-1)/nl : x;
@@ -6990,27 +7001,27 @@ kernel void kernel_mul_mm(device const  uchar * src0,
         threadgroup_barrier(mem_flags::mem_threadgroup);
 
         // load matrices from threadgroup memory and conduct outer products
-        threadgroup T     * lsma = (sa + THREAD_MAT_M * SG_MAT_SIZE * (sgitg % 2));
-        threadgroup float * lsmb = (sb + THREAD_MAT_N * SG_MAT_SIZE * (sgitg / 2));
+        threadgroup T     * lsma = (sa + THREAD_MAT_M*SG_MAT_SIZE*(sgitg%2));
+        threadgroup float * lsmb = (sb + THREAD_MAT_N*SG_MAT_SIZE*(sgitg/2));
 
         #pragma unroll(4)
-        for (int ik = 0; ik < BLOCK_SIZE_K / 8; ik++) {
+        for (short ik = 0; ik < BLOCK_SIZE_K / 8; ik++) {
             #pragma unroll(4)
-            for (int i = 0; i < 4; i++) {
-                simdgroup_load(ma[i],lsma + SG_MAT_SIZE * i);
+            for (short i = 0; i < 4; i++) {
+                simdgroup_load(ma[i], lsma + SG_MAT_SIZE * i);
             }
             simdgroup_barrier(mem_flags::mem_none);
             #pragma unroll(2)
-            for (int i = 0; i < 2; i++) {
-                simdgroup_load(mb[i],lsmb + SG_MAT_SIZE * i);
+            for (short i = 0; i < 2; i++) {
+                simdgroup_load(mb[i], lsmb + SG_MAT_SIZE * i);
             }
 
-            lsma += BLOCK_SIZE_M / SG_MAT_ROW * SG_MAT_SIZE;
-            lsmb += BLOCK_SIZE_N / SG_MAT_ROW * SG_MAT_SIZE;
+            lsma += BLOCK_SIZE_M/SG_MAT_ROW * SG_MAT_SIZE;
+            lsmb += BLOCK_SIZE_N/SG_MAT_ROW * SG_MAT_SIZE;
 
             #pragma unroll(8)
-            for (int i = 0; i < 8; i++){
-                simdgroup_multiply_accumulate(c_res[i], mb[i/4], ma[i%4], c_res[i]);
+            for (short i = 0; i < 8; i++){
+                simdgroup_multiply_accumulate(mc[i], mb[i/4], ma[i%4], mc[i]);
             }
         }
     }
@@ -7018,25 +7029,36 @@ kernel void kernel_mul_mm(device const  uchar * src0,
     if ((r0 + 1) * BLOCK_SIZE_M <= ne0 && (r1 + 1) * BLOCK_SIZE_N <= ne1) {
         device float * C = dst + (BLOCK_SIZE_M * r0 + 32 * (sgitg &  1)) \
                                + (BLOCK_SIZE_N * r1 + 16 * (sgitg >> 1)) * ne0 + im*ne1*ne0;
-        for (int i = 0; i < 8; i++) {
-            simdgroup_store(c_res[i], C + 8 * (i%4) + 8 * ne0 * (i/4), ne0);
+        for (short i = 0; i < 8; i++) {
+            simdgroup_store(mc[i], C + 8 * (i%4) + 8 * ne0 * (i/4), ne0);
         }
     } else {
         // block is smaller than 64x32, we should avoid writing data outside of the matrix
         threadgroup_barrier(mem_flags::mem_threadgroup);
-        threadgroup float * temp_str = ((threadgroup float *)shared_memory) \
-                                      + 32 * (sgitg&1) + (16 * (sgitg>>1)) * BLOCK_SIZE_M;
-        for (int i = 0; i < 8; i++) {
-            simdgroup_store(c_res[i], temp_str + 8 * (i%4) + 8 * BLOCK_SIZE_M * (i/4), BLOCK_SIZE_M);
+        threadgroup float * temp_str = ((threadgroup float *) shared_memory) \
+                                      + 32 * (sgitg&1) + (16 * (sgitg>>1))*BLOCK_SIZE_M;
+        for (short i = 0; i < 8; i++) {
+            simdgroup_store(mc[i], temp_str + 8*(i%4) + 8*BLOCK_SIZE_M*(i/4), BLOCK_SIZE_M);
         }
 
         threadgroup_barrier(mem_flags::mem_threadgroup);
 
-        device float * C = dst + (BLOCK_SIZE_M * r0) + (BLOCK_SIZE_N * r1) * ne0 + im*ne1*ne0;
         if (sgitg == 0) {
-            for (int i = 0; i < n_rows; i++) {
-                for (int j = tiitg; j < n_cols; j += BLOCK_SIZE_N) {
-                    *(C + i + j * ne0) = *(temp_str + i + j * BLOCK_SIZE_M);
+            for (int j = tiitg; j < n_cols; j += BLOCK_SIZE_N) {
+                device float  * D  = dst + (r0*BLOCK_SIZE_M) + (r1*BLOCK_SIZE_N + j)*ne0 + im*ne1*ne0;
+                device float4 * D4 = (device float4 *) D;
+
+                threadgroup float  * C  = temp_str + (j*BLOCK_SIZE_M);
+                threadgroup float4 * C4 = (threadgroup float4 *) C;
+
+                int i = 0;
+                for (; i < n_rows/4; i++) {
+                    *(D4 + i) = *(C4 + i);
+                }
+
+                i *= 4;
+                for (; i < n_rows; i++) {
+                    *(D + i) = *(C + i);
                 }
             }
         }

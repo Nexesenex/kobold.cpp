@@ -603,17 +603,12 @@ static struct ggml_backend_metal_context * ggml_metal_init(ggml_backend_dev_t de
             ctx->kernels[i].pipeline = nil;
         }
 
-        /*
-            GGML_LOG_INFO("%s: loaded %-40s %16p | th_max = %4d | th_width = %4d\n", __func__, "kernel_"#name, (void *) kernel->pipeline, \
-                    (int) kernel->pipeline.maxTotalThreadsPerThreadgroup, \
-                    (int) kernel->pipeline.threadExecutionWidth); \
-        */
 #define GGML_METAL_ADD_KERNEL(e, name, supported) \
         if (supported) { \
             struct ggml_metal_kernel * kernel = &ctx->kernels[e]; \
             id<MTLFunction> metal_function = [metal_library newFunctionWithName:@"kernel_"#name]; \
             kernel->pipeline = [device newComputePipelineStateWithFunction:metal_function error:&error]; \
-            GGML_LOG_INFO("%s: loaded %-40s %16p | th_max = %4d | th_width = %4d\n", __func__, "kernel_"#name, (void *) kernel->pipeline, \
+            GGML_LOG_DEBUG("%s: loaded %-40s %16p | th_max = %4d | th_width = %4d\n", __func__, "kernel_"#name, (void *) kernel->pipeline, \
                     (int) kernel->pipeline.maxTotalThreadsPerThreadgroup, \
                     (int) kernel->pipeline.threadExecutionWidth); \
             [metal_function release]; \
@@ -3110,6 +3105,8 @@ static void ggml_metal_encode_node(
 
                 bool use_vec_kernel = false;
 
+                // TODO: add vec kernels for (ne00%64 == 0) and maybe also for (ne00%32 == 0)
+                //       for now avoiding mainly to keep the number of templates/kernels a bit lower
                 if (ne01 >= 4 || (ne00%128 != 0)) {
                     switch (src1->type) {
                         case GGML_TYPE_F16:
