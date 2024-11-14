@@ -34,42 +34,6 @@
 // #define STB_IMAGE_RESIZE_IMPLEMENTATION //already defined in llava
 #include "stb_image_resize.h"
 
-const char* rng_type_to_str[] = {
-    "std_default",
-    "cuda",
-};
-
-// Names of the sampler method, same order as enum sample_method in stable-diffusion.h
-const char* sample_method_str[] = {
-    "euler_a",
-    "euler",
-    "heun",
-    "dpm2",
-    "dpm++2s_a",
-    "dpm++2m",
-    "dpm++2mv2",
-    "ipndm",
-    "ipndm_v",
-    "lcm",
-};
-
-// Names of the sigma schedule overrides, same order as sample_schedule in stable-diffusion.h
-const char* schedule_str[] = {
-    "default",
-    "discrete",
-    "karras",
-    "exponential",
-    "ays",
-    "gits",
-};
-
-const char* modes_str[] = {
-    "txt2img",
-    "img2img",
-    "img2vid",
-    "convert",
-};
-
 enum SDMode {
     TXT2IMG,
     IMG2IMG,

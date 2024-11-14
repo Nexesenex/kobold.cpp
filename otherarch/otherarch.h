@@ -54,6 +54,7 @@ struct kcpp_params {
     bool flash_attn                  = false; // flash attention
     bool use_smartcontext            = false;
     bool use_contextshift            = false;
+    bool use_fastforward             = false;
 };
 
 // default hparams (GPT-J 6B)
