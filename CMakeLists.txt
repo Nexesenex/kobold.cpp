@@ -334,7 +334,7 @@ if (LLAMA_HIPBLAS)
         list(APPEND GGML_SOURCES_ROCM ${SRCS})
         file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/mmq*.cu")
         list(APPEND GGML_SOURCES_ROCM ${SRCS})
-        add_compile_definitions(GGML_USE_HIPBLAS GGML_USE_CUDA SD_USE_CUBLAS)
+        add_compile_definitions(GGML_USE_HIP GGML_USE_CUDA SD_USE_CUBLAS)
         add_library(ggml-rocm ${GGML_SOURCES_CUDA})
         if (LLAMA_CUDA_FORCE_DMMV)
             target_compile_definitions(ggml-rocm PUBLIC GGML_CUDA_FORCE_DMMV)
@@ -713,7 +713,7 @@ else ()
 	add_library(ggml
 				ggml/src/ggml.c
 				ggml/include/ggml.h
-				ggml/src/ggml-cpu.c
+				ggml/src/ggml-cpu/ggml-cpu.c
 				ggml/include/ggml-cpu.h
 				ggml/src/ggml-alloc.c
 				ggml/include/ggml-alloc.h
@@ -723,10 +723,17 @@ else ()
 				ggml/include/ggml-cpp.h
 				ggml/src/ggml-quants.c
 				ggml/src/ggml-quants.h
-				ggml/src/llamafile/sgemm.cpp
-				ggml/src/llamafile/sgemm.h
+				ggml/src/ggml-cpu/llamafile/sgemm.cpp
+				ggml/src/ggml-cpu/llamafile/sgemm.h
 				ggml/src/ggml-aarch64.c
 				ggml/src/ggml-aarch64.h
+				ggml/src/ggml-threading.cpp
+				ggml/src/ggml-cpu/ggml-cpu.cpp
+				ggml/src/ggml-cpu/ggml-cpu-aarch64.c
+				ggml/src/ggml-cpu/ggml-cpu-aarch64.h
+				ggml/src/ggml-cpu/ggml-cpu-quants.c
+				ggml/src/ggml-cpu/ggml-cpu-quants.h
+				ggml/src/ggml-backend-reg.cpp
 				${GGML_SOURCES_CUDA})
 	target_include_directories(ggml PUBLIC . ./ggml/include ./ggml/src ./include ./otherarch ./otherarch/tools)
 	target_compile_features(ggml PUBLIC c_std_11) # don't bump
