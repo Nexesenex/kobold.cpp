@@ -3074,6 +3074,7 @@ def show_gui():
     def togglefastforward(a,b,c):
         if fastforward.get()==0:
             contextshift.set(0)
+            smartcontext.set(0)
             togglectxshift(1,1,1)
 
     def togglectxshift(a,b,c):
