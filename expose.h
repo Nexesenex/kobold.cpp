@@ -52,7 +52,7 @@ struct load_model_inputs
     const int blasbatchsize = 128;
     const int blasubatchsize = 128;
     const int debugmode = 0;
-    const int forceversion = 0;
+    const int forceversion = 6;
     const int gpulayers = 0;
     const float rope_freq_scale = 1.0f;
     const float rope_freq_base = 10000.0f;

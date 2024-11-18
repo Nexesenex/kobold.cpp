@@ -3309,6 +3309,7 @@ def show_gui():
 
     # load model
     makefileentry(gpu_al_tab, "Model:", "Select GGML Model File", model_var, 40, 576, onchoosefile=on_picked_model_file, filetypes=[("GGML bin or GGUF", ("*.bin","*.gguf"))] ,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
+    model_var.trace("w", gui_changed_modelfile)
     
     ctk.CTkButton(gpu_al_tab, text = "Run Benchmark", command = guibench ).grid(row=45,column=0, stick="se", padx= 0, pady=2)
 
@@ -3340,6 +3341,7 @@ def show_gui():
 
     # load model
     makefileentry(tokens_tab, "Model:", "Select GGML or GGML Model File", model_var, 50, 576, onchoosefile=on_picked_model_file, filetypes=[("GGML bin or GGUF", ("*.bin","*.gguf"))] ,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
+    model_var.trace("w", gui_changed_modelfile)
 
     togglerope(1,1,1)
     toggleflashattn(1,1,1)
@@ -3540,7 +3542,7 @@ def show_gui():
         args.quiet = quietmode.get()==1
         args.nocertify = nocertifymode.get()==1
         args.nomodel = nomodel.get()==1
-        args.quantkv = int(quantkv_values[int(quantkv_var.get())])
+        # args.quantkv = int(quantkv_values[int(quantkv_var.get())])
 
         args.poslayeroffset = int(poslayeroffset_values[int(poslayeroffset_var.get())])
         args.neglayeroffset = int(neglayeroffset_values[int(neglayeroffset_var.get())])

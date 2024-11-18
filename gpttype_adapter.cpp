@@ -40,7 +40,7 @@
 #include "mpt_v3.cpp"
 #include "examples/llava/clip.h"
 #include "examples/llava/llava.h"
-#include "experimental/emphasis.h"
+// #include "experimental/emphasis.h"
 
 //const
 const int extra_context_handle_fragmentation = 120;
@@ -1684,7 +1684,7 @@ static int GetBatchSize(int desiredBlasBatchSize,FileFormat in_file_format)
                             file_format==FileFormat::RWKV_2);
     if(!approved_format || desiredBlasBatchSize<=0)
     {
-        desiredBlasBatchSize = 16;
+        desiredBlasBatchSize = 32;
     }
     if (file_format != FileFormat::GGML && file_format != FileFormat::GGHF && file_format != FileFormat::GGJT && file_format != FileFormat::GGJT_2 && file_format != FileFormat::GGJT_3 && file_format != FileFormat::GGUF_GENERIC)
     {
@@ -1708,7 +1708,7 @@ static int GetUBatchSize(int desiredBlasUBatchSize,FileFormat in_file_format)
                             file_format==FileFormat::RWKV_2);
     if(!approved_format || desiredBlasUBatchSize<=0)
     {
-        desiredBlasUBatchSize = 16;
+        desiredBlasUBatchSize = 32;
     }
     if (file_format != FileFormat::GGML && file_format != FileFormat::GGHF && file_format != FileFormat::GGJT && file_format != FileFormat::GGJT_2 && file_format != FileFormat::GGJT_3 && file_format != FileFormat::GGUF_GENERIC)
     {
@@ -1759,14 +1759,14 @@ static float CalcGradientAIRopeFreqBase(float original_rope_base, int n_ctx_trai
             // }
             return rope_freq_base_with_positive_offset;
         }
-	    else if(model_arch==GGUFArch::ARCH_MISTRAL_LLAMA_1_AND_2)
+/* 	    else if(model_arch==GGUFArch::ARCH_MISTRAL_LLAMA_1_AND_2)
         {
             float extended_rope_negative_offset_value = 1 + ((log10f(chi_ctx_value) - log10f(chi_ctx_train_value)) / (3.14159265358979323846 * 3.14159265358979323846));
             float rope_freq_base_with_negative_offset = gradient_ai_rope_freq_base_value / extended_rope_negative_offset_value;
             printf("Extended RoPE Negative Offset (divisor) for Llama 1 and 2 based models. (value:%.3f).\n", extended_rope_negative_offset_value);
             printf("RoPE base calculated via Gradient AI formula for Llama 1 and 2 based models. (value:%.1f).\n", rope_freq_base_with_negative_offset);
             return rope_freq_base_with_negative_offset;
-        }
+        } */
         else
         {
 	        return gradient_ai_rope_freq_base_value;
@@ -2566,8 +2566,220 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     }
     else
     {
-        printf("\nUnknown Model, cannot load.\n");
-        return ModelLoadResult::FAIL;
+        // printf("\nUnknown Model, cannot load.\n");
+        // return ModelLoadResult::FAIL;
+        llama_backend_init();
+
+        llama_model_params model_params = llama_model_default_params();
+        llama_context_params llama_ctx_params = llama_context_default_params();
+        llama_ctx_params.n_ctx = clamped_max_context_length;
+        if(kcpp_data->use_contextshift)
+        {
+           llama_ctx_params.n_ctx += extra_context_handle_fragmentation;
+        }
+
+        llama_ctx_params.offload_kqv = !inputs.low_vram;
+        llama_ctx_params.logits_all = false;
+        model_params.use_mmap = inputs.use_mmap;
+        model_params.use_mlock = inputs.use_mlock;
+        model_params.n_gpu_layers = inputs.gpulayers;
+
+        #if defined(GGML_USE_CLBLAST)
+        if(file_format==FileFormat::GGUF_GENERIC && model_params.n_gpu_layers>0)
+        {
+            if(file_format_meta.model_architecture == GGUFArch::ARCH_FALCON)
+            {
+                printf("\nOpenCL does not support GPU Layer offloading for this model architecture! GPU Offload has been disabled.\n");
+                model_params.n_gpu_layers = 0;
+            }
+            else if(file_format_meta.n_expert_count>1)
+            {
+                printf("\nOpenCL cannot use regular GPU offloading for this model architecture. A fallback GPU offloader will be used with degraded performance.\n");
+
+            }
+        }
+        #endif
+        #if defined(GGML_USE_CUDA)
+        if(cu_parseinfo_maindevice>0)
+        {
+            printf("CUBLAS: Set main device to %d\n",cu_parseinfo_maindevice);
+        }
+        ggml_cuda_set_mul_mat_q(inputs.use_mmq);
+        if(file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2 && !kcpp_data->flash_attn)
+        {
+            printf("CUBLAS: Warning, you are running Qwen2 without Flash Attention and may observe incoherent output.\n");
+        }
+        #endif
+        model_params.main_gpu = cu_parseinfo_maindevice;
+
+        #if defined(GGML_USE_CUDA)
+        model_params.split_mode = (inputs.use_rowsplit?llama_split_mode::LLAMA_SPLIT_MODE_ROW:llama_split_mode::LLAMA_SPLIT_MODE_LAYER);
+        #else
+        model_params.split_mode = llama_split_mode::LLAMA_SPLIT_MODE_LAYER;
+        #endif
+
+        llama_ctx_params.n_batch = kcpp_data->n_batch;
+        llama_ctx_params.n_ubatch = kcpp_data->n_ubatch;
+        llama_ctx_params.n_threads = kcpp_data->n_threads;
+        llama_ctx_params.n_threads_batch = kcpp_data->n_blasthreads;
+
+        #if defined(GGML_USE_CUDA) || defined(GGML_USE_VULKAN)
+        bool ts_all_zero = true;
+        for (int i = 0; i < tensor_split_max; ++i) {
+            if (inputs.tensor_split[i] != 0.0f) {
+                ts_all_zero = false;
+                break;
+            }
+        }
+        if(!ts_all_zero)
+        {
+            printf("\nApplying Tensor Split...");
+            model_params.tensor_split = inputs.tensor_split;
+        }
+        #endif
+
+        //compat for old falcon
+        if(file_format_meta.fileversion==1)
+        {
+            //apply compat fix
+            printf("\nUsing older tokenizer for GGUFv1...");
+            OldBPETokenizerMode = true;
+        }
+
+        llama_model * llamamodel = llama_load_model_from_file(kcpp_data->model_filename.c_str(), model_params);
+        if(overwriteRope)
+        {
+            llama_ctx_params.rope_freq_base = rope_freq_base;
+            llama_ctx_params.rope_freq_scale = rope_freq_scale;
+        }
+        else
+        {
+            //if the model modifes rope in any way, or uses yarn, use the model values. Otherwise, use our automatic ones
+            //special exception for llama, which uses auto scale
+            if((llamamodel->hparams.rope_freq_base_train!=10000.0f && llamamodel->hparams.rope_freq_base_train!=500000.0f) ||
+            llamamodel->hparams.rope_freq_scale_train!=1.0f ||
+            llamamodel->hparams.rope_scaling_type_train==2)
+            {
+                printf("Automatic RoPE Scaling: Using model internal value.\n");
+            }
+            else
+            {
+				//Calculate rope_freq_base using the gradientAI formula, solar requires ctx *8 for correct scaling
+                rope_freq_base = CalcGradientAIRopeFreqBase(llamamodel->hparams.rope_freq_base_train, file_format_meta.n_ctx_train, kcpp_data->n_ctx, file_format_meta.model_architecture);
+                llama_ctx_params.rope_freq_base = rope_freq_base;
+                llama_ctx_params.rope_freq_scale = rope_freq_scale;
+                printf("Automatic RoPE Scaling: Using (scale:%.3f, base:%.1f).\n", rope_freq_scale, rope_freq_base);
+            }
+        }
+
+        if(file_format_meta.model_architecture==GGUFArch::ARCH_RWKV)
+        {
+            printf("\nRWKV6 Overriding EOS and BOS IDs to 0\n");
+            llamamodel->vocab.special_bos_id = llamamodel->vocab.special_eos_id = 0;
+        }
+
+        llama_ctx_params.flash_attn = kcpp_data->flash_attn;
+        llama_ctx_params.type_k =
+		(inputs.quant_k==22?GGML_TYPE_IQ4_NL:
+		(inputs.quant_k==21?GGML_TYPE_Q4_0:
+		(inputs.quant_k==20?GGML_TYPE_Q4_1:
+		(inputs.quant_k==19?GGML_TYPE_Q5_0:
+		(inputs.quant_k==18?GGML_TYPE_Q5_1:
+		(inputs.quant_k==17?GGML_TYPE_Q6_0:
+		(inputs.quant_k==16?GGML_TYPE_Q8_0:
+		(inputs.quant_k==15?GGML_TYPE_F16:
+		(inputs.quant_k==14?GGML_TYPE_IQ4_NL:
+		(inputs.quant_k==13?GGML_TYPE_Q5_0:
+		(inputs.quant_k==12?GGML_TYPE_Q5_1:
+		(inputs.quant_k==11?GGML_TYPE_Q5_1:
+		(inputs.quant_k==10?GGML_TYPE_Q6_0:
+		(inputs.quant_k==9?GGML_TYPE_Q6_0:
+		(inputs.quant_k==8?GGML_TYPE_Q6_0:
+		(inputs.quant_k==7?GGML_TYPE_Q8_0:
+		(inputs.quant_k==6?GGML_TYPE_Q8_0:
+		(inputs.quant_k==5?GGML_TYPE_Q8_0:
+		(inputs.quant_k==4?GGML_TYPE_F16:
+		(inputs.quant_k==3?GGML_TYPE_F16:
+		(inputs.quant_k==2?GGML_TYPE_Q4_0:
+		(inputs.quant_k==1?GGML_TYPE_Q8_0:
+		GGML_TYPE_F16))))))))))))))))))))));
+        llama_ctx_params.type_v =
+		(inputs.quant_v==22?GGML_TYPE_F16:
+		(inputs.quant_v==21?GGML_TYPE_F16:
+		(inputs.quant_v==20?GGML_TYPE_F16:
+		(inputs.quant_v==19?GGML_TYPE_F16:
+		(inputs.quant_v==18?GGML_TYPE_F16:
+		(inputs.quant_v==17?GGML_TYPE_F16:
+		(inputs.quant_v==16?GGML_TYPE_F16:
+		(inputs.quant_v==15?GGML_TYPE_F16:
+		(inputs.quant_v==14?GGML_TYPE_IQ4_NL:
+		(inputs.quant_v==13?GGML_TYPE_IQ4_NL:
+		(inputs.quant_v==12?GGML_TYPE_IQ4_NL:
+		(inputs.quant_v==11?GGML_TYPE_Q5_0:
+		(inputs.quant_v==10?GGML_TYPE_IQ4_NL:
+		(inputs.quant_v==9?GGML_TYPE_Q5_0:
+		(inputs.quant_v==8?GGML_TYPE_Q6_0:
+		(inputs.quant_v==7?GGML_TYPE_IQ4_NL:
+		(inputs.quant_v==6?GGML_TYPE_Q5_0:
+		(inputs.quant_v==5?GGML_TYPE_Q6_0:
+		(inputs.quant_v==4?GGML_TYPE_Q6_0:
+		(inputs.quant_v==3?GGML_TYPE_Q8_0:
+		(inputs.quant_v==2?GGML_TYPE_Q4_0:
+		(inputs.quant_v==1?GGML_TYPE_Q8_0:
+		GGML_TYPE_F16))))))))))))))))))))));
+        llama_ctx_v4 = llama_new_context_with_model(llamamodel, llama_ctx_params);
+
+        if (llama_ctx_v4 == NULL)
+        {
+            fprintf(stderr, "%s: error: failed to load model '%s'\n", __func__, kcpp_data->model_filename.c_str());
+            return ModelLoadResult::FAIL;
+        }
+        if (lora_filename != "")
+        {
+            printf("\nAttempting to apply LORA adapter: %s\n", lora_filename.c_str());
+
+            const char * lora_base_arg = NULL;
+            if (lora_base != "") {
+                printf("Using LORA base model: %s\n", lora_base.c_str());
+                lora_base_arg = lora_base.c_str();
+            }
+
+            auto adapter = llama_lora_adapter_init(llamamodel, lora_filename.c_str());
+            if (adapter == nullptr) {
+                fprintf(stderr, "%s: error: failed to apply lora adapter\n", __func__);
+                return ModelLoadResult::FAIL;
+            }
+            llama_lora_adapter_set(llama_ctx_v4, adapter, 1.0f);
+        }
+
+        if(mmproj_filename != "" && file_format==FileFormat::GGUF_GENERIC)
+        {
+            printf("\nAttempting to apply Multimodal Projector: %s\n", mmproj_filename.c_str());
+            clp_ctx = clip_model_load(mmproj_filename.c_str(), /*verbosity=*/ 1);
+            if(clp_ctx == nullptr) {
+                fprintf(stderr, "%s: error: failed to load mmproj model!\n", __func__);
+                return ModelLoadResult::FAIL;
+            }
+            const int n_embd_clip = clip_n_mmproj_embd(clp_ctx);
+            const int n_embd_llm  = llama_n_embd(llamamodel);
+            if (n_embd_clip != n_embd_llm) {
+                fprintf(stderr, "%s: mmproj embedding mismatch (%d and %d)! Make sure you use the correct mmproj file!\n", __func__,n_embd_clip, n_embd_llm);
+                return ModelLoadResult::FAIL;
+            }
+            clp_img_data = clip_image_u8_init();
+        }
+
+        n_vocab = llama_n_vocab(llamamodel);
+
+        //determine mem per token
+        std::vector<int> tmp = {1, 2, 3, 4};
+        llama_kv_cache_clear(llama_ctx_v4);
+        auto er = llama_decode(llama_ctx_v4, llama_batch_get_one(tmp.data(), tmp.size()));
+        if(er!=0)
+        {
+            printf("\nLLAMA EVAL returned nonzero: %d\n",er);
+        }
+        return ModelLoadResult::SUCCESS;
     }
 
 }
@@ -3150,7 +3362,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         }
     }
 
-    bool blasmode = (embd_inp.size() >= 1 && kcpp_cpu_has_blas() && kcpp_data->n_batch>=1);
+    bool blasmode = (embd_inp.size() >= 32 && kcpp_cpu_has_blas() && kcpp_data->n_batch>=32);
 
     current_context_tokens.resize(n_past);
 
@@ -3240,9 +3452,9 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         printf("%s\n\n", RemoveBell(outstr).c_str());
     }
 
-    if (llama_ctx_v4) {
-        empcats_init(llama_ctx_v4, embd_inp, grammarstr);
-    }
+    // if (llama_ctx_v4) {
+        // empcats_init(llama_ctx_v4, embd_inp, grammarstr);
+    // }
 
     while (remaining_tokens > 0)
     {
@@ -3432,16 +3644,17 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 std::vector<int>& bans = antislop_banned_token_ids[n_past];
 
                 //unwanted print, but.. ^^
-                print_tok_vec_str(bans);
+                // print_tok_vec_str(bans);
+
                 for(int t=0;t<bans.size();++t)
                 {
                     logitsPtr[bans[t]]=lowestLogit;
                 }
             }
 
-            if (llama_ctx_v4) {
-                empcats_step_pre(llama_ctx_v4, logitsPtr);
-            }
+            // if (llama_ctx_v4) {
+                // empcats_step_pre(llama_ctx_v4, logitsPtr);
+            // }
 
             id = SampleLogits(logitsPtr, nctx, n_vocab, last_n_size, repeat_penalty, kcpp_data->rep_pen_slope, presence_penalty,
             top_k, top_a, top_p, min_p, typical_p, tfs_z, temp, rng,
@@ -3450,9 +3663,9 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
             kcpp_data->dry_allowed_length, kcpp_data->dry_penalty_last_n, kcpp_data->xtc_threshold, kcpp_data->xtc_probability,
             sampler_order, grammar, dynatemp_range, dynatemp_exponent, smoothing_factor);
 
-            if (llama_ctx_v4) {
-                empcats_step_post(llama_ctx_v4, id );
-            }
+            // if (llama_ctx_v4) {
+                // empcats_step_post(llama_ctx_v4, id );
+            // }
 
             if (grammar != nullptr) {
                 grammar_accept_token(file_format, n_vocab, grammar, id);
