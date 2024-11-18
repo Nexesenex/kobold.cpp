@@ -11,6 +11,7 @@
 #elif GGML_USE_LLAMA_CPP_MAINLINE
 #include "ggml-backend.h"
 #include "ggml-impl.h"
+#include "ggml-cpu-impl.h"
 #include "ggml-threading.h"
 #include "ggml.h"
 

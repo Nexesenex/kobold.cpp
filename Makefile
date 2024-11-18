@@ -235,7 +235,7 @@ ifdef LLAMA_CUBLAS
 	CUBLAS_FLAGS = -DGGML_USE_CUDA -DSD_USE_CUBLAS -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/x86_64-linux/include
 	CUBLASLD_FLAGS = -lcuda -lcublas -lcudart -lcublasLt -lpthread -ldl -lrt -L/usr/local/cuda/lib64 -L/opt/cuda/lib64 -L$(CUDA_PATH)/targets/x86_64-linux/lib -L$(CUDA_PATH)/lib64/stubs -L/usr/local/cuda/targets/aarch64-linux/lib -L/usr/local/cuda/targets/sbsa-linux/lib -L/usr/lib/wsl/lib
 	CUBLAS_OBJS = ggml-cuda.o ggml_v3-cuda.o ggml_v2-cuda.o ggml_v2-cuda-legacy.o
-	CUBLAS_OBJS += $(patsubst %.cu,%.o,$(wildcard ggml/src/ggml-cuda/*.cu))
+	CUBLAS_OBJS += $(patsubst %.cu,%.o,$(filter-out ggml/src/ggml-cuda/ggml-cuda.cu, $(wildcard ggml/src/ggml-cuda/*.cu)))
 	CUBLAS_OBJS += $(OBJS_CUDA_TEMP_INST)
 	NVCC      = nvcc
 	NVCCFLAGS = --forward-unknown-to-host-compiler -use_fast_math
@@ -321,7 +321,7 @@ ifdef LLAMA_HIPBLAS
 	HIPLDFLAGS    += -L$(ROCM_PATH)/lib64 -Wl,-rpath=$(ROCM_PATH)/lib64
 	HIPLDFLAGS    += -lhipblas -lamdhip64 -lrocblas
 	HIP_OBJS      += ggml-cuda.o ggml_v3-cuda.o ggml_v2-cuda.o ggml_v2-cuda-legacy.o
-	HIP_OBJS      += $(patsubst %.cu,%.o,$(wildcard ggml/src/ggml-cuda/*.cu))
+	HIP_OBJS      += $(patsubst %.cu,%.o,$(filter-out ggml/src/ggml-cuda/ggml-cuda.cu, $(wildcard ggml/src/ggml-cuda/*.cu)))
 	HIP_OBJS      += $(OBJS_CUDA_TEMP_INST)
 
 	HIPFLAGS2    += $(addprefix --offload-arch=,$(GPU_TARGETS))
@@ -350,7 +350,7 @@ ifdef LLAMA_METAL
 
 ggml-metal.o: ggml/src/ggml-metal/ggml-metal.m ggml/include/ggml-metal.h
 	@echo "== Preparing merged Metal file =="
-	@sed -e '/#include "ggml-common.h"/r ggml/src/ggml-common.h' -e '/#include "ggml-common.h"/d' < ggml/src/ggml-metal/ggml-metal.metal > ggml/src/ggml-metal-merged.metal
+	@sed -e '/#include "..\/ggml-common.h"/r ggml/src/ggml-common.h' -e '/#include "..\/ggml-common.h"/d' < ggml/src/ggml-metal/ggml-metal.metal > ggml/src/ggml-metal-merged.metal
 	@cp ggml/src/ggml-metal-merged.metal ./ggml-metal-merged.metal
 	$(CC) $(CFLAGS) -c $< -o $@
 endif # LLAMA_METAL
