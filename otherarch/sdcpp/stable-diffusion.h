@@ -95,6 +95,8 @@ enum sd_type_t {
     SD_TYPE_Q4_0_8_8 = 33,
     SD_TYPE_TQ1_0   = 34,
     SD_TYPE_TQ2_0   = 35,
+    //
+    SD_TYPE_Q6_0    = 133,
     SD_TYPE_COUNT,
 };
 

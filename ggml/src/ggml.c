@@ -22,8 +22,9 @@
 #include "ggml-backend.h"
 #include "ggml-impl.h"
 #include "ggml-cpu-impl.h"
-#include "ggml-quants.h"
+#include "ggml-threading.h"
 #include "ggml.h"
+#include "ggml-quants.h"
 #include "ggml-aarch64.h"
 #endif
 
@@ -670,7 +671,6 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .type_size                = sizeof(block_q6_0),
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_q6_0,
-        .from_float               = quantize_row_q6_0,
         .from_float_ref           = (ggml_from_float_t) quantize_row_q6_0_ref,
     },
     [GGML_TYPE_Q8_0] = {
@@ -5064,7 +5064,6 @@ struct ggml_tensor * ggml_opt_step_adamw(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
 
 struct ggml_hash_set ggml_hash_set_new(size_t size) {
     size = ggml_hash_size(size);

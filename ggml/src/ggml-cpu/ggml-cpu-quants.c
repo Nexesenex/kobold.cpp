@@ -707,6 +707,10 @@ void quantize_row_q5_1(const float * restrict x, void * restrict y, int64_t k) {
     quantize_row_q5_1_ref(x, y, k);
 }
 
+void quantize_row_q6_0(const float * restrict x, void * restrict y, int64_t k) {
+    quantize_row_q6_0_ref(x, y, k);
+}
+
 void quantize_row_q8_0(const float * restrict x, void * restrict vy, int64_t k) {
     assert(QK8_0 == 32);
     assert(k % QK8_0 == 0);
@@ -3326,6 +3330,21 @@ void ggml_vec_dot_q5_1_q8_1(int n, float * restrict s, size_t bs, const void * r
     }
 
     *s = sumf;
+}
+
+void ggml_vec_dot_q6_0_q8_0(int n, float * restrict s, size_t bs, const void * restrict vx, size_t bx, const void * restrict vy, size_t by, int nrc) {
+#if GGML_USE_IQK_MULMAT
+#ifdef __AVX2__
+    const enum ggml_type vec_dot_type = GGML_TYPE_Q8_1;
+#else
+    const enum ggml_type vec_dot_type = GGML_TYPE_Q8_0;
+#endif
+    if (iqk_mul_mat(nrc, nrc, n, GGML_TYPE_Q6_0, vx, bx, vec_dot_type, vy, by, s, bs, 0, 1)) {
+        return;
+    }
+#endif
+    // TODO
+    *s = 0;
 }
 
 void ggml_vec_dot_q8_0_q8_0(int n, float * restrict s, size_t bs, const void * restrict vx, size_t bx, const void * restrict vy, size_t by, int nrc) {
