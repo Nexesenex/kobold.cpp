@@ -3141,6 +3141,8 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
             return ggml_is_contiguous(op->src[0]) && op->ne[0] % WARP_SIZE == 0;
             break;
         case GGML_OP_FUSED_RMS_NORM:
+            return ggml_is_contiguous(op->src[0]) && op->ne[0] % WARP_SIZE == 0;
+            break;
         case GGML_OP_NONE:
         case GGML_OP_RESHAPE:
         case GGML_OP_VIEW:
