@@ -935,7 +935,6 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
     "RMS_NORM",
     "RMS_NORM_BACK",
     "GROUP_NORM",
-    "FUSED_RMS_NORM",
 
     "MUL_MAT",
     "MUL_MAT_ID",
@@ -1001,7 +1000,7 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
     "OPT_STEP_ADAMW",
 };
 
-static_assert(GGML_OP_COUNT == 82, "GGML_OP_COUNT != 82");
+static_assert(GGML_OP_COUNT == 81, "GGML_OP_COUNT != 81");
 
 static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "none",
@@ -1031,7 +1030,6 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "rms_norm(x)",
     "rms_norm_back(x)",
     "group_norm(x)",
-    "fused_rms_norm(x)",
 
     "X*Y",
     "X[i]*Y",
@@ -1097,7 +1095,7 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "adamw(x)",
 };
 
-static_assert(GGML_OP_COUNT == 82, "GGML_OP_COUNT != 82");
+static_assert(GGML_OP_COUNT == 81, "GGML_OP_COUNT != 81");
 
 static_assert(GGML_OP_POOL_COUNT == 2, "GGML_OP_POOL_COUNT != 2");
 
@@ -2655,57 +2653,6 @@ struct ggml_tensor * ggml_rms_norm_inplace(
         struct ggml_tensor  * a,
         float                 eps) {
     return ggml_rms_norm_impl(ctx, a, eps, true);
-}
-
-static struct ggml_tensor * ggml_fused_rms_norm_impl(
-        struct ggml_context * ctx,
-        struct ggml_tensor  * a,
-        struct ggml_tensor  * b,
-        float eps,
-        bool inplace) {
-
-    if (!b) {
-        return ggml_rms_norm_impl(ctx, a, eps, inplace);
-    }
-
-    if (ggml_nrows(b) > 1 || a->ne[0] != b->ne[0]) {
-        struct ggml_tensor * result = ggml_rms_norm_impl(ctx, a, eps, inplace);
-        result = ggml_mul_impl(ctx, result, b, inplace);
-        return result;
-    }
-
-    bool is_node = false;
-
-    if (!inplace && (a->grad)) {
-        is_node = true;
-    }
-
-    struct ggml_tensor * result = inplace ? ggml_view_tensor(ctx, a) : ggml_dup_tensor(ctx, a);
-
-    ggml_set_op_params(result, &eps, sizeof(eps));
-
-    result->op   = GGML_OP_FUSED_RMS_NORM;
-    result->grad = is_node ? ggml_dup_tensor(ctx, result) : NULL;
-    result->src[0] = a;
-    result->src[1] = b;
-
-    return result;
-}
-
-struct ggml_tensor * ggml_fused_rms_norm(
-        struct ggml_context * ctx,
-        struct ggml_tensor  * a,
-        struct ggml_tensor  * b,
-        float  eps) {
-    return ggml_fused_rms_norm_impl(ctx, a, b, eps, false);
-}
-
-struct ggml_tensor * ggml_fused_rms_norm_inplace(
-        struct ggml_context * ctx,
-        struct ggml_tensor  * a,
-        struct ggml_tensor  * b,
-        float eps) {
-    return ggml_fused_rms_norm_impl(ctx, a, b, eps, true);
 }
 
 // ggml_rms_norm_back
@@ -5575,10 +5522,6 @@ static void ggml_compute_backward(struct ggml_context * ctx, struct ggml_tensor 
                             zero_table, acc_table);
                 }
             } break;
-        case GGML_OP_FUSED_RMS_NORM:
-            {
-                GGML_ABORT("fatal error"); // TODO: not implemented
-            }
         case GGML_OP_RMS_NORM_BACK:
             {
                 GGML_ABORT("fatal error"); // TODO: not implemented
