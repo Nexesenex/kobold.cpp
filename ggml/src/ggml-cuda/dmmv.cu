@@ -630,7 +630,7 @@ void ggml_cuda_op_dequantize_mul_mat_vec(
 
     bool src1_convert_f16 =
         src0->type == GGML_TYPE_Q4_0 || src0->type == GGML_TYPE_Q4_1 ||
-        src0->type == GGML_TYPE_Q5_0 || src0->type == GGML_TYPE_Q5_1 ||
+        src0->type == GGML_TYPE_Q5_0 || src0->type == GGML_TYPE_Q5_1 || src0->type == GGML_TYPE_Q6_0 ||
         src0->type == GGML_TYPE_Q8_0 || src0->type == GGML_TYPE_F16;
 
     if (src1_convert_f16) {
@@ -654,6 +654,9 @@ void ggml_cuda_op_dequantize_mul_mat_vec(
             dequantize_mul_mat_vec_q5_0_cuda(src0_dd_i, src1_dfloat, dst_dd_i, ne00, row_diff, stream);
             break;
         case GGML_TYPE_Q5_1:
+            dequantize_mul_mat_vec_q5_1_cuda(src0_dd_i, src1_dfloat, dst_dd_i, ne00, row_diff, stream);
+            break;
+        case GGML_TYPE_Q6_0:
             dequantize_mul_mat_vec_q5_1_cuda(src0_dd_i, src1_dfloat, dst_dd_i, ne00, row_diff, stream);
             break;
         case GGML_TYPE_Q8_0:
@@ -691,7 +694,7 @@ void ggml_cuda_op_dequantize_mul_mat_vec(
 
 bool ggml_cuda_dmmv_type_supported(ggml_type src0_type) {
     return src0_type == GGML_TYPE_Q4_0 || src0_type == GGML_TYPE_Q4_1 ||
-        src0_type == GGML_TYPE_Q5_0 || src0_type == GGML_TYPE_Q5_1 ||
+        src0_type == GGML_TYPE_Q5_0 || src0_type == GGML_TYPE_Q5_1 || src0_type == GGML_TYPE_Q6_0 ||
         src0_type == GGML_TYPE_Q8_0 || src0_type == GGML_TYPE_Q2_K ||
         src0_type == GGML_TYPE_Q3_K || src0_type == GGML_TYPE_Q4_K ||
         src0_type == GGML_TYPE_Q5_K || src0_type == GGML_TYPE_Q6_K ||
