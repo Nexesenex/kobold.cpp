@@ -396,18 +396,6 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
-    [GGML_TYPE_IQ1_BN] = {
-        .from_float               = quantize_row_iq1_bn,
-        .vec_dot                  = ggml_vec_dot_iq1_bn_q8_0,
-        .vec_dot_type             = GGML_TYPE_IQ1_BN,
-        .nrows                    = 1,
-    },
-    [GGML_TYPE_IQ2_BN] = {
-        .from_float               = quantize_row_iq2_bn,
-        .vec_dot                  = ggml_vec_dot_iq2_bn_q8_0,
-        .vec_dot_type             = GGML_TYPE_IQ2_BN,
-        .nrows                    = 1,
-    },
     [GGML_TYPE_IQ4_NL] = {
         .from_float               = quantize_row_iq4_nl,
         .vec_dot                  = ggml_vec_dot_iq4_nl_q8_0,
@@ -420,89 +408,6 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
-    [GGML_TYPE_IQ4_KS] = {
-        .from_float               = quantize_row_iq4_ks,
-        .vec_dot                  = ggml_vec_dot_iq4_ks_q8_K,
-        .vec_dot_type             = GGML_TYPE_Q8_K,
-        .nrows                    = 1,
-    },
-    [GGML_TYPE_IQ4_KSS] = {
-        .from_float               = quantize_row_iq4_kss,
-        .vec_dot                  = ggml_vec_dot_iq4_kss_q8_K,
-        .vec_dot_type             = GGML_TYPE_Q8_K,
-        .nrows                    = 1,
-    },
-    [GGML_TYPE_IQ2_K] = {
-        .from_float               = quantize_row_iq2_k,
-        .vec_dot                  = ggml_vec_dot_iq2_k_q8_K,
-        .vec_dot_type             = GGML_TYPE_Q8_K,
-        .nrows                    = 1,
-    },
-    [GGML_TYPE_IQ2_KS] = {
-        .from_float               = quantize_row_iq2_ks,
-        .vec_dot                  = ggml_vec_dot_iq2_ks_q8_K,
-        .vec_dot_type             = GGML_TYPE_Q8_K,
-        .nrows                    = 1,
-    },
-    [GGML_TYPE_IQ2_KT] = {
-        .from_float               = quantize_row_iq2_kt,
-        .vec_dot                  = ggml_vec_dot_iq2_kt_q8_K,
-        .vec_dot_type             = GGML_TYPE_Q8_K,
-        .nrows                    = 1,
-    },
-    [GGML_TYPE_IQ3_KT] = {
-        .from_float               = quantize_row_iq3_kt,
-        .vec_dot                  = ggml_vec_dot_iq3_kt_q8_K,
-        .vec_dot_type             = GGML_TYPE_Q8_K,
-        .nrows                    = 1,
-    },
-    [GGML_TYPE_IQ4_KT] = {
-        .from_float               = quantize_row_iq4_kt,
-        .vec_dot                  = ggml_vec_dot_iq4_kt_q8_K,
-        .vec_dot_type             = GGML_TYPE_Q8_K,
-        .nrows                    = 1,
-    },
-    [GGML_TYPE_IQ3_K] = {
-        .from_float               = quantize_row_iq3_k,
-        .vec_dot                  = ggml_vec_dot_iq3_k_q8_K,
-        .vec_dot_type             = GGML_TYPE_Q8_K,
-        .nrows                    = 1,
-    },
-    [GGML_TYPE_IQ4_K] = {
-        .from_float               = quantize_row_iq4_k,
-        .vec_dot                  = ggml_vec_dot_iq4_k_q8_K,
-        .vec_dot_type             = GGML_TYPE_Q8_K,
-        .nrows                    = 1,
-    },
-    [GGML_TYPE_IQ5_K] = {
-        .from_float               = quantize_row_iq5_k,
-        .vec_dot                  = ggml_vec_dot_iq5_k_q8_K,
-        .vec_dot_type             = GGML_TYPE_Q8_K,
-        .nrows                    = 1,
-    },
-    [GGML_TYPE_IQ6_K] = {
-        .from_float               = quantize_row_iq6_k,
-        .vec_dot                  = ggml_vec_dot_iq6_k_q8_K,
-        .vec_dot_type             = GGML_TYPE_Q8_K,
-        .nrows                    = 1,
-    },
-
-        case GGML_TYPE_IQ1_BN:
-        case GGML_TYPE_IQ2_BN:
-        case GGML_TYPE_IQ4_NL:
-        case GGML_TYPE_IQ4_XS:
-        case GGML_TYPE_IQ4_KS:
-        case GGML_TYPE_IQ4_KSS:
-        case GGML_TYPE_IQ2_K:
-        case GGML_TYPE_IQ2_KS:
-        case GGML_TYPE_IQ2_KT:
-        case GGML_TYPE_IQ3_KT:
-        case GGML_TYPE_IQ4_KT:
-        case GGML_TYPE_IQ3_K:
-        case GGML_TYPE_IQ4_K:
-        case GGML_TYPE_IQ5_K:
-        case GGML_TYPE_IQ6_K:
-
     [GGML_TYPE_Q8_K] = {
         .from_float               = quantize_row_q8_K,
     },
@@ -4678,21 +4583,8 @@ static void ggml_compute_forward_add(
         case GGML_TYPE_IQ3_XXS:
         case GGML_TYPE_IQ1_S:
         case GGML_TYPE_IQ1_M:
-        case GGML_TYPE_IQ1_BN:
-        case GGML_TYPE_IQ2_BN:
         case GGML_TYPE_IQ4_NL:
         case GGML_TYPE_IQ4_XS:
-        case GGML_TYPE_IQ4_KS:
-        case GGML_TYPE_IQ4_KSS:
-        case GGML_TYPE_IQ2_K:
-        case GGML_TYPE_IQ2_KS:
-        case GGML_TYPE_IQ2_KT:
-        case GGML_TYPE_IQ3_KT:
-        case GGML_TYPE_IQ4_KT:
-        case GGML_TYPE_IQ3_K:
-        case GGML_TYPE_IQ4_K:
-        case GGML_TYPE_IQ5_K:
-        case GGML_TYPE_IQ6_K:
         case GGML_TYPE_IQ3_S:
         case GGML_TYPE_IQ2_S:
         case GGML_TYPE_Q4_0_4_4:
@@ -5072,21 +4964,8 @@ static void ggml_compute_forward_add1(
         case GGML_TYPE_IQ3_XXS:
         case GGML_TYPE_IQ1_S:
         case GGML_TYPE_IQ1_M:
-        case GGML_TYPE_IQ1_BN:
-        case GGML_TYPE_IQ2_BN:
         case GGML_TYPE_IQ4_NL:
         case GGML_TYPE_IQ4_XS:
-        case GGML_TYPE_IQ4_KS:
-        case GGML_TYPE_IQ4_KSS:
-        case GGML_TYPE_IQ2_K:
-        case GGML_TYPE_IQ2_KS:
-        case GGML_TYPE_IQ2_KT:
-        case GGML_TYPE_IQ3_KT:
-        case GGML_TYPE_IQ4_KT:
-        case GGML_TYPE_IQ3_K:
-        case GGML_TYPE_IQ4_K:
-        case GGML_TYPE_IQ5_K:
-        case GGML_TYPE_IQ6_K:
         case GGML_TYPE_IQ3_S:
         case GGML_TYPE_IQ2_S:
         case GGML_TYPE_Q4_0_4_4:
@@ -5216,21 +5095,8 @@ static void ggml_compute_forward_acc(
         case GGML_TYPE_IQ3_XXS:
         case GGML_TYPE_IQ1_S:
         case GGML_TYPE_IQ1_M:
-        case GGML_TYPE_IQ1_BN:
-        case GGML_TYPE_IQ2_BN:
         case GGML_TYPE_IQ4_NL:
         case GGML_TYPE_IQ4_XS:
-        case GGML_TYPE_IQ4_KS:
-        case GGML_TYPE_IQ4_KSS:
-        case GGML_TYPE_IQ2_K:
-        case GGML_TYPE_IQ2_KS:
-        case GGML_TYPE_IQ2_KT:
-        case GGML_TYPE_IQ3_KT:
-        case GGML_TYPE_IQ4_KT:
-        case GGML_TYPE_IQ3_K:
-        case GGML_TYPE_IQ4_K:
-        case GGML_TYPE_IQ5_K:
-        case GGML_TYPE_IQ6_K:
         case GGML_TYPE_IQ3_S:
         case GGML_TYPE_IQ2_S:
         case GGML_TYPE_Q4_0_4_4:
@@ -8390,21 +8256,8 @@ static void ggml_compute_forward_out_prod(
         case GGML_TYPE_IQ3_XXS:
         case GGML_TYPE_IQ1_S:
         case GGML_TYPE_IQ1_M:
-        case GGML_TYPE_IQ1_BN:
-        case GGML_TYPE_IQ2_BN:
         case GGML_TYPE_IQ4_NL:
         case GGML_TYPE_IQ4_XS:
-        case GGML_TYPE_IQ4_KS:
-        case GGML_TYPE_IQ4_KSS:
-        case GGML_TYPE_IQ2_K:
-        case GGML_TYPE_IQ2_KS:
-        case GGML_TYPE_IQ2_KT:
-        case GGML_TYPE_IQ3_KT:
-        case GGML_TYPE_IQ4_KT:
-        case GGML_TYPE_IQ3_K:
-        case GGML_TYPE_IQ4_K:
-        case GGML_TYPE_IQ5_K:
-        case GGML_TYPE_IQ6_K:
         case GGML_TYPE_IQ3_S:
         case GGML_TYPE_IQ2_S:
         case GGML_TYPE_Q4_0_4_4:
@@ -8594,21 +8447,8 @@ static void ggml_compute_forward_set(
         case GGML_TYPE_IQ3_XXS:
         case GGML_TYPE_IQ1_S:
         case GGML_TYPE_IQ1_M:
-        case GGML_TYPE_IQ1_BN:
-        case GGML_TYPE_IQ2_BN:
         case GGML_TYPE_IQ4_NL:
         case GGML_TYPE_IQ4_XS:
-        case GGML_TYPE_IQ4_KS:
-        case GGML_TYPE_IQ4_KSS:
-        case GGML_TYPE_IQ2_K:
-        case GGML_TYPE_IQ2_KS:
-        case GGML_TYPE_IQ2_KT:
-        case GGML_TYPE_IQ3_KT:
-        case GGML_TYPE_IQ4_KT:
-        case GGML_TYPE_IQ3_K:
-        case GGML_TYPE_IQ4_K:
-        case GGML_TYPE_IQ5_K:
-        case GGML_TYPE_IQ6_K:
         case GGML_TYPE_IQ3_S:
         case GGML_TYPE_IQ2_S:
         case GGML_TYPE_Q4_0_4_4:
@@ -8872,21 +8712,8 @@ static void ggml_compute_forward_get_rows(
         case GGML_TYPE_IQ3_XXS:
         case GGML_TYPE_IQ1_S:
         case GGML_TYPE_IQ1_M:
-        case GGML_TYPE_IQ1_BN:
-        case GGML_TYPE_IQ2_BN:
         case GGML_TYPE_IQ4_NL:
         case GGML_TYPE_IQ4_XS:
-        case GGML_TYPE_IQ4_KS:
-        case GGML_TYPE_IQ4_KSS:
-        case GGML_TYPE_IQ2_K:
-        case GGML_TYPE_IQ2_KS:
-        case GGML_TYPE_IQ2_KT:
-        case GGML_TYPE_IQ3_KT:
-        case GGML_TYPE_IQ4_KT:
-        case GGML_TYPE_IQ3_K:
-        case GGML_TYPE_IQ4_K:
-        case GGML_TYPE_IQ5_K:
-        case GGML_TYPE_IQ6_K:
         case GGML_TYPE_IQ3_S:
         case GGML_TYPE_IQ2_S:
         case GGML_TYPE_Q4_0_4_4:
@@ -9477,21 +9304,8 @@ static void ggml_compute_forward_clamp(
         case GGML_TYPE_IQ3_XXS:
         case GGML_TYPE_IQ1_S:
         case GGML_TYPE_IQ1_M:
-        case GGML_TYPE_IQ1_BN:
-        case GGML_TYPE_IQ2_BN:
         case GGML_TYPE_IQ4_NL:
         case GGML_TYPE_IQ4_XS:
-        case GGML_TYPE_IQ4_KS:
-        case GGML_TYPE_IQ4_KSS:
-        case GGML_TYPE_IQ2_K:
-        case GGML_TYPE_IQ2_KS:
-        case GGML_TYPE_IQ2_KT:
-        case GGML_TYPE_IQ3_KT:
-        case GGML_TYPE_IQ4_KT:
-        case GGML_TYPE_IQ3_K:
-        case GGML_TYPE_IQ4_K:
-        case GGML_TYPE_IQ5_K:
-        case GGML_TYPE_IQ6_K:
         case GGML_TYPE_IQ3_S:
         case GGML_TYPE_IQ2_S:
         case GGML_TYPE_Q8_K:
