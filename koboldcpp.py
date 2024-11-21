@@ -75,6 +75,10 @@ runmode_untouched = True
 modelfile_extracted_meta = None
 importvars_in_progress = False
 has_multiplayer = False
+multiplayer_story_data_compressed = None #stores the full compressed story of the current multiplayer session
+multiplayer_turn_major = 0 # to keep track of when a client needs to sync their stories
+multiplayer_turn_minor = 0
+multiplayer_dataformat = "" # used to tell what is the data payload in saved story. set by client
 preloaded_story = None
 chatcompl_adapter = None
 embedded_kailite = None
@@ -467,6 +471,7 @@ def init_library():
     handle.abort_generate.restype = ctypes.c_bool
     handle.token_count.restype = token_count_outputs
     handle.get_pending_output.restype = ctypes.c_char_p
+    handle.get_chat_template.restype = ctypes.c_char_p
     handle.sd_load_model.argtypes = [sd_load_model_inputs]
     handle.sd_load_model.restype = ctypes.c_bool
     handle.sd_generate.argtypes = [sd_generation_inputs]
@@ -2085,7 +2090,7 @@ Enter Prompt:<br>
 
     def do_GET(self):
         global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
-        global has_multiplayer, maxctx, maxhordelen, friendlymodelname, KcppVersion, totalgens, preloaded_story, exitcounter, currentusergenkey, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath
+        global has_multiplayer, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat, maxctx, maxhordelen, friendlymodelname, KcppVersion, totalgens, preloaded_story, exitcounter, currentusergenkey, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath
         self.path = self.path.rstrip('/')
         response_body = None
         content_type = 'application/json'
@@ -2202,6 +2207,11 @@ Enter Prompt:<br>
         elif self.path.endswith(('/.well-known/serviceinfo')):
             response_body = (json.dumps({"version":"0.2","software":{"name":"KoboldCpp","version":KcppVersion,"repository":"https://github.com/LostRuins/koboldcpp","homepage":"https://github.com/LostRuins/koboldcpp","logo":"https://raw.githubusercontent.com/LostRuins/koboldcpp/refs/heads/concedo/niko.ico"},"api":{"koboldai":{"name":"KoboldAI API","rel_url":"/api","documentation":"https://lite.koboldai.net/koboldcpp_api","version":KcppVersion},"openai":{"name":"OpenAI API","rel_url ":"/v1","documentation":"https://openai.com/documentation/api","version":KcppVersion}}}).encode())
 
+        elif self.path=="/props":
+            ctbytes = handle.get_chat_template()
+            chat_template = ctypes.string_at(ctbytes).decode("UTF-8","ignore")
+            response_body = (json.dumps({"chat_template":chat_template,"total_slots":1}).encode())
+
         elif self.path=="/api" or self.path=="/docs" or self.path.startswith(('/api/?json=','/api?json=','/docs/?json=','/docs?json=')):
             content_type = 'text/html'
             if embedded_kcpp_docs is None:
@@ -2219,6 +2229,20 @@ Enter Prompt:<br>
         elif self.path=="/v1":
             content_type = 'text/html'
             response_body = (f"KoboldCpp OpenAI compatible endpoint is running!\n\nFor usage reference, see https://platform.openai.com/docs/api-reference").encode()
+
+        elif self.path=="/api/extra/multiplayer/status":
+            if not has_multiplayer:
+                response_body = (json.dumps({"error":"Multiplayer not enabled!"}).encode())
+            else:
+                response_body = (json.dumps({"turn_major":multiplayer_turn_major,"turn_minor":multiplayer_turn_minor,"idle":(0 if modelbusy.locked() else 1),"data_format":multiplayer_dataformat}).encode())
+
+        elif self.path=="/api/extra/multiplayer/getstory":
+            if not has_multiplayer:
+                response_body = ("".encode())
+            elif multiplayer_story_data_compressed is None:
+                response_body = ("".encode())
+            else:
+                response_body = multiplayer_story_data_compressed.encode()
 
         elif self.path=="/api/extra/preloadstory":
             if preloaded_story is None:
@@ -2245,7 +2269,7 @@ Enter Prompt:<br>
         return
 
     def do_POST(self):
-        global modelbusy, requestsinqueue, currentusergenkey, totalgens, pendingabortkey
+        global modelbusy, requestsinqueue, currentusergenkey, totalgens, pendingabortkey, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat
         contlenstr = self.headers['content-length']
         content_length = 0
         body = None
@@ -2260,6 +2284,39 @@ Enter Prompt:<br>
                 }}).encode())
                 return
             body = self.rfile.read(content_length)
+        elif self.headers.get('transfer-encoding', '').lower()=="chunked":
+            content_length = 0
+            chunklimit = 0  # do not process more than 512 chunks, prevents bad actors
+            body = b''
+            try:
+                while True:
+                    chunklimit += 1
+                    line = self.rfile.readline().strip()
+                    if line:
+                        chunk_length = max(0,int(line, 16))
+                        content_length += chunk_length
+                    if not line or chunklimit > 512 or content_length > (1024*1024*32): #32mb payload limit
+                        self.send_response(500)
+                        self.end_headers(content_type='application/json')
+                        self.wfile.write(json.dumps({"detail": {
+                        "msg": "Payload is too big. Max payload size is 32MB.",
+                        "type": "bad_input",
+                        }}).encode())
+                        return
+                    if chunk_length != 0:
+                        chunk = self.rfile.read(chunk_length)
+                        body += chunk
+                    self.rfile.readline()
+                    if chunk_length == 0:
+                        break
+            except Exception as e:
+                self.send_response(500)
+                self.end_headers(content_type='application/json')
+                self.wfile.write(json.dumps({"detail": {
+                "msg": "Failed to parse chunked request.",
+                "type": "bad_input",
+                }}).encode())
+                return
 
         self.path = self.path.rstrip('/')
         response_body = None
@@ -2340,6 +2397,40 @@ Enter Prompt:<br>
                     lastlogprobs = handle.last_logprobs()
                     logprobsdict = parse_last_logprobs(lastlogprobs)
             response_body = (json.dumps({"logprobs":logprobsdict}).encode())
+
+        elif self.path.endswith(('/api/extra/multiplayer/setstory')):
+            if not self.secure_endpoint():
+                return
+            if not has_multiplayer:
+                response_code = 400
+                response_body = (json.dumps({"success":False, "error":"Multiplayer not enabled!"}).encode())
+            else:
+                try:
+                    incoming_story = json.loads(body) # ensure submitted data is valid json
+                    fullupdate = incoming_story.get('full_update', False)
+                    dataformat = incoming_story.get('data_format', "")
+                    storybody = incoming_story.get('data', None) #should be a compressed string
+                    if storybody:
+                        storybody = str(storybody)
+                        if len(storybody) > (1024*1024*3): #limit story to 3mb
+                            response_code = 400
+                            response_body = (json.dumps({"success":False, "error":"Story is too long!"}).encode())
+                        else:
+                            multiplayer_story_data_compressed = str(storybody) #save latest story
+                            multiplayer_dataformat = dataformat
+                            if fullupdate:
+                                multiplayer_turn_minor = 0
+                                multiplayer_turn_major += 1
+                            else:
+                                multiplayer_turn_minor += 1
+                            response_body = (json.dumps({"success":True,"turn_major":multiplayer_turn_major,"turn_minor":multiplayer_turn_minor,"idle":(0 if modelbusy.locked() else 1),"data_format":multiplayer_dataformat}).encode())
+                    else:
+                        response_code = 400
+                        response_body = (json.dumps({"success":False, "error":"No story submitted!"}).encode())
+                except Exception as e:
+                    utfprint("Multiplayer Set Story - Body Error: " + str(e))
+                    response_code = 400
+                    response_body = (json.dumps({"success": False, "error":"Submitted story invalid!"}).encode())
 
         if response_body is not None:
             self.send_response(response_code)
@@ -4042,7 +4133,7 @@ def run_horde_worker(args, api_key, worker_name):
     session_starttime = datetime.now()
     sleepy_counter = 0 #if this exceeds a value, worker becomes sleepy (slower)
     exitcounter = 0
-    print(f"===\nEmbedded Horde Worker '{worker_name}' Starting...\n(To use your own Horde Bridge/Scribe worker instead, don't set your API key)")
+    print(f"===\nEmbedded Horde Worker '{worker_name}' Starting...\n(To use your own Horde Bridge/Scribe worker instead, don't set your API key)\n")
     BRIDGE_AGENT = f"KoboldCppEmbedWorker:2:https://github.com/LostRuins/koboldcpp"
     cluster = "https://aihorde.net"
     while exitcounter < 10:
