@@ -76,9 +76,10 @@ modelfile_extracted_meta = None
 importvars_in_progress = False
 has_multiplayer = False
 multiplayer_story_data_compressed = None #stores the full compressed story of the current multiplayer session
-multiplayer_turn_major = 0 # to keep track of when a client needs to sync their stories
-multiplayer_turn_minor = 0
+multiplayer_turn_major = 1 # to keep track of when a client needs to sync their stories
+multiplayer_turn_minor = 1
 multiplayer_dataformat = "" # used to tell what is the data payload in saved story. set by client
+multiplayer_lastactive = 0 # timestamp of last activity
 preloaded_story = None
 chatcompl_adapter = None
 embedded_kailite = None
@@ -2090,7 +2091,7 @@ Enter Prompt:<br>
 
     def do_GET(self):
         global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
-        global has_multiplayer, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat, maxctx, maxhordelen, friendlymodelname, KcppVersion, totalgens, preloaded_story, exitcounter, currentusergenkey, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath
+        global has_multiplayer, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat, multiplayer_lastactive, maxctx, maxhordelen, friendlymodelname, KcppVersion, totalgens, preloaded_story, exitcounter, currentusergenkey, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath
         self.path = self.path.rstrip('/')
         response_body = None
         content_type = 'application/json'
@@ -2234,7 +2235,7 @@ Enter Prompt:<br>
             if not has_multiplayer:
                 response_body = (json.dumps({"error":"Multiplayer not enabled!"}).encode())
             else:
-                response_body = (json.dumps({"turn_major":multiplayer_turn_major,"turn_minor":multiplayer_turn_minor,"idle":(0 if modelbusy.locked() else 1),"data_format":multiplayer_dataformat}).encode())
+                response_body = (json.dumps({"turn_major":multiplayer_turn_major,"turn_minor":multiplayer_turn_minor,"idle":(0 if (modelbusy.locked() or (time.time()-multiplayer_lastactive)<10) else 1),"data_format":multiplayer_dataformat}).encode())
 
         elif self.path=="/api/extra/multiplayer/getstory":
             if not has_multiplayer:
@@ -2269,7 +2270,7 @@ Enter Prompt:<br>
         return
 
     def do_POST(self):
-        global modelbusy, requestsinqueue, currentusergenkey, totalgens, pendingabortkey, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat
+        global modelbusy, requestsinqueue, currentusergenkey, totalgens, pendingabortkey, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat, multiplayer_lastactive
         contlenstr = self.headers['content-length']
         content_length = 0
         body = None
@@ -2418,12 +2419,13 @@ Enter Prompt:<br>
                         else:
                             multiplayer_story_data_compressed = str(storybody) #save latest story
                             multiplayer_dataformat = dataformat
+                            multiplayer_lastactive = int(time.time())
                             if fullupdate:
-                                multiplayer_turn_minor = 0
+                                multiplayer_turn_minor = 1
                                 multiplayer_turn_major += 1
                             else:
                                 multiplayer_turn_minor += 1
-                            response_body = (json.dumps({"success":True,"turn_major":multiplayer_turn_major,"turn_minor":multiplayer_turn_minor,"idle":(0 if modelbusy.locked() else 1),"data_format":multiplayer_dataformat}).encode())
+                            response_body = (json.dumps({"success":True,"turn_major":multiplayer_turn_major,"turn_minor":multiplayer_turn_minor,"idle":(0 if (modelbusy.locked() or (time.time()-multiplayer_lastactive)<10) else 1),"data_format":multiplayer_dataformat}).encode())
                     else:
                         response_code = 400
                         response_body = (json.dumps({"success":False, "error":"No story submitted!"}).encode())

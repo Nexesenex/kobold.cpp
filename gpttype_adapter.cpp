@@ -1508,6 +1508,7 @@ static void load_grammar(const std::string & gammarstr)
     }
 
     if (!gammarstr.empty()) {
+        parsed_grammar = llama_grammar_parser();
         parsed_grammar.parse(gammarstr.c_str());
         // will be empty (default) if there are parse errors
         if (parsed_grammar.rules.empty()) {

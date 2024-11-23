@@ -58,11 +58,7 @@ jobs:
           mkdir build
           cd build
           cmake .. -DLLAMA_CUBLAS=ON -DLLAMA_AVX2=OFF -DCMAKE_SYSTEM_VERSION="10.0.19041.0"
-          if [ "${env:NUMBER_OF_PROCESSORS}" -gt 1 ]; then
-            cmake --build . --config Release -j 2
-          else
-            cmake --build . --config Release -j 1
-          fi
+          cmake --build . --config Release -j 2
           mv bin/Release/koboldcpp_cublas.dll ../koboldcpp_cublas.dll
           cd ..
 
