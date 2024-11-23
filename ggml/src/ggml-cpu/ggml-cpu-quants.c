@@ -10829,6 +10829,16 @@ void ggml_vec_dot_iq4_xs_q8_K(int n, float * restrict s, size_t bs, const void *
 #endif
 }
 
+
+
+
+
+
+
+
+
+
+
 // ============================ 4-bit non-linear quants
 
 void quantize_row_iq4_nl(const float * restrict x, void * restrict y, int64_t k) {

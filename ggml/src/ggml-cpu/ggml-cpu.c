@@ -487,21 +487,21 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
 
-        case GGML_TYPE_IQ1_BN:
-        case GGML_TYPE_IQ2_BN:
-        case GGML_TYPE_IQ4_NL:
-        case GGML_TYPE_IQ4_XS:
-        case GGML_TYPE_IQ4_KS:
-        case GGML_TYPE_IQ4_KSS:
-        case GGML_TYPE_IQ2_K:
-        case GGML_TYPE_IQ2_KS:
-        case GGML_TYPE_IQ2_KT:
-        case GGML_TYPE_IQ3_KT:
-        case GGML_TYPE_IQ4_KT:
-        case GGML_TYPE_IQ3_K:
-        case GGML_TYPE_IQ4_K:
-        case GGML_TYPE_IQ5_K:
-        case GGML_TYPE_IQ6_K:
+        // case GGML_TYPE_IQ1_BN:
+        // case GGML_TYPE_IQ2_BN:
+        // case GGML_TYPE_IQ4_NL:
+        // case GGML_TYPE_IQ4_XS:
+        // case GGML_TYPE_IQ4_KS:
+        // case GGML_TYPE_IQ4_KSS:
+        // case GGML_TYPE_IQ2_K:
+        // case GGML_TYPE_IQ2_KS:
+        // case GGML_TYPE_IQ2_KT:
+        // case GGML_TYPE_IQ3_KT:
+        // case GGML_TYPE_IQ4_KT:
+        // case GGML_TYPE_IQ3_K:
+        // case GGML_TYPE_IQ4_K:
+        // case GGML_TYPE_IQ5_K:
+        // case GGML_TYPE_IQ6_K:
 
     [GGML_TYPE_Q8_K] = {
         .from_float               = quantize_row_q8_K,
