@@ -5722,7 +5722,7 @@ void vec_dot_iq2_k_q8_k(int n, float * GGML_RESTRICT s, size_t bs, const void * 
 
 }
 
-namespace {
+/* namespace {
 void quantize_row_iq2_ks_impl(const float * x, void * vy, int n_per_row, const float * quant_weights, float * all_scales, float * all_sw, int8_t * all_Ls) {
 
     constexpr int kBlockSize = 32;
@@ -6061,7 +6061,7 @@ void vec_dot_iq2_ks_q8_k(int n, float * s, size_t bs, const void * vx, size_t bx
 
     *s = d * sumf;
 
-}
+} */
 
 //
 // ============================================== iq3_k
@@ -8102,7 +8102,7 @@ void vec_dot_iq4_kss_q8_k(int n, float * s, size_t bs, const void * vx, size_t b
 
 // ========================================== iq2_kt ====================================================
 
-namespace {
+/* namespace {
 #ifdef __AVX2__
 static inline float hsum_float_4(__m128 x) {
     x = _mm_add_ps(x, _mm_movehl_ps(x, x));
@@ -9527,7 +9527,7 @@ void vec_dot_iq4_kt_q8_k(int n, float * s, size_t bs, const void * vx, size_t bx
     }
 #endif
 
-}
+} */
 
 // =============================== data validation
 
