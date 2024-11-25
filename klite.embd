@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 190;
+	const LITEVER = 191;
 	const urlParams = new URLSearchParams(window.location.search);
 	var localflag = true;
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -4117,7 +4117,7 @@ Current version indicated by LITEVER below.
 	const poll_interval_base_text = 500;
 	const poll_interval_base_img = 3800;
 	const poll_interval_idle = 1000;
-	const poll_interval_multiplayer = 1500; //every 1.5s
+	const poll_interval_multiplayer = 1000; //every 1s
 
 	const horde_base_url = "https://aihorde.net"
 	const horde_perf_endpoint = horde_base_url + "/api/v2/status/performance";
@@ -4218,6 +4218,7 @@ Current version indicated by LITEVER below.
 	const SAVE_SLOTS = 10;
 
 	//all configurable globals
+	var unique_uid = "LITE_UID_"+(Math.floor(100000 + Math.random() * 900000)).toString();
 	var perfdata = null; //if it's null, we are not connected
 	var models_data = [];
 	var selected_models = []; //this stores ALL selected models properties as array of objects
@@ -4410,6 +4411,7 @@ Current version indicated by LITEVER below.
 		inject_timestamps: false,
 		inject_chatnames_instruct: false,
 		inject_jailbreak_instruct: false,
+		adventure_dicemode: false,
 		idle_responses: 0,
 		idle_duration: 60,
 		export_settings: true, //affects if settings are included with the story and sharelinks
@@ -4427,7 +4429,7 @@ Current version indicated by LITEVER below.
 		rep_pen: 1.07,
 		rep_pen_range: 360,
 		rep_pen_slope: 0.7,
-		temperature: 0.7,
+		temperature: 0.8,
 		dynatemp_range: 0.0,
 		dynatemp_exponent: 1.0,
 		smoothing_factor: 0.0,
@@ -4474,7 +4476,7 @@ Current version indicated by LITEVER below.
 			rep_pen_slope: defaultsettings.rep_pen_slope,
 			sampler_order: defaultsettings.sampler_order
 		},
-		{"preset":"Simple Logical","description":"A very predictable preset with low randomness.","temp":0.3,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":100,"top_p":0.6,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.02,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Simple Balanced","description":"A good balanced preset with medium randomness.","temp":0.7,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":100,"top_p":0.92,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.07,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Simple Creative","description":"A wild and unpredictable preset with higher randomness.","temp":1.0,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":100,"top_p":0.98,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.15,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Basic Min-P","description":"A good default for Min-P, only works on backends with min-p.","temp":1.25,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":0,"top_p":1,"min_p":0.1,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]},{"preset":"Basic DynaTemp","description":"A good default for DynaTemp, only works on backends with it.","temp":1.25,"dynatemp_range":0.75,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":0,"top_p":1,"min_p":0.05,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]},{"preset":"Basic SmoothSample","description":"A good default for Smooth Sampling, only works on backends with it.","temp":1.0,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.25,"top_k":0,"top_p":1,"min_p":0.05,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]},{"preset":"Basic SillyTavern","description":"Similar to default preset used in SillyTavern.","temp":0.7,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":40,"top_p":0.6,"min_p":0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1.0,"rep_pen":1.18,"rep_pen_range":1024,"rep_pen_slope":0.8,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Neutral (Disabled)","description":"Sets all samplers neutralized, allowing you to customize your own.","temp":1.0,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":200,"top_p":1.0,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.0,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"CoherentCreativity (Legacy)","description":"Legacy preset. A good balance between coherence, creativity, and quality of prose.","rep_pen":1.2,"rep_pen_range":360,"rep_pen_slope":0,"sampler_order":[6,5,0,2,3,1,4],"temp":0.5,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"tfs":0.99,"top_a":0,"top_k":0,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"typical":1},{"preset":"Godlike (Legacy)","description":"Legacy preset. Makes AI give a descriptive and sensual output.","temp":0.7,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":0,"top_p":0.5,"min_p":0.0,"presence_penalty":0.0,"top_a":0.75,"typical":0.19,"tfs":0.97,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,5,4,3,2,1,0]},{"preset":"LiminalDrift (Legacy)","description":"Legacy preset. Sometimes surreal situations arise based on information already present in the story.","temp":0.66,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":0,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"top_a":0.96,"typical":0.6,"tfs":1,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,4,5,1,0,2,3]}
+		{"preset":"Simple Logical","description":"A very predictable preset with low randomness.","temp":0.3,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":100,"top_p":0.6,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.02,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Simple Balanced","description":"A good balanced preset with medium randomness.","temp":0.8,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":100,"top_p":0.92,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.07,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Simple Creative","description":"A wild and unpredictable preset with higher randomness.","temp":1.0,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":100,"top_p":0.98,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.15,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Basic Min-P","description":"A good default for Min-P, only works on backends with min-p.","temp":1.25,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":0,"top_p":1,"min_p":0.1,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]},{"preset":"Basic DynaTemp","description":"A good default for DynaTemp, only works on backends with it.","temp":1.25,"dynatemp_range":0.75,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":0,"top_p":1,"min_p":0.05,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]},{"preset":"Basic SmoothSample","description":"A good default for Smooth Sampling, only works on backends with it.","temp":1.0,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.25,"top_k":0,"top_p":1,"min_p":0.05,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]},{"preset":"Basic SillyTavern","description":"Similar to default preset used in SillyTavern.","temp":0.8,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":40,"top_p":0.6,"min_p":0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1.0,"rep_pen":1.18,"rep_pen_range":1024,"rep_pen_slope":0.8,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Neutral (Disabled)","description":"Sets all samplers neutralized, allowing you to customize your own.","temp":1.0,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":200,"top_p":1.0,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.0,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"CoherentCreativity (Legacy)","description":"Legacy preset. A good balance between coherence, creativity, and quality of prose.","rep_pen":1.2,"rep_pen_range":360,"rep_pen_slope":0,"sampler_order":[6,5,0,2,3,1,4],"temp":0.5,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"tfs":0.99,"top_a":0,"top_k":0,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"typical":1},{"preset":"Godlike (Legacy)","description":"Legacy preset. Makes AI give a descriptive and sensual output.","temp":0.7,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":0,"top_p":0.5,"min_p":0.0,"presence_penalty":0.0,"top_a":0.75,"typical":0.19,"tfs":0.97,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,5,4,3,2,1,0]},{"preset":"LiminalDrift (Legacy)","description":"Legacy preset. Sometimes surreal situations arise based on information already present in the story.","temp":0.66,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":0,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"top_a":0.96,"typical":0.6,"tfs":1,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,4,5,1,0,2,3]}
 	];
 
 	const instructpresets = [
@@ -5085,7 +5087,6 @@ Current version indicated by LITEVER below.
 				perfdata.queued_tokens += data.queued_tokens;
 				perfdata.past_minute_tokens += data.past_minute_tokens;
 				document.body.classList.add("connected");
-				document.getElementById("multiplayerstatus").innerText = "";
 				document.getElementById("connectstatus").innerHTML = "AI Horde";
 				document.getElementById("connectstatus").classList.add("color_offwhite");
 				render_gametext(false);
@@ -5099,7 +5100,6 @@ Current version indicated by LITEVER below.
 				console.log("Error: " + error);
 				msgbox("Failed to connect to AI Horde Service!\nPlease check your network connection.<br><br>You may still be able to connect to an alternative service, <a href='#' class='color_blueurl' onclick='hide_popups();display_endpoint_container()'>click here to view options</a>.","Error Encountered",true);
 				document.body.classList.remove("connected");
-				document.getElementById("multiplayerstatus").innerText = "";
 				document.getElementById("connectstatus").innerHTML = "Offline Mode";
 				document.getElementById("connectstatus").classList.remove("color_offwhite");
 				render_gametext(false);
@@ -7499,6 +7499,7 @@ Current version indicated by LITEVER below.
 		multiplayer_active = false;
 		multiplayer_last_turn_major = 0;
 		multiplayer_last_turn_minor = 0;
+		max_poll_limit_counter = 0;
 		schedule_multiplayer_minor_change = false;
 		schedule_multiplayer_major_change = false;
 		multiplayer_override_name = "";
@@ -7559,6 +7560,7 @@ Current version indicated by LITEVER below.
 			body: JSON.stringify({
 				"full_update": fullupdate,
 				"data": subdata,
+				"sender": unique_uid,
 				"data_format":"kcpp_lzma_b64",
 			})
 		})
@@ -7567,7 +7569,7 @@ Current version indicated by LITEVER below.
 			if(vals && vals.success)
 			{
 				let expected_major = (fullupdate?(1+multiplayer_last_turn_major):multiplayer_last_turn_major);
-				let expected_minor = (fullupdate?0:(multiplayer_last_turn_minor+1));
+				let expected_minor = (fullupdate?1:(multiplayer_last_turn_minor+1));
 				if(vals.turn_major==expected_major && vals.turn_minor==expected_minor)
 				{
 					//if nobody else updated, disregard our own updates
@@ -7576,11 +7578,11 @@ Current version indicated by LITEVER below.
 				}
 			}else{
 				leave_multiplayer();
-				msgbox("Multiplayer Error: " + JSON.stringify(vals),"Disconnected from Multiplayer");
+				msgbox("Multiplayer Error: " + JSON.stringify(vals)+"\n\nYou can reconnect by clicking 'Join Multiplayer'.","Disconnected from Multiplayer");
 			}
 		}).catch(error => {
 			leave_multiplayer();
-			msgbox("Multiplayer Error: " + error,"Disconnected from Multiplayer");
+			msgbox("Multiplayer Error: " + error + "\n\nYou can reconnect by clicking 'Join Multiplayer'.","Disconnected from Multiplayer");
 			console.log("Failed to access multiplayer status: " + error);
 		});
 	}
@@ -7905,10 +7907,6 @@ Current version indicated by LITEVER below.
 			let bcolor = (curr.opmode==1?"blue":(curr.opmode==2?"green":(curr.opmode==3?"red":"yellow")));
 			let entry = `<button type="button" name="`+i+`" class="scenarioitem `+bcolor+` btn btn-primary" onclick="return click_scenario(`+i+`)">`+curr.title+`</button>`;
 			scenarios += entry;
-		}
-		if(is_using_kcpp_with_multiplayer())
-		{
-			scenarios += `<button type="button" name="" class="scenarioitem purple btn btn-primary" onclick="hide_popups();join_multiplayer()">Join Multiplayer</button>`;
 		}
 
 		document.getElementById("scenariogrid").innerHTML = scenarios;
@@ -8644,6 +8642,13 @@ Current version indicated by LITEVER below.
 
 	}
 
+	function toggle_manual_horde_worker()
+	{
+		let tmpkey = document.getElementById("apikey").value;
+		display_horde_models();
+		document.getElementById("apikey").value = tmpkey;
+	}
+
 	function togglejailbreak()
 	{
 		if(localsettings.saved_oai_jailbreak=="")
@@ -9068,6 +9073,10 @@ Current version indicated by LITEVER below.
 
 	function transform_oai_ep(desired_oai_ep)
 	{
+		if(desired_oai_ep!="")
+		{
+			desired_oai_ep = desired_oai_ep.trim();
+		}
 		if(desired_oai_ep!="" && desired_oai_ep.slice(-1)=="/")
 		{
 			desired_oai_ep = desired_oai_ep.slice(0, -1);
@@ -9079,6 +9088,10 @@ Current version indicated by LITEVER below.
 		}
 		if (document.getElementById("oaiaddversion").checked)
 		{
+			//fix incorrect paths
+			if(desired_oai_ep!="" && desired_oai_ep.toLowerCase().endsWith("/chat/completions")) {
+				desired_oai_ep = desired_oai_ep.slice(0,-17);
+			}
 			if(desired_oai_ep!="" && desired_oai_ep.length > 4 && !desired_oai_ep.slice(-4).toLowerCase().includes("/v") && !desired_oai_ep.toLowerCase().includes("/v1/")) {
 				desired_oai_ep = desired_oai_ep + "/v1";
 			}
@@ -9174,7 +9187,6 @@ Current version indicated by LITEVER below.
 								document.body.classList.add("connected");
 								document.getElementById("connectstatus").classList.add("color_offwhite");
 							}
-							document.getElementById("multiplayerstatus").innerText = "";
 							document.getElementById("connectstatus").innerHTML = "KoboldAI Endpoint";
 							render_gametext();
 
@@ -9231,7 +9243,6 @@ Current version indicated by LITEVER below.
 										koboldcpp_version_obj = data;
 										koboldcpp_version = data.version;
 										console.log("KoboldCpp Detected: " + koboldcpp_version);
-										document.getElementById("multiplayerstatus").innerText = "";
 										document.getElementById("connectstatus").innerHTML = (`<span style='cursor: pointer;' onclick='fetch_koboldcpp_perf()'>KoboldCpp ${koboldcpp_version}</a>`);
 										koboldcpp_has_vision = (data.vision?true:false);
 										koboldcpp_has_whisper = (data.transcribe?true:false);
@@ -9394,7 +9405,6 @@ Current version indicated by LITEVER below.
 								custom_kobold_endpoint = "";
 								if(localflag)
 								{
-									document.getElementById("multiplayerstatus").innerText = "";
 									document.getElementById("connectstatus").innerHTML = "Offline Mode";
 								}
 								render_gametext();
@@ -9473,7 +9483,6 @@ Current version indicated by LITEVER below.
 					document.body.classList.add("connected");
 					document.getElementById("connectstatus").classList.add("color_offwhite");
 				}
-				document.getElementById("multiplayerstatus").innerText = "";
 				document.getElementById("connectstatus").innerHTML = "OpenAI Endpoint";
 				render_gametext(true);
 			}
@@ -9524,7 +9533,6 @@ Current version indicated by LITEVER below.
 					document.body.classList.add("connected");
 					document.getElementById("connectstatus").classList.add("color_offwhite");
 				}
-				document.getElementById("multiplayerstatus").innerText = "";
 				document.getElementById("connectstatus").innerHTML = "Claude Endpoint";
 				render_gametext();
 
@@ -9557,7 +9565,6 @@ Current version indicated by LITEVER below.
 					document.body.classList.add("connected");
 					document.getElementById("connectstatus").classList.add("color_offwhite");
 				}
-				document.getElementById("multiplayerstatus").innerText = "";
 				document.getElementById("connectstatus").innerHTML = "Gemini Endpoint";
 				render_gametext();
 			}
@@ -9589,7 +9596,6 @@ Current version indicated by LITEVER below.
 					document.body.classList.add("connected");
 					document.getElementById("connectstatus").classList.add("color_offwhite");
 				}
-				document.getElementById("multiplayerstatus").innerText = "";
 				document.getElementById("connectstatus").innerHTML = "Cohere Endpoint";
 				render_gametext();
 			}
@@ -9954,7 +9960,6 @@ Current version indicated by LITEVER below.
 				localsettings.my_api_key = defaultsettings.my_api_key;
 			}
 
-			document.getElementById("multiplayerstatus").innerText = "";
 			document.getElementById("connectstatus").innerHTML = "AI Horde";
 
 			render_gametext();
@@ -10082,6 +10087,11 @@ Current version indicated by LITEVER below.
 				document.getElementById("kudos_bal").innerHTML = "API Key Error<br><a class='color_blueurl' href='https://aihorde.net/register'>(Register New User)</a>";
 			});
 		}
+	}
+
+	function reset_horde_selection()
+	{
+		document.getElementById("pickedmodel").selectedIndex = -1;
 	}
 
 	function inputboxfocus()
@@ -10294,6 +10304,7 @@ Current version indicated by LITEVER below.
 		document.getElementById("inject_timestamps").checked = localsettings.inject_timestamps;
 		document.getElementById("inject_chatnames_instruct").checked = localsettings.inject_chatnames_instruct;
 		document.getElementById("inject_jailbreak_instruct").checked = localsettings.inject_jailbreak_instruct;
+		document.getElementById("adventure_dicemode").checked = localsettings.adventure_dicemode;
 		document.getElementById("idle_responses").value = localsettings.idle_responses;
 		document.getElementById("idle_duration").value = localsettings.idle_duration;
 		document.getElementById("fix_alpaca_leak").checked = localsettings.fix_alpaca_leak;
@@ -10615,6 +10626,7 @@ Current version indicated by LITEVER below.
 		localsettings.inject_timestamps = (document.getElementById("inject_timestamps").checked ? true : false);
 		localsettings.inject_chatnames_instruct = (document.getElementById("inject_chatnames_instruct").checked ? true : false);
 		localsettings.inject_jailbreak_instruct = (document.getElementById("inject_jailbreak_instruct").checked ? true : false);
+		localsettings.adventure_dicemode = (document.getElementById("adventure_dicemode").checked ? true : false);
 		localsettings.idle_responses = document.getElementById("idle_responses").value;
 		localsettings.idle_duration = document.getElementById("idle_duration").value;
 		localsettings.fix_alpaca_leak = (document.getElementById("fix_alpaca_leak").checked ? true : false);
@@ -11327,6 +11339,7 @@ Current version indicated by LITEVER below.
 		completed_imgs_meta = {};
 		localsettings.adventure_is_action = false;
 		prev_hl_chunk = null;
+		gametext_focused = false;
 		last_token_budget = "";
 		groupchat_removals = [];
 		welcome = "";
@@ -12307,7 +12320,14 @@ Current version indicated by LITEVER below.
 			}
 			if (localsettings.opmode == 2 && newgen != "" && localsettings.adventure_is_action) {
 				//append action for adventure mode, except for the first turn.
-				newgen = "\n\n\> " + newgen + "\n\n";
+				let diceaddon = "";
+				if(localsettings.adventure_dicemode)
+				{
+					let roll = Math.floor(Math.random() * 20) + 1;
+					let outcome = (roll==20?"Perfect":(roll>16?"Excellent":(roll>12?"Good":(roll>8?"Fair":(roll>4?"Poor":"Terrible")))));
+					diceaddon = ` (Rolled 1d20=${roll}/20, Outcome: ${outcome})`;
+				}
+				newgen = "\n\n\> " + newgen + diceaddon + "\n\n";
 			}
 			//if very first submission is a story in adventure mode, swap to action
 			if(localsettings.opmode == 2 && newgen != "" && gametext_arr.length==0)
@@ -14164,12 +14184,10 @@ Current version indicated by LITEVER below.
 		gentxt = trim_extra_stop_seqs(gentxt,true);
 		let mychatname = get_my_multiplayer_chatname();
 
-		//always trim incomplete sentences for adventure and chat (if not multiline)
+		//allow trim incomplete sentences
 		//do not trim if instruct mode AND stop token reached
 		let donottrim = ((localsettings.opmode == 4||localsettings.opmode == 3) && last_stop_reason=="stop");
-		if (!donottrim && (localsettings.opmode == 2
-		|| (localsettings.opmode == 3 && !localsettings.allow_continue_chat)
-		|| localsettings.trimsentences == true)) {
+		if (!donottrim && localsettings.trimsentences == true) {
 			//also, to prevent a trim from bisecting a chat name, if a response contains a chatname, do not trim
 			donottrim = false;
 			if(localsettings.opmode == 3)
@@ -14767,7 +14785,7 @@ Current version indicated by LITEVER below.
 		let newgenempty = (document.getElementById("input_text").value == "");
 		let	chatinputempty = (document.getElementById("cht_inp").value == "" && document.getElementById("corpo_cht_inp").value == "");
 		if ((localsettings.opmode == 1 || localsettings.opmode == 2 || localsettings.opmode == 3 || localsettings.opmode == 4)
-		&& localsettings.idle_responses > 0 && newgenempty && chatinputempty && !document.getElementById("btnsend").disabled && idle_triggered_counter<localsettings.idle_responses && !is_popup_open())
+		&& localsettings.idle_responses > 0 && newgenempty && chatinputempty && !gametext_focused && !document.getElementById("btnsend").disabled && idle_triggered_counter<localsettings.idle_responses && !is_popup_open())
 		{
 			idle_timer += 1000;
 			if (idle_timer > idle_timer_max) {
@@ -15079,16 +15097,15 @@ Current version indicated by LITEVER below.
 		});
 	}
 
+	var max_poll_limit_counter = 0;
 	function poll_multiplayer()
 	{
 		if(!is_using_kcpp_with_multiplayer() || !multiplayer_active)
 		{
-			document.getElementById("multiplayerstatus").innerText = "";
 			schedule_multiplayer_minor_change = false;
 			schedule_multiplayer_major_change = false;
 			return;
 		}
-		document.getElementById("multiplayerstatus").innerHTML = `<a href="#" onclick="leave_multiplayer()" class="color_orangeurl" style="font-size:10px">[Exit Multiplayer]</a>`;
 
 		//send our changes if they exist
 		if(schedule_multiplayer_minor_change || schedule_multiplayer_major_change)
@@ -15097,20 +15114,34 @@ Current version indicated by LITEVER below.
 			schedule_multiplayer_minor_change = false;
 			schedule_multiplayer_major_change = false;
 		}
-		else
+		else if(max_poll_limit_counter<4)
 		{
 			//listen for others changes
+			max_poll_limit_counter += 1;
+			let newgenempty = (document.getElementById("input_text").value == "");
+			let	chatinputempty = (document.getElementById("cht_inp").value == "" && document.getElementById("corpo_cht_inp").value == "");
 			fetch(apply_proxy_url(custom_kobold_endpoint + koboldcpp_multiplayer_check_endpoint),
 			{
-				method: 'GET',
+				method: 'POST',
 				headers: get_kobold_header(),
+				body: JSON.stringify({
+				"sender": unique_uid,
+				"senderbusy": (!newgenempty || !chatinputempty || gametext_focused),
+				}),
 			})
 			.then(response => response.json())
 			.then(vals => {
+				max_poll_limit_counter -= 1;
 				if(!multiplayer_pinged)
 				{
 					multiplayer_pinged = true;
 					render_gametext(false);
+				}
+				if(vals && vals.idle!=1)
+				{
+					document.getElementById("connectstatusmultiplayer").innerHTML = "<span title='Multiplayer Active' class='color_red'>M.P. (Active)</span>";
+				}else{
+					document.getElementById("connectstatusmultiplayer").innerHTML = "<span title='Multiplayer Idle'>M.P. (Idle)</span>";
 				}
 				if(vals && vals.turn_major && multiplayer_active && (vals.turn_major != multiplayer_last_turn_major || vals.turn_minor != multiplayer_last_turn_minor))
 				{
@@ -15119,7 +15150,7 @@ Current version indicated by LITEVER below.
 					multiplayer_last_turn_minor = vals.turn_minor;
 					fetch(apply_proxy_url(custom_kobold_endpoint + koboldcpp_multiplayer_fetch_endpoint),
 					{
-						method: 'GET',
+						method: 'POST',
 						headers: get_kobold_header(),
 					})
 					.then(response => response.text())
@@ -15129,6 +15160,20 @@ Current version indicated by LITEVER below.
 						{
 							if(minor_change)
 							{
+								//abort any ongoing generations
+								if(synchro_pending_stream != "" || pending_response_id != "")
+								{
+									retry_preserve_last = false;
+									synchro_pending_stream = "";
+									if(synchro_pending_stream != "" && pending_response_id != "")
+									{
+										abort_generation();
+									}
+									else
+									{
+										clear_poll_flags();
+									}
+								}
 								//minor change, load only gametext_arr. assume its v1
 								gametext_arr = [];
 								if (tmpstory.prompt != "") {
@@ -15151,11 +15196,11 @@ Current version indicated by LITEVER below.
 				else if(!vals || vals.error)
 				{
 					leave_multiplayer();
-					msgbox("Disconnected from multiplayer due to bad response.","Disconnected from Multiplayer");
+					msgbox("Disconnected from multiplayer due to bad response.\n\nYou can reconnect by clicking 'Join Multiplayer'.","Disconnected from Multiplayer");
 				}
 			}).catch(error => {
 				leave_multiplayer();
-				msgbox("Disconnected from multiplayer: " + error,"Disconnected from Multiplayer");
+				msgbox("Disconnected from multiplayer: " + error +"\n\nYou can reconnect by clicking 'Join Multiplayer'.","Disconnected from Multiplayer");
 				console.log("Failed to access multiplayer status: " + error);
 			});
 		}
@@ -15365,12 +15410,14 @@ Current version indicated by LITEVER below.
 		}
 	}
 
+	var gametext_focused = false;
 	function click_gametext()
 	{
 		if(document.getElementById("allowediting").checked)
 		{
 			const isSupported = typeof window.getSelection !== "undefined";
 			if (isSupported) {
+				gametext_focused = true;
 				warn_on_quit = true;
 				const selection = window.getSelection();
 				let foundparent = null;
@@ -15438,6 +15485,7 @@ Current version indicated by LITEVER below.
 	}
 
 	function merge_edit_field() {
+		gametext_focused = false;
 		if (gametext_arr.length > 0 && document.getElementById("allowediting").checked) {
 			let oldInnerText = concat_gametext(false, "","","");
 			let gametext_elem = document.getElementById("gametext");
@@ -16049,6 +16097,26 @@ Current version indicated by LITEVER below.
 				document.getElementById("topbtn_scenarios").classList.remove("hidden");
 				document.getElementById("topbtn_quickplay").classList.add("hidden");
 			}
+		}
+
+		if(is_using_kcpp_with_multiplayer())
+		{
+			if(multiplayer_active)
+			{
+				document.getElementById("connectstatusmultiplayer").classList.remove("hidden");
+				document.getElementById("topbtn_multiplayer_join").classList.add("hidden");
+				document.getElementById("topbtn_multiplayer_leave").classList.remove("hidden");
+			} else {
+				document.getElementById("connectstatusmultiplayer").classList.add("hidden");
+				document.getElementById("topbtn_multiplayer_join").classList.remove("hidden");
+				document.getElementById("topbtn_multiplayer_leave").classList.add("hidden");
+			}
+		}
+		else
+		{
+			document.getElementById("connectstatusmultiplayer").classList.add("hidden");
+			document.getElementById("topbtn_multiplayer_join").classList.add("hidden");
+			document.getElementById("topbtn_multiplayer_leave").classList.add("hidden");
 		}
 
 		if (selected_models.length == 0) //if no model, disable all first
@@ -18316,13 +18384,20 @@ Current version indicated by LITEVER below.
 										onclick="closeTopNav();display_settings()">KLite / KCPP / CCPP Settings</a>
 								</li>
 
+								<li class="nav-item hidden" id="topbtn_multiplayer_join">
+									<a class="nav-link mainnav" href="#" onclick="join_multiplayer()">Join Multiplayer</a>
+								</li>
+								<li class="nav-item hidden" id="topbtn_multiplayer_leave">
+									<a class="nav-link mainnav" href="#" onclick="leave_multiplayer()">Exit Multiplayer</a>
+								</li>
+
 							</ul>
 						</div>
 					</nav>
 				</div>
 				<div id="connectstatusdiv">
 					<div id="connectstatus">Connecting</div>
-					<div id="multiplayerstatus"></div>
+					<div class="hidden" style="font-size: 12px;" id="connectstatusmultiplayer"></div>
 				</div>
 			</div>
 		</div>
@@ -18585,7 +18660,7 @@ Current version indicated by LITEVER below.
 				<div class="justifyleft anotelabel">
 					Select AI Horde Model <span class="helpicon">?
 						<span class="helptext">These are the models currently provided by AI Horde volunteers.</span>
-					</span>
+					</span> <a href="#" class="color_blueurl" onclick="reset_horde_selection()">[Reset]</a>
 					<span style="float:right;">
 					<a href="#" class="color_green" onclick="get_and_show_workers()">[See Current Volunteers] </a>
 					</span>
@@ -18596,7 +18671,7 @@ Current version indicated by LITEVER below.
 					Select By Worker <span class="helpicon">?
 						<span class="helptext">This option explicitly assigns worker IDs, fixed based on the current workers available at model selection time.</span>
 					</span>
-					<input type="checkbox" id="manualworker" onclick="display_endpoint_container()">
+					<input type="checkbox" id="manualworker" onclick="toggle_manual_horde_worker()">
 
 					<span style="float:right;">
 						<input class="settinglabel miniinput" style="margin: 3px; width: 90px;" type="text" placeholder="Quick Search" value="" id="modelquicksearch" oninput="model_quick_search()">
@@ -19090,6 +19165,11 @@ Current version indicated by LITEVER below.
 							<div class="justifyleft settingsmall">Assistant Jailbreak <span class="helpicon">?<span
 								class="helptext">Automatically injects a jailbreak message after every instruct query, to make the AI more likely to obey you.</span></span></div>
 							<input type="checkbox" title="Assistant Jailbreak" id="inject_jailbreak_instruct" style="margin:0px 0px 0px auto;">
+						</div>
+						<div class="settinglabel">
+							<div class="justifyleft settingsmall">Adventure DiceMode <span class="helpicon">?<span
+								class="helptext">Allows the AI to roll a dice to determine the outcome of your actions in adventure mode.</span></span></div>
+							<input type="checkbox" title="Adventure DiceMode" id="adventure_dicemode" style="margin:0px 0px 0px auto;">
 						</div>
 
 					</div>

@@ -300,6 +300,18 @@ extern "C"
         return output;
     }
 
+    static std::string detokenized_str = ""; //just share a static object for detokenizing
+    const char * detokenize(const token_count_outputs input)
+    {
+        std::vector<int> input_arr;
+        for(int i=0;i<input.count;++i)
+        {
+            input_arr.push_back(input.ids[i]);
+        }
+        detokenized_str = gpttype_detokenize(input_arr,false);
+        return detokenized_str.c_str();
+    }
+
     static std::vector<TopPicksData> last_logprob_toppicks;
     static std::vector<logprob_item> last_logprob_items;
     last_logprobs_outputs last_logprobs()

@@ -14015,7 +14015,7 @@ int ggml_cpu_has_vsx(void) {
 }
 
 int ggml_cpu_has_neon(void) {
-#if defined(__ARM_ARCH)
+#if defined(__ARM_ARCH) && defined(__ARM_NEON)
     return ggml_arm_arch_features.has_neon;
 #else
     return 0;
@@ -14023,7 +14023,7 @@ int ggml_cpu_has_neon(void) {
 }
 
 int ggml_cpu_has_sve(void) {
-#if defined(__ARM_ARCH)
+#if defined(__ARM_ARCH) && defined(__ARM_FEATURE_SVE)
     return ggml_arm_arch_features.has_sve;
 #else
     return 0;
@@ -14031,7 +14031,7 @@ int ggml_cpu_has_sve(void) {
 }
 
 int ggml_cpu_has_matmul_int8(void) {
-#if defined(__ARM_ARCH)
+#if defined(__ARM_ARCH) && defined(__ARM_FEATURE_MATMUL_INT8)
     return ggml_arm_arch_features.has_i8mm;
 #else
     return 0;
@@ -14039,7 +14039,7 @@ int ggml_cpu_has_matmul_int8(void) {
 }
 
 int ggml_cpu_get_sve_cnt(void) {
-#if defined(__ARM_ARCH)
+#if defined(__ARM_ARCH) && defined(__ARM_FEATURE_SVE)
     return ggml_arm_arch_features.sve_cnt;
 #else
     return 0;

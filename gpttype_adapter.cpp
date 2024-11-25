@@ -1508,6 +1508,7 @@ static void load_grammar(const std::string & gammarstr)
     }
 
     if (!gammarstr.empty()) {
+        parsed_grammar = llama_grammar_parser();
         parsed_grammar.parse(gammarstr.c_str());
         // will be empty (default) if there are parse errors
         if (parsed_grammar.rules.empty()) {
@@ -2829,6 +2830,21 @@ std::vector<int> gpttype_get_token_arr(const std::string & input, bool addbos)
         printf("\nTokens Counted: %d\n",tokcount);
     }
     return toks;
+}
+
+std::string gpttype_detokenize(const std::vector<int> & inputids, bool render_special)
+{
+    std::string output = "";
+    for (auto eid : inputids)
+    {
+        if(eid<0 || eid>=n_vocab)
+        {
+            continue;
+        }
+        std::string tokenizedstr = FileFormatTokenizeID(eid, file_format, render_special);
+        output += tokenizedstr;
+    }
+    return output;
 }
 
 const std::string & gpttype_get_pending_output()

@@ -7273,12 +7273,12 @@ static bool weight_buft_supported(const llama_hparams & hparams, ggml_tensor * w
             } break;
         case GGML_OP_ADD:
             {
-                ggml_tensor * a = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, w->ne[0], 512);
+                ggml_tensor * a = ggml_new_tensor_4d(ctx, GGML_TYPE_F32, w->ne[0], w->ne[1], w->ne[2], w->ne[3]);
                 op_tensor = ggml_add(ctx, a, w);
             } break;
         case GGML_OP_MUL:
             {
-                ggml_tensor * a = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, w->ne[0], 512);
+                ggml_tensor * a = ggml_new_tensor_4d(ctx, GGML_TYPE_F32, w->ne[0], w->ne[1], w->ne[2], w->ne[3]);
                 op_tensor = ggml_mul(ctx, a, w);
             } break;
         case GGML_OP_DIV:
@@ -9339,6 +9339,7 @@ static bool llm_load_tensors(
             LLAMA_LOG_DEBUG("%s: tensor '%s' (%s) (and %d others) cannot be used with preferred buffer type %s, using %s instead\n",
                 __func__, first_moved_tensor->name, ggml_type_name(first_moved_tensor->type), n_moved_tensors - 1,
                 ggml_backend_buft_name(first_moved_from_buft), ggml_backend_buft_name(first_moved_to_buft));
+            LLAMA_LOG_DEBUG("(This is not an error, it just means some tensors will use CPU instead.)\n");
         }
     }
 
@@ -18425,13 +18426,13 @@ static void llama_kv_cache_defrag_internal(struct llama_context & lctx) {
 static void llama_kv_cache_update_internal(struct llama_context & lctx) {
     bool need_reserve = false;
 
-    // apply K-shift if needed
-    if (lctx.model.hparams.rope_type != LLAMA_ROPE_TYPE_NONE && lctx.kv_self.has_shift) {
+    if (lctx.kv_self.has_shift) {
         if (!llama_kv_cache_can_shift(&lctx)) {
-            GGML_ABORT("Deepseek2 does not support K-shift");
+            GGML_ABORT("The current context does not support K-shift");
         }
 
-        {
+        // apply K-shift if needed
+        if (lctx.model.hparams.rope_type != LLAMA_ROPE_TYPE_NONE) {
             ggml_backend_sched_reset(lctx.sched.get());
 
             ggml_cgraph * gf = llama_build_graph_k_shift(lctx);
@@ -20682,7 +20683,7 @@ void llama_kv_cache_update(struct llama_context * ctx) {
 }
 
 bool llama_kv_cache_can_shift(struct llama_context * ctx) {
-    return ctx->model.arch != LLM_ARCH_DEEPSEEK2; // not supported due to MLA
+    return !ctx->kv_self.recurrent && ctx->model.arch != LLM_ARCH_DEEPSEEK2; // not supported due to MLA
 }
 
 // deprecated

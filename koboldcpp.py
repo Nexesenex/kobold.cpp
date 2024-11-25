@@ -42,6 +42,7 @@ dry_seq_break_max = 512
 handle = None
 friendlymodelname = "inactive"
 friendlysdmodelname = "inactive"
+lastgeneratedcomfyimg = b''
 fullsdmodelpath = ""  #if empty, it's not initialized
 mmprojpath = "" #if empty, it's not initialized
 password = "" #if empty, no auth key required
@@ -76,9 +77,10 @@ modelfile_extracted_meta = None
 importvars_in_progress = False
 has_multiplayer = False
 multiplayer_story_data_compressed = None #stores the full compressed story of the current multiplayer session
-multiplayer_turn_major = 0 # to keep track of when a client needs to sync their stories
-multiplayer_turn_minor = 0
+multiplayer_turn_major = 1 # to keep track of when a client needs to sync their stories
+multiplayer_turn_minor = 1
 multiplayer_dataformat = "" # used to tell what is the data payload in saved story. set by client
+multiplayer_lastactive = {} # timestamp of last activity for each unique player
 preloaded_story = None
 chatcompl_adapter = None
 embedded_kailite = None
@@ -481,6 +483,8 @@ def init_library():
     handle.whisper_generate.argtypes = [whisper_generation_inputs]
     handle.whisper_generate.restype = whisper_generation_outputs
     handle.last_logprobs.restype = last_logprobs_outputs
+    handle.detokenize.argtypes = [token_count_outputs]
+    handle.detokenize.restype = ctypes.c_char_p
 
 def set_backend_props(inputs):
     clblastids = 0
@@ -1430,6 +1434,29 @@ def sd_load_model(model_filename,vae_filename,lora_filename,t5xxl_filename,clipl
     ret = handle.sd_load_model(inputs)
     return ret
 
+def sd_comfyui_tranform_params(genparams):
+    promptobj = genparams.get('prompt', None)
+    if promptobj and isinstance(promptobj, dict):
+        temp = promptobj.get('3', {})
+        temp = temp.get('inputs', {})
+        genparams["seed"] = temp.get("seed", -1)
+        genparams["steps"] = temp.get("steps", 20)
+        genparams["cfg_scale"] = temp.get("cfg", 5)
+        genparams["sampler_name"] = temp.get("sampler_name", "euler")
+        temp = promptobj.get('5', {})
+        temp = temp.get('inputs', {})
+        genparams["width"] = temp.get("width", 512)
+        genparams["height"] = temp.get("height", 512)
+        temp = promptobj.get('6', {})
+        temp = temp.get('inputs', {})
+        genparams["prompt"] = temp.get("text", "high quality")
+        temp = promptobj.get('7', {})
+        temp = temp.get('inputs', {})
+        genparams["negative_prompt"] = temp.get("text", "")
+    else:
+        print("Warning: ComfyUI Payload Missing!")
+    return genparams
+
 def sd_generate(genparams):
     global maxctx, args, currentusergenkey, totalgens, pendingabortkey, chatcompl_adapter
 
@@ -1532,6 +1559,26 @@ def whisper_generate(genparams):
         outstr = ret.data.decode("UTF-8","ignore")
     return outstr
 
+def tokenize_ids(countprompt,tcaddspecial):
+    rawcountdata = handle.token_count(countprompt.encode("UTF-8"),tcaddspecial)
+    countlimit = rawcountdata.count if (rawcountdata.count>=0 and rawcountdata.count<50000) else 0
+    # the above protects the server in case the count limit got corrupted
+    countdata = [rawcountdata.ids[i] for i in range(countlimit)]
+    return countdata
+
+def detokenize_ids(tokids):
+    tokidslen = len(tokids)
+    detokstr = ""
+    if tokidslen > 0 and tokidslen < 65536:
+        inputs = token_count_outputs()
+        inputs.count = tokidslen
+        inputs.ids = (ctypes.c_int * tokidslen)()
+        for i, cid in enumerate(tokids):
+            inputs.ids[i] = cid
+        detok = handle.detokenize(inputs)
+        detokstr = ctypes.string_at(detok).decode("UTF-8","ignore")
+    return detokstr
+
 #################################################################
 ### A hacky simple HTTP server simulating a kobold api by Concedo
 ### we are intentionally NOT using flask, because we want MINIMAL dependencies
@@ -1601,7 +1648,7 @@ def parse_last_logprobs(lastlogprobs):
 
 def transform_genparams(genparams, api_format):
     global chatcompl_adapter
-    #api format 1=basic,2=kai,3=oai,4=oai-chat,5=interrogate
+    #api format 1=basic,2=kai,3=oai,4=oai-chat,5=interrogate,6=ollama,7=ollamachat
     #alias all nonstandard alternative names for rep pen.
     rp1 = genparams.get('repeat_penalty', 1.0)
     rp2 = genparams.get('repetition_penalty', 1.0)
@@ -1619,7 +1666,7 @@ def transform_genparams(genparams, api_format):
     elif api_format==2:
         pass
 
-    elif api_format==3 or api_format==4:
+    elif api_format==3 or api_format==4 or api_format==7:
         default_max_tok = (400 if api_format==4 else 200)
         genparams["max_length"] = genparams.get('max_tokens', genparams.get('max_completion_tokens', default_max_tok))
         presence_penalty = genparams.get('presence_penalty', genparams.get('frequency_penalty', 0.0))
@@ -1633,7 +1680,7 @@ def transform_genparams(genparams, api_format):
         genparams["sampler_seed"] = tryparseint(genparams.get('seed', -1))
         genparams["mirostat"] = genparams.get('mirostat_mode', 0)
 
-        if api_format==4:
+        if api_format==4 or api_format==7: #handle ollama chat here too
             # translate openai chat completion messages format into one big string.
             messages_array = genparams.get('messages', [])
             default_adapter = {} if chatcompl_adapter is None else chatcompl_adapter
@@ -1752,6 +1799,23 @@ ws ::= | " " | "\n" [ \t]{0,20}
         assistant_message_start = adapter_obj.get("assistant_start", "### Response:")
         genparams["prompt"] = f"{user_message_start} In one sentence, write a descriptive caption for this image.\n{assistant_message_start}"
 
+    elif api_format==6:
+        detokstr = ""
+        tokids = genparams.get('context', [])
+        try:
+            detokstr = detokenize_ids(tokids)
+        except Exception as e:
+            utfprint("Ollama Context Error: " + str(e))
+        ollamasysprompt = genparams.get('system', "")
+        ollamabodyprompt = detokstr + "\n\n### Instruction:\n" + genparams.get('prompt', "") + "\n\n### Response:\n"
+        genparams["stop_sequence"] = genparams.get('stop', [])
+        genparams["stop_sequence"].append("\n### Instruction:")
+        genparams["stop_sequence"].append("\n### Response:")
+        genparams["trim_stop"] = True
+        genparams["ollamasysprompt"] = ollamasysprompt
+        genparams["ollamabodyprompt"] = ollamabodyprompt
+        genparams["prompt"] = ollamasysprompt + ollamabodyprompt
+
     return genparams
 
 class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -1854,6 +1918,12 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                    "choices": [{"index": 0, "message": {"role": "assistant", "content": recvtxt, "tool_calls": tool_calls}, "finish_reason": currfinishreason, "logprobs":logprobsdict}]}
         elif api_format == 5:
             res = {"caption": end_trim_to_sentence(recvtxt)}
+        elif api_format == 6:
+            oldprompt = genparams.get('ollamabodyprompt', "")
+            tokarr = tokenize_ids(oldprompt+recvtxt,False)
+            res = {"model": friendlymodelname,"created_at": str(datetime.now(timezone.utc).isoformat()),"response":recvtxt,"done": True,"done_reason":currfinishreason,"context": tokarr,"total_duration": 1,"load_duration": 1,"prompt_eval_count": prompttokens,"prompt_eval_duration": 1,"eval_count": comptokens,"eval_duration": 1}
+        elif api_format == 7:
+            res = {"model": friendlymodelname,"created_at": str(datetime.now(timezone.utc).isoformat()),"message":{"role":"assistant","content":recvtxt},"done": True,"done_reason":currfinishreason,"total_duration": 1,"load_duration": 1,"prompt_eval_count": prompttokens,"prompt_eval_duration": 1,"eval_count": comptokens,"eval_duration": 1}
         else:
             res = {"results": [{"text": recvtxt, "finish_reason": currfinishreason, "logprobs":logprobsdict, "prompt_tokens": prompttokens, "completion_tokens": comptokens}]}
 
@@ -1984,6 +2054,14 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             print(e)
 
+    def get_multiplayer_idle_state(self,userid):
+        if modelbusy.locked():
+            return False
+        for key, value in multiplayer_lastactive.items():
+            if key!=userid and time.time()-value<6: #6s to idle
+                return False
+        return True
+
     def secure_endpoint(self): #returns false if auth fails. caller should exit
         #handle password stuff
         if password and password !="":
@@ -2090,7 +2168,7 @@ Enter Prompt:<br>
 
     def do_GET(self):
         global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
-        global has_multiplayer, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat, maxctx, maxhordelen, friendlymodelname, KcppVersion, totalgens, preloaded_story, exitcounter, currentusergenkey, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath
+        global has_multiplayer, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat, multiplayer_lastactive, maxctx, maxhordelen, friendlymodelname, lastgeneratedcomfyimg, KcppVersion, totalgens, preloaded_story, exitcounter, currentusergenkey, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath
         self.path = self.path.rstrip('/')
         response_body = None
         content_type = 'application/json'
@@ -2190,7 +2268,7 @@ Enter Prompt:<br>
             else:
                 response_body = (json.dumps([{"title":friendlysdmodelname,"model_name":friendlysdmodelname,"hash":"8888888888","sha256":"8888888888888888888888888888888888888888888888888888888888888888","filename":fullsdmodelpath,"config": None}]).encode())
         elif self.path.endswith('/sdapi/v1/options'):
-           response_body = (json.dumps({"samples_format":"png","sd_model_checkpoint":friendlysdmodelname}).encode())
+            response_body = (json.dumps({"samples_format":"png","sd_model_checkpoint":friendlysdmodelname}).encode())
         elif self.path.endswith('/sdapi/v1/samplers'):
             if friendlysdmodelname=="inactive" or fullsdmodelpath=="":
                 response_body = (json.dumps([]).encode())
@@ -2203,6 +2281,23 @@ Enter Prompt:<br>
 
         elif self.path.endswith(('/api/tags')): #ollama compatible
             response_body = (json.dumps({"models":[{"name":"koboldcpp","model":friendlymodelname,"modified_at":"2024-07-19T15:26:55.6122841+08:00","size":394998579,"digest":"b5dc5e784f2a3ee1582373093acf69a2f4e2ac1710b253a001712b86a61f88bb","details":{"parent_model":"","format":"gguf","family":"koboldcpp","families":["koboldcpp"],"parameter_size":"128M","quantization_level":"Q4_0"}}]}).encode())
+
+        #comfyui compatible
+        elif self.path=='/system_stats':
+            response_body = (json.dumps({"system":{"os":"posix","ram_total":12345678900,"ram_free":12345678900,"comfyui_version":"v0.3.4-3-g7126ecf","python_version":"3.10.12","pytorch_version":"2.5.1","embedded_python":False,"argv":[]},"devices":[{"name":"koboldcpp","type":"cuda","index":0,"vram_total":12345678900,"vram_free":12345678900,"torch_vram_total":12345678900,"torch_vram_free":12345678900}]}).encode())
+        elif self.path=='/object_info':
+             response_body = (json.dumps({"KSampler":{"input":{"required":{"model":["MODEL",{"tooltip":""}],"seed":["INT",{"default":0,"min":0,"max":512,"tooltip":""}],"steps":["INT",{"default":20,"min":1,"max":512,"tooltip":""}],"cfg":["FLOAT",{"default":8.0,"min":0.0,"max":100.0,"step":0.1,"round":0.01,"tooltip":"512"}],"sampler_name":[["euler"],{"tooltip":""}],"scheduler":[["normal"],{"tooltip":""}],"positive":["CONDITIONING",{"tooltip":""}],"negative":["CONDITIONING",{"tooltip":""}],"latent_image":["LATENT",{"tooltip":""}],"denoise":["FLOAT",{"default":1.0,"min":0.0,"max":1.0,"step":0.01,"tooltip":""}]}},"input_order":{"required":["model","seed","steps","cfg","sampler_name","scheduler","positive","negative","latent_image","denoise"]},"output":["LATENT"],"output_is_list":[False],"output_name":["LATENT"],"name":"KSampler","display_name":"KSampler","description":"KSampler","python_module":"nodes","category":"sampling","output_node":False,"output_tooltips":[""]},"CheckpointLoaderSimple":{"input":{"required":{"ckpt_name":[[friendlysdmodelname],{"tooltip":""}]}},"input_order":{"required":["ckpt_name"]},"output":["MODEL","CLIP","VAE"],"output_is_list":[False,False,False],"output_name":["MODEL","CLIP","VAE"],"name":"CheckpointLoaderSimple","display_name":"Load","description":"","python_module":"nodes","category":"loaders","output_node":False,"output_tooltips":["","",""]},"CLIPTextEncode":{"input":{"required":{"text":["STRING",{"multiline":True,"dynamicPrompts":True,"tooltip":""}],"clip":["CLIP",{"tooltip":""}]}},"input_order":{"required":["text","clip"]},"output":["CONDITIONING"],"output_is_list":[False],"output_name":["CONDITIONING"],"name":"CLIPTextEncode","display_name":"CLIP","description":"","python_module":"nodes","category":"conditioning","output_node":False,"output_tooltips":[""]},"CLIPSetLastLayer":{"input":{"required":{"clip":["CLIP"],"stop_at_clip_layer":["INT",{"default":-1,"min":-24,"max":-1,"step":1}]}},"input_order":{"required":["clip","stop_at_clip_layer"]},"output":["CLIP"],"output_is_list":[False],"output_name":["CLIP"],"name":"CLIPSetLastLayer","display_name":"CLIPSLL","description":"","python_module":"nodes","category":"conditioning","output_node":False},"VAEDecode":{"input":{"required":{"samples":["LATENT",{"tooltip":""}],"vae":["VAE",{"tooltip":""}]}},"input_order":{"required":["samples","vae"]},"output":["IMAGE"],"output_is_list":[False],"output_name":["IMAGE"],"name":"VAEDecode","display_name":"VAE","description":"","python_module":"nodes","category":"latent","output_node":False,"output_tooltips":[""]},"VAEEncode":{"input":{"required":{"pixels":["IMAGE"],"vae":["VAE"]}},"input_order":{"required":["pixels","vae"]},"output":["LATENT"],"output_is_list":[False],"output_name":["LATENT"],"name":"VAEEncode","display_name":"VAE","description":"","python_module":"nodes","category":"latent","output_node":False},"VAEEncodeForInpaint":{"input":{"required":{"pixels":["IMAGE"],"vae":["VAE"],"mask":["MASK"],"grow_mask_by":["INT",{"default":6,"min":0,"max":64,"step":1}]}},"input_order":{"required":["pixels","vae","mask","grow_mask_by"]},"output":["LATENT"],"output_is_list":[False],"output_name":["LATENT"],"name":"VAEEncodeForInpaint","display_name":"VAE","description":"","python_module":"nodes","category":"latent/inpaint","output_node":False},"VAELoader":{"input":{"required":{"vae_name":[["kcpp_vae"]]}},"input_order":{"required":["vae_name"]},"output":["VAE"],"output_is_list":[False],"output_name":["VAE"],"name":"VAELoader","display_name":"Load VAE","description":"","python_module":"nodes","category":"loaders","output_node":False},"EmptyLatentImage":{"input":{"required":{"width":["INT",{"default":512,"min":16,"max":16384,"step":8,"tooltip":""}],"height":["INT",{"default":512,"min":16,"max":16384,"step":8,"tooltip":""}],"batch_size":["INT",{"default":1,"min":1,"max":1,"tooltip":""}]}},"input_order":{"required":["width","height","batch_size"]},"output":["LATENT"],"output_is_list":[False],"output_name":["LATENT"],"name":"EmptyLatentImage","display_name":"Empty Latent Image","description":"","python_module":"nodes","category":"latent","output_node":False,"output_tooltips":[""]}}).encode())
+        elif self.path.endswith('/api/models/checkpoints') or self.path.endswith('/models/checkpoints'): #emulate comfyui, duplication is redundant but added for clarity
+            if friendlysdmodelname=="inactive" or fullsdmodelpath=="":
+                response_body = (json.dumps([]).encode())
+            else:
+                response_body = (json.dumps([friendlysdmodelname]).encode())
+        elif self.path=='/view' or self.path=='/api/view' or self.path.startswith('/view?') or self.path.startswith('/api/view?'): #emulate comfyui
+            content_type = 'image/png'
+            response_body = lastgeneratedcomfyimg
+        elif self.path=='/history' or self.path=='/api/history' or self.path.startswith('/api/history/') or self.path.startswith('/history/'): #emulate comfyui
+            imgdone = (False if lastgeneratedcomfyimg==b'' else True)
+            response_body = (json.dumps({"12345678-0000-0000-0000-000000000001":{"prompt":[0,"12345678-0000-0000-0000-000000000001",{"3":{"class_type":"KSampler","inputs":{"cfg":5.0,"denoise":1.0,"latent_image":["5",0],"model":["4",0],"negative":["7",0],"positive":["6",0],"sampler_name":"euler","scheduler":"normal","seed":1,"steps":20}},"4":{"class_type":"CheckpointLoaderSimple","inputs":{"ckpt_name":friendlysdmodelname}},"5":{"class_type":"EmptyLatentImage","inputs":{"batch_size":1,"height":512,"width":512}},"6":{"class_type":"CLIPTextEncode","inputs":{"clip":["4",1],"text":"prompt"}},"7":{"class_type":"CLIPTextEncode","inputs":{"clip":["4",1],"text":""}},"8":{"class_type":"VAEDecode","inputs":{"samples":["3",0],"vae":["4",2]}},"9":{"class_type":"SaveImage","inputs":{"filename_prefix":"kliteimg","images":["8",0]}}},{},["9"]],"outputs":{"9":{"images":[{"filename":"kliteimg_00001_.png","subfolder":"","type":"output"}]}},"status":{"status_str":"success","completed":imgdone,"messages":[["execution_start",{"prompt_id":"12345678-0000-0000-0000-000000000001","timestamp":1}],["execution_cached",{"nodes":[],"prompt_id":"12345678-0000-0000-0000-000000000001","timestamp":1}],["execution_success",{"prompt_id":"12345678-0000-0000-0000-000000000001","timestamp":1}]]},"meta":{"9":{"node_id":"9","display_node":"9","parent_node":None,"real_node_id":"9"}}}}).encode())
 
         elif self.path.endswith(('/.well-known/serviceinfo')):
             response_body = (json.dumps({"version":"0.2","software":{"name":"KoboldCpp","version":KcppVersion,"repository":"https://github.com/LostRuins/koboldcpp","homepage":"https://github.com/LostRuins/koboldcpp","logo":"https://raw.githubusercontent.com/LostRuins/koboldcpp/refs/heads/concedo/niko.ico"},"api":{"koboldai":{"name":"KoboldAI API","rel_url":"/api","documentation":"https://lite.koboldai.net/koboldcpp_api","version":KcppVersion},"openai":{"name":"OpenAI API","rel_url ":"/v1","documentation":"https://openai.com/documentation/api","version":KcppVersion}}}).encode())
@@ -2230,20 +2325,6 @@ Enter Prompt:<br>
             content_type = 'text/html'
             response_body = (f"KoboldCpp OpenAI compatible endpoint is running!\n\nFor usage reference, see https://platform.openai.com/docs/api-reference").encode()
 
-        elif self.path=="/api/extra/multiplayer/status":
-            if not has_multiplayer:
-                response_body = (json.dumps({"error":"Multiplayer not enabled!"}).encode())
-            else:
-                response_body = (json.dumps({"turn_major":multiplayer_turn_major,"turn_minor":multiplayer_turn_minor,"idle":(0 if modelbusy.locked() else 1),"data_format":multiplayer_dataformat}).encode())
-
-        elif self.path=="/api/extra/multiplayer/getstory":
-            if not has_multiplayer:
-                response_body = ("".encode())
-            elif multiplayer_story_data_compressed is None:
-                response_body = ("".encode())
-            else:
-                response_body = multiplayer_story_data_compressed.encode()
-
         elif self.path=="/api/extra/preloadstory":
             if preloaded_story is None:
                 response_body = (json.dumps({}).encode())
@@ -2269,7 +2350,7 @@ Enter Prompt:<br>
         return
 
     def do_POST(self):
-        global modelbusy, requestsinqueue, currentusergenkey, totalgens, pendingabortkey, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat
+        global modelbusy, requestsinqueue, currentusergenkey, totalgens, pendingabortkey, lastgeneratedcomfyimg, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat, multiplayer_lastactive
         contlenstr = self.headers['content-length']
         content_length = 0
         body = None
@@ -2322,23 +2403,33 @@ Enter Prompt:<br>
         response_body = None
         response_code = 200
 
-        if self.path.endswith(('/api/extra/tokencount')):
+        if self.path.endswith('/api/extra/tokencount') or self.path.endswith('/api/extra/tokenize'):
             if not self.secure_endpoint():
                 return
             try:
                 genparams = json.loads(body)
                 countprompt = genparams.get('prompt', "")
                 tcaddspecial = genparams.get('special', True)
-                rawcountdata = handle.token_count(countprompt.encode("UTF-8"),tcaddspecial)
-                countlimit = rawcountdata.count if (rawcountdata.count>=0 and rawcountdata.count<50000) else 0
-                # the above protects the server in case the count limit got corrupted
-                countdata = [rawcountdata.ids[i] for i in range(countlimit)]
+                countdata = tokenize_ids(countprompt,tcaddspecial)
                 response_body = (json.dumps({"value": len(countdata),"ids": countdata}).encode())
 
             except Exception as e:
                 utfprint("Count Tokens - Body Error: " + str(e))
                 response_code = 400
                 response_body = (json.dumps({"value": -1}).encode())
+
+        elif self.path.endswith('/api/extra/detokenize'):
+            if not self.secure_endpoint():
+                return
+            try:
+                genparams = json.loads(body)
+                tokids = genparams.get('ids', [])
+                detokstr = detokenize_ids(tokids)
+                response_body = (json.dumps({"result": detokstr,"success":True}).encode())
+            except Exception as e:
+                utfprint("Detokenize Error: " + str(e))
+                response_code = 400
+                response_body = (json.dumps({"result": "","success":False}).encode())
 
         elif self.path.endswith('/api/extra/abort'):
             if not self.secure_endpoint():
@@ -2398,7 +2489,36 @@ Enter Prompt:<br>
                     logprobsdict = parse_last_logprobs(lastlogprobs)
             response_body = (json.dumps({"logprobs":logprobsdict}).encode())
 
-        elif self.path.endswith(('/api/extra/multiplayer/setstory')):
+        elif self.path.endswith('/api/extra/multiplayer/status'):
+            if not self.secure_endpoint():
+                return
+            if not has_multiplayer:
+                response_body = (json.dumps({"error":"Multiplayer not enabled!"}).encode())
+            else:
+                sender = ""
+                senderbusy = False
+                try:
+                    tempbody = json.loads(body)
+                    if isinstance(tempbody, dict):
+                        sender = tempbody.get('sender', "")
+                        senderbusy = tempbody.get('senderbusy', False)
+                except Exception as e:
+                    pass
+                if sender!="" and senderbusy:
+                    multiplayer_lastactive[sender] = int(time.time())
+                response_body = (json.dumps({"turn_major":multiplayer_turn_major,"turn_minor":multiplayer_turn_minor,"idle":self.get_multiplayer_idle_state(sender),"data_format":multiplayer_dataformat}).encode())
+
+        elif self.path.endswith('/api/extra/multiplayer/getstory'):
+            if not self.secure_endpoint():
+                return
+            if not has_multiplayer:
+                response_body = ("".encode())
+            elif multiplayer_story_data_compressed is None:
+                response_body = ("".encode())
+            else:
+                response_body = multiplayer_story_data_compressed.encode()
+
+        elif self.path.endswith('/api/extra/multiplayer/setstory'):
             if not self.secure_endpoint():
                 return
             if not has_multiplayer:
@@ -2409,6 +2529,7 @@ Enter Prompt:<br>
                     incoming_story = json.loads(body) # ensure submitted data is valid json
                     fullupdate = incoming_story.get('full_update', False)
                     dataformat = incoming_story.get('data_format', "")
+                    sender = incoming_story.get('sender', "")
                     storybody = incoming_story.get('data', None) #should be a compressed string
                     if storybody:
                         storybody = str(storybody)
@@ -2418,12 +2539,14 @@ Enter Prompt:<br>
                         else:
                             multiplayer_story_data_compressed = str(storybody) #save latest story
                             multiplayer_dataformat = dataformat
+                            if sender!="":
+                                multiplayer_lastactive[sender] = int(time.time())
                             if fullupdate:
-                                multiplayer_turn_minor = 0
+                                multiplayer_turn_minor = 1
                                 multiplayer_turn_major += 1
                             else:
                                 multiplayer_turn_minor += 1
-                            response_body = (json.dumps({"success":True,"turn_major":multiplayer_turn_major,"turn_minor":multiplayer_turn_minor,"idle":(0 if modelbusy.locked() else 1),"data_format":multiplayer_dataformat}).encode())
+                            response_body = (json.dumps({"success":True,"turn_major":multiplayer_turn_major,"turn_minor":multiplayer_turn_minor,"idle":self.get_multiplayer_idle_state(sender),"data_format":multiplayer_dataformat}).encode())
                     else:
                         response_code = 400
                         response_body = (json.dumps({"success":False, "error":"No story submitted!"}).encode())
@@ -2462,8 +2585,9 @@ Enter Prompt:<br>
         try:
             sse_stream_flag = False
 
-            api_format = 0 #1=basic,2=kai,3=oai,4=oai-chat,5=interrogate
+            api_format = 0 #1=basic,2=kai,3=oai,4=oai-chat,5=interrogate,6=ollama,7=ollamachat
             is_imggen = False
+            is_comfyui_imggen = False
             is_transcribe = False
 
             if self.path.endswith('/request'):
@@ -2494,8 +2618,15 @@ Enter Prompt:<br>
                     return
                 api_format = 5
 
-            if self.path.endswith('/sdapi/v1/txt2img') or self.path.endswith('/sdapi/v1/img2img'):
+            if self.path.endswith('/api/generate'):
+                api_format = 6
+            if self.path.endswith('/api/chat'):
+                api_format = 7
+
+            if self.path=="/prompt" or self.path.endswith('/sdapi/v1/txt2img') or self.path.endswith('/sdapi/v1/img2img'):
                 is_imggen = True
+                if self.path=="/prompt":
+                    is_comfyui_imggen = True
 
             if self.path.endswith('/api/extra/transcribe') or self.path.endswith('/v1/audio/transcriptions'):
                 is_transcribe = True
@@ -2504,7 +2635,7 @@ Enter Prompt:<br>
                 global last_req_time
                 last_req_time = time.time()
 
-                if not is_imggen and not is_transcribe and api_format<5:
+                if not is_imggen and not is_transcribe and api_format!=5:
                     if not self.secure_endpoint():
                         return
 
@@ -2561,8 +2692,19 @@ Enter Prompt:<br>
 
                 elif is_imggen: #image gen
                     try:
+                        if is_comfyui_imggen:
+                            lastgeneratedcomfyimg = b''
+                            genparams = sd_comfyui_tranform_params(genparams)
                         gen = sd_generate(genparams)
-                        genresp = (json.dumps({"images":[gen],"parameters":{},"info":""}).encode())
+                        genresp = None
+                        if is_comfyui_imggen:
+                            if gen:
+                                lastgeneratedcomfyimg = base64.b64decode(gen)
+                            else:
+                                lastgeneratedcomfyimg = b''
+                            genresp = (json.dumps({"prompt_id": "12345678-0000-0000-0000-000000000001","number": 0,"node_errors":{}}).encode())
+                        else:
+                            genresp = (json.dumps({"images":[gen],"parameters":{},"info":""}).encode())
                         self.send_response(200)
                         self.send_header('content-length', str(len(genresp)))
                         self.end_headers(content_type='application/json')

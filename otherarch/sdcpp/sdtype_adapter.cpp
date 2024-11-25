@@ -258,7 +258,7 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
                         sd_params->vae_on_cpu);
 
     if (sd_ctx == NULL) {
-        printf("\nError: KCPP SD Failed to create context!\n");
+        printf("\nError: KCPP SD Failed to create context!\nIf using Flux/SD3.5, make sure you have ALL files required (e.g. VAE, T5, Clip...) or baked in!\n");
         return false;
     }
 

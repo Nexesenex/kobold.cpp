@@ -687,7 +687,29 @@
                    }
                 },
                 "/api/extra/multiplayer/status": {
-                   "get": {
+                   "post": {
+                     "requestBody": {
+                         "content": {
+                            "application/json": {
+                               "example": {
+                                  "sender": "KCPP_1234",
+                                  "senderbusy": true,
+                               },
+                               "schema": {
+                                  "properties": {
+                                     "senderbusy": {
+                                        "type": "boolean"
+                                     },
+                                     "sender": {
+                                        "type": "string"
+                                     }
+                                  },
+                                  "type": "object"
+                               }
+                            }
+                         },
+                         "required": false
+                      },
                       "responses": {
                          "200": {
                             "content": {
@@ -715,7 +737,7 @@
                    }
                 },
                 "/api/extra/multiplayer/getstory": {
-                   "get": {
+                   "post": {
                       "responses": {
                          "200": {
                             "content": {
@@ -744,6 +766,7 @@
                             "application/json": {
                                "example": {
                                   "full_update": true,
+                                  "sender": "LITE_UID_123456",
                                   "data_format": "kcpp_lzma_b64",
                                   "data": "base64_lzma_str",
                                },
@@ -751,6 +774,9 @@
                                   "properties": {
                                      "full_update": {
                                         "type": "boolean"
+                                     },
+                                     "sender": {
+                                        "type": "string"
                                      },
                                      "data_format": {
                                         "type": "string"
@@ -1144,7 +1170,7 @@
                 },
                 "/api/extra/tokencount": {
                    "post": {
-                      "description": "Counts the number of tokens in a string.",
+                      "description": "Counts the number of tokens in a string, and returns their token IDs. Also aliased to /api/extra/tokenize",
                       "requestBody": {
                          "content": {
                             "application/json": {
@@ -1183,14 +1209,80 @@
                                      ]
                                   },
                                   "schema": {
-                                     "$ref": "#/components/schemas/ValueResult"
-                                  }
+                                    "properties": {
+                                       "value": {
+                                          "type": "number"
+                                       },
+                                       "ids": {
+                                          "type": "array",
+                                          "items": {
+                                             "type": "integer"
+                                          }
+                                       }
+                                    },
+                                    "type": "object"
+                                 }
                                }
                             },
                             "description": "Successful request"
                          }
                       },
                       "summary": "Counts the number of tokens in a string.",
+                      "tags": [
+                         "api/extra"
+                      ]
+                   }
+                },
+                "/api/extra/detokenize": {
+                   "post": {
+                      "description": "Converts an array of token IDs into a string.",
+                      "requestBody": {
+                         "content": {
+                            "application/json": {
+                               "example": {
+                                  "ids": [529,29989,5205,29989,29958,13]
+                               },
+                               "schema": {
+                                  "properties": {
+                                     "ids": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "number"
+                                       }
+                                     }
+                                  },
+                                  "type": "object"
+                               }
+                            }
+                         },
+                         "required": true
+                      },
+                      "responses": {
+                         "200": {
+                            "content": {
+                               "application/json": {
+                                  "example": {
+                                     "result": "<|system|>\n",
+                                     "success": true
+                                  },
+                                  "schema": {
+                                    "properties": {
+                                       "result": {
+                                          "type": "string",
+                                          "description": "The detokenized string."
+                                       },
+                                       "success": {
+                                          "type": "boolean"
+                                       }
+                                    },
+                                    "type": "object"
+                                 }
+                               }
+                            },
+                            "description": "Successful request"
+                         }
+                      },
+                      "summary": "Converts an array of token IDs into a string.",
                       "tags": [
                          "api/extra"
                       ]
