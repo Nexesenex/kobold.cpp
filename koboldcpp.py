@@ -141,6 +141,7 @@ class load_model_inputs(ctypes.Structure):
                 ("model_filename", ctypes.c_char_p),
                 ("lora_filename", ctypes.c_char_p),
                 ("lora_base", ctypes.c_char_p),
+                ("draftmodel_filename", ctypes.c_char_p),
                 ("mmproj_filename", ctypes.c_char_p),
                 ("use_mmap", ctypes.c_bool),
                 ("use_mlock", ctypes.c_bool),
@@ -683,24 +684,27 @@ def read_gguf_metadata(file_path):
     except Exception as ex:
         return None
 
-def extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath):
+def extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath,draftmodelpath):
     global modelfile_extracted_meta
     modelfile_extracted_meta = None
     sdfsize = 0
     whisperfsize = 0
     mmprojsize = 0
+    draftmodelsize = 0
     if sdfilepath and os.path.exists(sdfilepath):
         sdfsize = os.path.getsize(sdfilepath)
     if whisperfilepath and os.path.exists(whisperfilepath):
         whisperfsize = os.path.getsize(whisperfilepath)
     if mmprojfilepath and os.path.exists(mmprojfilepath):
         mmprojsize = os.path.getsize(mmprojfilepath)
+    if draftmodelpath and os.path.exists(draftmodelpath):
+        draftmodelsize = os.path.getsize(draftmodelpath)
     if filepath and os.path.exists(filepath):
         try:
             fsize = os.path.getsize(filepath)
             if fsize>10000000: #dont bother with models < 10mb as they are probably bad
                 ggufmeta = read_gguf_metadata(filepath)
-                modelfile_extracted_meta = [ggufmeta,fsize,sdfsize,whisperfsize,mmprojsize] #extract done. note that meta may be null
+                modelfile_extracted_meta = [ggufmeta,fsize,sdfsize,whisperfsize,mmprojsize,draftmodelsize] #extract done. note that meta may be null
         except Exception as ex:
             modelfile_extracted_meta = None
 
@@ -881,6 +885,9 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
                 kvbpw = 20.5
             if kvq == 22:
                 kvbpw = 20.5
+
+            if modelfile_extracted_meta[5] > 1024*1024*10: #draft model tax
+                mem -= (modelfile_extracted_meta[5] * 1.4)
 
             if cs:
                 csmul = ((cs+4096)/6144) if cs >= 2048 else 1.0 #Nexes 2
@@ -1148,6 +1155,7 @@ def load_model(model_filename):
         if len(args.lora) > 1:
             inputs.lora_base = args.lora[1].encode("UTF-8")
 
+    inputs.draftmodel_filename = args.draftmodel.encode("UTF-8") if args.draftmodel else "".encode("UTF-8")
     inputs.mmproj_filename = args.mmproj.encode("UTF-8") if args.mmproj else "".encode("UTF-8")
     inputs.use_smartcontext = args.smartcontext
     inputs.use_contextshift = (1 if args.contextshift else 0)
@@ -3080,6 +3088,7 @@ def show_gui():
     lora_base_var = ctk.StringVar()
     preloadstory_var = ctk.StringVar()
     mmproj_var = ctk.StringVar()
+    draftmodel_var = ctk.StringVar()
     nomodel = ctk.IntVar(value=0)
 
     port_var = ctk.StringVar(value=defaultport)
@@ -3258,7 +3267,8 @@ def show_gui():
             sdfilepath = sd_model_var.get()
             whisperfilepath = whisper_model_var.get()
             mmprojfilepath = mmproj_var.get()
-            extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath)
+            draftmodelpath = draftmodel_var.get()
+            extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath,draftmodelpath)
             changed_gpulayers_estimate()
         pass
 
@@ -3593,18 +3603,20 @@ def show_gui():
     makefileentry(model_tab, "Text Lora:", "Select Lora File",lora_var, 3,width=280,tooltiptxt="Select an optional GGML LoRA adapter to use.\nLeave blank to skip.")
     makefileentry(model_tab, "Text Lora Base:", "Select Lora Base File", lora_base_var, 5,width=280,tooltiptxt="Select an optional F16 GGML LoRA base file to use.\nLeave blank to skip.")
     makefileentry(model_tab, "Vision mmproj:", "Select Vision mmproj File", mmproj_var, 7,width=280,tooltiptxt="Select a mmproj file to use for vision models like LLaVA.\nLeave blank to skip.")
-    makefileentry(model_tab, "Preloaded Story:", "Select Preloaded Story File", preloadstory_var, 9,width=280,tooltiptxt="Select an optional KoboldAI JSON savefile \nto be served on launch to any client.")
-    makefileentry(model_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 12, width=250, filetypes=[("JSON Adapter", "*.json")], tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
+    makefileentry(model_tab, "Speculative Model:", "Select Draft Text Model File", draftmodel_var, 9,width=280,tooltiptxt="Select a draft text model file to use for speculative decoding.\nLeave blank to skip.")
+    makefileentry(model_tab, "Preloaded Story:", "Select Preloaded Story File", preloadstory_var, 11,width=280,tooltiptxt="Select an optional KoboldAI JSON savefile \nto be served on launch to any client.")
+    makefileentry(model_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 14, width=250, filetypes=[("JSON Adapter", "*.json")], tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
     def pickpremadetemplate():
         initialDir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'kcpp_adapters')
         initialDir = initialDir if os.path.isdir(initialDir) else None
         fnam = askopenfilename(title="Pick Premade ChatCompletions Adapter",filetypes=[("JSON Adapter", "*.json")], initialdir=initialDir)
         if fnam:
             chatcompletionsadapter_var.set(fnam)
-    ctk.CTkButton(model_tab, 64, text="Pick Premade", command=pickpremadetemplate).grid(row=13, column=0, padx=322, stick="nw")
+    ctk.CTkButton(model_tab, 64, text="Pick Premade", command=pickpremadetemplate).grid(row=15, column=0, padx=322, stick="nw")
 
     mmproj_var.trace("w", gui_changed_modelfile)
-    makecheckbox(model_tab, "Allow Launch Without Models", nomodel, 15, tooltiptxt="Allows running the WebUI with no model loaded.")
+    draftmodel_var.trace("w", gui_changed_modelfile)
+    makecheckbox(model_tab, "Allow Launch Without Models", nomodel, 17, tooltiptxt="Allows running the WebUI with no model loaded.")
 
     ctk.CTkButton(model_tab, text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
     # Network Tab
@@ -3869,6 +3881,7 @@ def show_gui():
         except Exception as ex2:
             pass
         args.mmproj = None if mmproj_var.get() == "" else mmproj_var.get()
+        args.draftmodel = None if draftmodel_var.get() == "" else draftmodel_var.get()
 
         args.ssl = None if (ssl_cert_var.get() == "" or ssl_key_var.get() == "") else ([ssl_cert_var.get(), ssl_key_var.get()])
         args.password = None if (password_var.get() == "") else (password_var.get())
@@ -4039,6 +4052,7 @@ def show_gui():
                 lora_var.set(dict["lora"][0])
 
         mmproj_var.set(dict["mmproj"] if ("mmproj" in dict and dict["mmproj"]) else "")
+        draftmodel_var.set(dict["draftmodel"] if ("draftmodel" in dict and dict["draftmodel"]) else "")
 
         ssl_cert_var.set("")
         ssl_key_var.set("")
@@ -4842,6 +4856,10 @@ def main(launch_args,start_server=True):
         dlfile = download_model_from_url(args.whispermodel,[".gguf",".bin"])
         if dlfile:
             args.whispermodel = dlfile
+    if args.draftmodel and args.draftmodel!="":
+        dlfile = download_model_from_url(args.draftmodel,[".gguf"])
+        if dlfile:
+            args.draftmodel = dlfile
 
     # sanitize and replace the default vanity name. remember me....
     if args.model_param and args.model_param!="":
@@ -4917,7 +4935,7 @@ def main(launch_args,start_server=True):
                 pass
             if args.gpulayers==-1:
                 if MaxMemory[0] > 0 and (not args.usecpu) and ((args.usecublas is not None) or (args.usevulkan is not None) or (args.useclblast is not None) or sys.platform=="darwin"):
-                    extract_modelfile_params(args.model_param,args.sdmodel,args.whispermodel,args.mmproj)
+                    extract_modelfile_params(args.model_param,args.sdmodel,args.whispermodel,args.mmproj,args.draftmodel)
                     layeramt = autoset_gpu_layers(args.contextsize,args.sdquant,args.blasbatchsize, args.flashattention, args.quantkv, "mmq" in args.usecublas, "lowvram" in args.usecublas, args.poslayeroffset, args.neglayeroffset)
                     print(f"Auto Recommended GPU Layers: {layeramt}")
                     args.gpulayers = layeramt
@@ -5388,6 +5406,7 @@ if __name__ == '__main__':
     advparser.add_argument("--ssl", help="Allows all content to be served over SSL instead. A valid UNENCRYPTED SSL cert and key .pem files must be provided", metavar=('[cert_pem]', '[key_pem]'), nargs='+')
     advparser.add_argument("--nocertify", help="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.", action='store_true')
     advparser.add_argument("--mmproj", help="Select a multimodal projector file for vision models like LLaVA.", default="")
+    advparser.add_argument("--draftmodel", help="Load a small draft model for speculative decoding. It will be fully offloaded. Vocab must match the main model.", default="")
     advparser.add_argument("--password", help="Enter a password required to use this instance. This key will be required for all text endpoints. Image endpoints are not secured.", default=None)
     advparser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
     advparser.add_argument("--chatcompletionsadapter", help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="")
