@@ -40,6 +40,7 @@ struct load_model_inputs
     const char * model_filename = nullptr;
     const char * lora_filename = nullptr;
     const char * lora_base = nullptr;
+    const char * draftmodel_filename = nullptr;
     const char * mmproj_filename = nullptr;
     const bool use_mmap = false;
     const bool use_mlock = false;
@@ -197,6 +198,7 @@ extern std::string executable_path;
 extern std::string lora_filename;
 extern std::string lora_base;
 extern std::string mmproj_filename;
+extern std::string draftmodel_filename;
 extern std::vector<std::string> generated_tokens;
 extern bool generation_finished;
 extern float last_eval_time;

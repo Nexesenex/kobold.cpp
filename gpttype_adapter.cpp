@@ -51,6 +51,7 @@ std::string executable_path = "";
 std::string lora_filename = "";
 std::string lora_base = "";
 std::string mmproj_filename = "";
+std::string draftmodel_filename = "";
 bool generation_finished;
 float last_process_time = 0;
 float last_eval_time = 0;
@@ -90,6 +91,7 @@ static rwkv_context * rwkv_ctx_v3;
 static llama_v2_context * llama_ctx_v2;
 static llama_v3_context * llama_ctx_v3;
 static llama_context * llama_ctx_v4;
+static llama_context * draft_ctx = nullptr; //will remain null if speculative is unused
 
 static clip_ctx * clp_ctx = nullptr; //for llava
 static clip_image_u8 * clp_img_data = nullptr; //most recent image
@@ -525,6 +527,47 @@ const char * kcpp_print_system_info(void) {
     s += "LLAMAFILE = "   + std::to_string(ggml_cpu_has_llamafile())   + " | ";
 
     return s.c_str();
+}
+
+//loads a model for speculative decoding.
+static void speculative_decoding_setup(std::string spec_model_filename, const llama_model_params & base_model_params, const llama_context_params & base_ctx_params, int base_n_vocab)
+{
+    llama_model_params draft_model_params = llama_model_default_params();
+    llama_context_params draft_ctx_params = llama_context_default_params();
+
+    draft_model_params.use_mmap = base_model_params.use_mmap;
+    draft_model_params.use_mlock = base_model_params.use_mlock;
+    draft_model_params.n_gpu_layers = 999; //assume they want to fully offload the speculative model. Otherwise, why even use it?
+    draft_ctx_params.n_ctx = base_ctx_params.n_ctx;
+    draft_ctx_params.logits_all = false;
+    draft_ctx_params.offload_kqv = base_ctx_params.offload_kqv;
+    draft_model_params.main_gpu = base_model_params.main_gpu;
+    draft_model_params.split_mode = llama_split_mode::LLAMA_SPLIT_MODE_LAYER;
+    draft_ctx_params.n_batch = base_ctx_params.n_batch;
+    draft_ctx_params.n_ubatch = base_ctx_params.n_ubatch;
+    draft_ctx_params.n_threads = base_ctx_params.n_threads;
+    draft_ctx_params.n_threads_batch =  base_ctx_params.n_threads_batch;
+    draft_ctx_params.flash_attn = base_ctx_params.flash_attn;
+    draft_ctx_params.type_k = base_ctx_params.type_k;
+    draft_ctx_params.type_v = base_ctx_params.type_v;
+
+    llama_model * draftmodel = llama_load_model_from_file(spec_model_filename.c_str(), draft_model_params);
+    draft_ctx = llama_new_context_with_model(draftmodel, draft_ctx_params);
+    if(draft_ctx == NULL)
+    {
+        printf("Error: failed to load speculative decoding draft model '%s'\n", spec_model_filename.c_str());
+        printf("Speculative Decoding will not be used!\n");
+    }
+    else
+    {
+        int draftvocab = llama_n_vocab(draftmodel);
+        if(draftvocab!=base_n_vocab)
+        {
+            printf("Error: Draft model vocab of %d does not match base vocab of %d. Speculative decoding cannot be used!\n",draftvocab,base_n_vocab);
+            llama_free(draft_ctx);
+            draft_ctx = nullptr;
+        }
+    }
 }
 
 // KCPP SAMPLING FUNCTIONS
@@ -1586,7 +1629,7 @@ struct kcpp_embd_batch { //duplcated from llava_embd_batch
             batch.logits  [i] = false;
         }
     }
-    kcpp_embd_batch(std::vector<llama_token> & tokens, int32_t npast) {
+    kcpp_embd_batch(std::vector<llama_token> & tokens, int32_t npast, bool return_all_logits) {
         int32_t seq_id = 0;
         int32_t n_tokens = tokens.size();
         pos.resize(n_tokens);
@@ -1609,7 +1652,7 @@ struct kcpp_embd_batch { //duplcated from llava_embd_batch
             batch.pos     [i] = npast + i;
             batch.n_seq_id[i] = 1;
             batch.seq_id  [i] = seq_id_0.data();
-            batch.logits  [i] = false;
+            batch.logits  [i] = (return_all_logits?true:false);
         }
         batch.logits[n_tokens - 1] = true;
     }
@@ -1791,6 +1834,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     kcpp_data->use_contextshift = inputs.use_contextshift;
     kcpp_data->use_fastforward = inputs.use_fastforward;
     debugmode = inputs.debugmode;
+    draft_ctx = nullptr;
 
     auto clamped_max_context_length = inputs.max_context_length;
 
@@ -2135,6 +2179,12 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         }
 
         n_vocab = llama_n_vocab(llamamodel);
+
+        if(draftmodel_filename !="" && file_format==FileFormat::GGUF_GENERIC)
+        {
+            printf("\nAttempting to load draft model for speculative decoding. It will be fully offloaded if possible. Vocab must match the main model.\n");
+            speculative_decoding_setup(draftmodel_filename, model_params, llama_ctx_params, n_vocab);
+        }
 
         //determine mem per token
         std::vector<int> tmp = {1, 2, 3, 4};
@@ -3236,7 +3286,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
             }
             else if(file_format == FileFormat::GGUF_GENERIC)
             {
-                kcpp_embd_batch batch = kcpp_embd_batch(embd, n_past);
+                kcpp_embd_batch batch = kcpp_embd_batch(embd, n_past,false);
                 evalres = (llama_decode(llama_ctx_v4, batch.batch)==0);
             }
             else if(file_format==FileFormat::RWKV_1 || file_format==FileFormat::RWKV_2)

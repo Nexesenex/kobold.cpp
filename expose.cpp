@@ -35,6 +35,7 @@ extern "C"
         lora_filename = inputs.lora_filename;
         lora_base = inputs.lora_base;
         mmproj_filename = inputs.mmproj_filename;
+        draftmodel_filename = inputs.draftmodel_filename;
 
         int forceversion = inputs.forceversion;
 
