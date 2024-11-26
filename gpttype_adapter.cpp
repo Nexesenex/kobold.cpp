@@ -497,6 +497,37 @@ void ContextRewind(std::vector<int> &embd, std::vector<int> &current_context_tok
     }
 }
 
+const char * kcpp_print_system_info(void) {
+    ggml_cpu_init(); // some ARM features are detected at runtime
+
+    static std::string s;
+
+    s  = "";
+    s += "AVX = "         + std::to_string(ggml_cpu_has_avx())         + " | ";
+    s += "AVX_VNNI = "    + std::to_string(ggml_cpu_has_avx_vnni())    + " | ";
+    s += "AVX2 = "        + std::to_string(ggml_cpu_has_avx2())        + " | ";
+    s += "AVX512 = "      + std::to_string(ggml_cpu_has_avx512())      + " | ";
+    s += "AVX512_VBMI = " + std::to_string(ggml_cpu_has_avx512_vbmi()) + " | ";
+    s += "AVX512_VNNI = " + std::to_string(ggml_cpu_has_avx512_vnni()) + " | ";
+    s += "AVX512_BF16 = " + std::to_string(ggml_cpu_has_avx512_bf16()) + " | ";
+    s += "AMX_INT8 = "    + std::to_string(ggml_cpu_has_amx_int8())    + " | ";
+    s += "FMA = "         + std::to_string(ggml_cpu_has_fma())         + " | ";
+    s += "NEON = "        + std::to_string(ggml_cpu_has_neon())        + " | ";
+    s += "SVE = "         + std::to_string(ggml_cpu_has_sve())         + " | ";
+    s += "ARM_FMA = "     + std::to_string(ggml_cpu_has_arm_fma())     + " | ";
+    s += "F16C = "        + std::to_string(ggml_cpu_has_f16c())        + " | ";
+    s += "FP16_VA = "     + std::to_string(ggml_cpu_has_fp16_va())     + " | ";
+    s += "RISCV_VECT = "  + std::to_string(ggml_cpu_has_riscv_v())     + " | ";
+    s += "WASM_SIMD = "   + std::to_string(ggml_cpu_has_wasm_simd())   + " | ";
+    s += "SSE3 = "        + std::to_string(ggml_cpu_has_sse3())        + " | ";
+    s += "SSSE3 = "       + std::to_string(ggml_cpu_has_ssse3())       + " | ";
+    s += "VSX = "         + std::to_string(ggml_cpu_has_vsx())         + " | ";
+    s += "MATMUL_INT8 = " + std::to_string(ggml_cpu_has_matmul_int8()) + " | ";
+    s += "LLAMAFILE = "   + std::to_string(ggml_cpu_has_llamafile())   + " | ";
+
+    return s.c_str();
+}
+
 // KCPP SAMPLING FUNCTIONS
 void sample_softmax(llama_token_data_array * cur_p) {
     GGML_ASSERT(cur_p->size > 0);
@@ -1856,7 +1887,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
 
     int cu_parseinfo_maindevice = inputs.cublas_info<=0?0:inputs.cublas_info;
 
-    printf("System Info: %s\n", llama_print_system_info());
+    printf("System Info: %s\n", kcpp_print_system_info());
     #if defined(GGML_USE_CUDA)
     if(file_format!=FileFormat::GGUF_GENERIC)
     {

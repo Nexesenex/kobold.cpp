@@ -149,7 +149,7 @@ static ggml_cuda_device_info ggml_cuda_init() {
 //#else
 //    GGML_LOG_INFO("%s: GGML_CUDA_FORCE_CUBLAS: no\n", __func__);
 //#endif // GGML_CUDA_FORCE_CUBLAS
-    GGML_LOG_INFO("---\nInitializing CUDA, please wait, the following step may take a few minutes for first launch...\n---\n", __func__, info.device_count);
+    GGML_LOG_INFO("---\nInitializing CUDA/HIP, please wait, the following step may take a few minutes for first launch...\n---\n", __func__, info.device_count);
     GGML_LOG_INFO("%s: found %d " GGML_CUDA_NAME " devices:\n", __func__, info.device_count);
     for (int id = 0; id < info.device_count; ++id) {
         int device_vmm = 0;
@@ -3145,9 +3145,10 @@ static ggml_backend_feature * ggml_backend_cuda_get_features(ggml_backend_reg_t 
         features.push_back({ "ARCHS", STRINGIFY(__CUDA_ARCH_LIST__) });
     #endif
 
-    #ifdef GGML_CUDA_FORCE_MMQ
-        features.push_back({ "FORCE_MMQ", "1" });
-    #endif
+    //avoid confusing users
+    // #ifdef GGML_CUDA_FORCE_MMQ
+    //     features.push_back({ "FORCE_MMQ", "1" });
+    // #endif
 
     #ifdef GGML_CUDA_FORCE_CUBLAS
         features.push_back({ "FORCE_CUBLAS", "1" });
