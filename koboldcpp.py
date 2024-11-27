@@ -96,14 +96,14 @@ saved_stderr_py = None
 stdout_nullfile = None
 stdout_nullfile_py = None
 
-CLDevices = ["1","2","3","4"]
-CUDevices = ["1","2","3","4","All"]
-CLDevicesNames = ["","","",""]
-CUDevicesNames = ["","","","",""]
-VKDevicesNames = ["","","",""]
-VKIsDGPU = [0,0,0,0]
-MaxMemory = [0,1,2,3]
-MaxFreeMemory = [0,1,2,3]
+CLDevices = ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16"]
+CUDevices = ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","All"]
+CLDevicesNames = ["","","","","","","","","","","","","","","",""]
+CUDevicesNames = ["","","","","","","","","","","","","","","","",""]
+VKDevicesNames = ["","","","","","","","","","","","","","","",""]
+VKIsDGPU = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+MaxMemory = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+MaxFreeMemory = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
 
 class logit_bias(ctypes.Structure):
     _fields_ = [("token_id", ctypes.c_int32),
@@ -504,6 +504,54 @@ def set_backend_props(inputs):
             os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             os.environ["CUDA_VISIBLE_DEVICES"] = "3"
             os.environ["HIP_VISIBLE_DEVICES"] = "3"
+        elif (args.usecublas and "4" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            os.environ["CUDA_VISIBLE_DEVICES"] = "4"
+            os.environ["HIP_VISIBLE_DEVICES"] = "4"
+        elif (args.usecublas and "5" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+            os.environ["HIP_VISIBLE_DEVICES"] = "5"
+        elif (args.usecublas and "6" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+            os.environ["HIP_VISIBLE_DEVICES"] = "6"
+        elif (args.usecublas and "7" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            os.environ["CUDA_VISIBLE_DEVICES"] = "7"
+            os.environ["HIP_VISIBLE_DEVICES"] = "7"
+        elif (args.usecublas and "8" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            os.environ["CUDA_VISIBLE_DEVICES"] = "8"
+            os.environ["HIP_VISIBLE_DEVICES"] = "8"
+        elif (args.usecublas and "9" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            os.environ["CUDA_VISIBLE_DEVICES"] = "9"
+            os.environ["HIP_VISIBLE_DEVICES"] = "9"
+        elif (args.usecublas and "10" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            os.environ["CUDA_VISIBLE_DEVICES"] = "10"
+            os.environ["HIP_VISIBLE_DEVICES"] = "10"
+        elif (args.usecublas and "11" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            os.environ["CUDA_VISIBLE_DEVICES"] = "11"
+            os.environ["HIP_VISIBLE_DEVICES"] = "11"
+        elif (args.usecublas and "12" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            os.environ["CUDA_VISIBLE_DEVICES"] = "12"
+            os.environ["HIP_VISIBLE_DEVICES"] = "12"
+        elif (args.usecublas and "13" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            os.environ["CUDA_VISIBLE_DEVICES"] = "13"
+            os.environ["HIP_VISIBLE_DEVICES"] = "13"
+        elif (args.usecublas and "14" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            os.environ["CUDA_VISIBLE_DEVICES"] = "14"
+            os.environ["HIP_VISIBLE_DEVICES"] = "14"
+        elif (args.usecublas and "15" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            os.environ["CUDA_VISIBLE_DEVICES"] = "15"
+            os.environ["HIP_VISIBLE_DEVICES"] = "15"
     else:
         if (args.usecublas and "0" in args.usecublas):
             os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -517,6 +565,42 @@ def set_backend_props(inputs):
         elif (args.usecublas and "3" in args.usecublas):
             os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             inputs.cublas_info = 3
+        elif (args.usecublas and "4" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            inputs.cublas_info = 4
+        elif (args.usecublas and "5" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            inputs.cublas_info = 5
+        elif (args.usecublas and "6" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            inputs.cublas_info = 6
+        elif (args.usecublas and "7" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            inputs.cublas_info = 7
+        elif (args.usecublas and "8" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            inputs.cublas_info = 8
+        elif (args.usecublas and "9" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            inputs.cublas_info = 9
+        elif (args.usecublas and "10" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            inputs.cublas_info = 10
+        elif (args.usecublas and "11" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            inputs.cublas_info = 11
+        elif (args.usecublas and "12" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            inputs.cublas_info = 12
+        elif (args.usecublas and "13" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            inputs.cublas_info = 13
+        elif (args.usecublas and "14" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            inputs.cublas_info = 14
+        elif (args.usecublas and "15" in args.usecublas):
+            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+            inputs.cublas_info = 15
 
     if args.usevulkan: #is an empty array if using vulkan without defined gpu
         s = ""
@@ -698,6 +782,9 @@ def extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath)
 #fork of a shitty algo to determine how many layers to use
 def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mmqmode,lowvram,poslayeroffset,neglayeroffset):
     global showusedmemwarning, modelfile_extracted_meta # reference cached values instead
+
+    gpu_choice_var = "All"
+    overhead = 250*1024*1024
     gpumem0 = MaxMemory[0]
     usedmem0 = 0
     gpumem1 = MaxMemory[1]
@@ -706,10 +793,33 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
     usedmem2 = 0
     gpumem3 = MaxMemory[3]
     usedmem3 = 0
+    gpumem4 = MaxMemory[4]
+    usedmem4 = 0
+    gpumem5 = MaxMemory[5]
+    usedmem5 = 0
+    gpumem6 = MaxMemory[6]
+    usedmem6 = 0
+    gpumem7 = MaxMemory[7]
+    usedmem7 = 0
+    gpumem8 = MaxMemory[8]
+    usedmem8 = 0
+    gpumem9 = MaxMemory[9]
+    usedmem9 = 0
+    gpumem10 = MaxMemory[10]
+    usedmem10 = 0
+    gpumem11 = MaxMemory[11]
+    usedmem11 = 0
+    gpumem12 = MaxMemory[12]
+    usedmem12 = 0
+    gpumem13 = MaxMemory[13]
+    usedmem13 = 0
+    gpumem14 = MaxMemory[14]
+    usedmem14 = 0
+    gpumem15 = MaxMemory[15]
+    usedmem15 = 0
 
     if MaxFreeMemory[0]>0:
-        usedmem0 = MaxMemory[0]-MaxFreeMemory[0]
- 
+        usedmem0 = MaxMemory[0] - MaxFreeMemory[0]
         if showusedmemwarning and usedmem0 > (2.5*1024*1024*1024):
             showusedmemwarning = False
             print(f"Note: KoboldCpp/Croco.Cpp has detected that a significant amount of GPU0 VRAM ({usedmem0/1024/1024} MiB) is currently used by another application.\nFor best results, you may wish to close that application and then restart KoboldCpp/Croco.Cpp.\n***")
@@ -728,46 +838,217 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
         mem0 = 0
         reservedmem0 = 0
     if usedmem0 > 0:
-        print(f"GPU0 name: {CUDevicesNames[0]} ; GPU0 VRAM: {gpumem0/1024/1024} MiB - {MaxFreeMemory[0]/1024/1024} MiB unoccupied = {usedmem0/1024/1024} MiB occupied")
-        print(f"GPU0 reserved VRAM {reservedmem0/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU0 usable VRAM {mem0/1024/1024} MiB")
+        gpucount = 1
+        print(f"GPU 0 name: {CUDevicesNames[0]} ; GPU 0 VRAM: {gpumem0/1024/1024} MiB - {MaxFreeMemory[0]/1024/1024} MiB unoccupied = {usedmem0/1024/1024} MiB occupied")
+        print(f"GPU 0 reserved VRAM {reservedmem0/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 0 usable VRAM {mem0/1024/1024} MiB")
+
+    # if MaxMemory[0] >0:
+        # usedmem0 = MaxMemory[0] - MaxFreeMemory[0]
+        # reservedmem0 = (overhead + usedmem0) # determine vram overhead
+        # mem0 = gpumem0 - reservedmem0
+        # if mem0 < 0:
+            # mem0 = 0
+            # reservedmem0 = 0
+        # if usedmem0 > 0:
+            # gpucount = 1
+            # print(f"GPU 0 name: {CUDevicesNames[0]} ; GPU 0 VRAM: {gpumem0/1024/1024} MiB - {MaxFreeMemory[0]/1024/1024} MiB unoccupied = {usedmem0/1024/1024} MiB occupied")
+            # print(f"GPU 0 reserved VRAM {reservedmem0/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 0 usable VRAM {mem0/1024/1024} MiB")
 
     if MaxMemory[1] >0:
-        usedmem1 = MaxMemory[1]-MaxFreeMemory[1]
+        usedmem1 = MaxMemory[1] - MaxFreeMemory[1]
         reservedmem1 = (overhead + usedmem1) # determine vram overhead
         mem1 = gpumem1 - reservedmem1
         if mem1 < 0:
             mem1 = 0
             reservedmem1 = 0
         if usedmem1 > 0:
-            print(f"GPU1 name: {CUDevicesNames[1]} ; GPU1 VRAM: {gpumem1/1024/1024} MiB - {MaxFreeMemory[1]/1024/1024} MiB unoccupied = {usedmem1/1024/1024} MiB occupied")
-            print(f"GPU1 reserved VRAM {reservedmem1/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU1 usable VRAM {mem1/1024/1024} MiB")
+            gpucount = 2
+            print(f"GPU 1 name: {CUDevicesNames[1]} ; GPU 1 VRAM: {gpumem1/1024/1024} MiB - {MaxFreeMemory[1]/1024/1024} MiB unoccupied = {usedmem1/1024/1024} MiB occupied")
+            print(f"GPU 1 reserved VRAM {reservedmem1/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 1 usable VRAM {mem1/1024/1024} MiB")
 
     if MaxMemory[2] >0:
-        usedmem2 = MaxMemory[2]-MaxFreeMemory[2]
+        usedmem2 = MaxMemory[2] - MaxFreeMemory[2]
         reservedmem2 = (overhead + usedmem2) # determine vram overhead
         mem2 = gpumem2 - reservedmem2
         if mem2 < 0:
             mem2 = 0
             reservedmem2 = 0
         if usedmem2 > 0:
-            print(f"GPU2 name: {CUDevicesNames[2]} ; GPU2 VRAM: {gpumem2/1024/1024} MiB - {MaxFreeMemory[2]/1024/1024} MiB unoccupied = {usedmem2/1024/1024} MiB occupied")
-            print(f"GPU2 reserved VRAM {reservedmem2/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU2 usable VRAM {mem2/1024/1024} MiB")
+            gpucount = 3
+            print(f"GPU 2 name: {CUDevicesNames[2]} ; GPU 2 VRAM: {gpumem2/1024/1024} MiB - {MaxFreeMemory[2]/1024/1024} MiB unoccupied = {usedmem2/1024/1024} MiB occupied")
+            print(f"GPU 2 reserved VRAM {reservedmem2/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 2 usable VRAM {mem2/1024/1024} MiB")
 
     if MaxMemory[3] >0:
-        usedmem3 = MaxMemory[3]-MaxFreeMemory[3]
+        usedmem3 = MaxMemory[3] - MaxFreeMemory[3]
         reservedmem3 = (overhead + usedmem3) # determine vram overhead
         mem3 = gpumem3 - reservedmem3
         if mem3 < 0:
             mem3 = 0
             reservedmem3 = 0
         if usedmem3 > 0:
-            print(f"GPU3 name: {CUDevicesNames[3]} ; GPU3 VRAM: {gpumem3/1024/1024} MiB - {MaxFreeMemory[3]/1024/1024} MiB unoccupied = {usedmem3/1024/1024} MiB occupied")
-            print(f"GPU3 reserved VRAM {reservedmem3/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU3 usable VRAM {mem3/1024/1024} MiB")
+            gpucount = 4
+            print(f"GPU 3 name: {CUDevicesNames[3]} ; GPU 3 VRAM: {gpumem3/1024/1024} MiB - {MaxFreeMemory[3]/1024/1024} MiB unoccupied = {usedmem3/1024/1024} MiB occupied")
+            print(f"GPU 3 reserved VRAM {reservedmem3/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 3 usable VRAM {mem3/1024/1024} MiB")
 
-    gpumem = int(gpumem0 + gpumem1 + gpumem2 + gpumem3)
-    mem = int(mem0 + mem1 + mem2 + mem3)
-    usedmem = int(usedmem0 + usedmem1 + usedmem2 + usedmem3)
-    reservedmem = int(reservedmem0 + reservedmem1 + reservedmem2 + reservedmem3)
+    if MaxMemory[4] >0:
+        usedmem4 = MaxMemory[4] - MaxFreeMemory[4]
+        reservedmem4 = (overhead + usedmem4) # determine vram overhead
+        mem4 = gpumem4 - reservedmem4
+        if mem4 < 0:
+            mem4 = 0
+            reservedmem4 = 0
+        if usedmem4 > 0:
+            gpucount = 5
+            print(f"GPU 4 name: {CUDevicesNames[4]} ; GPU 4 VRAM: {gpumem4/1024/1024} MiB - {MaxFreeMemory[4]/1024/1024} MiB unoccupied = {usedmem4/1024/1024} MiB occupied")
+            print(f"GPU 4 reserved VRAM {reservedmem4/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 4 usable VRAM {mem4/1024/1024} MiB")
+
+    if MaxMemory[5] >0:
+        usedmem5 = MaxMemory[5] - MaxFreeMemory[5]
+        reservedmem5 = (overhead + usedmem5) # determine vram overhead
+        mem5 = gpumem5 - reservedmem5
+        if mem5 < 0:
+            mem5 = 0
+            reservedmem5 = 0
+        if usedmem5 > 0:
+            gpucount = 6
+            print(f"GPU 5 name: {CUDevicesNames[5]} ; GPU 5 VRAM: {gpumem5/1024/1024} MiB - {MaxFreeMemory[5]/1024/1024} MiB unoccupied = {usedmem5/1024/1024} MiB occupied")
+            print(f"GPU 5 reserved VRAM {reservedmem5/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 5 usable VRAM {mem5/1024/1024} MiB")
+
+    if MaxMemory[6] >0:
+        usedmem6 = MaxMemory[6] - MaxFreeMemory[6]
+        reservedmem6 = (overhead + usedmem6) # determine vram overhead
+        mem6 = gpumem6 - reservedmem6
+        if mem6 < 0:
+            mem6 = 0
+            reservedmem6 = 0
+        if usedmem6 > 0:
+            gpucount = 7
+            print(f"GPU 6 name: {CUDevicesNames[6]} ; GPU 6 VRAM: {gpumem6/1024/1024} MiB - {MaxFreeMemory[6]/1024/1024} MiB unoccupied = {usedmem6/1024/1024} MiB occupied")
+            print(f"GPU 6 reserved VRAM {reservedmem6/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 6 usable VRAM {mem6/1024/1024} MiB")
+
+    if MaxMemory[7] >0:
+        usedmem7 = MaxMemory[7] - MaxFreeMemory[7]
+        reservedmem7 = (overhead + usedmem7) # determine vram overhead
+        mem7 = gpumem7 - reservedmem7
+        if mem7 < 0:
+            mem7 = 0
+            reservedmem7 = 0
+        if usedmem7 > 0:
+            gpucount = 8
+            print(f"GPU 7 name: {CUDevicesNames[7]} ; GPU 7 VRAM: {gpumem7/1024/1024} MiB - {MaxFreeMemory[7]/1024/1024} MiB unoccupied = {usedmem7/1024/1024} MiB occupied")
+            print(f"GPU 7 reserved VRAM {reservedmem7/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 7 usable VRAM {mem7/1024/1024} MiB")
+
+    if MaxMemory[8] >0:
+        usedmem8 = MaxMemory[8] - MaxFreeMemory[8]
+        reservedmem8 = (overhead + usedmem8) # determine vram overhead
+        mem8 = gpumem8 - reservedmem8
+        if mem8 < 0:
+            mem8 = 0
+            reservedmem8 = 0
+        if usedmem8 > 0:
+            gpucount = 9
+            print(f"GPU 8 name: {CUDevicesNames[8]} ; GPU 8 VRAM: {gpumem8/1024/1024} MiB - {MaxFreeMemory[8]/1024/1024} MiB unoccupied = {usedmem8/1024/1024} MiB occupied")
+            print(f"GPU 8 reserved VRAM {reservedmem8/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 8 usable VRAM {mem8/1024/1024} MiB")
+
+    if MaxMemory[9] >0:
+        usedmem9 = MaxMemory[9] - MaxFreeMemory[9]
+        reservedmem9 = (overhead + usedmem9) # determine vram overhead
+        mem9 = gpumem9 - reservedmem9
+        if mem9 < 0:
+            mem9 = 0
+            reservedmem9 = 0
+        if usedmem9 > 0:
+            gpucount = 10
+            print(f"GPU 9 name: {CUDevicesNames[9]} ; GPU 9 VRAM: {gpumem9/1024/1024} MiB - {MaxFreeMemory[9]/1024/1024} MiB unoccupied = {usedmem9/1024/1024} MiB occupied")
+            print(f"GPU 9 reserved VRAM {reservedmem9/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 9 usable VRAM {mem9/1024/1024} MiB")
+
+    if MaxMemory[10] >0:
+        usedmem10 = MaxMemory[10] - MaxFreeMemory[10]
+        reservedmem10 = (overhead + usedmem10) # determine vram overhead
+        mem10 = gpumem10 - reservedmem10
+        if mem10 < 0:
+            mem10 = 0
+            reservedmem10 = 0
+        if usedmem10 > 0:
+            gpucount = 11
+            print(f"GPU 10 name: {CUDevicesNames[10]} ; GPU 10 VRAM: {gpumem10/1024/1024} MiB - {MaxFreeMemory[10]/1024/1024} MiB unoccupied = {usedmem10/1024/1024} MiB occupied")
+            print(f"GPU 10 reserved VRAM {reservedmem10/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 10 usable VRAM {mem10/1024/1024} MiB")
+
+    if MaxMemory[11] >0:
+        usedmem11 = MaxMemory[11] - MaxFreeMemory[11]
+        reservedmem11 = (overhead + usedmem11) # determine vram overhead
+        mem11 = gpumem11 - reservedmem11
+        if mem11 < 0:
+            mem11 = 0
+            reservedmem11 = 0
+        if usedmem11 > 0:
+            gpucount = 12
+            print(f"GPU 11 name: {CUDevicesNames[11]} ; GPU 11 VRAM: {gpumem11/1024/1024} MiB - {MaxFreeMemory[11]/1024/1024} MiB unoccupied = {usedmem11/1024/1024} MiB occupied")
+            print(f"GPU 11 reserved VRAM {reservedmem11/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 11 usable VRAM {mem11/1024/1024} MiB")
+
+    if MaxMemory[12] >0:
+        usedmem12 = MaxMemory[12] - MaxFreeMemory[12]
+        reservedmem12 = (overhead + usedmem12) # determine vram overhead
+        mem12 = gpumem12 - reservedmem12
+        if mem12 < 0:
+            mem12 = 0
+            reservedmem12 = 0
+        if usedmem12 > 0:
+            gpucount = 13
+            print(f"GPU 12 name: {CUDevicesNames[12]} ; GPU 12 VRAM: {gpumem12/1024/1024} MiB - {MaxFreeMemory[12]/1024/1024} MiB unoccupied = {usedmem12/1024/1024} MiB occupied")
+            print(f"GPU 12 reserved VRAM {reservedmem12/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 12 usable VRAM {mem12/1024/1024} MiB")
+
+    if MaxMemory[13] >0:
+        usedmem13 = MaxMemory[13] - MaxFreeMemory[13]
+        reservedmem13 = (overhead + usedmem13) # determine vram overhead
+        mem13 = gpumem13 - reservedmem13
+        if mem13 < 0:
+            mem13 = 0
+            reservedmem13 = 0
+        if usedmem13 > 0:
+            gpucount = 14
+            print(f"GPU 13 name: {CUDevicesNames[13]} ; GPU 13 VRAM: {gpumem13/1024/1024} MiB - {MaxFreeMemory[13]/1024/1024} MiB unoccupied = {usedmem13/1024/1024} MiB occupied")
+            print(f"GPU 13 reserved VRAM {reservedmem13/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 13 usable VRAM {mem13/1024/1024} MiB")
+
+    if MaxMemory[14] >0:
+        usedmem14 = MaxMemory[14] - MaxFreeMemory[14]
+        reservedmem14 = (overhead + usedmem14) # determine vram overhead
+        mem14 = gpumem14 - reservedmem14
+        if mem14 < 0:
+            mem14 = 0
+            reservedmem14 = 0
+        if usedmem14 > 0:
+            gpucount = 15
+            print(f"GPU 14 name: {CUDevicesNames[14]} ; GPU 14 VRAM: {gpumem14/1024/1024} MiB - {MaxFreeMemory[14]/1024/1024} MiB unoccupied = {usedmem14/1024/1024} MiB occupied")
+            print(f"GPU 14 reserved VRAM {reservedmem14/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 14 usable VRAM {mem14/1024/1024} MiB")
+
+    if MaxMemory[15] >0:
+        usedmem15 = MaxMemory[15] - MaxFreeMemory[15]
+        reservedmem15 = (overhead + usedmem15) # determine vram overhead
+        mem15 = gpumem15 - reservedmem15
+        if mem15 < 0:
+            mem15 = 0
+            reservedmem15 = 0
+        if usedmem15 > 0:
+            gpucount = 16
+            print(f"GPU 15 name: {CUDevicesNames[15]} ; GPU 15 VRAM: {gpumem15/1024/1024} MiB - {MaxFreeMemory[15]/1024/1024} MiB unoccupied = {usedmem15/1024/1024} MiB occupied")
+            print(f"GPU 15 reserved VRAM {reservedmem15/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 15 usable VRAM {mem15/1024/1024} MiB")
+
+    # gpumem = int(gpumem0 + gpumem1 + gpumem2 + gpumem3 + gpumem4 + gpumem5 + gpumem6 + gpumem7 + gpumem8 + gpumem9 + gpumem10 + gpumem11 + gpumem12 + gpumem13 + gpumem14 + gpumem15)
+    # mem = int(mem0 + mem1 + mem2 + mem3 + mem4 + mem5 + mem6 + mem7 + mem8 + mem9 + mem10 + mem11 + mem12 + mem13 + mem14 + mem15)
+    # usedmem = int(usedmem0 + usedmem1 + usedmem2 + usedmem3 + usedmem4 + usedmem5 + usedmem6 + usedmem7 + usedmem8 + usedmem9 + usedmem10 + usedmem11 + usedmem12 + usedmem13 + usedmem14 + usedmem15)
+    # reservedmem = int(reservedmem0 + reservedmem1 + reservedmem2 + reservedmem3 + reservedmem4 + reservedmem5 + reservedmem6 + reservedmem7 + reservedmem8 + reservedmem9 + reservedmem10 + reservedmem11 + reservedmem12 + reservedmem13 + reservedmem14 + reservedmem15)
+
+    if gpu_choice_var=="All":
+        gpumem = int(gpumem0 + gpumem1 + gpumem2 + gpumem3 + gpumem4 + gpumem5 + gpumem6 + gpumem7 + gpumem8 + gpumem9 + gpumem10 + gpumem11 + gpumem12 + gpumem13 + gpumem14 + gpumem15)
+        mem = int(mem0 + mem1 + mem2 + mem3 + mem4 + mem5 + mem6 + mem7 + mem8 + mem9 + mem10 + mem11 + mem12 + mem13 + mem14 + mem15)
+        usedmem = int(usedmem0 + usedmem1 + usedmem2 + usedmem3 + usedmem4 + usedmem5 + usedmem6 + usedmem7 + usedmem8 + usedmem9 + usedmem10 + usedmem11 + usedmem12 + usedmem13 + usedmem14 + usedmem15)
+        reservedmem = int(reservedmem0 + reservedmem1 + reservedmem2 + reservedmem3 + reservedmem4 + reservedmem5 + reservedmem6 + reservedmem7 + reservedmem8 + reservedmem9 + reservedmem10 + reservedmem11 + reservedmem12 + reservedmem13 + reservedmem14 + reservedmem15)
+    elif gpu_choice_var!="All":
+        gpumem = int(gpumem0)
+        mem = int(mem0)
+        usedmem = int(usedmem0)
+        reservedmem = int(reservedmem0)
 
     if mem > 0:
         print(f"GPUs global reserved VRAM: {reservedmem/1024/1024} MiB (Toral occupied VRAM + Total overhead) ; GPUs total usable VRAM: {mem/1024/1024} MiB")
@@ -812,7 +1093,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             mmq = mmqmode
             mmq_ratio = 1
             if mmq == 1:
-                mmq_ratio = 0.25
+                mmq_ratio = 0.5
 
             lv = lowvram
             lvctx_ratio = 1
@@ -877,6 +1158,11 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
                 csmul = ((cs+4096)/6144) if cs >= 2048 else 1.0 #Nexes 2
                 # csmul = (cs/4096) if cs >= 8192 else (cs/(2048+(cs-2048)/3)) if cs >= 2048 else 1.0 #Nexes 1
                 # csmul = (cs/4096) if cs >= 8192 else 1.8 if cs > 4096 else 1.2 if cs > 2048 else 1.0 #Concedo
+
+            if modelfile_extracted_meta[5] > 1024*1024*10: #draft model tax
+                mem -= (modelfile_extracted_meta[5] * 1.4 * csmul)
+                print(f"GPUs total VRAM available after Draft tax: {mem/1024/1024} MiB")
+                print("***")
 
             # csmul = 1.0
 
@@ -943,8 +1229,8 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
                         context_buffer = int(layers*headcount*headkvlen*cs*kvbpw/8*lvctx_ratio)
                         print(f"Context buffer : {layers} layers x {headcount} heads x {headkvlen} of KVH length x {cs} ctx x {kvbpw/8} kvq_bpw x {lvctx_ratio} = {context_buffer/1024/1024} MiB")
 
-                        compute_buffer = int(layers*bbs_ratio*mmq_ratio*fa_ratio*headkvlen*cs*lvcomp_ratio**4*1.25)
-                        print(f"Compute buffer : {layers} layers x {bbs/128} x {mmq_ratio} MMQ shink x {fa_ratio} FA shrink x {headkvlen} of KVH length x {cs} ctx x {lvcomp_ratio} lowvram bump x 4 x 1.25 = {compute_buffer/1024/1024} MiB")
+                        compute_buffer = int(layers*bbs_ratio*mmq_ratio*fa_ratio*headkvlen*cs*lvcomp_ratio**4*1.25*gpucount)
+                        print(f"Compute buffer : {layers} layers x {bbs/128} x {mmq_ratio} MMQ shink x {fa_ratio} FA shrink x {headkvlen} of KVH length x {cs} ctx x {lvcomp_ratio} lowvram bump x 4 x 1.25 = {compute_buffer/1024/1024} MiB x {gpucount} GPUs")
 
                         total_buffer = int(context_buffer + compute_buffer)
                         print(f"Total_buffer: {total_buffer/1024/1024:.3f} MiB = Context buffer: {context_buffer/1024/1024} MiB + Compute buffer: {compute_buffer/1024/1024:.3f} MiB")
@@ -1025,7 +1311,7 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                 pass
         # lowestcumem = 0
         # lowestfreecumem = 0
-        for idx in range(0,4):
+        for idx in range(0,16):
             if(len(FetchedCUdevices)>idx):
                 CUDevicesNames[idx] = FetchedCUdevices[idx]
                 if len(FetchedCUdeviceMem)>idx:
@@ -3255,7 +3541,7 @@ def show_gui():
     layercounter_label = ctk.CTkLabel(hardware_tab, text="")
     layercounter_label.grid(row=6, column=1, padx=75, sticky="W")
     layercounter_label.configure(text_color="#ffff00")
-    tensor_split_entry,tensor_split_label = makelabelentry(hardware_tab, "Tensor Split:", tensor_split_str_vars, 8, 160, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
+    tensor_split_entry,tensor_split_label = makelabelentry(hardware_tab, "Tensor Split:", tensor_split_str_vars, 8, 480, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
     lowvram_box = makecheckbox(hardware_tab,  "Low VRAM (No KV offload)", lowvram_var, 4,0, tooltiptxt='Avoid offloading KV Cache or scratch buffers to VRAM.\nAllows more layers to fit, but may result in a speed loss.')
     mmq_box = makecheckbox(hardware_tab,  "Use QuantMatMul (mmq)", mmq_var, 4,1, tooltiptxt="Enable MMQ mode to use finetuned kernels instead of default CuBLAS/HipBLAS for prompt processing.\nRead the wiki. Speed may vary.")
     splitmode_box = makecheckbox(hardware_tab,  "Row-Split", rowsplit_var, 5,0, tooltiptxt="Split rows across GPUs instead of splitting layers and KV across GPUs.\nUses the main GPU for small tensors and intermediate results. Speed may vary.")
@@ -3305,7 +3591,7 @@ def show_gui():
     makeslider(gpu_al_tab, "Positive layers offset:", poslayeroffset_text, poslayeroffset_var, 0, 10, 12, width=201, set=0,tooltip="Adds layers to the GPU layers autoloader calculation in case of under-exploitation of your GPU(s)..")
     makeslider(gpu_al_tab, "Negative layers offset:", neglayeroffset_text, neglayeroffset_var, 0, 10, 14, width=201, set=0,tooltip="Removes layers to the GPU layers autoloader calculation in case of Out of Memory (OOM) error..")
 
-    tensor_split_entry,tensor_split_label = makelabelentry(gpu_al_tab, "Tensor Split:", tensor_split_str_vars, 8, 160, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
+    tensor_split_entry,tensor_split_label = makelabelentry(gpu_al_tab, "Tensor Split:", tensor_split_str_vars, 8, 480, tooltip='When using multiple GPUs this option controls how large tensors should be split across all GPUs.\nUses a comma-separated list of non-negative values that assigns the proportion of data that each GPU should get in order.\nFor example, "3,2" will assign 60% of the data to GPU 0 and 40% to GPU 1.')
 
     # load model
     makefileentry(gpu_al_tab, "Model:", "Select GGML Model File", model_var, 40, 576, onchoosefile=on_picked_model_file, filetypes=[("GGML bin or GGUF", ("*.bin","*.gguf"))] ,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
@@ -3733,7 +4019,7 @@ def show_gui():
                 if vulkan_noavx2_option is not None:
                     runopts_var.set(vulkan_noavx2_option)
                     gpu_choice_var.set("All")
-                    for opt in range(0,4):
+                    for opt in range(0,16):
                         if opt in dict["usevulkan"]:
                             gpu_choice_var.set(str(opt+1))
                             break
@@ -3741,7 +4027,7 @@ def show_gui():
                 if vulkan_option is not None:
                     runopts_var.set(vulkan_option)
                     gpu_choice_var.set("All")
-                    for opt in range(0,4):
+                    for opt in range(0,16):
                         if opt in dict["usevulkan"]:
                             gpu_choice_var.set(str(opt+1))
                             break
@@ -4915,12 +5201,36 @@ def main(launch_args,start_server=True):
         gpu1avram = int(MaxMemory[1]/1024/1024)
         gpu2avram = int(MaxMemory[2]/1024/1024)
         gpu3avram = int(MaxMemory[3]/1024/1024)
+        gpu4avram = int(MaxMemory[4]/1024/1024)
+        gpu5avram = int(MaxMemory[5]/1024/1024)
+        gpu6avram = int(MaxMemory[6]/1024/1024)
+        gpu7avram = int(MaxMemory[7]/1024/1024)
+        gpu8avram = int(MaxMemory[8]/1024/1024)
+        gpu9avram = int(MaxMemory[9]/1024/1024)
+        gpu10avram = int(MaxMemory[10]/1024/1024)
+        gpu11avram = int(MaxMemory[11]/1024/1024)
+        gpu12avram = int(MaxMemory[12]/1024/1024)
+        gpu13avram = int(MaxMemory[13]/1024/1024)
+        gpu14avram = int(MaxMemory[14]/1024/1024)
+        gpu15avram = int(MaxMemory[15]/1024/1024)
         gpu0fvram = int(MaxFreeMemory[0]/1024/1024)
         gpu1fvram = int(MaxFreeMemory[1]/1024/1024)
         gpu2fvram = int(MaxFreeMemory[2]/1024/1024)
         gpu3fvram = int(MaxFreeMemory[3]/1024/1024)
-        gpuavram = gpu0avram + gpu1avram + gpu2avram + gpu3avram
-        gpufvram = gpu0fvram + gpu1fvram + gpu2fvram + gpu3fvram
+        gpu4fvram = int(MaxFreeMemory[4]/1024/1024)
+        gpu5fvram = int(MaxFreeMemory[5]/1024/1024)
+        gpu6fvram = int(MaxFreeMemory[6]/1024/1024)
+        gpu7fvram = int(MaxFreeMemory[7]/1024/1024)
+        gpu8fvram = int(MaxFreeMemory[8]/1024/1024)
+        gpu9fvram = int(MaxFreeMemory[9]/1024/1024)
+        gpu10fvram = int(MaxFreeMemory[10]/1024/1024)
+        gpu11fvram = int(MaxFreeMemory[11]/1024/1024)
+        gpu12fvram = int(MaxFreeMemory[12]/1024/1024)
+        gpu13fvram = int(MaxFreeMemory[13]/1024/1024)
+        gpu14fvram = int(MaxFreeMemory[14]/1024/1024)
+        gpu15fvram = int(MaxFreeMemory[15]/1024/1024)
+        gpuavram = gpu0avram + gpu1avram + gpu2avram + gpu3avram + gpu4avram + gpu5avram + gpu6avram + gpu7avram + gpu8avram + gpu9avram + gpu10avram + gpu11avram + gpu12avram + gpu13avram + gpu14avram + gpu15avram
+        gpufvram = gpu0fvram + gpu1fvram + gpu2fvram + gpu3fvram + gpu4fvram + gpu5fvram + gpu6fvram + gpu7fvram + gpu8fvram + gpu9fvram + gpu10fvram + gpu11fvram + gpu12fvram + gpu13fvram + gpu14fvram + gpu15fvram
         benchmaxctx = maxctx - 128
         benchtg = args.promptlimit
         benchpp = (benchmaxctx - benchtg)
@@ -4987,35 +5297,43 @@ def main(launch_args,start_server=True):
             print(f"HighPriority: {args.highpriority}")
             print(f"FlashAttention: {args.flashattention}")
             print(f"Threads: {args.threads}")
-            CUDevicesNames.sort(reverse=True)
+            # CUDevicesNames.sort(reverse=True)
             if gpu0avram>0:
-                print(f"GPU 0 Name: {CUDevicesNames[0]}")
-            if gpu0avram>0:
-                print(f"GPU 0 VRAM: {gpu0avram} MiB")
-            if gpu0fvram>0:
-                print(f"GPU 0 VRAM: {gpu0fvram} MiB")
+                print(f"GPU 0 Name: {CUDevicesNames[0]} ; GPU 0 VRAM: {gpu0avram} MiB ; GPU 0 unoccupied VRAM: {gpu0fvram} MiB")
             if gpu1avram>0:
-                print(f"GPU 1 Name: {CUDevicesNames[1]}")
-            if gpu1avram>0:
-                print(f"GPU 1 VRAM: {gpu1avram} MiB")
-            if gpu1fvram>0:
-                print(f"GPU 1 VRAM: {gpu1fvram} MiB")
+                print(f"GPU 1 Name: {CUDevicesNames[1]} ; GPU 1 VRAM: {gpu1avram} MiB ; GPU 1 unoccupied VRAM: {gpu1fvram} MiB")
             if gpu2avram>0:
-                print(f"GPU 2 Name: {CUDevicesNames[2]}")
-            if gpu2avram>0:
-                print(f"GPU 2 VRAM: {gpu2avram} MiB")
-            if gpu2fvram>0:
-                print(f"GPU 2 VRAM: {gpu2fvram} MiB")
+                print(f"GPU 2 Name: {CUDevicesNames[2]} ; GPU 2 VRAM: {gpu2avram} MiB ; GPU 2 unoccupied VRAM: {gpu2fvram} MiB")
             if gpu3avram>0:
-                print(f"GPU 3 Name: {CUDevicesNames[3]}")
-            if gpu3avram>0:
-                print(f"GPU 3 VRAM: {gpu3avram} MiB")
-            if gpu3fvram>0:
-                print(f"GPU 3 VRAM: {gpu3fvram} MiB")
+                print(f"GPU 3 Name: {CUDevicesNames[3]} ; GPU 3 VRAM: {gpu3avram} MiB ; GPU 3 unoccupied VRAM: {gpu3fvram} MiB")
+            if gpu4avram>0:
+                print(f"GPU 4 Name: {CUDevicesNames[4]} ; GPU 4 VRAM: {gpu4avram} MiB ; GPU 4 unoccupied VRAM: {gpu4fvram} MiB")
+            if gpu5avram>0:
+                print(f"GPU 5 Name: {CUDevicesNames[5]} ; GPU 5 VRAM: {gpu5avram} MiB ; GPU 5 unoccupied VRAM: {gpu5fvram} MiB")
+            if gpu6avram>0:
+                print(f"GPU 6 Name: {CUDevicesNames[6]} ; GPU 6 VRAM: {gpu6avram} MiB ; GPU 6 unoccupied VRAM: {gpu6fvram} MiB")
+            if gpu7avram>0:
+                print(f"GPU 7 Name: {CUDevicesNames[7]} ; GPU 7 VRAM: {gpu7avram} MiB ; GPU 7 unoccupied VRAM: {gpu7fvram} MiB")
+            if gpu8avram>0:
+                print(f"GPU 8 Name: {CUDevicesNames[8]} ; GPU 8 VRAM: {gpu8avram} MiB ; GPU 8 unoccupied VRAM: {gpu8fvram} MiB")
+            if gpu9avram>0:
+                print(f"GPU 9 Name: {CUDevicesNames[9]} ; GPU 9 VRAM: {gpu9avram} MiB ; GPU 9 unoccupied VRAM: {gpu9fvram} MiB")
+            if gpu10avram>0:
+                print(f"GPU 10 Name: {CUDevicesNames[10]} ; GPU 10 VRAM: {gpu10avram} MiB ; GPU 10 unoccupied VRAM: {gpu10fvram} MiB")
+            if gpu11avram>0:
+                print(f"GPU 11 Name: {CUDevicesNames[11]} ; GPU 11 VRAM: {gpu11avram} MiB ; GPU 11 unoccupied VRAM: {gpu11fvram} MiB")
+            if gpu12avram>0:
+                print(f"GPU 12 Name: {CUDevicesNames[12]} ; GPU 12 VRAM: {gpu12avram} MiB ; GPU 12 unoccupied VRAM: {gpu12fvram} MiB")
+            if gpu13avram>0:
+                print(f"GPU 13 Name: {CUDevicesNames[13]} ; GPU 13 VRAM: {gpu13avram} MiB ; GPU 13 unoccupied VRAM: {gpu13fvram} MiB")
+            if gpu14avram>0:
+                print(f"GPU 14 Name: {CUDevicesNames[14]} ; GPU 14 VRAM: {gpu14avram} MiB ; GPU 14 unoccupied VRAM: {gpu14fvram} MiB")
+            if gpu15avram>0:
+                print(f"GPU 15 Name: {CUDevicesNames[15]} ; GPU 15 VRAM: {gpu15avram} MiB ; GPU 15 unoccupied VRAM: {gpu15fvram} MiB")
             if gpuavram > gpu0avram:
                 print(f"GPUs Total VRAM: {gpuavram} MiB")
             if gpufvram > gpu0fvram:
-                print(f"GPUs Total VRAM: {gpufvram} MiB")
+                print(f"GPUs Total unoccupied VRAM: {gpufvram} MiB")
             print(f"Cublas_Args: {args.usecublas}")
             print(f"Layers: {args.gpulayers}")
             print(f"Tensor_Split: {args.tensor_split}")
@@ -5110,7 +5428,7 @@ if __name__ == '__main__':
 
     parser.add_argument("--threads", metavar=('[threads]'), help="Use a custom number of threads if specified. Otherwise, uses an amount based on CPU cores", type=int, default=get_default_threads())
     compatgroup = parser.add_mutually_exclusive_group()
-    compatgroup.add_argument("--usecublas", help="Use CuBLAS for GPU Acceleration. Requires CUDA. Select lowvram to not allocate VRAM scratch buffer. Enter a number afterwards to select and use 1 GPU. Leaving no number will use all GPUs. For hipBLAS binaries, please check YellowRoseCx rocm fork.", nargs='*',metavar=('[lowvram|normal] [main GPU ID] [mmq] [rowsplit]'), choices=['normal', 'lowvram', '0', '1', '2', '3', 'mmq', 'rowsplit'])
+    compatgroup.add_argument("--usecublas", help="Use CuBLAS for GPU Acceleration. Requires CUDA. Select lowvram to not allocate VRAM scratch buffer. Enter a number afterwards to select and use 1 GPU. Leaving no number will use all GPUs. For hipBLAS binaries, please check YellowRoseCx rocm fork.", nargs='*',metavar=('[lowvram|normal] [main GPU ID] [mmq] [rowsplit]'), choices=['normal', 'lowvram', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', 'mmq', 'rowsplit'])
     compatgroup.add_argument("--usevulkan", help="Use Vulkan for GPU Acceleration. Can optionally specify GPU Device ID (e.g. --usevulkan 0).", metavar=('[Device ID]'), nargs='*', type=int, default=None)
     compatgroup.add_argument("--useclblast", help="Use CLBlast for GPU Acceleration. Must specify exactly 2 arguments, platform ID and device ID (e.g. --useclblast 1 0).", type=int, choices=range(0,9), nargs=2)
     compatgroup.add_argument("--usecpu", help="Do not use any GPU acceleration (CPU Only)", action='store_true')
