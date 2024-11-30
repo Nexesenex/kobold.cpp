@@ -41,7 +41,7 @@ struct load_model_inputs
     const char * lora_filename = nullptr;
     const char * lora_base = nullptr;
     const char * draftmodel_filename = nullptr;
-    const int draft_amount = 8;
+    const int draft_amount = 4;
     const char * mmproj_filename = nullptr;
     const bool use_mmap = false;
     const bool use_mlock = false;

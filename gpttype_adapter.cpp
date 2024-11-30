@@ -630,7 +630,7 @@ static void speculative_decoding_setup(std::string spec_model_filename, const ll
     else
     {
         int draftvocab = llama_n_vocab(draftmodel);
-        if(draftvocab!=base_n_vocab)
+        if((draftvocab <= base_n_vocab-512) || (draftvocab >= base_n_vocab+512))
         {
             printf("Error: Draft model vocab of (%d) does not match base vocab of (%d). Speculative decoding cannot be used!\n",draftvocab,base_n_vocab);
             llama_free(draft_ctx);
