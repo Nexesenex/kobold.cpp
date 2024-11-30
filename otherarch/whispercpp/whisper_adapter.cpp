@@ -273,11 +273,12 @@ whisper_generation_outputs whispertype_generate(const whisper_generation_inputs 
 
     // output text transcription
     whisper_output_text = output_txt(whisper_ctx, pcmf32s);
+    std::string ts = get_timestamp_str();
     if(!inputs.quiet)
     {
-        printf("\nWhisper Transcribe Output: %s",whisper_output_text.c_str());
+        printf("\n[%s] Whisper Transcribe Output: %s",ts.c_str(),whisper_output_text.c_str());
     } else {
-        printf("\nWhisper Transcribe Done.");
+        printf("\n[%s] Whisper Transcribe Done.",ts.c_str());
     }
     output.text = whisper_output_text.c_str();
     output.status = 1;

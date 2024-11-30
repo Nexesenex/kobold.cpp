@@ -507,4 +507,12 @@ struct llava_image
     float * clp_img_embd = nullptr; //this holds dynamic memory and must be freed each use!
 };
 
+struct speculative_draft_result
+{
+    std::vector<int32_t> draftids;
+    std::vector<float *> actual_logits;
+    bool draft_success = false;
+    int drafted_amount = 0;
+};
+
 const float default_norm_eps = 1e-5f;

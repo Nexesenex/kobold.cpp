@@ -357,11 +357,12 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
     int img2imgC = 3; // Assuming RGB image
     std::vector<uint8_t> resized_image_buf(img2imgW * img2imgH * img2imgC);
 
+    std::string ts = get_timestamp_str();
     if(!is_quiet)
     {
-        printf("\nGenerating Image (%d steps)\n",inputs.sample_steps);
+        printf("\n[%s] Generating Image (%d steps)\n",ts.c_str(),inputs.sample_steps);
     }else{
-        printf("\nGenerating (%d st.)\n",inputs.sample_steps);
+        printf("\n[%s] Generating (%d st.)\n",ts.c_str(),inputs.sample_steps);
     }
 
     fflush(stdout);

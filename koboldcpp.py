@@ -24,6 +24,7 @@ images_max = 4
 bias_min_value = -100.0
 bias_max_value = 100.0
 logprobs_max = 5
+default_draft_amount = 8
 
 # abuse prevention (don't abuse the antislop! :D)
 stop_token_max = 1024
@@ -142,6 +143,7 @@ class load_model_inputs(ctypes.Structure):
                 ("lora_filename", ctypes.c_char_p),
                 ("lora_base", ctypes.c_char_p),
                 ("draftmodel_filename", ctypes.c_char_p),
+                ("draft_amount", ctypes.c_int),
                 ("mmproj_filename", ctypes.c_char_p),
                 ("use_mmap", ctypes.c_bool),
                 ("use_mlock", ctypes.c_bool),
@@ -638,6 +640,15 @@ def tryparseint(value):
     except ValueError:
         return value
 
+def is_incomplete_utf8_sequence(byte_seq): #note, this will only flag INCOMPLETE sequences, corrupted ones will be ignored.
+    try:
+        byte_seq.decode('utf-8')
+        return False  # Valid UTF-8
+    except UnicodeDecodeError as e:
+        if e.reason == 'unexpected end of data':
+            return True #incomplete sequence
+        return False #invalid sequence, but not incomplete
+
 def unpack_to_dir(destpath = ""):
     import shutil
     srcpath = os.path.abspath(os.path.dirname(__file__))
@@ -835,6 +846,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
         usedmem0 = MaxMemory[0] - MaxFreeMemory[0]
         if showusedmemwarning and usedmem0 > (2.5*1024*1024*1024):
             showusedmemwarning = False
+
             print(f"Note: KoboldCpp/Croco.Cpp has detected that a significant amount of GPU0 VRAM ({usedmem0/1024/1024} MiB) is currently used by another application.\nFor best results, you may wish to close that application and then restart KoboldCpp/Croco.Cpp.\n***")
 
             print(f"Initial collection of data for the GPU layers autoloader:")
@@ -1067,6 +1079,8 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
         print(f"GPUs global reserved VRAM: {reservedmem/1024/1024} MiB (Toral occupied VRAM + Total overhead) ; GPUs total usable VRAM: {mem/1024/1024} MiB")
         print("***")
 
+    # reservedmem = max(1.3*1024*1024*1024,(0.5*1024*1024*1024 + usedmem)) # determine vram overhead
+
     try:
         if not modelfile_extracted_meta:
             return 0
@@ -1167,13 +1181,15 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             if kvq == 22:
                 kvbpw = 20.5
 
+            # mem = 0 if mem < 0 else mem
+
             if cs:
                 csmul = ((cs+4096)/6144) if cs >= 2048 else 1.0 #Nexes 2
                 # csmul = (cs/4096) if cs >= 8192 else (cs/(2048+(cs-2048)/3)) if cs >= 2048 else 1.0 #Nexes 1
                 # csmul = (cs/4096) if cs >= 8192 else 1.8 if cs > 4096 else 1.2 if cs > 2048 else 1.0 #Concedo
 
             if modelfile_extracted_meta[5] > 1024*1024*10: #draft model tax
-                mem -= (modelfile_extracted_meta[5] * 1.4 * csmul)
+                mem -= (modelfile_extracted_meta[5] * 1.1 * csmul)
                 print(f"GPUs total VRAM available after Draft tax: {mem/1024/1024} MiB")
                 print("***")
 
@@ -1286,6 +1302,16 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
         print(f"Layers limit: {layerlimit} = {layerlimit_intermed} x {partial_offload_penalty} + {layer_offset} layers offset.")
         print("***")
         print("***")
+                # layers = ggufmeta[0]
+                # headcount = ggufmeta[1]
+                # headkvlen = (ggufmeta[2] if ggufmeta[2] > 0 else 128)
+                # ratio = (mem-usedmem)/(fsize*csmul*1.6*(1.0 if bbs <= 512 else 1.2))
+                # computemem = layers*(4 if bbs <= 512 else (bbs/128))*headkvlen*cs*4*1.55 # apply blasbatchsize calculations if over 512
+                # contextmem = layers*headcount*headkvlen*cs*4*1.15
+                # if headcount > 0:
+                    # ratio = max(ratio, (mem - reservedmem - computemem) / (fsize + contextmem))
+                # layerlimit = min(int(ratio*layers), (layers + 3))
+        # layerlimit = (0 if layerlimit<=2 else layerlimit)
         return layerlimit
     except Exception as ex:
         return 0
@@ -1439,6 +1465,7 @@ def load_model(model_filename):
             inputs.lora_base = args.lora[1].encode("UTF-8")
 
     inputs.draftmodel_filename = args.draftmodel.encode("UTF-8") if args.draftmodel else "".encode("UTF-8")
+    inputs.draft_amount = args.draftamount
     inputs.mmproj_filename = args.mmproj.encode("UTF-8") if args.mmproj else "".encode("UTF-8")
     inputs.use_smartcontext = args.smartcontext
     inputs.use_contextshift = (1 if args.contextshift else 0)
@@ -1958,7 +1985,9 @@ def transform_genparams(genparams, api_format):
         pass
 
     elif api_format==3 or api_format==4 or api_format==7:
-        default_max_tok = (400 if api_format==4 else 200)
+        default_adapter = {} if chatcompl_adapter is None else chatcompl_adapter
+        adapter_obj = genparams.get('adapter', default_adapter)
+        default_max_tok = (adapter_obj.get("max_length", 512) if (api_format==4 or api_format==7) else 200)
         genparams["max_length"] = genparams.get('max_tokens', genparams.get('max_completion_tokens', default_max_tok))
         presence_penalty = genparams.get('presence_penalty', genparams.get('frequency_penalty', 0.0))
         genparams["presence_penalty"] = presence_penalty
@@ -1974,8 +2003,6 @@ def transform_genparams(genparams, api_format):
         if api_format==4 or api_format==7: #handle ollama chat here too
             # translate openai chat completion messages format into one big string.
             messages_array = genparams.get('messages', [])
-            default_adapter = {} if chatcompl_adapter is None else chatcompl_adapter
-            adapter_obj = genparams.get('adapter', default_adapter)
             messages_string = ""
             system_message_start = adapter_obj.get("system_start", "\n### Instruction:\n")
             system_message_end = adapter_obj.get("system_end", "")
@@ -2093,15 +2120,18 @@ ws ::= | " " | "\n" [ \t]{0,20}
     elif api_format==6:
         detokstr = ""
         tokids = genparams.get('context', [])
+        adapter_obj = {} if chatcompl_adapter is None else chatcompl_adapter
+        user_message_start = adapter_obj.get("user_start", "\n\n### Instruction:\n")
+        assistant_message_start = adapter_obj.get("assistant_start", "\n\n### Response:\n")
         try:
             detokstr = detokenize_ids(tokids)
         except Exception as e:
             utfprint("Ollama Context Error: " + str(e))
         ollamasysprompt = genparams.get('system', "")
-        ollamabodyprompt = detokstr + "\n\n### Instruction:\n" + genparams.get('prompt', "") + "\n\n### Response:\n"
+        ollamabodyprompt = f"{detokstr}{user_message_start}{genparams.get('prompt', '')}{assistant_message_start}"
         genparams["stop_sequence"] = genparams.get('stop', [])
-        genparams["stop_sequence"].append("\n### Instruction:")
-        genparams["stop_sequence"].append("\n### Response:")
+        genparams["stop_sequence"].append(user_message_start.strip())
+        genparams["stop_sequence"].append(assistant_message_start.strip())
         genparams["trim_stop"] = True
         genparams["ollamasysprompt"] = ollamasysprompt
         genparams["ollamabodyprompt"] = ollamabodyprompt
@@ -2266,7 +2296,8 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                     newbyte = ctypes.string_at(token)
                     incomplete_token_buffer += bytearray(newbyte)
                     tokenSeg = incomplete_token_buffer.decode("UTF-8","ignore")
-                    badFragment = (tokenSeg==" " and len(incomplete_token_buffer)>1) #partial incomplete unicode
+                    incseq = is_incomplete_utf8_sequence(incomplete_token_buffer)
+                    badFragment = (tokenSeg==" " and len(incomplete_token_buffer)>1) or incseq #partial incomplete unicode
                     if tokenSeg!="" and not badFragment:
                         incomplete_token_buffer.clear()
                         tokenStr += tokenSeg
@@ -2957,9 +2988,8 @@ Enter Prompt:<br>
                         return
 
                 is_quiet = args.quiet
-                utfprint(f"\n{datetime.now().strftime('[%H:%M:%S] Input Received')}")
                 if (args.debugmode != -1 and not is_quiet) or args.debugmode >= 1:
-                    utfprint(f"Input: " + json.dumps(genparams))
+                    utfprint(f"\nInput: " + json.dumps(genparams))
 
                 if args.foreground:
                     bring_terminal_to_foreground()
@@ -3372,6 +3402,7 @@ def show_gui():
     preloadstory_var = ctk.StringVar()
     mmproj_var = ctk.StringVar()
     draftmodel_var = ctk.StringVar()
+    draftamount_var = ctk.StringVar(value=str(default_draft_amount))
     nomodel = ctk.IntVar(value=0)
 
     port_var = ctk.StringVar(value=defaultport)
@@ -3478,8 +3509,8 @@ def show_gui():
         button = ctk.CTkButton(parent, 50, text="Browse", command= lambda a=var,b=searchtext:getfilename(a,b))
         if singlerow:
             if singlecol:
-                entry.grid(row=row, column=0, padx=(84+8), stick="w")
-                button.grid(row=row, column=0, padx=(84+width+12), stick="nw")
+                entry.grid(row=row, column=0, padx=(94+8), stick="w")
+                button.grid(row=row, column=0, padx=(94+width+12), stick="nw")
             else:
                 entry.grid(row=row, column=1, padx=8, stick="w")
                 button.grid(row=row, column=1, padx=(width+12), stick="nw")
@@ -3882,24 +3913,26 @@ def show_gui():
     # Model Tab
     model_tab = tabcontent["Model Files"]
 
-    makefileentry(model_tab, "Text Model:", "Select GGUF or GGML Model File", model_var, 1,width=280, onchoosefile=on_picked_model_file, filetypes=[("GGML bin or GGUF", ("*.bin","*.gguf"))] ,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
-    makefileentry(model_tab, "Text Lora:", "Select Lora File",lora_var, 3,width=280,tooltiptxt="Select an optional GGML LoRA adapter to use.\nLeave blank to skip.")
-    makefileentry(model_tab, "Text Lora Base:", "Select Lora Base File", lora_base_var, 5,width=280,tooltiptxt="Select an optional F16 GGML LoRA base file to use.\nLeave blank to skip.")
-    makefileentry(model_tab, "Vision mmproj:", "Select Vision mmproj File", mmproj_var, 7,width=280,tooltiptxt="Select a mmproj file to use for vision models like LLaVA.\nLeave blank to skip.")
-    makefileentry(model_tab, "Speculative Model:", "Select Draft Text Model File", draftmodel_var, 9,width=280,tooltiptxt="Select a draft text model file to use for speculative decoding.\nLeave blank to skip.")
-    makefileentry(model_tab, "Preloaded Story:", "Select Preloaded Story File", preloadstory_var, 11,width=280,tooltiptxt="Select an optional KoboldAI JSON savefile \nto be served on launch to any client.")
-    makefileentry(model_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 14, width=250, filetypes=[("JSON Adapter", "*.json")], tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
+    makefileentry(model_tab, "Text Model:", "Select GGUF or GGML Model File", model_var, 1,width=280,singlerow=True, onchoosefile=on_picked_model_file, filetypes=[("GGML bin or GGUF", ("*.bin","*.gguf"))] ,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
+    makefileentry(model_tab, "Text Lora:", "Select Lora File",lora_var, 3,width=280,singlerow=True,tooltiptxt="Select an optional GGML Text LoRA adapter to use.\nLeave blank to skip.")
+    makefileentry(model_tab, "Text Lora Base:", "Select Lora Base File", lora_base_var, 5,width=280,singlerow=True,tooltiptxt="Select an optional F16 GGML Text LoRA base file to use.\nLeave blank to skip.")
+    makefileentry(model_tab, "Vision mmproj:", "Select Vision mmproj File", mmproj_var, 7,width=280,singlerow=True,tooltiptxt="Select a mmproj file to use for vision models like LLaVA.\nLeave blank to skip.")
+    makefileentry(model_tab, "Speculative Model:", "Select Speculative Text Model File", draftmodel_var, 9,width=280,singlerow=True,tooltiptxt="Select a draft text model file to use for speculative decoding.\nLeave blank to skip.")
+    makelabelentry(model_tab, "Draft Amount: ", draftamount_var, 11, 50,padx=100,singleline=True,tooltip="How many tokens to draft per chunk before verifying results")
+    makefileentry(model_tab, "Preload Story:", "Select Preloaded Story File", preloadstory_var, 15,width=280,singlerow=True,tooltiptxt="Select an optional KoboldAI JSON savefile \nto be served on launch to any client.")
+    makefileentry(model_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 24, width=250, filetypes=[("JSON Adapter", "*.json")], tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
+    
     def pickpremadetemplate():
         initialDir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'kcpp_adapters')
         initialDir = initialDir if os.path.isdir(initialDir) else None
         fnam = askopenfilename(title="Pick Premade ChatCompletions Adapter",filetypes=[("JSON Adapter", "*.json")], initialdir=initialDir)
         if fnam:
             chatcompletionsadapter_var.set(fnam)
-    ctk.CTkButton(model_tab, 64, text="Pick Premade", command=pickpremadetemplate).grid(row=15, column=0, padx=322, stick="nw")
+    ctk.CTkButton(model_tab, 64, text="Pick Premade", command=pickpremadetemplate).grid(row=25, column=0, padx=322, stick="nw")
 
     mmproj_var.trace("w", gui_changed_modelfile)
     draftmodel_var.trace("w", gui_changed_modelfile)
-    makecheckbox(model_tab, "Allow Launch Without Models", nomodel, 17, tooltiptxt="Allows running the WebUI with no model loaded.")
+    makecheckbox(model_tab, "Allow Launch Without Models", nomodel, 27, tooltiptxt="Allows running the WebUI with no model loaded.")
 
     ctk.CTkButton(model_tab, text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
     # Network Tab
@@ -4165,6 +4198,7 @@ def show_gui():
             pass
         args.mmproj = None if mmproj_var.get() == "" else mmproj_var.get()
         args.draftmodel = None if draftmodel_var.get() == "" else draftmodel_var.get()
+        args.draftamount = int(draftamount_var.get()) if draftamount_var.get()!="" else default_draft_amount
 
         args.ssl = None if (ssl_cert_var.get() == "" or ssl_key_var.get() == "") else ([ssl_cert_var.get(), ssl_key_var.get()])
         args.password = None if (password_var.get() == "") else (password_var.get())
@@ -4336,6 +4370,8 @@ def show_gui():
 
         mmproj_var.set(dict["mmproj"] if ("mmproj" in dict and dict["mmproj"]) else "")
         draftmodel_var.set(dict["draftmodel"] if ("draftmodel" in dict and dict["draftmodel"]) else "")
+        if "draftamount" in dict:
+            draftamount_var.set(dict["draftamount"])
 
         ssl_cert_var.set("")
         ssl_key_var.set("")
@@ -5722,6 +5758,7 @@ if __name__ == '__main__':
     advparser.add_argument("--nocertify", help="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.", action='store_true')
     advparser.add_argument("--mmproj", help="Select a multimodal projector file for vision models like LLaVA.", default="")
     advparser.add_argument("--draftmodel", help="Load a small draft model for speculative decoding. It will be fully offloaded. Vocab must match the main model.", default="")
+    advparser.add_argument("--draftamount", metavar=('[tokens]'), help="How many tokens to draft per chunk before verifying results", type=int, default=default_draft_amount)
     advparser.add_argument("--password", help="Enter a password required to use this instance. This key will be required for all text endpoints. Image endpoints are not secured.", default=None)
     advparser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
     advparser.add_argument("--chatcompletionsadapter", help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="")
