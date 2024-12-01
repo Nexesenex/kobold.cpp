@@ -17,7 +17,8 @@ struct DiffusionModel {
                          std::vector<struct ggml_tensor*> controls = {},
                          float control_strength                    = 0.f,
                          struct ggml_tensor** output               = NULL,
-                         struct ggml_context* output_ctx           = NULL)                        = 0;
+                         struct ggml_context* output_ctx           = NULL,
+                         std::vector<int> skip_layers              = std::vector<int>())             = 0;
     virtual void alloc_params_buffer()                                                  = 0;
     virtual void free_params_buffer()                                                   = 0;
     virtual void free_compute_buffer()                                                  = 0;
@@ -30,9 +31,10 @@ struct UNetModel : public DiffusionModel {
     UNetModelRunner unet;
 
     UNetModel(ggml_backend_t backend,
-              ggml_type wtype,
-              SDVersion version = VERSION_SD1)
-        : unet(backend, wtype, version) {
+              std::map<std::string, enum ggml_type>& tensor_types,
+              SDVersion version = VERSION_SD1,
+              bool flash_attn   = false)
+        : unet(backend, tensor_types, "model.diffusion_model", version, flash_attn) {
     }
 
     void alloc_params_buffer() {
@@ -70,7 +72,9 @@ struct UNetModel : public DiffusionModel {
                  std::vector<struct ggml_tensor*> controls = {},
                  float control_strength                    = 0.f,
                  struct ggml_tensor** output               = NULL,
-                 struct ggml_context* output_ctx           = NULL) {
+                 struct ggml_context* output_ctx           = NULL,
+                 std::vector<int> skip_layers              = std::vector<int>()) {
+        (void)skip_layers;  // SLG doesn't work with UNet models
         return unet.compute(n_threads, x, timesteps, context, c_concat, y, num_video_frames, controls, control_strength, output, output_ctx);
     }
 };
@@ -79,9 +83,8 @@ struct MMDiTModel : public DiffusionModel {
     MMDiTRunner mmdit;
 
     MMDiTModel(ggml_backend_t backend,
-               ggml_type wtype,
-               SDVersion version = VERSION_SD3_2B)
-        : mmdit(backend, wtype, version) {
+               std::map<std::string, enum ggml_type>& tensor_types)
+        : mmdit(backend, tensor_types, "model.diffusion_model") {
     }
 
     void alloc_params_buffer() {
@@ -119,8 +122,9 @@ struct MMDiTModel : public DiffusionModel {
                  std::vector<struct ggml_tensor*> controls = {},
                  float control_strength                    = 0.f,
                  struct ggml_tensor** output               = NULL,
-                 struct ggml_context* output_ctx           = NULL) {
-        return mmdit.compute(n_threads, x, timesteps, context, y, output, output_ctx);
+                 struct ggml_context* output_ctx           = NULL,
+                 std::vector<int> skip_layers              = std::vector<int>()) {
+        return mmdit.compute(n_threads, x, timesteps, context, y, output, output_ctx, skip_layers);
     }
 };
 
@@ -128,9 +132,9 @@ struct FluxModel : public DiffusionModel {
     Flux::FluxRunner flux;
 
     FluxModel(ggml_backend_t backend,
-              ggml_type wtype,
-              SDVersion version = VERSION_FLUX_DEV)
-        : flux(backend, wtype, version) {
+              std::map<std::string, enum ggml_type>& tensor_types,
+              bool flash_attn = false)
+        : flux(backend, tensor_types, "model.diffusion_model", flash_attn) {
     }
 
     void alloc_params_buffer() {
@@ -168,8 +172,9 @@ struct FluxModel : public DiffusionModel {
                  std::vector<struct ggml_tensor*> controls = {},
                  float control_strength                    = 0.f,
                  struct ggml_tensor** output               = NULL,
-                 struct ggml_context* output_ctx           = NULL) {
-        return flux.compute(n_threads, x, timesteps, context, y, guidance, output, output_ctx);
+                 struct ggml_context* output_ctx           = NULL,
+                 std::vector<int> skip_layers              = std::vector<int>()) {
+        return flux.compute(n_threads, x, timesteps, context, y, guidance, output, output_ctx, skip_layers);
     }
 };
 

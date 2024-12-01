@@ -92,9 +92,15 @@ struct SDParams {
     bool normalize_input          = false;
     bool clip_on_cpu              = false;
     bool vae_on_cpu               = false;
+    bool diffusion_flash_attn     = false;
     bool canny_preprocess         = false;
     bool color                    = false;
     int upscale_repeats           = 1;
+
+    std::vector<int> skip_layers = {7, 8, 9};
+    float slg_scale              = 0.;
+    float skip_layer_start       = 0.01;
+    float skip_layer_end         = 0.2;
 };
 
 //shared
@@ -255,7 +261,8 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
                         sd_params->schedule,
                         sd_params->clip_on_cpu,
                         sd_params->control_net_cpu,
-                        sd_params->vae_on_cpu);
+                        sd_params->vae_on_cpu,
+                        sd_params->diffusion_flash_attn);
 
     if (sd_ctx == NULL) {
         printf("\nError: KCPP SD Failed to create context!\nIf using Flux/SD3.5, make sure you have ALL files required (e.g. VAE, T5, Clip...) or baked in!\n");
@@ -326,7 +333,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
     //ensure unsupported dimensions are fixed
     int biggestdim = (sd_params->width>sd_params->height?sd_params->width:sd_params->height);
     auto loadedsdver = get_loaded_sd_version(sd_ctx);
-    if(loadedsdver==SDVersion::VERSION_FLUX_DEV || loadedsdver==SDVersion::VERSION_FLUX_SCHNELL)
+    if(loadedsdver==SDVersion::VERSION_FLUX)
     {
         sd_params->cfg_scale = 1;
         if(sampler=="euler a"||sampler=="k_euler_a"||sampler=="euler_a")
@@ -432,7 +439,12 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
                           sd_params->control_strength,
                           sd_params->style_ratio,
                           sd_params->normalize_input,
-                          sd_params->input_id_images_path.c_str());
+                          sd_params->input_id_images_path.c_str(),
+                          sd_params->skip_layers.data(),
+                          sd_params->skip_layers.size(),
+                          sd_params->slg_scale,
+                          sd_params->skip_layer_start,
+                          sd_params->skip_layer_end);
     } else {
 
         if (sd_params->width <= 0 || sd_params->width % 64 != 0 || sd_params->height <= 0 || sd_params->height % 64 != 0) {
@@ -514,7 +526,12 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
                             sd_params->control_strength,
                             sd_params->style_ratio,
                             sd_params->normalize_input,
-                            sd_params->input_id_images_path.c_str());
+                            sd_params->input_id_images_path.c_str(),
+                            sd_params->skip_layers.data(),
+                            sd_params->skip_layers.size(),
+                            sd_params->slg_scale,
+                            sd_params->skip_layer_start,
+                            sd_params->skip_layer_end);
     }
 
     if (results == NULL) {

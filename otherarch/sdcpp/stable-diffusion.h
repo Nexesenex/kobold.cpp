@@ -152,7 +152,8 @@ SD_API sd_ctx_t* new_sd_ctx(const char* model_path,
                             enum schedule_t s,
                             bool keep_clip_on_cpu,
                             bool keep_control_net_cpu,
-                            bool keep_vae_on_cpu);
+                            bool keep_vae_on_cpu,
+                            bool diffusion_flash_attn);
 
 SD_API void free_sd_ctx(sd_ctx_t* sd_ctx);
 
@@ -172,7 +173,12 @@ SD_API sd_image_t* txt2img(sd_ctx_t* sd_ctx,
                            float control_strength,
                            float style_strength,
                            bool normalize_input,
-                           const char* input_id_images_path);
+                           const char* input_id_images_path,
+                           int* skip_layers,
+                           size_t skip_layers_count,
+                           float slg_scale,
+                           float skip_layer_start,
+                           float skip_layer_end);
 
 SD_API sd_image_t* img2img(sd_ctx_t* sd_ctx,
                            sd_image_t init_image,
@@ -192,7 +198,12 @@ SD_API sd_image_t* img2img(sd_ctx_t* sd_ctx,
                            float control_strength,
                            float style_strength,
                            bool normalize_input,
-                           const char* input_id_images_path);
+                           const char* input_id_images_path,
+                           int* skip_layers,
+                           size_t skip_layers_count,
+                           float slg_scale,
+                           float skip_layer_start,
+                           float skip_layer_end);
 
 SD_API sd_image_t* img2vid(sd_ctx_t* sd_ctx,
                            sd_image_t init_image,
@@ -212,8 +223,7 @@ SD_API sd_image_t* img2vid(sd_ctx_t* sd_ctx,
 typedef struct upscaler_ctx_t upscaler_ctx_t;
 
 SD_API upscaler_ctx_t* new_upscaler_ctx(const char* esrgan_path,
-                                        int n_threads,
-                                        enum sd_type_t wtype);
+                                        int n_threads);
 SD_API void free_upscaler_ctx(upscaler_ctx_t* upscaler_ctx);
 
 SD_API sd_image_t upscale(upscaler_ctx_t* upscaler_ctx, sd_image_t input_image, uint32_t upscale_factor);
