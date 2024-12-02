@@ -2341,6 +2341,7 @@ enum e_model {
     MODEL_16B,
     MODEL_20B,
     MODEL_30B,
+    MODEL_32B,
     MODEL_34B,
     MODEL_35B,
     MODEL_40B,
@@ -5353,6 +5354,7 @@ static const char * llama_model_type_name(e_model type) {
         case MODEL_16B:           return "16B";
         case MODEL_20B:           return "20B";
         case MODEL_30B:           return "30B";
+        case MODEL_32B:           return "32B";
         case MODEL_34B:           return "34B";
         case MODEL_35B:           return "35B";
         case MODEL_40B:           return "40B";
@@ -5713,7 +5715,10 @@ static void llm_load_hparams(
                     case 24: model.type = hparams.n_embd == 1024 ? e_model::MODEL_0_5B : e_model::MODEL_1B; break;
                     case 28: model.type = hparams.n_embd == 1536 ? e_model::MODEL_1_5B : e_model::MODEL_7B; break;
                     case 32: model.type = e_model::MODEL_7B; break;
+                    case 36: model.type = e_model::MODEL_3B; break;
                     case 40: model.type = hparams.n_head() == 20 ? e_model::MODEL_4B : e_model::MODEL_13B; break;
+                    case 48: model.type = e_model::MODEL_14B; break;
+                    case 64: model.type = e_model::MODEL_32B; break;
                     case 80: model.type = e_model::MODEL_70B; break;
                     default: model.type = e_model::MODEL_UNKNOWN;
                 }
@@ -23952,41 +23957,85 @@ static int32_t llama_chat_apply_template_internal(
         if (add_ass) {
             ss << "<|im_start|>assistant\n";
         }
-    } else if (tmpl == "llama2" || tmpl == "mistral" || tmpl_contains("[INST]")) {
-        // llama2 template and its variants
-        // [variant] support system message
-        bool support_system_message = tmpl_contains("<<SYS>>") || tmpl == "mistral";
-        // [variant] space before + after response
-        bool space_around_response = tmpl_contains("' ' + eos_token");
-        // [variant] add BOS inside history
-        bool add_bos_inside_history = tmpl_contains("bos_token + '[INST]");
-        // [variant] trim spaces from the input message
-        bool strip_message = tmpl_contains("content.strip()");
-        // construct the prompt
-        bool is_inside_turn = true; // skip BOS at the beginning
-        ss << "[INST] ";
-        for (auto message : chat) {
-            std::string content = strip_message ? trim(message->content) : message->content;
-            std::string role(message->role);
-            if (!is_inside_turn) {
-                is_inside_turn = true;
-                ss << (add_bos_inside_history ? "<s>[INST] " : "[INST] ");
-            }
-            if (role == "system") {
-                if (support_system_message) {
-                    ss << "<<SYS>>\n" << content << "\n<</SYS>>\n\n";
-                } else {
-                    // if the model does not support system message, we still include it in the first message, but without <<SYS>>
-                    ss << content << "\n";
+    } else if (tmpl == "llama2" || tmpl.find("mistral") == 0 || tmpl_contains("[INST]")) {
+        if (tmpl == "mistral-v7" || tmpl_contains("[SYSTEM_PROMPT]")) {
+            // Official mistral 'v7' template
+            // See: https://huggingface.co/mistralai/Mistral-Large-Instruct-2411#basic-instruct-template-v7
+            for (auto message : chat) {
+                std::string role(message->role);
+                std::string content(message->content);
+                if (role == "system") {
+                    ss << "[SYSTEM_PROMPT] " << content << "[/SYSTEM_PROMPT]";
+                } else if (role == "user") {
+                    ss << "[INST] " << content << "[/INST]";
                 }
-            } else if (role == "user") {
-                ss << content << " [/INST]";
-            } else {
-                ss << (space_around_response ? " " : "") << content << (space_around_response ? " " : "") << "</s>";
-                is_inside_turn = false;
+                else {
+                    ss << " " << content << "</s>";
+                }
             }
+        } else if (tmpl == "mistral-v1" || tmpl == "mistral-v3" || tmpl == "mistral-v3-tekken"
+                   || tmpl_contains("' [INST] ' + system_message") // catches official 'v1' template
+                   || tmpl_contains("[AVAILABLE_TOOLS]")) {        // catches official 'v3' and 'v3-tekken' templates
+            // Official mistral 'v1', 'v3' and 'v3-tekken' templates
+            // See: https://github.com/mistralai/cookbook/blob/main/concept-deep-dive/tokenization/chat_templates.md
+            // See: https://github.com/mistralai/cookbook/blob/main/concept-deep-dive/tokenization/templates.md
+            std::string leading_space = (tmpl == "mistral-v1" || tmpl_contains(" [INST]") ? " " : "");
+            std::string trailing_space = (tmpl == "mistral-v3-tekken" || tmpl_contains("\"[INST]\"") ? "" : " ");
+            bool trim_assistant_message = tmpl_contains("|trim + eos_token");
+            bool is_inside_turn = false;
+            for (auto message : chat) {
+                if (!is_inside_turn) {
+                    ss << leading_space << "[INST]" << trailing_space;
+                    is_inside_turn = true;
+                }
+                std::string role(message->role);
+                std::string content(message->content);
+                if (role == "system") {
+                    ss << content << "\n\n";
+                } else if (role == "user") {
+                    ss << content << leading_space << "[/INST]";
+                } else {
+                    ss << trailing_space << (trim_assistant_message ? trim(content) : content) << "</s>";
+                    is_inside_turn = false;
+                }
+            }
+        } else {
+            // llama2 template and its variants
+            // [variant] support system message
+            // See: https://huggingface.co/blog/llama2#how-to-prompt-llama-2
+            bool support_system_message = tmpl_contains("<<SYS>>") || tmpl == "llama2";
+            // [variant] space before + after response
+            bool space_around_response = tmpl_contains("' ' + eos_token");
+            // [variant] add BOS inside history
+            bool add_bos_inside_history = tmpl_contains("bos_token + '[INST]");
+            // [variant] trim spaces from the input message
+            bool strip_message = tmpl_contains("content.strip()");
+            // construct the prompt
+            bool is_inside_turn = true; // skip BOS at the beginning
+            ss << "[INST] ";
+            for (auto message : chat) {
+                std::string content = strip_message ? trim(message->content) : message->content;
+                std::string role(message->role);
+                if (!is_inside_turn) {
+                    is_inside_turn = true;
+                    ss << (add_bos_inside_history ? "<s>[INST] " : "[INST] ");
+                }
+                if (role == "system") {
+                    if (support_system_message) {
+                        ss << "<<SYS>>\n" << content << "\n<</SYS>>\n\n";
+                    } else {
+                        // if the model does not support system message, we still include it in the first message, but without <<SYS>>
+                        ss << content << "\n";
+                    }
+                } else if (role == "user") {
+                    ss << content << " [/INST]";
+                } else {
+                    ss << (space_around_response ? " " : "") << content << (space_around_response ? " " : "") << "</s>";
+                    is_inside_turn = false;
+                }
+            }
+            // llama2 templates seem to not care about "add_generation_prompt
         }
-        // llama2 templates seem to not care about "add_generation_prompt"
     } else if (tmpl == "phi3" || (tmpl_contains("<|assistant|>") && tmpl_contains("<|end|>"))) {
         // Phi 3
         for (auto message : chat) {

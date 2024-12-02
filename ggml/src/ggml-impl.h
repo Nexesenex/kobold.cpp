@@ -14,7 +14,7 @@
 #include <arm_sve.h>
 #endif // __ARM_FEATURE_SVE
 
-#if defined(__ARM_NEON)
+#if defined(__ARM_NEON) && !defined(__CUDACC__)
 // if YCM cannot find <arm_neon.h>, make a symbolic link to it, for example:
 //
 //   $ ln -sfn /Library/Developer/CommandLineTools/usr/lib/clang/13.1.6/include/arm_neon.h ./src/
@@ -30,11 +30,13 @@
 extern "C" {
 #endif
 
-#undef MIN
-#undef MAX
+#ifndef MIN
+#    define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
 
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#ifndef MAX
+#    define MAX(a, b) ((a) > (b) ? (a) : (b))
+#endif
 
 // required for mmap as gguf only guarantees 32-byte alignment
 #define TENSOR_ALIGNMENT 32
