@@ -9342,7 +9342,7 @@ static bool llm_load_tensors(
                 throw std::runtime_error("unknown architecture");
         }
 
-        if (n_moved_tensors > 1) { //only warn if more than 1 moved tensor
+        if (n_moved_tensors > 0) {
             LLAMA_LOG_DEBUG("%s: tensor '%s' (%s) (and %d others) cannot be used with preferred buffer type %s, using %s instead\n",
                 __func__, first_moved_tensor->name, ggml_type_name(first_moved_tensor->type), n_moved_tensors - 1,
                 ggml_backend_buft_name(first_moved_from_buft), ggml_backend_buft_name(first_moved_to_buft));
