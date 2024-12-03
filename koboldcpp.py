@@ -1566,7 +1566,7 @@ def generate(genparams, is_quiet=False, stream_flag=False):
     grammar = genparams.get('grammar', '')
     grammar_retain_state = genparams.get('grammar_retain_state', False)
     genkey = genparams.get('genkey', '')
-    trimstop = genparams.get('trim_stop', False)
+    trimstop = genparams.get('trim_stop', True)
     quiet = is_quiet
     dynatemp_range = genparams.get('dynatemp_range', 0.0)
     dynatemp_exponent = genparams.get('dynatemp_exponent', 1.0)
@@ -2313,7 +2313,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
 
                 if tokenStr!="" or streamDone:
                     sseq = genparams.get('stop_sequence', [])
-                    trimstop = genparams.get('trim_stop', False)
+                    trimstop = genparams.get('trim_stop', True)
                     if trimstop and not streamDone and string_contains_or_overlaps_sequence_substring(tokenStr,sseq):
                         tokenReserve += tokenStr
                         await asyncio.sleep(async_sleep_short) #if a stop sequence could trigger soon, do not send output

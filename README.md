@@ -65,7 +65,7 @@ For more information, be sure to run the program with the `--help` flag, or **[c
 ### Compiling on Linux (Using koboldcpp.sh automated compiler script)
 when you can't use the precompiled binary directly, we provide an automated build script which uses conda to obtain all dependencies, and generates (from source) a ready-to-use a pyinstaller binary for linux users.
 - Clone the repo with `git clone https://github.com/LostRuins/koboldcpp.git`
-- Simply execute the build script with `./koboldcpp.sh dist` and run the generated binary. (Not recomended for systems that already have an existing installation of conda. Dependencies: curl, bzip2)
+- Simply execute the build script with `./koboldcpp.sh dist` and run the generated binary. (Not recommended for systems that already have an existing installation of conda. Dependencies: curl, bzip2)
 ```
 ./koboldcpp.sh # This launches the GUI for easy configuration and launching (X11 required).
 ./koboldcpp.sh --help # List all available terminal commands for using Koboldcpp, you can use koboldcpp.sh the same way as our python script and binaries.
