@@ -1733,6 +1733,9 @@ static void ggml_cuda_mul_mat(ggml_backend_cuda_context & ctx, const ggml_tensor
         && src1->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F32
         && src0->ne[0] % 2 == 0 && src1->ne[1] == 1;
     bool use_mul_mat_vec_q = ggml_is_quantized(src0->type)
+//        && src0->ne[0] % (GGML_CUDA_DMMV_X*2) == 0 && src1->ne[1] == 1;
+//    bool          use_mul_mat_vec_q =  ggml_is_quantized(src0->type)
+//        && ggml_cuda_mmvq_type_supported(src0->type)
         && src1->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F32
         && src1->ne[1] <= MMVQ_MAX_BATCH_SIZE;
     bool use_mul_mat_q     = ggml_is_quantized(src0->type)
@@ -2875,6 +2878,19 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
                     case GGML_TYPE_IQ3_XXS:
                     case GGML_TYPE_IQ4_NL:
                     case GGML_TYPE_IQ4_XS:
+                    // case GGML_TYPE_IQ4_KS:
+                    // case GGML_TYPE_IQ4_KSS:
+                    // case GGML_TYPE_IQ2_K:
+                    // case GGML_TYPE_IQ2_KS:
+                    // case GGML_TYPE_IQ2_KT:
+                    // case GGML_TYPE_IQ3_KT:
+                    // case GGML_TYPE_IQ4_KT:
+                    case GGML_TYPE_IQ3_K:
+                    case GGML_TYPE_IQ4_K:
+                    case GGML_TYPE_IQ5_K:
+                    case GGML_TYPE_IQ6_K:
+                    // case GGML_TYPE_IQ1_BN:
+                    // case GGML_TYPE_IQ2_BN:
 #ifdef GGML_USE_MUSA
                         if (a->type == GGML_TYPE_Q3_K) {
                             return false;
@@ -2896,6 +2912,7 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
                     case GGML_TYPE_Q4_1:
                     case GGML_TYPE_Q5_0:
                     case GGML_TYPE_Q5_1:
+                    case GGML_TYPE_Q6_0:
                     case GGML_TYPE_Q8_0:
                         return true;
                     default:
