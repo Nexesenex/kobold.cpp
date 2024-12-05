@@ -101,6 +101,22 @@ enum sd_type_t {
     // SD_TYPE_COUNT = 39,
     //
     SD_TYPE_Q6_0    = 133,
+    SD_TYPE_IQ1_BN  = 134,
+    SD_TYPE_IQ2_BN  = 135,
+    SD_TYPE_Q8_K64  = 136,
+    SD_TYPE_IQ2_K   = 137,
+    SD_TYPE_IQ3_K   = 138,
+    SD_TYPE_IQ4_K   = 139,
+    SD_TYPE_IQ5_K   = 140,
+    SD_TYPE_IQ6_K   = 141,
+    // depricated: SD_TYPE_IQ2_TN  = 142,
+    // depricated: SD_TYPE_IQ1_TN  = 143,
+    SD_TYPE_IQ4_KS  = 144,
+    SD_TYPE_IQ2_KS  = 145,
+    SD_TYPE_IQ4_KSS = 146,
+    SD_TYPE_IQ2_KT  = 147,
+    SD_TYPE_IQ3_KT  = 148,
+    SD_TYPE_IQ4_KT  = 149,
     SD_TYPE_COUNT,
 };
 
