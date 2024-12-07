@@ -6,7 +6,7 @@
 //
 
 // #include "dmmv.cuh"
-#include "mmv.cuh"
+#include "dmmv.cuh"
 #include "dequantize.cuh"
 #include "convert.cuh"
 
