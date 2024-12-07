@@ -188,6 +188,7 @@ struct whisper_generation_inputs
 {
     const char * prompt = nullptr;
     const char * audio_data = nullptr;
+    const bool suppress_non_speech = false;
     const bool quiet = false;
 };
 struct whisper_generation_outputs

@@ -3718,6 +3718,11 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                     draft_used = true;
                     draft_results = speculative_decoding_eval_chunk(draft_ctx, llama_ctx_v4, embd, n_vocab, n_past);
                     evalres = draft_results.draft_success;
+                    if(debugmode==1)
+                    {
+                        std::string draftedtoks = get_tok_vec_str(draft_results.draftids);
+                        printf("\nDrafted %d Tokens: [%s]\n",speculative_chunk_amt,draftedtoks.c_str());
+                    }
                 }
             }
             else if(file_format==FileFormat::RWKV_1 || file_format==FileFormat::RWKV_2)

@@ -251,6 +251,7 @@ whisper_generation_outputs whispertype_generate(const whisper_generation_inputs 
     wparams.debug_mode       = false;
     wparams.tdrz_enable      = false;
     wparams.suppress_regex   = nullptr;
+    wparams.suppress_non_speech_tokens = inputs.suppress_non_speech;
     wparams.initial_prompt   = initprompt.c_str();
     wparams.greedy.best_of        = -1;
     wparams.beam_search.beam_size = -1;
