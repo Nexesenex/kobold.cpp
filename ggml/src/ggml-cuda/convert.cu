@@ -350,8 +350,8 @@ float __device__ __forceinline__ trellis_next(uint32_t& val) {
     return (float)(h[0]+h[1]);
 }
 
-/* template<typename dst_t>
-static __global__ void dequantize_block_iq2_kt(const void * __restrict__ vx, dst_t * __restrict__ yy) {
+template<typename dst_t>
+static __global__ void dequantize_block_iq2_kt(const void * __restrict__ vx, dst_t * __restrict__ yy, int64_t n_per_row, int64_t row_size) {
 
     int64_t ii  = blockIdx.x;
     int64_t row = (QK_K * ii) / n_per_row;
@@ -372,7 +372,7 @@ static __global__ void dequantize_block_iq2_kt(const void * __restrict__ vx, dst
 }
 
 template<typename dst_t>
-static __global__ void dequantize_block_iq3_kt(const void * __restrict__ vx, dst_t * __restrict__ yy) {
+static __global__ void dequantize_block_iq3_kt(const void * __restrict__ vx, dst_t * __restrict__ yy, int64_t n_per_row, int64_t row_size) {
 
     int64_t ii  = blockIdx.x;
     int64_t row = (QK_K * ii) / n_per_row;
@@ -394,7 +394,7 @@ static __global__ void dequantize_block_iq3_kt(const void * __restrict__ vx, dst
 }
 
 template<typename dst_t>
-static __global__ void dequantize_block_iq4_kt(const void * __restrict__ vx, dst_t * __restrict__ yy) {
+static __global__ void dequantize_block_iq4_kt(const void * __restrict__ vx, dst_t * __restrict__ yy, int64_t n_per_row, int64_t row_size) {
 
     int64_t ii  = blockIdx.x;
     int64_t row = (QK_K * ii) / n_per_row;
@@ -424,7 +424,7 @@ static __global__ void dequantize_block_iq4_kt(const void * __restrict__ vx, dst
         y[j+0] = dl * trellis_next(idx1) + row_av;
         y[j+4] = dl * trellis_next(idx2) + row_av;
     }
-} */
+}
 
 //template<typename dst_t>
 //static __global__ void dequantize_block_iq3_kt(const void * __restrict__ vx, dst_t * __restrict__ yy, int64_t n_per_row, int64_t row_size) {

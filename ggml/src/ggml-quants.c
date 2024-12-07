@@ -7816,7 +7816,8 @@ void dequantize_row_iq4_kss(const block_iq4_kss * x, float * y, int64_t k) {
 
 // ========================================== iq2_kt ====================================================
 
-/* namespace {
+// namespace {
+	 
 #ifdef __AVX2__
 static inline float hsum_float_4(__m128 x) {
     x = _mm_add_ps(x, _mm_movehl_ps(x, x));
@@ -7844,7 +7845,8 @@ __m256 hsum_float_4x8(__m256 * accm) {
      return _mm256_add_ps(_mm256_unpacklo_ps(accm[0], accm[1]), _mm256_unpackhi_ps(accm[0], accm[1]));
 }
 #endif
-template <int block_size, int group_size, int num_bits, bool is_abs = false>
+
+/* template <int block_size, int group_size, int num_bits, bool is_abs = false>
 class QuantizerIQKT {
     static_assert(group_size == 8 || group_size == 4);
     static_assert(block_size >= 8 && block_size%8 == 0);
@@ -8482,9 +8484,9 @@ const QuantizerIQ2KT& iq2kt_quantizer() {
     std::lock_guard<std::mutex> lock(mutex);
     if (!quantizer) quantizer = std::make_unique<QuantizerIQ2KT>(256, 8);
     return *quantizer;
-}
+} */
 
-void quantize_row_iq2_kt_impl(const float * x, void * vy, int n_per_row, const float * quant_weights, float * all_scales, float * all_weights,
+/* void quantize_row_iq2_kt_impl(const float * x, void * vy, int n_per_row, const float * quant_weights, float * all_scales, float * all_weights,
         float * qtmp) {
 
     constexpr float kSigmaScale = 2.0f;
@@ -8658,21 +8660,21 @@ void quantize_row_iq2_kt_impl(const float * x, void * vy, int n_per_row, const f
 
     }
 
-}
-}
+} */
+// }
 
-void quantize_row_iq2_kt_ref(const float * GGML_RESTRICT x, block_iq2_kt * GGML_RESTRICT y, int64_t k) {
+/* void quantize_row_iq2_kt_ref(const float * GGML_RESTRICT x, block_iq2_kt * GGML_RESTRICT y, int64_t k) {
     assert(k % QK_K == 0);
-    quantize_iq2_kt(x, (void *)y, 1, k, nullptr);
+    quantize_iq2_kt(x, (void *)y, 1, k, NULL);
 }
 
 void quantize_row_iq2_kt(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, int64_t k) {
     assert(k % QK_K == 0);
     block_iq2_kt * y = (block_iq2_kt *)vy;
     quantize_row_iq2_kt_ref(x, y, k);
-}
+} */
 
-size_t quantize_iq2_kt(const float * src, void * dst, int64_t nrows, int64_t n_per_row, const float * imatrix) {
+/* size_t quantize_iq2_kt(const float * src, void * dst, int64_t nrows, int64_t n_per_row, const float * imatrix) {
     GGML_ASSERT(n_per_row%QK_K == 0);
     auto row_size = ggml_row_size(GGML_TYPE_IQ2_KT, n_per_row);
     std::vector<float> scales(n_per_row/QuantizerIQ2KT::kBlockSize);
@@ -8685,9 +8687,9 @@ size_t quantize_iq2_kt(const float * src, void * dst, int64_t nrows, int64_t n_p
         qrow += row_size;
     }
     return nrows * row_size;
-}
+} */
 
-void dequantize_row_iq2_kt(const block_iq2_kt * x, float * y, int64_t k) {
+/* void dequantize_row_iq2_kt(const block_iq2_kt * x, float * y, int64_t k) {
     assert(k % QuantizerIQ2KT::kSuperBlockSize == 0);
     const int nb = k / QuantizerIQ2KT::kSuperBlockSize;
     const float * dptr = (const float *)x;
@@ -8712,15 +8714,15 @@ void dequantize_row_iq2_kt(const block_iq2_kt * x, float * y, int64_t k) {
             qh += QuantizerIQ2KT::kNg;
         }
     }
-}
+} */
 
 void ggml_vec_dot_iq2_kt_q8_k(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
     assert(n % QK_K == 0);
     assert(nrc == 1);
-    GGML_UNUSED(nrc);
-    GGML_UNUSED(bx);
-    GGML_UNUSED(by);
-    GGML_UNUSED(bs);
+    UNUSED(nrc);
+    UNUSED(bx);
+    UNUSED(by);
+    UNUSED(bs);
 
 #if GGML_USE_IQK_MULMAT
     if (iqk_mul_mat(1, 1, n, GGML_TYPE_IQ2_KT, vx, 0, GGML_TYPE_Q8_K, vy, 0, s, 0, 0, 1)) {
@@ -8730,18 +8732,20 @@ void ggml_vec_dot_iq2_kt_q8_k(int n, float * s, size_t bs, const void * vx, size
 
 }
 
-namespace {
+// ========================================== iq3_kt ====================================================
 
-using QuantizerIQ3KT = QuantizerIQKT<32, 8, 16, true>;
+// namespace {
+
+/* using QuantizerIQ3KT = QuantizerIQKT<32, 8, 16, true>;
 const QuantizerIQ3KT& iq3kt_quantizer() {
     static std::mutex mutex;
     std::lock_guard<std::mutex> lock(mutex);
     static std::unique_ptr<QuantizerIQ3KT> quantizer;
     if (!quantizer) quantizer = std::make_unique<QuantizerIQ3KT>(256, 8);
     return *quantizer;
-}
+} */
 
-void quantize_row_iq3_kt_impl(const float * x, void * vy, int n_per_row, const float * quant_weights, float * all_scales,
+/* void quantize_row_iq3_kt_impl(const float * x, void * vy, int n_per_row, const float * quant_weights, float * all_scales,
         float * all_weights, float * qtmp) {
 
     constexpr float kSigmaScale = 2.0f;
@@ -8913,12 +8917,12 @@ void quantize_row_iq3_kt_impl(const float * x, void * vy, int n_per_row, const f
             break;
         }
     }
-}
-}
+} */
+// }
 
-void quantize_row_iq3_kt_ref(const float * x, block_iq3_kt * y, int64_t k) {
+/* void quantize_row_iq3_kt_ref(const float * x, block_iq3_kt * y, int64_t k) {
     assert(k % QK_K == 0);
-    quantize_iq3_kt(x, (void *)y, 1, k, nullptr);
+    quantize_iq3_kt(x, (void *)y, 1, k, NULL);
 }
 
 void quantize_row_iq3_kt(const float * x, void * vy, int64_t k) {
@@ -8974,15 +8978,15 @@ void dequantize_row_iq3_kt(const block_iq3_kt * x, float * y, int64_t k) {
             }
         }
     }
-}
+} */
 
 void ggml_vec_dot_iq3_kt_q8_k(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
     assert(n % QK_K == 0);
     assert(nrc == 1);
-    GGML_UNUSED(nrc);
-    GGML_UNUSED(bx);
-    GGML_UNUSED(by);
-    GGML_UNUSED(bs);
+    UNUSED(nrc);
+    UNUSED(bx);
+    UNUSED(by);
+    UNUSED(bs);
 
 #if GGML_USE_IQK_MULMAT
     if (iqk_mul_mat(1, 1, n, GGML_TYPE_IQ3_KT, vx, 0, GGML_TYPE_Q8_K, vy, 0, s, 0, 0, 1)) {
@@ -8994,9 +8998,9 @@ void ggml_vec_dot_iq3_kt_q8_k(int n, float * s, size_t bs, const void * vx, size
 
 // ======================================== iq4_kt
 
-namespace{
+// namespace{
 
-using QuantizerIQ4KT = QuantizerIQKT<32, 4, 15>;
+/* using QuantizerIQ4KT = QuantizerIQKT<32, 4, 15>;
 
 const QuantizerIQ4KT& iq4kt_quantizer(bool with_offset = false) {
     static std::mutex mutex;
@@ -9009,9 +9013,9 @@ const QuantizerIQ4KT& iq4kt_quantizer(bool with_offset = false) {
     }
     if (!quantizer1) quantizer1 = std::make_unique<QuantizerIQ4KT>(625, 6, 4096);
     return *quantizer1;
-}
+} */
 
-void quantize_row_iq4_kt_impl(const float * x, void * vy, int n_per_row, const float * quant_weights, float * all_scales, float * all_weights) {
+/* void quantize_row_iq4_kt_impl(const float * x, void * vy, int n_per_row, const float * quant_weights, float * all_scales, float * all_weights) {
 
     constexpr float kSigmaScale = 2.0f;
     constexpr int kNtry = 2;
@@ -9169,12 +9173,12 @@ void quantize_row_iq4_kt_impl(const float * x, void * vy, int n_per_row, const f
             break;
         }
     }
-}
-}
+} */
+// }
 
-void quantize_row_iq4_kt_ref(const float * GGML_RESTRICT x, block_iq4_kt * GGML_RESTRICT y, int64_t k) {
+/* void quantize_row_iq4_kt_ref(const float * GGML_RESTRICT x, block_iq4_kt * GGML_RESTRICT y, int64_t k) {
     assert(k % QK_K == 0);
-    quantize_iq4_kt(x, (void *)y, 1, k, nullptr);
+    quantize_iq4_kt(x, (void *)y, 1, k, NULL);
 }
 
 void quantize_row_iq4_kt(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, int64_t k) {
@@ -9225,15 +9229,15 @@ void dequantize_row_iq4_kt(const block_iq4_kt * x, float * y, int64_t k) {
             }
         }
     }
-}
+} */
 
 void ggml_vec_dot_iq4_kt_q8_k(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
     assert(n % QK_K == 0);
     assert(nrc == 1);
-    GGML_UNUSED(nrc);
-    GGML_UNUSED(bx);
-    GGML_UNUSED(by);
-    GGML_UNUSED(bs);
+    UNUSED(nrc);
+    UNUSED(bx);
+    UNUSED(by);
+    UNUSED(bs);
 
 #if GGML_USE_IQK_MULMAT
     if (iqk_mul_mat(1, 1, n, GGML_TYPE_IQ4_KT, vx, 0, GGML_TYPE_Q8_K, vy, 0, s, 0, 0, 1)) {
@@ -9241,7 +9245,7 @@ void ggml_vec_dot_iq4_kt_q8_k(int n, float * s, size_t bs, const void * vx, size
     }
 #endif
 
-} */
+}
 
 // =============================== data validation
 
@@ -9539,9 +9543,9 @@ bool ggml_validate_row_data(enum ggml_type type, const void * data, size_t nbyte
 
         // case GGML_TYPE_IQ2_K: break;
         // case GGML_TYPE_IQ2_KS: break;
-        // case GGML_TYPE_IQ2_KT: break;
-        // case GGML_TYPE_IQ3_KT: break;
-        // case GGML_TYPE_IQ4_KT: break;
+        case GGML_TYPE_IQ2_KT: break;
+        case GGML_TYPE_IQ3_KT: break;
+        case GGML_TYPE_IQ4_KT: break;
         case GGML_TYPE_IQ3_K: break;
         case GGML_TYPE_IQ4_K: break;
         case GGML_TYPE_IQ5_K: break;
