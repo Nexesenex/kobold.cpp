@@ -11250,7 +11250,7 @@ void ggml_vec_dot_iq6_k_q8_K(int n, float * s, size_t bs, const void * vx, size_
 
 // ======================================= iq2_kt
 
-/* void ggml_vec_dot_iq2_kt_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+void ggml_vec_dot_iq2_kt_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
     assert(n % QK_K == 0);
     assert(nrc == 1);
     UNUSED(nrc);
@@ -11300,4 +11300,4 @@ void ggml_vec_dot_iq4_kt_q8_K(int n, float * s, size_t bs, const void * vx, size
     }
 #endif
 
-} */
+}

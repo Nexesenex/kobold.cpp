@@ -411,12 +411,12 @@ static void mul_mat_vec_iq4_k_q8_1_cuda(
     // mul_mat_vec_q_cuda<GGML_TYPE_IQ2_KS>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
 // }
 
-//static void mul_mat_vec_iq2_kt_q8_1_cuda(
-//    const void * vx, const void * vy, float * dst,
-//    const int ncols_x, const int nrows_x, const int nrows_y, const int ncols_y, const int nrows_dst, cudaStream_t stream) {
-//
-//    mul_mat_vec_q_cuda<GGML_TYPE_IQ2_KT>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
-//}
+// static void mul_mat_vec_iq2_kt_q8_1_cuda(
+    // const void * vx, const void * vy, float * dst,
+    // const int ncols_x, const int nrows_x, const int nrows_y, const int ncols_y, const int nrows_dst, cudaStream_t stream) {
+
+    // mul_mat_vec_q_cuda<GGML_TYPE_IQ2_KT>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
+// }
 
 // static void mul_mat_vec_iq3_kt_q8_1_cuda(
     // const void * vx, const void * vy, float * dst,
