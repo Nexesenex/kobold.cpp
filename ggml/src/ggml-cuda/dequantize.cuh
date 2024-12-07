@@ -86,6 +86,26 @@ static __device__ __forceinline__ void dequantize_q5_1(const void * vx, const in
 #endif // GGML_CUDA_F16
 }
 
+// Dummy Q6_0 -> the maths are not made, it's Q4_0
+static __device__ __forceinline__ void dequantize_q6_0(const void * vx, const int64_t ib, const int iqs, dfloat2 & v){
+    const block_q6_0 * x = (const block_q6_0 *) vx;
+
+    const dfloat d = x[ib].d;
+
+    const int vui = x[ib].qs[iqs];
+
+    v.x = vui & 0xF;
+    v.y = vui >> 4;
+
+#ifdef GGML_CUDA_F16
+    v = __hsub2(v, {8.0f, 8.0f});
+    v = __hmul2(v, {d, d});
+#else
+    v.x = (v.x - 8.0f) * d;
+    v.y = (v.y - 8.0f) * d;
+#endif // GGML_CUDA_F16
+}
+
 static __device__ __forceinline__ void dequantize_q8_0(const void * vx, const int64_t ib, const int iqs, dfloat2 & v){
     const block_q8_0 * x = (const block_q8_0 *) vx;
 
