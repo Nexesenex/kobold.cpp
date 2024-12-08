@@ -1279,37 +1279,6 @@ __device__ __forceinline__ float vec_dot_iq4_kss_q8_1(
     return dl * __low2float(bq8_1[ib32].ds) * sumi;
 } */
 
-#define VDR_IQ4_KSS_Q8_1_MMVQ 4
-#define VDR_IQ4_KSS_Q8_1_MMQ  4
-
-__device__ __forceinline__ float vec_dot_iq4_kss_q8_1(
-    const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs) {
-
-    return 0.f;
-
-    float scale = *(const float *)vbq;
-    const block_iq4_kss * bq4 = (const block_iq4_kss *)((const char *)vbq + sizeof(float)) + kbx;
-    const uint8_t * all_values = (const uint8_t *)iq4k_values;
-
-    // iqs is 0...28
-    const int ib32 = iqs/4; // Why iqs/4 ?
-    const int32_t  * q8 = (const int *)bq8_1[ib32].qs;
-    const uint32_t * q4 = (const uint32_t *)bq4->qs + 4*ib32;
-    uint32_t s32 = (q4[0] & 0x00010001) | ((q4[1] & 0x00010001) << 2) | ((q4[2] & 0x00010001) << 4) | ((q4[3] & 0x00010001) << 6);
-    uint8_t ls = (s32 | (s32 >> 15)) & 0xff;
-    const float dl = scale * ((ls & 254) - 127);
-    int v1, v2;
-    int sumi = 0;
-    for (int j = 0; j < 4; ++j) {
-        uint32_t aux32 = q4[j] & 0xfffefffe;
-        aux32 ^= (aux32 >> 1);
-        get_int_from_table_16_shift(aux32, ls & 1, all_values, v1, v2);
-        sumi = ggml_cuda_dp4a(v1, q8[j+0], sumi);
-        sumi = ggml_cuda_dp4a(v2, q8[j+4], sumi);
-    }
-    return dl * __low2float(bq8_1[ib32].ds) * sumi;
-}
-
 #define VDR_IQ5_K_Q8_1_MMVQ 4
 #define VDR_IQ5_K_Q8_1_MMQ  4
 
