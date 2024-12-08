@@ -9398,26 +9398,80 @@ bool ggml_validate_row_data(enum ggml_type type, const void * data, size_t nbyte
             {
                 VALIDATE_ROW_DATA_D_F16_IMPL(block_iq4_nl, data, nb);
             } break;
-        case GGML_TYPE_IQ2_KT: break;
-        case GGML_TYPE_IQ3_KT: break;
-        case GGML_TYPE_IQ4_KT: break;
-        case GGML_TYPE_IQ2_K: break;
-        case GGML_TYPE_IQ3_K: break;
-        case GGML_TYPE_IQ4_K: break;
-        case GGML_TYPE_IQ5_K: break;
-        case GGML_TYPE_IQ6_K: break;
+        // case GGML_TYPE_IQ1_BN:
+            // {
+                // VALIDATE_ROW_DATA_D_F16_IMPL(block_iq1_bn, data, nb);
+            // } break;
+        // case GGML_TYPE_IQ2_BN:
+            // {
+                // VALIDATE_ROW_DATA_D_F16_IMPL(block_iq2_bn, data, nb);
+            // } break;
+        case GGML_TYPE_IQ2_K:
+            {
+                VALIDATE_ROW_DATA_D_F16_IMPL(block_iq2_k, data, nb);
+            } break;
+        case GGML_TYPE_IQ3_K:
+            {
+                VALIDATE_ROW_DATA_D_F16_IMPL(block_iq3_k, data, nb);
+            } break;
+        case GGML_TYPE_IQ4_K:
+            {
+                VALIDATE_ROW_DATA_D_F16_IMPL(block_iq4_k, data, nb);
+            } break;
+        case GGML_TYPE_IQ5_K:
+            {
+                VALIDATE_ROW_DATA_D_F16_IMPL(block_iq5_k, data, nb);
+            } break;
+        case GGML_TYPE_IQ6_K:
+            {
+                VALIDATE_ROW_DATA_D_F16_IMPL(block_iq6_k, data, nb);
+            } break;
+        // case GGML_TYPE_IQ2_KS:
+            // {
+                // VALIDATE_ROW_DATA_D_F16_IMPL(block_iq2_ks, data, nb);
+            // } break;
+        // case GGML_TYPE_IQ4_KS:
+            // {
+                // VALIDATE_ROW_DATA_D_F16_IMPL(block_iq4_ks, data, nb);
+            // } break;
+        // case GGML_TYPE_IQ4_KSS:
+            // {
+                // VALIDATE_ROW_DATA_D_F16_IMPL(block_iq4_kss, data, nb);
+            // } break;
+        // case GGML_TYPE_IQ2_KT:
+            // {
+                // VALIDATE_ROW_DATA_D_F16_IMPL(block_iq2_kt, data, nb);
+            // } break;
+        // case GGML_TYPE_IQ3_KT:
+            // {
+                // VALIDATE_ROW_DATA_D_F16_IMPL(block_iq3_kt, data, nb);
+            // } break;
+        // case GGML_TYPE_IQ4_KT:
+            // {
+                // VALIDATE_ROW_DATA_D_F16_IMPL(block_iq4_kt, data, nb);
+            // } break;
+        // case GGML_TYPE_IQ1_BN: break;
+        // case GGML_TYPE_IQ2_BN: break;
+        // case GGML_TYPE_IQ2_K: break;
         // case GGML_TYPE_IQ2_KS: break;
+        // case GGML_TYPE_IQ2_KT: break;
+        // case GGML_TYPE_IQ3_KT: break;
+        // case GGML_TYPE_IQ4_KT: break;
+        // case GGML_TYPE_IQ3_K: break;
+        // case GGML_TYPE_IQ4_K: break;
+        // case GGML_TYPE_IQ5_K: break;
+        // case GGML_TYPE_IQ6_K: break;
         // case GGML_TYPE_IQ4_KS: break;
         // case GGML_TYPE_IQ4_KSS: break;
         case GGML_TYPE_Q4_0_4_4:
-        case GGML_TYPE_Q4_0_4_8:
-            {
-                VALIDATE_ROW_DATA_DVEC_F16_IMPL(block_q4_0x4, data, nbytes / sizeof(block_q4_0x4), 4);
-            } break;
-        case GGML_TYPE_Q4_0_8_8:
-            {
-                VALIDATE_ROW_DATA_DVEC_F16_IMPL(block_q4_0x8, data, nbytes / sizeof(block_q4_0x8), 8);
-            } break;
+        // case GGML_TYPE_Q4_0_4_8:
+            // {
+                // VALIDATE_ROW_DATA_DVEC_F16_IMPL(block_q4_0x4, data, nbytes / sizeof(block_q4_0x4), 4);
+            // } break;
+        // case GGML_TYPE_Q4_0_8_8:
+            // {
+                // VALIDATE_ROW_DATA_DVEC_F16_IMPL(block_q4_0x8, data, nbytes / sizeof(block_q4_0x8), 8);
+            // } break;
 
         case GGML_TYPE_I8:
         case GGML_TYPE_I16:
