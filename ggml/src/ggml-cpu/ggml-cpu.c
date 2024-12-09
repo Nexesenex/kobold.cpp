@@ -13,6 +13,8 @@
 // #include "amx/amx.h"
 #include "ggml.h"
 
+// #include "iqk/iqk_quantize.h"
+
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <malloc.h> // using malloc.h with MSC/MINGW
 #elif !defined(__FreeBSD__) && !defined(__NetBSD__) && !defined(__OpenBSD__)
