@@ -764,6 +764,7 @@ elseif (GGML_USE_LLAMA_CPP_MAINLINE)
 else ()
     add_library(ggml
                 ggml/src/ggml.c
+                ggml/src/iqk_croco/iqk_quantize_croco.cpp
                 ggml/include/ggml.h
                 ggml/src/ggml-cpu/ggml-cpu.c
                 ggml/include/ggml-cpu.h
