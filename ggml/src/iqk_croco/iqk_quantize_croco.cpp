@@ -9,7 +9,7 @@
 // #endif
 // #include "ggml-quants_ik.h"
 // #include "ggml-impl_ik.h"
-// #define GGML_COMMON_IMPL_C
+#define GGML_COMMON_IMPL_C
 // #include "ggml-common_ik_into_mainline.h"
 // #include "iqk_quantize.h"
 
@@ -56,6 +56,9 @@ constexpr int popcount(uint32_t x) { return __builtin_popcount(x); }
 constexpr int popcount(uint64_t x) { return __builtin_popcountll(x); }
 #endif
 
+#define UNUSED GGML_UNUSED
+#define ASSERT assert
+#define restrict GGML_RESTRICT
 
 #define GROUP_MAX_EPS 1e-15f
 
@@ -1225,7 +1228,7 @@ void dequantize_row_iq4_k(const block_iq4_k * x, float * y, int64_t k) {
 }
 
 // namespace {
-/* const int8_t iq4nl_index[241] = {
+const int8_t iq4nl_index[241] = {
      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 16, 16,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
      1, 17, 17,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2, 18,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
      3,  3,  3,  3,  3,  3, 19,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4,  4, 20,  5,  5,  5,  5,  5,  5,  5,  5,  5,  5,
@@ -1241,7 +1244,7 @@ inline int best_index_iq4nl(const int8_t * values, float x) {
     ix = iq4nl_index[ix];
     return ix < 16 ? ix : x - values[ix-16] < values[ix-15] - x ? ix-16 : ix-15;
 }
- */
+
 static void quantize_row_iq4_k_impl_bs16(const int super_block_size, const int block_size, const float * x,
         block_iq4_k * y,
         float * scales, float * weight, uint8_t * L,
