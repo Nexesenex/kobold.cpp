@@ -10909,7 +10909,7 @@ void quantize_row_iq4_xs(const float * restrict x, void * restrict y, int64_t k)
 
 void ggml_vec_dot_iq2_bn_q8_K64(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
 
-    assert(nrc == 1);
+    ASSERT(nrc == 1);
     UNUSED(bs);
     UNUSED(bx);
     UNUSED(by);
@@ -11199,8 +11199,8 @@ void ggml_vec_dot_iq6_k_q8_K(int n, float * s, size_t bs, const void * vx, size_
         return;
     }
 #endif
-    assert(n%QK_K == 0);
-    assert(nrc == 1);
+    ASSERT(n%QK_K == 0);
+    ASSERT(nrc == 1);
     UNUSED(bs);
     UNUSED(bx);
     UNUSED(by);
@@ -11235,18 +11235,18 @@ void ggml_vec_dot_iq6_k_q8_K(int n, float * s, size_t bs, const void * vx, size_
     *s = sumf;
 } */
 
-void ggml_vec_dot_iq4_kss_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+/* void ggml_vec_dot_iq4_kss_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
 #if GGML_USE_IQK_MULMAT
     if (iqk_mul_mat(1, 1, n, GGML_TYPE_IQ4_KSS, vx, 0, GGML_TYPE_Q8_K, vy, 0, s, 0, 0, 1)) {
         return;
     }
 #endif
-    assert(n%QK_K == 0);
-    assert(nrc == 1);
+    ASSERT(n%QK_K == 0);
+    ASSERT(nrc == 1);
     UNUSED(bs);
     UNUSED(bx);
     UNUSED(by);
-}
+} */
 
 // ======================================= iq2_kt
 
