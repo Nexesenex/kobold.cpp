@@ -28,7 +28,7 @@ static constexpr __device__ vec_dot_q_cuda_t get_vec_dot_q_cuda(ggml_type type) 
         type == GGML_TYPE_IQ2_K ? vec_dot_iq2_k_q8_1 :
         type == GGML_TYPE_IQ3_K ? vec_dot_iq3_k_q8_1 :
         type == GGML_TYPE_IQ4_KSS ? vec_dot_iq4_kss_q8_1 :
-        type == GGML_TYPE_IQ4_KS ? vec_dot_iq4_ks_q8_1 :
+        // type == GGML_TYPE_IQ4_KS ? vec_dot_iq4_ks_q8_1 :
         type == GGML_TYPE_IQ4_K ? vec_dot_iq4_k_q8_1 :
         type == GGML_TYPE_IQ5_K ? vec_dot_iq5_k_q8_1 :
         type == GGML_TYPE_IQ6_K ? vec_dot_iq6_k_q8_1 :
@@ -63,7 +63,7 @@ static constexpr __device__ int get_vdr_mmvq(ggml_type type) {
         type == GGML_TYPE_IQ2_K   ? VDR_IQ2_K_Q8_1_MMVQ :
         type == GGML_TYPE_IQ3_K   ? VDR_IQ3_K_Q8_1_MMVQ :
         type == GGML_TYPE_IQ4_KSS ? VDR_IQ4_KSS_Q8_1_MMVQ :
-        type == GGML_TYPE_IQ4_KS  ? VDR_IQ4_KS_Q8_1_MMVQ :
+        // type == GGML_TYPE_IQ4_KS  ? VDR_IQ4_KS_Q8_1_MMVQ :
         type == GGML_TYPE_IQ4_K   ? VDR_IQ4_K_Q8_1_MMVQ :
         type == GGML_TYPE_IQ5_K   ? VDR_IQ5_K_Q8_1_MMVQ :
         type == GGML_TYPE_IQ6_K   ? VDR_IQ6_K_Q8_1_MMVQ :
@@ -390,12 +390,19 @@ static void mul_mat_vec_iq4_k_q8_1_cuda(
     mul_mat_vec_q_cuda<GGML_TYPE_IQ4_K>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
 }
 
-static void mul_mat_vec_iq4_ks_q8_1_cuda(
-    const void * vx, const void * vy, float * dst,
-    const int ncols_x, const int nrows_x, const int nrows_y, const int ncols_y, const int nrows_dst, cudaStream_t stream) {
+// static void mul_mat_vec_iq4_ks_q8_1_cuda(
+    // const void * vx, const void * vy, float * dst,
+    // const int ncols_x, const int nrows_x, const int nrows_y, const int ncols_y, const int nrows_dst, cudaStream_t stream) {
 
-    mul_mat_vec_q_cuda<GGML_TYPE_IQ4_KS>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
-}
+    // mul_mat_vec_q_cuda<GGML_TYPE_IQ4_KS>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
+// }
+
+// static void mul_mat_vec_iq4_ks_q8_1_cuda(
+    // const void * vx, const void * vy, float * dst,
+    // const int ncols_x, const int nrows_x, const int nrows_y, const int ncols_y, const int nrows_dst, cudaStream_t stream) {
+
+    // mul_mat_vec_q_cuda<GGML_TYPE_IQ4_KS>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
+// }
 
 static void mul_mat_vec_iq4_kss_q8_1_cuda(
     const void * vx, const void * vy, float * dst,
@@ -545,9 +552,9 @@ void ggml_cuda_op_mul_mat_vec_q(
         case GGML_TYPE_IQ4_K:
             mul_mat_vec_iq4_k_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
             break;
-        case GGML_TYPE_IQ4_KS:
-            mul_mat_vec_iq4_ks_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
-            break;
+        // case GGML_TYPE_IQ4_KS:
+            // mul_mat_vec_iq4_ks_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
+            // break;
         case GGML_TYPE_IQ4_KSS:
             mul_mat_vec_iq4_kss_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
             break;
@@ -616,7 +623,7 @@ bool ggml_cuda_mmvq_type_supported(ggml_type src0_type) {
         case GGML_TYPE_IQ2_K:
         case GGML_TYPE_IQ3_K:
         case GGML_TYPE_IQ4_K:
-        case GGML_TYPE_IQ4_KS:
+        // case GGML_TYPE_IQ4_KS:
         case GGML_TYPE_IQ4_KSS:
         // case GGML_TYPE_IQ2_KS:
         // case GGML_TYPE_IQ2_KT:
