@@ -1144,7 +1144,6 @@ static cudaError_t ggml_cuda_cpy_tensor_2d(
     const int64_t nb3 = src->nb[3];
     const enum ggml_type type = src->type;
     const int64_t ts = ggml_type_size(type);
-    const int64_t rs = ggml_row_size(type, ne0);
     const int64_t bs = ggml_blck_size(type);
     const int64_t i1_diff = i1_high - i1_low;
 
@@ -1152,14 +1151,12 @@ static cudaError_t ggml_cuda_cpy_tensor_2d(
     if (nb0 == ts && nb1 == ts*ne0/bs) {
         return cudaMemcpyAsync(dst_ptr, x, i1_diff*nb1, cudaMemcpyDeviceToDevice, stream);
     } else if (nb0 == ts) {
-        // TODO: this only works if the row does not contain meta data
         return cudaMemcpy2DAsync(dst_ptr, ts*ne0/bs, x, nb1, ts*ne0/bs, i1_diff, cudaMemcpyDeviceToDevice, stream);
     } else {
         for (int64_t i1 = 0; i1 < i1_diff; i1++) {
             const void * rx = (const void *) ((const char *) x + i1*nb1);
             void * rd = (void *) (dst_ptr + i1*ts*ne0/bs);
             // pretend the row is a matrix with cols=1
-            // TODO: this only works if the row does not contain meta data
             cudaError_t r = cudaMemcpy2DAsync(rd, ts/bs, rx, nb0, ts/bs, ne0, cudaMemcpyDeviceToDevice, stream);
             if (r != cudaSuccess) {
                 return r;
