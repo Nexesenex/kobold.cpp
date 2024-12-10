@@ -40,7 +40,7 @@
 #include <omp.h>
 #endif
 
-#if defined(__ARM_FEATURE_SVE) || defined(__ARM_FEATURE_MATMUL_INT8)
+#if (defined(__ARM_FEATURE_SVE) && ! defined(LLAMA_NOSVE)) || defined(__ARM_FEATURE_MATMUL_INT8)
 #undef GGML_USE_LLAMAFILE
 #endif
 
@@ -2594,7 +2594,7 @@ static void ggml_init_arm_arch_features(void) {
     ggml_arm_arch_features.has_i8mm = !!(hwcap2 & HWCAP2_I8MM);
     ggml_arm_arch_features.has_sve  = !!(hwcap & HWCAP_SVE);
 
-#if defined(__ARM_FEATURE_SVE)
+#if defined(__ARM_FEATURE_SVE) && ! defined(LLAMA_NOSVE)
     ggml_arm_arch_features.sve_cnt = PR_SVE_VL_LEN_MASK & prctl(PR_SVE_GET_VL);
 #endif
 #elif defined(__APPLE__)
@@ -2631,7 +2631,7 @@ static void ggml_init_arm_arch_features(void) {
     ggml_arm_arch_features.has_i8mm = 0;
 #endif
 
-#if defined(__ARM_FEATURE_SVE)
+#if defined(__ARM_FEATURE_SVE) && ! defined(LLAMA_NOSVE)
     ggml_arm_arch_features.has_sve = 1;
     ggml_arm_arch_features.sve_cnt = 16;
 #else
@@ -14204,7 +14204,7 @@ int ggml_cpu_has_dotprod(void) {
 }
 
 int ggml_cpu_has_sve(void) {
-#if defined(__ARM_ARCH) && defined(__ARM_FEATURE_SVE)
+#if defined(__ARM_ARCH) && defined(__ARM_FEATURE_SVE) && ! defined(LLAMA_NOSVE)
     return ggml_arm_arch_features.has_sve;
 #else
     return 0;
@@ -14220,7 +14220,7 @@ int ggml_cpu_has_matmul_int8(void) {
 }
 
 int ggml_cpu_get_sve_cnt(void) {
-#if defined(__ARM_ARCH) && defined(__ARM_FEATURE_SVE)
+#if defined(__ARM_ARCH) && defined(__ARM_FEATURE_SVE) && ! defined(LLAMA_NOSVE)
     return ggml_arm_arch_features.sve_cnt;
 #else
     return 0;

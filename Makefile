@@ -1,11 +1,13 @@
 # Add custom options to Makefile.local rather than editing this file.
 -include $(abspath $(lastword ${MAKEFILE_LIST})).local
 
-default: koboldcpp_default koboldcpp_failsafe koboldcpp_noavx2 koboldcpp_clblast koboldcpp_clblast_noavx2 koboldcpp_cublas koboldcpp_hipblas koboldcpp_vulkan koboldcpp_vulkan_noavx2
+.PHONY: finishedmsg
+
+default: koboldcpp_default koboldcpp_failsafe koboldcpp_noavx2 koboldcpp_clblast koboldcpp_clblast_noavx2 koboldcpp_cublas koboldcpp_hipblas koboldcpp_vulkan koboldcpp_vulkan_noavx2 finishedmsg
 tools: quantize_gpt2 quantize_gptj quantize_gguf quantize_neox quantize_mpt quantize_clip whispermain sdmain gguf-split
 dev: koboldcpp_default
 dev2: koboldcpp_clblast
-dev3: koboldcpp_vulkan
+dev3: koboldcpp_vulkan finishedmsg
 
 ifndef UNAME_S
 UNAME_S := $(shell uname -s)
@@ -140,7 +142,7 @@ endif
 # Architecture specific
 # TODO: probably these flags need to be tweaked on some architectures
 # feel free to update the Makefile for your architecture and send a pull request or issue
-ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686))
+ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 	# Use all CPU extensions that are available:
 # old library NEEDS mf16c to work. so we must build with it. new one doesnt
 	ifeq ($(OS),Windows_NT)
@@ -359,9 +361,16 @@ endif # LLAMA_METAL
 ifneq ($(filter aarch64%,$(UNAME_M)),)
 	# Apple M1, M2, etc.
 	# Raspberry Pi 3, 4, Zero 2 (64-bit)
-	CFLAGS 	 +=
-	CXXFLAGS +=
+	ifdef LLAMA_PORTABLE
+		CFLAGS +=
+		CXXFLAGS +=
+	else
+		# sve is cooked so we are disabling it
+		CFLAGS += -mcpu=native -DLLAMA_NOSVE
+		CXXFLAGS += -mcpu=native -DLLAMA_NOSVE
+	endif
 endif
+
 ifneq ($(filter armv6%,$(UNAME_M)),)
 	# Raspberry Pi 1, Zero
 	CFLAGS 	 += -mfpu=neon-fp-armv8 -mfp16-format=ieee -mno-unaligned-access
@@ -393,6 +402,7 @@ CLBLAST_BUILD =
 CUBLAS_BUILD =
 HIPBLAS_BUILD =
 VULKAN_BUILD =
+NOTIFY_MSG =
 
 ifeq ($(OS),Windows_NT)
 	DEFAULT_BUILD = $(CXX) $(CXXFLAGS)  $^ -shared -o $@.dll $(LDFLAGS)
@@ -410,8 +420,10 @@ ifeq ($(OS),Windows_NT)
 else
 	DEFAULT_BUILD = $(CXX) $(CXXFLAGS)  $^ -shared -o $@.so $(LDFLAGS)
 	ifdef LLAMA_PORTABLE
+	ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 	FAILSAFE_BUILD = $(CXX) $(CXXFLAGS)  $^ -shared -o $@.so $(LDFLAGS)
 	NOAVX2_BUILD = $(CXX) $(CXXFLAGS)  $^ -shared -o $@.so $(LDFLAGS)
+	endif
 	endif
 
 	ifdef LLAMA_CLBLAST
@@ -435,7 +447,9 @@ else
 	ifndef LLAMA_CUBLAS
 	ifndef LLAMA_HIPBLAS
 	ifndef LLAMA_VULKAN
-	VULKAN_BUILD = @echo 'Your OS $(OS) does not appear to be Windows. For faster speeds, install and link a BLAS library. Set LLAMA_VULKAN=1 to compile with Vulkan support. This is just a reminder, not an error.'
+	ifndef LLAMA_METAL
+	NOTIFY_MSG = @echo -e '\n***\nYou did a basic CPU build. For faster speeds, consider installing and linking a GPU BLAS library. For example, set LLAMA_VULKAN=1 to compile with Vulkan support. Read the KoboldCpp Wiki for more information. This is just a reminder, not an error.\n***\n'
+	endif
 	endif
 	endif
 	endif
@@ -775,4 +789,9 @@ simpleclinfo: simpleclinfo.cpp
 	$(CXX) $(CXXFLAGS) $^ lib/OpenCL.lib lib/clblast.lib -o $@ $(LDFLAGS)
 
 build-info.h:
+	$(DONOTHING)
+
+#phony for printing messages
+finishedmsg:
+	$(NOTIFY_MSG)
 	$(DONOTHING)
