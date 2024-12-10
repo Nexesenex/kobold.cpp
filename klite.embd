@@ -263,7 +263,7 @@ Current version indicated by LITEVER below.
 			max-width: 100%;
 			height: auto;
 		}
-		.txtchunk, ai_context_koboldlite_internal, #gametext, .chat_received_withd_msg p,.chat_sent_msg p {
+		.txtchunk, #gametext, .chat_received_withd_msg p,.chat_sent_msg p {
 			white-space: pre-wrap;
 		}
 
@@ -12169,7 +12169,7 @@ Current version indicated by LITEVER below.
 		{
 			let newgenlc = newgen.toLowerCase().trim();
 			if (newgenlc.startsWith("draw ") ||
-				newgenlc.match(/\b(?:draw (?:a|an)\b)|(?:draw me (?:a|an)\b)|(?:(?:draw|show me|generate|create|make|illustrate|visualize|produce|give me)(?:\s\w+){0,3}\s(?:image|picture|drawing|photo))/))
+				newgenlc.match(/\b(?:draw (?:a|an)\b)|(?:draw me (?:a|an)\b)|(?:(?:draw|show me|generate|create|make|illustrate|visualize|produce|give me)(?:\s\w+){0,4}\s(?:image|picture|drawing|photo))/))
 			{
 				img_gen_trigger_prompt = newgen;
 				doNotGenerate = true;
@@ -16186,11 +16186,11 @@ Current version indicated by LITEVER below.
 
 			if(localsettings.opmode==3 && localsettings.gui_type_chat==1)
 			{
-				render_enhanced_chat(textToRender);
+				render_messenger_ui(textToRender);
 			}
 			else
 			{
-				document.getElementById("chat_msg_body").innerHTML = render_enhanced_chat_instruct(textToRender,false);
+				document.getElementById("chat_msg_body").innerHTML = render_aesthetic_ui(textToRender,false);
 			}
 			if ((localsettings.opmode == 3 && localsettings.chatopponent != "")||localsettings.opmode == 4||localsettings.opmode==2) {
 				document.getElementById("cht_inp_bg").classList.add("shorter");
@@ -16879,7 +16879,7 @@ Current version indicated by LITEVER below.
 		return chatunits;
 	}
 
-	function render_enhanced_chat(input)
+	function render_messenger_ui(input)
 	{
 		var chatbody = document.getElementById("chat_msg_body");
 		if(!chatbody)
@@ -18066,7 +18066,7 @@ Current version indicated by LITEVER below.
 		}
 	}
 
-	function render_enhanced_chat_instruct(input, isPreview) //class suffix string used to prevent defined styles from leaking into global scope
+	function render_aesthetic_ui(input, isPreview) //class suffix string used to prevent defined styles from leaking into global scope
 	{
 		if(!isPreview)
 		{
@@ -18078,7 +18078,15 @@ Current version indicated by LITEVER below.
 				document.getElementById('enhancedchatinterface_inner').style.backgroundColor = null;
 			}
 		}
+		let as = aestheticInstructUISettings;
 		let classSuffixStr = isPreview ? "prv" : "";
+		let portraitsStyling = // Also, implement portraits as css classes. Now chat entries can reuse them instead of recreating them.
+		`<style>
+			.you-portrait-image`+classSuffixStr+` {margin: 10px 6px; background:url(`+ as.you_portrait +`); background-clip: content-box; background-position: 50% 50%; background-size: 100% 100%; background-origin: content-box; background-repeat: no-repeat; border:none;}
+			.AI-portrait-image`+classSuffixStr+` {margin: 10px 6px; background:url(`+ (as.AI_portrait!="default"?as.AI_portrait:niko_square) +`); background-clip: content-box; background-position: 50% 50%; background-size: 100% 100%; background-origin: content-box; background-repeat: no-repeat; border:none;}
+		</style>
+		`;
+
 		const contextDict = { sysOpen: '<sys_context_koboldlite_internal>', youOpen: '<user_context_koboldlite_internal>', AIOpen: '<AI_context_koboldlite_internal>', closeTag: '<end_of_context_koboldlite_internal>' }
 		let you = "$UnusedTagMatch$"; let bot = "$UnusedTagMatch$"; // Instruct tags will be used to wrap text in styled bubbles.
 		if(localsettings.opmode==3||localsettings.opmode==4)
@@ -18087,7 +18095,6 @@ Current version indicated by LITEVER below.
 			bot = get_instruct_endtag();
 		}
 
-		let as = aestheticInstructUISettings;								// ..and use this as shortcut to avoid typing it each time.
 		if(localsettings.opmode==3)
 		{
 			if(!input.startsWith("\n"))
@@ -18152,12 +18159,6 @@ Current version indicated by LITEVER below.
 			}
 		}
 
-		let portraitsStyling = // Also, implement portraits as css classes. Now chat entries can reuse them instead of recreating them.
-		`<style>
-			.you-portrait-image`+classSuffixStr+` {margin: 10px 6px; background:url(`+ as.you_portrait +`); background-clip: content-box; background-position: 50% 50%; background-size: 100% 100%; background-origin: content-box; background-repeat: no-repeat; border:none;}
-			.AI-portrait-image`+classSuffixStr+` {margin: 10px 6px; background:url(`+ (as.AI_portrait!="default"?as.AI_portrait:niko_square) +`); background-clip: content-box; background-position: 50% 50%; background-size: 100% 100%; background-origin: content-box; background-repeat: no-repeat; border:none;}
-		</style>
-		`;
 
 		// We'll transform the input to a well-formatted HTML string that'll contain the whole visuals for the Aesthetic Instruct Mode. Effectively we're styling the input.
 		let noSystemPrompt = input.trim().startsWith(you.trim()) || input.trim().startsWith(bot.trim());
@@ -18167,6 +18168,13 @@ Current version indicated by LITEVER below.
 		if (synchro_pending_stream != "" && !isPreview) {
 			newbodystr += getStreamingText();
 		} 		 // Add the pending stream if it's needed. This will add any streamed text to a new bubble for the AI.
+		else{
+			let codeblockcount = (newbodystr.match(/```/g) || []).length;
+			if(codeblockcount>0 && codeblockcount%2!=0 )
+			{
+				newbodystr += "```"; //force end code block
+			}
+		}
 		newbodystr += contextDict.closeTag + '</p></div></div>';						 // Lastly, append the closing div so our body's raw form is completed.
 		if (aestheticInstructUISettings.use_markdown) {
 
@@ -18177,8 +18185,8 @@ Current version indicated by LITEVER below.
 			let internalHTMLparts = []; // We'll cache the embedded HTML parts here to keep them intact.
 			for (let role of aestheticTextStyleRoles) {																// ..starting by the "speech" and *actions* for each role.
 				let styleRole = aestheticInstructUISettings.use_uniform_colors ? 'uniform' : role;					// Uniform role is preferred if it's active on the settings.
-				newbodystr = newbodystr.replace(new RegExp(`${contextDict[`${role}Open`]}([^]*?)${contextDict.closeTag}`, 'g'), (match, p) => {
-					let replacedText = match.replace(/<[^>]*>/g, (htmlPart) => { internalHTMLparts.push(htmlPart); return `<internal_html_${internalHTMLparts.length - 1}>`; });
+				newbodystr = newbodystr.replace(new RegExp(`${contextDict[`${role}Open`]}([^]*?)${contextDict.closeTag}`, 'g'), (match, captured) => {
+					let replacedText = captured.replace(/<[^>]*>/g, (htmlPart) => { internalHTMLparts.push(htmlPart); return `<internal_html_${internalHTMLparts.length - 1}>`; });
 					replacedText = replacedText.replace(bold_regex, wrapperSpan(styleRole, 'action')); 		// Apply the actions style to *actions*.
 					replacedText = replacedText.replace(italics_regex, wrapperSpan(styleRole, 'action')); 		// Apply the actions style to *actions*.
 					replacedText = replacedText.replace(/“(.*?)”/g, wrapperSpan(styleRole, 'speech')); 	// Apply the speech style to "speech".
@@ -18187,7 +18195,7 @@ Current version indicated by LITEVER below.
 					{
 						replacedText = simpleMarkdown(replacedText);
 					}
-					return replacedText;
+					return `<span>${replacedText}</span>`;
 				});
 			}
 			newbodystr = newbodystr.replace(/<internal_html_(.*?)>/gm, (match, p) => {
@@ -18304,7 +18312,7 @@ Current version indicated by LITEVER below.
 			preview = replaceAll(preview,'\n[USER_REPLY]\n', "");
 			preview = replaceAll(preview,'\n[AI_REPLY]\n', "");
 		}
-		document.getElementById('aesthetic_text_preview').innerHTML = render_enhanced_chat_instruct(preview,true);
+		document.getElementById('aesthetic_text_preview').innerHTML = render_aesthetic_ui(preview,true);
 	}
 	</script>
 
