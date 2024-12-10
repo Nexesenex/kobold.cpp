@@ -528,44 +528,12 @@ void quantize_row_q8_K64(const float * x, void * y, int64_t k) {
 
 namespace {
 
-#ifdef IQ2K_STATS
-struct IQ2KCollector {
-    std::array<uint64_t, 8> m_counts = {};
-    std::array< int64_t, 8> m_values = {};
-    int64_t m_nval = 0;
-    std::mutex m_mutex;
-public:
-    IQ2KCollector() = default;
-    ~IQ2KCollector() {
-        printf("============== %s: bin counts:\n", __func__);
-        for (int j = 0; j < 8; ++j) printf("%d  %g\n", j, 1.*m_counts[j]);
-        if (m_nval > 0) {
-            printf("============== %s: bin values from %g calls:\n", __func__, 1.*m_nval);
-            double norm = 1./m_nval;
-            for (int j = 0; j < 8; ++j) printf("%d  %g\n", j, norm*m_values[j]);
-        }
-    }
-    void add(const int * counts, bool is_shifted) {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        int offset = is_shifted ? 4 : 0;
-        for (int j = 0; j < 4; ++j) m_counts[offset + j] += counts[j];
-    }
-    void add_values(const int8_t * values) {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        for (int j = 0; j < 8; ++j) m_values[j] += values[j];
-        ++m_nval;
-    }
-};
-
-IQ2KCollector& get_iq2k_collector() {
-    static std::mutex mutex;
-    std::lock_guard<std::mutex> lock(mutex);
-    static IQ2KCollector collector;
-    return collector;
+inline int best_index_iq2nl(const int8_t * values, float x) {
+    int idx = x < values[1] ? 0 : x > values[2] ? 2 : 1;
+    return x - values[idx] < values[idx+1] - x ? idx : idx + 1;
 }
-#endif
 
-void quantize_row_iq2_k_impl(const float * x, void * vy, int n_per_row, const float * quant_weights, std::vector<std::pair<float, int>>& all_pairs) {
+void quantize_row_iq2_k_impl(const float * x, void * vy, int n_per_row, const float * quant_weights) {
 
     constexpr int kBlockSize = 16;
 
@@ -3081,11 +3049,11 @@ size_t quantize_iq4_kss(const float * src, void * dst, int64_t nrows, int64_t n_
     auto row_size_ks = ggml_row_size(GGML_TYPE_IQ4_KS, n_per_row);
     std::vector<char> work(row_size_ks);
     std::vector<float> all_scales(n_per_row/kBlockSize);
-    float weight[kBlockSize], waux[kBlockSize];
+    float weight[kBlockSize];
     auto qrow = (char *)dst;
     auto table = scramble_table();
     for (int row = 0; row < nrows; ++row) {
-        quantize_row_iq4_kss_impl(n_per_row, src, qrow, all_scales.data(), weight, waux, iq4k_values, imatrix, table, 7);
+        quantize_row_iq4_kss_impl(n_per_row, src, qrow, all_scales.data(), weight, iq4k_values, imatrix, table, 7);
         src  += n_per_row;
         qrow += row_size;
     }

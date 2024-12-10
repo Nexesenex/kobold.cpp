@@ -907,7 +907,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot                  = vec_dot_iq2_k_q8_k,
         // .vec_dot_type             = GGML_TYPE_Q8_K,
         // .nrows                    = 1,
-        .row_meta_size            = 8,
+        .row_meta_size            = 2,
     },
     [GGML_TYPE_IQ2_KS] = {
         .type_name                = "iq2_ks",
@@ -920,7 +920,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot                  = vec_dot_iq2_ks_q8_k,
         // .vec_dot_type             = GGML_TYPE_Q8_K,
         // .nrows                    = 1,
-        .row_meta_size            = 10,
+        .row_meta_size            = 2,
     },
     [GGML_TYPE_IQ2_KT] = {
         .type_name                = "iq2_kt",
