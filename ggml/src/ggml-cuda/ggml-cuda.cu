@@ -41,6 +41,8 @@ bool g_mul_mat_q = false;
 #include "ggml-cuda/upscale.cuh"
 #include "ggml-cuda/wkv6.cuh"
 
+#include "ggml-cuda/iqk_mmvq.cuh"
+
 #include <algorithm>
 #include <array>
 #include <atomic>
