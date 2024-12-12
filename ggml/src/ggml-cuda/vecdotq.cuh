@@ -1225,7 +1225,7 @@ __device__ __forceinline__ float vec_dot_iq4_k_q8_1(
     return d * (sumi1 * ls1 + sumi2 * ls2);
 }
 
-/* #define VDR_IQ4_KS_Q8_1_MMVQ 4
+#define VDR_IQ4_KS_Q8_1_MMVQ 4
 #define VDR_IQ4_KS_Q8_1_MMQ  4
 
 __device__ __forceinline__ float vec_dot_iq4_ks_q8_1(
@@ -1248,9 +1248,9 @@ __device__ __forceinline__ float vec_dot_iq4_ks_q8_1(
         sumi = ggml_cuda_dp4a(v2, q8[j+4], sumi);
     }
     return dl * __low2float(bq8_1[ib32].ds) * sumi;
-} */
+}
 
-/* #define VDR_IQ4_KSS_Q8_1_MMVQ 4
+#define VDR_IQ4_KSS_Q8_1_MMVQ 4
 #define VDR_IQ4_KSS_Q8_1_MMQ  4
 
 __device__ __forceinline__ float vec_dot_iq4_kss_q8_1(
@@ -1277,9 +1277,9 @@ __device__ __forceinline__ float vec_dot_iq4_kss_q8_1(
         sumi = ggml_cuda_dp4a(v2, q8[j+4], sumi);
     }
     return dl * __low2float(bq8_1[ib32].ds) * sumi;
-} */
+}
 
-#define VDR_IQ4_KSS_Q8_1_MMVQ 4
+/* #define VDR_IQ4_KSS_Q8_1_MMVQ 4
 #define VDR_IQ4_KSS_Q8_1_MMQ  4
 
 __device__ __forceinline__ float vec_dot_iq4_kss_q8_1(
@@ -1308,7 +1308,7 @@ __device__ __forceinline__ float vec_dot_iq4_kss_q8_1(
         sumi = ggml_cuda_dp4a(v2, q8[j+4], sumi);
     }
     return dl * __low2float(bq8_1[ib32].ds) * sumi;
-}
+} */
 
 #define VDR_IQ5_K_Q8_1_MMVQ 4
 #define VDR_IQ5_K_Q8_1_MMQ  4
