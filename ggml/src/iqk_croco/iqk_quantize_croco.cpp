@@ -17,6 +17,9 @@
 
 #include "ggml-quants.h"
 #include "ggml-impl.h"
+
+#include "ggml-cpu-quants.h"
+
 #include "ggml-cpu/ggml-cpu-impl.h"
 #include "ggml-cpu.h"
 
@@ -3497,7 +3500,7 @@ __m256 hsum_float_4x8(__m256 * accm) {
 }
 #endif
 
-/* template <int block_size, int group_size, int num_bits, bool is_abs = false>
+template <int block_size, int group_size, int num_bits, bool is_abs = false>
 class QuantizerIQKT {
     static_assert(group_size == 8 || group_size == 4);
     static_assert(block_size >= 8 && block_size%8 == 0);
@@ -4135,7 +4138,7 @@ const QuantizerIQ2KT& iq2kt_quantizer() {
     std::lock_guard<std::mutex> lock(mutex);
     if (!quantizer) quantizer = std::make_unique<QuantizerIQ2KT>(256, 8);
     return *quantizer;
-} */
+}
 
 /* void quantize_row_iq2_kt_impl(const float * x, void * vy, int n_per_row, const float * quant_weights, float * all_scales, float * all_weights,
         float * qtmp) {
@@ -4340,7 +4343,7 @@ void quantize_row_iq2_kt(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy,
     return nrows * row_size;
 } */
 
-/* void dequantize_row_iq2_kt(const block_iq2_kt * x, float * y, int64_t k) {
+void dequantize_row_iq2_kt(const block_iq2_kt * x, float * y, int64_t k) {
     assert(k % QuantizerIQ2KT::kSuperBlockSize == 0);
     const int nb = k / QuantizerIQ2KT::kSuperBlockSize;
     const float * dptr = (const float *)x;
@@ -4365,21 +4368,22 @@ void quantize_row_iq2_kt(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy,
             qh += QuantizerIQ2KT::kNg;
         }
     }
-} */
+}
 
 
 // ========================================== iq3_kt ====================================================
 
 // namespace {
 
-/* using QuantizerIQ3KT = QuantizerIQKT<32, 8, 16, true>;
+using QuantizerIQ3KT = QuantizerIQKT<32, 8, 16, true>;
+
 const QuantizerIQ3KT& iq3kt_quantizer() {
     static std::mutex mutex;
     std::lock_guard<std::mutex> lock(mutex);
     static std::unique_ptr<QuantizerIQ3KT> quantizer;
     if (!quantizer) quantizer = std::make_unique<QuantizerIQ3KT>(256, 8);
     return *quantizer;
-} */
+}
 
 /* void quantize_row_iq3_kt_impl(const float * x, void * vy, int n_per_row, const float * quant_weights, float * all_scales,
         float * all_weights, float * qtmp) {
@@ -4579,7 +4583,7 @@ size_t quantize_iq3_kt(const float * src, void * dst, int64_t nrows, int64_t n_p
         qrow += row_size;
     }
     return nrows * row_size;
-}
+} */
 
 void dequantize_row_iq3_kt(const block_iq3_kt * x, float * y, int64_t k) {
     using Q = QuantizerIQ3KT;
@@ -4614,14 +4618,14 @@ void dequantize_row_iq3_kt(const block_iq3_kt * x, float * y, int64_t k) {
             }
         }
     }
-} */
+}
 
 
 // ======================================== iq4_kt
 
 // namespace{
 
-/* using QuantizerIQ4KT = QuantizerIQKT<32, 4, 15>;
+using QuantizerIQ4KT = QuantizerIQKT<32, 4, 15>;
 
 const QuantizerIQ4KT& iq4kt_quantizer(bool with_offset = false) {
     static std::mutex mutex;
@@ -4634,7 +4638,7 @@ const QuantizerIQ4KT& iq4kt_quantizer(bool with_offset = false) {
     }
     if (!quantizer1) quantizer1 = std::make_unique<QuantizerIQ4KT>(625, 6, 4096);
     return *quantizer1;
-} */
+}
 
 /* void quantize_row_iq4_kt_impl(const float * x, void * vy, int n_per_row, const float * quant_weights, float * all_scales, float * all_weights) {
 
@@ -4820,7 +4824,7 @@ size_t quantize_iq4_kt(const float * src, void * dst, int64_t nrows, int64_t n_p
         qrow += row_size;
     }
     return nrows * row_size;
-}
+} */
 
 void dequantize_row_iq4_kt(const block_iq4_kt * x, float * y, int64_t k) {
     using Q = QuantizerIQ4KT;
@@ -4850,7 +4854,7 @@ void dequantize_row_iq4_kt(const block_iq4_kt * x, float * y, int64_t k) {
             }
         }
     }
-} */
+}
 
 
 
@@ -4940,7 +4944,7 @@ void ggml_vec_dot_iq2_k_q8_K(int n, float * GGML_RESTRICT s, size_t bs, const vo
 
 }
 
-void ggml_vec_dot_iq2_ks_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+/* void ggml_vec_dot_iq2_ks_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
     assert(n % QK_K == 0);
     assert(nrc == 1);
     UNUSED(nrc);
@@ -4992,7 +4996,7 @@ void ggml_vec_dot_iq2_ks_q8_K(int n, float * s, size_t bs, const void * vx, size
 
     *s = d * sumf;
 
-}
+} */
 
 void ggml_vec_dot_iq3_k_q8_K(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, size_t bx, const void * GGML_RESTRICT vy, size_t by, int nrc) {
     assert(n % QK_K == 0);
