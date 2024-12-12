@@ -1178,7 +1178,7 @@ static __device__ __forceinline__ float vec_dot_iq4_xs_q8_1(
 
 // FOR IQK
 
-__device__ __forceinline__ void get_int_from_table_16_shift(const uint32_t & q4, uint16_t shift, const uint8_t * all_values,
+/* __device__ __forceinline__ void get_int_from_table_16_shift(const uint32_t & q4, uint16_t shift, const uint8_t * all_values,
         int & val1, int & val2) {
 
     uint32_t aux32; const uint8_t * q8 = (const uint8_t *)&aux32;
