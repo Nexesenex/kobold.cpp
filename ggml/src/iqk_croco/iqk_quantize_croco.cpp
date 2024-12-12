@@ -17,6 +17,9 @@
 
 #include "ggml-quants.h"
 #include "ggml-impl.h"
+
+#include "ggml-cpu-quants.h"
+
 #include "ggml-cpu/ggml-cpu-impl.h"
 #include "ggml-cpu.h"
 
@@ -2764,7 +2767,7 @@ __m256 hsum_float_4x8(__m256 * accm) {
 }
 #endif
 
-/* template <int block_size, int group_size, int num_bits, bool is_abs = false>
+template <int block_size, int group_size, int num_bits, bool is_abs = false>
 class QuantizerIQKT {
     static_assert(group_size == 8 || group_size == 4);
     static_assert(block_size >= 8 && block_size%8 == 0);
@@ -3402,7 +3405,7 @@ const QuantizerIQ2KT& iq2kt_quantizer() {
     std::lock_guard<std::mutex> lock(mutex);
     if (!quantizer) quantizer = std::make_unique<QuantizerIQ2KT>(256, 8);
     return *quantizer;
-} */
+}
 
 /* void quantize_row_iq2_kt_impl(const float * x, void * vy, int n_per_row, const float * quant_weights, float * all_scales, float * all_weights,
         float * qtmp) {
@@ -3607,7 +3610,7 @@ void quantize_row_iq2_kt(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy,
     return nrows * row_size;
 } */
 
-/* void dequantize_row_iq2_kt(const block_iq2_kt * x, float * y, int64_t k) {
+void dequantize_row_iq2_kt(const block_iq2_kt * x, float * y, int64_t k) {
     assert(k % QuantizerIQ2KT::kSuperBlockSize == 0);
     const int nb = k / QuantizerIQ2KT::kSuperBlockSize;
     const float * dptr = (const float *)x;
@@ -3632,21 +3635,22 @@ void quantize_row_iq2_kt(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy,
             qh += QuantizerIQ2KT::kNg;
         }
     }
-} */
+}
 
 
 // ========================================== iq3_kt ====================================================
 
 // namespace {
 
-/* using QuantizerIQ3KT = QuantizerIQKT<32, 8, 16, true>;
+using QuantizerIQ3KT = QuantizerIQKT<32, 8, 16, true>;
+
 const QuantizerIQ3KT& iq3kt_quantizer() {
     static std::mutex mutex;
     std::lock_guard<std::mutex> lock(mutex);
     static std::unique_ptr<QuantizerIQ3KT> quantizer;
     if (!quantizer) quantizer = std::make_unique<QuantizerIQ3KT>(256, 8);
     return *quantizer;
-} */
+}
 
 /* void quantize_row_iq3_kt_impl(const float * x, void * vy, int n_per_row, const float * quant_weights, float * all_scales,
         float * all_weights, float * qtmp) {
@@ -3846,7 +3850,7 @@ size_t quantize_iq3_kt(const float * src, void * dst, int64_t nrows, int64_t n_p
         qrow += row_size;
     }
     return nrows * row_size;
-}
+} */
 
 void dequantize_row_iq3_kt(const block_iq3_kt * x, float * y, int64_t k) {
     using Q = QuantizerIQ3KT;
@@ -3881,14 +3885,14 @@ void dequantize_row_iq3_kt(const block_iq3_kt * x, float * y, int64_t k) {
             }
         }
     }
-} */
+}
 
 
 // ======================================== iq4_kt
 
 // namespace{
 
-/* using QuantizerIQ4KT = QuantizerIQKT<32, 4, 15>;
+using QuantizerIQ4KT = QuantizerIQKT<32, 4, 15>;
 
 const QuantizerIQ4KT& iq4kt_quantizer(bool with_offset = false) {
     static std::mutex mutex;
@@ -3901,7 +3905,7 @@ const QuantizerIQ4KT& iq4kt_quantizer(bool with_offset = false) {
     }
     if (!quantizer1) quantizer1 = std::make_unique<QuantizerIQ4KT>(625, 6, 4096);
     return *quantizer1;
-} */
+}
 
 /* void quantize_row_iq4_kt_impl(const float * x, void * vy, int n_per_row, const float * quant_weights, float * all_scales, float * all_weights) {
 
@@ -4087,7 +4091,7 @@ size_t quantize_iq4_kt(const float * src, void * dst, int64_t nrows, int64_t n_p
         qrow += row_size;
     }
     return nrows * row_size;
-}
+} */
 
 void dequantize_row_iq4_kt(const block_iq4_kt * x, float * y, int64_t k) {
     using Q = QuantizerIQ4KT;
@@ -4117,4 +4121,454 @@ void dequantize_row_iq4_kt(const block_iq4_kt * x, float * y, int64_t k) {
             }
         }
     }
+}
+
+
+
+// ============================ IQK vec_dot
+
+
+/* void ggml_vec_dot_iq1_bn_q8_K64(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+
+    UNUSED(bs);
+    UNUSED(bx);
+    UNUSED(by);
+    UNUSED(nrc);
+
+    static_assert(QK_IQ1BN == 64, "This dot product implementation for iq1_bn requires a block size of 64");
+
+#if GGML_USE_IQK_MULMAT
+    if (iqk_mul_mat(1, 1, n, GGML_TYPE_IQ1_BN, vx, 0, GGML_TYPE_Q8_K64, vy, 0, s, 0, 0, 1)) {
+        return;
+    }
+#endif
+
+    const block_iq1_bn * x = (const block_iq1_bn *)vx;
+
+    const float * d8 = (const float *)vy;
+    const int8_t * q8 = (const int8_t *)(d8 + 4);
+    int nblock = n / QK_IQ1BN;
+
+    int sumi[8] = {};
+    int8_t q1[16];
+
+    for (int ii = 0; ii < nblock; ii += 32) {
+        int16_t sum16[8] = {};
+        int nb = std::min(ii + 32, nblock);
+        for (int i = ii; i < nb; ++i) {
+            auto ql = x[i].ql;
+            const int8_t * extra = iq1bn_values + 5*x[i].extra;
+            for (int i16 = 0; i16 < QK_IQ1BN/16; ++i16) {
+                for (int k = 0; k < 3; ++k) {
+                    uint8_t q = *ql++;
+                    const int8_t * vs = iq1bn_values + 5*q;
+                    for (int j = 0; j < 5; ++j) q1[5*k+j] = vs[j];
+                }
+                q1[15] = extra[i16];
+                // We collect 8 q8 values per block into each element of sum16
+                // => 32 x 8 = 256 values in each loop over i, so this cannot overflow the int16_t range
+                //    (q8 is in -127...127, and hence the sum is in -32512...32512
+                for (int j = 0; j < 8; ++j) sum16[j] += q8[2*j+0]*q1[2*j+0] + q8[2*j+1]*q1[2*j+1];
+                q8 += 16;
+            }
+        }
+        for (int j = 0; j < 8; ++j) sumi[j] += sum16[j];
+    }
+
+    *s = d8[0] * (sumi[0] + sumi[1]) + d8[1] * (sumi[2] + sumi[3]) + d8[2] * (sumi[4] + sumi[5]) + d8[3] * (sumi[6] + sumi[7]);
+}
+
+void ggml_vec_dot_iq2_bn_q8_K64(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+
+    assert(nrc == 1);
+    UNUSED(bs);
+    UNUSED(bx);
+    UNUSED(by);
+    UNUSED(nrc);
+
+    static_assert(QK_IQ1BN == 64, "This dot product implementation for iq2_bn requires a block size of 64");
+
+#if GGML_USE_IQK_MULMAT
+    if (iqk_mul_mat(1, 1, n, GGML_TYPE_IQ2_BN, vx, 0, GGML_TYPE_Q8_K64, vy, 0, s, 0, 0, 1)) {
+        return;
+    }
+#endif */
+
+
+void ggml_vec_dot_iq2_k_q8_K(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, size_t bx, const void * GGML_RESTRICT vy, size_t by, int nrc) {
+    assert(n % QK_K == 0);
+    assert(nrc == 1);
+    UNUSED(nrc);
+    UNUSED(bx);
+    UNUSED(by);
+    UNUSED(bs);
+
+#if GGML_USE_IQK_MULMAT
+    if (iqk_mul_mat(1, 1, n, GGML_TYPE_IQ2_K, vx, 0, GGML_TYPE_Q8_K, vy, 0, s, 0, 0, 1)) {
+        return;
+    }
+#endif
+
+}
+
+/* void ggml_vec_dot_iq2_ks_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+    assert(n % QK_K == 0);
+    assert(nrc == 1);
+    UNUSED(nrc);
+    UNUSED(bx);
+    UNUSED(by);
+    UNUSED(bs);
+
+#if GGML_USE_IQK_MULMAT
+    if (iqk_mul_mat(1, 1, n, GGML_TYPE_IQ2_KS, vx, 0, GGML_TYPE_Q8_K, vy, 0, s, 0, 0, 1)) {
+        return;
+    }
+#endif
+
+    const ggml_half * dptr = (const ggml_half *)vx;
+    const float d = GGML_FP16_TO_FP32(*dptr);
+    const block_iq2_ks * x = (const block_iq2_ks *)(dptr + 1);
+    const block_q8_K   * y = (const block_q8_K *)vy;
+
+    const int nb = n / QK_K;
+    float sumf = 0;
+    for (int i = 0; i < nb; i++) {
+        const uint8_t * qs = x[i].qs;
+        const  int8_t * q8 = y[i].qs;
+        uint16_t extra = x[i].extra;
+        int sumi = 0;
+        for (int ib128 = 0; ib128 < QK_K/128; ++ib128) {
+            int d1 = (((x[i].scales[2*ib128+0] & 0xf) | ((extra >> 4) & 0x10)) - 16);
+            int d2 = (((x[i].scales[2*ib128+0] >>  4) | ((extra >> 5) & 0x10)) - 16);
+            int d3 = (((x[i].scales[2*ib128+1] & 0xf) | ((extra >> 6) & 0x10)) - 16);
+            int d4 = (((x[i].scales[2*ib128+1] >>  4) | ((extra >> 7) & 0x10)) - 16);
+            const int8_t * values1 = extra & 1 ? iq2nl_values + 4 : iq2nl_values;
+            const int8_t * values2 = extra & 2 ? iq2nl_values + 4 : iq2nl_values;
+            const int8_t * values3 = extra & 4 ? iq2nl_values + 4 : iq2nl_values;
+            const int8_t * values4 = extra & 8 ? iq2nl_values + 4 : iq2nl_values;
+            extra >>= 4;
+            int sumi1 = 0, sumi2 = 0, sumi3 = 0, sumi4 = 0;
+            for (int j = 0; j < 32; ++j) {
+                sumi1 += q8[j+ 0] * values1[(qs[j] >> 0) & 3];
+                sumi2 += q8[j+32] * values2[(qs[j] >> 2) & 3];
+                sumi3 += q8[j+64] * values3[(qs[j] >> 4) & 3];
+                sumi4 += q8[j+96] * values4[(qs[j] >> 6) & 3];
+            }
+            sumi += d1*sumi1 + d2*sumi2 + d3*sumi3 + d4*sumi4;
+            q8 += 128;
+            qs +=  32;
+        }
+        sumf += y[i].d * sumi;
+    }
+
+    *s = d * sumf;
+
 } */
+
+void ggml_vec_dot_iq3_k_q8_K(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, size_t bx, const void * GGML_RESTRICT vy, size_t by, int nrc) {
+    assert(n % QK_K == 0);
+    assert(nrc == 1);
+    UNUSED(nrc);
+    UNUSED(bx);
+    UNUSED(by);
+    UNUSED(bs);
+
+#if GGML_USE_IQK_MULMAT
+    if (iqk_mul_mat(1, 1, n, GGML_TYPE_IQ3_K, vx, 0, GGML_TYPE_Q8_K, vy, 0, s, 0, 0, 1)) {
+        return;
+    }
+#endif
+
+}
+
+void ggml_vec_dot_iq4_k_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+    assert(n % QK_K == 0);
+    assert(nrc == 1);
+    UNUSED(nrc);
+    UNUSED(bx);
+    UNUSED(by);
+    UNUSED(bs);
+
+#if GGML_USE_IQK_MULMAT
+    if (iqk_mul_mat(1, 1, n, GGML_TYPE_IQ4_K, vx, 0, GGML_TYPE_Q8_K, vy, 0, s, 0, 0, 1)) {
+        return;
+    }
+#endif
+
+    const int nb = n / QK_K;
+
+    const block_iq4_k * x = (const block_iq4_k *)vx;
+    const block_q8_K  * y = (const block_q8_K *)vy;
+
+    float sumf = 0;
+    for (int ibl = 0; ibl < nb; ++ibl) {
+        const float d4d8 = GGML_FP16_TO_FP32(x[ibl].d) * y[ibl].d;
+        uint16_t extra = x[ibl].extra;
+        uint32_t h = *((const uint32_t *)x[ibl].scales_h);
+        const uint8_t * qs = x[ibl].qs;
+        const int8_t  * q8 = y[ibl].qs;
+        int32_t sum = 0;
+        for (int ib = 0; ib < QK_K/32; ++ib) {
+            const int ls1 = ((x[ibl].scales_l[ib] & 0xf) | ((h << 4) & 0x30)) - 32;
+            const int ls2 = ((x[ibl].scales_l[ib] >>  4) | ((h << 2) & 0x30)) - 32;
+            h >>= 4;
+            const int8_t * values1 = iq4k_values + 16*(extra & 1);
+            const int8_t * values2 = iq4k_values +  8*(extra & 2);
+            extra >>= 2;
+            int sumi1 = 0, sumi2 = 0;
+            for (int j = 0; j < 16; ++j) {
+                sumi1 += q8[j+ 0] * values1[qs[j] & 0xf];
+                sumi2 += q8[j+16] * values2[qs[j] >>  4];
+            }
+            sum += ls1*sumi1 + ls2*sumi2;
+            qs += 16;
+            q8 += 32;
+        }
+        sumf += d4d8 * sum;
+    }
+    *s = sumf;
+
+}
+
+void ggml_vec_dot_iq5_k_q8_K(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, size_t bx, const void * GGML_RESTRICT vy, size_t by, int nrc) {
+    assert(n % QK_K == 0);
+    assert(nrc == 1);
+    UNUSED(nrc);
+    UNUSED(bx);
+    UNUSED(by);
+    UNUSED(bs);
+
+#if GGML_USE_IQK_MULMAT
+    if (iqk_mul_mat(1, 1, n, GGML_TYPE_IQ5_K, vx, 0, GGML_TYPE_Q8_K, vy, 0, s, 0, 0, 1)) {
+        return;
+    }
+#endif
+
+    const int nb = n / QK_K;
+
+    const block_iq5_k * x = (const block_iq5_k *)vx;
+    const block_q8_K  * y = (const block_q8_K  *)vy;
+
+    float sumf = 0;
+
+    for (int i = 0; i < nb; i++) {
+
+        const float d = GGML_FP16_TO_FP32(x[i].d) * y[i].d;
+        const uint8_t * qs = x[i].qs;
+        const uint8_t * qh = x[i].qh;
+        const uint8_t * sl = x[i].scales_l;
+        const uint8_t * sh = x[i].scales_h;
+        const int8_t  * q8 = y[i].qs;
+
+        uint16_t extra = x[i].extra;
+
+        int shift = 0;
+        int sumb  = 0;
+        for (int ib64 = 0; ib64 < QK_K/64; ++ib64) {
+
+            int dl1 = (((sl[2*ib64+0] & 0xf) | ((sh[ib64] << 4) & 0x30)) - 32);
+            int dl2 = (((sl[2*ib64+0] >>  4) | ((sh[ib64] << 2) & 0x30)) - 32);
+            int dl3 = (((sl[2*ib64+1] & 0xf) | ((sh[ib64] >> 0) & 0x30)) - 32);
+            int dl4 = (((sl[2*ib64+1] >>  4) | ((sh[ib64] >> 2) & 0x30)) - 32);
+            const int8_t * values1 = iq5nl_values + ((extra & 1) << 5);
+            const int8_t * values2 = iq5nl_values + ((extra & 2) << 4);
+            const int8_t * values3 = iq5nl_values + ((extra & 4) << 3);
+            const int8_t * values4 = iq5nl_values + ((extra & 8) << 2);
+            int sumi1 = 0, sumi2 = 0, sumi3 = 0, sumi4 = 0;
+            for (int j = 0; j < 16; ++j) {
+                sumi1 += q8[j+ 0] * values1[(qs[j+ 0] & 0xf) | (((qh[j+ 0] >> shift) & 1) << 4)];
+                sumi2 += q8[j+16] * values2[(qs[j+16] & 0xf) | (((qh[j+16] >> shift) & 1) << 4)];
+                sumi3 += q8[j+32] * values3[(qs[j+ 0] >>  4) | (((qh[j+ 0] >> shift) & 2) << 3)];
+                sumi4 += q8[j+48] * values4[(qs[j+16] >>  4) | (((qh[j+16] >> shift) & 2) << 3)];
+            }
+            sumb += dl1 * sumi1 + dl2 * sumi2 + dl3 * sumi3 + dl4 * sumi4;
+            q8 += 64;
+            qs += 32;
+            extra >>= 4;
+            shift += 2;
+        }
+        sumf += d * sumb;
+
+    }
+
+    *s = sumf;
+
+}
+
+void ggml_vec_dot_iq6_k_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+    assert(n % QK_K == 0);
+    assert(nrc == 1);
+    UNUSED(nrc);
+    UNUSED(bx);
+    UNUSED(by);
+    UNUSED(bs);
+
+#if GGML_USE_IQK_MULMAT
+    if (iqk_mul_mat(1, 1, n, GGML_TYPE_IQ6_K, vx, 0, GGML_TYPE_Q8_K, vy, 0, s, 0, 0, 1)) {
+        return;
+    }
+#endif
+
+    GGML_ABORT("not implemented");
+
+/*     // TODO
+    const int nb = n / QK_K;
+
+    const block_iq5_k * x = (const block_iq5_k *)vx;
+    const block_q8_K  * y = (const block_q8_K  *)vy;
+
+    float sumf = 0;
+
+    for (int i = 0; i < nb; i++) {
+
+       const float d = GGML_FP16_TO_FP32(x[i].d) * y[i].d;
+       const uint8_t * qs = x[i].qs;
+       const uint8_t * qh = x[i].qh;
+       const uint8_t * sl = x[i].scales_l;
+       const uint8_t * sh = x[i].scales_h;
+       const int8_t  * q8 = y[i].qs;
+
+       uint16_t extra = x[i].extra;
+
+       int shift = 0;
+       int sumb  = 0;
+       for (int ib64 = 0; ib64 < QK_K/64; ++ib64) {
+
+           int dl1 = (((sl[2*ib64+0] & 0xf) | ((sh[ib64] << 4) & 0x30)) - 32);
+           int dl2 = (((sl[2*ib64+0] >>  4) | ((sh[ib64] << 2) & 0x30)) - 32);
+           int dl3 = (((sl[2*ib64+1] & 0xf) | ((sh[ib64] >> 0) & 0x30)) - 32);
+           int dl4 = (((sl[2*ib64+1] >>  4) | ((sh[ib64] >> 2) & 0x30)) - 32);
+           const int8_t * values1 = iq5nl_values + ((extra & 1) << 5);
+           const int8_t * values2 = iq5nl_values + ((extra & 2) << 4);
+           const int8_t * values3 = iq5nl_values + ((extra & 4) << 3);
+           const int8_t * values4 = iq5nl_values + ((extra & 8) << 2);
+           int sumi1 = 0, sumi2 = 0, sumi3 = 0, sumi4 = 0;
+           for (int j = 0; j < 16; ++j) {
+               sumi1 += q8[j+ 0] * values1[(qs[j+ 0] & 0xf) | (((qh[j+ 0] >> shift) & 1) << 4)];
+               sumi2 += q8[j+16] * values2[(qs[j+16] & 0xf) | (((qh[j+16] >> shift) & 1) << 4)];
+               sumi3 += q8[j+32] * values3[(qs[j+ 0] >>  4) | (((qh[j+ 0] >> shift) & 2) << 3)];
+               sumi4 += q8[j+48] * values4[(qs[j+16] >>  4) | (((qh[j+16] >> shift) & 2) << 3)];
+           }
+           sumb += dl1 * sumi1 + dl2 * sumi2 + dl3 * sumi3 + dl4 * sumi4;
+           q8 += 64;
+           qs += 32;
+           extra >>= 4;
+           shift += 2;
+       }
+       sumf += d * sumb;
+
+    }
+
+    *s = sumf; */
+
+}
+
+void ggml_vec_dot_iq4_ks_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+    constexpr int kBlockSize = 32;
+#if GGML_USE_IQK_MULMAT
+    if (iqk_mul_mat(1, 1, n, GGML_TYPE_IQ4_KS, vx, 0, GGML_TYPE_Q8_K, vy, 0, s, 0, 0, 1)) {
+        return;
+    }
+#endif
+    assert(n%QK_K == 0);
+    assert(nrc == 1);
+    UNUSED(bs);
+    UNUSED(bx);
+    UNUSED(by);
+    const float * dptr = (const float *)vx;
+    const float d = *dptr;
+    //printf("%s: n = %d, d = %g\n", __func__, n, d);
+    const block_iq4_ks * x = (const block_iq4_ks *)(dptr + 1);
+    const block_q8_K    * y = (const block_q8_K    *)vy;
+    int nblock = n/QK_K;
+    float sumf = 0;
+    for (int ibl = 0; ibl < nblock; ++ibl) {
+        //int sumi = 0;
+        auto qy = y[ibl].qs;
+        auto qx = x[ibl].qs;
+        float db = d * y[ibl].d;
+        for (int ib = 0; ib < QK_K/kBlockSize; ++ib) {
+            float dl = db * ((x[ibl].scales[ib] & 254) - 127);
+            //int ls = (x[ibl].scales[ib] & 254) - 127;
+            const int8_t * values = iq4k_values + ((x[ibl].scales[ib] & 1) << 4);
+            int suml = 0;
+            for (int j = 0; j < kBlockSize/2; ++j) {
+                suml += qy[j               ] * values[qx[j] & 0xf]
+                      + qy[j + kBlockSize/2] * values[qx[j] >>  4];
+            }
+            sumf += dl * suml;
+            //sumi += ls * suml;
+            qy += kBlockSize;
+            qx += kBlockSize/2;
+        }
+        //sumf += d * y[ibl].d * sumi;
+    }
+    *s = sumf;
+}
+
+void ggml_vec_dot_iq4_kss_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+#if GGML_USE_IQK_MULMAT
+    if (iqk_mul_mat(1, 1, n, GGML_TYPE_IQ4_KSS, vx, 0, GGML_TYPE_Q8_K, vy, 0, s, 0, 0, 1)) {
+        return;
+    }
+#endif
+    assert(n%QK_K == 0);
+    assert(nrc == 1);
+    UNUSED(bs);
+    UNUSED(bx);
+    UNUSED(by);
+}
+
+// ======================================= iq2_kt
+
+void ggml_vec_dot_iq2_kt_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+    assert(n % QK_K == 0);
+    assert(nrc == 1);
+    UNUSED(nrc);
+    UNUSED(bx);
+    UNUSED(by);
+    UNUSED(bs);
+
+#if GGML_USE_IQK_MULMAT
+    if (iqk_mul_mat(1, 1, n, GGML_TYPE_IQ2_KT, vx, 0, GGML_TYPE_Q8_K, vy, 0, s, 0, 0, 1)) {
+        return;
+    }
+#endif
+
+}
+
+// ======================================== iq3_kt
+
+void ggml_vec_dot_iq3_kt_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+    assert(n % QK_K == 0);
+    assert(nrc == 1);
+    UNUSED(nrc);
+    UNUSED(bx);
+    UNUSED(by);
+    UNUSED(bs);
+
+#if GGML_USE_IQK_MULMAT
+    if (iqk_mul_mat(1, 1, n, GGML_TYPE_IQ3_KT, vx, 0, GGML_TYPE_Q8_K, vy, 0, s, 0, 0, 1)) {
+        return;
+    }
+#endif
+
+}
+
+// ======================================== iq4_kt
+
+void ggml_vec_dot_iq4_kt_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+    assert(n % QK_K == 0);
+    assert(nrc == 1);
+    UNUSED(nrc);
+    UNUSED(bx);
+    UNUSED(by);
+    UNUSED(bs);
+
+#if GGML_USE_IQK_MULMAT
+    if (iqk_mul_mat(1, 1, n, GGML_TYPE_IQ4_KT, vx, 0, GGML_TYPE_Q8_K, vy, 0, s, 0, 0, 1)) {
+        return;
+    }
+#endif
+
+}

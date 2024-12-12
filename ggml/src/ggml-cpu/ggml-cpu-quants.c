@@ -10924,7 +10924,7 @@ void ggml_vec_dot_iq2_bn_q8_K64(int n, float * s, size_t bs, const void * vx, si
 #endif */
 
 
-void ggml_vec_dot_iq2_k_q8_K(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, size_t bx, const void * GGML_RESTRICT vy, size_t by, int nrc) {
+/* void ggml_vec_dot_iq2_k_q8_K(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, size_t bx, const void * GGML_RESTRICT vy, size_t by, int nrc) {
     assert(n % QK_K == 0);
     assert(nrc == 1);
     UNUSED(nrc);
@@ -11138,7 +11138,7 @@ void ggml_vec_dot_iq6_k_q8_K(int n, float * s, size_t bs, const void * vx, size_
     }
 #endif
 
-    GGML_ABORT("not implemented");
+    GGML_ABORT("not implemented"); */
 
 /*     // TODO
     const int nb = n / QK_K;
@@ -11188,9 +11188,9 @@ void ggml_vec_dot_iq6_k_q8_K(int n, float * s, size_t bs, const void * vx, size_
 
     }
 
-    *s = sumf; */
+    *s = sumf;
 
-}
+} */
 
 /* void ggml_vec_dot_iq4_ks_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
     constexpr int kBlockSize = 32;
@@ -11250,7 +11250,7 @@ void ggml_vec_dot_iq6_k_q8_K(int n, float * s, size_t bs, const void * vx, size_
 
 // ======================================= iq2_kt
 
-void ggml_vec_dot_iq2_kt_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+/* void ggml_vec_dot_iq2_kt_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
     assert(n % QK_K == 0);
     assert(nrc == 1);
     UNUSED(nrc);
@@ -11300,4 +11300,4 @@ void ggml_vec_dot_iq4_kt_q8_K(int n, float * s, size_t bs, const void * vx, size
     }
 #endif
 
-}
+} */

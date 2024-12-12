@@ -13,6 +13,8 @@
 #include "amx/amx.h"
 #include "ggml.h"
 
+// #include "iqk/iqk_quantize.h"
+
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <malloc.h> // using malloc.h with MSC/MINGW
 #elif !defined(__FreeBSD__) && !defined(__NetBSD__) && !defined(__OpenBSD__)
@@ -442,26 +444,26 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     },
     [GGML_TYPE_IQ2_KS] = {
         // .from_float               = quantize_row_iq2_ks,
-        .vec_dot                  = ggml_vec_dot_iq2_ks_q8_K,
-        .vec_dot_type             = GGML_TYPE_Q8_K,
+        // .vec_dot                  = ggml_vec_dot_iq2_ks_q8_K,
+        // .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ2_KT] = {
         // .from_float               = quantize_row_iq2_kt,
-        .vec_dot                  = ggml_vec_dot_iq2_kt_q8_K,
-        .vec_dot_type             = GGML_TYPE_Q8_K,
+        // .vec_dot                  = ggml_vec_dot_iq2_kt_q8_K,
+        // .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ3_KT] = {
         // .from_float               = quantize_row_iq3_kt,
         // .vec_dot                  = ggml_vec_dot_iq3_kt_q8_K,
-        .vec_dot_type             = GGML_TYPE_Q8_K,
+        // .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ4_KT] = {
         // .from_float               = quantize_row_iq4_kt,
         // .vec_dot                  = ggml_vec_dot_iq4_kt_q8_K,
-        .vec_dot_type             = GGML_TYPE_Q8_K,
+        // .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ3_K] = {
