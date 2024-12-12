@@ -4,8 +4,7 @@
 #define CUDA_Q8_0_NE_ALIGN 2048
 
 template <int qk, int qr, dequantize_kernel_t dequantize_kernel, typename dst_t>
-static __global__ void dequantize_block(const void * __restrict__ vx, dst_t * __restrict__ y, const int64_t nrows, const int64_t n_per_row) {
-    const int64_t k = nrows * n_per_row;
+static __global__ void dequantize_block(const void * __restrict__ vx, dst_t * __restrict__ y, const int64_t k) {
     const int64_t i = (int64_t)2*(blockDim.x*blockIdx.x + threadIdx.x);
 
     if (i >= k) {
@@ -26,8 +25,7 @@ static __global__ void dequantize_block(const void * __restrict__ vx, dst_t * __
 }
 
 template <bool need_check>
-static __global__ void dequantize_block_q8_0_f16(const void * __restrict__ vx, half * __restrict__ y, const int64_t nrows, const int64_t n_per_row) {
-    const int64_t k = nrows * n_per_row;
+static __global__ void dequantize_block_q8_0_f16(const void * __restrict__ vx, half * __restrict__ y, const int64_t k) {
 #if __CUDA_ARCH__ >= CC_PASCAL
     constexpr int nint = CUDA_Q8_0_NE_ALIGN/sizeof(int) + WARP_SIZE;
 
@@ -353,8 +351,7 @@ float __device__ __forceinline__ trellis_next(uint32_t& val) {
 }
 
 template<typename dst_t>
-static __global__ void dequantize_block_iq2_kt(const void * __restrict__ vx, dst_t * __restrict__ yy, const int64_t nrows, const int64_t n_per_row) {
-    const int64_t k = nrows * n_per_row;
+static __global__ void dequantize_block_iq2_kt(const void * __restrict__ vx, dst_t * __restrict__ yy, int64_t n_per_row, int64_t row_size) {
 
     int64_t ii  = blockIdx.x;
     int64_t row = (QK_K * ii) / n_per_row;
@@ -375,8 +372,7 @@ static __global__ void dequantize_block_iq2_kt(const void * __restrict__ vx, dst
 }
 
 template<typename dst_t>
-static __global__ void dequantize_block_iq3_kt(const void * __restrict__ vx, dst_t * __restrict__ yy, const int64_t nrows, const int64_t n_per_row) {
-    const int64_t k = nrows * n_per_row;
+static __global__ void dequantize_block_iq3_kt(const void * __restrict__ vx, dst_t * __restrict__ yy, int64_t n_per_row, int64_t row_size) {
 
     int64_t ii  = blockIdx.x;
     int64_t row = (QK_K * ii) / n_per_row;
@@ -398,8 +394,7 @@ static __global__ void dequantize_block_iq3_kt(const void * __restrict__ vx, dst
 }
 
 //template<typename dst_t>
-//static __global__ void dequantize_block_iq3_kt(const void * __restrict__ vx, dst_t * __restrict__ yy, const int64_t nrows, const int64_t n_per_row) {
-//  const int64_t k = nrows * n_per_row;
+//static __global__ void dequantize_block_iq3_kt(const void * __restrict__ vx, dst_t * __restrict__ yy, int64_t n_per_row, int64_t row_size) {
 //
 //    int64_t ii  = blockIdx.x;
 //    int64_t row = (QK_K * ii) / n_per_row;
@@ -423,8 +418,7 @@ static __global__ void dequantize_block_iq3_kt(const void * __restrict__ vx, dst
 //}
 
 template<typename dst_t>
-static __global__ void dequantize_block_iq4_kt(const void * __restrict__ vx, dst_t * __restrict__ yy, const int64_t nrows, const int64_t n_per_row) {
-    const int64_t k = nrows * n_per_row;
+static __global__ void dequantize_block_iq4_kt(const void * __restrict__ vx, dst_t * __restrict__ yy, int64_t n_per_row, int64_t row_size) {
 
     int64_t ii  = blockIdx.x;
     int64_t row = (QK_K * ii) / n_per_row;
@@ -624,7 +618,7 @@ static __global__ void dequantize_block_iq1_bn(const void * __restrict__ vx, dst
 } */
 
 /* template<typename dst_t>
-static __global__ void dequantize_block_iq2_bn(const void * __restrict__ vx, dst_t * __restrict__ yy) {
+static __global__ void dequantize_block_iq2_bn(const void * __restrict__ vx, dst_t * __restrict__ yy, int64_t n_per_row, int64_t row_size, int64_t nrows) {
 
     int64_t ii  = 256*blockIdx.x;
     const int64_t tid = threadIdx.x;
@@ -922,12 +916,13 @@ static __global__ void dequantize_block_iq3_k(const void * __restrict__ vx, dst_
 }
 
 template <int qk, int qr, dequantize_kernel_t dequantize_kernel, typename dst_t>
-static void dequantize_block_cuda(const void * __restrict__ vx, dst_t * __restrict__ y, const int64_t k, cudaStream_t stream) {
+static void dequantize_block_cuda(const void * __restrict__ vx, dst_t * __restrict__ y, const int64_t nrows, const int64_t n_per_row, cudaStream_t stream) {
+    const int64_t k = nrows * n_per_row;
     const int num_blocks = (k + 2*CUDA_DEQUANTIZE_BLOCK_SIZE - 1) / (2*CUDA_DEQUANTIZE_BLOCK_SIZE);
     dequantize_block<qk, qr, dequantize_kernel><<<num_blocks, CUDA_DEQUANTIZE_BLOCK_SIZE, 0, stream>>>(vx, y, k);
 }
 
-static void dequantize_block_q8_0_f16_cuda(const void * __restrict__ vx, half * __restrict__ y, const int64_t nrows, const int64_t n_per_row) {
+static void dequantize_block_q8_0_f16_cuda(const void * __restrict__ vx, half * __restrict__ y, const int64_t nrows, const int64_t n_per_row, cudaStream_t stream) {
     const int64_t k = nrows * n_per_row;
     const int num_blocks = (k + CUDA_Q8_0_NE_ALIGN - 1) / CUDA_Q8_0_NE_ALIGN;
     if (k % CUDA_Q8_0_NE_ALIGN == 0) {
