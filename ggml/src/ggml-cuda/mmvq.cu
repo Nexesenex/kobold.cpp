@@ -1,6 +1,8 @@
 #include "mmvq.cuh"
 #include "vecdotq.cuh"
 
+#include "iqk_mmvq.cuh"
+
 typedef float (*vec_dot_q_cuda_t)(const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs);
 
 static constexpr __device__ vec_dot_q_cuda_t get_vec_dot_q_cuda(ggml_type type) {
@@ -369,7 +371,7 @@ static void mul_mat_vec_iq3_s_q8_1_cuda(
     mul_mat_vec_q_cuda<GGML_TYPE_IQ3_S>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
 }
 
-static void mul_mat_vec_iq2_k_q8_1_cuda(
+/* static void mul_mat_vec_iq2_k_q8_1_cuda(
     const void * vx, const void * vy, float * dst,
     const int ncols_x, const int nrows_x, const int nrows_y, const int ncols_y, const int nrows_dst, cudaStream_t stream) {
 
@@ -456,7 +458,7 @@ static void mul_mat_vec_iq6_k_q8_1_cuda(
     // const void * vx, const void * vy, float * dst,
     // const int ncols_x, const int nrows_x, const int nrows_y, const int ncols_y, const int nrows_dst, cudaStream_t stream) {
     // mul_mat_vec_q_cuda<GGML_TYPE_IQ2_BN>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
-// }
+// } */
 
 void ggml_cuda_op_mul_mat_vec_q(
     ggml_backend_cuda_context & ctx,
