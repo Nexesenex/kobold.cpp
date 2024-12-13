@@ -10909,7 +10909,7 @@ void quantize_row_iq4_xs(const float * restrict x, void * restrict y, int64_t k)
 
 void ggml_vec_dot_iq2_bn_q8_K64(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
 
-    ASSERT(nrc == 1);
+    assert(nrc == 1);
     UNUSED(bs);
     UNUSED(bx);
     UNUSED(by);
@@ -11199,8 +11199,8 @@ void ggml_vec_dot_iq6_k_q8_K(int n, float * s, size_t bs, const void * vx, size_
         return;
     }
 #endif
-    ASSERT(n%QK_K == 0);
-    ASSERT(nrc == 1);
+    assert(n%QK_K == 0);
+    assert(nrc == 1);
     UNUSED(bs);
     UNUSED(bx);
     UNUSED(by);
@@ -11241,8 +11241,8 @@ void ggml_vec_dot_iq6_k_q8_K(int n, float * s, size_t bs, const void * vx, size_
         return;
     }
 #endif
-    ASSERT(n%QK_K == 0);
-    ASSERT(nrc == 1);
+    assert(n%QK_K == 0);
+    assert(nrc == 1);
     UNUSED(bs);
     UNUSED(bx);
     UNUSED(by);
