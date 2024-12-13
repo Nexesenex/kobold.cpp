@@ -894,7 +894,7 @@ void dequantize_row_iq2_k(const block_iq2_k  * GGML_RESTRICT x, float * GGML_RES
     // quantize_row_iq2_ks_ref(x, y, k);
 // }
 
-size_t quantize_iq2_ks(const float * src, void * dst, int64_t nrows, int64_t n_per_row, const float * imatrix) {
+/* size_t quantize_iq2_ks(const float * src, void * dst, int64_t nrows, int64_t n_per_row, const float * imatrix) {
     constexpr int kBlockSize = 32;
     GGML_ASSERT(n_per_row%QK_K == 0);
     auto row_size = ggml_row_size(GGML_TYPE_IQ2_KS, n_per_row);
@@ -908,7 +908,7 @@ size_t quantize_iq2_ks(const float * src, void * dst, int64_t nrows, int64_t n_p
         qrow += row_size;
     }
     return nrows * row_size;
-}
+} */
 
 void dequantize_row_iq2_ks(const block_iq2_ks  * GGML_RESTRICT x, float * GGML_RESTRICT y, int64_t k) {
     assert(k % QK_K == 0);
