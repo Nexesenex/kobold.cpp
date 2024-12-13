@@ -34,7 +34,7 @@ static constexpr __device__ vec_dot_q_cuda_t get_vec_dot_q_cuda(ggml_type type) 
         type == GGML_TYPE_IQ4_K ? vec_dot_iq4_k_q8_1 :
         type == GGML_TYPE_IQ5_K ? vec_dot_iq5_k_q8_1 :
         type == GGML_TYPE_IQ6_K ? vec_dot_iq6_k_q8_1 :
-        type == GGML_TYPE_IQ2_KT ? vec_dot_iq2_kt_q8_1 :
+        // type == GGML_TYPE_IQ2_KT ? vec_dot_iq2_kt_q8_1 :
         // type == GGML_TYPE_IQ3_KT ? vec_dot_iq3_kt_q8_1 :
         // type == GGML_TYPE_IQ4_KT ? vec_dot_iq4_kt_q8_1 :
         // type == GGML_TYPE_IQ1_BN ? vec_dot_iq1_bn_q8_1 :
@@ -69,7 +69,7 @@ static constexpr __device__ int get_vdr_mmvq(ggml_type type) {
         type == GGML_TYPE_IQ4_K   ? VDR_IQ4_K_Q8_1_MMVQ :
         type == GGML_TYPE_IQ5_K   ? VDR_IQ5_K_Q8_1_MMVQ :
         type == GGML_TYPE_IQ6_K   ? VDR_IQ6_K_Q8_1_MMVQ :
-        type == GGML_TYPE_IQ2_KT  ? VDR_IQ2_KT_Q8_1_MMVQ :
+        // type == GGML_TYPE_IQ2_KT  ? VDR_IQ2_KT_Q8_1_MMVQ :
         // type == GGML_TYPE_IQ3_KT  ? VDR_IQ3_KT_Q8_1_MMVQ :
         // type == GGML_TYPE_IQ4_KT  ? VDR_IQ4_KT_Q8_1_MMVQ :
         // type == GGML_TYPE_IQ1_BN  ? VDR_IQ1_BN_Q8_1_MMVQ :
