@@ -1557,7 +1557,7 @@ __device__ __forceinline__ float vec_dot_iq2_ks_q8_1(
 /* __device__ __forceinline__ float vec_dot_iq2_kt_q8_1(
     const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs) {
     return 0.f;
-}
+} */
 
 #define VDR_IQ3_K_Q8_1_MMVQ 4
 #define VDR_IQ3_K_Q8_1_MMQ  4
