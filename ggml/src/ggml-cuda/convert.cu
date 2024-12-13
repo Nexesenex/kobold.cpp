@@ -682,7 +682,7 @@ static __global__ void dequantize_block_iq4_xs(const void * __restrict__ vx, dst
     }
 }
 
-/* template<typename dst_t>
+template<typename dst_t>
 static __global__ void dequantize_block_iq4_ks(const void * __restrict__ vx, dst_t * __restrict__ yy, int64_t n_per_row, int64_t row_size) {
 
     int64_t ii  = blockIdx.x;
@@ -703,7 +703,7 @@ static __global__ void dequantize_block_iq4_ks(const void * __restrict__ vx, dst
         y[j+ 0] = d * values[q4[j] & 0xf];
         y[j+16] = d * values[q4[j] >>  4];
     }
-} */
+}
 
 template<typename dst_t>
 static __global__ void dequantize_block_iq4_kss(const void * __restrict__ vx, dst_t * __restrict__ yy, int64_t n_per_row, int64_t row_size) {
@@ -1097,13 +1097,13 @@ static void dequantize_row_iq4_xs_cuda(const void * vx, dst_t * y, const int64_t
     dequantize_block_iq4_xs<<<nb, 32, 0, stream>>>(vx, y);
 }
 
-/* template<typename dst_t>
+template<typename dst_t>
 static void dequantize_row_iq4_ks_cuda(const void * vx, dst_t * y, const int64_t nrows, const int64_t n_per_row, cudaStream_t stream) {
     const int64_t k = nrows * n_per_row;
     const int64_t row_size = ggml_row_size(GGML_TYPE_IQ4_KS, n_per_row);
     const int nb = (k + QK_K - 1) / QK_K;
     dequantize_block_iq4_ks<<<nb, 32, 0, stream>>>(vx, y, n_per_row, row_size);
-} */
+}
 
 template<typename dst_t>
 static void dequantize_row_iq4_kss_cuda(const void * vx, dst_t * y, const int64_t nrows, const int64_t n_per_row, cudaStream_t stream) {
@@ -1290,10 +1290,10 @@ to_fp16_cuda_t ggml_get_to_fp16_cuda(ggml_type type) {
             return dequantize_row_iq4_nl_cuda;
         case GGML_TYPE_IQ4_XS:
             return dequantize_row_iq4_xs_cuda;
-        // case GGML_TYPE_IQ4_KS:
-            // return dequantize_row_iq4_ks_cuda;
-        // case GGML_TYPE_IQ4_KSS:
-            // return dequantize_row_iq4_kss_cuda;
+        case GGML_TYPE_IQ4_KS:
+            return dequantize_row_iq4_ks_cuda;
+        case GGML_TYPE_IQ4_KSS:
+            return dequantize_row_iq4_kss_cuda;
         case GGML_TYPE_IQ2_KS:
             return dequantize_row_iq2_ks_cuda;
         case GGML_TYPE_IQ2_K:
@@ -1367,10 +1367,10 @@ to_fp32_cuda_t ggml_get_to_fp32_cuda(ggml_type type) {
             return dequantize_row_iq4_nl_cuda;
         case GGML_TYPE_IQ4_XS:
             return dequantize_row_iq4_xs_cuda;
-        // case GGML_TYPE_IQ4_KS:
-            // return dequantize_row_iq4_ks_cuda;
-        // case GGML_TYPE_IQ4_KSS:
-            // return dequantize_row_iq4_kss_cuda;
+        case GGML_TYPE_IQ4_KS:
+            return dequantize_row_iq4_ks_cuda;
+        case GGML_TYPE_IQ4_KSS:
+            return dequantize_row_iq4_kss_cuda;
         case GGML_TYPE_IQ2_KS:
             return dequantize_row_iq2_ks_cuda;
         case GGML_TYPE_IQ2_K:

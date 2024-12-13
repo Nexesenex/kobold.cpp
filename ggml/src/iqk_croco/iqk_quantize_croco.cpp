@@ -2294,7 +2294,7 @@ void quantize_row_iq4_ks(const float * x, void * y, int64_t k) {
     return nrows * row_size;
 } */
 
-/* void dequantize_row_iq4_ks(const block_iq4_ks * x, float * y, int64_t k) {
+void dequantize_row_iq4_ks(const block_iq4_ks * x, float * y, int64_t k) {
     constexpr int kBlockSize = 32; //128;
     GGML_ASSERT(k%QK_K == 0);
     const float * dptr = (const float *)x;
@@ -2314,11 +2314,11 @@ void quantize_row_iq4_ks(const float * x, void * y, int64_t k) {
             qs += kBlockSize/2;
         }
     }
-} */
+}
 
 
 // namespace {
-/* const uint16_t * scramble_table() {
+const uint16_t * scramble_table() {
     static std::mutex mutex;
     static std::vector<uint16_t> table;
     std::lock_guard<std::mutex> lock(mutex);
@@ -2341,9 +2341,9 @@ void quantize_row_iq4_ks(const float * x, void * y, int64_t k) {
         }
     }
     return table.data();
-} */
+}
 
-/* uint16_t prune_iq4ks(uint16_t v, const int8_t * values, const float * x, const float * w, float dl) {
+uint16_t prune_iq4ks(uint16_t v, const int8_t * values, const float * x, const float * w, float dl) {
     if (popcount(v)%2 == 0) return v;
     float best_score = std::numeric_limits<float>::max();
     uint8_t q4[4];
@@ -2380,7 +2380,7 @@ void quantize_row_iq4_ks(const float * x, void * y, int64_t k) {
     GGML_ASSERT(jbest >= 0);
     q4[jbest] = bestq;
     return (q4[0] | (q4[1] << 4) | (q4[2] << 8) | (q4[3] << 12));
-} */
+}
 
 
 //
@@ -2604,7 +2604,7 @@ void quantize_row_iq4_ks(const float * x, void * y, int64_t k) {
     if (sumq2 > 0) *dptr = sumqx/sumq2;
 } */
 
-/* void prune_iq4ks_to_iq4kss(int n_per_row, const uint16_t * table, const char * cx, const float * x, char *cy,
+void prune_iq4ks_to_iq4kss(int n_per_row, const uint16_t * table, const char * cx, const float * x, char *cy,
         const float * quant_weights, float * weight, float * all_scales) {
     constexpr int kBlockSize = 32;
     float xv[4], wv[4];
@@ -2671,7 +2671,7 @@ void quantize_row_iq4_ks(const float * x, void * y, int64_t k) {
            }
        }
     }
-} */
+}
 // }
 
 
@@ -5196,7 +5196,7 @@ void ggml_vec_dot_iq6_k_q8_K(int n, float * s, size_t bs, const void * vx, size_
 
 }
 
-/* void ggml_vec_dot_iq4_ks_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+void ggml_vec_dot_iq4_ks_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
     constexpr int kBlockSize = 32;
 #if GGML_USE_IQK_MULMAT
     if (iqk_mul_mat(1, 1, n, GGML_TYPE_IQ4_KS, vx, 0, GGML_TYPE_Q8_K, vy, 0, s, 0, 0, 1)) {
@@ -5250,7 +5250,7 @@ void ggml_vec_dot_iq4_kss_q8_K(int n, float * s, size_t bs, const void * vx, siz
     UNUSED(bs);
     UNUSED(bx);
     UNUSED(by);
-} */
+}
 
 // ======================================= iq2_kt
 
