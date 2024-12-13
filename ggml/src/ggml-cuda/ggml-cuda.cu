@@ -41,6 +41,8 @@ bool g_mul_mat_q = false;
 #include "ggml-cuda/upscale.cuh"
 #include "ggml-cuda/wkv6.cuh"
 
+// #include "ggml-cuda/iqk_mmvq.cuh"
+
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -3075,7 +3077,7 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
                     case GGML_TYPE_IQ4_KS:
                     case GGML_TYPE_IQ4_KSS:
                     case GGML_TYPE_IQ2_K:
-                    // case GGML_TYPE_IQ2_KS:
+                    case GGML_TYPE_IQ2_KS:
                     case GGML_TYPE_IQ2_KT:
                     case GGML_TYPE_IQ3_KT:
                     case GGML_TYPE_IQ4_KT:

@@ -894,21 +894,21 @@ void dequantize_row_iq2_k(const block_iq2_k  * GGML_RESTRICT x, float * GGML_RES
     // quantize_row_iq2_ks_ref(x, y, k);
 // }
 
-// size_t quantize_iq2_ks(const float * src, void * dst, int64_t nrows, int64_t n_per_row, const float * imatrix) {
-    // constexpr int kBlockSize = 32;
-    // GGML_ASSERT(n_per_row%QK_K == 0);
-    // auto row_size = ggml_row_size(GGML_TYPE_IQ2_KS, n_per_row);
-    // int nblock = n_per_row/QK_K;
-    // std::vector<float> all_scales(nblock*(QK_K/kBlockSize)), all_sw(nblock*(QK_K/kBlockSize));
-    // std::vector<int8_t> all_Ls(nblock*(QK_K/kBlockSize));
-    // char * qrow = (char *)dst;
-    // for (int64_t row = 0; row < nrows; ++row) {
-        // quantize_row_iq2_ks_impl(src, (void *)qrow, n_per_row, imatrix, all_scales.data(), all_sw.data(), all_Ls.data());
-        // src += n_per_row;
-        // qrow += row_size;
-    // }
-    // return nrows * row_size;
-// }
+/* size_t quantize_iq2_ks(const float * src, void * dst, int64_t nrows, int64_t n_per_row, const float * imatrix) {
+    constexpr int kBlockSize = 32;
+    GGML_ASSERT(n_per_row%QK_K == 0);
+    auto row_size = ggml_row_size(GGML_TYPE_IQ2_KS, n_per_row);
+    int nblock = n_per_row/QK_K;
+    std::vector<float> all_scales(nblock*(QK_K/kBlockSize)), all_sw(nblock*(QK_K/kBlockSize));
+    std::vector<int8_t> all_Ls(nblock*(QK_K/kBlockSize));
+    char * qrow = (char *)dst;
+    for (int64_t row = 0; row < nrows; ++row) {
+        quantize_row_iq2_ks_impl(src, (void *)qrow, n_per_row, imatrix, all_scales.data(), all_sw.data(), all_Ls.data());
+        src += n_per_row;
+        qrow += row_size;
+    }
+    return nrows * row_size;
+} */
 
 void dequantize_row_iq2_ks(const block_iq2_ks  * GGML_RESTRICT x, float * GGML_RESTRICT y, int64_t k) {
     assert(k % QK_K == 0);
@@ -4944,7 +4944,7 @@ void ggml_vec_dot_iq2_k_q8_K(int n, float * GGML_RESTRICT s, size_t bs, const vo
 
 }
 
-/* void ggml_vec_dot_iq2_ks_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+void ggml_vec_dot_iq2_ks_q8_K(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
     assert(n % QK_K == 0);
     assert(nrc == 1);
     UNUSED(nrc);
@@ -4995,8 +4995,7 @@ void ggml_vec_dot_iq2_k_q8_K(int n, float * GGML_RESTRICT s, size_t bs, const vo
     }
 
     *s = d * sumf;
-
-} */
+}
 
 void ggml_vec_dot_iq3_k_q8_K(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, size_t bx, const void * GGML_RESTRICT vy, size_t by, int nrc) {
     assert(n % QK_K == 0);

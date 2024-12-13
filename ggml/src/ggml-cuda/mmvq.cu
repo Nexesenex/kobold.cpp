@@ -1,6 +1,8 @@
 #include "mmvq.cuh"
 #include "vecdotq.cuh"
 
+// #include "iqk_mmvq.cuh"
+
 typedef float (*vec_dot_q_cuda_t)(const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs);
 
 static constexpr __device__ vec_dot_q_cuda_t get_vec_dot_q_cuda(ggml_type type) {
@@ -24,7 +26,7 @@ static constexpr __device__ vec_dot_q_cuda_t get_vec_dot_q_cuda(ggml_type type) 
         type == GGML_TYPE_IQ4_NL ? vec_dot_iq4_nl_q8_1 :
         type == GGML_TYPE_IQ4_XS ? vec_dot_iq4_xs_q8_1 :
         type == GGML_TYPE_IQ3_S ? vec_dot_iq3_s_q8_1 :
-        // type == GGML_TYPE_IQ2_KS ? vec_dot_iq2_ks_q8_1 :
+        type == GGML_TYPE_IQ2_KS ? vec_dot_iq2_ks_q8_1 :
         type == GGML_TYPE_IQ2_K ? vec_dot_iq2_k_q8_1 :
         type == GGML_TYPE_IQ3_K ? vec_dot_iq3_k_q8_1 :
         type == GGML_TYPE_IQ4_KSS ? vec_dot_iq4_kss_q8_1 :
@@ -32,7 +34,7 @@ static constexpr __device__ vec_dot_q_cuda_t get_vec_dot_q_cuda(ggml_type type) 
         type == GGML_TYPE_IQ4_K ? vec_dot_iq4_k_q8_1 :
         type == GGML_TYPE_IQ5_K ? vec_dot_iq5_k_q8_1 :
         type == GGML_TYPE_IQ6_K ? vec_dot_iq6_k_q8_1 :
-        // type == GGML_TYPE_IQ2_KT ? vec_dot_iq2_kt_q8_1 :
+        type == GGML_TYPE_IQ2_KT ? vec_dot_iq2_kt_q8_1 :
         // type == GGML_TYPE_IQ3_KT ? vec_dot_iq3_kt_q8_1 :
         // type == GGML_TYPE_IQ4_KT ? vec_dot_iq4_kt_q8_1 :
         // type == GGML_TYPE_IQ1_BN ? vec_dot_iq1_bn_q8_1 :
@@ -59,7 +61,7 @@ static constexpr __device__ int get_vdr_mmvq(ggml_type type) {
         type == GGML_TYPE_IQ3_S   ? VDR_IQ3_S_Q8_1_MMVQ :
         type == GGML_TYPE_IQ4_NL  ? VDR_IQ4_NL_Q8_1_MMVQ :
         type == GGML_TYPE_IQ4_XS  ? VDR_IQ4_XS_Q8_1_MMVQ :
-        // type == GGML_TYPE_IQ2_KS  ? VDR_IQ2_KS_Q8_1_MMVQ :
+        type == GGML_TYPE_IQ2_KS  ? VDR_IQ2_KS_Q8_1_MMVQ :
         type == GGML_TYPE_IQ2_K   ? VDR_IQ2_K_Q8_1_MMVQ :
         type == GGML_TYPE_IQ3_K   ? VDR_IQ3_K_Q8_1_MMVQ :
         type == GGML_TYPE_IQ4_KSS ? VDR_IQ4_KSS_Q8_1_MMVQ :
@@ -67,7 +69,7 @@ static constexpr __device__ int get_vdr_mmvq(ggml_type type) {
         type == GGML_TYPE_IQ4_K   ? VDR_IQ4_K_Q8_1_MMVQ :
         type == GGML_TYPE_IQ5_K   ? VDR_IQ5_K_Q8_1_MMVQ :
         type == GGML_TYPE_IQ6_K   ? VDR_IQ6_K_Q8_1_MMVQ :
-        // type == GGML_TYPE_IQ2_KT  ? VDR_IQ2_KT_Q8_1_MMVQ :
+        type == GGML_TYPE_IQ2_KT  ? VDR_IQ2_KT_Q8_1_MMVQ :
         // type == GGML_TYPE_IQ3_KT  ? VDR_IQ3_KT_Q8_1_MMVQ :
         // type == GGML_TYPE_IQ4_KT  ? VDR_IQ4_KT_Q8_1_MMVQ :
         // type == GGML_TYPE_IQ1_BN  ? VDR_IQ1_BN_Q8_1_MMVQ :
@@ -406,33 +408,33 @@ static void mul_mat_vec_iq4_kss_q8_1_cuda(
     mul_mat_vec_q_cuda<GGML_TYPE_IQ4_KSS>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
 }
 
-// static void mul_mat_vec_iq2_ks_q8_1_cuda(
-    // const void * vx, const void * vy, float * dst,
-    // const int ncols_x, const int nrows_x, const int nrows_y, const int ncols_y, const int nrows_dst, cudaStream_t stream) {
+static void mul_mat_vec_iq2_ks_q8_1_cuda(
+    const void * vx, const void * vy, float * dst,
+    const int ncols_x, const int nrows_x, const int nrows_y, const int ncols_y, const int nrows_dst, cudaStream_t stream) {
 
-    // mul_mat_vec_q_cuda<GGML_TYPE_IQ2_KS>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
-// }
+    mul_mat_vec_q_cuda<GGML_TYPE_IQ2_KS>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
+}
 
-// static void mul_mat_vec_iq2_kt_q8_1_cuda(
-    // const void * vx, const void * vy, float * dst,
-    // const int ncols_x, const int nrows_x, const int nrows_y, const int ncols_y, const int nrows_dst, cudaStream_t stream) {
+static void mul_mat_vec_iq2_kt_q8_1_cuda(
+    const void * vx, const void * vy, float * dst,
+    const int ncols_x, const int nrows_x, const int nrows_y, const int ncols_y, const int nrows_dst, cudaStream_t stream) {
 
-    // mul_mat_vec_q_cuda<GGML_TYPE_IQ2_KT>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
-// }
+    mul_mat_vec_q_cuda<GGML_TYPE_IQ2_KT>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
+}
 
-// static void mul_mat_vec_iq3_kt_q8_1_cuda(
-    // const void * vx, const void * vy, float * dst,
-    // const int ncols_x, const int nrows_x, const int nrows_y, const int ncols_y, const int nrows_dst, cudaStream_t stream) {
+static void mul_mat_vec_iq3_kt_q8_1_cuda(
+    const void * vx, const void * vy, float * dst,
+    const int ncols_x, const int nrows_x, const int nrows_y, const int ncols_y, const int nrows_dst, cudaStream_t stream) {
 
-    // mul_mat_vec_q_cuda<GGML_TYPE_IQ3_KT>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
-// }
+    mul_mat_vec_q_cuda<GGML_TYPE_IQ3_KT>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
+}
 
-// static void mul_mat_vec_iq4_kt_q8_1_cuda(
-    // const void * vx, const void * vy, float * dst,
-    // const int ncols_x, const int nrows_x, const int nrows_y, const int ncols_y, const int nrows_dst, cudaStream_t stream) {
+static void mul_mat_vec_iq4_kt_q8_1_cuda(
+    const void * vx, const void * vy, float * dst,
+    const int ncols_x, const int nrows_x, const int nrows_y, const int ncols_y, const int nrows_dst, cudaStream_t stream) {
 
-    // mul_mat_vec_q_cuda<GGML_TYPE_IQ4_KT>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
-// }
+    mul_mat_vec_q_cuda<GGML_TYPE_IQ4_KT>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
+}
 
 static void mul_mat_vec_iq5_k_q8_1_cuda(
     const void * vx, const void * vy, float * dst,
@@ -532,6 +534,12 @@ void ggml_cuda_op_mul_mat_vec_q(
         case GGML_TYPE_IQ1_M:
             mul_mat_vec_iq1_m_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
             break;
+        // case GGML_TYPE_IQ1_BN:
+            // mul_mat_vec_iq1_bn_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
+            // break;
+        // case GGML_TYPE_IQ2_BN:
+            // mul_mat_vec_iq2_bn_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
+            // break;
         case GGML_TYPE_IQ4_NL:
             mul_mat_vec_iq4_nl_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
             break;
@@ -553,9 +561,12 @@ void ggml_cuda_op_mul_mat_vec_q(
         case GGML_TYPE_IQ4_KSS:
             mul_mat_vec_iq4_kss_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
             break;
-        // case GGML_TYPE_IQ2_KS:
-            // mul_mat_vec_iq2_ks_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
-            // break;
+        case GGML_TYPE_IQ2_KS:
+            mul_mat_vec_iq2_ks_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
+            break;
+        //case GGML_TYPE_IQ2_KT:
+        //    mul_mat_vec_iq2_kt_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
+        //    break;
         case GGML_TYPE_IQ5_K:
             mul_mat_vec_iq5_k_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
             break;
@@ -565,21 +576,6 @@ void ggml_cuda_op_mul_mat_vec_q(
         case GGML_TYPE_IQ3_S:
             mul_mat_vec_iq3_s_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
             break;
-        // case GGML_TYPE_IQ2_KT:
-            // mul_mat_vec_iq2_kt_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
-            // break;
-        // case GGML_TYPE_IQ3_KT:
-            // mul_mat_vec_iq3_kt_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
-            // break;
-        // case GGML_TYPE_IQ4_KT:
-            // mul_mat_vec_iq4_kt_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
-            // break;
-        // case GGML_TYPE_IQ1_BN:
-            // mul_mat_vec_iq1_bn_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
-            // break;
-        // case GGML_TYPE_IQ2_BN:
-            // mul_mat_vec_iq2_bn_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
-            // break;
         default:
             GGML_ABORT("fatal error");
             break;
@@ -620,10 +616,8 @@ bool ggml_cuda_mmvq_type_supported(ggml_type src0_type) {
         case GGML_TYPE_IQ4_K:
         case GGML_TYPE_IQ4_KS:
         case GGML_TYPE_IQ4_KSS:
-        // case GGML_TYPE_IQ2_KS:
+        case GGML_TYPE_IQ2_KS:
         // case GGML_TYPE_IQ2_KT:
-        // case GGML_TYPE_IQ3_KT:
-        // case GGML_TYPE_IQ4_KT:
         case GGML_TYPE_IQ5_K:
         case GGML_TYPE_IQ6_K:
         case GGML_TYPE_IQ3_S:
