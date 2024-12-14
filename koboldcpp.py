@@ -3239,7 +3239,7 @@ def show_gui():
                     ctk.set_widget_scaling(smallratio)
                     changerunmode(1,1,1)
                     togglerope(1,1,1)
-                    toggleflashattn(1,1,1)
+                    # toggleflashattn(1,1,1)
                     togglectxshift(1,1,1)
                     togglehorde(1,1,1)
                     togglesdquant(1,1,1)
@@ -3632,24 +3632,24 @@ def show_gui():
             fastforward.set(1)
             smartcontextbox.grid_remove()
 
-        if contextshift.get()==0 and flashattention.get()==1:
-            qkvslider.grid()
-            qkvlabel.grid()
-            noqkvlabel.grid_remove()
-        else:
-            qkvslider.grid_remove()
-            qkvlabel.grid_remove()
-            noqkvlabel.grid()
+        # if contextshift.get()==0 and flashattention.get()==1:
+            # qkvslider.grid()
+            # qkvlabel.grid()
+            # noqkvlabel.grid_remove()
+        # else:
+            # qkvslider.grid_remove()
+            # qkvlabel.grid_remove()
+            # noqkvlabel.grid()
 
-    def toggleflashattn(a,b,c):
-        if contextshift.get()==0 and flashattention.get()==1:
-            qkvslider.grid()
-            qkvlabel.grid()
-            noqkvlabel.grid_remove()
-        else:
-            qkvslider.grid_remove()
-            qkvlabel.grid_remove()
-            noqkvlabel.grid()
+    # def toggleflashattn(a,b,c):
+        # if contextshift.get()==0 and flashattention.get()==1:
+            # qkvslider.grid()
+            # qkvlabel.grid()
+            # noqkvlabel.grid_remove()
+        # else:
+            # qkvslider.grid_remove()
+            # qkvlabel.grid_remove()
+            # noqkvlabel.grid()
 
 
     def guibench():
@@ -3880,9 +3880,10 @@ def show_gui():
             else:
                 item.grid_remove()
     makecheckbox(tokens_tab,  "Custom RoPE Config", variable=customrope_var, row=22, command=togglerope,tooltiptxt="Override the default RoPE configuration with custom RoPE scaling.")
-    makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, command=toggleflashattn,  tooltiptxt="Enable flash attention for GGUF models.")
-    noqkvlabel = makelabel(tokens_tab,"Requirments Not Met",31,0,"Requires FlashAttention ENABLED and ContextShift DISABLED.")
-    noqkvlabel.configure(text_color="#ff5555")
+    # makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, command=toggleflashattn,  tooltiptxt="Enable flash attention for GGUF models.")
+    makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28,  tooltiptxt="Enable flash attention for GGUF models.")
+    # noqkvlabel = makelabel(tokens_tab,"Requirments Not Met",31,0,"Requires FlashAttention ENABLED and ContextShift DISABLED.")
+    # noqkvlabel.configure(text_color="#ff5555")
     qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 22, 30, set=0,tooltip="Enable quantization of KV cache (KVQ). Mode 0 (F16) is default. Modes 1-12 requires FlashAttention and disables ContextShift.\nModes 15-20 work without FA, for incompatible models. 0,13,14 can work with or without.")
 
     # load model
@@ -3891,7 +3892,7 @@ def show_gui():
     makelabelentry(tokens_tab, "MoE Experts:", moeexperts_var, row=35, padx=100, singleline=True, tooltip="Override number of MoE experts.")
 
     togglerope(1,1,1)
-    toggleflashattn(1,1,1)
+    # toggleflashattn(1,1,1)
     togglectxshift(1,1,1)
 
     # Model Tab
@@ -4100,10 +4101,12 @@ def show_gui():
         args.poslayeroffset = int(poslayeroffset_values[int(poslayeroffset_var.get())])
         args.neglayeroffset = int(neglayeroffset_values[int(neglayeroffset_var.get())])
 
-        if contextshift.get()==0 and flashattention.get()==1:
-            args.quantkv = quantkv_var.get()
-        else:
-            args.quantkv = 0 
+        # if contextshift.get()==0 and flashattention.get()==1:
+            # args.quantkv = quantkv_var.get()
+        # else:
+            # args.quantkv = 0
+
+        args.quantkv = quantkv_var.get() 
 
         gpuchoiceidx = 0
         args.usecpu = False
