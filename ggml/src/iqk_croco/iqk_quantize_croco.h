@@ -4,7 +4,7 @@
 #include <stddef.h>
 
 #define GGML_COMMON_DECL_C
-#include "ggml-common_ik_into_mainline.h"
+#include "ggml-common.h"
 
 #ifdef __cplusplus
 #define GGML_RESTRICT
