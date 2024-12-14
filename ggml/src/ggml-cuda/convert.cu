@@ -1099,25 +1099,25 @@ static void dequantize_row_iq4_kss_cuda(const void * vx, dst_t * y, const int64_
     // dequantize_block_iq4_kss<<<nb, 32, 0, stream>>>(vx, y, n_per_row, row_size);
 // }
 
-template<typename dst_t>
-static void dequantize_row_iq2_ks_cuda(const void * vx, dst_t * y, const int64_t k, cudaStream_t stream) {
-    const int nb = (k + QK_K - 1) / QK_K;
-    dequantize_block_iq2_ks<<<nb, 32, 0, stream>>>(vx, y, n_per_row, row_size);
-}
-
-
-
-// static void dequantize_row_iq2_ks_cuda(const void * vx, dst_t * y, const int64_t nrows, const int64_t n_per_row, cudaStream_t stream) {
-    // const int64_t k = nrows * n_per_row;
-    // const int64_t row_size = ggml_row_size(GGML_TYPE_IQ2_KS, n_per_row);
+// template<typename dst_t>
+// static void dequantize_row_iq2_ks_cuda(const void * vx, dst_t * y, const int64_t k, cudaStream_t stream) {
     // const int nb = (k + QK_K - 1) / QK_K;
     // dequantize_block_iq2_ks<<<nb, 32, 0, stream>>>(vx, y, n_per_row, row_size);
 // }
 
+
+
+static void dequantize_row_iq2_ks_cuda(const void * vx, dst_t * y, const int64_t nrows, const int64_t n_per_row, cudaStream_t stream) {
+    const int64_t k = nrows * n_per_row;
+    const int64_t row_size = ggml_row_size(GGML_TYPE_IQ2_KS, n_per_row);
+    const int nb = (k + QK_K - 1) / QK_K;
+    dequantize_block_iq2_ks<<<nb, 32, 0, stream>>>(vx, y, n_per_row, row_size);
+}
+
 template<typename dst_t>
 static void dequantize_row_iq2_k_cuda(const void * vx, dst_t * y, const int64_t nrows, const int64_t n_per_row, cudaStream_t stream) {
     const int64_t k = nrows * n_per_row;
-    const int64_t row_size = ggml_row_size(GGML_TYPE_IQ2_K, n_per_row);
+    // const int64_t row_size = ggml_row_size(GGML_TYPE_IQ2_K, n_per_row);
     const int nb = (k + QK_K - 1) / QK_K;
 
     dequantize_block_iq2_k<<<nb, 32, 0, stream>>>(vx, y);
