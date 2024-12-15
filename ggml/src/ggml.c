@@ -1159,6 +1159,7 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
     "RMS_NORM_BACK",
     "GROUP_NORM",
     "FUSED_RMS_NORM",
+    "FUSED_MUL_UNARY",
 
     "MUL_MAT",
     "MUL_MAT_ID",
@@ -1227,7 +1228,7 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
     "OPT_STEP_ADAMW",
 };
 
-static_assert(GGML_OP_COUNT == 85, "GGML_OP_COUNT != 85");
+static_assert(GGML_OP_COUNT == 86, "GGML_OP_COUNT != 86");
 
 static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "none",
@@ -1258,6 +1259,7 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "rms_norm_back(x)",
     "group_norm(x)",
     "fused_rms_norm(x)",
+    "fused_mul_unary(x)",
 
     "X*Y",
     "X[i]*Y",
@@ -1326,7 +1328,7 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "adamw(x)",
 };
 
-static_assert(GGML_OP_COUNT == 85, "GGML_OP_COUNT != 85");
+static_assert(GGML_OP_COUNT == 86, "GGML_OP_COUNT != 86");
 
 static_assert(GGML_OP_POOL_COUNT == 2, "GGML_OP_POOL_COUNT != 2");
 
@@ -2316,6 +2318,56 @@ struct ggml_tensor * ggml_mul_inplace(
         struct ggml_tensor  * a,
         struct ggml_tensor  * b) {
     return ggml_mul_impl(ctx, a, b, true);
+}
+
+// ggml_fused_mul
+
+static struct ggml_tensor * ggml_fused_mul_unary_impl(
+        struct ggml_context * ctx,
+        struct ggml_tensor * a,
+        struct ggml_tensor * b,
+        enum ggml_unary_op   op,
+        bool inplace) {
+    assert(ggml_are_same_shape(b, a));
+    assert(ggml_is_contiguous(a));
+    assert(op == GGML_UNARY_OP_GELU || op == GGML_UNARY_OP_RELU || op == GGML_UNARY_OP_SILU);
+
+    // bool is_node = false;
+
+    // if (!inplace && (a->grad || b->grad)) {
+        // is_node = true;
+    // }
+
+    // if (inplace) {
+        // GGML_ASSERT(!is_node);
+    // }
+
+    struct ggml_tensor * result = inplace ? ggml_view_tensor(ctx, a) : ggml_dup_tensor(ctx, a);
+
+    ggml_set_op_params_i32(result, 0, (int32_t) op);
+
+    result->op   = GGML_OP_FUSED_MUL_UNARY;
+    // result->grad = is_node ? ggml_dup_tensor(ctx, result) : NULL;
+    result->src[0] = a;
+    result->src[1] = b;
+
+    return result;
+}
+
+struct ggml_tensor * ggml_fused_mul_unary(
+        struct ggml_context * ctx,
+        struct ggml_tensor  * a,
+        struct ggml_tensor  * b,
+        enum ggml_unary_op op) {
+    return ggml_fused_mul_unary_impl(ctx, a, b, op, false);
+}
+
+struct ggml_tensor * ggml_fused_mul_unary_inplace(
+        struct ggml_context * ctx,
+        struct ggml_tensor  * a,
+        struct ggml_tensor  * b,
+        enum ggml_unary_op op) {
+    return ggml_fused_mul_unary_impl(ctx, a, b, op, true);
 }
 
 // ggml_div

@@ -1139,13 +1139,12 @@ static bool ggml_metal_supports_op(const struct ggml_backend_metal_device_contex
         case GGML_OP_SOFTCAP:
             return true; //ggml_is_contiguous(op->src[0]) && ggml_is_contiguous(op);
         case GGML_OP_SOFT_MAX:
-        case GGML_OP_RMS_NORM:
-        case GGML_OP_FUSED_RMS_NORM:
         case GGML_OP_GROUP_NORM:
             return has_simdgroup_reduction;
         case GGML_OP_RMS_NORM:
             return has_simdgroup_reduction && (op->ne[0] % 4 == 0);
         case GGML_OP_ARGMAX:
+        case GGML_OP_FUSED_RMS_NORM:
         case GGML_OP_NORM:
             return true;
         case GGML_OP_ROPE:

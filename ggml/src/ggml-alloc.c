@@ -46,6 +46,7 @@ static bool ggml_op_can_inplace(enum ggml_op op) {
         case GGML_OP_ADD1:
         case GGML_OP_SUB:
         case GGML_OP_MUL:
+        case GGML_OP_FUSED_MUL_UNARY:
         case GGML_OP_DIV:
         case GGML_OP_SQR:
         case GGML_OP_SQRT:
