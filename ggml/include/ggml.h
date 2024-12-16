@@ -400,10 +400,10 @@ extern "C" {
         GGML_TYPE_IQ4_NL_4_4 = 36, //deprecated upstream
         // GGML_TYPE_IQ4_NL_4_8 = 37,
         // GGML_TYPE_IQ4_NL_8_8 = 38,
-        GGML_TYPE_COUNT   = 39,
+        // GGML_TYPE_COUNT   = 39,
         //
         GGML_TYPE_Q6_0    = 133,
-        // GGML_TYPE_COUNT,
+        GGML_TYPE_COUNT,
     };
 
     // precision

@@ -6,7 +6,7 @@
 #include "ggml-impl_ik.h"
 #include "ggml-quants_ik.h"
 #include "ggml_ik.h"
-#include "ggml-aarch64.h"
+#include "ggml-cpu-aarch64.h"
 #include "iqk/iqk_mul_mat.h"
 #elif GGML_USE_LLAMA_CPP_MAINLINE
 #include "ggml-backend.h"
@@ -17,7 +17,7 @@
 
 // FIXME: required here for quantization functions
 #include "ggml-quants.h"
-#include "ggml-aarch64.h"
+#include "ggml-cpu-aarch64.h"
 #else
 #include "ggml-backend.h"
 #include "ggml-impl.h"
@@ -25,7 +25,8 @@
 #include "ggml-threading.h"
 #include "ggml.h"
 #include "ggml-quants.h"
-#include "ggml-aarch64.h"
+#include "ggml-cpu-aarch64.h"
+#endif
 
 #ifdef GGML_USE_CPU_HBM
 #include <hbwmalloc.h>
