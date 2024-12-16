@@ -1,5 +1,6 @@
 #!/bin/bash
-
+chmod +x "./create_ver_file.sh"
+. create_ver_file.sh
 pyinstaller --noconfirm --onefile --clean --console --collect-all customtkinter --collect-all psutil --icon "./niko.ico" \
 --add-data "./kcpp_adapters:./kcpp_adapters" \
 --add-data "./koboldcpp.py:." \
@@ -17,4 +18,5 @@ pyinstaller --noconfirm --onefile --clean --console --collect-all customtkinter 
 --add-data "./koboldcpp_vulkan.so:." \
 --add-data "./rwkv_vocab.embd:." \
 --add-data "./rwkv_world_vocab.embd:." \
+--version-file "./version.txt" \
 "./koboldcpp.py" -n "koboldcpp"

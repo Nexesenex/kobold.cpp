@@ -89,7 +89,7 @@
                             "type": "integer"
                          },
                          "stop_sequence": {
-                            "description": "An array of string sequences where the API will stop generating further tokens. The returned text WILL contain the stop sequence.",
+                            "description": "An array of string sequences where the API will stop generating further tokens. The returned text WILL contain the stop sequence if trim_stop is false.",
                             "items": {
                                "type": "string"
                             },
@@ -197,8 +197,8 @@
                             }
                          },
                          "trim_stop": {
-                            "default": false,
-                            "description": "KoboldCpp ONLY. If true, also removes detected stop_sequences from the output and truncates all text after them.",
+                            "default": true,
+                            "description": "KoboldCpp ONLY. If true, also removes detected stop_sequences from the output and truncates all text after them. If false, output will also include stop sequence and potentially a few additional characters.",
                             "type": "boolean"
                          },
                          "render_special": {
@@ -411,7 +411,7 @@
              "info": {
                 "title": "KoboldCpp API",
                 "description": "For swagger.json, <a href=\"?json=1\">click here</a>.",
-                "version": "1.61"
+                "version": "1.79"
              },
              "openapi": "3.0.3",
              "paths": {
@@ -610,10 +610,12 @@
                                "application/json": {
                                   "example": {
                                      "result": "KoboldCpp",
-                                     "version": "1.61",
+                                     "version": "1.79",
                                      "protected": false,
                                      "txt2img": false,
-                                     "vision": false
+                                     "vision": false,
+                                     "transcribe":false,
+                                     "multiplayer": false,
                                   },
                                   "schema": {
                                      "$ref": "#/components/schemas/KcppVersion"
@@ -679,6 +681,147 @@
                       },
                       "description": "Retrieve the KoboldCpp recent performance information",
                       "summary": "Retrieve the KoboldCpp recent performance information",
+                      "tags": [
+                         "api/extra"
+                      ]
+                   }
+                },
+                "/api/extra/multiplayer/status": {
+                   "post": {
+                     "requestBody": {
+                         "content": {
+                            "application/json": {
+                               "example": {
+                                  "sender": "KCPP_1234",
+                                  "senderbusy": true,
+                               },
+                               "schema": {
+                                  "properties": {
+                                     "senderbusy": {
+                                        "type": "boolean"
+                                     },
+                                     "sender": {
+                                        "type": "string"
+                                     }
+                                  },
+                                  "type": "object"
+                               }
+                            }
+                         },
+                         "required": false
+                      },
+                      "responses": {
+                         "200": {
+                            "content": {
+                               "application/json": {
+                                  "example": {"turn_major": 0, "turn_minor": 0, "idle": 1, "data_format":""},
+                                  "schema": {
+                                    "properties": {
+                                       "turn_major": {"type": "string"},
+                                       "turn_minor": {"type": "string"},
+                                       "idle": {"type": "number"},
+                                       "data_format": {"type": "string"},
+                                    },
+                                    "type": "object"
+                                 }
+                               }
+                            },
+                            "description": "Successful request"
+                         }
+                      },
+                      "description": "Fetches the current multiplayer turn information. Only useful for Multiplayer sessions in KoboldAI Lite.",
+                      "summary": "Fetches the current multiplayer turn information.",
+                      "tags": [
+                         "api/extra"
+                      ]
+                   }
+                },
+                "/api/extra/multiplayer/getstory": {
+                   "post": {
+                      "responses": {
+                         "200": {
+                            "content": {
+                              "text/plain": {
+                                 "schema": {
+                                    "type": "string",
+                                    "example": "base64_lzma_str"
+                                 }
+                              }
+                            },
+                            "description": "Successful request"
+                         }
+                      },
+                      "description": "Fetches the current multiplayer story data, LZMA compressed encoded base64. Data is usually in the same format is KAI Lite compressed savefiles.",
+                      "summary": "Fetches the current multiplayer story data, LZMA compressed encoded base64",
+                      "tags": [
+                         "api/extra"
+                      ]
+                   }
+                },
+                "/api/extra/multiplayer/setstory": {
+                   "post": {
+                      "description": "Sets the current multiplayer story and increments the turn.",
+                      "requestBody": {
+                         "content": {
+                            "application/json": {
+                               "example": {
+                                  "full_update": true,
+                                  "sender": "LITE_UID_123456",
+                                  "data_format": "kcpp_lzma_b64",
+                                  "data": "base64_lzma_str",
+                               },
+                               "schema": {
+                                  "properties": {
+                                     "full_update": {
+                                        "type": "boolean"
+                                     },
+                                     "sender": {
+                                        "type": "string"
+                                     },
+                                     "data_format": {
+                                        "type": "string"
+                                     },
+                                     "data": {
+                                        "type": "string"
+                                     }
+                                  },
+                                  "type": "object"
+                               }
+                            }
+                         },
+                         "required": false
+                      },
+                      "responses": {
+                         "200": {
+                            "content": {
+                               "application/json": {
+                                  "example": {
+                                     "results": [
+                                        {
+                                          "success": true,
+                                          "turn_major": 1,
+                                          "turn_minor": 0,
+                                          "idle": 1,
+                                          "data_format":"",
+                                        }
+                                     ]
+                                  },
+                                  "schema": {
+                                    "properties": {
+                                       "success": {"type": "boolean"},
+                                       "turn_major": {"type": "string"},
+                                       "turn_minor": {"type": "string"},
+                                       "idle": {"type": "number"},
+                                       "data_format": {"type": "string"},
+                                    },
+                                    "type": "object"
+                                 }
+                               }
+                            },
+                            "description": "Successful request"
+                         }
+                      },
+                      "summary": "Sets the current multiplayer story and increments the turn.",
                       "tags": [
                          "api/extra"
                       ]
@@ -1027,7 +1170,7 @@
                 },
                 "/api/extra/tokencount": {
                    "post": {
-                      "description": "Counts the number of tokens in a string.",
+                      "description": "Counts the number of tokens in a string, and returns their token IDs. Also aliased to /api/extra/tokenize",
                       "requestBody": {
                          "content": {
                             "application/json": {
@@ -1066,14 +1209,80 @@
                                      ]
                                   },
                                   "schema": {
-                                     "$ref": "#/components/schemas/ValueResult"
-                                  }
+                                    "properties": {
+                                       "value": {
+                                          "type": "number"
+                                       },
+                                       "ids": {
+                                          "type": "array",
+                                          "items": {
+                                             "type": "integer"
+                                          }
+                                       }
+                                    },
+                                    "type": "object"
+                                 }
                                }
                             },
                             "description": "Successful request"
                          }
                       },
                       "summary": "Counts the number of tokens in a string.",
+                      "tags": [
+                         "api/extra"
+                      ]
+                   }
+                },
+                "/api/extra/detokenize": {
+                   "post": {
+                      "description": "Converts an array of token IDs into a string.",
+                      "requestBody": {
+                         "content": {
+                            "application/json": {
+                               "example": {
+                                  "ids": [529,29989,5205,29989,29958,13]
+                               },
+                               "schema": {
+                                  "properties": {
+                                     "ids": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "number"
+                                       }
+                                     }
+                                  },
+                                  "type": "object"
+                               }
+                            }
+                         },
+                         "required": true
+                      },
+                      "responses": {
+                         "200": {
+                            "content": {
+                               "application/json": {
+                                  "example": {
+                                     "result": "<|system|>\n",
+                                     "success": true
+                                  },
+                                  "schema": {
+                                    "properties": {
+                                       "result": {
+                                          "type": "string",
+                                          "description": "The detokenized string."
+                                       },
+                                       "success": {
+                                          "type": "boolean"
+                                       }
+                                    },
+                                    "type": "object"
+                                 }
+                               }
+                            },
+                            "description": "Successful request"
+                         }
+                      },
+                      "summary": "Converts an array of token IDs into a string.",
                       "tags": [
                          "api/extra"
                       ]
@@ -1569,7 +1778,6 @@
              ]
           };
    </script>
-
 
    <script>
       //self destruct into json if requested

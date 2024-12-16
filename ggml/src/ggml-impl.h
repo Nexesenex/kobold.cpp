@@ -14,7 +14,7 @@
 #include <arm_sve.h>
 #endif // __ARM_FEATURE_SVE
 
-#if defined(__ARM_NEON)
+#if defined(__ARM_NEON) && !defined(__CUDACC__)
 // if YCM cannot find <arm_neon.h>, make a symbolic link to it, for example:
 //
 //   $ ln -sfn /Library/Developer/CommandLineTools/usr/lib/clang/13.1.6/include/arm_neon.h ./src/
@@ -30,11 +30,13 @@
 extern "C" {
 #endif
 
-#undef MIN
-#undef MAX
+#ifndef MIN
+#    define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
 
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#ifndef MAX
+#    define MAX(a, b) ((a) > (b) ? (a) : (b))
+#endif
 
 // required for mmap as gguf only guarantees 32-byte alignment
 #define TENSOR_ALIGNMENT 32
@@ -72,8 +74,8 @@ static inline int ggml_up(int n, int m) {
 //
 
 GGML_ATTRIBUTE_FORMAT(2, 3)
-void ggml_log_internal        (enum ggml_log_level level, const char * format, ...);
-void ggml_log_callback_default(enum ggml_log_level level, const char * text, void * user_data);
+GGML_API void ggml_log_internal        (enum ggml_log_level level, const char * format, ...);
+GGML_API void ggml_log_callback_default(enum ggml_log_level level, const char * text, void * user_data);
 
 #define GGML_LOG(...)       ggml_log_internal(GGML_LOG_LEVEL_NONE , __VA_ARGS__)
 #define GGML_LOG_INFO(...)  ggml_log_internal(GGML_LOG_LEVEL_INFO , __VA_ARGS__)
@@ -196,7 +198,7 @@ void ggml_hash_set_reset(struct ggml_hash_set * hash_set);
 static bool ggml_hash_contains(const struct ggml_hash_set * hash_set, struct ggml_tensor * key);
 
 // returns GGML_HASHSET_FULL if table is full, otherwise the current index of the key or where it should be inserted
-static size_t ggml_hash_find(const struct ggml_hash_set * hash_set, struct ggml_tensor * key);
+static size_t ggml_hash_find(const struct ggml_hash_set * hash_set, const struct ggml_tensor * key);
 
 // returns GGML_HASHSET_ALREADY_EXISTS if key already exists, index otherwise, asserts if table is full
 static size_t ggml_hash_insert(struct ggml_hash_set * hash_set, struct ggml_tensor * key);
@@ -210,7 +212,7 @@ static inline size_t ggml_hash(const struct ggml_tensor * p) {
     return (size_t)(uintptr_t)p >> 4;
 }
 
-static size_t ggml_hash_find(const struct ggml_hash_set * hash_set, struct ggml_tensor * key) {
+static size_t ggml_hash_find(const struct ggml_hash_set * hash_set, const struct ggml_tensor * key) {
     size_t h = ggml_hash(key) % hash_set->size;
 
     // linear probing
@@ -281,37 +283,41 @@ enum ggml_cgraph_eval_order {
 };
 
 struct ggml_cgraph {
-    int size;
-    int n_nodes;
-    int n_leafs;
+    int size;    // maximum number of nodes/leafs/grads/grad_accs
+    int n_nodes; // number of nodes currently in use
+    int n_leafs; // number of leafs currently in use
 
-    struct ggml_tensor ** nodes;
-    struct ggml_tensor ** grads;
-    struct ggml_tensor ** leafs;
+    struct ggml_tensor ** nodes;     // tensors with data that can change if the graph is evaluated
+    struct ggml_tensor ** grads;     // the outputs of these tensors are the gradients of the nodes
+    struct ggml_tensor ** grad_accs; // accumulators for node gradients
+    struct ggml_tensor ** leafs;     // tensors with constant data
 
     struct ggml_hash_set visited_hash_set;
 
     enum ggml_cgraph_eval_order order;
 };
 
+// returns a slice of cgraph with nodes [i0, i1)
+// the slice does not have leafs or gradients
+// if you need the gradients, get them from the original graph
 struct ggml_cgraph ggml_graph_view(struct ggml_cgraph * cgraph, int i0, int i1);
 
 // Memory allocation
 
-void * ggml_aligned_malloc(size_t size);
-void ggml_aligned_free(void * ptr, size_t size);
+GGML_API void * ggml_aligned_malloc(size_t size);
+GGML_API void ggml_aligned_free(void * ptr, size_t size);
 
 // FP16 to FP32 conversion
 
 #if defined(__ARM_NEON)
-    #ifdef _MSC_VER
+    #if defined(_MSC_VER) || (defined(__CUDACC__) && __CUDACC_VER_MAJOR__ <= 11)
         typedef uint16_t ggml_fp16_internal_t;
     #else
         typedef __fp16 ggml_fp16_internal_t;
     #endif
 #endif
 
-#if defined(__ARM_NEON) && !defined(_MSC_VER)
+#if defined(__ARM_NEON) && !defined(_MSC_VER) && !(defined(__CUDACC__) && __CUDACC_VER_MAJOR__ <= 11)
     #define GGML_COMPUTE_FP16_TO_FP32(x) ggml_compute_fp16_to_fp32(x)
     #define GGML_COMPUTE_FP32_TO_FP16(x) ggml_compute_fp32_to_fp16(x)
 

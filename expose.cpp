@@ -35,6 +35,7 @@ extern "C"
         lora_filename = inputs.lora_filename;
         lora_base = inputs.lora_base;
         mmproj_filename = inputs.mmproj_filename;
+        draftmodel_filename = inputs.draftmodel_filename;
 
         int forceversion = inputs.forceversion;
 
@@ -275,6 +276,12 @@ extern "C"
         return (int)last_stop_reason;
     }
 
+    static std::string chat_template = "";
+    const char* get_chat_template() {
+        chat_template = gpttype_get_chat_template();
+        return chat_template.c_str();
+    }
+
     const char* get_pending_output() {
        return gpttype_get_pending_output().c_str();
     }
@@ -292,6 +299,18 @@ extern "C"
         output.count = toks.size();
         output.ids = toks.data(); //this may be slightly unsafe
         return output;
+    }
+
+    static std::string detokenized_str = ""; //just share a static object for detokenizing
+    const char * detokenize(const token_count_outputs input)
+    {
+        std::vector<int> input_arr;
+        for(int i=0;i<input.count;++i)
+        {
+            input_arr.push_back(input.ids[i]);
+        }
+        detokenized_str = gpttype_detokenize(input_arr,false);
+        return detokenized_str.c_str();
     }
 
     static std::vector<TopPicksData> last_logprob_toppicks;

@@ -40,6 +40,10 @@ struct load_model_inputs
     const char * model_filename = nullptr;
     const char * lora_filename = nullptr;
     const char * lora_base = nullptr;
+    const char * draftmodel_filename = nullptr;
+    const int draft_amount = 8;
+    const int draft_gpulayers = 999;
+    const float draft_gpusplit[tensor_split_max] = {};
     const char * mmproj_filename = nullptr;
     const bool use_mmap = false;
     const bool use_mlock = false;
@@ -56,6 +60,7 @@ struct load_model_inputs
     const int gpulayers = 0;
     const float rope_freq_scale = 1.0f;
     const float rope_freq_base = 10000.0f;
+    const int moe_experts = -1;
     const bool flash_attention = false;
     const float tensor_split[tensor_split_max] = {};
     const int quant_k = 0;
@@ -186,6 +191,7 @@ struct whisper_generation_inputs
 {
     const char * prompt = nullptr;
     const char * audio_data = nullptr;
+    const bool suppress_non_speech = false;
     const bool quiet = false;
 };
 struct whisper_generation_outputs
@@ -198,6 +204,7 @@ extern std::string executable_path;
 extern std::string lora_filename;
 extern std::string lora_base;
 extern std::string mmproj_filename;
+extern std::string draftmodel_filename;
 extern std::vector<std::string> generated_tokens;
 extern bool generation_finished;
 extern float last_eval_time;

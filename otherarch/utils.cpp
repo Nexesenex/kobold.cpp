@@ -8,6 +8,7 @@
 #include <locale>
 #include <codecvt>
 #include <sstream>
+#include <ctime>
 
 
 void utreplace(std::string & str, const std::string & needle, const std::string & replacement) {
@@ -301,4 +302,15 @@ std::vector<uint8_t> kcpp_base64_decode(const std::string & encoded_string)
     }
 
     return ret;
+}
+
+std::string get_timestamp_str()
+{
+    std::time_t t = std::time(nullptr);
+    std::tm* now = std::localtime(&t);
+    char buffer[16]; // Buffer to hold "hh:mm:ss" and null terminator
+    std::sprintf(buffer, "%02d:%02d:%02d", now->tm_hour, now->tm_min, now->tm_sec);
+    // Convert the buffer to a std::string
+    std::string timestamp(buffer);
+    return timestamp;
 }

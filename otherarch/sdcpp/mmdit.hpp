@@ -147,8 +147,9 @@ protected:
     int64_t hidden_size;
     float eps;
 
-    void init_params(struct ggml_context* ctx, ggml_type wtype) {
-        params["weight"] = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, hidden_size);
+    void init_params(struct ggml_context* ctx, std::map<std::string, enum ggml_type>& tensor_types, std::string prefix = "") {
+        enum ggml_type wtype = GGML_TYPE_F32;  //(tensor_types.find(prefix + "weight") != tensor_types.end()) ? tensor_types[prefix + "weight"] : GGML_TYPE_F32;
+        params["weight"]     = ggml_new_tensor_1d(ctx, wtype, hidden_size);
     }
 
 public:
@@ -636,7 +637,6 @@ public:
 struct MMDiT : public GGMLBlock {
     // Diffusion model with a Transformer backbone.
 protected:
-    SDVersion version                = VERSION_SD3_2B;
     int64_t input_size               = -1;
     int64_t patch_size               = 2;
     int64_t in_channels              = 16;
@@ -652,13 +652,13 @@ protected:
     int64_t hidden_size;
     std::string qk_norm;
 
-    void init_params(struct ggml_context* ctx, ggml_type wtype) {
-        params["pos_embed"] = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, hidden_size, num_patchs, 1);
+    void init_params(struct ggml_context* ctx, std::map<std::string, enum ggml_type>& tensor_types, std::string prefix = "") {
+        enum ggml_type wtype = GGML_TYPE_F32;  //(tensor_types.find(prefix + "pos_embed") != tensor_types.end()) ? tensor_types[prefix + "pos_embed"] : GGML_TYPE_F32;
+        params["pos_embed"]  = ggml_new_tensor_3d(ctx, wtype, hidden_size, num_patchs, 1);
     }
 
 public:
-    MMDiT(SDVersion version = VERSION_SD3_2B)
-        : version(version) {
+    MMDiT(std::map<std::string, enum ggml_type>& tensor_types) {
         // input_size is always None
         // learn_sigma is always False
         // register_length is alwalys 0
@@ -670,48 +670,44 @@ public:
         // pos_embed_scaling_factor is not used
         // pos_embed_offset is not used
         // context_embedder_config is always {'target': 'torch.nn.Linear', 'params': {'in_features': 4096, 'out_features': 1536}}
-        if (version == VERSION_SD3_2B) {
-            input_size               = -1;
-            patch_size               = 2;
-            in_channels              = 16;
-            depth                    = 24;
-            mlp_ratio                = 4.0f;
-            adm_in_channels          = 2048;
-            out_channels             = 16;
-            pos_embed_max_size       = 192;
-            num_patchs               = 36864;  // 192 * 192
-            context_size             = 4096;
-            context_embedder_out_dim = 1536;
-        } else if (version == VERSION_SD3_5_8B) {
-            input_size               = -1;
-            patch_size               = 2;
-            in_channels              = 16;
-            depth                    = 38;
-            mlp_ratio                = 4.0f;
-            adm_in_channels          = 2048;
-            out_channels             = 16;
-            pos_embed_max_size       = 192;
-            num_patchs               = 36864;  // 192 * 192
-            context_size             = 4096;
-            context_embedder_out_dim = 2432;
-            qk_norm                  = "rms";
-        } else if (version == VERSION_SD3_5_2B) {
-            input_size               = -1;
-            patch_size               = 2;
-            in_channels              = 16;
-            depth                    = 24;
-            d_self                   = 12;
-            mlp_ratio                = 4.0f;
-            adm_in_channels          = 2048;
-            out_channels             = 16;
-            pos_embed_max_size       = 384;
-            num_patchs               = 147456;
-            context_size             = 4096;
-            context_embedder_out_dim = 1536;
-            qk_norm                  = "rms";
+
+        // read tensors from tensor_types
+        for (auto pair : tensor_types) {
+            std::string tensor_name = pair.first;
+            if (tensor_name.find("model.diffusion_model.") == std::string::npos)
+                continue;
+            size_t jb = tensor_name.find("joint_blocks.");
+            if (jb != std::string::npos) {
+                tensor_name     = tensor_name.substr(jb);  // remove prefix
+                int block_depth = atoi(tensor_name.substr(13, tensor_name.find(".", 13)).c_str());
+                if (block_depth + 1 > depth) {
+                    depth = block_depth + 1;
+                }
+                if (tensor_name.find("attn.ln") != std::string::npos) {
+                    if (tensor_name.find(".bias") != std::string::npos) {
+                        qk_norm = "ln";
+                    } else {
+                        qk_norm = "rms";
+                    }
+                }
+                if (tensor_name.find("attn2") != std::string::npos) {
+                    if (block_depth > d_self) {
+                        d_self = block_depth;
+                    }
+                }
+            }
         }
+
+        if (d_self >= 0) {
+            pos_embed_max_size *= 2;
+            num_patchs *= 4;
+        }
+
+        LOG_INFO("MMDiT layers: %d (including %d MMDiT-x layers)", depth, d_self + 1);
+
         int64_t default_out_channels = in_channels;
         hidden_size                  = 64 * depth;
+        context_embedder_out_dim     = 64 * depth;
         int64_t num_heads            = depth;
 
         blocks["x_embedder"] = std::shared_ptr<GGMLBlock>(new PatchEmbed(input_size, patch_size, in_channels, hidden_size, true));
@@ -801,7 +797,8 @@ public:
     struct ggml_tensor* forward_core_with_concat(struct ggml_context* ctx,
                                                  struct ggml_tensor* x,
                                                  struct ggml_tensor* c_mod,
-                                                 struct ggml_tensor* context) {
+                                                 struct ggml_tensor* context,
+                                                 std::vector<int> skip_layers = std::vector<int>()) {
         // x: [N, H*W, hidden_size]
         // context: [N, n_context, d_context]
         // c: [N, hidden_size]
@@ -809,6 +806,11 @@ public:
         auto final_layer = std::dynamic_pointer_cast<FinalLayer>(blocks["final_layer"]);
 
         for (int i = 0; i < depth; i++) {
+            // skip iteration if i is in skip_layers
+            if (skip_layers.size() > 0 && std::find(skip_layers.begin(), skip_layers.end(), i) != skip_layers.end()) {
+                continue;
+            }
+
             auto block = std::dynamic_pointer_cast<JointBlock>(blocks["joint_blocks." + std::to_string(i)]);
 
             auto context_x = block->forward(ctx, context, x, c_mod);
@@ -824,8 +826,9 @@ public:
     struct ggml_tensor* forward(struct ggml_context* ctx,
                                 struct ggml_tensor* x,
                                 struct ggml_tensor* t,
-                                struct ggml_tensor* y       = NULL,
-                                struct ggml_tensor* context = NULL) {
+                                struct ggml_tensor* y        = NULL,
+                                struct ggml_tensor* context  = NULL,
+                                std::vector<int> skip_layers = std::vector<int>()) {
         // Forward pass of DiT.
         // x: (N, C, H, W) tensor of spatial inputs (images or latent representations of images)
         // t: (N,) tensor of diffusion timesteps
@@ -856,22 +859,23 @@ public:
             context = context_embedder->forward(ctx, context);  // [N, L, D] aka [N, L, 1536]
         }
 
-        x = forward_core_with_concat(ctx, x, c, context);  // (N, H*W, patch_size ** 2 * out_channels)
+        x = forward_core_with_concat(ctx, x, c, context, skip_layers);  // (N, H*W, patch_size ** 2 * out_channels)
 
         x = unpatchify(ctx, x, h, w);  // [N, C, H, W]
 
         return x;
     }
 };
-
 struct MMDiTRunner : public GGMLRunner {
     MMDiT mmdit;
 
+    static std::map<std::string, enum ggml_type> empty_tensor_types;
+
     MMDiTRunner(ggml_backend_t backend,
-                ggml_type wtype,
-                SDVersion version = VERSION_SD3_2B)
-        : GGMLRunner(backend, wtype), mmdit(version) {
-        mmdit.init(params_ctx, wtype);
+                std::map<std::string, enum ggml_type>& tensor_types = empty_tensor_types,
+                const std::string prefix                            = "")
+        : GGMLRunner(backend), mmdit(tensor_types) {
+        mmdit.init(params_ctx, tensor_types, prefix);
     }
 
     std::string get_desc() {
@@ -885,7 +889,8 @@ struct MMDiTRunner : public GGMLRunner {
     struct ggml_cgraph* build_graph(struct ggml_tensor* x,
                                     struct ggml_tensor* timesteps,
                                     struct ggml_tensor* context,
-                                    struct ggml_tensor* y) {
+                                    struct ggml_tensor* y,
+                                    std::vector<int> skip_layers = std::vector<int>()) {
         struct ggml_cgraph* gf = ggml_new_graph_custom(compute_ctx, MMDIT_GRAPH_SIZE, false);
 
         x         = to_backend(x);
@@ -897,7 +902,8 @@ struct MMDiTRunner : public GGMLRunner {
                                                 x,
                                                 timesteps,
                                                 y,
-                                                context);
+                                                context,
+                                                skip_layers);
 
         ggml_build_forward_expand(gf, out);
 
@@ -910,13 +916,14 @@ struct MMDiTRunner : public GGMLRunner {
                  struct ggml_tensor* context,
                  struct ggml_tensor* y,
                  struct ggml_tensor** output     = NULL,
-                 struct ggml_context* output_ctx = NULL) {
+                 struct ggml_context* output_ctx = NULL,
+                 std::vector<int> skip_layers    = std::vector<int>()) {
         // x: [N, in_channels, h, w]
         // timesteps: [N, ]
         // context: [N, max_position, hidden_size]([N, 154, 4096]) or [1, max_position, hidden_size]
         // y: [N, adm_in_channels] or [1, adm_in_channels]
         auto get_graph = [&]() -> struct ggml_cgraph* {
-            return build_graph(x, timesteps, context, y);
+            return build_graph(x, timesteps, context, y, skip_layers);
         };
 
         GGMLRunner::compute(get_graph, n_threads, false, output, output_ctx);
@@ -965,7 +972,7 @@ struct MMDiTRunner : public GGMLRunner {
         // ggml_backend_t backend    = ggml_backend_cuda_init(0);
         ggml_backend_t backend             = ggml_backend_cpu_init();
         ggml_type model_data_type          = GGML_TYPE_F16;
-        std::shared_ptr<MMDiTRunner> mmdit = std::shared_ptr<MMDiTRunner>(new MMDiTRunner(backend, model_data_type));
+        std::shared_ptr<MMDiTRunner> mmdit = std::shared_ptr<MMDiTRunner>(new MMDiTRunner(backend));
         {
             LOG_INFO("loading from '%s'", file_path.c_str());
 
