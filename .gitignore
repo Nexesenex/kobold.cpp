@@ -130,11 +130,10 @@ rocblas.dll
 hipblas.dll
 koboldcpp_hipblas.so
 koboldcpp_hipblas.dll
+/*.dll
 
 bin/
 conda/
 
 # Jetbrains idea folder
 .idea/
-*.dll
-cudart64_12.dll
