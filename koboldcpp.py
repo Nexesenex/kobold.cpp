@@ -474,51 +474,39 @@ def set_backend_props(inputs):
             os.environ["CUDA_VISIBLE_DEVICES"] = "3"
             os.environ["HIP_VISIBLE_DEVICES"] = "3"
         elif (args.usecublas and "4" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             os.environ["CUDA_VISIBLE_DEVICES"] = "4"
             os.environ["HIP_VISIBLE_DEVICES"] = "4"
         elif (args.usecublas and "5" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             os.environ["CUDA_VISIBLE_DEVICES"] = "5"
             os.environ["HIP_VISIBLE_DEVICES"] = "5"
         elif (args.usecublas and "6" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             os.environ["CUDA_VISIBLE_DEVICES"] = "6"
             os.environ["HIP_VISIBLE_DEVICES"] = "6"
         elif (args.usecublas and "7" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             os.environ["CUDA_VISIBLE_DEVICES"] = "7"
             os.environ["HIP_VISIBLE_DEVICES"] = "7"
         elif (args.usecublas and "8" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             os.environ["CUDA_VISIBLE_DEVICES"] = "8"
             os.environ["HIP_VISIBLE_DEVICES"] = "8"
         elif (args.usecublas and "9" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             os.environ["CUDA_VISIBLE_DEVICES"] = "9"
             os.environ["HIP_VISIBLE_DEVICES"] = "9"
         elif (args.usecublas and "10" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             os.environ["CUDA_VISIBLE_DEVICES"] = "10"
             os.environ["HIP_VISIBLE_DEVICES"] = "10"
         elif (args.usecublas and "11" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             os.environ["CUDA_VISIBLE_DEVICES"] = "11"
             os.environ["HIP_VISIBLE_DEVICES"] = "11"
         elif (args.usecublas and "12" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             os.environ["CUDA_VISIBLE_DEVICES"] = "12"
             os.environ["HIP_VISIBLE_DEVICES"] = "12"
         elif (args.usecublas and "13" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             os.environ["CUDA_VISIBLE_DEVICES"] = "13"
             os.environ["HIP_VISIBLE_DEVICES"] = "13"
         elif (args.usecublas and "14" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             os.environ["CUDA_VISIBLE_DEVICES"] = "14"
             os.environ["HIP_VISIBLE_DEVICES"] = "14"
         elif (args.usecublas and "15" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             os.environ["CUDA_VISIBLE_DEVICES"] = "15"
             os.environ["HIP_VISIBLE_DEVICES"] = "15"
     else:
@@ -531,40 +519,28 @@ def set_backend_props(inputs):
         elif (args.usecublas and "3" in args.usecublas):
             inputs.cublas_info = 3
         elif (args.usecublas and "4" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             inputs.cublas_info = 4
         elif (args.usecublas and "5" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             inputs.cublas_info = 5
         elif (args.usecublas and "6" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             inputs.cublas_info = 6
         elif (args.usecublas and "7" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             inputs.cublas_info = 7
         elif (args.usecublas and "8" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             inputs.cublas_info = 8
         elif (args.usecublas and "9" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             inputs.cublas_info = 9
         elif (args.usecublas and "10" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             inputs.cublas_info = 10
         elif (args.usecublas and "11" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             inputs.cublas_info = 11
         elif (args.usecublas and "12" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             inputs.cublas_info = 12
         elif (args.usecublas and "13" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             inputs.cublas_info = 13
         elif (args.usecublas and "14" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             inputs.cublas_info = 14
         elif (args.usecublas and "15" in args.usecublas):
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             inputs.cublas_info = 15
 
     if args.usevulkan: #is an empty array if using vulkan without defined gpu
