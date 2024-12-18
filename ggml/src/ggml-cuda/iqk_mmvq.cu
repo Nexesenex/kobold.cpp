@@ -631,7 +631,7 @@ __device__ __forceinline__ float vec_dot_iq3_k_q8_1(
 
 }
 
-/* __device__ __forceinline__ float vec_dot_iq1_bn_q8_1(
+__device__ __forceinline__ float vec_dot_iq1_bn_q8_1(
     const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs) {
 
     half d16; memcpy(&d16, vbq, sizeof(d16));
@@ -729,7 +729,7 @@ __device__ __forceinline__ float vec_dot_iq2_bn_q8_1(
     auto d8h = __half22float2(bq8_1[1].ds);
     return scale * (d8l.x * (sumi1 + 0.25f*sumi2) + 0.0625f * d8h.x*(sumi3 + 0.25f*sumi4) - 0.5f*d8l.y - 0.5f*d8h.y);
 #endif
-} */
+}
 
 } // namespace
 
@@ -796,7 +796,7 @@ void mul_mat_vec_iq6_k_q8_1_cuda(
     iqk_mul_mat_vec_q_cuda<GGML_TYPE_IQ6_K, VDR_IQ6_K_Q8_1_MMVQ, vec_dot_iq6_k_q8_1>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
 }
 
-/* void mul_mat_vec_iq1_bn_q8_1_cuda(
+void mul_mat_vec_iq1_bn_q8_1_cuda(
     const void * vx, const void * vy, float * dst,
     const int ncols_x, const int nrows_x, const int nrows_y, const int ncols_y, const int nrows_dst, cudaStream_t stream) {
     iqk_mul_mat_vec_q_cuda<GGML_TYPE_IQ1_BN, 1, vec_dot_iq1_bn_q8_1>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
@@ -806,4 +806,4 @@ void mul_mat_vec_iq2_bn_q8_1_cuda(
     const void * vx, const void * vy, float * dst,
     const int ncols_x, const int nrows_x, const int nrows_y, const int ncols_y, const int nrows_dst, cudaStream_t stream) {
     iqk_mul_mat_vec_q_cuda<GGML_TYPE_IQ2_BN, 1, vec_dot_iq2_bn_q8_1>(vx, vy, dst, ncols_x, nrows_x, nrows_y, ncols_y, nrows_dst, stream);
-} */
+}
