@@ -42,7 +42,7 @@ bool g_mul_mat_q = false;
 
 #include "ggml-cuda/softcap.cuh"
 
-#include "ggml-cuda/iqk_mmvq.cuh"
+// #include "ggml-cuda/iqk_mmvq.cuh"
 
 #include <algorithm>
 #include <array>
