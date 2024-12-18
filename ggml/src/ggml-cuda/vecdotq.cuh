@@ -1561,7 +1561,7 @@ __device__ __forceinline__ float vec_dot_iq2_ks_q8_1(
 #define VDR_IQ3_K_Q8_1_MMVQ 4
 #define VDR_IQ3_K_Q8_1_MMQ  4
 
-static const __device__ uint16_t iq3k_table[128] = {
+/* static const __device__ uint16_t iq3k_table[128] = {
     0xc1c1, 0xc1d8, 0xc1e9, 0xc1f6, 0xc101, 0xc10d, 0xc11c, 0xc12f, 0xd8c1, 0xd8d8, 0xd8e9, 0xd8f6, 0xd801, 0xd80d, 0xd81c, 0xd82f,
     0xe9c1, 0xe9d8, 0xe9e9, 0xe9f6, 0xe901, 0xe90d, 0xe91c, 0xe92f, 0xf6c1, 0xf6d8, 0xf6e9, 0xf6f6, 0xf601, 0xf60d, 0xf61c, 0xf62f,
     0x01c1, 0x01d8, 0x01e9, 0x01f6, 0x0101, 0x010d, 0x011c, 0x012f, 0x0dc1, 0x0dd8, 0x0de9, 0x0df6, 0x0d01, 0x0d0d, 0x0d1c, 0x0d2f,
@@ -1640,7 +1640,7 @@ __device__ __forceinline__ float vec_dot_iq3_k_q8_1(
                 __low2float(bq8_1[4*ib128+2].ds) * aux8[2] * (sh & 0x10 ? -1 : 1) * sumi[2] +
                 __low2float(bq8_1[4*ib128+3].ds) * aux8[3] * (sh & 0x40 ? -1 : 1) * sumi[3]);
 
-}
+} */
 
 /* __device__ __forceinline__ float vec_dot_iq1_bn_q8_1(
     const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs) {

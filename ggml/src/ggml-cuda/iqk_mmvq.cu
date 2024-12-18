@@ -6,6 +6,8 @@
 
 #include "iqk_mmvq.cuh"
 
+// #include "mmvq.cu"
+
 typedef float (*vec_dot_q_cuda_t)(const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs);
 
 //  Reminder:
@@ -107,7 +109,8 @@ void iqk_mul_mat_vec_q_cuda(
     int64_t nwarps = 1;
     int64_t rows_per_cuda_block = 1;
 
-    if (ggml_cuda_info().devices[id].cc < CC_RDNA2) { // NVIDIA and AMD older than RDNA2
+    if (ggml_cuda_info().devices[id].cc < GGML_CUDA_CC_CDNA ||
+        ggml_cuda_info().devices[id].cc == GGML_CUDA_CC_RDNA1) {  // NVIDIA and AMD older than RDNA2
         switch(ncols_y) {
             case 1:
                 nwarps = 4;
