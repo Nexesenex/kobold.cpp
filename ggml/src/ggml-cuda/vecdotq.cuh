@@ -1178,7 +1178,7 @@ static __device__ __forceinline__ float vec_dot_iq4_xs_q8_1(
 
 // FOR IQK
 
-static __device__ __forceinline__ void get_int_from_table_16_shift(const uint32_t & q4, uint16_t shift, const uint8_t * all_values,
+/* __device__ __forceinline__ void get_int_from_table_16_shift(const uint32_t & q4, uint16_t shift, const uint8_t * all_values,
         int & val1, int & val2) {
 
     uint32_t aux32; const uint8_t * q8 = (const uint8_t *)&aux32;
@@ -1197,7 +1197,7 @@ static __device__ __forceinline__ void get_int_from_table_16_shift(const uint32_
 #define VDR_IQ4_K_Q8_1_MMVQ 4
 #define VDR_IQ4_K_Q8_1_MMQ  4
 
-/* __device__ __forceinline__ float vec_dot_iq4_k_q8_1(
+__device__ __forceinline__ float vec_dot_iq4_k_q8_1(
     const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs) {
 
     const block_iq4_k * bq4 = (const block_iq4_k *) vbq + kbx;
@@ -1312,7 +1312,7 @@ __device__ __forceinline__ float vec_dot_iq4_kss_q8_1(
 #define VDR_IQ5_K_Q8_1_MMVQ 4
 #define VDR_IQ5_K_Q8_1_MMQ  4
 
-/* __device__ __forceinline__ int int_from_table(const uint8_t * a8, const uint8_t * values) {
+__device__ __forceinline__ int int_from_table(const uint8_t * a8, const uint8_t * values) {
     uint16_t v1 = values[a8[0]] | (values[a8[1]] << 8);
     uint16_t v2 = values[a8[2]] | (values[a8[3]] << 8);
     return v1 | (v2 << 16);
@@ -1352,12 +1352,12 @@ __device__ __forceinline__ float vec_dot_iq5_k_q8_1(
     const int ls1 = (((bq5->scales_l[2*(i4/2)+0] >> 4*(i4%2)) & 0xf) | ((sh << 4) & 0x30)) - 32;
     const int ls2 = (((bq5->scales_l[2*(i4/2)+1] >> 4*(i4%2)) & 0xf) | ((sh << 0) & 0x30)) - 32;
     return d5 * (__low2float(bq8_1[2*(i4/2)+0].ds) * sumi1 * ls1 + __low2float(bq8_1[2*(i4/2)+1].ds) * sumi2 * ls2);
-} */
+}
 
 #define VDR_IQ6_K_Q8_1_MMVQ 4
 #define VDR_IQ6_K_Q8_1_MMQ  4
 
-/* __device__ __forceinline__ float vec_dot_iq6_k_q8_1(
+__device__ __forceinline__ float vec_dot_iq6_k_q8_1(
     const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs) {
 
 
@@ -1460,12 +1460,12 @@ static const __device__ uint32_t iq2k_table[512] = {
 
 __device__ __forceinline__ int int_from_table_4(const uint8_t * a8, const int * values) {
     return values[a8[0] | (a8[1] << 2) | (a8[2] << 4) | (a8[3] << 6)];
-} */
+}
 
 #define VDR_IQ2_K_Q8_1_MMVQ 4
 #define VDR_IQ2_K_Q8_1_MMQ  4
 
-/* __device__ __forceinline__ float vec_dot_iq2_k_q8_1(
+__device__ __forceinline__ float vec_dot_iq2_k_q8_1(
     const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs) {
 
     // iqs is 0, 4, 8, 12, 16, 20, 24, 28
@@ -1770,4 +1770,4 @@ __device__ __forceinline__ float vec_dot_iq2_bn_q8_1(
     auto d8h = __half22float2(bq8_1[1].ds);
     return scale * (d8l.x * (sumi1 + 0.25f*sumi2) + 0.0625f * d8h.x*(sumi3 + 0.25f*sumi4) - 0.5f*d8l.y - 0.5f*d8h.y);
 #endif
-} */
+}
