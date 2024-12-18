@@ -92,7 +92,7 @@ struct SDParams {
     bool normalize_input          = false;
     bool clip_on_cpu              = false;
     bool vae_on_cpu               = false;
-    bool diffusion_flash_attn     = false;
+    bool diffusion_flash_attn     = true;
     bool canny_preprocess         = false;
     bool color                    = false;
     int upscale_repeats           = 1;
