@@ -41,7 +41,7 @@
 #include "examples/llava/clip.h"
 #include "examples/llava/llava.h"
 #include "common/common.h"
-// #include "experimental/emphasis.h"
+#include "experimental/emphasis.h"
 
 //const
 const int extra_context_handle_fragmentation = 120;
@@ -2143,6 +2143,16 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         llama_ctx_params.f16_kv = true;
         llama_ctx_params.low_vram = inputs.low_vram;
         llama_ctx_params.mul_mat_q = inputs.use_mmq;
+
+        if (inputs.use_mmq == true)
+        {
+            printf("\nUsing MMQ, less compute memory used\n");
+        }
+        else
+        {
+            printf("\nNot Using MMQ\n");
+        }
+
         llama_ctx_params.logits_all = false;
         llama_ctx_params.use_mmap = inputs.use_mmap;
         llama_ctx_params.use_mlock = inputs.use_mlock;
@@ -2246,6 +2256,16 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             printf("CUBLAS: Set main device to %d\n",cu_parseinfo_maindevice);
         }
         ggml_cuda_set_mul_mat_q(inputs.use_mmq);
+
+        if (inputs.use_mmq == true)
+        {
+            printf("\nUsing MMQ, less compute memory used\n");
+        }
+        else
+        {
+            printf("\nNot Using MMQ\n");
+        }
+
         #endif
         if((file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2 || file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2VL) && !kcpp_data->flash_attn)
         {
@@ -2864,6 +2884,16 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             printf("CUBLAS: Set main device to %d\n",cu_parseinfo_maindevice);
         }
         ggml_cuda_set_mul_mat_q(inputs.use_mmq);
+
+        if (inputs.use_mmq == true)
+        {
+            printf("\nUsing MMQ, less compute memory used\n");
+        }
+        else
+        {
+            printf("\nNot Using MMQ\n");
+        }
+
         if(file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2 && !kcpp_data->flash_attn)
         {
             printf("CUBLAS: Warning, you are running Qwen2 without Flash Attention and may observe incoherent output.\n");
@@ -3755,9 +3785,9 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         printf("%s\n\n", RemoveBell(outstr).c_str());
     }
 
-    // if (llama_ctx_v4) {
-        // empcats_init(llama_ctx_v4, embd_inp, grammarstr);
-    // }
+    if (llama_ctx_v4) {
+        empcats_init(llama_ctx_v4, embd_inp, grammarstr);
+    }
 
     while (remaining_tokens > 0 && !early_abort)
 
@@ -4003,9 +4033,9 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 }
             }
 
-            // if (llama_ctx_v4) {
-                // empcats_step_pre(llama_ctx_v4, logitsPtr);
-            // }
+            if (llama_ctx_v4) {
+                empcats_step_pre(llama_ctx_v4, logitsPtr);
+            }
 
             id = SampleLogits(logitsPtr, nctx, n_vocab, last_n_size, repeat_penalty, kcpp_data->rep_pen_slope, presence_penalty,
             top_k, top_a, top_p, min_p, typical_p, tfs_z, temp, rng,
@@ -4014,9 +4044,9 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
             kcpp_data->dry_allowed_length, kcpp_data->dry_penalty_last_n, kcpp_data->xtc_threshold, kcpp_data->xtc_probability,
             sampler_order, grammar, dynatemp_range, dynatemp_exponent, smoothing_factor);
 
-            // if (llama_ctx_v4) {
-                // empcats_step_post(llama_ctx_v4, id );
-            // }
+            if (llama_ctx_v4) {
+                empcats_step_post(llama_ctx_v4, id );
+            }
 
             if (grammar != nullptr) {
                 grammar_accept_token(file_format, n_vocab, grammar, id);
@@ -4076,6 +4106,9 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                     }
                 }
 
+                if (llama_ctx_v4) {
+                    empcats_step_pre(llama_ctx_v4, logitsPtr);
+                }
                 id = SampleLogits(logitsPtr, nctx, n_vocab, last_n_size, repeat_penalty, kcpp_data->rep_pen_slope, presence_penalty,
                 top_k, top_a, top_p, min_p, typical_p, tfs_z, temp, rng,
                 kcpp_data->mirostat, kcpp_data->mirostat_tau, kcpp_data->mirostat_eta,
@@ -4083,6 +4116,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 kcpp_data->dry_allowed_length, kcpp_data->dry_penalty_last_n, kcpp_data->xtc_threshold, kcpp_data->xtc_probability,
                 sampler_order, grammar, dynatemp_range, dynatemp_exponent, smoothing_factor);
 
+
+                if (llama_ctx_v4) {
+                    empcats_step_post(llama_ctx_v4, id );
+                }
                 if(draft_used)
                 {
                     int32_t draftedid = draft_results.draftids[logits_sampled];

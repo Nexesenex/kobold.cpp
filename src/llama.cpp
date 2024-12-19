@@ -3667,7 +3667,7 @@ static bool llama_kv_cache_init(
 
     const int32_t n_layer = hparams.n_layer;
 
-    LLAMA_LOG_INFO("%s: kv_size = %d, offload = %d, type_k = '%s', type_v = '%s', n_layer = %d\n", __func__, kv_size, offload, ggml_type_name(type_k), ggml_type_name(type_v), n_layer);
+    LLAMA_LOG_DEBUG("%s: kv_size = %d, offload = %d, type_k = '%s', type_v = '%s', n_layer = %d\n", __func__, kv_size, offload, ggml_type_name(type_k), ggml_type_name(type_v), n_layer);
 
     cache.has_shift = false;
 
@@ -9811,13 +9811,13 @@ static bool llm_load_tensors(
                 throw std::runtime_error("unknown architecture");
         }
 
-        // if (n_moved_tensors > 1) { //only warn if more than 1 moved tensor
-        //     LLAMA_LOG_DEBUG("%s: tensor '%s' (%s) (and %d others) cannot be used with preferred buffer type %s, using %s instead\n",
-        //         __func__, first_moved_tensor->name, ggml_type_name(first_moved_tensor->type), n_moved_tensors - 1,
-        //         ggml_backend_buft_name(first_moved_from_buft), ggml_backend_buft_name(first_moved_to_buft));
-        //     LLAMA_LOG_DEBUG("(This is not an error, it just means some tensors will use CPU instead.)\n");
-        // }
-        LLAMA_LOG_DEBUG("%s: relocated tensors: %d of %d\n", __func__, n_moved_tensors, n_total_tensors);
+        if (n_moved_tensors > 0) { //only warn if 1 or more moved tensor
+            LLAMA_LOG_INFO("%s: tensor '%s' (%s) (and %d others) cannot be used with preferred buffer type %s, using %s instead\n",
+                __func__, first_moved_tensor->name, ggml_type_name(first_moved_tensor->type), n_moved_tensors - 1,
+                ggml_backend_buft_name(first_moved_from_buft), ggml_backend_buft_name(first_moved_to_buft));
+            LLAMA_LOG_INFO("(This is not an error, it just means some tensors will use CPU instead.)\n");
+        }
+        LLAMA_LOG_INFO("%s: relocated tensors: %d of %d\n", __func__, n_moved_tensors, n_total_tensors);
     }
 
     ml.done_getting_tensors();

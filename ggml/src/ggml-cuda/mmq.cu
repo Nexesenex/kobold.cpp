@@ -80,8 +80,8 @@ void ggml_cuda_op_mul_mat_q(
             mul_mat_q_case<GGML_TYPE_IQ3_S>(ctx, args, stream);
             break;
         //case GGML_TYPE_IQ1_S:
-            mul_mat_q_case<GGML_TYPE_IQ1_S>(ctx, args, stream);
-            break;
+            //mul_mat_q_case<GGML_TYPE_IQ1_S>(ctx, args, stream);
+            //break;
         case GGML_TYPE_IQ4_XS:
             mul_mat_q_case<GGML_TYPE_IQ4_XS>(ctx, args, stream);
             break;
