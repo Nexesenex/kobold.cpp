@@ -13,7 +13,7 @@
 #include "amx/amx.h"
 #include "ggml.h"
 
-// #include "iqk/iqk_quantize.h"
+#include "iqk_croco/iqk_quantize_croco.h"
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <malloc.h> // using malloc.h with MSC/MINGW
@@ -426,67 +426,67 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     },
     [GGML_TYPE_IQ4_KS] = {
         // .from_float               = quantize_row_iq4_ks,
-        .vec_dot                  = ggml_vec_dot_iq4_ks_q8_K,
+        .vec_dot                  = ggml_vec_dot_iq4_ks_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ4_KSS] = {
         // .from_float               = quantize_row_iq4_kss,
-        .vec_dot                  = ggml_vec_dot_iq4_kss_q8_K,
+        .vec_dot                  = ggml_vec_dot_iq4_kss_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ2_K] = {
         // .from_float               = quantize_row_iq2_k,
-        .vec_dot                  = ggml_vec_dot_iq2_k_q8_K,
+        .vec_dot                  = ggml_vec_dot_iq2_k_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ2_KS] = {
         // .from_float               = quantize_row_iq2_ks,
-        .vec_dot                  = ggml_vec_dot_iq2_ks_q8_K,
+        .vec_dot                  = ggml_vec_dot_iq2_ks_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ2_KT] = {
         // .from_float               = quantize_row_iq2_kt,
-        .vec_dot                  = ggml_vec_dot_iq2_kt_q8_K,
+        .vec_dot                  = ggml_vec_dot_iq2_kt_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ3_KT] = {
         // .from_float               = quantize_row_iq3_kt,
-        .vec_dot                  = ggml_vec_dot_iq3_kt_q8_K,
+        .vec_dot                  = ggml_vec_dot_iq3_kt_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ4_KT] = {
         // .from_float               = quantize_row_iq4_kt,
-        .vec_dot                  = ggml_vec_dot_iq4_kt_q8_K,
+        .vec_dot                  = ggml_vec_dot_iq4_kt_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ3_K] = {
         .from_float               = quantize_row_iq3_k,
-        .vec_dot                  = ggml_vec_dot_iq3_k_q8_K,
+        .vec_dot                  = ggml_vec_dot_iq3_k_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ4_K] = {
         .from_float               = quantize_row_iq4_k,
-        .vec_dot                  = ggml_vec_dot_iq4_k_q8_K,
+        .vec_dot                  = ggml_vec_dot_iq4_k_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ5_K] = {
         .from_float               = quantize_row_iq5_k,
-        .vec_dot                  = ggml_vec_dot_iq5_k_q8_K,
+        .vec_dot                  = ggml_vec_dot_iq5_k_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ6_K] = {
         .from_float               = quantize_row_iq6_k,
-        .vec_dot                  = ggml_vec_dot_iq6_k_q8_K,
+        .vec_dot                  = ggml_vec_dot_iq6_k_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },

@@ -28,7 +28,7 @@
 #include "ggml-aarch64.h"
 #endif
 
-// #include "iqk/iqk_quantize.h"
+#include "iqk_croco/iqk_quantize_croco.h"
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <malloc.h> // using malloc.h with MSC/MINGW
