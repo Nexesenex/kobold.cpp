@@ -1866,11 +1866,11 @@ const uint64_t tanh_f32_len = 1512;
 extern unsigned char diag_mask_inf_f32_data[1528];
 const uint64_t diag_mask_inf_f32_len = 1528;
 
-extern unsigned char soft_max_f32_data[71648];
-const uint64_t soft_max_f32_len = 71648;
+extern unsigned char soft_max_f32_data[72396];
+const uint64_t soft_max_f32_len = 72396;
 
-extern unsigned char soft_max_f32_f16_data[72884];
-const uint64_t soft_max_f32_f16_len = 72884;
+extern unsigned char soft_max_f32_f16_data[73632];
+const uint64_t soft_max_f32_f16_len = 73632;
 
 extern unsigned char rope_norm_f32_data[3884];
 const uint64_t rope_norm_f32_len = 3884;
@@ -1910,4 +1910,7 @@ const uint64_t timestep_embedding_f32_len = 2000;
 
 extern unsigned char pool2d_f32_data[3504];
 const uint64_t pool2d_f32_len = 3504;
+
+extern unsigned char rwkv_wkv6_f32_data[32112];
+const uint64_t rwkv_wkv6_f32_len = 32112;
 

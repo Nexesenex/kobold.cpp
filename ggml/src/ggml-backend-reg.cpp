@@ -438,6 +438,7 @@ static std::string get_executable_path() {
     }
     return base_path + "\\";
 #endif
+    return ""; //fix for freebsd compile
 }
 
 static std::string backend_filename_prefix() {

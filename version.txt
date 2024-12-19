@@ -18,7 +18,7 @@ VSVersionInfo(
                         StringStruct(u'CompanyName', u'Your Company Name'),
                         StringStruct(u'FileDescription', u'KoboldCpp'),
                         StringStruct(u'InternalName', u'KoboldCpp'),
-                        StringStruct(u'LegalCopyright', u'KoboldCppIsFreeAndOpenSource'),
+                        StringStruct(u'LegalCopyright', u'AGPLv3'),
                         StringStruct(u'OriginalFilename', u'koboldcpp.exe'),
                         StringStruct(u'ProductName', u'koboldcpp'),
                     ]

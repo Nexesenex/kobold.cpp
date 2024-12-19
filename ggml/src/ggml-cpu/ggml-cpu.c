@@ -10,7 +10,7 @@
 #include "ggml-quants.h"
 #include "ggml-cpu-quants.h"
 #include "ggml-threading.h"
-#include "amx/amx.h"
+// #include "amx/amx.h"
 #include "ggml.h"
 
 #if defined(_MSC_VER) || defined(__MINGW32__)

@@ -4167,7 +4167,8 @@ static void flag_aarch_prepacked_quant(int type)
 
 static const ggml::cpu::tensor_traits * ggml_aarch64_get_optimal_repack_type(const struct ggml_tensor * cur) {
     if (cur->type == GGML_TYPE_Q4_0) {
-        if (ggml_cpu_has_avx2() || (ggml_cpu_has_sve() && ggml_cpu_has_matmul_int8() && ggml_cpu_get_sve_cnt() == QK8_0)) {
+        //we shall just use the regular avx2 handling, no repacking
+        if (/*ggml_cpu_has_avx2() ||*/ (ggml_cpu_has_sve() && ggml_cpu_has_matmul_int8() && ggml_cpu_get_sve_cnt() == QK8_0)) {
             if (cur->ne[1] % 8 == 0) {
                 return &ggml::cpu::aarch64::q4_0_8x8_q8_0;
             }

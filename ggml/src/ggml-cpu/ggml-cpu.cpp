@@ -4,7 +4,7 @@
 #include "ggml-cpu-aarch64.h"
 #include "ggml-cpu-traits.h"
 #include "ggml-impl.h"
-#include "amx/amx.h"
+// #include "amx/amx.h"
 
 #include <cctype>
 #include <string>
@@ -33,11 +33,11 @@ std::vector<ggml_backend_buffer_type_t>& ggml_backend_cpu_get_extra_buffers_type
     static std::vector<ggml_backend_buffer_type_t> bufts = []() {
         std::vector<ggml_backend_buffer_type_t> bufts;
 
-#if defined(__AMX_INT8__) && defined(__AVX512VNNI__)
-        if (ggml_backend_amx_buffer_type()) {
-            bufts.push_back(ggml_backend_amx_buffer_type());
-        }
-#endif
+// #if defined(__AMX_INT8__) && defined(__AVX512VNNI__)
+//         if (ggml_backend_amx_buffer_type()) {
+//             bufts.push_back(ggml_backend_amx_buffer_type());
+//         }
+// #endif
 
 #ifdef GGML_USE_CPU_AARCH64
         if (ggml_backend_cpu_aarch64_buffer_type()) {
@@ -394,8 +394,11 @@ static bool ggml_backend_cpu_device_supports_op(ggml_backend_dev_t dev, const st
     switch (op->op) {
         case GGML_OP_CPY:
             return
+                op->type != GGML_TYPE_IQ3_XXS &&
+                op->type != GGML_TYPE_IQ3_S   &&
                 op->type != GGML_TYPE_IQ2_XXS &&
                 op->type != GGML_TYPE_IQ2_XS  &&
+                op->type != GGML_TYPE_IQ2_S   &&
                 op->type != GGML_TYPE_IQ1_S   &&
                 op->type != GGML_TYPE_IQ1_M; // missing type_traits.from_float
         case GGML_OP_MUL_MAT:
@@ -518,6 +521,12 @@ static ggml_backend_feature * ggml_backend_cpu_get_features(ggml_backend_reg_t r
         }
         if (ggml_cpu_has_sve()) {
             features.push_back({ "SVE", "1" });
+        }
+        if (ggml_cpu_has_dotprod()) {
+            features.push_back({ "DOTPROD", "1" });
+        }
+        if (ggml_cpu_has_matmul_int8()) {
+            features.push_back({ "MATMUL_INT8", "1" });
         }
         if (ggml_cpu_get_sve_cnt() > 0) {
             static std::string sve_cnt = std::to_string(ggml_cpu_get_sve_cnt());

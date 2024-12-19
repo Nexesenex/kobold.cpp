@@ -86,6 +86,11 @@ add_compile_definitions(LOG_DISABLE_LOGS)
 add_compile_definitions(GGML_USE_CPU)
 add_compile_definitions(GGML_USE_CPU_AARCH64)
 
+if (MSVC)
+    add_compile_options("$<$<COMPILE_LANGUAGE:C>:/utf-8>")
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:/utf-8>")
+endif()
+
 file(GLOB GGML_SOURCES_CUDA "ggml/src/ggml-cuda/*.cu")
 list(APPEND GGML_SOURCES_CUDA "ggml/src/ggml-cuda/ggml-cuda.cu")
 file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-wmma*.cu")
