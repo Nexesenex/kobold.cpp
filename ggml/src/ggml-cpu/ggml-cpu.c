@@ -7587,7 +7587,7 @@ static void ggml_compute_forward_mul_mat_one_chunk(
         return;
     }
 
-    const void * wdata = (src1->type == vec_dot_type) ? src1->data : params->wdata;
+    const void * wdata = (src1->type == vec_dot_type) ? src1->data : (char *)params->wdata + params->wsize - params->qsize + GGML_MAX_NAME;
     const size_t row_size = ggml_row_size(vec_dot_type, ne10);
 
     assert(ne12 % ne02 == 0);
@@ -7793,6 +7793,13 @@ UseGgmlGemm1:;
     }
 UseGgmlGemm2:;
 #endif
+
+    if (ith == 0) {
+        // Every thread starts at ith, so the first unprocessed chunk is nth.  This save a bit of coordination right at the start.
+        atomic_store_explicit(&params->threadpool->current_chunk, nth, memory_order_relaxed);
+    }
+
+    ggml_barrier(params->threadpool);
 
     // This is the size of the first dimension of the result, so we can iterate that way. (see the ASSERT above, these are the same numbers)
     const int64_t nr0 = ne0;
