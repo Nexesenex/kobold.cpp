@@ -512,29 +512,29 @@ ggml_v4_vulkan_noavx2.o: ggml/src/ggml.c ggml/include/ggml.h
 	$(CC)  $(FASTCFLAGS) $(SIMPLECFLAGS) $(VULKAN_FLAGS) -c $< -o $@
 
 # cpu and clblast separated
-ggml-cpu.o: ggml/src/ggml-cpu/ggml-cpu.c ggml/include/ggml-cpu.h
+ggml-cpu.o: ggml/src/ggml-cpu/ggml-cpu.c ggml/include/ggml-cpu.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
 	$(CC)  $(FASTCFLAGS) $(FULLCFLAGS) -c $< -o $@
-ggml-cpu_v4_failsafe.o: ggml/src/ggml-cpu/ggml-cpu.c ggml/include/ggml-cpu.h
+ggml-cpu_v4_failsafe.o: ggml/src/ggml-cpu/ggml-cpu.c ggml/include/ggml-cpu.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
 	$(CC)  $(FASTCFLAGS) $(NONECFLAGS) -c $< -o $@
-ggml-cpu_v4_noavx2.o: ggml/src/ggml-cpu/ggml-cpu.c ggml/include/ggml-cpu.h
+ggml-cpu_v4_noavx2.o: ggml/src/ggml-cpu/ggml-cpu.c ggml/include/ggml-cpu.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
 	$(CC)  $(FASTCFLAGS) $(SIMPLECFLAGS) -c $< -o $@
-ggml-cpu_v4_clblast.o: ggml/src/ggml-cpu/ggml-cpu.c ggml/include/ggml-cpu.h
+ggml-cpu_v4_clblast.o: ggml/src/ggml-cpu/ggml-cpu.c ggml/include/ggml-cpu.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
 	$(CC)  $(FASTCFLAGS) $(FULLCFLAGS) $(CLBLAST_FLAGS) -c $< -o $@
-ggml-cpu_v4_clblast_noavx2.o: ggml/src/ggml-cpu/ggml-cpu.c ggml/include/ggml-cpu.h
+ggml-cpu_v4_clblast_noavx2.o: ggml/src/ggml-cpu/ggml-cpu.c ggml/include/ggml-cpu.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
 	$(CC)  $(FASTCFLAGS) $(SIMPLECFLAGS) $(CLBLAST_FLAGS) -c $< -o $@
 
 #quants
-ggml-quants.o: ggml/src/ggml-quants.c ggml/include/ggml.h ggml/src/ggml-quants.h ggml/src/ggml-common.h
+ggml-quants.o: ggml/src/ggml-quants.c ggml/include/ggml.h ggml/src/ggml-quants.h ggml/src/ggml-common.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
 	$(CC)  $(CFLAGS) $(FULLCFLAGS) -c $< -o $@
-ggml-quants_noavx2.o: ggml/src/ggml-quants.c ggml/include/ggml.h ggml/src/ggml-quants.h ggml/src/ggml-common.h
+ggml-quants_noavx2.o: ggml/src/ggml-quants.c ggml/include/ggml.h ggml/src/ggml-quants.h ggml/src/ggml-common.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
 	$(CC)  $(CFLAGS) $(SIMPLECFLAGS) -c $< -o $@
-ggml-quants_failsafe.o: ggml/src/ggml-quants.c ggml/include/ggml.h ggml/src/ggml-quants.h ggml/src/ggml-common.h
+ggml-quants_failsafe.o: ggml/src/ggml-quants.c ggml/include/ggml.h ggml/src/ggml-quants.h ggml/src/ggml-common.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
 	$(CC)  $(CFLAGS) $(NONECFLAGS) -c $< -o $@
-ggml-cpu-quants.o: ggml/src/ggml-cpu/ggml-cpu-quants.c ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-quants.h ggml/src/ggml-common.h
+ggml-cpu-quants.o: ggml/src/ggml-cpu/ggml-cpu-quants.c ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-quants.h ggml/src/ggml-common.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
 	$(CC)  $(CFLAGS) $(FULLCFLAGS) -c $< -o $@
-ggml-cpu-quants_noavx2.o: ggml/src/ggml-cpu/ggml-cpu-quants.c ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-quants.h ggml/src/ggml-common.h
+ggml-cpu-quants_noavx2.o: ggml/src/ggml-cpu/ggml-cpu-quants.c ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-quants.h ggml/src/ggml-common.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
 	$(CC)  $(CFLAGS) $(SIMPLECFLAGS) -c $< -o $@
-ggml-cpu-quants_failsafe.o: ggml/src/ggml-cpu/ggml-cpu-quants.c ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-quants.h ggml/src/ggml-common.h
+ggml-cpu-quants_failsafe.o: ggml/src/ggml-cpu/ggml-cpu-quants.c ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-quants.h ggml/src/ggml-common.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
 	$(CC)  $(CFLAGS) $(NONECFLAGS) -c $< -o $@
 
 #aarch64
@@ -691,9 +691,9 @@ clean:
 	rm -vrf ggml/src/ggml-cuda/template-instances/*.o
 
 cleanocuda:
-	rm -vf *.o main sdmain whispermain quantize_gguf quantize_clip quantize_gpt2 quantize_gptj quantize_neox quantize_mpt quantize-stats perplexity embedding benchmark-matmult save-load-state gguf imatrix vulkan-shaders-gen gguf-split gguf-split.exe vulkan-shaders-gen.exe imatrix.exe gguf.exe main.exe sdmain.exe whispermain.exe quantize_clip.exe quantize_gguf.exe quantize_gptj.exe quantize_gpt2.exe quantize_neox.exe quantize_mpt.exe koboldcpp_default.dll koboldcpp_failsafe.dll koboldcpp_noavx2.dll koboldcpp_clblast.dll koboldcpp_clblast_noavx2.dll koboldcpp_vulkan.dll koboldcpp_vulkan_noavx2.dll koboldcpp_default.so koboldcpp_failsafe.so koboldcpp_noavx2.so koboldcpp_clblast.so koboldcpp_clblast_noavx2.so koboldcpp_cublas.so koboldcpp_hipblas.so koboldcpp_vulkan.so koboldcpp_vulkan_noavx2.so
-	rm -vrf ggml/src/ggml-cuda/*.o
-	rm -vrf ggml/src/ggml-cuda/template-instances/*.o
+	rm -vf *.o main sdmain whispermain quantize_gguf quantize_clip quantize_gpt2 quantize_gptj quantize_neox quantize_mpt quantize-stats perplexity embedding benchmark-matmult save-load-state gguf imatrix vulkan-shaders-gen gguf-split gguf-split.exe vulkan-shaders-gen.exe imatrix.exe gguf.exe main.exe sdmain.exe whispermain.exe quantize_clip.exe quantize_gguf.exe quantize_gptj.exe quantize_gpt2.exe quantize_neox.exe quantize_mpt.exe koboldcpp_default.dll koboldcpp_failsafe.dll koboldcpp_noavx2.dll koboldcpp_clblast.dll koboldcpp_clblast_noavx2.dll koboldcpp_vulkan.dll koboldcpp_vulkan_noavx2.dll koboldcpp_default.so koboldcpp_failsafe.so koboldcpp_noavx2.so koboldcpp_clblast.so koboldcpp_clblast_noavx2.so koboldcpp_vulkan.so koboldcpp_vulkan_noavx2.so
+	# rm -vrf ggml/src/ggml-cuda/*.o
+	# rm -vrf ggml/src/ggml-cuda/template-instances/*.o
 
 # useful tools
 main: examples/main/main.cpp common/json-schema-to-grammar.cpp common/arg.cpp build-info.h ggml.o ggml-cpu.o llama.o console.o llavaclip_default.o llava.o ggml-backend_default.o ggml-backend-reg_default.o $(OBJS_FULL) $(OBJS)
