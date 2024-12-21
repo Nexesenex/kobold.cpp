@@ -134,7 +134,6 @@ static void zeros(std::ofstream & file, size_t n) {
     }
 }
 
-static bool phi3swa_warning_showed = false; //to warn when old phi3 model has no SWA
 static bool old_mixtral_warning_showed = false;
 static int clblast_offload_fallback_layers = 0;
 static int layer_name_to_number(std::string inputString)
@@ -6634,7 +6633,8 @@ static void llm_load_vocab(
                     tokenizer_pre == "jina-v1-en" ||
                     tokenizer_pre == "jina-v2-es" ||
                     tokenizer_pre == "jina-v2-de" ||
-                    tokenizer_pre == "jina-v2-code") {
+                    tokenizer_pre == "jina-v2-code" ||
+                    tokenizer_pre == "roberta-bpe") {
                 vocab.type_pre = LLAMA_VOCAB_PRE_TYPE_GPT2;
             } else if (
                     tokenizer_pre == "refact") {
@@ -13537,21 +13537,13 @@ struct llm_build_context {
         struct ggml_tensor * inp_pos = build_inp_pos();
 
         // KQ_mask (mask for 1 head, it will be broadcasted to all heads)
-        struct ggml_tensor * KQ_mask_swa;
-        if(hparams.n_swa==0)
-        {
-            if(!phi3swa_warning_showed)
-            {
-                phi3swa_warning_showed = true;
-                printf("\nWarning: PHI3 model did not contain sliding window!!!\nSWA is disabled. Model may need a new quant.\n");
-            }
-            KQ_mask_swa = build_inp_KQ_mask();
+        struct ggml_tensor * KQ_mask = nullptr;
+        if (hparams.n_swa == 0) {
+            // Phi-4 doesn't use sliding window attention
+            KQ_mask = build_inp_KQ_mask();
+        } else {
+            KQ_mask = build_inp_KQ_mask_swa();
         }
-        else
-        {
-            KQ_mask_swa = build_inp_KQ_mask_swa();
-        }
-
 
         for (int il = 0; il < n_layer; ++il) {
             auto residual = inpL;
@@ -13609,7 +13601,7 @@ struct llm_build_context {
 
                 cur = llm_build_kv(ctx0, lctx, kv_self, gf,
                         model.layers[il].wo, model.layers[il].bo,
-                        Kcur, Vcur, Qcur, KQ_mask_swa, n_tokens, kv_head, n_kv, 1.0f, cb, il);
+                        Kcur, Vcur, Qcur, KQ_mask, n_tokens, kv_head, n_kv, 1.0f, cb, il);
             }
 
             if (il == n_layer - 1) {

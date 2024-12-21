@@ -1755,7 +1755,7 @@ static void grammar_accept_token(FileFormat file_format, int32_t n_vocab, struct
     const auto & code_points = decoded.first;
     for (auto it = code_points.begin(), end = code_points.end() - 1; it != end; ++it) {
         auto prev_stacks = grammar->stacks;
-        llama_grammar_accept(grammar->rules, prev_stacks, *it, grammar->stacks);
+        llama_grammar_accept(grammar, *it);
     }
     grammar->partial_utf8 = decoded.second;
     GGML_ASSERT(!grammar->stacks.empty());
@@ -2410,6 +2410,13 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         if(mmproj_filename != "" && file_format==FileFormat::GGUF_GENERIC)
         {
             printf("\nAttempting to apply Multimodal Projector: %s\n", mmproj_filename.c_str());
+            #if defined(GGML_USE_VULKAN) || defined(GGML_USE_METAL)
+            if(file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2VL)
+            {
+                set_clip_uses_gpu(false);
+                printf("Clip will use CPU for this model!\n");
+            }
+            #endif
             clp_ctx = clip_model_load(mmproj_filename.c_str(), /*verbosity=*/ 1);
             if(clp_ctx == nullptr) {
                 fprintf(stderr, "%s: error: failed to load mmproj model!\n", __func__);

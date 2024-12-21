@@ -1111,6 +1111,12 @@ static ggml_cgraph * clip_image_build_graph(clip_ctx * ctx, const clip_image_f32
     return gf;
 }
 
+bool enable_gpu_clip = true;
+void set_clip_uses_gpu(bool usegpu)
+{
+    enable_gpu_clip = usegpu;
+}
+
 // read and create ggml_context containing the tensors and their data
 struct clip_ctx * clip_model_load(const char * fname, const int verbosity = 1) {
     struct ggml_context * meta = NULL;
@@ -1225,6 +1231,8 @@ struct clip_ctx * clip_model_load(const char * fname, const int verbosity = 1) {
         }
     }
 
+if(enable_gpu_clip)
+{
 #ifdef GGML_USE_CUDA
     new_clip->backend = ggml_backend_cuda_init(0);
     LOG_INF("%s: CLIP using CUDA backend\n", __func__);
@@ -1249,6 +1257,7 @@ struct clip_ctx * clip_model_load(const char * fname, const int verbosity = 1) {
     new_clip->backend = ggml_backend_sycl_init(0);
     LOG_INF("%s: CLIP using SYCL backend\n", __func__);
 #endif
+}
 
     if (!new_clip->backend) {
         new_clip->backend = ggml_backend_cpu_init();

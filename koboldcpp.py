@@ -63,10 +63,10 @@ maxhordelen = 400
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.80010"
-LcppVersion = "b4329"
-CudaSpecifics = "CuCML_ArCML_SMC2_no_DmmvX64Y1"
-ReleaseDate = "2024/12/16"
+KcppVersion = "1.80100"
+LcppVersion = "b4367"
+CudaSpecifics = "CuCML_ArCML_SMC2_no_Dmmv"
+ReleaseDate = "2024/12/21"
 showdebug = True
 guimode = False
 showsamplerwarning = True
@@ -3172,6 +3172,9 @@ def show_gui():
         root.withdraw()
         root.quit()
         if args.model_param and args.model_param!="" and (args.model_param.lower().endswith('.kcpps') or args.model_param.lower().endswith('.kcppt')):
+            dlfile = download_model_from_url(args.model_param,[".kcpps",".kcppt"]) # maybe download from url
+            if dlfile:
+                args.model_param = dlfile
             load_config_cli(args.model_param)
         if not args.model_param and not args.sdmodel and not args.whispermodel and not args.nomodel:
             global exitcounter
@@ -5043,6 +5046,9 @@ def main(launch_args,start_server=True):
 
     #positional handling for kcpps files (drag and drop)
     if args.model_param and args.model_param!="" and (args.model_param.lower().endswith('.kcpps') or args.model_param.lower().endswith('.kcppt')):
+        dlfile = download_model_from_url(args.model_param,[".kcpps",".kcppt"]) # maybe download from url
+        if dlfile:
+            args.model_param = dlfile
         load_config_cli(args.model_param)
 
     #prevents quantkv 1-14 from being used without flash attn, and 16-22 to be used without.
