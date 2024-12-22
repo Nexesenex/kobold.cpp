@@ -23402,9 +23402,9 @@ struct gguf_context * gguf_init_from_file(const char * fname, struct gguf_init_p
 
             if (!ok) {
                 fprintf(stderr, "%s: failed to read tensor info\n", __func__);
-                fclose(file);
-                gguf_free(ctx);
-                return NULL;
+                // fclose(file);
+                // gguf_free(ctx);
+                // return NULL;
             }
         }
     }
