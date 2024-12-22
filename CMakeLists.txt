@@ -618,8 +618,8 @@ add_library(ggml
             ggml/src/llamafile/sgemm.h
             ggml/src/ggml-aarch64.c
             ggml/src/ggml-aarch64.h
-            # ggml/src/iqk/iqk_mul_mat.cpp
-            # ggml/src/iqk/iqk_mul_mat.h
+            ggml/src/iqk/iqk_mul_mat.cpp
+            ggml/src/iqk/iqk_mul_mat.h
             ggml/src/iqk/iqk_quantize.cpp
             ggml/src/iqk/iqk_quantize.h
             ${GGML_SOURCES_CUDA})
