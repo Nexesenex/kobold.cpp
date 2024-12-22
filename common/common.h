@@ -106,6 +106,7 @@ struct gpt_params {
     enum llama_pooling_type      pooling_type      = LLAMA_POOLING_TYPE_UNSPECIFIED; // pooling type for embeddings
     enum llama_attention_type    attention_type    = LLAMA_ATTENTION_TYPE_UNSPECIFIED; // attention type for embeddings
 
+
     // sampling parameters
     int32_t top_k             = 40;    // <= 0 to use vocab size
     float   top_p             = 0.95f; // 1.0 = disabled
@@ -132,6 +133,7 @@ struct gpt_params {
     float   dynatemp_range     = 0.0f;  // enables DynaTemp if greater than 0. dynatemp_min = temperature - dt_range, dynatemp_max = temperature + dt_range
     float   dynatemp_exponent  = 1.0f;
 
+
     // // sampling parameters
     struct llama_sampling_params sparams;
 
@@ -144,6 +146,7 @@ struct gpt_params {
     std::string hf_file              = ""; // HF file
     std::string prompt               = "";
     std::string prompt_file          = ""; // store the external prompt file name
+    bool prompt_is_binary            = false; // don't fool around when the prompt contains binary data (as it is for multiple choice)
     std::string path_prompt_cache    = ""; // path to file for saving/loading prompt eval state
     std::string input_prefix         = ""; // string to prefix user inputs with
     std::string input_suffix         = ""; // string to suffix user inputs with
@@ -208,6 +211,7 @@ struct gpt_params {
     bool no_kv_offload     = false; // disable KV offloading
     bool warmup            = true;  // warmup run
     bool check_tensors     = false; // validate tensor data
+    bool repack_tensors    = false; // repack tensors if interleaved variant is available
 
     std::string cache_type_k = "f16"; // KV cache data type for the K
     std::string cache_type_v = "f16"; // KV cache data type for the V
@@ -268,6 +272,7 @@ struct gpt_params {
 
     // imatrix params
     std::string out_file = "imatrix.dat"; // save the resulting imatrix to this file
+    std::string output_tensor_name = "output.weight"; // name of the output tensor
 
     int32_t n_out_freq  = 10; // output the imatrix every n_out_freq iterations
     int32_t n_save_freq =  0; // save the imatrix every n_save_freq iterations

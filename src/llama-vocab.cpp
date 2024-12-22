@@ -11,6 +11,7 @@
 #include <forward_list>
 #include <queue>
 #include <sstream>
+
 #include <regex>
 
 //
@@ -81,6 +82,7 @@ struct naive_trie {
 //
 
 int llama_vocab::find_bpe_rank(const std::string & token_left, const std::string & token_right) const {
+
     // GGML_ASSERT(token_left.find(' ')   == std::string::npos);
     // GGML_ASSERT(token_left.find('\n')  == std::string::npos);
     // GGML_ASSERT(token_right.find(' ')  == std::string::npos);
@@ -94,6 +96,14 @@ int llama_vocab::find_bpe_rank(const std::string & token_left, const std::string
     replace_all(tr, "\n", "\u010A");
 
     auto it = bpe_ranks.find(std::make_pair(tl, tr));
+
+/*     GGML_ASSERT(token_left.find(' ')   == std::string::npos);
+    GGML_ASSERT(token_left.find('\n')  == std::string::npos);
+    GGML_ASSERT(token_right.find(' ')  == std::string::npos);
+    GGML_ASSERT(token_right.find('\n') == std::string::npos);
+
+    auto it = bpe_ranks.find(std::make_pair(token_left, token_right)); */
+
     if (it == bpe_ranks.end()) {
         return -1;
     }
@@ -146,15 +156,24 @@ static uint8_t llama_token_to_byte(const llama_vocab & vocab, llama_token id) {
             return strtol(buf.c_str(), NULL, 16);
         }
         case LLAMA_VOCAB_TYPE_BPE: {
+
             GGML_ASSERT_CONTINUE(false);
             return unicode_utf8_to_byte(token_data.text); // TODO: why is this here after GGML_ASSERT?
+
+            // GGML_ABORT("fatal error");
+            //return unicode_utf8_to_byte(token_data.text); // TODO: why is this here after GGML_ASSERT?
+
         }
         case LLAMA_VOCAB_TYPE_WPM: {
             GGML_ABORT("fatal error");
         }
         default:
+
             GGML_ASSERT_CONTINUE(false);
             return 0;
+
+            // GGML_ABORT("fatal error");
+
     }
 }
 
@@ -345,7 +364,6 @@ struct llm_bigram_bpe {
     int rank;
     size_t size;
 };
-
 
 ///// legacy functions for Falcon compatibility //////
 static llama_token llama_byte_to_token_old(const llama_vocab & vocab, uint8_t ch);
@@ -695,6 +713,7 @@ struct llm_tokenizer_bpe {
     }
 
     void check_double_bos_eos(const std::vector<llama_vocab::id> & output) const {
+
         // if (vocab.tokenizer_add_bos && output.size() >= 2 && output[1] == vocab.special_bos_id) {
         //     LLAMA_LOG_WARN(
         //         "%s: Added a BOS token to the prompt as specified by the model but the prompt "
@@ -707,6 +726,20 @@ struct llm_tokenizer_bpe {
         //         "also ends with a EOS token. So now the final prompt ends with 2 EOS tokens. "
         //         "Are you sure this is what you want?\n", __FUNCTION__);
         // }
+
+/*         if (vocab.tokenizer_add_bos && output.size() >= 2 && output[1] == vocab.special_bos_id) {
+            LLAMA_LOG_WARN(
+                "%s: Added a BOS token to the prompt as specified by the model but the prompt "
+                "also starts with a BOS token. So now the final prompt starts with 2 BOS tokens. "
+                "Are you sure this is what you want?\n", __FUNCTION__);
+        }
+        if (vocab.tokenizer_add_eos && output.size() >= 2 && *(output.end()-2) == vocab.special_eos_id) {
+            LLAMA_LOG_WARN(
+                "%s: Added a EOS token to the prompt as specified by the model but the prompt "
+                "also ends with a EOS token. So now the final prompt ends with 2 EOS tokens. "
+                "Are you sure this is what you want?\n", __FUNCTION__);
+        } */
+
     }
 
     void tokenize(const std::string & text, std::vector<llama_vocab::id> & output) {
@@ -1469,6 +1502,7 @@ static void tokenizer_st_partition(const llama_vocab & vocab, std::forward_list<
 }
 
 static bool OldBPETokenizerMode = false;
+
 std::vector<llama_vocab::id> llama_tokenize_internal(const llama_vocab & vocab, std::string raw_text, bool add_special, bool parse_special) {
     std::vector<llama_vocab::id> output;
     std::forward_list<fragment_buffer_variant> fragment_buffer;
@@ -1667,8 +1701,11 @@ llama_token llama_byte_to_token_impl(const llama_vocab & vocab, uint8_t ch) {
             return vocab.token_to_id.at(unicode_byte_to_utf8(ch));
         }
         default:
+
             GGML_ASSERT_CONTINUE(false);
             return 0;
+
+            // GGML_ABORT("fatal error");
     }
 }
 
@@ -1794,6 +1831,7 @@ static std::string llama_decode_text(const std::string & text) {
 
 // does not write null-terminator to buf
 int32_t llama_token_to_piece_impl(const struct llama_vocab & vocab, llama_token token, char * buf, int32_t length, int32_t lstrip, bool special) {
+
     if(OldBPETokenizerMode)
     {
         return llama_token_to_piece_old(vocab, token, buf, length);
@@ -1862,7 +1900,11 @@ int32_t llama_token_to_piece_impl(const struct llama_vocab & vocab, llama_token 
                 break;
             }
             default:
+
                 LLAMA_LOG_WARN("%s: Unknown Tokenization Error 3\n", __func__);
+
+                // GGML_ABORT("fatal error");
+
         }
     }
 

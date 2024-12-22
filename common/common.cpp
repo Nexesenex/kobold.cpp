@@ -251,7 +251,9 @@ bool gpt_params_parse_ex(int argc, char ** argv, gpt_params & params) {
     gpt_params_handle_hf_token(params);
 
     if (params.escape) {
-        string_process_escapes(params.prompt);
+        if (!params.prompt_is_binary) {
+            string_process_escapes(params.prompt);
+        }
         string_process_escapes(params.input_prefix);
         string_process_escapes(params.input_suffix);
         string_process_escapes(sparams.cfg_negative_prompt);
@@ -335,6 +337,7 @@ bool gpt_params_find_arg(int argc, char ** argv, const std::string & arg, gpt_pa
     if (arg == "-p" || arg == "--prompt") {
         CHECK_ARG
         params.prompt = argv[i];
+        params.prompt_is_binary = false;
         return true;
     }
     if (arg == "-e" || arg == "--escape") {
@@ -372,6 +375,7 @@ bool gpt_params_find_arg(int argc, char ** argv, const std::string & arg, gpt_pa
         ss << file.rdbuf();
         params.prompt = ss.str();
         fprintf(stderr, "Read %zu bytes from binary file %s\n", params.prompt.size(), argv[i]);
+        params.prompt_is_binary = true;
         return true;
     }
     if (arg == "-f" || arg == "--file") {
@@ -388,6 +392,7 @@ bool gpt_params_find_arg(int argc, char ** argv, const std::string & arg, gpt_pa
         if (!params.prompt.empty() && params.prompt.back() == '\n') {
             params.prompt.pop_back();
         }
+        params.prompt_is_binary = false;
         return true;
     }
     if (arg == "--in-file") {
@@ -902,6 +907,11 @@ bool gpt_params_find_arg(int argc, char ** argv, const std::string & arg, gpt_pa
         params.use_mmap = false;
         return true;
     }
+    if (arg == "-rtr" || arg == "--run-time-repack") {
+        params.repack_tensors = true;
+        params.use_mmap = false;
+        return true;
+    }
     if (arg == "--numa") {
         CHECK_ARG
         std::string value(argv[i]);
@@ -1089,11 +1099,19 @@ bool gpt_params_find_arg(int argc, char ** argv, const std::string & arg, gpt_pa
         );
         return true;
     }
+
     // if (arg == "-j" || arg == "--json-schema") {
     //     CHECK_ARG
     //     sparams.grammar = json_schema_to_grammar(json::parse(argv[i]));
     //     return true;
     // }
+
+    if (arg == "-j" || arg == "--json-schema") {
+        CHECK_ARG
+        sparams.grammar = json_schema_to_grammar(json::parse(argv[i]));
+        return true;
+    }
+
     if (arg == "--override-kv") {
         CHECK_ARG
         if (!string_parse_kv_override(argv[i], params.kv_overrides)) {
@@ -1295,6 +1313,14 @@ bool gpt_params_find_arg(int argc, char ** argv, const std::string & arg, gpt_pa
     }
     if (arg == "--process-output") {
         params.process_output = true;
+        return true;
+    }
+    if (arg == "--output-tensor-name") {
+        if (++i >= argc) {
+            invalid_param = true;
+            return true;
+        }
+        params.output_tensor_name = argv[i];
         return true;
     }
     if (arg == "--no-ppl") {
@@ -1567,6 +1593,7 @@ void gpt_params_print_usage(int /*argc*/, char ** argv, const gpt_params & param
     if (llama_supports_mmap()) {
         options.push_back({ "*",           "       --no-mmap",              "do not memory-map model (slower load but may reduce pageouts if not using mlock)" });
     }
+    options.push_back({ "*",           "       --run-time-repack",      "repack tensors if interleaved variant is available"});
     options.push_back({ "*",           "       --numa TYPE",            "attempt optimizations that help on some NUMA systems\n"
                                                                         "  - distribute: spread execution evenly over all nodes\n"
                                                                         "  - isolate: only spawn threads on CPUs on the node that execution started on\n"
@@ -2192,6 +2219,7 @@ struct llama_model_params llama_model_params_from_gpt_params(const gpt_params & 
     mparams.use_mmap        = params.use_mmap;
     mparams.use_mlock       = params.use_mlock;
     mparams.check_tensors   = params.check_tensors;
+    mparams.repack_tensors  = params.repack_tensors;
     if (params.kv_overrides.empty()) {
         mparams.kv_overrides = NULL;
     } else {
@@ -2208,6 +2236,9 @@ static ggml_type kv_cache_type_from_str(const std::string & s) {
     }
     if (s == "f16") {
         return GGML_TYPE_F16;
+    }
+    if (s == "bf16") {
+        return GGML_TYPE_BF16;
     }
     if (s == "q8_0") {
         return GGML_TYPE_Q8_0;
@@ -2226,6 +2257,9 @@ static ggml_type kv_cache_type_from_str(const std::string & s) {
     }
     if (s == "q5_1") {
         return GGML_TYPE_Q5_1;
+    }
+    if (s == "q6_0") {
+        return GGML_TYPE_Q6_0;
     }
 
     throw std::runtime_error("Invalid cache type: " + s);
@@ -3226,6 +3260,7 @@ void yaml_dump_non_result_info(FILE * stream, const gpt_params & params, const l
     fprintf(stream, "n_predict: %d # default: -1 (unlimited)\n", params.n_predict);
     fprintf(stream, "n_probs: %d # only used by server binary, default: 0\n", sparams.n_probs);
     fprintf(stream, "no_mmap: %s # default: false\n", !params.use_mmap ? "true" : "false");
+    fprintf(stream, "repack: %s # default: false\n", params.repack_tensors ? "true" : "false");
     fprintf(stream, "penalize_nl: %s # default: false\n", sparams.penalize_nl ? "true" : "false");
     fprintf(stream, "ppl_output_type: %d # default: 0\n", params.ppl_output_type);
     fprintf(stream, "ppl_stride: %d # default: 0\n", params.ppl_stride);

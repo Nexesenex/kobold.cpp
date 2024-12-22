@@ -10,6 +10,9 @@ message(STATUS "============== ============== ==============")
 cmake_minimum_required(VERSION 3.12) # Don't bump this version for no reason
 project("llama.cpp" C CXX)
 
+#set(CMAKE_WARN_DEPRECATED YES)
+set(CMAKE_WARN_UNUSED_CLI YES)
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS 1)
 set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
@@ -65,6 +68,13 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED true)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
+
+# set(CMAKE_CXX_STANDARD 17)
+# set(CMAKE_CXX_STANDARD_REQUIRED true)
+
+set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_INCLUDES 0)
+set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_LIBRARIES 0)
+set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_OBJECTS 0)
 
 add_compile_definitions(LOG_DISABLE_LOGS)
 add_compile_definitions(GGML_SCHED_MAX_COPIES=${LLAMA_SCHED_MAX_COPIES})
@@ -530,4 +540,3 @@ if (LLAMA_HIPBLAS)
     target_link_libraries(${TARGET} PUBLIC Threads::Threads ggml ggml_v1 ggml_v2 ggml_v3 common2 gpttype_adapter whisper_adapter sdtype_adapter ${LLAMA_EXTRA_LIBS})
     target_compile_features(${TARGET} PRIVATE cxx_std_11)
 endif()
-

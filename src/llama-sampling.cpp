@@ -305,10 +305,15 @@ void llama_sample_typical_impl(struct llama_sampling * smpl, llama_token_data_ar
 
     float entropy = 0.0f;
     for (size_t i = 0; i < candidates->size; ++i) {
+
+
         if(candidates->data[i].p>0)
         {
             entropy += -candidates->data[i].p * logf(candidates->data[i].p);
         }
+
+        // entropy += -candidates->data[i].p * logf(candidates->data[i].p);
+
     }
 
     // Compute the absolute difference between negative log probability and entropy for each candidate
@@ -359,6 +364,9 @@ void llama_sample_typical_impl(struct llama_sampling * smpl, llama_token_data_ar
 }
 
 void llama_sample_entropy_impl(struct llama_sampling * smpl, llama_token_data_array * candidates, float min_temp, float max_temp, float exponent_val, float smoothing_factor) {
+
+// void llama_sample_entropy_impl(struct llama_sampling * smpl, llama_token_data_array * candidates, float min_temp, float max_temp, float exponent_val) {
+
     const int64_t t_start_sample_us = ggml_time_us();
 
     // no need to do anything if there is only one (or zero) candidates
@@ -386,6 +394,14 @@ void llama_sample_entropy_impl(struct llama_sampling * smpl, llama_token_data_ar
     // Map the normalized entropy to the desired temperature range using the power function
     float dyn_temp = min_temp + (max_temp - min_temp) * powf(normalized_entropy, exponent_val);
 
+/* #ifdef DEBUG
+    LLAMA_LOG_INFO("Your text maxtemp value is: %f\n", max_temp);
+    LLAMA_LOG_INFO("Entropy: %f\n", entropy);
+    LLAMA_LOG_INFO("Max Possible Entropy: %f\n", max_entropy);
+    LLAMA_LOG_INFO("Normalized Entropy: %f\n", normalized_entropy);
+    LLAMA_LOG_INFO("Exponent: %f\n", exponent_val);
+    LLAMA_LOG_INFO("Dynamic Temperature (dyn_temp): %f\n", dyn_temp);
+#endif */
 
     // Apply the dynamically calculated temperature scaling
     for (size_t i = 0; i < candidates->size; ++i) {
@@ -418,6 +434,13 @@ void llama_sample_entropy_impl(struct llama_sampling * smpl, llama_token_data_ar
         llama_sample_softmax_impl((struct llama_sampling *) nullptr, candidates);
     }
 
+/* #ifdef DEBUG
+    // Print the updated top 25 probabilities after temperature scaling
+    LLAMA_LOG_INFO("\nUpdated Top 25 Probabilities After Dynamic Temperature Scaling (in percentages):\n");
+    for (size_t i = 0; i < 25 && i < candidates->size; ++i) {
+        LLAMA_LOG_INFO("Token %zu: %f%%\n", i + 1, candidates->data[i].p * 100.0f);
+    }
+#endif */
 
     if (smpl) {
         smpl->t_sample_us += ggml_time_us() - t_start_sample_us;
@@ -425,6 +448,9 @@ void llama_sample_entropy_impl(struct llama_sampling * smpl, llama_token_data_ar
 }
 
 void llama_sample_temp_impl(struct llama_sampling * smpl, llama_token_data_array * candidates, float temp, float smoothing_factor) {
+
+// void llama_sample_temp_impl(struct llama_sampling * smpl, llama_token_data_array * candidates, float temp) {
+
     const int64_t t_start_sample_us = ggml_time_us();
 
     for (size_t i = 0; i < candidates->size; ++i) {

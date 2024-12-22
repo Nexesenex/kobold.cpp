@@ -166,6 +166,43 @@ extern "C" {
         LLAMA_FTYPE_MOSTLY_Q4_0_4_4      = 33, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_Q4_0_4_8      = 34, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_Q4_0_8_8      = 35, // except 1d tensors
+        //
+        LLAMA_FTYPE_MOSTLY_Q6_0          = 135, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ1_BN        = 136, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ2_BN        = 137, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ2_K         = 138, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ3_K         = 139, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ4_K         = 140, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ5_K         = 141, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ6_K         = 142, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ4_KS        = 145, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ3_KL        = 146, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ2_KS        = 147, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ4_KSS       = 148, // except 1d tensors
+                                                //
+        LLAMA_FTYPE_MOSTLY_Q4_0_R4       = 202, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q8_0_R4       = 207, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q5_0_R4       = 208, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q2_K_R4       = 210, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q3_K_R4       = 211, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q4_K_R4       = 214, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q5_K_R4       = 216, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q6_K_R4       = 218, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ2_XXS_R4    = 219, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ2_XS_R4     = 220, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ3_XXS_R4    = 223, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ4_NL_R4     = 225, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ2_M_R4      = 229, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ4_XS_R4     = 230, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q6_0_R4       = 335, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_BF16_R16      = 232, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ2_BN_R4     = 337, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ2_K_R4      = 338, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ3_K_R4      = 339, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ4_K_R4      = 340, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ5_K_R4      = 341, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ4_KS_R4     = 345, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_Q8_K_R8       = 399, // except 1d tensors
 
         LLAMA_FTYPE_GUESSED = 1024, // not specified in the model file
     };
@@ -294,6 +331,7 @@ extern "C" {
         bool use_mmap;      // use mmap if possible
         bool use_mlock;     // force system to keep model in RAM
         bool check_tensors; // validate model tensor data
+        bool repack_tensors;// repack if available
     };
 
     // NOTE: changing the default values of parameters marked as [EXPERIMENTAL] may cause crashes or incorrect results in certain configurations
@@ -346,11 +384,20 @@ extern "C" {
         enum llama_ftype ftype;              // quantize to this llama_ftype
         enum ggml_type output_tensor_type;   // output tensor type
         enum ggml_type token_embedding_type; // token embeddings tensor type
+        enum ggml_type attn_q_type;          // attention query tensor type
+        enum ggml_type attn_k_type;          // attention key tensor type
+        enum ggml_type attn_v_type;          // attention value tensor type
+        enum ggml_type attn_qkv_type;        // attention query-key-value tensor type
+        enum ggml_type attn_output_type;     // attention output tensor type
+        enum ggml_type ffn_gate_type;        // feedforward network gate type
+        enum ggml_type ffn_down_type;        // feedforward network down type
+        enum ggml_type ffn_up_type;          // feedforward network up type
         bool allow_requantize;               // allow quantizing non-f32/f16 tensors
         bool quantize_output_tensor;         // quantize output.weight
         bool only_copy;                      // only copy tensors - ftype, allow_requantize and quantize_output_tensor are ignored
         bool pure;                           // quantize all tensors to the default type
         bool keep_split;                     // quantize to the same number of shards
+        bool ignore_imatrix_rules;           // If set to true, the built-in rules for refusing to quantize into certain quants without imatrix are ignored
         void * imatrix;                      // pointer to importance matrix data
         void * kv_overrides;                 // pointer to vector containing overrides
     } llama_model_quantize_params;
