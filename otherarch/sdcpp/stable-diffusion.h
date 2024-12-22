@@ -79,6 +79,7 @@ enum sd_type_t {
     SD_TYPE_I8,
     SD_TYPE_I16,
     SD_TYPE_I32,
+    SD_TYPE_Q6_0    = 133,
     SD_TYPE_COUNT,
 };
 

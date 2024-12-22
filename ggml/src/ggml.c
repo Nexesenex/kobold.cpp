@@ -13948,10 +13948,6 @@ static void ggml_compute_forward_mul_mat(
         return;
     }
 #endif
-#if GGML_USE_LLAMAFILE
-    // broadcast factors
-    const int64_t r2 = ne12 / ne02;
-    const int64_t r3 = ne13 / ne03;
 
 #if GGML_USE_IQK_MULMAT || GGML_USE_LLAMAFILE
     // broadcast factors
