@@ -58,11 +58,13 @@ option(LLAMA_HIPBLAS                         "llama: use hipBLAS"               
 # Other
 option(LLAMA_OPENMP                          "llama: use OpenMP"                                OFF)
 
+option(LLAMA_IQK_MULMAT                      "llama: use optimized iqk matrix multiplications"  ON)
+
 #
 # Compile flags
 #
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED true)
@@ -88,6 +90,13 @@ list(APPEND GGML_SOURCES_CUDA ${SRCS})
 set(GGML_V3_CUDA_SOURCES otherarch/ggml_v3-cuda.cu otherarch/ggml_v3-cuda.h)
 set(GGML_V2_CUDA_SOURCES otherarch/ggml_v2-cuda.cu otherarch/ggml_v2-cuda.h)
 set(GGML_V2_LEGACY_CUDA_SOURCES otherarch/ggml_v2-cuda-legacy.cu otherarch/ggml_v2-cuda-legacy.h)
+
+set (GGML_SOURCES_IQK iqk-quantize.cpp)
+if (LLAMA_IQK_MULMAT)
+    add_compile_definitions(GGML_USE_IQK_MULMAT)
+    set(GGML_SOURCES_IQK_MM iqk_mul_mat.cpp)
+    set(GGML_HEADERS_IQK_MM iqk_mul_mat.h)
+endif()
 
 if (GGML_CUDA_USE_GRAPHS)
     add_compile_definitions(GGML_CUDA_USE_GRAPHS)
@@ -444,6 +453,10 @@ add_library(ggml
             ggml/src/llamafile/sgemm.h
             ggml/src/ggml-aarch64.c
             ggml/src/ggml-aarch64.h
+            # ggml/src/iqk/iqk_mul_mat.cpp
+            # ggml/src/iqk/iqk_mul_mat.h
+            ggml/src/iqk/iqk_quantize.cpp
+            ggml/src/iqk/iqk_quantize.h
             ${GGML_SOURCES_CUDA})
 target_include_directories(ggml PUBLIC . ./ggml/include ./ggml/src ./include ./otherarch ./otherarch/tools)
 target_compile_features(ggml PUBLIC c_std_11) # don't bump
