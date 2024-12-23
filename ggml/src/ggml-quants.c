@@ -5101,6 +5101,17 @@ void quantize_row_iq2_s_ref(const float * restrict x, block_iq2_s * restrict y, 
 }
 
 
+//===================================== Q8_K ==============================================
+
+
+void quantize_row_q8_K(const float * restrict x, void * restrict y, int64_t k) {
+#ifdef GGML_USE_IQK_MULMAT
+    iqk_quantize_row_q8_K(x, y, k);
+#else
+    quantize_row_q8_K_ref(x, y, k);
+#endif
+}
+
 
 // =============================== data validation
 

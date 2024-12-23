@@ -26,6 +26,7 @@
 #include "ggml.h"
 #include "ggml-quants.h"
 #include "ggml-cpu-aarch64.h"
+#include "iqk_croco/iqk_quantize_croco.h"
 #endif
 
 #ifdef GGML_USE_CPU_HBM
