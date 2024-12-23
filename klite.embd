@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 194;
+	const LITEVER = 195;
 	const urlParams = new URLSearchParams(window.location.search);
 	var localflag = true;
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -9146,6 +9146,10 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 					desiredkoboldendpoint = (is_local?"http://":"https://") + desiredkoboldendpoint;
 				}
 
+				//we shall predictively set the url first, which can be overwritten
+				custom_kobold_endpoint = desiredkoboldendpoint;
+				custom_kobold_key = desiredkoboldkey;
+
 				let urls1 = [
 					apply_proxy_url(desiredkoboldendpoint + kobold_custom_mdl_endpoint),
 				];
@@ -9172,7 +9176,6 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 							custom_kobold_endpoint = "";
 							render_gametext();
 						} else {
-
 							//good to go
 							custom_kobold_endpoint = desiredkoboldendpoint;
 							custom_kobold_key = desiredkoboldkey;
