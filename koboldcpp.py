@@ -1411,6 +1411,9 @@ def load_model(model_filename):
     elif args.quantkv>0 and args.quantkv<15:
         inputs.quant_k = inputs.quant_v = args.quantkv
         inputs.flash_attention = True
+    elif args.quantkv>2 and args.quantkv<5:
+        inputs.use_contextshift = 0
+    elif args.quantkv>7 and args.quantkv<15:
         inputs.use_contextshift = 0
     elif args.quantkv==15:
         inputs.quant_k = inputs.quant_v = 15
@@ -1419,7 +1422,6 @@ def load_model(model_filename):
     elif args.quantkv>15 and args.quantkv<23:
         inputs.quant_k = inputs.quant_v = args.quantkv
         inputs.flash_attention = False
-        inputs.use_contextshift = 0
     else:
         inputs.quant_k = inputs.quant_v = 0
 
