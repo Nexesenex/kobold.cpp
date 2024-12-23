@@ -8614,7 +8614,7 @@ static void ggml_compute_forward_softcap(
         default:
             {
                 GGML_ASSERT(false);
-            } break;
+            }
     }
 }
 
@@ -8735,7 +8735,7 @@ static void ggml_compute_forward_softcap_max(
         default:
             {
                 GGML_ASSERT(false);
-            } break;
+            }
     }
 }
 
