@@ -4242,7 +4242,8 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                                 std::vector<int>& current_ids = antislop_banned_token_ids[banindex];
                                 current_ids.push_back(last_tok);
 
-                                if (allow_regular_prints && debugmode == 1)
+                                // if (allow_regular_prints && debugmode == 1)
+                                if (allow_regular_prints)
                                 {
                                     auto match_clean = matched;
                                     replace_all(match_clean, "\n", "\\n");
