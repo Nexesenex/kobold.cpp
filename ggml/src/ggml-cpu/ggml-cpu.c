@@ -9712,8 +9712,8 @@ static void ggml_compute_forward_get_rows(
         case GGML_TYPE_IQ2_K:
         case GGML_TYPE_IQ2_KS:
         case GGML_TYPE_IQ2_KT:
-        // case GGML_TYPE_IQ3_KT:
-        // case GGML_TYPE_IQ4_KT:
+        case GGML_TYPE_IQ3_KT:
+        case GGML_TYPE_IQ4_KT:
         case GGML_TYPE_IQ3_K:
         case GGML_TYPE_IQ4_K:
         case GGML_TYPE_IQ5_K:
