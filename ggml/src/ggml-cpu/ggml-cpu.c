@@ -3449,7 +3449,7 @@ static void ggml_compute_forward_dup_q4(
                         for (int i01 = ir0; i01 < ir1; i01++) {
                             const block_q4_0 * src_ptr = (const block_q4_0 *) ((char *) src0->data + i01 * nb01 + i02 * nb02 + i03 * nb03);
                             dequantize_row_q4_0(src_ptr, tmp, ne00);
-                            quantize_row_q(tmp, dst->data + id, ne00);
+                            // quantize_row_q(tmp, dst->data + id, ne00);
                             id += rs;
                         }
                         id += rs * (ne01 - ir1);
@@ -3601,7 +3601,7 @@ static void ggml_compute_forward_dup_q8(
                     for (int64_t i01 = ir0; i01 < ir1; i01++) {
                         const block_q8_0 * src_ptr = (const block_q8_0 *) ((char * ) src0->data + i01 * nb01 + i02 * nb02 + i03 * nb03);
                         dequantize_row_q8_0(src_ptr, tmp, ne00);
-                        quantize_row_q(tmp, dst->data + id * QK8_0, ne00);
+                        // quantize_row_q(tmp, dst->data + id * QK8_0, ne00);
                         id += rs;
                     }
                     id += rs * (ne01 - ir1);
