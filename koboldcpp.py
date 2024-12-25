@@ -155,6 +155,8 @@ class load_model_inputs(ctypes.Structure):
                 ("draft_amount", ctypes.c_int),
                 ("draft_gpulayers", ctypes.c_int),
                 ("draft_gpusplit", ctypes.c_float * tensor_split_max),
+                ("draft_psplit", ctypes.c_float),
+                ("draft_pmin", ctypes.c_float),
                 ("mmproj_filename", ctypes.c_char_p),
                 ("use_mmap", ctypes.c_bool),
                 ("use_mlock", ctypes.c_bool),
@@ -166,11 +168,21 @@ class load_model_inputs(ctypes.Structure):
                 ("vulkan_info", ctypes.c_char_p),
                 ("blasbatchsize", ctypes.c_int),
                 ("blasubatchsize", ctypes.c_int),
+                ("n_chunks", ctypes.c_int),
+                ("n_parallel", ctypes.c_int),
+                ("n_sequences", ctypes.c_int),
                 ("debugmode", ctypes.c_int),
                 ("forceversion", ctypes.c_int),
                 ("gpulayers", ctypes.c_int),
                 ("rope_freq_scale", ctypes.c_float),
                 ("rope_freq_base", ctypes.c_float),
+                ("yarn_orig_ctx", ctypes.c_int),
+                ("yarn_ext_factor", ctypes.c_float),
+                ("yarn_attn_factor", ctypes.c_float),
+                ("yarn_beta_fast", ctypes.c_float),
+                ("yarn_beta_slow", ctypes.c_float),
+                ("grp_attn_n", ctypes.c_float),
+                ("grp_attn_w", ctypes.c_float),
                 ("moe_experts", ctypes.c_int),
                 ("norm_rms_eps", ctypes.c_float),
                 ("flash_attention", ctypes.c_bool),
@@ -1366,6 +1378,11 @@ def load_model(model_filename):
     inputs.use_rowsplit = (True if (args.usecublas and "rowsplit" in args.usecublas) else False)
     inputs.vulkan_info = "0".encode("UTF-8")
     inputs.blasthreads = args.blasthreads
+
+    inputs.n_chunks = args.n_chunks
+    inputs.n_parallel = args.n_parallel
+    inputs.n_sequences = args.n_sequences
+
     inputs.use_mmap = (not args.nommap)
     inputs.use_mlock = args.usemlock
     inputs.lora_filename = "".encode("UTF-8")
@@ -1379,6 +1396,10 @@ def load_model(model_filename):
     inputs.draftmodel_filename = args.draftmodel.encode("UTF-8") if args.draftmodel else "".encode("UTF-8")
     inputs.draft_amount = args.draftamount
     inputs.draft_gpulayers = args.draftgpulayers
+
+    inputs.draft_psplit = args.draftpsplit
+    inputs.draft_pmin = args.draftpmin
+
     for n in range(tensor_split_max):
         if args.draftgpusplit and n < len(args.draftgpusplit):
             inputs.draft_gpusplit[n] = float(args.draftgpusplit[n])
@@ -1421,6 +1442,9 @@ def load_model(model_filename):
     else:
         inputs.blasubatchsize = args.blasubatchsize
 
+    inputs.grp_attn_n = args.grp_attn_n
+    inputs.grp_attn_w = args.grp_attn_w
+
     inputs.forceversion = args.forceversion
     inputs.gpulayers = args.gpulayers
     inputs.rope_freq_scale = args.ropeconfig[0]
@@ -1429,6 +1453,12 @@ def load_model(model_filename):
     else:
         inputs.rope_freq_base = 10000
 
+    inputs.yarn_orig_ctx = args.yarn_orig_ctx
+    inputs.yarn_ext_factor = args.yarn_ext_factor
+    inputs.yarn_attn_factor = args.yarn_attn_factor
+    inputs.yarn_beta_fast = args.yarn_beta_fast
+    inputs.yarn_beta_slow = args.yarn_beta_slow
+   
     for n in range(tensor_split_max):
         if args.tensor_split and n < len(args.tensor_split):
             inputs.tensor_split[n] = float(args.tensor_split[n])
@@ -3321,6 +3351,9 @@ def show_gui():
     blas_size_var = ctk.IntVar()
 
     blasubatchsize_var = ctk.IntVar()
+    n_chunks_var = ctk.IntVar()
+    n_parallel_var = ctk.IntVar()
+    n_sequences_var = ctk.IntVar()
 
     version_var = ctk.StringVar(value="0")
     tensor_split_str_vars = ctk.StringVar(value="")
@@ -3351,6 +3384,8 @@ def show_gui():
     draftamount_var = ctk.StringVar(value=str(default_draft_amount))
     draftgpulayers_var = ctk.StringVar(value=str(999))
     draftgpusplit_str_vars = ctk.StringVar(value="")
+    draftpsplit_var = ctk.StringVar(value=str(default_draft_psplit))
+    draftpmin_var = ctk.StringVar(value=str(default_draft_pmin))
     nomodel = ctk.IntVar(value=0)
 
     port_var = ctk.StringVar(value=defaultport)
@@ -3872,7 +3907,9 @@ def show_gui():
     makelabelentry(model_tab, "Draft Amount: ", draftamount_var, 11, 50,padx=100,singleline=True,tooltip="How many tokens to draft per chunk before verifying results")
     makelabelentry(model_tab, "Splits: ", draftgpusplit_str_vars, 11, 50,padx=210,singleline=True,tooltip="Distribution of draft model layers. Leave blank to follow main model's gpu split. Only works if multi-gpu (All) selected in main model.", labelpadx=160)
     makelabelentry(model_tab, "Layers: ", draftgpulayers_var, 11, 50,padx=320,singleline=True,tooltip="How many layers to GPU offload for the draft model", labelpadx=270)
-    makefileentry(model_tab, "Preloaded Story:", "Select Preloaded Story File", preloadstory_var, 15,width=280,singlerow=True,tooltiptxt="Select an optional KoboldAI JSON savefile \nto be served on launch to any client.")
+    makelabelentry(model_tab, "Draft P-Split: ", draftpsplit_var, 14, 50,padx=210,singleline=True,tooltip="speculative decoding split probability", labelpadx=160)
+    makelabelentry(model_tab, "Draft P-Min: ", draftpmin_var, 14, 50,padx=320,singleline=True,tooltip="minimum speculative decoding probability (greedy)", labelpadx=270)
+    makefileentry(model_tab, "Preloaded Story:", "Select Preloaded Story File", preloadstory_var, 17,width=280,singlerow=True,tooltiptxt="Select an optional KoboldAI JSON savefile \nto be served on launch to any client.")
     makefileentry(model_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 24, width=250, filetypes=[("JSON Adapter", "*.json")], tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
     def pickpremadetemplate():
         initialDir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'kcpp_adapters')
@@ -4130,14 +4167,29 @@ def show_gui():
 
 
         args.blasthreads = None if blas_threads_var.get()=="" else int(blas_threads_var.get())
+        
+        args.n_chunks = None if n_chunks_var.get()=="" else int(n_chunks_var.get())
+        args.n_parallel = None if n_parallel_var.get()=="" else int(n_parallel_var.get())
+        args.n_sequences = None if n_sequences_var.get()=="" else int(n_sequences_var.get())
+
         args.blasbatchsize = int(blasbatchsize_values[int(blas_size_var.get())])
 
         args.blasubatchsize = int(blasubatchsize_values[int(blasubatchsize_var.get())])
+
+        args.grp_attn_n = None if grp_attn_n_var.get()=="" else float(grp_attn_n_var.get())
+        args.grp_attn_w = None if grp_attn_w_var.get()=="" else float(grp_attn_w_var.get())
 
         args.forceversion = 0 if version_var.get()=="" else int(version_var.get())
         args.contextsize = int(contextsize_text[context_var.get()])
         if customrope_var.get()==1:
             args.ropeconfig = [float(customrope_scale.get()),float(customrope_base.get())]
+            
+        args.yarn_orig_ctx = None if yarn_orig_ctx_var.get()=="" else int(yarn_orig_ctx_var.get())
+        args.yarn_ext_factor = None if yarn_ext_factor_var.get()=="" else float(yarn_ext_factor_var.get())
+        args.yarn_attn_factor = None if yarn_attn_factor_var.get()=="" else float(yarn_attn_factor_var.get())
+        args.yarn_beta_fast = None if yarn_beta_fast_var.get()=="" else float(yarn_beta_fast_var.get())
+        args.yarn_beta_slow = None if yarn_beta_slow_var.get()=="" else float(yarn_beta_slow_var.get())
+
         args.moeexperts = int(moeexperts_var.get()) if moeexperts_var.get()!="" else -1
         args.normrmseps = float(normrmseps_var.get()) if normrmseps_var.get()!="" else -1.0
         args.chatcompletionsadapter = None if chatcompletionsadapter_var.get() == "" else chatcompletionsadapter_var.get()
@@ -4163,6 +4215,9 @@ def show_gui():
         args.draftmodel = None if draftmodel_var.get() == "" else draftmodel_var.get()
         args.draftamount = int(draftamount_var.get()) if draftamount_var.get()!="" else default_draft_amount
         args.draftgpulayers = int(draftgpulayers_var.get()) if draftgpulayers_var.get()!="" else 999
+
+        args.draftpsplit = float(draftsplit_var.get()) if draftpsplit_var.get()!="" else .0.1
+        args.draftpmin = float(draftpmin_var.get()) if draftpmin_var.get()!="" else 0.9
 
         args.ssl = None if (ssl_cert_var.get() == "" or ssl_key_var.get() == "") else ([ssl_cert_var.get(), ssl_key_var.get()])
         args.password = None if (password_var.get() == "") else (password_var.get())
@@ -4302,6 +4357,57 @@ def show_gui():
             blas_threads_var.set(str(dict["blasthreads"]))
         else:
             blas_threads_var.set("")
+
+        if "n_chunks" in dict and dict["n_chunks"]:
+            n_chunks_var.set(str(dict["n_chunks"]))
+        else:
+            n_chunks_var.set("")
+
+        if "n_parallel" in dict and dict["n_parallel"]:
+            n_parallel_var.set(str(dict["n_parallel"]))
+        else:
+            n_parallel_var.set("")
+
+        if "n_sequences" in dict and dict["n_sequences"]:
+            n_sequences.set(str(dict["n_sequences"]))
+        else:
+            n_sequences_var.set("")
+
+        if "grp_attn_n" in dict and dict["grp_attn_n"]:
+            grp_attn_n_var.set(str(dict["grp_attn_n"]))
+        else:
+            grp_attn_n_var.set("")
+
+        if "grp_attn_w" in dict and dict["grp_attn_w"]:
+            grp_attn_w_var.set(str(dict["grp_attn_w"]))
+        else:
+            grp_attn_w_var.set("")
+
+        if "yarn_orig_ctx" in dict and dict["yarn_orig_ctx"]:
+            yarn_orig_ctx_var.set(str(dict["yarn_orig_ctx"]))
+        else:
+            yarn_orig_ctx_var.set("")
+
+        if "yarn_ext_factor" in dict and dict["yarn_ext_factor"]:
+            yarn_ext_factor_var.set(str(dict["yarn_ext_factor"]))
+        else:
+            yarn_ext_factor_var.set("")
+
+        if "yarn_attn_factor" in dict and dict["yarn_attn_factor"]:
+            yarn_attn_factor_var.set(str(dict["yarn_attn_factor"]))
+        else:
+            blas_threads_var.set("")
+
+        if "yarn_beta_fast" in dict and dict["yarn_beta_fast"]:
+            yarn_beta_fast_var.set(str(dict["yarn_beta_fast"]))
+        else:
+            yarn_beta_fast_var.set("")
+
+        if "yarn_beta_slow" in dict and dict["yarn_beta_slow"]:
+            yarn_beta_slow_var.set(str(dict["yarn_beta_slow"]))
+        else:
+            yarn_beta_slow_var.set("")
+
         if "contextsize" in dict and dict["contextsize"]:
             context_var.set(contextsize_text.index(str(dict["contextsize"])))
         if "ropeconfig" in dict and dict["ropeconfig"] and len(dict["ropeconfig"])>1:
@@ -4345,6 +4451,10 @@ def show_gui():
             draftamount_var.set(dict["draftamount"])
         if "draftgpulayers" in dict:
             draftgpulayers_var.set(dict["draftgpulayers"])
+        if "draftpsplit" in dict:
+            draftpsplit_var.set(dict["draftpsplit"])
+        if "draftppmin" in dict:
+            draftpmin_var.set(dict["draftpmin"])
 
         ssl_cert_var.set("")
         ssl_key_var.set("")
@@ -5724,6 +5834,9 @@ if __name__ == '__main__':
     advparser.add_argument("--blasubatchsize", help="Sets the Physical batch size used in BLAS processing (default 128 for VRAM savings, optimal speed is 512, 256 is a great compromise). Setting it to 0 alignes Physical BLAS batch on logical BLAS. Same steps as for logical BBS.", type=check_range(int,0,4096), default=0)
 
     advparser.add_argument("--blasthreads", help="Use a different number of threads during BLAS if specified. Otherwise, has the same value as --threads",metavar=('[threads]'), type=int, default=0)
+    advparser.add_argument("--n_chunks", help="max number of chunks to process (-1 = unlimited)",metavar=('[n_chunks]'), type=int, default=-1)
+    advparser.add_argument("--n_parallel", help="number of parallel sequences to decode",metavar=('[n_parallel]'), type=int, default=1)
+    advparser.add_argument("--n_sequences", help="number of sequences to decode",metavar=('[n_sequences]'), type=int, default=1)
     advparser.add_argument("--lora", help="LLAMA models only, applies a lora file on top of model. Experimental.", metavar=('[lora_filename]', '[lora_base]'), nargs='+')
     advparser.add_argument("--contextshift", help="If set, do attempt to Trim and Shift the GGUF context without reprocessing everything once the max context is reached. If you disable it (or need to use Quantized KV cache (KVQ) with FlashAttention, aka. modes 1 to 14, which are incompatible with Context Shift), you can eventually use --smartcontext instead.", action='store_true')
 
@@ -5752,6 +5865,8 @@ if __name__ == '__main__':
     advparser.add_argument("--draftamount", metavar=('[tokens]'), help="How many tokens to draft per chunk before verifying results", type=int, default=default_draft_amount)
     advparser.add_argument("--draftgpulayers", metavar=('[layers]'), help="How many layers to offload to GPU for the draft model (default=full offload)", type=int, default=999)
     advparser.add_argument("--draftgpusplit", help="GPU layer distribution ratio for draft model (default=same as main). Only works if multi-GPUs selected for MAIN model and tensor_split is set!", metavar=('[Ratios]'), type=float, nargs='+')
+    advparser.add_argument("--draftpsplit", metavar=('[psplit]'), help="speculative decoding split probability", type=float, default=0.9)
+    advparser.add_argument("--draftpmin", metavar=('[pmin]'), help="minimum speculative decoding probability (greedy)", type=float, default=0.1)
     advparser.add_argument("--password", metavar=('[API key]'), help="Enter a password required to use this instance. This key will be required for all text endpoints. Image endpoints are not secured.", default=None)
     advparser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
     advparser.add_argument("--chatcompletionsadapter", metavar=('[filename]'), help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="")

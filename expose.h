@@ -44,6 +44,10 @@ struct load_model_inputs
     const int draft_amount = 4;
     const int draft_gpulayers = 999;
     const float draft_gpusplit[tensor_split_max] = {};
+
+    const float p_split =  0.1f; // speculative decoding split probability
+    const float p_min =  0.9f; // minimum speculative decoding probability (greedy)
+
     const char * mmproj_filename = nullptr;
     const bool use_mmap = false;
     const bool use_mlock = false;
@@ -55,11 +59,26 @@ struct load_model_inputs
     const char * vulkan_info = nullptr;
     const int blasbatchsize = 128;
     const int blasubatchsize = 128;
+
+    const int n_chunks = -1; // max number of chunks to process (-1 = unlimited)
+    const int n_parallel = 1; // number of parallel sequences to decode
+    const int n_sequences = 1; // number of sequences to decode
+
     const int debugmode = 0;
     const int forceversion = 6;
     const int gpulayers = 0;
     const float rope_freq_scale = 1.0f;
     const float rope_freq_base = 10000.0f;
+
+    const float yarn_ext_factor = -1.0f; // YaRN extrapolation mix factor
+    const float yarn_attn_factor = 1.0f; // YaRN magnitude scaling factor
+    const float yarn_beta_fast = 32.0f; // YaRN low correction dim
+    const float yarn_beta_slow = 1.0f; // YaRN high correction dim
+    const int yarn_orig_ctx = 0; // YaRN original context length
+
+    const int grp_attn_n = 1; // group-attention factor
+    const int grp_attn_w = 512; // group-attention width
+
     const int moe_experts = -1;
     const float norm_rms_eps = -1.0f;
     const bool flash_attention = false;

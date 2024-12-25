@@ -630,14 +630,18 @@ struct kcpp_embd_batch { //duplcated from llava_embd_batch
 };
 
 //loads a model for speculative decoding.
-static void speculative_decoding_setup(std::string spec_model_filename, const llama_model_params & base_model_params, const llama_context_params & base_ctx_params, int base_n_vocab, const float * draft_gpusplit, int draftgpulayers)
+static void speculative_decoding_setup(std::string spec_model_filename, const llama_model_params & base_model_params, const llama_context_params & base_ctx_params, int base_n_vocab, const float * draft_gpusplit, int draft_gpulayers, float draft_psplit, float draft_pmin)
 {
     llama_model_params draft_model_params = llama_model_default_params();
     llama_context_params draft_ctx_params = llama_context_default_params();
 
     draft_model_params.use_mmap = base_model_params.use_mmap;
     draft_model_params.use_mlock = base_model_params.use_mlock;
-    draft_model_params.n_gpu_layers = draftgpulayers; //layers offload the speculative model.
+    draft_model_params.n_gpu_layers = draft_gpulayers; //layers offload the speculative model.
+
+    draft_model_params.p_split = draft_psplit; // speculative decoding split probability
+    draft_model_params.p_min = draft_pmin; // minimum speculative decoding probability (greedy)
+
     draft_ctx_params.n_ctx = base_ctx_params.n_ctx;
     draft_ctx_params.logits_all = false;
     draft_ctx_params.offload_kqv = base_ctx_params.offload_kqv;
@@ -664,6 +668,13 @@ static void speculative_decoding_setup(std::string spec_model_filename, const ll
     draft_ctx_params.flash_attn = base_ctx_params.flash_attn;
     draft_ctx_params.type_k = base_ctx_params.type_k;
     draft_ctx_params.type_v = base_ctx_params.type_v;
+
+    draft_ctx_params.n_chunks = base_ctx_params.n_chunks;
+    draft_ctx_params.n_parallel = base_ctx_params.n_parallel;
+    draft_ctx_params.n_sequences = base_ctx_params.n_sequences;
+
+    draft_ctx_params.grp_attn_n = base_ctx_params.grp_attn_n;
+    draft_ctx_params.grp_attn_w = base_ctx_params.grp_attn_w;
 
     llama_model * draftmodel = llama_load_model_from_file(spec_model_filename.c_str(), draft_model_params);
     draft_ctx = llama_new_context_with_model(draftmodel, draft_ctx_params);
@@ -2006,6 +2017,14 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     kcpp_data->use_smartcontext = inputs.use_smartcontext;
     kcpp_data->use_contextshift = inputs.use_contextshift;
     kcpp_data->use_fastforward = inputs.use_fastforward;
+
+    kcpp_data->n_chunks = GetChunks(inputs.n_chunks, in_file_format);
+    kcpp_data->n_parallel = GetParallel(inputs.n_parallel, in_file_format);
+    kcpp_data->n_sequences = GetSequences(inputs.n_sequences, in_file_format);
+
+    kcpp_data->grp_attn_n = GetGrpAttnN(inputs.grp_attn_n, in_file_format);
+    kcpp_data->grp_attn_w = GetGrpAttnW(inputs.grp_attn_w, in_file_format);
+
     debugmode = inputs.debugmode;
     draft_ctx = nullptr;
 
@@ -2029,11 +2048,30 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     //determine rope scaling params
     float rope_freq_scale = 1.0f;
     float rope_freq_base = 10000.0f;
-//    float   yarn_ext_factor       = -1.0f; // YaRN extrapolation mix factor
-//    float   yarn_attn_factor      =  1.0f; // YaRN magnitude scaling factor
-//    float   yarn_beta_fast        = 32.0f; // YaRN low correction dim
-//    float   yarn_beta_slow        =  1.0f; // YaRN high correction dim
-//    int32_t yarn_orig_ctx         =     0; // YaRN original context length
+
+    float yarn_ext_factor = -1.0f; // YaRN extrapolation mix factor
+    float yarn_attn_factor = 1.0f; // YaRN magnitude scaling factor
+    float yarn_beta_fast = 32.0f; // YaRN low correction dim
+    float yarn_beta_slow = 1.0f; // YaRN high correction dim
+    int yarn_orig_ctx = 0; // YaRN original context length
+
+    // int grp_attn_n = 1; // group-attention factor
+    // int grp_attn_w = 512; // group-attention width
+	
+    bool YarnRope = false;
+    if(inputs.yarn_orig_context>0)
+    {
+        rope_freq_scale = inputs.rope_freq_scale;
+        rope_freq_base = inputs.rope_freq_base;
+        yarn_orig_context = inputs.yarn_orig_context;
+        yarn_ext_factor = inputs.yarn_ext_factor;
+        yarn_attn_factor = inputs.yarn_attn_factor;
+        yarn_beta_fast = inputs.yarn_beta_fast;
+        yarn_beta_slow = inputs.yarn_beta_slow;
+        bool YarnRope = true;
+        printf("Using Yarn Rope (Yarn Orig Ctx:%d, Ext Factor:%.3f, Attn Factor:%.3f, Beta Fast:%.3f, Beta Slow:%.3f).\n",yarn_orig_context,yarn_ext_factor,yarn_attn_factor,yarn_beta_fast,yarn_beta_slow);
+    }
+
     bool overwriteRope = false;
     if(inputs.rope_freq_scale>0.0f)
     {
@@ -2170,13 +2208,19 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         llama_ctx_params.rope_freq_scale = rope_freq_scale;
         llama_ctx_params.n_batch = kcpp_data->n_batch;
         llama_ctx_params.n_ubatch = kcpp_data->n_ubatch;
-//        llama_ctx_params.yarn_ext_factor = yarn_ext_factor       // YaRN extrapolation mix factor
-//        llama_ctx_params.yarn_attn_factor = yarn_attn_factor      // YaRN magnitude scaling factor
-//        llama_ctx_params.yarn_beta_fast = yarn_beta_fast        // YaRN low correction dim
-//        llama_ctx_params.yarn_beta_slow = yarn_beta_slow        // YaRN high correction dim
-//        llama_ctx_params.yarn_orig_ctx = yarn_orig_ctx         // YaRN original context length
-//        llama_ctx_params.grp_attn_n = grp_attn_n            // group-attention factor
-//        llama_ctx_params.grp_attn_w = grp_attn_w            // group-attention width
+
+        llama_ctx_params.n_chunks = kcpp_data->n_chunks;
+        llama_ctx_params.n_parallel = kcpp_data->n_parallel;
+        llama_ctx_params.n_sequences = kcpp_data->n_sequences;
+
+        llama_ctx_params.grp_attn_n = kcpp_data->grp_attn_n; // group-attention factor
+        llama_ctx_params.grp_attn_w = kcpp_data->grp_attn_w; // group-attention width
+
+        llama_ctx_params.yarn_ext_factor = inputs.yarn_ext_factor; // YaRN extrapolation mix factor
+        llama_ctx_params.yarn_attn_factor = inputs.yarn_attn_factor; // YaRN magnitude scaling factor
+        llama_ctx_params.yarn_beta_fast = inputs.yarn_beta_fast; // YaRN low correction dim
+        llama_ctx_params.yarn_beta_slow = inputs.yarn_beta_slow; // YaRN high correction dim
+        llama_ctx_params.yarn_orig_ctx = inputs.yarn_orig_ctx; // YaRN original context length
 
         #if defined(GGML_USE_CUDA) || defined(GGML_USE_VULKAN)
         bool ts_all_zero = true;
@@ -2303,6 +2347,13 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         llama_ctx_params.n_threads = kcpp_data->n_threads;
         llama_ctx_params.n_threads_batch = kcpp_data->n_blasthreads;
 
+        llama_ctx_params.n_chunks = kcpp_data->n_chunks;
+        llama_ctx_params.n_parallel = kcpp_data->n_parallel;
+        llama_ctx_params.n_sequences = kcpp_data->n_sequences;
+
+        llama_ctx_params.grp_attn_n = kcpp_data->grp_attn_n;
+        llama_ctx_params.grp_attn_w = kcpp_data->grp_attn_w;
+
         #if defined(GGML_USE_CUDA) || defined(GGML_USE_VULKAN)
         bool ts_all_zero = true;
         for (int i = 0; i < tensor_split_max; ++i) {
@@ -2357,11 +2408,16 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         {
             llama_ctx_params.rope_freq_base = rope_freq_base;
             llama_ctx_params.rope_freq_scale = rope_freq_scale;
-//            llama_ctx_params.yarn_ext_factor = yarn_ext_factor       // YaRN extrapolation mix factor
-//            llama_ctx_params.yarn_attn_factor = yarn_attn_factor      // YaRN magnitude scaling factor
-//            llama_ctx_params.yarn_beta_fast = yarn_beta_fast        // YaRN low correction dim
-//            llama_ctx_params.yarn_beta_slow = yarn_beta_slow        // YaRN high correction dim
-//            llama_ctx_params.yarn_orig_ctx = yarn_orig_ctx         // YaRN original context length
+        }
+        else if(YarnRope)
+        {
+            llama_ctx_params.rope_freq_base = rope_freq_base;
+            llama_ctx_params.rope_freq_scale = rope_freq_scale;
+            llama_ctx_params.yarn_orig_ctx = yarn_orig_ctx; // YaRN original context length
+            llama_ctx_params.yarn_ext_factor = yarn_ext_factor; // YaRN extrapolation mix factor
+            llama_ctx_params.yarn_attn_factor = yarn_attn_factor; // YaRN magnitude scaling factor
+            llama_ctx_params.yarn_beta_fast = yarn_beta_fast; // YaRN low correction dim
+            llama_ctx_params.yarn_beta_slow = yarn_beta_slow; // YaRN high correction dim
         }
         else
         {
@@ -2503,7 +2559,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             {
                 printf("\nAttempting to load draft model for speculative decoding. It will be fully offloaded if possible. Vocab must match the main model.\n");
                 speculative_chunk_amt = inputs.draft_amount;
-                speculative_decoding_setup(draftmodel_filename, model_params, llama_ctx_params, n_vocab, inputs.draft_gpusplit, inputs.draft_gpulayers);
+                speculative_decoding_setup(draftmodel_filename, model_params, llama_ctx_params, n_vocab, inputs.draft_gpusplit, inputs.draft_gpulayers, inputs.draft_psplit, inputs.draft_pmin);
             }
         }
 
@@ -2944,6 +3000,13 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         llama_ctx_params.n_threads = kcpp_data->n_threads;
         llama_ctx_params.n_threads_batch = kcpp_data->n_blasthreads;
 
+        llama_ctx_params.n_chunks = kcpp_data->n_chunks;
+        llama_ctx_params.n_parallel = kcpp_data->n_parallel;
+        llama_ctx_params.n_sequences = kcpp_data->n_sequences;
+
+        llama_ctx_params.grp_attn_n = kcpp_data->grp_attn_n;
+        llama_ctx_params.grp_attn_w = kcpp_data->grp_attn_w;
+
         #if defined(GGML_USE_CUDA) || defined(GGML_USE_VULKAN)
         bool ts_all_zero = true;
         for (int i = 0; i < tensor_split_max; ++i) {
@@ -2972,6 +3035,16 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         {
             llama_ctx_params.rope_freq_base = rope_freq_base;
             llama_ctx_params.rope_freq_scale = rope_freq_scale;
+        }
+        else if(YarnRope)
+        {
+            llama_ctx_params.rope_freq_base = rope_freq_base;
+            llama_ctx_params.rope_freq_scale = rope_freq_scale;
+            llama_ctx_params.yarn_orig_ctx = yarn_orig_ctx; // YaRN original context length
+            llama_ctx_params.yarn_ext_factor = yarn_ext_factor; // YaRN extrapolation mix factor
+            llama_ctx_params.yarn_attn_factor = yarn_attn_factor; // YaRN magnitude scaling factor
+            llama_ctx_params.yarn_beta_fast = yarn_beta_fast; // YaRN low correction dim
+            llama_ctx_params.yarn_beta_slow = yarn_beta_slow; // YaRN high correction dim
         }
         else
         {
