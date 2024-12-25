@@ -783,7 +783,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             print("***")
 
     overhead = 250*1024*1024
-    reservedmem0 = (overhead*2 + usedmem0) # determine vram overhead
+    reservedmem0 = (overhead*3 + usedmem0) # determine vram overhead
 
     mem0 = gpumem0 - reservedmem0 
     if mem0 < 0:
@@ -791,8 +791,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
         reservedmem0 = 0
     if usedmem0 > 0:
         gpucount = 1
-        print(f"GPU 0 name: {CUDevicesNames[0]} ; GPU 0 VRAM: {gpumem0/1024/1024} MiB - {MaxFreeMemory[0]/1024/1024} MiB unoccupied = {usedmem0/1024/1024} MiB occupied")
-        print(f"GPU 0 reserved VRAM {reservedmem0/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 0 usable VRAM {mem0/1024/1024} MiB")
+        print(f"GPU0: {CUDevicesNames[0]}, {gpumem0/1024/1024} MiB, {usedmem0/1024/1024} MiB used. {MaxFreeMemory[0]/1024/1024} MiB free - {(reservedmem0-usedmem0)/1024/1024} MiB reserved = {mem0/1024/1024} MiB usable")
 
     # if MaxMemory[0] >0:
         # usedmem0 = MaxMemory[0] - MaxFreeMemory[0]
@@ -815,8 +814,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem1 = 0
         if usedmem1 > 0:
             gpucount = 2
-            print(f"GPU 1 name: {CUDevicesNames[1]} ; GPU 1 VRAM: {gpumem1/1024/1024} MiB - {MaxFreeMemory[1]/1024/1024} MiB unoccupied = {usedmem1/1024/1024} MiB occupied")
-            print(f"GPU 1 reserved VRAM {reservedmem1/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 1 usable VRAM {mem1/1024/1024} MiB")
+            print(f"GPU1: {CUDevicesNames[1]}, {gpumem1/1024/1024} MiB, {usedmem1/1024/1024} MiB used. {MaxFreeMemory[1]/1024/1024} MiB free - {(reservedmem1-usedmem1)/1024/1024} MiB reserved = {mem1/1024/1024} MiB usable")
 
     if MaxMemory[2] >0:
         usedmem2 = MaxMemory[2] - MaxFreeMemory[2]
@@ -827,8 +825,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem2 = 0
         if usedmem2 > 0:
             gpucount = 3
-            print(f"GPU 2 name: {CUDevicesNames[2]} ; GPU 2 VRAM: {gpumem2/1024/1024} MiB - {MaxFreeMemory[2]/1024/1024} MiB unoccupied = {usedmem2/1024/1024} MiB occupied")
-            print(f"GPU 2 reserved VRAM {reservedmem2/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 2 usable VRAM {mem2/1024/1024} MiB")
+            print(f"GPU2: {CUDevicesNames[2]}, {gpumem2/1024/1024} MiB, {usedmem2/1024/1024} MiB used. {MaxFreeMemory[2]/1024/1024} MiB free - {(reservedmem2-usedmem2)/1024/1024} MiB reserved = {mem2/1024/1024} MiB usable")
 
     if MaxMemory[3] >0:
         usedmem3 = MaxMemory[3] - MaxFreeMemory[3]
@@ -839,8 +836,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem3 = 0
         if usedmem3 > 0:
             gpucount = 4
-            print(f"GPU 3 name: {CUDevicesNames[3]} ; GPU 3 VRAM: {gpumem3/1024/1024} MiB - {MaxFreeMemory[3]/1024/1024} MiB unoccupied = {usedmem3/1024/1024} MiB occupied")
-            print(f"GPU 3 reserved VRAM {reservedmem3/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 3 usable VRAM {mem3/1024/1024} MiB")
+            print(f"GPU3: {CUDevicesNames[3]}, {gpumem3/1024/1024} MiB, {usedmem3/1024/1024} MiB used. {MaxFreeMemory[3]/1024/1024} MiB free - {(reservedmem3-usedmem3)/1024/1024} MiB reserved = {mem3/1024/1024} MiB usable")
 
     if MaxMemory[4] >0:
         usedmem4 = MaxMemory[4] - MaxFreeMemory[4]
@@ -851,8 +847,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem4 = 0
         if usedmem4 > 0:
             gpucount = 5
-            print(f"GPU 4 name: {CUDevicesNames[4]} ; GPU 4 VRAM: {gpumem4/1024/1024} MiB - {MaxFreeMemory[4]/1024/1024} MiB unoccupied = {usedmem4/1024/1024} MiB occupied")
-            print(f"GPU 4 reserved VRAM {reservedmem4/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 4 usable VRAM {mem4/1024/1024} MiB")
+            print(f"GPU4: {CUDevicesNames[4]}, {gpumem4/1024/1024} MiB, {usedmem4/1024/1024} MiB used. {MaxFreeMemory[4]/1024/1024} MiB free - {(reservedmem4-usedmem4)/1024/1024} MiB reserved = {mem4/1024/1024} MiB usable")
 
     if MaxMemory[5] >0:
         usedmem5 = MaxMemory[5] - MaxFreeMemory[5]
@@ -863,8 +858,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem5 = 0
         if usedmem5 > 0:
             gpucount = 6
-            print(f"GPU 5 name: {CUDevicesNames[5]} ; GPU 5 VRAM: {gpumem5/1024/1024} MiB - {MaxFreeMemory[5]/1024/1024} MiB unoccupied = {usedmem5/1024/1024} MiB occupied")
-            print(f"GPU 5 reserved VRAM {reservedmem5/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 5 usable VRAM {mem5/1024/1024} MiB")
+            print(f"GPU5: {CUDevicesNames[5]}, {gpumem5/1024/1024} MiB, {usedmem5/1024/1024} MiB used. {MaxFreeMemory[5]/1024/1024} MiB free - {(reservedmem5-usedmem5)/1024/1024} MiB reserved = {mem5/1024/1024} MiB usable")
 
     if MaxMemory[6] >0:
         usedmem6 = MaxMemory[6] - MaxFreeMemory[6]
@@ -875,8 +869,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem6 = 0
         if usedmem6 > 0:
             gpucount = 7
-            print(f"GPU 6 name: {CUDevicesNames[6]} ; GPU 6 VRAM: {gpumem6/1024/1024} MiB - {MaxFreeMemory[6]/1024/1024} MiB unoccupied = {usedmem6/1024/1024} MiB occupied")
-            print(f"GPU 6 reserved VRAM {reservedmem6/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 6 usable VRAM {mem6/1024/1024} MiB")
+            print(f"GPU6: {CUDevicesNames[6]}, {gpumem6/1024/1024} MiB, {usedmem6/1024/1024} MiB used. {MaxFreeMemory[6]/1024/1024} MiB free - {(reservedmem6-usedmem6)/1024/1024} MiB reserved = {mem6/1024/1024} MiB usable")
 
     if MaxMemory[7] >0:
         usedmem7 = MaxMemory[7] - MaxFreeMemory[7]
@@ -887,8 +880,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem7 = 0
         if usedmem7 > 0:
             gpucount = 8
-            print(f"GPU 7 name: {CUDevicesNames[7]} ; GPU 7 VRAM: {gpumem7/1024/1024} MiB - {MaxFreeMemory[7]/1024/1024} MiB unoccupied = {usedmem7/1024/1024} MiB occupied")
-            print(f"GPU 7 reserved VRAM {reservedmem7/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 7 usable VRAM {mem7/1024/1024} MiB")
+            print(f"GPU7: {CUDevicesNames[7]}, {gpumem7/1024/1024} MiB, {usedmem7/1024/1024} MiB used. {MaxFreeMemory[7]/1024/1024} MiB free - {(reservedmem7-usedmem7)/1024/1024} MiB reserved = {mem7/1024/1024} MiB usable")
 
     if MaxMemory[8] >0:
         usedmem8 = MaxMemory[8] - MaxFreeMemory[8]
@@ -899,8 +891,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem8 = 0
         if usedmem8 > 0:
             gpucount = 9
-            print(f"GPU 8 name: {CUDevicesNames[8]} ; GPU 8 VRAM: {gpumem8/1024/1024} MiB - {MaxFreeMemory[8]/1024/1024} MiB unoccupied = {usedmem8/1024/1024} MiB occupied")
-            print(f"GPU 8 reserved VRAM {reservedmem8/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 8 usable VRAM {mem8/1024/1024} MiB")
+            print(f"GPU8: {CUDevicesNames[8]}, {gpumem8/1024/1024} MiB, {usedmem8/1024/1024} MiB used. {MaxFreeMemory[8]/1024/1024} MiB free - {(reservedmem8-usedmem8)/1024/1024} MiB reserved = {mem8/1024/1024} MiB usable")
 
     if MaxMemory[9] >0:
         usedmem9 = MaxMemory[9] - MaxFreeMemory[9]
@@ -911,8 +902,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem9 = 0
         if usedmem9 > 0:
             gpucount = 10
-            print(f"GPU 9 name: {CUDevicesNames[9]} ; GPU 9 VRAM: {gpumem9/1024/1024} MiB - {MaxFreeMemory[9]/1024/1024} MiB unoccupied = {usedmem9/1024/1024} MiB occupied")
-            print(f"GPU 9 reserved VRAM {reservedmem9/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 9 usable VRAM {mem9/1024/1024} MiB")
+            print(f"GPU9: {CUDevicesNames[9]}, {gpumem9/1024/1024} MiB, {usedmem9/1024/1024} MiB used. {MaxFreeMemory[9]/1024/1024} MiB free - {(reservedmem9-usedmem9)/1024/1024} MiB reserved = {mem9/1024/1024} MiB usable")
 
     if MaxMemory[10] >0:
         usedmem10 = MaxMemory[10] - MaxFreeMemory[10]
@@ -923,8 +913,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem10 = 0
         if usedmem10 > 0:
             gpucount = 11
-            print(f"GPU 10 name: {CUDevicesNames[10]} ; GPU 10 VRAM: {gpumem10/1024/1024} MiB - {MaxFreeMemory[10]/1024/1024} MiB unoccupied = {usedmem10/1024/1024} MiB occupied")
-            print(f"GPU 10 reserved VRAM {reservedmem10/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 10 usable VRAM {mem10/1024/1024} MiB")
+            print(f"GPU10: {CUDevicesNames[10]}, {gpumem10/1024/1024} MiB, {usedmem10/1024/1024} MiB used. {MaxFreeMemory[10]/1024/1024} MiB free - {(reservedmem10-usedmem10)/1024/1024} MiB reserved = {mem10/1024/1024} MiB usable")
 
     if MaxMemory[11] >0:
         usedmem11 = MaxMemory[11] - MaxFreeMemory[11]
@@ -935,8 +924,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem11 = 0
         if usedmem11 > 0:
             gpucount = 12
-            print(f"GPU 11 name: {CUDevicesNames[11]} ; GPU 11 VRAM: {gpumem11/1024/1024} MiB - {MaxFreeMemory[11]/1024/1024} MiB unoccupied = {usedmem11/1024/1024} MiB occupied")
-            print(f"GPU 11 reserved VRAM {reservedmem11/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 11 usable VRAM {mem11/1024/1024} MiB")
+            print(f"GP11: {CUDevicesNames[11]}, {gpumem11/1024/1024} MiB, {usedmem11/1024/1024} MiB used. {MaxFreeMemory[11]/1024/1024} MiB free - {(reservedmem11-usedmem11)/1024/1024} MiB reserved = {mem11/1024/1024} MiB usable")
 
     if MaxMemory[12] >0:
         usedmem12 = MaxMemory[12] - MaxFreeMemory[12]
@@ -947,8 +935,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem12 = 0
         if usedmem12 > 0:
             gpucount = 13
-            print(f"GPU 12 name: {CUDevicesNames[12]} ; GPU 12 VRAM: {gpumem12/1024/1024} MiB - {MaxFreeMemory[12]/1024/1024} MiB unoccupied = {usedmem12/1024/1024} MiB occupied")
-            print(f"GPU 12 reserved VRAM {reservedmem12/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 12 usable VRAM {mem12/1024/1024} MiB")
+            print(f"GPU12: {CUDevicesNames[12]}, {gpumem12/1024/1024} MiB, {usedmem12/1024/1024} MiB used. {MaxFreeMemory[12]/1024/1024} MiB free - {(reservedmem12-usedmem12)/1024/1024} MiB reserved = {mem12/1024/1024} MiB usable")
 
     if MaxMemory[13] >0:
         usedmem13 = MaxMemory[13] - MaxFreeMemory[13]
@@ -959,8 +946,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem13 = 0
         if usedmem13 > 0:
             gpucount = 14
-            print(f"GPU 13 name: {CUDevicesNames[13]} ; GPU 13 VRAM: {gpumem13/1024/1024} MiB - {MaxFreeMemory[13]/1024/1024} MiB unoccupied = {usedmem13/1024/1024} MiB occupied")
-            print(f"GPU 13 reserved VRAM {reservedmem13/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 13 usable VRAM {mem13/1024/1024} MiB")
+            print(f"GPU13: {CUDevicesNames[13]}, {gpumem13/1024/1024} MiB, {usedmem13/1024/1024} MiB used. {MaxFreeMemory[13]/1024/1024} MiB free - {(reservedmem13-usedmem13)/1024/1024} MiB reserved = {mem13/1024/1024} MiB usable")
 
     if MaxMemory[14] >0:
         usedmem14 = MaxMemory[14] - MaxFreeMemory[14]
@@ -971,8 +957,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem14 = 0
         if usedmem14 > 0:
             gpucount = 15
-            print(f"GPU 14 name: {CUDevicesNames[14]} ; GPU 14 VRAM: {gpumem14/1024/1024} MiB - {MaxFreeMemory[14]/1024/1024} MiB unoccupied = {usedmem14/1024/1024} MiB occupied")
-            print(f"GPU 14 reserved VRAM {reservedmem14/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 14 usable VRAM {mem14/1024/1024} MiB")
+            print(f"GPU14: {CUDevicesNames[14]}, {gpumem14/1024/1024} MiB, {usedmem14/1024/1024} MiB used. {MaxFreeMemory[14]/1024/1024} MiB free - {(reservedmem14-usedmem14)/1024/1024} MiB reserved = {mem14/1024/1024} MiB usable")
 
     if MaxMemory[15] >0:
         usedmem15 = MaxMemory[15] - MaxFreeMemory[15]
@@ -983,13 +968,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem15 = 0
         if usedmem15 > 0:
             gpucount = 16
-            print(f"GPU 15 name: {CUDevicesNames[15]} ; GPU 15 VRAM: {gpumem15/1024/1024} MiB - {MaxFreeMemory[15]/1024/1024} MiB unoccupied = {usedmem15/1024/1024} MiB occupied")
-            print(f"GPU 15 reserved VRAM {reservedmem15/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 15 usable VRAM {mem15/1024/1024} MiB")
-
-    # gpumem = int(gpumem0 + gpumem1 + gpumem2 + gpumem3 + gpumem4 + gpumem5 + gpumem6 + gpumem7 + gpumem8 + gpumem9 + gpumem10 + gpumem11 + gpumem12 + gpumem13 + gpumem14 + gpumem15)
-    # mem = int(mem0 + mem1 + mem2 + mem3 + mem4 + mem5 + mem6 + mem7 + mem8 + mem9 + mem10 + mem11 + mem12 + mem13 + mem14 + mem15)
-    # usedmem = int(usedmem0 + usedmem1 + usedmem2 + usedmem3 + usedmem4 + usedmem5 + usedmem6 + usedmem7 + usedmem8 + usedmem9 + usedmem10 + usedmem11 + usedmem12 + usedmem13 + usedmem14 + usedmem15)
-    # reservedmem = int(reservedmem0 + reservedmem1 + reservedmem2 + reservedmem3 + reservedmem4 + reservedmem5 + reservedmem6 + reservedmem7 + reservedmem8 + reservedmem9 + reservedmem10 + reservedmem11 + reservedmem12 + reservedmem13 + reservedmem14 + reservedmem15)
+            print(f"GPU15: {CUDevicesNames[15]}, {gpumem15/1024/1024} MiB, {usedmem15/1024/1024} MiB used. {MaxFreeMemory[15]/1024/1024} MiB free - {(reservedmem15-usedmem15)/1024/1024} MiB reserved = {mem15/1024/1024} MiB usable")
 
     if gpu_choice_var=="All":
         gpumem = int(gpumem0 + gpumem1 + gpumem2 + gpumem3 + gpumem4 + gpumem5 + gpumem6 + gpumem7 + gpumem8 + gpumem9 + gpumem10 + gpumem11 + gpumem12 + gpumem13 + gpumem14 + gpumem15)
@@ -1002,8 +981,9 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
         usedmem = int(usedmem0)
         reservedmem = int(reservedmem0)
 
-    if mem > 0:
-        print(f"GPUs global reserved VRAM: {reservedmem/1024/1024} MiB (Toral occupied VRAM + Total overhead) ; GPUs total usable VRAM: {mem/1024/1024} MiB")
+    if mem > 0 and gpucount > 1:
+        # print(f"GPUs global reserved VRAM: {reservedmem/1024/1024} MiB (Toral occupied VRAM + Total overhead) ; GPUs total usable VRAM: {mem/1024/1024} MiB")
+        print(f"GPUS total VRAM: {int(gpumem/1024/1024)} MiB - {usedmem/1024/1024} MiB used - {(reservedmem-usedmem)/1024/1024} MiB reserved = {mem/1024/1024} MiB usable")
         print("***")
 
     try:
@@ -1011,7 +991,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             return 0
         layerlimit_intermed = 0
         fsize = modelfile_extracted_meta[1]
-        print(f"Initial layer limit: {layerlimit_intermed} ; Model size: {fsize} MiB ; context size: {ctxsize} tokens")
+        print(f"FIRST_STEP : Initial layer limit: {layerlimit_intermed} ; Model size: {fsize/1024/1024:.3f} MiB ; context size: {ctxsize} tokens")
         print(f"GPUs global reserved VRAM: {reservedmem/1024/1024} MiB (Toral occupied VRAM + Total overhead) ; GPUs total usable VRAM: {mem/1024/1024} MiB")    
 
         if fsize>10000000: #dont bother with models < 10mb
@@ -1019,19 +999,19 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
 
             if modelfile_extracted_meta[2] > 1024*1024*1024*5: #sdxl tax
                 mem -= 1024*1024*1024*(6 if sdquanted else 9)
-                print(f"GPUs total VRAM available after SDXL tax: {mem/1024/1024} MiB")
+                print(f"GPUs total VRAM available after SDXL tax: {int(mem/1024/1024)} MiB")
                 print("***")
             elif modelfile_extracted_meta[2] > 1024*1024*512: #normal sd tax
                 mem -= 1024*1024*1024*(3.25 if sdquanted else 4.25)
-                print(f"GPUs total VRAM available after SD normal tax: {mem/1024/1024} MiB")
+                print(f"GPUs total VRAM available after SD normal tax: {int(mem/1024/1024)} MiB")
                 print("***")
             if modelfile_extracted_meta[3] > 1024*1024*10: #whisper tax
                 mem -= 350*1024*1024
-                print(f"GPUs total VRAM available after Whisper tax: {mem/1024/1024} MiB")
+                print(f"GPUs total VRAM available after Whisper tax: {int(mem/1024/1024)} MiB")
                 print("***")
             if modelfile_extracted_meta[4] > 1024*1024*10: #mmproj tax
                 mem -= 350*1024*1024
-                print(f"GPUs total VRAM available after Mmproj tax: {mem/1024/1024} MiB")
+                print(f"GPUs total VRAM available after Mmproj tax: {int(mem/1024/1024)} MiB")
                 print("***")
 
             bbs = blasbatchsize
@@ -1113,7 +1093,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
 
             if modelfile_extracted_meta[5] > 1024*1024*10: #draft model tax
                 mem -= (modelfile_extracted_meta[5] * 1.4 * csmul)
-                print(f"GPUs total VRAM available after Draft tax: {mem/1024/1024} MiB")
+                print(f"GPUs total VRAM available after Draft tax: {int(mem/1024/1024)} MiB")
                 print("***")
 
             # csmul = 1.0
@@ -1125,32 +1105,20 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             # else:
                 # csmul = 1.0
 
-            print(f"Coefficients :")
-            print(f"Blas batch size: {bbs} ; BBS ratio: {bbs_ratio} ; Flash Attention: {fa} ; FA ratio: {fa_ratio}")
-            print(f"MMQ: {mmq} ; MMQ ratio: {mmq_ratio} ; Quant KV mode: {kvq} ; Quant KV bpw: {kvbpw} bits")
-            print(f"Context size: {cs} tokens ; Context compute buffer multiplier (CCBM): {csmul:.3f}")
-            print(f"Lowvram: {lv} ; Lowvram context ratio: {lvctx_ratio} ; Lowvram compute ratio: {lvcomp_ratio}")
-            print("***")
-            
-            layer_offset = int(poslayeroffset - neglayeroffset)
-            
-            print(f"Offsets :")
-            print(f"Manual layers offset: positive {poslayeroffset} + negative {neglayeroffset} = {layer_offset} ")
-            print("***")
-            print(f"Initial calculation:")
-            size_init = fsize*1.42*csmul
-            print(f"Model size {fsize/1024/1024:.3f} MiB x 1.42 x {csmul:.3f} CCBM = {size_init/1024/1024:.3f} MiB initially to load.")
+            print(f"BASICS : Context Size: {cs} tokens ; Context+Compute Buffer Multiplier (CCBM): {csmul:.3f}")
+            size_init = fsize*1.4*csmul
+            print(f"INITIAL CALC : Model size {fsize/1024/1024:.3f} MiB x 1.4 x {csmul:.3f} (CCBM) = {size_init/1024/1024:.3f} MiB to load.")
             ratio_init = mem/size_init
-            print(f"Initial ratio: {ratio_init:.3f} = GPU usable VRAM {mem/1024/1024} MiB / {size_init/1024/1024:.3f} MiB initially to load.")
+            print(f"INITIAL RATIO : {ratio_init:.3f} = GPU usable VRAM {int(mem/1024/1024)} MiB / {size_init/1024/1024:.3f} MiB grossly estimated to load (model, buffers for context & compute).")
+            layer_offset = int(poslayeroffset - neglayeroffset)
+            print(f"OFFSETS : Manual layers offset: positive {poslayeroffset} + negative {neglayeroffset} = {layer_offset} ")
+            print("***")
             if ratio_init < 1:
-                print(f"GPU usable VRAM : {mem/1024/1024} MiB < {size_init/1024/1024:.3f} MiB initially to load for the model + the context & compute buffers.")
-                print(f"Partial offload is supposed.")
-                print("***")
-                print(f"More precise calculations will proceed to optimize it:")
+                print(f"STEP_2 : The initial ratio {ratio_init:.3f} is inferior to 1. Partial offload is supposed, some CALCULATIONS will verify this.")
                 ggufmeta = modelfile_extracted_meta[0]
                 # ggufmeta = read_gguf_metadata(filepath)
                 if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
-                    print(f"Failure to read metadata or no layers number declared. Fallback calculations.")
+                    print(f"Failure to read metadata or no layers number declared. FALLBACK CALCULATIONS :")
                     sizeperlayer = int(fsize*csmul*0.025)
                     layers = (fsize/sizeperlayer)
                     print(f"Size per layer = Model size {fsize/1024/1024:.3f} MiB x 0.052 x {csmul} (CCBM); Brute estimated number of layers = {fsize/1024/1024:.3f} MiB / {sizeperlayer/1024/1024:.3f} MiB = {layers} llayers")
@@ -1158,7 +1126,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
                     print(f"Size per layer: {sizeperlayer/1024/1024} MiB ; layers limit: {layerlimit_intermed} + offset of {layer_offset} layers if <200, else 200.")
                     print("***")
                 else:
-                    print(f"Success to read metadata, proceeding with more elaborate calculations...")
+                    print(f"Success to read metadata, proceeding with METADATA BASED CALCULATIONS :")
                     layers = ggufmeta[0]
                     headcount = ggufmeta[1]
                     if headcount == 0:
@@ -1166,10 +1134,12 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
                         print(f"Retrieved number of Model layers: {layers} ; Missing number of attention heads, thus based on the number of layers: {headcount}")
                     headkvlen = (ggufmeta[2] if ggufmeta[2] > 0 else 128)
                     sizeperlayer = int(fsize/(layers+1))
-                    print(f"Model layers: {layers} ; Attention heads: {headcount} ; Head size : {headkvlen} ; Size per layer: {sizeperlayer/1024/1024:.3f} MiB")
+                    print(f"Model layers: {layers} ; Size per layer: {sizeperlayer/1024/1024:.3f} MiB ; Attention heads: {headcount} ; Head size : {headkvlen}")
                     print("***")
                     if headcount > 0:
-                        print(f"Precise calculation of the ratio, because attention heads: {headcount} > 0")
+                        print(f"STEP_2a : PRECISE CALC of the ratio possible because detected model attention heads: {headcount} > 0")
+                        print(f"COEFS : BBS: {bbs}, BBS.Ratio: {bbs_ratio}, FA: {fa}, FA.Ratio: {fa_ratio}, MMQ: {mmq}, MMQ.Ratio: {mmq_ratio}, Quant KV mode: {kvq}, QKV bpw: {kvbpw} bits")
+                        print(f"Secondary Coefficients : Lowvram: {lv} ; LowVram-ConText.Ratio: {lvctx_ratio} ; LowVram-ComPute.Ratio: {lvcomp_ratio}")
                         # ratio = max(ratio_init,mem/(fsize*1.34 + (layers*headcount*headkvlen*cs*4.25))) #Concedo
                         # ratio = max(ratio_init,mem/(fsize*1.025 + (layers*headcount*headkvlen*cs*4) + (layers*4*headkvlen*cs*4) + (1.5*1024*1024*1024))) #Henky
                         # ratio = min(ratio_init,mem/(fsize*1.04 + (layers*(headcount+(bbs_ratio*mmq_ratio*fa_ratio))*headkvlen*cs*kvbpw/8))) #Nexes based on Pyroserenus
@@ -1178,11 +1148,11 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
                         print(f"Initially loaded layers: {loaded_layers:.3f} ; Size per layer: {sizeperlayer/1024/1024:.3f} MiB ; Loaded layer size {loaded_layers_size/1024/1024:.3f} MiB")
                         print(f"Context size: {cs} tokens ; GPU usable VRAM: {mem/1024/1024} MiB ; quant_kv_bpw : mode {kvq}, {kvbpw} bpw")
 
-                        context_buffer = int(layers*headcount*headkvlen*cs*kvbpw/8*lvctx_ratio)
-                        print(f"Context buffer : {layers} layers x {headcount} heads x {headkvlen} of KVH length x {cs} ctx x {kvbpw/8} kvq_bpw x {lvctx_ratio} = {context_buffer/1024/1024} MiB")
+                        context_buffer = int(cs*layers*headcount*headkvlen*lvctx_ratio*kvbpw/8)
+                        print(f"Context buffer : {cs} ctx x {layers} layers x {headcount} heads x {headkvlen} KVH length x {lvctx_ratio} LVCT.R x {kvbpw} kvq_bpw / 8 = {context_buffer/1024/1024} MiB")
 
-                        compute_buffer = int(layers*bbs_ratio*mmq_ratio*fa_ratio*headkvlen*cs*lvcomp_ratio**4*1.25*gpucount)
-                        print(f"Compute buffer : {layers} layers x {bbs/128} x {mmq_ratio} MMQ shink x {fa_ratio} FA shrink x {headkvlen} of KVH length x {cs} ctx x {lvcomp_ratio} lowvram bump x 4 x 1.25 = {compute_buffer/1024/1024} MiB x {gpucount} GPUs")
+                        compute_buffer = int(cs*layers*4*1.25*bbs_ratio*mmq_ratio*fa_ratio*headkvlen*lvcomp_ratio*gpucount)
+                        print(f"Compute buffer : {cs}*{layers}*4*1.25*{bbs/128} BBS.R x {mmq_ratio} MMQ.R x {fa_ratio} FA.R x {headkvlen} KVH length x {lvcomp_ratio} LVCP.R x {gpucount} GPUs = {compute_buffer/1024/1024} MiB")
 
                         total_buffer = int(context_buffer + compute_buffer)
                         print(f"Total_buffer: {total_buffer/1024/1024:.3f} MiB = Context buffer: {context_buffer/1024/1024} MiB + Compute buffer: {compute_buffer/1024/1024:.3f} MiB")
@@ -1195,35 +1165,33 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
                     else:
                         ratio = ratio_init
                     layerlimit_intermed = int(ratio*layers)
-                    print(f"Layers limit: {layerlimit_intermed} = final ratio {ratio:.3f} x {layers} layers + eventual manual offset.")
+                    print(f"STEP_3 : Layers limit: {layerlimit_intermed} = final ratio {ratio:.3f} x {layers} layers + eventual manual offset.")
                     estimated_loaded_size = int(layerlimit_intermed*sizeperlayer + total_buffer)
                     print(f"Estimated loaded size in the GPU(s): {estimated_loaded_size/1024/1024:.3f} MiB")
             else:
-                print(f"GPU usable VRAM : {mem/1024/1024} MiB > {size_init/1024/1024:.3f} MiB initially to load.")
-                print(f"The dedicated VRAM is superior to the model, context, and compute size alltogether.")
+                print(f"STEP_2 : The dedicated VRAM is superior to the model, context, and compute size alltogether.")
                 print(f"Best case, assume full offload. No further calculations..")
                 ggufmeta = modelfile_extracted_meta[0]
                 if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
-                    print(f"Failure to read metadata or no layers number declared. Fallback calculations.")
+                    print(f"STEP_2a : Failure to read metadata or unknown layers amount. FALLBACK CALCS.")
                     sizeperlayer = int(fsize*csmul*0.052)
                     layers = (fsize/sizeperlayer)
                     print(f"Size per layer = Model size {fsize/1024/1024:.3f} MiB x 0.052 x {csmul} (CCBM); Estimated number of layers = {layers}")
                     layerlimit_intermed = int(min(200,mem/sizeperlayer))
                     print(f"Size per layer: {sizeperlayer/1024/1024} MiB ; layers limit: {layerlimit_intermed} + eventual offset if <200, else 200.")
-                    print("***")
                 else:
                     layerlimit_intermed = ggufmeta[0] + 3
-                    print(f"Metadata are read.")
+                    print(f"STEP_2a : Metadata are read.")
                     layers = ggufmeta[0]
                     print(f"Layers limit is {ggufmeta[0]} + fixed offset of 3.")
-                print(f"Layers limit: {layerlimit_intermed} = final ratio {ratio_init:.3f} x {layers} layers.")
+                print(f"STEP_3 : Layers limit: {layerlimit_intermed} = final ratio {ratio_init:.3f} x {layers} layers.")
             print("***")
         partial_offload_penalty = 0.95 if (layerlimit_intermed+layer_offset) < layers+1 else 1
-        print(f"Partial offload penalty: {partial_offload_penalty}")
+        if partial_offload_penalty < 1:
+            print(f"STEP_4 : Partial offload penalty: {partial_offload_penalty}")
         layerlimit = 0 if layerlimit_intermed<=2 else int(layerlimit_intermed*partial_offload_penalty+layer_offset)
         # layerlimit = (0 if layerlimit_intermed<=2 else int((layerlimit_intermed+layer_offset)*(0.5 if (layerlimit_intermed+layer_offset) < layers+1 else 1)))
-        print(f"Layers limit: {layerlimit} = {layerlimit_intermed} x {partial_offload_penalty} + {layer_offset} layers offset.")
-        print("***")
+        print(f"FINAL_STEP : Layers limit: {layerlimit} = {layerlimit_intermed} x {partial_offload_penalty} + {layer_offset} layers offset.")
         print("***")
 
                 # layers = ggufmeta[0]
