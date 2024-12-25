@@ -151,7 +151,7 @@ option(GGML_CUDA_FORCE_CUBLAS               "ggml: always use cuBLAS instead of 
 # set   (GGML_CUDA_MMV_Y     "1" CACHE STRING "ggml: y block size for mmv CUDA kernels")
 option(GGML_CUDA_F16                        "ggml: use 16 bit floats for some calculations"   ON)
 # set   (GGML_CUDA_KQUANTS_ITER "2" CACHE STRING
-                                            "ggml: iters./thread per block for Q2_K/Q6_K")
+#                                            "ggml: iters./thread per block for Q2_K/Q6_K")
 
 set   (GGML_CUDA_PEER_MAX_BATCH_SIZE "128" CACHE STRING
                                             "ggml: max. batch size for using peer access")
