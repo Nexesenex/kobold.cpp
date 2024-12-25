@@ -783,7 +783,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             print("***")
 
     overhead = 250*1024*1024
-    reservedmem0 = (overhead*2 + usedmem0) # determine vram overhead
+    reservedmem0 = (overhead*3 + usedmem0) # determine vram overhead
 
     mem0 = gpumem0 - reservedmem0 
     if mem0 < 0:
@@ -791,8 +791,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
         reservedmem0 = 0
     if usedmem0 > 0:
         gpucount = 1
-        print(f"GPU 0 name: {CUDevicesNames[0]} ; GPU 0 VRAM: {gpumem0/1024/1024} MiB - {MaxFreeMemory[0]/1024/1024} MiB unoccupied = {usedmem0/1024/1024} MiB occupied")
-        print(f"GPU 0 reserved VRAM {reservedmem0/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 0 usable VRAM {mem0/1024/1024} MiB")
+        print(f"GPU0: {CUDevicesNames[0]}, {gpumem0/1024/1024} MiB, {usedmem0/1024/1024} MiB used. {MaxFreeMemory[0]/1024/1024} MiB free - {reservedmem0/1024/1024} MiB reserved = {mem0/1024/1024} MiB usable")
 
     # if MaxMemory[0] >0:
         # usedmem0 = MaxMemory[0] - MaxFreeMemory[0]
@@ -815,8 +814,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem1 = 0
         if usedmem1 > 0:
             gpucount = 2
-            print(f"GPU 1 name: {CUDevicesNames[1]} ; GPU 1 VRAM: {gpumem1/1024/1024} MiB - {MaxFreeMemory[1]/1024/1024} MiB unoccupied = {usedmem1/1024/1024} MiB occupied")
-            print(f"GPU 1 reserved VRAM {reservedmem1/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 1 usable VRAM {mem1/1024/1024} MiB")
+            print(f"GPU1: {CUDevicesNames[1]}, {gpumem1/1024/1024} MiB, {usedmem0/1024/1024} MiB used. {MaxFreeMemory[1]/1024/1024} MiB free - {reservedmem1/1024/1024} MiB reserved = {mem1/1024/1024} MiB usable")
 
     if MaxMemory[2] >0:
         usedmem2 = MaxMemory[2] - MaxFreeMemory[2]
@@ -827,8 +825,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem2 = 0
         if usedmem2 > 0:
             gpucount = 3
-            print(f"GPU 2 name: {CUDevicesNames[2]} ; GPU 2 VRAM: {gpumem2/1024/1024} MiB - {MaxFreeMemory[2]/1024/1024} MiB unoccupied = {usedmem2/1024/1024} MiB occupied")
-            print(f"GPU 2 reserved VRAM {reservedmem2/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 2 usable VRAM {mem2/1024/1024} MiB")
+            print(f"GPU2: {CUDevicesNames[2]}, {gpumem0/1024/1024} MiB, {usedmem2/1024/1024} MiB used. {MaxFreeMemory[2]/1024/1024} MiB free - {reservedmem2/1024/1024} MiB reserved = {mem2/1024/1024} MiB usable")
 
     if MaxMemory[3] >0:
         usedmem3 = MaxMemory[3] - MaxFreeMemory[3]
@@ -839,8 +836,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem3 = 0
         if usedmem3 > 0:
             gpucount = 4
-            print(f"GPU 3 name: {CUDevicesNames[3]} ; GPU 3 VRAM: {gpumem3/1024/1024} MiB - {MaxFreeMemory[3]/1024/1024} MiB unoccupied = {usedmem3/1024/1024} MiB occupied")
-            print(f"GPU 3 reserved VRAM {reservedmem3/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 3 usable VRAM {mem3/1024/1024} MiB")
+            print(f"GPU3: {CUDevicesNames[3]}, {gpumem3/1024/1024} MiB, {usedmem3/1024/1024} MiB used. {MaxFreeMemory[3]/1024/1024} MiB free - {reservedmem3/1024/1024} MiB reserved = {mem3/1024/1024} MiB usable")
 
     if MaxMemory[4] >0:
         usedmem4 = MaxMemory[4] - MaxFreeMemory[4]
@@ -851,8 +847,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem4 = 0
         if usedmem4 > 0:
             gpucount = 5
-            print(f"GPU 4 name: {CUDevicesNames[4]} ; GPU 4 VRAM: {gpumem4/1024/1024} MiB - {MaxFreeMemory[4]/1024/1024} MiB unoccupied = {usedmem4/1024/1024} MiB occupied")
-            print(f"GPU 4 reserved VRAM {reservedmem4/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 4 usable VRAM {mem4/1024/1024} MiB")
+            print(f"GPU4: {CUDevicesNames[4]}, {gpumem4/1024/1024} MiB, {usedmem4/1024/1024} MiB used. {MaxFreeMemory[4]/1024/1024} MiB free - {reservedmem4/1024/1024} MiB reserved = {mem4/1024/1024} MiB usable")
 
     if MaxMemory[5] >0:
         usedmem5 = MaxMemory[5] - MaxFreeMemory[5]
@@ -863,8 +858,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem5 = 0
         if usedmem5 > 0:
             gpucount = 6
-            print(f"GPU 5 name: {CUDevicesNames[5]} ; GPU 5 VRAM: {gpumem5/1024/1024} MiB - {MaxFreeMemory[5]/1024/1024} MiB unoccupied = {usedmem5/1024/1024} MiB occupied")
-            print(f"GPU 5 reserved VRAM {reservedmem5/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 5 usable VRAM {mem5/1024/1024} MiB")
+            print(f"GPU5: {CUDevicesNames[5]}, {gpumem5/1024/1024} MiB, {usedmem5/1024/1024} MiB used. {MaxFreeMemory[5]/1024/1024} MiB free - {reservedmem5/1024/1024} MiB reserved = {mem5/1024/1024} MiB usable")
 
     if MaxMemory[6] >0:
         usedmem6 = MaxMemory[6] - MaxFreeMemory[6]
@@ -875,8 +869,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem6 = 0
         if usedmem6 > 0:
             gpucount = 7
-            print(f"GPU 6 name: {CUDevicesNames[6]} ; GPU 6 VRAM: {gpumem6/1024/1024} MiB - {MaxFreeMemory[6]/1024/1024} MiB unoccupied = {usedmem6/1024/1024} MiB occupied")
-            print(f"GPU 6 reserved VRAM {reservedmem6/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 6 usable VRAM {mem6/1024/1024} MiB")
+            print(f"GPU6: {CUDevicesNames[6]}, {gpumem6/1024/1024} MiB, {usedmem6/1024/1024} MiB used. {MaxFreeMemory[6]/1024/1024} MiB free - {reservedmem6/1024/1024} MiB reserved = {mem6/1024/1024} MiB usable")
 
     if MaxMemory[7] >0:
         usedmem7 = MaxMemory[7] - MaxFreeMemory[7]
@@ -887,8 +880,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem7 = 0
         if usedmem7 > 0:
             gpucount = 8
-            print(f"GPU 7 name: {CUDevicesNames[7]} ; GPU 7 VRAM: {gpumem7/1024/1024} MiB - {MaxFreeMemory[7]/1024/1024} MiB unoccupied = {usedmem7/1024/1024} MiB occupied")
-            print(f"GPU 7 reserved VRAM {reservedmem7/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 7 usable VRAM {mem7/1024/1024} MiB")
+            print(f"GPU7: {CUDevicesNames[7]}, {gpumem7/1024/1024} MiB, {usedmem7/1024/1024} MiB used. {MaxFreeMemory[7]/1024/1024} MiB free - {reservedmem7/1024/1024} MiB reserved = {mem7/1024/1024} MiB usable")
 
     if MaxMemory[8] >0:
         usedmem8 = MaxMemory[8] - MaxFreeMemory[8]
@@ -899,8 +891,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem8 = 0
         if usedmem8 > 0:
             gpucount = 9
-            print(f"GPU 8 name: {CUDevicesNames[8]} ; GPU 8 VRAM: {gpumem8/1024/1024} MiB - {MaxFreeMemory[8]/1024/1024} MiB unoccupied = {usedmem8/1024/1024} MiB occupied")
-            print(f"GPU 8 reserved VRAM {reservedmem8/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 8 usable VRAM {mem8/1024/1024} MiB")
+            print(f"GPU8: {CUDevicesNames[8]}, {gpumem8/1024/1024} MiB, {usedmem8/1024/1024} MiB used. {MaxFreeMemory[8]/1024/1024} MiB free - {reservedmem8/1024/1024} MiB reserved = {mem8/1024/1024} MiB usable")
 
     if MaxMemory[9] >0:
         usedmem9 = MaxMemory[9] - MaxFreeMemory[9]
@@ -911,8 +902,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem9 = 0
         if usedmem9 > 0:
             gpucount = 10
-            print(f"GPU 9 name: {CUDevicesNames[9]} ; GPU 9 VRAM: {gpumem9/1024/1024} MiB - {MaxFreeMemory[9]/1024/1024} MiB unoccupied = {usedmem9/1024/1024} MiB occupied")
-            print(f"GPU 9 reserved VRAM {reservedmem9/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 9 usable VRAM {mem9/1024/1024} MiB")
+            print(f"GPU9: {CUDevicesNames[9]}, {gpumem9/1024/1024} MiB, {usedmem9/1024/1024} MiB used. {MaxFreeMemory[9]/1024/1024} MiB free - {reservedmem9/1024/1024} MiB reserved = {mem9/1024/1024} MiB usable")
 
     if MaxMemory[10] >0:
         usedmem10 = MaxMemory[10] - MaxFreeMemory[10]
@@ -923,8 +913,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem10 = 0
         if usedmem10 > 0:
             gpucount = 11
-            print(f"GPU 10 name: {CUDevicesNames[10]} ; GPU 10 VRAM: {gpumem10/1024/1024} MiB - {MaxFreeMemory[10]/1024/1024} MiB unoccupied = {usedmem10/1024/1024} MiB occupied")
-            print(f"GPU 10 reserved VRAM {reservedmem10/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 10 usable VRAM {mem10/1024/1024} MiB")
+            print(f"GPU10: {CUDevicesNames[10]}, {gpumem10/1024/1024} MiB, {usedmem10/1024/1024} MiB used. {MaxFreeMemory[10]/1024/1024} MiB free - {reservedmem10/1024/1024} MiB reserved = {mem10/1024/1024} MiB usable")
 
     if MaxMemory[11] >0:
         usedmem11 = MaxMemory[11] - MaxFreeMemory[11]
@@ -935,8 +924,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem11 = 0
         if usedmem11 > 0:
             gpucount = 12
-            print(f"GPU 11 name: {CUDevicesNames[11]} ; GPU 11 VRAM: {gpumem11/1024/1024} MiB - {MaxFreeMemory[11]/1024/1024} MiB unoccupied = {usedmem11/1024/1024} MiB occupied")
-            print(f"GPU 11 reserved VRAM {reservedmem11/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 11 usable VRAM {mem11/1024/1024} MiB")
+            print(f"GP11: {CUDevicesNames[11]}, {gpumem11/1024/1024} MiB, {usedmem11/1024/1024} MiB used. {MaxFreeMemory[11]/1024/1024} MiB free - {reservedmem11/1024/1024} MiB reserved = {mem11/1024/1024} MiB usable")
 
     if MaxMemory[12] >0:
         usedmem12 = MaxMemory[12] - MaxFreeMemory[12]
@@ -947,8 +935,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem12 = 0
         if usedmem12 > 0:
             gpucount = 13
-            print(f"GPU 12 name: {CUDevicesNames[12]} ; GPU 12 VRAM: {gpumem12/1024/1024} MiB - {MaxFreeMemory[12]/1024/1024} MiB unoccupied = {usedmem12/1024/1024} MiB occupied")
-            print(f"GPU 12 reserved VRAM {reservedmem12/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 12 usable VRAM {mem12/1024/1024} MiB")
+            print(f"GPU12: {CUDevicesNames[12]}, {gpumem12/1024/1024} MiB, {usedmem12/1024/1024} MiB used. {MaxFreeMemory[12]/1024/1024} MiB free - {reservedmem12/1024/1024} MiB reserved = {mem12/1024/1024} MiB usable")
 
     if MaxMemory[13] >0:
         usedmem13 = MaxMemory[13] - MaxFreeMemory[13]
@@ -959,8 +946,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem13 = 0
         if usedmem13 > 0:
             gpucount = 14
-            print(f"GPU 13 name: {CUDevicesNames[13]} ; GPU 13 VRAM: {gpumem13/1024/1024} MiB - {MaxFreeMemory[13]/1024/1024} MiB unoccupied = {usedmem13/1024/1024} MiB occupied")
-            print(f"GPU 13 reserved VRAM {reservedmem13/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 13 usable VRAM {mem13/1024/1024} MiB")
+            print(f"GPU13: {CUDevicesNames[13]}, {gpumem13/1024/1024} MiB, {usedmem13/1024/1024} MiB used. {MaxFreeMemory[13]/1024/1024} MiB free - {reservedmem13/1024/1024} MiB reserved = {mem13/1024/1024} MiB usable")
 
     if MaxMemory[14] >0:
         usedmem14 = MaxMemory[14] - MaxFreeMemory[14]
@@ -971,8 +957,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem14 = 0
         if usedmem14 > 0:
             gpucount = 15
-            print(f"GPU 14 name: {CUDevicesNames[14]} ; GPU 14 VRAM: {gpumem14/1024/1024} MiB - {MaxFreeMemory[14]/1024/1024} MiB unoccupied = {usedmem14/1024/1024} MiB occupied")
-            print(f"GPU 14 reserved VRAM {reservedmem14/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 14 usable VRAM {mem14/1024/1024} MiB")
+            print(f"GPU14: {CUDevicesNames[14]}, {gpumem14/1024/1024} MiB, {usedmem14/1024/1024} MiB used. {MaxFreeMemory[14]/1024/1024} MiB free - {reservedmem14/1024/1024} MiB reserved = {mem14/1024/1024} MiB usable")
 
     if MaxMemory[15] >0:
         usedmem15 = MaxMemory[15] - MaxFreeMemory[15]
@@ -983,8 +968,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             reservedmem15 = 0
         if usedmem15 > 0:
             gpucount = 16
-            print(f"GPU 15 name: {CUDevicesNames[15]} ; GPU 15 VRAM: {gpumem15/1024/1024} MiB - {MaxFreeMemory[15]/1024/1024} MiB unoccupied = {usedmem15/1024/1024} MiB occupied")
-            print(f"GPU 15 reserved VRAM {reservedmem15/1024/1024} MiB (occupied RAM + 250MiB overhead) ; GPU 15 usable VRAM {mem15/1024/1024} MiB")
+            print(f"GPU15: {CUDevicesNames[15]}, {gpumem15/1024/1024} MiB, {usedmem15/1024/1024} MiB used. {MaxFreeMemory[15]/1024/1024} MiB free - {reservedmem15/1024/1024} MiB reserved = {mem15/1024/1024} MiB usable")
 
     # gpumem = int(gpumem0 + gpumem1 + gpumem2 + gpumem3 + gpumem4 + gpumem5 + gpumem6 + gpumem7 + gpumem8 + gpumem9 + gpumem10 + gpumem11 + gpumem12 + gpumem13 + gpumem14 + gpumem15)
     # mem = int(mem0 + mem1 + mem2 + mem3 + mem4 + mem5 + mem6 + mem7 + mem8 + mem9 + mem10 + mem11 + mem12 + mem13 + mem14 + mem15)
