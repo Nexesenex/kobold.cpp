@@ -172,6 +172,7 @@ class load_model_inputs(ctypes.Structure):
                 ("rope_freq_scale", ctypes.c_float),
                 ("rope_freq_base", ctypes.c_float),
                 ("moe_experts", ctypes.c_int),
+                ("norm_rms_eps", ctypes.c_float),
                 ("flash_attention", ctypes.c_bool),
                 ("tensor_split", ctypes.c_float * tensor_split_max),
                 ("quant_k", ctypes.c_int),
@@ -1419,6 +1420,7 @@ def load_model(model_filename):
             inputs.tensor_split[n] = 0
 
     inputs.moe_experts = args.moeexperts
+    inputs.norm_rms_eps = args.normrmseps
     inputs = set_backend_props(inputs)
 
     inputs.executable_path = (getdirpath()+"/").encode("UTF-8")
@@ -3322,6 +3324,7 @@ def show_gui():
     customrope_base = ctk.StringVar(value="10000")
     chatcompletionsadapter_var = ctk.StringVar()
     moeexperts_var = ctk.StringVar(value=str(-1))
+    normrmseps_var = ctk.StringVar(value=str(-1.0))
 
     model_var = ctk.StringVar()
     lora_var = ctk.StringVar()
@@ -3836,6 +3839,7 @@ def show_gui():
     makefileentry(tokens_tab, "Model:", "Select GGML or GGML Model File", model_var, 50, 576, onchoosefile=on_picked_model_file, filetypes=[("GGML bin or GGUF", ("*.bin","*.gguf"))] ,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
     model_var.trace("w", gui_changed_modelfile)
     makelabelentry(tokens_tab, "MoE Experts:", moeexperts_var, row=35, padx=100, singleline=True, tooltip="Override number of MoE experts.")
+    makelabelentry(tokens_tab, "Norm RMS Epsilon:", normrmseps_var, row=38, padx=150, singleline=True, tooltip="Override Norm RMS Epsilon value to use for the model.\nUseful for <2bpw quants mainly.\nExample of format: 1.95e-05")
 
     togglerope(1,1,1)
     # toggleflashattn(1,1,1)
@@ -4119,6 +4123,7 @@ def show_gui():
         if customrope_var.get()==1:
             args.ropeconfig = [float(customrope_scale.get()),float(customrope_base.get())]
         args.moeexperts = int(moeexperts_var.get()) if moeexperts_var.get()!="" else -1
+        args.normrmseps = float(normrmseps_var.get()) if normrmseps_var.get()!="" else -1.0
         args.chatcompletionsadapter = None if chatcompletionsadapter_var.get() == "" else chatcompletionsadapter_var.get()
         try:
             if kcpp_exporting_template and isinstance(args.chatcompletionsadapter, str) and args.chatcompletionsadapter!="" and os.path.exists(args.chatcompletionsadapter):
@@ -4292,6 +4297,8 @@ def show_gui():
                 customrope_var.set(0)
         if "moeexperts" in dict and dict["moeexperts"]:
             moeexperts_var.set(dict["moeexperts"])
+        if "normrmseps" in dict and dict["normrmseps"]:
+            normrmseps_var.set(dict["normrmseps"])
 
         if "blasbatchsize" in dict and dict["blasbatchsize"]:
             blas_size_var.set(blasbatchsize_values.index(str(dict["blasbatchsize"])))
@@ -5739,6 +5746,7 @@ if __name__ == '__main__':
     advparser.add_argument("--unpack", help="Extracts the file contents of the KoboldCpp/Croco.Cpp binary into a target directory.", metavar=('destination'), type=str, default="")
     advparser.add_argument("--nomodel", help="Allows you to launch the GUI alone, without selecting any model.", action='store_true')
     advparser.add_argument("--moeexperts", metavar=('[num of experts]'), help="How many experts to use for MoE models (default=follow gguf)", type=int, default=-1)
+    advparser.add_argument("--normrmseps", metavar=('[norm rms eps]'), help="Override Norm RMS Epsilon value to use for the model. Useful for <2bpw quants mainly. Example of format: 1.95e-05 (default=follow gguf)", type=float, default=-1.0)
     advparser.add_argument("--poslayeroffset", help="Removes or adds a layer to the GPU layers autoloader calculation in case of OOM or under-exploitation.", type=check_range(int,0,10), default=0)
     advparser.add_argument("--neglayeroffset", help="Removes or adds a layer to the GPU layers autoloader calculation in case of OOM or under-exploitation.", type=check_range(int,0,10), default=0)
 

@@ -2324,6 +2324,18 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             kvos.push_back(kvo);
             model_params.kv_overrides = kvos.data();
         }
+        if(inputs.norm_rms_eps>0)
+        {
+            printf("\nOverriding norm rms epsilon to %f\n",inputs.norm_rms_eps);
+            llama_model_kv_override kvo;
+            const char * rmskey = "llama.attention.layer_norm_rms_epsilon";
+            std::strncpy(kvo.key, rmskey, sizeof(kvo.key) - 1);
+            kvo.key[sizeof(kvo.key) - 1] = '\0'; // Ensure null termination
+            kvo.tag = LLAMA_KV_OVERRIDE_TYPE_FLOAT;
+            kvo.val_f64 = inputs.norm_rms_eps;
+            kvos.push_back(kvo);
+            model_params.kv_overrides = kvos.data();
+        }
         llama_model * llamamodel = llama_load_model_from_file(kcpp_data->model_filename.c_str(), model_params);
 
         if(overwriteRope)
