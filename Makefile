@@ -5,9 +5,6 @@
 
 default: koboldcpp_default koboldcpp_failsafe koboldcpp_noavx2 koboldcpp_clblast koboldcpp_clblast_noavx2 koboldcpp_cublas koboldcpp_hipblas koboldcpp_vulkan koboldcpp_vulkan_noavx2 finishedmsg
 tools: quantize_gpt2 quantize_gptj quantize_gguf quantize_neox quantize_mpt quantize_clip whispermain sdmain gguf-split
-dev: koboldcpp_default
-dev2: koboldcpp_clblast
-dev3: koboldcpp_vulkan finishedmsg
 
 ifndef UNAME_S
 UNAME_S := $(shell uname -s)
@@ -153,6 +150,7 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 	# Use all CPU extensions that are available:
 # old library NEEDS mf16c to work. so we must build with it. new one doesnt
 	ifeq ($(OS),Windows_NT)
+		ifdef LLAMA_PORTABLE
 		CFLAGS +=
 		NONECFLAGS +=
 		SIMPLECFLAGS += -mavx -msse3
@@ -161,8 +159,10 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 		else
 			FULLCFLAGS += -mavx2 -msse3 -mfma -mf16c -mavx
 		endif
+		else
+		CFLAGS += -march=native -mtune=native
+		endif
 	else
-# if not on windows, they are clearly building it themselves, so lets just use whatever is supported
 		ifdef LLAMA_PORTABLE
 		CFLAGS +=
 		NONECFLAGS +=
@@ -423,10 +423,17 @@ NOTIFY_MSG =
 
 ifeq ($(OS),Windows_NT)
 	DEFAULT_BUILD = $(CXX) $(CXXFLAGS)  $^ -shared -o $@.dll $(LDFLAGS)
+	ifdef LLAMA_PORTABLE
 	FAILSAFE_BUILD = $(CXX) $(CXXFLAGS) $^ -shared -o $@.dll $(LDFLAGS)
 	NOAVX2_BUILD = $(CXX) $(CXXFLAGS) $^ -shared -o $@.dll $(LDFLAGS)
+	endif
+
+	ifdef LLAMA_CLBLAST
 	CLBLAST_BUILD = $(CXX) $(CXXFLAGS) $^ lib/OpenCL.lib lib/clblast.lib -shared -o $@.dll $(LDFLAGS)
+	endif
+	ifdef LLAMA_VULKAN
 	VULKAN_BUILD = $(CXX) $(CXXFLAGS) $^ lib/vulkan-1.lib -shared -o $@.dll $(LDFLAGS)
+	endif
 
 	ifdef LLAMA_CUBLAS
 		CUBLAS_BUILD = $(CXX) $(CXXFLAGS) $(CUBLAS_FLAGS) $^ -shared -o $@.dll $(CUBLASLD_FLAGS) $(LDFLAGS)
@@ -459,18 +466,18 @@ else
 	ifdef LLAMA_VULKAN
 		VULKAN_BUILD = $(CXX) $(CXXFLAGS) $^ -lvulkan -shared -o $@.so $(LDFLAGS)
 	endif
+endif
 
-	ifndef LLAMA_CLBLAST
-	ifndef LLAMA_CUBLAS
-	ifndef LLAMA_HIPBLAS
-	ifndef LLAMA_VULKAN
-	ifndef LLAMA_METAL
-	NOTIFY_MSG = @echo -e '\n***\nYou did a basic CPU build. For faster speeds, consider installing and linking a GPU BLAS library. For example, set LLAMA_VULKAN=1 to compile with Vulkan support. Read the KoboldCpp Wiki for more information. This is just a reminder, not an error.\n***\n'
-	endif
-	endif
-	endif
-	endif
-	endif
+ifndef LLAMA_CLBLAST
+ifndef LLAMA_CUBLAS
+ifndef LLAMA_HIPBLAS
+ifndef LLAMA_VULKAN
+ifndef LLAMA_METAL
+NOTIFY_MSG = @echo -e '\n***\nYou did a basic CPU build. For faster speeds, consider installing and linking a GPU BLAS library. For example, set LLAMA_CLBLAST=1 LLAMA_VULKAN=1 to compile with Vulkan and CLBlast support. Add LLAMA_PORTABLE=1 to make a sharable build that other devices can use. Read the KoboldCpp Wiki for more information. This is just a reminder, not an error.\n***\n'
+endif
+endif
+endif
+endif
 endif
 
 

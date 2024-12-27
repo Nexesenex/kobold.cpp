@@ -748,6 +748,7 @@ static int ggml_backend_sched_backend_id_from_cur(ggml_backend_sched_t sched, st
         if (!backend_prealloc_warn) {
             backend_prealloc_warn = true;
             printf("\nCaution: pre-allocated tensor (%s) in a buffer (%s) that cannot run the operation (%s)\n", tensor->name, ggml_backend_buffer_name(buffer), ggml_op_name(tensor->op));
+            printf("\nNote that if you are using Quantized KV, not all backends support it!\n");
         }
     }
 
