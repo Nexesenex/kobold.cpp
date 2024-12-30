@@ -4252,8 +4252,6 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 	const ALLTALK_ID = 1001;
 	const OAI_TTS_ID = 1002;
 
-	const BIG_HD_RES_PX = 512; //when saving oversized images, could be 640?
-
 	const HD_RES_PX = 768;
 	const NO_HD_RES_PX = 512;
 	const SAVE_SLOTS = 10;

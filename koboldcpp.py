@@ -1816,7 +1816,7 @@ def websearch(query):
     global websearch_lastresponse
     if not query or query=="":
         return []
-    query = query[:300] # only search first 300 chars, due to search engine limits
+    query = query[:499] # only search first 300 chars, due to search engine limits
     if query==websearch_lastquery:
         print("Returning cached websearch...")
         return websearch_lastresponse
@@ -1825,24 +1825,28 @@ def websearch(query):
     import difflib
     from html.parser import HTMLParser
     from concurrent.futures import ThreadPoolExecutor
-    num_results = 3
+    num_results = 10
     searchresults = []
     if args.debugmode != -1 and not args.quiet:
         print("Performing new websearch...")
 
     def fetch_searched_webpage(url):
-        if args.debugmode:
+        if args.debugmode != -1 and not args.quiet:
             utfprint(f"WebSearch URL: {url}")
         try:
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'})
             with urllib.request.urlopen(req,  timeout=15) as response:
                 html_content = response.read().decode('utf-8', errors='ignore')
+                # if args.debugmode != -1 and not args.quiet:
+                    # print(f"Returning results with Googlebot compatible agent: {html_content}")
                 return html_content
         except urllib.error.HTTPError: #we got blocked? try 1 more time with a different user agent
             try:
                 req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36'})
                 with urllib.request.urlopen(req,  timeout=15) as response:
                     html_content = response.read().decode('utf-8', errors='ignore')
+                    # if args.debugmode != -1 and not args.quiet:
+                        # print(f"Returning results with AppleWebKit/KHTML/Gecko compatible agent: {html_content}")
                     return html_content
             except Exception as e:
                 if args.debugmode != -1 and not args.quiet:
@@ -1856,11 +1860,16 @@ def websearch(query):
         with ThreadPoolExecutor() as executor:
             # Submit tasks and gather results
             results = list(executor.map(fetch_searched_webpage, urls))
+        if args.debugmode != -1 and not args.quiet:
+            print(f"Returning results: {urls}")
+            # print(f"Returning results: {results}")
         return results
 
     def normalize_page_text(text):
         text = re.sub(r'\s+([.,!?])', r'\1', text)  # Remove spaces before punctuation
         # text = re.sub(r'([.,!?])([^\s])', r'\1 \2', text) # Ensure a single space follows punctuation, if not at the end of a line
+        # if args.debugmode != -1 and not args.quiet:
+            # print(f"Returning text: {text}")
         return text
 
     class VisibleTextParser(HTMLParser):
@@ -1953,7 +1962,7 @@ def websearch(query):
                 if matches.size > 100 and desclen-matches.size < 100: #good enough match
                     # expand description by some chars both sides
                     expandamtbefore = 200
-                    expandamtafter = 800
+                    expandamtafter = 3500
                     startpt = matches.a - expandamtbefore
                     startpt = 0 if startpt < 0 else startpt
                     endpt =  matches.a + expandamtafter + desclen
