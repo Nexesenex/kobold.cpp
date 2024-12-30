@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 195;
+	const LITEVER = 198;
 	const urlParams = new URLSearchParams(window.location.search);
 	var localflag = true;
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -67,6 +67,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			--img_corpo_retry:url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAA7AAAAOwBeShxvQAAADZQTFRFAAAAmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYB0vbbgAAABJ0Uk5TAP+OCnz5/ZjdwtU8JsqwVWW2UONGYgAAAOZJREFUeJy9U4sOgyAMBFosguj8/59dAXmOuWRZdokJXI8+8BDit9geiI/tXdR5LSO0d7PDRjYwL2lwYXoxJ9Fu4hIFrCuUOIXM6toDhVoKpcRynglf5QIsE/yp3B4n3fuSZ2wlC7g/PzZlG4Hj+tBFARU1grXmEoVpS2i5wFxwpHx8L0MDXCLguLbKzq72H3Amz3bEjnCYJFxfoo5rprWPwyJ1Wqm5gAoTBTSWAP7lrhHYsUVbuVTi7OM7m2qrguiP1jBe9nbCkEVTb7kqD+a8TLsTndm0AzZ7b3vx8eGkNLdP70s8ASe+BWpoHN76AAAAAElFTkSuQmCC');
 			--img_corpo_delete:url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAA7AAAAOwBeShxvQAAADxQTFRFAAAAmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZa/DskgAAABR0Uk5TAP8ZE8/k2cbhH56BdA9kAixGQ1txX8NpAAAAuElEQVR4nL2TyRbDIAhFAxqTOiQd/v9fmzikgNhd60qQd8F3dJr+s54+JpkzMdzb/gEAzvBznI9kq/DHHhZWgfbMhRqFM2CMrAfYWrsVOKPowSWRWJHpaVMsDItUrwyVGYqeMVQ9Zeh6whjoCWOgpwxd/7k/zDg4v1rY2zd9ZigV7f5lDtdVXP7VQskg/qHGYP4rDOF/xzDSf8nw/ZMrDF9DO3q0S42i4n9mxBrsm/JxUvSvXSZ/s96e2ATDYcXDVgAAAABJRU5ErkJggg==');
 			--img_corpo_theme:url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAOxAAADsQBlSsOGwAAAEtQTFRFAAAAmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZCNPppgAAABl0Uk5TAP9EmbvlZocD/vsGPIjPfaJbLtdJl+Y6R35RHH0AAACySURBVHictZPJFoMgDEV5WoqA89D6/19aLIg1yaq1d4OPc48Jk1IX4JsHIrrxLAYaHBgWAxrP9K8amsUAkKttnyReIlhUaaKClYQJXRHpMEnCYPOy7CAJquhvkb7gLXEEYTRlxIyiMLvcg5slocVyjyxolXIfq3bvkcwcfrn5vCipKHR17vmbha9531ZRIDvPBXJ2XCCnz4V/XDmNOk2ka3+KAXN+KSQGvNH7WzOexd95AaOkBtmsQk/EAAAAAElFTkSuQmCC');
+			--img_corpo_clip:url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACBVGfHAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAA7AAAAOwBeShxvQAAAC1QTFRFAAAA////////////////////////////////////////////////////////oUirmwAAAA90Uk5TAP6GZ90GEyLL6J1QL7RBWlveQAAAALlJREFUeJxjYMABghtFliPzeRoFBQVNkQRSBLt0Jwoj+KwXhQNYTwgeQOgQXMrAwDdxAVyAGSx5cQKUW6HKJBjA3hSgKAAVMHRjEmRgFikYLgIJTCIJSALcgst3yiJ8u3E660VBQTmGhbDwOCjNkCsoacra2AAViJQIYCh+ysAnaAAPQFUQdVIkABbmjUIJwDBuRETDScHushxFiDpILDQKTpkoODkALsBQ5CgoKPuUAQnEaSknMGAHAC9ZNIJ+mLnNAAAAAElFTkSuQmCC');
 			--img_gear:url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAA7AAAAOwBeShxvQAAADxQTFRFiYmJAAAAiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJ1owGHwAAABR0Uk5T/wAOBObNRLP0Fih22YC+ZVE1n4prfQ+hAAAA7UlEQVR4nJWT2xaEIAhFEbxk2v3//3WsmUCLVmt4It15kCNgXgIkpZ4uSQNgsuDinkUHNuEVmC2UyDPinPfM+hYY4BZbA3R3APoacG/Aet+35h8ArSKxCEBB2QeHP6CfuMTgI3qm8xR3YJJ/0lc28UI3F2Dkz3C2VxTHAmT+OrtrPC/lAkgT2SAUDR2IDSAteJCoiqRbkaEAixg10MV7uxydRF4JHqPnI8NCpxdVsyRWErNIMavD2m7FLde8h/EFQO1N1hJR2YdYS/BFszsPG5oajD/u4cpLxu1o0WVw6tEzqbOJp1MbXkPa8D7FB+prBiyq3W6BAAAAAElFTkSuQmCC');
 			--img_corpo_left:url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAAnQAAAJ0Bj3LnbgAAADxQTFRFAAAAmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZa/DskgAAABR0Uk5TAP0C1vSFKA1oFwjrPK3DS6DRtVwhct1aAAAAhUlEQVR4nKWRyRIDIQhEaXfFZdT//9eY68CkkgrH1w3VANF/ZYK3Pv4gHM6wQeGXA/uscD48mBuP9YKz0l9qY8yUFb/Kn/wUuoPdUXAKDPQqN6OYLLBqkUp+K63KWSbuqfeYnCZcG8q0kqbDHEq0Mk7ovrWefZQlz35Sj8VNnJE+vPabegE7dATMPe9UFwAAAABJRU5ErkJggg==');
 			--img_corpo_right:url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAAnQAAAJ0Bj3LnbgAAADxQTFRFAAAAmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZa/DskgAAABR0Uk5TAP0C1oUoDfRoFwjqPK3DS6DRtVyphxJ2AAAAg0lEQVR4nJ2RSxLEIAhERVRE/ES9/13H2QYyVRmW/eyiW5z7b1LAEP0bEBHEJBwE6DKIj4eIRY4HCa6atIfzBGm1PJBHD5metBGoR6NO7QCiQakLALNa4mv76my+nzvdO5bRCGbmm+7TOFFnVlHL7ifo0BXiOvrWuuMma+jP+HHBN/MBKVwEvjDYz2QAAAAASUVORK5CYII=');
@@ -338,7 +339,8 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 
 		#input_text,
 		#memorytext,
-		#anotetext {
+		#anotetext,
+		#documentdb_data {
 			height: 80px;
 			resize: none;
 			overflow: auto;
@@ -1647,10 +1649,20 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			width:308px;
 			height:462px;
 		}
+		.zoomedimg.portrait_long
+		{
+			width:231px;
+			height:462px;
+		}
 		.zoomedimg.landscape
 		{
 			width:462px;
 			height:308px;
+		}
+		.zoomedimg.landscape_long
+		{
+			width:462px;
+			height:231px;
 		}
 
 		@media (max-width: 620px) {
@@ -1667,6 +1679,16 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			{
 				width:min(96vw, 420px);
 				height:min(64vw, 280px);
+			}
+			.zoomedimg.portrait_long
+			{
+				width:min(48vw, 210px);
+				height:min(96vw, 420px);
+			}
+			.zoomedimg.landscape_long
+			{
+				width:min(96vw, 420px);
+				height:min(48vw, 210px);
 			}
 		}
 		.mdlpicker::-webkit-calendar-picker-indicator {
@@ -2133,7 +2155,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		margin-left: auto;
 		margin-right: auto;
 		border-radius: 16px;
-		padding-left: 12px;
+		padding-left: 52px;
 		padding-right: 52px;
 		padding-top: 8px;
         border: 1px solid #bbbbbbaa;
@@ -2162,6 +2184,29 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		color: #dddddd;
 	}
 
+	.corpo_chat_img_btn {
+		background: #000000 none repeat scroll 0 0;
+		border:none;
+		border-radius: 50%;
+		color: #fff;
+		cursor: pointer;
+		font-size: 15px;
+		height: 33px;
+		position: absolute;
+		left: 12px;
+		bottom: 10px;
+		width: 33px;
+		background-size: 50% !important;
+		background-repeat: no-repeat !important;
+ 		background-position: center !important;
+		background-image: var(--img_corpo_clip) !important;
+	}
+	.corpo_chat_img_btn:hover {
+		background: #555555 none repeat scroll 0 0;
+	}
+	.corpo_chat_img_btn:disabled {
+		background: #838383 none repeat scroll 0 0;
+	}
 	.corpo_chat_send_btn {
 		background: #000000 none repeat scroll 0 0;
 		border:none;
@@ -2518,7 +2563,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		const favivon_normal = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAEtQTFRFAAAA+XJ0l09PsVdXcTw842hqw2hmTi4vMCQlb2eUgWtl+tGpBAMDEw4NPCkoFw8PJBgXt5WBVkxW4Nvf7Lia3Z+MpJnAZ05HnJOTYIS/NAAAABl0Uk5TAv////v//vT9//3/Nna08qf+///////a/hkcROQAAAGUSURBVHiclZLRcoQgDEULBAKoIKjI/39pL4i7nbUPbcYZwJyES5Kvr3/YvIx1nn9zL4G4EwuTXX7xs4QFGEklOT6SBENERguhsWHFD2AVRhL8IEgawY8b5L4fYtg+TSl8+NMEu4G2P34Q67r6I+37dLyBfU/4PY/sInG2MR8vIHG01h9mHfq1hUUQtwYcLEcp+ltmwqutdy5HMwAfc8ExKtVSLEZZW13Jxb4Azq7UHFnFrtGItLliS1UDYOfctm3JhEtlEH5zzpZNDsC63AB1VysY3gqC3C2ytsNW6Q3IjCt91Qr9QK8MiFL4nUEpEyNLYmodxYo3RquVHWUmbbRu0QCbKWwNfil5zYeENrRRqtZrGEQYqdtW8FWHLl4bgZDLFLZdbS/UzP2AEGTufkt3xWSvwzJeh4GxHWD5qlgXOZ/n2ULuC/od4Pk8x9xhCekD0Bqd/DmXgbpEumRgrMPn1K6ecs4pJc/V0nE+x35KtfTJTJufpvPTD2DyNZ3e4wP3zDCHevg+yYvf09PfkHuK7/Vv9g2CjBTdqv3bFgAAAABJRU5ErkJggg==";
 		const compressed_scenario_db = ["XQAAAQCkKgAAAAAAAAA9iIqG1FTp3Td41VnWyuXTp3Lb95KmIEizGvJcmkqrV2FY5cKEeSxCwbqBRjHVjL7PUH9wCoW89dPxjDNZvgp6okMOelpy7_1P6GV-mfJV4jz42_DXqYfET4aYlAT13M95gkcA14f0NLvI_p6B9CyG8EbkhRxsk3uyf_KgTV5kwqzAcr5C4JQ_pJr77GnYCHQI8h6F765-lcqrvw1Xu1GHhcN3lj7s9PhMvLnmGPZbQMrTo5sqPJDzYO6lytxmNSHSXMICpN2kFJB6kqyL5lBxNAH3Au_F_JIC85GqwLXWEy8wZms5KmAdp1s3EA1yabPGqqF0G5RxBp3aXzm7h6QUJPy1qSr6JJAo4fi2gCPaLkdn2pKqNDR1Ww8FA6AVHOyMgCTmmrQxWVYgXY9TdhHKcRcrIsoHNXEeWSqMGJNQ8lzVfc26teZdBdPLhqcClG8wUThPtyobTMz8Fgom88nTv7VT-mZhwH9Nc4ghoCL8dMR0Skf-EYDZ0Uvz03_GTn5OB8yuX6FmsD1XQJv_CKBAUHeDKd7n_bC7WOnlAINHPX9Bh5TnwjeLYO-UAL2ClMJTFzR-k2cjVHGQnLB7hZ48L1nToRG1gSVN7dP3Zysw7riwIxnfG4MMNXtEbHyxrCvz2zRTUEqbHLrwIzdJRpJ5s5XfTlY1CPZkQCwxbA6rrUt27D6a-YDKavbg0hubpViPRYbnEDXr9gL-7in4f_K2cOZdQ26Q--hk0xzEtgBNFI6inHA2nA4LofUpWjl835qg6CUyz9EzQkw0cDgPVjYXehC9oC_3H0U2O9YC-Ah8VpdPdCHUFuaQr7oXgePUub_Be1XQyCA5TaqrJxVxUG2hZA4rOVJHZ_AahfiJN7z6QcVEp-8xf-wHcv1lpWjjNdXFWDqVQZkdOaKf63dtjP35SmC5eCw2_BNX_t-db_FCCAhm2Vn2WI3q4k00p4l_ocCrJIdRID6muBVZQXCzxcRf5m8kcGwrTB-XVS-XSSPZInaBxZjgimOl5bLwJvdMC-HNYtU-yUDjXvDjPraZ_7ZV_-knU1GbHf1BpI9-rNbl_3bbA7KbmL7Q_goV1Clvi6gLYgjbXGQMTFjQEoodZX3fK_bDhVsrA1fWMJMWwfY3ua-j8HNuyRDfhPBpbTK0Gvz5-GWbIRF3v4zwR9HzIjz2frY7luy3ApQ6QJw7K6ITvD80u5VLfpHYReVCLpgs-lvPStklgnGXj3j5vuaH9f-wFohB19vwzRnthvgdplXPQ9jMy3ieb80sELS0WiGD-E2L_HhNXUcpTdeBp3HQFK4QubJOiIeKuZDVR7PxvtwBj26m-pLXLzKc6WqQlt07TsRo_72SlAaZodyyFRXf8636HCAyEHcVEhR6uZ1lDu00BHvsyVe6BdG7zvjNdmLluA0qBJQ9FO3ipHezadlwCPnEBDQAAZRgHKUvRCJNOQH_jcqFLLtmDADXoLvcK8_lN0LEeisA4B1LH0X2x0Q6NqLgngh9M1y_cBEBaazMa_UIZwoL6eZGU0QhlpvysBi1wKDybNcF_uKrIxdQwn8L_QRFHtDn39-hw-GDs_6zbnRlwrBEwrMtAQfc62FLSzGUMAzww-aTGvUuQvP-D9m0r-eDbSATlSsrIYobVUDUdDWsMDUsjKfYOW_Rp0GMjk40BQxcdzjNjLCYaTEN5cMhsWyfTbhIHDP7-wfbvJG7Al7Z-nH2Pa-QXPte687xVanKT0d3Er07vOV9HoI09mtuhxE4g0VaLm4TMqxSMRBX3EB60W1U2sX9sHjAgmwfpUNXRNj03QeJe4cg0pndf-hhKkTsfNQMU_N6-Zt8IrM2xtzFfvKB4BpFyWmaYu_X7bGwgSZjzrBNE10fx001fMr2fmrVy_sj7mW7WhlWXa3N5eMe4pqkA4EawmGzhuIwAqZNmtvnL_N2nt4T4ZyqkAAyXMMKb60UJAXkqLjUisD1bnNt1qD9otg8mGNzQxlaY5Bfm7286vNmjyxGY4UVrn0RV0DSFFb5_NYEW5y5YYxiabWABr8k0ezTM8R_qQ7NxdUOj0qhBKOqGyzyuVgKNnB6-ZzpKVGbB7RYJXwfEtkKNuUc3UWmbwxcsCTuW4TOScqJUh4dA5vlgLjB3-Q79yEMRYB8n6jetkR4z25RkYRXvTxkHIVQd2qr8BchdUcmHsZvG_tXI0-bxx_f_TGyfgi8ol7L5SRfWfOtYHCXSVHOCwnDj7GN4rIrwt3qWRcPkdTMw1RguDZW0eTpCpZyCJH_z3xVfpVh5lgf7Nu4tH-CpFRrOaJc79K1lSuIZs8yvjh5dbYAH4rKQ28OOFRu2MmU7Ko8Of4CECcJMhohFtVW6nTCB48-Pl8owiGM5_2uBJOJRAsyu3fHHbKqKvZ-0kYmN9ypyTAxQjgDiCOE3J1txPiqRRRRSaFZgLPNacdyjGO2y2SpWwzYudx8tEq3tBDAPBCXwWqwefcG__iN5OMRgCIAvr-9qfl2iSaVR5LZ-kBluVoW27o0hIUtgdry03bmUN50ob4hwCz8xVoupcHjI3Cy0nLpgiGixjo4afafQPE_TXJf-NixlWN-cH2a4ZzU6Qc5KKzIciwnt6Hx-iRQzB_uK-pBDjC8boVXolOsFyaqWsoLgkghTo2qCFZuxP2GKzS9wQ5sBWxTMEPGryHxaylpXXmUjlBJ-j9p4vJN9YxjQEbyuTVYy0PxmtDbyh6g_n3Lr09ttCg40hqfWBhCT9P4-uFoAjozUciHQFBfI8t04dKZnobLbVq-f_HJGzUZu5zHRHsPI939tJxODDJxiflfHLwxXjQS2cq9Vj-kvn1pgXAN5unYh8Y7-nqepxc0KkO2v8mU-r8fYFmUFJdZu6HR23P2y7ndsozZEKdUAVay36pmW_gvVQuSA_jzLwXn3Ee2y-A7G-w96bTe82gJG95PsSOt2L6AcuF8mqWL_EVBjIZJMN63T__0UHh9VPDCRTUITwn35t7Z0aGYHnssPVAxXLh7y2LhCaIN0u6lnbiDlKAdKc1-4qYbr1sHORC8tjSG8cjWLkgBcNkFo7rqhKQSNtU1H44aT8ceG08a8cSpze8aC6dMVaz6DxEaFIZ-aRqfqO0QV6ty2-6hrcRVedypt1Twd7UEkXZM5Erjb-_8jq4RzshqXVzKEqPfIYpmtHqkmeJq8BLfc1GT9UGrmPpYO4-K8LM-u7aOpcxcagPn2S3McsWI3a8CWkU9t4g9WEPNH-5s8VqF-3rSmgi5kk40Y7HjEyA-6clhNhl9lbP6hIbf9TKHO9fWwzTz8NieUPNZZPgrBrULggzHXPrfJIxl8eLSrKuD8n2Pbumu2k4ljMV_WIq9qCJ1wPofdIoWHWiz7oV2snLve1CFPUCdAhLkHQ8KpO6xvSi6mKY9WsOhOLxKm92vsWLv-rfM2CW4XUja5arRpGynr7cF9CDuEGWIxkPjOF_5x8ZXg2x1TJcrgvLDO_S4u2zKl2tQGRW4NHU1zF9h_3SQkpbwWH5KOPisP6c8vb5rg_rZ5laFedxQQSpguSq5el9-ddzvlr4C8Q22eDQvwUEO_P6c6VZN5A2QWBGZsJoaZ4gZ8UArmGLxSihBj_5oOdDdUcbUOhGUIWrtYrs4PJKxpnHDFUZaYwIbtnLyAoORKYvq8LgAH0SP57KeeYkZzUGP1f0jkDzAmwV4ZHE0pnZhEo3XkXVuIHc6MXZ-RniZaS_vaoY3Bq6XHrKoWZdLiCoU6aqPc-ZpPnvXmnKHyLLs4e96M1wGKIyT28_VCR6EDRJPxbZ9Ig1kN8TIHCF3tE8y2It5hkz1-zNYT6uw3SDkFSdrV_DRiAVqUhxrQdUPhpD92zVgsWdJR0TZLU7CBLlOuBVwyfmtHMUBL6dIvYie47Kr47nOJ5i2ka8EZGZf-Y8aD6xv6hpBbybU_5oGfYLRG4MiNRhML4u90tQ3hBxBbGYK8sWOzui2UEx0ynB_a8jz8eEs7u_9ylTD1v1f-gC8JYQMNAZIm46pvl2s1X07B8Gf7Laj4aozcWqg8DgC_8aLypoTffyxjWw4Fpd8LWn1fRPsFOdeV0UrS7FNtUakvYq_qxphGu5mNuINIJIMJzgI3giGnyCbr2IrsJ1ITmEGnggLQYes1t3j44v1quvVwQXqHX6HhSnoJlN2IlT5DuZ2kx6-pb68nK62xVJaOS-wDeeJnQ8zzhqJACstuF7g-jidRoJmGc8yChHfCN8ZFOhT0poNQB-Jf5IUZ7aSCXmceYN4VUhmB_w-Db1XZUNHOJqGiTgcT1KzejzNpN49b0QUjcRJiOpEhJp_LzBUiRQSnweOSFrWlTs5Jf9p3wqN9zFYZ_3Xz6IR2klwyLQXc-LbBd1QFwkB17HTYMspUXjrSpJULdQ90OxzbSEafF4RKvgIL4sAU1pCMTa2bVrcUmY2MiECVIbwPNN0CjZeoEAd1dP5FFjlwGG7xUNRO1E20CqHZJ1oqeEur06ZXvPK1zy3SlF-_lKF6eRfNClzR2ERGYqf-zEQwwkPNiMNnURPcdt64pw4kcjTKBIkorum3ruuqJZMitcZx0YiANx7ssy8dMuVteEFFCQnmglgTCsEZTK_xzigPie_f8Q5p1vsJPje5Z2cugsaW-vOXbuOE471n6LuIyoII2dWq0m8H3_8pxlErkZ5E7OY--w3InCuSCv2ubxaZ9AbaNuuyGw49fI3zvRurTYespYO-Aj1FcjDrxqRB3bihJm_u3a56fwnoyOeE0071TY_AlVlq1RYauV4-7L-RAFJZo0wKnPZM9Hs7VB_cCwJ_oPe1y0XBF95agtAQdicj42KdstIlpjWtdGb4LpHgVQI_56G3As0H81-uj47VuBourA2hUay0BpHAvcwbNLyu8OcZB31I6dfy2797wGlrWwAN-Xt3M3CVW9SvIN_GMlg0RB75rUEtgPkR-VPRdPH_Jb19wVoFPPpwjP6cYzVW1U_iRymFKaNpMo4CWFN6t54wshlCVwkfZKbhSP14z74oMKxy-qqt-WKNhkOr1uh_sevNa57iHBnFlHzt_eaZoPNTsCmzqnC4boOlK9o5_hFn8hiw33R3NQC-RD-w1XEl8-hpdZYdCcnexwRYd9sH2LMHySL59Kp_09yIwAE_ukVMDa6Yd9OHrbSCycQNZSI_0fMnF5s9oWTXnsxecDpRKgSWJQIQPUb6dlOdGOT0-MnebivpKgbDxzx52Zr0EMS7aU5eJxEdO9rdiFda8kQk5IeBgr1QcqIFs_1UIp6oQneXgwTlpXXxLHs16ShDG1qkLmDZjb4vrb_Ha2YCBIqid6wVKjec-UwEwWyvfV4UAPFgiNRJN7TdQNRxbSZJ8XWeA2gor9PN5JkMS0l_qGKoke3sbWDsp-G_B0KUjwUBTtPsKRhdnc0JyV_akuZ8jxAmXDDydxOy_EqNMgrDGN_4FuSY7XNLy2OXXJG3bB9a_lxEzdVNPWzM0cijTQFLzIiAKAyWTfwPNagcvgLUAeHxlQ22E0V37-sFwkstvpJ-s8C2yqxQKcv4GfMZOfSYEaZAhiO_y8EXgFknGGwjLB7K3CgvGwBRWWcgx-eqXYs9rAygf_X2_7-rBG_7Rxj3GW957PwwzwZjZDkdRHik8sj0htIkDRAyHo2EsPwObKXK-W32JKUX3VSgiY8AzCUhUUIWwFVVLXEvB1jtU7G7wRaj5_z9QywvgoIqnOTmpm4TTRA0cCJkiYoJcl8BOIHoWuYznL89zWjWy_ZQDKaYAsHugQYXaKI_UaaLV4gVFjDNqZCgqjAFyMjG4qZR64jkaI71mefUaDLLwsqIiLpOWZi8BlvP0YcOVeTyo2mJbq3EXfjXyDvPuZuZ9SAjqwCdLr902yzLm4DdzYRyfPbpt8rGUu-Uw27Ix2oZRe_zj0G_3FdCw0"];
 
-		const defaultmodels = ["gpt4all","supercot","pygmalion-6","pygmalion-v8","pygmalion-2","hermes","airoboros","chrono","wizard","mantis","vicuna","manticore","alpaca","myth","xwin","spicyboros","mlewd","mxlewd","llama","mistral","maid","mixtral","estopia","fighter","fimbul","euryale","nemo","gemma","lunaris","stheno","magnum","cydonia","qwen2.5-32b","behemoth"];
+		const defaultmodels = ["gpt4all","supercot","pygmalion-6","pygmalion-v8","pygmalion-2","hermes","airoboros","chrono","wizard","mantis","vicuna","manticore","alpaca","myth","xwin","spicyboros","mlewd","mxlewd","llama","mistral","maid","mixtral","estopia","fighter","fimbul","euryale","nemo","gemma","lunaris","stheno","magnum","cydonia","qwen2.5-32b","behemoth","exaone"];
 		const ignoredmodels = ["tinyllama","debug-"];
 
 		const instructstartplaceholder = "\n{{[INPUT]}}\n";
@@ -3154,6 +3199,22 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		} else {
 			return replaceAll(localsettings.instruct_systag, "\\n", "\n");
 		}
+	}
+
+	function removeAndReplacePlaceholders(text) {
+		// Replace {{user}} and other placeholders
+		text = replace_placeholders(text);
+
+		// Remove any instruct tags as needed to ensure a more accurate search
+		text = replaceAll(text, get_instruct_starttag(false), "");
+		text = replaceAll(text, get_instruct_endtag(false), "");
+		text = replaceAll(text, get_instruct_systag(false), "");
+		text = replaceAll(text, get_instruct_starttag(false).trim(), "");
+		text = replaceAll(text, get_instruct_endtag(false).trim(), "");
+		text = replaceAll(text, get_instruct_systag(false).trim(), "");
+		text = text.replace(/\{\{\[INPUT\]\}\}/g, "").replace(/\{\{\[OUTPUT\]\}\}/g, "");
+
+		return text;
 	}
 
 	function readTavernPngFromBlob(blob, onDone)
@@ -4078,6 +4139,13 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 	e+g);break;case sa.M:m=(new I(this.input,{index:e,bufferSize:k.J})).r();break;default:l(Error("unknown compression type"))}if(this.ba){var u=r,n,E="number"===typeof u?u:u=0,A=m.length;n=-1;for(E=A&7;E--;++u)n=n>>>8^C[(n^m[u])&255];for(E=A>>3;E--;u+=8)n=n>>>8^C[(n^m[u])&255],n=n>>>8^C[(n^m[u+1])&255],n=n>>>8^C[(n^m[u+2])&255],n=n>>>8^C[(n^m[u+3])&255],n=n>>>8^C[(n^m[u+4])&255],n=n>>>8^C[(n^m[u+5])&255],n=n>>>8^C[(n^m[u+6])&255],n=n>>>8^C[(n^m[u+7])&255];p=(n^4294967295)>>>0;k.p!==p&&l(Error("wrong crc: file=0x"+
 	k.p.toString(16)+", data=0x"+p.toString(16)))}return m};t.L=function(a){this.j=a};function wa(a,b,c){c^=a.s(b);a.k(b,c);return c}t.k=U.prototype.k;t.S=U.prototype.T;t.s=U.prototype.s;v("Zlib.Unzip",V);v("Zlib.Unzip.prototype.decompress",V.prototype.r);v("Zlib.Unzip.prototype.getFilenames",V.prototype.Y);v("Zlib.Unzip.prototype.setPassword",V.prototype.L);}).call(this);
 
+	// lunr.stemmer
+	// Copyright (C) 2020 Oliver Nightingale, Code included under the MIT license
+	// Includes code from - http://tartarus.org/~martin/PorterStemmer/js.txt
+	var porterStemmer=null;{let e={ational:"ate",tional:"tion",enci:"ence",anci:"ance",izer:"ize",bli:"ble",alli:"al",entli:"ent",eli:"e",ousli:"ous",ization:"ize",ation:"ate",ator:"ate",alism:"al",iveness:"ive",fulness:"ful",ousness:"ous",aliti:"al",iviti:"ive",biliti:"ble",logi:"log"},i={icate:"ic",ative:"",alize:"al",iciti:"ic",ical:"ic",ful:"",ness:""},t="[aeiouy]",a="[^aeiou][^aeiouy]*",s=t+"[aeiou]*",l="^("+a+")?"+s+a,n="^("+a+")?"+s+a+"("+s+")?$",o="^("+a+")?"+s+a+s+a,r="^("+a+")?"+t;var c=RegExp(l),u=RegExp(o),v=RegExp(n),f=RegExp(r),_=/^(.+?)(ss|i)es$/,b=/^(.+?)([^s])s$/,z=/^(.+?)eed$/,x=/^(.+?)(ed|ing)$/,m=/.$/,p=/(at|bl|iz)$/,y=RegExp("([^aeiouylsz])\\1$"),g=RegExp("^"+a+t+"[^aeiouwxy]$"),w=/^(.+?[^aeiou])y$/,d=/^(.+?)(ational|tional|enci|anci|izer|bli|alli|entli|eli|ousli|ization|ation|ator|alism|iveness|fulness|ousness|aliti|iviti|biliti|logi)$/,C=/^(.+?)(icate|ative|alize|iciti|ical|ful|ness)$/,S=/^(.+?)(al|ance|ence|er|ic|able|ible|ant|ement|ment|ent|ou|ism|ate|iti|ous|ive|ize)$/,h=/^(.+?)(s|t)(ion)$/,L=/^(.+?)e$/,U=/ll$/,$=RegExp("^"+a+t+"[^aeiouwxy]$");porterStemmer=function t(a){var s,l,n,o,r,j,k;if(a.length<3)return a;if("y"==(n=a.substr(0,1))&&(a=n.toUpperCase()+a.substr(1)),o=_,r=b,o.test(a)?a=a.replace(o,"$1$2"):r.test(a)&&(a=a.replace(r,"$1$2")),o=z,r=x,o.test(a)){var q=o.exec(a);(o=c).test(q[1])&&(o=m,a=a.replace(o,""))}else if(r.test(a)){var q=r.exec(a);s=q[1],(r=f).test(s)&&(a=s,r=p,j=y,k=g,r.test(a)?a+="e":j.test(a)?(o=m,a=a.replace(o,"")):k.test(a)&&(a+="e"))}if((o=w).test(a)){var q=o.exec(a);a=(s=q[1])+"i"}if((o=d).test(a)){var q=o.exec(a);s=q[1],l=q[2],(o=c).test(s)&&(a=s+e[l])}if((o=C).test(a)){var q=o.exec(a);s=q[1],l=q[2],(o=c).test(s)&&(a=s+i[l])}if(o=S,r=h,o.test(a)){var q=o.exec(a);s=q[1],(o=u).test(s)&&(a=s)}else if(r.test(a)){var q=r.exec(a);s=q[1]+q[2],(r=u).test(s)&&(a=s)}if((o=L).test(a)){var q=o.exec(a);s=q[1],o=u,r=v,j=$,(o.test(s)||r.test(s)&&!j.test(s))&&(a=s)}return o=U,r=u,o.test(a)&&r.test(a)&&(o=m,a=a.replace(o,"")),"y"==n&&(a=n.toLowerCase()+a.substr(1)),a}}
+
+	// Minisearch 7.1, MIT License
+	!function (t, e) { "object" == typeof exports && "undefined" != typeof module ? module.exports = e() : "function" == typeof define && define.amd ? define(e) : (t = "undefined" != typeof globalThis ? globalThis : t || self).MiniSearch = e() }(this, (function () { "use strict"; function t(t, e, s, i) { return new (s || (s = Promise))((function (n, o) { function r(t) { try { u(i.next(t)) } catch (t) { o(t) } } function c(t) { try { u(i.throw(t)) } catch (t) { o(t) } } function u(t) { var e; t.done ? n(t.value) : (e = t.value, e instanceof s ? e : new s((function (t) { t(e) }))).then(r, c) } u((i = i.apply(t, e || [])).next()) })) } "function" == typeof SuppressedError && SuppressedError; const e = "KEYS", s = "VALUES", i = ""; class n { constructor(t, e) { const s = t._tree, i = Array.from(s.keys()); this.set = t, this._type = e, this._path = i.length > 0 ? [{ node: s, keys: i }] : [] } next() { const t = this.dive(); return this.backtrack(), t } dive() { if (0 === this._path.length) return { done: !0, value: void 0 }; const { node: t, keys: e } = o(this._path); if (o(e) === i) return { done: !1, value: this.result() }; const s = t.get(o(e)); return this._path.push({ node: s, keys: Array.from(s.keys()) }), this.dive() } backtrack() { if (0 === this._path.length) return; const t = o(this._path).keys; t.pop(), t.length > 0 || (this._path.pop(), this.backtrack()) } key() { return this.set._prefix + this._path.map((({ keys: t }) => o(t))).filter((t => t !== i)).join("") } value() { return o(this._path).node.get(i) } result() { switch (this._type) { case s: return this.value(); case e: return this.key(); default: return [this.key(), this.value()] } } [Symbol.iterator]() { return this } } const o = t => t[t.length - 1], r = (t, e, s, n, o, c, u, h) => { const d = c * u; t: for (let a of t.keys()) if (a === i) { const e = o[d - 1]; e <= s && n.set(h, [t.get(a), e]) } else { let i = c; for (let t = 0; t < a.length; ++t, ++i) { const n = a[t], r = u * i, c = r - u; let h = o[r]; const d = Math.max(0, i - s - 1), l = Math.min(u - 1, i + s); for (let t = d; t < l; ++t) { const s = n !== e[t], i = o[c + t] + +s, u = o[c + t + 1] + 1, d = o[r + t] + 1, a = o[r + t + 1] = Math.min(i, u, d); a < h && (h = a) } if (h > s) continue t } r(t.get(a), e, s, n, o, i, u, h + a) } }; class c { constructor(t = new Map, e = "") { this._size = void 0, this._tree = t, this._prefix = e } atPrefix(t) { if (!t.startsWith(this._prefix)) throw new Error("Mismatched prefix"); const [e, s] = u(this._tree, t.slice(this._prefix.length)); if (void 0 === e) { const [e, n] = m(s); for (let s of e.keys()) if (s !== i && s.startsWith(n)) { const i = new Map; return i.set(s.slice(n.length), e.get(s)), new c(i, t) } } return new c(e, t) } clear() { this._size = void 0, this._tree.clear() } delete(t) { return this._size = void 0, a(this._tree, t) } entries() { return new n(this, "ENTRIES") } forEach(t) { for (let [e, s] of this) t(e, s, this) } fuzzyGet(t, e) { return ((t, e, s) => { const i = new Map; if (void 0 === e) return i; const n = e.length + 1, o = n + s, c = new Uint8Array(o * n).fill(s + 1); for (let t = 0; t < n; ++t)c[t] = t; for (let t = 1; t < o; ++t)c[t * n] = t; return r(t, e, s, i, c, 1, n, ""), i })(this._tree, t, e) } get(t) { const e = h(this._tree, t); return void 0 !== e ? e.get(i) : void 0 } has(t) { const e = h(this._tree, t); return void 0 !== e && e.has(i) } keys() { return new n(this, e) } set(t, e) { if ("string" != typeof t) throw new Error("key must be a string"); this._size = void 0; return d(this._tree, t).set(i, e), this } get size() { if (this._size) return this._size; this._size = 0; const t = this.entries(); for (; !t.next().done;)this._size += 1; return this._size } update(t, e) { if ("string" != typeof t) throw new Error("key must be a string"); this._size = void 0; const s = d(this._tree, t); return s.set(i, e(s.get(i))), this } fetch(t, e) { if ("string" != typeof t) throw new Error("key must be a string"); this._size = void 0; const s = d(this._tree, t); let n = s.get(i); return void 0 === n && s.set(i, n = e()), n } values() { return new n(this, s) } [Symbol.iterator]() { return this.entries() } static from(t) { const e = new c; for (let [s, i] of t) e.set(s, i); return e } static fromObject(t) { return c.from(Object.entries(t)) } } const u = (t, e, s = []) => { if (0 === e.length || null == t) return [t, s]; for (let n of t.keys()) if (n !== i && e.startsWith(n)) return s.push([t, n]), u(t.get(n), e.slice(n.length), s); return s.push([t, e]), u(void 0, "", s) }, h = (t, e) => { if (0 === e.length || null == t) return t; for (let s of t.keys()) if (s !== i && e.startsWith(s)) return h(t.get(s), e.slice(s.length)) }, d = (t, e) => { const s = e.length; t: for (let n = 0; t && n < s;) { for (let o of t.keys()) if (o !== i && e[n] === o[0]) { const i = Math.min(s - n, o.length); let r = 1; for (; r < i && e[n + r] === o[r];)++r; const c = t.get(o); if (r === o.length) t = c; else { const s = new Map; s.set(o.slice(r), c), t.set(e.slice(n, n + r), s), t.delete(o), t = s } n += r; continue t } const o = new Map; return t.set(e.slice(n), o), o } return t }, a = (t, e) => { const [s, n] = u(t, e); if (void 0 !== s) if (s.delete(i), 0 === s.size) l(n); else if (1 === s.size) { const [t, e] = s.entries().next().value; f(n, t, e) } }, l = t => { if (0 === t.length) return; const [e, s] = m(t); if (e.delete(s), 0 === e.size) l(t.slice(0, -1)); else if (1 === e.size) { const [s, n] = e.entries().next().value; s !== i && f(t.slice(0, -1), s, n) } }, f = (t, e, s) => { if (0 === t.length) return; const [i, n] = m(t); i.set(n + e, s), i.delete(n) }, m = t => t[t.length - 1], g = "or"; class _ { constructor(t) { if (null == (null == t ? void 0 : t.fields)) throw new Error('MiniSearch: option "fields" must be provided'); const e = null == t.autoVacuum || !0 === t.autoVacuum ? O : t.autoVacuum; this._options = Object.assign(Object.assign(Object.assign({}, v), t), { autoVacuum: e, searchOptions: Object.assign(Object.assign({}, x), t.searchOptions || {}), autoSuggestOptions: Object.assign(Object.assign({}, z), t.autoSuggestOptions || {}) }), this._index = new c, this._documentCount = 0, this._documentIds = new Map, this._idToShortId = new Map, this._fieldIds = {}, this._fieldLength = new Map, this._avgFieldLength = [], this._nextId = 0, this._storedFields = new Map, this._dirtCount = 0, this._currentVacuum = null, this._enqueuedVacuum = null, this._enqueuedVacuumConditions = I, this.addFields(this._options.fields) } add(t) { const { extractField: e, tokenize: s, processTerm: i, fields: n, idField: o } = this._options, r = e(t, o); if (null == r) throw new Error(`MiniSearch: document does not have ID field "${o}"`); if (this._idToShortId.has(r)) throw new Error(`MiniSearch: duplicate ID ${r}`); const c = this.addDocumentId(r); this.saveStoredFields(c, t); for (let o of n) { const n = e(t, o); if (null == n) continue; const r = s(n.toString(), o), u = this._fieldIds[o], h = new Set(r).size; this.addFieldLength(c, u, this._documentCount - 1, h); for (let t of r) { const e = i(t, o); if (Array.isArray(e)) for (let t of e) this.addTerm(u, c, t); else e && this.addTerm(u, c, e) } } } addAll(t) { for (let e of t) this.add(e) } addAllAsync(t, e = {}) { const { chunkSize: s = 10 } = e, i = { chunk: [], promise: Promise.resolve() }, { chunk: n, promise: o } = t.reduce((({ chunk: t, promise: e }, i, n) => (t.push(i), (n + 1) % s == 0 ? { chunk: [], promise: e.then((() => new Promise((t => setTimeout(t, 0))))).then((() => this.addAll(t))) } : { chunk: t, promise: e })), i); return o.then((() => this.addAll(n))) } remove(t) { const { tokenize: e, processTerm: s, extractField: i, fields: n, idField: o } = this._options, r = i(t, o); if (null == r) throw new Error(`MiniSearch: document does not have ID field "${o}"`); const c = this._idToShortId.get(r); if (null == c) throw new Error(`MiniSearch: cannot remove document with ID ${r}: it is not in the index`); for (let o of n) { const n = i(t, o); if (null == n) continue; const r = e(n.toString(), o), u = this._fieldIds[o], h = new Set(r).size; this.removeFieldLength(c, u, this._documentCount, h); for (let t of r) { const e = s(t, o); if (Array.isArray(e)) for (let t of e) this.removeTerm(u, c, t); else e && this.removeTerm(u, c, e) } } this._storedFields.delete(c), this._documentIds.delete(c), this._idToShortId.delete(r), this._fieldLength.delete(c), this._documentCount -= 1 } removeAll(t) { if (t) for (let e of t) this.remove(e); else { if (arguments.length > 0) throw new Error("Expected documents to be present. Omit the argument to remove all documents."); this._index = new c, this._documentCount = 0, this._documentIds = new Map, this._idToShortId = new Map, this._fieldLength = new Map, this._avgFieldLength = [], this._storedFields = new Map, this._nextId = 0 } } discard(t) { const e = this._idToShortId.get(t); if (null == e) throw new Error(`MiniSearch: cannot discard document with ID ${t}: it is not in the index`); this._idToShortId.delete(t), this._documentIds.delete(e), this._storedFields.delete(e), (this._fieldLength.get(e) || []).forEach(((t, s) => { this.removeFieldLength(e, s, this._documentCount, t) })), this._fieldLength.delete(e), this._documentCount -= 1, this._dirtCount += 1, this.maybeAutoVacuum() } maybeAutoVacuum() { if (!1 === this._options.autoVacuum) return; const { minDirtFactor: t, minDirtCount: e, batchSize: s, batchWait: i } = this._options.autoVacuum; this.conditionalVacuum({ batchSize: s, batchWait: i }, { minDirtCount: e, minDirtFactor: t }) } discardAll(t) { const e = this._options.autoVacuum; try { this._options.autoVacuum = !1; for (let e of t) this.discard(e) } finally { this._options.autoVacuum = e } this.maybeAutoVacuum() } replace(t) { const { idField: e, extractField: s } = this._options, i = s(t, e); this.discard(i), this.add(t) } vacuum(t = {}) { return this.conditionalVacuum(t) } conditionalVacuum(t, e) { return this._currentVacuum ? (this._enqueuedVacuumConditions = this._enqueuedVacuumConditions && e, null != this._enqueuedVacuum || (this._enqueuedVacuum = this._currentVacuum.then((() => { const e = this._enqueuedVacuumConditions; return this._enqueuedVacuumConditions = I, this.performVacuuming(t, e) }))), this._enqueuedVacuum) : !1 === this.vacuumConditionsMet(e) ? Promise.resolve() : (this._currentVacuum = this.performVacuuming(t), this._currentVacuum) } performVacuuming(e, s) { return t(this, void 0, void 0, (function* () { const t = this._dirtCount; if (this.vacuumConditionsMet(s)) { const s = e.batchSize || S.batchSize, i = e.batchWait || S.batchWait; let n = 1; for (let [t, e] of this._index) { for (let [t, s] of e) for (let [i] of s) this._documentIds.has(i) || (s.size <= 1 ? e.delete(t) : s.delete(i)); 0 === this._index.get(t).size && this._index.delete(t), n % s == 0 && (yield new Promise((t => setTimeout(t, i)))), n += 1 } this._dirtCount -= t } (yield null), this._currentVacuum = this._enqueuedVacuum, this._enqueuedVacuum = null })) } vacuumConditionsMet(t) { if (null == t) return !0; let { minDirtCount: e, minDirtFactor: s } = t; return e = e || O.minDirtCount, s = s || O.minDirtFactor, this.dirtCount >= e && this.dirtFactor >= s } get isVacuuming() { return null != this._currentVacuum } get dirtCount() { return this._dirtCount } get dirtFactor() { return this._dirtCount / (1 + this._documentCount + this._dirtCount) } has(t) { return this._idToShortId.has(t) } getStoredFields(t) { const e = this._idToShortId.get(t); if (null != e) return this._storedFields.get(e) } search(t, e = {}) { const s = this.executeQuery(t, e), i = []; for (let [t, { score: n, terms: o, match: r }] of s) { const s = o.length || 1, c = { id: this._documentIds.get(t), score: n * s, terms: Object.keys(r), queryTerms: o, match: r }; Object.assign(c, this._storedFields.get(t)), (null == e.filter || e.filter(c)) && i.push(c) } return t === _.wildcard && null == e.boostDocument && null == this._options.searchOptions.boostDocument || i.sort(k), i } autoSuggest(t, e = {}) { e = Object.assign(Object.assign({}, this._options.autoSuggestOptions), e); const s = new Map; for (let { score: i, terms: n } of this.search(t, e)) { const t = n.join(" "), e = s.get(t); null != e ? (e.score += i, e.count += 1) : s.set(t, { score: i, terms: n, count: 1 }) } const i = []; for (let [t, { score: e, terms: n, count: o }] of s) i.push({ suggestion: t, terms: n, score: e / o }); return i.sort(k), i } get documentCount() { return this._documentCount } get termCount() { return this._index.size } static loadJSON(t, e) { if (null == e) throw new Error("MiniSearch: loadJSON should be given the same options used when serializing the index"); return this.loadJS(JSON.parse(t), e) } static loadJSONAsync(e, s) { return t(this, void 0, void 0, (function* () { if (null == s) throw new Error("MiniSearch: loadJSON should be given the same options used when serializing the index"); return this.loadJSAsync(JSON.parse(e), s) })) } static getDefault(t) { if (v.hasOwnProperty(t)) return p(v, t); throw new Error(`MiniSearch: unknown option "${t}"`) } static loadJS(t, e) { const { index: s, documentIds: i, fieldLength: n, storedFields: o, serializationVersion: r } = t, c = this.instantiateMiniSearch(t, e); c._documentIds = j(i), c._fieldLength = j(n), c._storedFields = j(o); for (let [t, e] of c._documentIds) c._idToShortId.set(e, t); for (let [t, e] of s) { const s = new Map; for (let t of Object.keys(e)) { let i = e[t]; 1 === r && (i = i.ds), s.set(parseInt(t, 10), j(i)) } c._index.set(t, s) } return c } static loadJSAsync(e, s) { return t(this, void 0, void 0, (function* () { const { index: t, documentIds: i, fieldLength: n, storedFields: o, serializationVersion: r } = e, c = this.instantiateMiniSearch(e, s); c._documentIds = yield V(i), c._fieldLength = yield V(n), c._storedFields = yield V(o); for (let [t, e] of c._documentIds) c._idToShortId.set(e, t); let u = 0; for (let [e, s] of t) { const t = new Map; for (let e of Object.keys(s)) { let i = s[e]; 1 === r && (i = i.ds), t.set(parseInt(e, 10), yield V(i)) } ++u % 1e3 == 0 && (yield T(0)), c._index.set(e, t) } return c })) } static instantiateMiniSearch(t, e) { const { documentCount: s, nextId: i, fieldIds: n, averageFieldLength: o, dirtCount: r, serializationVersion: u } = t; if (1 !== u && 2 !== u) throw new Error("MiniSearch: cannot deserialize an index created with an incompatible version"); const h = new _(e); return h._documentCount = s, h._nextId = i, h._idToShortId = new Map, h._fieldIds = n, h._avgFieldLength = o, h._dirtCount = r || 0, h._index = new c, h } executeQuery(t, e = {}) { if (t === _.wildcard) return this.executeWildcardQuery(e); if ("string" != typeof t) { const s = Object.assign(Object.assign(Object.assign({}, e), t), { queries: void 0 }), i = t.queries.map((t => this.executeQuery(t, s))); return this.combineResults(i, s.combineWith) } const { tokenize: s, processTerm: i, searchOptions: n } = this._options, o = Object.assign(Object.assign({ tokenize: s, processTerm: i }, n), e), { tokenize: r, processTerm: c } = o, u = r(t).flatMap((t => c(t))).filter((t => !!t)).map(b(o)).map((t => this.executeQuerySpec(t, o))); return this.combineResults(u, o.combineWith) } executeQuerySpec(t, e) { const s = Object.assign(Object.assign({}, this._options.searchOptions), e), i = (s.fields || this._options.fields).reduce(((t, e) => Object.assign(Object.assign({}, t), { [e]: p(s.boost, e) || 1 })), {}), { boostDocument: n, weights: o, maxFuzzy: r, bm25: c } = s, { fuzzy: u, prefix: h } = Object.assign(Object.assign({}, x.weights), o), d = this._index.get(t.term), a = this.termResults(t.term, t.term, 1, t.termBoost, d, i, n, c); let l, f; if (t.prefix && (l = this._index.atPrefix(t.term)), t.fuzzy) { const e = !0 === t.fuzzy ? .2 : t.fuzzy, s = e < 1 ? Math.min(r, Math.round(t.term.length * e)) : e; s && (f = this._index.fuzzyGet(t.term, s)) } if (l) for (let [e, s] of l) { const o = e.length - t.term.length; if (!o) continue; null == f || f.delete(e); const r = h * e.length / (e.length + .3 * o); this.termResults(t.term, e, r, t.termBoost, s, i, n, c, a) } if (f) for (let e of f.keys()) { const [s, o] = f.get(e); if (!o) continue; const r = u * e.length / (e.length + o); this.termResults(t.term, e, r, t.termBoost, s, i, n, c, a) } return a } executeWildcardQuery(t) { const e = new Map, s = Object.assign(Object.assign({}, this._options.searchOptions), t); for (let [t, i] of this._documentIds) { const n = s.boostDocument ? s.boostDocument(i, "", this._storedFields.get(t)) : 1; e.set(t, { score: n, terms: [], match: {} }) } return e } combineResults(t, e = g) { if (0 === t.length) return new Map; const s = e.toLowerCase(), i = y[s]; if (!i) throw new Error(`Invalid combination operator: ${e}`); return t.reduce(i) || new Map } toJSON() { const t = []; for (let [e, s] of this._index) { const i = {}; for (let [t, e] of s) i[t] = Object.fromEntries(e); t.push([e, i]) } return { documentCount: this._documentCount, nextId: this._nextId, documentIds: Object.fromEntries(this._documentIds), fieldIds: this._fieldIds, fieldLength: Object.fromEntries(this._fieldLength), averageFieldLength: this._avgFieldLength, storedFields: Object.fromEntries(this._storedFields), dirtCount: this._dirtCount, index: t, serializationVersion: 2 } } termResults(t, e, s, i, n, o, r, c, u = new Map) { if (null == n) return u; for (let h of Object.keys(o)) { const d = o[h], a = this._fieldIds[h], l = n.get(a); if (null == l) continue; let f = l.size; const m = this._avgFieldLength[a]; for (let n of l.keys()) { if (!this._documentIds.has(n)) { this.removeTerm(a, n, e), f -= 1; continue } const o = r ? r(this._documentIds.get(n), e, this._storedFields.get(n)) : 1; if (!o) continue; const g = l.get(n), _ = this._fieldLength.get(n)[a], y = s * i * d * o * w(g, f, this._documentCount, _, m, c), b = u.get(n); if (b) { b.score += y, F(b.terms, t); const s = p(b.match, e); s ? s.push(h) : b.match[e] = [h] } else u.set(n, { score: y, terms: [t], match: { [e]: [h] } }) } } return u } addTerm(t, e, s) { const i = this._index.fetch(s, C); let n = i.get(t); if (null == n) n = new Map, n.set(e, 1), i.set(t, n); else { const t = n.get(e); n.set(e, (t || 0) + 1) } } removeTerm(t, e, s) { if (!this._index.has(s)) return void this.warnDocumentChanged(e, t, s); const i = this._index.fetch(s, C), n = i.get(t); null == n || null == n.get(e) ? this.warnDocumentChanged(e, t, s) : n.get(e) <= 1 ? n.size <= 1 ? i.delete(t) : n.delete(e) : n.set(e, n.get(e) - 1), 0 === this._index.get(s).size && this._index.delete(s) } warnDocumentChanged(t, e, s) { for (let i of Object.keys(this._fieldIds)) if (this._fieldIds[i] === e) return void this._options.logger("warn", `MiniSearch: document with ID ${this._documentIds.get(t)} has changed before removal: term "${s}" was not present in field "${i}". Removing a document after it has changed can corrupt the index!`, "version_conflict") } addDocumentId(t) { const e = this._nextId; return this._idToShortId.set(t, e), this._documentIds.set(e, t), this._documentCount += 1, this._nextId += 1, e } addFields(t) { for (let e = 0; e < t.length; e++)this._fieldIds[t[e]] = e } addFieldLength(t, e, s, i) { let n = this._fieldLength.get(t); null == n && this._fieldLength.set(t, n = []), n[e] = i; const o = (this._avgFieldLength[e] || 0) * s + i; this._avgFieldLength[e] = o / (s + 1) } removeFieldLength(t, e, s, i) { if (1 === s) return void (this._avgFieldLength[e] = 0); const n = this._avgFieldLength[e] * s - i; this._avgFieldLength[e] = n / (s - 1) } saveStoredFields(t, e) { const { storeFields: s, extractField: i } = this._options; if (null == s || 0 === s.length) return; let n = this._storedFields.get(t); null == n && this._storedFields.set(t, n = {}); for (let t of s) { const s = i(e, t); void 0 !== s && (n[t] = s) } } } _.wildcard = Symbol("*"); const p = (t, e) => Object.prototype.hasOwnProperty.call(t, e) ? t[e] : void 0, y = { [g]: (t, e) => { for (let s of e.keys()) { const i = t.get(s); if (null == i) t.set(s, e.get(s)); else { const { score: t, terms: n, match: o } = e.get(s); i.score = i.score + t, i.match = Object.assign(i.match, o), M(i.terms, n) } } return t }, and: (t, e) => { const s = new Map; for (let i of e.keys()) { const n = t.get(i); if (null == n) continue; const { score: o, terms: r, match: c } = e.get(i); M(n.terms, r), s.set(i, { score: n.score + o, terms: n.terms, match: Object.assign(n.match, c) }) } return s }, and_not: (t, e) => { for (let s of e.keys()) t.delete(s); return t } }, w = (t, e, s, i, n, o) => { const { k: r, b: c, d: u } = o; return Math.log(1 + (s - e + .5) / (e + .5)) * (u + t * (r + 1) / (t + r * (1 - c + c * i / n))) }, b = t => (e, s, i) => ({ term: e, fuzzy: "function" == typeof t.fuzzy ? t.fuzzy(e, s, i) : t.fuzzy || !1, prefix: "function" == typeof t.prefix ? t.prefix(e, s, i) : !0 === t.prefix, termBoost: "function" == typeof t.boostTerm ? t.boostTerm(e, s, i) : 1 }), v = { idField: "id", extractField: (t, e) => t[e], tokenize: t => t.split(L), processTerm: t => t.toLowerCase(), fields: void 0, searchOptions: void 0, storeFields: [], logger: (t, e) => { "function" == typeof (null === console || void 0 === console ? void 0 : console[t]) && console[t](e) }, autoVacuum: !0 }, x = { combineWith: g, prefix: !1, fuzzy: !1, maxFuzzy: 6, boost: {}, weights: { fuzzy: .45, prefix: .375 }, bm25: { k: 1.2, b: .7, d: .5 } }, z = { combineWith: "and", prefix: (t, e, s) => e === s.length - 1 }, S = { batchSize: 1e3, batchWait: 10 }, I = { minDirtFactor: .1, minDirtCount: 20 }, O = Object.assign(Object.assign({}, S), I), F = (t, e) => { t.includes(e) || t.push(e) }, M = (t, e) => { for (let s of e) t.includes(s) || t.push(s) }, k = ({ score: t }, { score: e }) => e - t, C = () => new Map, j = t => { const e = new Map; for (let s of Object.keys(t)) e.set(parseInt(s, 10), t[s]); return e }, V = e => t(void 0, void 0, void 0, (function* () { const t = new Map; let s = 0; for (let i of Object.keys(e)) t.set(parseInt(i, 10), e[i]), ++s % 1e3 == 0 && (yield T(0)); return t })), T = t => new Promise((e => setTimeout(e, t))), L = /[\n\r\s!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]+/; return _ }));
 
 	//here is my shit integration of KAI Horde's API. You're welcome. -Concedo.
 	const default_client_agent = "KoboldAiLite:17";
@@ -4123,6 +4191,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 	const koboldcpp_transcribe_endpoint = "/api/extra/transcribe";
 	const koboldcpp_tokenize_endpoint = "/api/extra/tokencount";
 	const koboldcpp_perf_endpoint = "/api/extra/perf";
+	const koboldcpp_websearch_endpoint = "/api/extra/websearch"
 
 	const oai_models_endpoint = "/models";
 	const oai_submit_endpoint = "/completions";
@@ -4182,9 +4251,11 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 	const XTTS_ID = 1000;
 	const ALLTALK_ID = 1001;
 	const OAI_TTS_ID = 1002;
+
 	const BIG_HD_RES_PX = 512; //when saving oversized images, could be 640?
-	const HD_RES_PX = 512;
-	const NO_HD_RES_PX = 320;
+
+	const HD_RES_PX = 768;
+	const NO_HD_RES_PX = 512;
 	const SAVE_SLOTS = 10;
 
 	//all configurable globals
@@ -4199,6 +4270,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 	var redo_arr = []; //array of texts that are in the redo stack
 	var retry_prev_text = []; //when we retry, save the last 3 versions in case they want to undo
 	var retry_preserve_last = false; //if true, retrying does not delete any old text
+	var retry_in_progress = false; //if true, and generation was INTERRUPTED, restore previous messages!
 	var redo_prev_text = []; //if we undo a retry, save a copy here so it can be reverted with redo
 	var pending_response_id = ""; //guid of response pending from horde server
 	var poll_in_progress = false; //are we currently waiting for a text generation
@@ -4218,6 +4290,13 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 	var current_wi = []; //each item stores a wi object.
 	var wi_insertlocation = 0; //after memory
 	var wi_searchdepth = 0; //search everything
+	var documentdb_enabled = false;
+	var documentdb_searchhistory = false;
+	var documentdb_numresults = 3;
+	var documentdb_searchrange = 300;
+	var documentdb_chunksize = 800;
+	var documentdb_data = "";
+	var websearch_enabled = false;
 	var generateimagesinterval = 750; //if generated images is enabled, it will trigger after every 700 new characters in context.
 	var nextgeneratedimagemilestone = generateimagesinterval; //used to keep track of when to generate the next image
 	var image_db = {}; //stores a dictionary of pending images
@@ -4259,6 +4338,9 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 	var koboldcpp_version_obj = {};
 	var koboldcpp_has_vision = false;
 	var koboldcpp_has_multiplayer = false;
+	var koboldcpp_has_websearch = false;
+	var lastSearchQuery = "";
+	var lastSearchResults = [];
 	var multiplayer_active = false;
 	var multiplayer_pinged = false;
 	var multiplayer_override_name = "";
@@ -4366,7 +4448,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		img_clipskip: -1,
 		img_steps: 20,
 		img_sampler: "Euler",
-		img_aspect:0, //0=square,1=portrait,2=landscape,3=bigsquare
+		img_aspect:0, //0=square,1=portrait,2=landscape,3=bigsquare,4=portrait_long,5=landscape_long
 		save_images: true,
 		save_remote_images: false,
 		prompt_for_savename: false,
@@ -4393,7 +4475,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		darkmode: true,
 
 		max_context_length: (localflag?4096:1800),
-		max_length: (localflag?220:200),
+		max_length: (localflag?240:200),
 		auto_ctxlen: true,
 		auto_genamt: true,
 		rep_pen: 1.07,
@@ -4628,6 +4710,150 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		}
 	}
 
+	//save to indexeddb, but fallback to localstorage
+	function indexeddb_save(objkey, objdatastr)
+	{
+		return new Promise((resolve, reject) => {
+		objdatastr = (objdatastr?String(objdatastr):"");
+		let fallbackSave = function()
+		{
+			localStorage.setItem(STORAGE_PREFIX + objkey, objdatastr);
+			resolve();
+		}
+		const isIndexedDBSupported = !!window.indexedDB;
+		if(!isIndexedDBSupported)
+		{
+			console.log(`IndexedDB not supported! Fallback to localstorage.`);
+			fallbackSave();
+			return;
+		}
+
+		const request = indexedDB.open(STORAGE_PREFIX, 1);
+		request.onerror = function(event)
+		{
+			console.error(`Unable to initialize IndexedDB Database! Fallback to localstorage.`);
+			fallbackSave();
+			return;
+		}
+		request.onupgradeneeded = function(event)
+		{
+			try
+			{
+				const db = event.target.result;
+				if (!db.objectStoreNames.contains(STORAGE_PREFIX)) {
+					db.createObjectStore(STORAGE_PREFIX, { keyPath: "key" });
+				}
+			} catch (error) {
+				console.error("IndexedDB upgrade error, falling back to localstorage:", error);
+				fallbackSave();
+				return;
+			}
+		}
+		request.onsuccess = function(event)
+		{
+			try {
+				const db = event.target.result;
+				const transaction = db.transaction(STORAGE_PREFIX, "readwrite");
+				const store = transaction.objectStore(STORAGE_PREFIX);
+				const storeRequest = store.put({ key: objkey, value: objdatastr });
+
+				storeRequest.onsuccess = function () {
+					localStorage.setItem(STORAGE_PREFIX + objkey, "offload_to_indexeddb"); //indicate its been offloaded
+					resolve();
+				};
+				storeRequest.onerror = function (event) {
+					console.error("StoreRequest failed!");
+					fallbackSave();
+				};
+				transaction.onerror = function (event) {
+					console.error("Transaction failed!");
+					fallbackSave();
+				};
+				transaction.onabort = function (event) {
+					console.error("Transaction aborted!");
+					fallbackSave();
+				};
+			} catch (error) {
+				console.error("IndexedDB error, falling back to localstorage:", error);
+				fallbackSave();
+			}
+		}
+		});
+	}
+	function indexeddb_load(objkey, defaultvalue) //returns a promise that does not reject, and retrieves key value on resolve
+	{
+		return new Promise((resolve, reject) => {
+
+		let fallbackResolveLoad = function() //if indexeddb fails
+		{
+			let fallbackval = localStorage.getItem(STORAGE_PREFIX + objkey, defaultvalue);
+			if(fallbackval=="offload_to_indexeddb") //value was offloaded but we cant read it. return default
+			{
+				resolve(defaultvalue);
+			}
+		}
+
+		const isIndexedDBSupported = !!window.indexedDB;
+		if(!isIndexedDBSupported)
+		{
+			console.log(`IndexedDB not supported! Fallback to localstorage.`);
+			fallbackResolveLoad();
+			return;
+		}
+
+		//if value is not offloaded, return it immediately
+		let testval = localStorage.getItem(STORAGE_PREFIX + objkey, defaultvalue);
+		if(testval!="offload_to_indexeddb")
+		{
+			console.log(`Value not offloaded to indexeddb! Fallback to localstorage.`);
+			testval = (testval?testval:defaultvalue);
+			resolve(testval);
+			return;
+		}
+
+		const request = indexedDB.open(STORAGE_PREFIX, 1);
+        request.onsuccess = (event) => {
+			const db = event.target.result;
+			const transaction = db.transaction(STORAGE_PREFIX, "readonly");
+			const store = transaction.objectStore(STORAGE_PREFIX);
+            const getRequest = store.get(objkey);
+            getRequest.onsuccess = () => {
+				let res = getRequest.result;
+				if(res){
+					resolve(res.value); //since it was json previously, return it
+				}else{
+					resolve(defaultvalue);
+				}
+			}
+            getRequest.onerror = () =>
+			{
+				console.log(getRequest.error);
+				fallbackResolveLoad();
+			}
+        };
+
+		request.onupgradeneeded = function(event)
+		{
+			try
+			{
+				const db = event.target.result;
+				if (!db.objectStoreNames.contains(STORAGE_PREFIX)) {
+					db.createObjectStore(STORAGE_PREFIX, { keyPath: "key" });
+				}
+			} catch (error) {
+				console.error("IndexedDB upgrade error, falling back to localstorage:", error);
+				fallbackResolveLoad();
+			}
+		}
+
+      	request.onerror = function(event)
+		{
+			console.error(`Unable to initialize IndexedDB Database! Fallback to localstorage.`);
+			fallbackResolveLoad();
+		}
+    	});
+	}
+
 	//attempt to load settings
 	function init() {
 
@@ -4725,12 +4951,61 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			}
 		}
 
-		console.log("Init started");
+		//poke speech synth to preload voices
+		if ('speechSynthesis' in window) {
+			let voices = window.speechSynthesis.getVoices();
+			console.log("Voices loading...");
+		}
+
+		//setup drag and drop zone for files
+		setupDragDrop();
+
+		//fix for iphone zooming
+		if(navigator.userAgent.indexOf('iPhone') > -1 )
+		{
+			document.querySelector('meta[name="viewport"]')
+			.setAttribute("content","width=device-width, initial-scale=1, maximum-scale=1");
+		}
+
+		//fix for copy paste text in firefox, and also to prevent pasting rich text
+		document.getElementById("gametext").addEventListener("paste", function(e) {
+			e.preventDefault();
+
+			let text = e.clipboardData
+			? (e.originalEvent || e).clipboardData.getData('text/plain')
+			: // For IE
+			window.clipboardData
+			? window.clipboardData.getData('Text')
+			: '';
+
+			let elem = document.getElementById("gametext")
+			let selection = window.getSelection();
+			let fullySelected = (elem.innerText!="" && selection.toString() === elem.innerText);
+			if(fullySelected || elem.innerText.trim()=="")
+			{
+				document.execCommand('selectAll', false, null);
+				document.execCommand('insertText', false, "");
+				elem.innerHTML = "";
+			}
+
+			text = escapeHtml(text);
+			text = text.replace(/\r?\n/g, '<br>');
+			document.execCommand("insertHTML", false, text);
+		});
+
+
+		console.log("Load autosaves started");
 		let loadok = false;
-		try {
-			let loadedsettingsjson = localStorage.getItem(STORAGE_PREFIX + "settings");
-			let loadedstorycompressed = localStorage.getItem(STORAGE_PREFIX + "story");
-			let loadedbackgroundimg = localStorage.getItem(STORAGE_PREFIX + "bgimg");
+
+		//load all autosave data from indexeddb
+		Promise.all([
+			indexeddb_load("settings",""),
+			indexeddb_load("story",""),
+			indexeddb_load("bgimg",""),
+			indexeddb_load("savedcustomcss",""),
+		]).then(([loadedsettingsjson, loadedstorycompressed, loadedbackgroundimg, currcss]) => {
+		try
+		{
 			if (loadedsettingsjson != null && loadedsettingsjson != "" && loadedstorycompressed != null && loadedstorycompressed != "") {
 				let loadedsettings = JSON.parse(loadedsettingsjson);
 				//see if persist is enabled
@@ -4773,9 +5048,8 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			update_toggle_lightmode(false); //load theme but dont save or toggle it
 
 			//load custom css
-			let currcss = localStorage.getItem(STORAGE_PREFIX + "savedcustomcss", "");
 			let resetcss = urlParams.get('resetcss');
-			if(currcss!="" && !resetcss)
+			if(currcss && currcss!="" && !resetcss)
 			{
 				currcss = sanitize_css(currcss);
 				console.log("Custom CSS applied.");
@@ -4785,7 +5059,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			else if(resetcss)
 			{
 				console.log("Custom CSS reset.")
-				localStorage.setItem(STORAGE_PREFIX + "savedcustomcss", "");
+				indexeddb_save("savedcustomcss", "");
 				window.history.replaceState(null, null, window.location.pathname);
 			}
 
@@ -4793,7 +5067,6 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			console.log("Discarded invalid local save: " + e);
 			loadok = false;
 		}
-
 
 		if(!loadok && !localflag && selected_models.length==0 && !is_using_custom_ep()) //nothing was loaded. this is a brand new state, in web lite
 		{
@@ -4844,12 +5117,6 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		//invert colors
 		toggle_invert_colors();
 
-		//poke speech synth to preload voices
-		if ('speechSynthesis' in window) {
-			let voices = window.speechSynthesis.getVoices();
-			console.log("Voices loading...");
-		}
-
 		//start the polling script for async generation status checking every Xs
 		setInterval(poll_pending_response, poll_interval_base_text);
 		setInterval(poll_image_db, poll_interval_base_img); //check images every Xs
@@ -4873,46 +5140,11 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			});
 		}
 
-		//setup drag and drop zone for files
-		setupDragDrop();
-
-		//setup customization UI functionality
+		//setup customization aesthetic UI functionality
 		initializeInstructUIFunctionality();
 
-		//fix for iphone zooming
-		if(navigator.userAgent.indexOf('iPhone') > -1 )
-		{
-			document.querySelector('meta[name="viewport"]')
-			.setAttribute("content","width=device-width, initial-scale=1, maximum-scale=1");
-		}
+		});
 
-		//fix for copy paste text in firefox, and also to prevent pasting rich text
-		{
-			document.getElementById("gametext").addEventListener("paste", function(e) {
-				e.preventDefault();
-
-				let text = e.clipboardData
-				? (e.originalEvent || e).clipboardData.getData('text/plain')
-				: // For IE
-				window.clipboardData
-				? window.clipboardData.getData('Text')
-				: '';
-
-				let elem = document.getElementById("gametext")
-				let selection = window.getSelection();
-				let fullySelected = (elem.innerText!="" && selection.toString() === elem.innerText);
-				if(fullySelected || elem.innerText.trim()=="")
-				{
-					document.execCommand('selectAll', false, null);
-  					document.execCommand('insertText', false, "");
-					elem.innerHTML = "";
-				}
-
-				text = escapeHtml(text);
-				text = text.replace(/\r?\n/g, '<br>');
-				document.execCommand("insertHTML", false, text);
-			});
-		}
 	}
 
 	function setupDragDrop()
@@ -5340,7 +5572,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 				let nimgtag = "[<|p|" + imgid + "|p|>]";
 				gametext_arr.push(nimgtag);
 				image_db[imgid] = { done: false, queue: "Generating", result: "", prompt:prompt, poll_category:2 };
-				image_db[imgid].aspect = (req_payload.params.width>req_payload.params.height?2:(req_payload.params.width<req_payload.params.height?1:0));
+				image_db[imgid].aspect = (req_payload.params.width>=req_payload.params.height*2?5:(req_payload.params.height>=req_payload.params.width*2?4:(req_payload.params.width>req_payload.params.height?2:(req_payload.params.width<req_payload.params.height?1:0))));
 				image_db[imgid].imsource = 0; //0=generated,1=uploaded
 			}else{
 				console.log("Generation Error!");
@@ -5717,6 +5949,10 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 	{
 		return (custom_kobold_endpoint!="" && koboldcpp_version && koboldcpp_version!="" && compare_version_str(koboldcpp_version, "1.78") >= 0 && koboldcpp_has_multiplayer);
 	}
+	function is_using_kcpp_with_websearch()
+	{
+		return (custom_kobold_endpoint!="" && koboldcpp_version && koboldcpp_version!="" && compare_version_str(koboldcpp_version, "1.80") >= 0 && koboldcpp_has_websearch);
+	}
 
 
 	//0 is none, 1 is poll-streaming, 2 is sse-streaming
@@ -5796,16 +6032,17 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		console.log("Autosave Start: ", story);
 		(function retry_autosave(json) {
 			lz_c.compress(json, 1, function(res) {
-				console.log("Autosave Done");
 				let compressedstory = buf_to_b64(res);
-				localStorage.setItem(STORAGE_PREFIX + "story", compressedstory);
-				let newer = pending_storyjson_autosave;
-				if (newer && newer !== json) {
-					console.log("Updating Autosave");
-					retry_autosave(newer);
-				}else{
-					pending_storyjson_autosave = null;
-				}
+				indexeddb_save("story",compressedstory).then(()=>{
+					console.log("Autosave Done");
+					let newer = pending_storyjson_autosave;
+					if (newer && newer !== json) {
+						console.log("Updating Autosave");
+						retry_autosave(newer);
+					}else{
+						pending_storyjson_autosave = null;
+					}
+				});
 			});
 		})(storyjson);
 	}
@@ -6040,7 +6277,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 				document.getElementById("gamescreen").classList.add("translucentbg");
 				document.getElementById("enhancedchatinterface").classList.add("transparentbg");
 				document.getElementById("enhancedchatinterface_inner").classList.add("transparentbg");
-				localStorage.setItem(STORAGE_PREFIX + "bgimg", compressedImageURI);
+				indexeddb_save("bgimg", compressedImageURI);
 			}, true, false, 1024, 0.5);
 		}
 	};
@@ -6050,7 +6287,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		document.getElementById("gamescreen").classList.remove("translucentbg");
 		document.getElementById("enhancedchatinterface").classList.remove("transparentbg");
 		document.getElementById("enhancedchatinterface_inner").classList.remove("transparentbg");
-		localStorage.setItem(STORAGE_PREFIX + "bgimg", "");
+		indexeddb_save("bgimg", "");
 	}
 
 	function load_file_button()
@@ -6199,6 +6436,13 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		new_save_storyobj.logitbiasdict = JSON.parse(JSON.stringify(logitbiasdict));
 		new_save_storyobj.regexreplace_data = JSON.parse(JSON.stringify(regexreplace_data));
 		new_save_storyobj.placeholder_tags_data = JSON.parse(JSON.stringify(placeholder_tags_data));
+		new_save_storyobj.documentdb_enabled = documentdb_enabled;
+		new_save_storyobj.documentdb_searchhistory = documentdb_searchhistory;
+		new_save_storyobj.documentdb_numresults = documentdb_numresults;
+		new_save_storyobj.documentdb_searchrange = documentdb_searchrange;
+		new_save_storyobj.documentdb_chunksize = documentdb_chunksize;
+		new_save_storyobj.documentdb_data = documentdb_data;
+		new_save_storyobj.websearch_enabled = websearch_enabled;
 
 		if (export_settings) {
 			new_save_storyobj.savedsettings = JSON.parse(JSON.stringify(localsettings));
@@ -6318,7 +6562,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 						compressImage(data, (compressedImageURI, aspectratio)=>{
 							aestheticInstructUISettings.AI_portrait = compressedImageURI;
 							document.getElementById('portrait_ratio_AI').value = aspectratio.toFixed(2);
-							refreshPreview(true);
+							refreshAestheticPreview(true);
 							render_gametext();
 						}, true);
 					}
@@ -6481,6 +6725,34 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 				if(storyobj.placeholder_tags_data)
 				{
 					placeholder_tags_data = storyobj.placeholder_tags_data;
+				}
+				if(storyobj.documentdb_enabled)
+				{
+					documentdb_enabled = storyobj.documentdb_enabled;
+				}
+				if(storyobj.documentdb_searchhistory)
+				{
+					documentdb_searchhistory = storyobj.documentdb_searchhistory;
+				}
+				if(storyobj.documentdb_numresults)
+				{
+					documentdb_numresults = storyobj.documentdb_numresults;
+				}
+				if(storyobj.documentdb_searchrange)
+				{
+					documentdb_searchrange = storyobj.documentdb_searchrange;
+				}
+				if(storyobj.documentdb_chunksize)
+				{
+					documentdb_chunksize = storyobj.documentdb_chunksize;
+				}
+				if(storyobj.documentdb_data)
+				{
+					documentdb_data = storyobj.documentdb_data;
+				}
+				if(storyobj.websearch_enabled)
+				{
+					websearch_enabled = storyobj.websearch_enabled;
 				}
 			} else {
 				//v2 load
@@ -7643,7 +7915,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		if (temp_scenario.image && temp_scenario.image != "") {
 			aestheticInstructUISettings.AI_portrait = temp_scenario.image;
 			document.getElementById('portrait_ratio_AI').value = (temp_scenario.image_aspect?temp_scenario.image_aspect:1).toFixed(2);
-			refreshPreview(true);
+			refreshAestheticPreview(true);
 		}
 		if (temp_scenario.worldinfo && temp_scenario.worldinfo.length > 0) {
 			current_wi = temp_scenario.worldinfo;
@@ -9150,277 +9422,275 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 				custom_kobold_endpoint = desiredkoboldendpoint;
 				custom_kobold_key = desiredkoboldkey;
 
-				let urls1 = [
-					apply_proxy_url(desiredkoboldendpoint + kobold_custom_mdl_endpoint),
-				];
+				let fetchedurl = apply_proxy_url(desiredkoboldendpoint + kobold_custom_mdl_endpoint);
+				fetch(fetchedurl,{
+					method: 'GET',
+					headers: get_kobold_header(),
+				})
+				.then(response => response.json())
+				.then(values => {
+					console.log(values);
+					let mdlname = values.result;
+					if (!mdlname) {
+						msgbox("Error at Custom KoboldAI Endpoint!<br><br>The custom endpoint failed to respond correctly.<br><br>You may wish to <a href='#' class='color_blueurl' onclick='hide_popups();display_endpoint_container();'>try a different URL or API type</a>.","Error Encountered",true);
 
-				Promise.all(urls1.map(url => fetch(url,{
-						method: 'GET',
-						headers: get_kobold_header(),
-					})
-					.then(response => response.json())))
-					.then(values => {
-						console.log(values);
-						let mdlname = values[0].result;
-						if (!mdlname) {
-							msgbox("Error at Custom KoboldAI Endpoint!<br><br>The custom endpoint failed to respond correctly.<br><br>You may wish to <a href='#' class='color_blueurl' onclick='hide_popups();display_endpoint_container();'>try a different URL or API type</a>.","Error Encountered",true);
-
-							selected_models = [];
-							selected_workers = [];
-							custom_kobold_endpoint = "";
-							render_gametext();
-						} else if (mdlname == "ReadOnly") {
-							msgbox("The custom endpoint is working, but no model was loaded.\n\nPlease select and load a model and try again.");
-							selected_models = [];
-							selected_workers = [];
-							custom_kobold_endpoint = "";
-							render_gametext();
-						} else {
-							//good to go
-							custom_kobold_endpoint = desiredkoboldendpoint;
-							custom_kobold_key = desiredkoboldkey;
-							localsettings.saved_kai_addr = custom_kobold_endpoint;
-							localsettings.saved_kai_key = custom_kobold_key;
-							selected_models = [{ "performance": 100.0, "queued": 0.0, "eta": 0, "name": mdlname, "count": 1 }];
-							selected_workers = [];
-							if (perfdata == null) {
-								//generate some fake perf data if horde is offline and using custom endpoint
-								perfdata = {
-									"queued_requests": 0,
-									"queued_tokens": 0,
-									"past_minute_tokens": 0,
-									"worker_count": 0
-								};
-								document.body.classList.add("connected");
-								document.getElementById("connectstatus").classList.add("color_offwhite");
-							}
-							document.getElementById("connectstatus").innerHTML = "KoboldAI Endpoint";
-							render_gametext();
-
-							{
-								//now we get the version number, however this is optional
-								//if it fails we can still proceed
-								fetch(apply_proxy_url(desiredkoboldendpoint + kobold_custom_version_endpoint),
-								{
-									method: 'GET',
-									headers: get_kobold_header(),
-								})
-								.then(response => response.json())
-								.then(values2 => {
-									console.log(values2);
-									let ep_version = values2.result;
-									kobold_endpoint_version = (ep_version?ep_version:"");
-								}).catch(error => {
-									console.log("Failed to get KAI version number: " + error);
-								});
-
-								//also get max ctx supported
-								fetch(apply_proxy_url(desiredkoboldendpoint + kobold_custom_maxctxlen_endpoint),
-								{
-									method: 'GET',
-									headers: get_kobold_header(),
-								})
-								.then(response => response.json())
-								.then(values3 => {
-									console.log(values3);
-									let ep_maxctx = values3.value;
-									if(ep_maxctx && ep_maxctx>document.getElementById("max_context_length_slide").max)
-									{
-										document.getElementById("max_context_length_slide").max = ep_maxctx;
-										document.getElementById("max_context_length_slide_label").innerText = ep_maxctx;
-									}
-								}).catch(error => {
-									console.log("Failed to get KAI max ctx: " + error);
-								});
-
-							}
-
-							//allow kcpp version check for remote endpoints too
-							{
-								//for local mode, check if we are using koboldcpp, if so we can use streaming if permitted by version
-								fetch(apply_proxy_url(desiredkoboldendpoint + koboldcpp_version_endpoint),
-								{
-									method: 'GET',
-									headers: get_kobold_header(),
-								})
-								.then(x => x.json())
-								.then(data => {
-									if(data && data!="" && data.version && data.version!="")
-									{
-										koboldcpp_version_obj = data;
-										koboldcpp_version = data.version;
-										console.log("KoboldCpp Detected: " + koboldcpp_version);
-										document.getElementById("connectstatus").innerHTML = (`<span style='cursor: pointer;' onclick='fetch_koboldcpp_perf()'>KoboldCpp ${koboldcpp_version}</a>`);
-										koboldcpp_has_vision = (data.vision?true:false);
-										koboldcpp_has_whisper = (data.transcribe?true:false);
-										koboldcpp_has_multiplayer = (data.multiplayer?true:false);
-										let has_password = (data.protected?true:false);
-										let has_txt2img = (data.txt2img?true:false);
-										let no_txt_model = (mdlname=="inactive");
-
-										//also check against kcpp's max true context length
-										fetch(apply_proxy_url(desiredkoboldendpoint + koboldcpp_truemaxctxlen_endpoint),
-										{
-											method: 'GET',
-											headers: get_kobold_header(),
-										})
-										.then(response => response.json())
-										.then(values4 => {
-											console.log(values4);
-											let ep_maxctx = values4.value;
-											if(ep_maxctx && ep_maxctx>document.getElementById("max_context_length_slide").max)
-											{
-												document.getElementById("max_context_length_slide").max = ep_maxctx;
-												document.getElementById("max_context_length_slide_label").innerText = ep_maxctx;
-											}
-											if(localflag && localsettings.max_context_length==4096 && ep_maxctx>4096)
-											{
-												localsettings.max_context_length = ep_maxctx;
-											}
-										}).catch(error => {
-											console.log("Failed to get true max ctx: " + error);
-										});
-
-										//and check if there's a kcpp savefile preloaded
-										fetch(apply_proxy_url(desiredkoboldendpoint + koboldcpp_preloadstory_endpoint),
-										{
-											method: 'GET',
-											headers: get_kobold_header(),
-										})
-										.then(response => response.json())
-										.then(values5 => {
-											let tmpstory = values5;
-											if(is_kai_json(tmpstory))
-											{
-												if (localsettings.persist_session && !safe_to_overwrite()) {
-													console.log("Preload story: Unsafe to overwrite");
-												} else {
-													close_welcome_panel(false);
-													kai_json_load(tmpstory, false);
-												}
-											}else{
-												if(koboldcpp_has_multiplayer)
-												{
-													//force refresh
-													render_gametext(false);
-												}
-											}
-										}).catch(error => {
-											console.log("Failed to get preloaded story: " + error);
-										});
-
-										//check if image gen is supported
-										fetch(apply_proxy_url(desiredkoboldendpoint + a1111_models_endpoint))
-										.then(response => response.json())
-										.then(values6 => {
-											console.log(values6);
-											if(values6 && values6.length>0 && values6[0].model_name!="inactive" && values6[0].filename!=null)
-											{
-												let firstitem = values6[0];
-												//local image gen is available
-												if(localsettings.generate_images_mode==0)
-												{
-													console.log("Connect to KoboldCpp Image Gen");
-													localsettings.generate_images_mode = 2;
-													localsettings.saved_a1111_url = desiredkoboldendpoint;
-													connect_to_a1111(true);
-													render_gametext(true);
-												}
-											}
-											else
-											{
-												//hide the add img if the image server is down
-												if(localsettings.generate_images_mode==2 && localsettings.saved_a1111_url==desiredkoboldendpoint)
-												{
-													localsettings.generate_images_mode = 0;
-													localsettings.saved_a1111_url = default_a1111_base
-													render_gametext(true);
-												}
-											}
-
-										}).catch(error => {
-											console.log("Failed to get local image models: " + error);
-										});
-
-										//prompt to request password for kcpp
-										if(localflag && has_password && !localmodekey)
-										{
-											console.log("Password protection detected. Prompting for password...");
-											inputBox("This KoboldCpp instance may be password protected.\nPlease input password:","API Key Required",localsettings.saved_kai_key,"(Input API Key)", ()=>{
-												let userinput = getInputBoxValue();
-												userinput = userinput.trim();
-												if (userinput != null && userinput!="") {
-													custom_kobold_key = document.getElementById("customkoboldkey").value = localmodekey = localsettings.saved_kai_key = userinput.trim();
-													update_custom_kobold_endpoint_model_display(true);
-												}
-											},false,false,true);
-										}
-										else if(localflag && has_txt2img && no_txt_model && safe_to_overwrite())
-										{
-											msgboxYesNo("This KoboldCpp instance seems to be running an Image Generation model without any Text Generation model loaded.\n\nWould you like to launch StableUI (Dedicated Image Generation WebUI bundled with KoboldCpp)?\n\nIf unsure, select 'No'.","Launch StableUI?", ()=>{
-												go_to_stableui();
-											},()=>{
-											});
-										}
-										else if(localflag && no_txt_model && !has_txt2img && !koboldcpp_has_vision && !koboldcpp_has_whisper)
-										{
-											msgboxYesNo("This KoboldCpp instance has no models loaded. You can still use the WebUI to edit or view existing stories.<br><br>Would you like to connect to an external API service?","No Models Loaded",
-											()=>{
-												localflag = false;
-												hide_popups();
-												restore_endpoint_dropdowns();
-												document.getElementById("customapidropdown").value = "1";
-												render_gametext(false);
-												display_endpoint_container();
-											},()=>{},true);
-										}
-
-									}else{
-										console.log("Unknown KoboldCpp Check Response: " + data);
-									}
-								}).catch((error) => {
-									console.log("Not using KoboldCpp");
-								});
-							}
+						selected_models = [];
+						selected_workers = [];
+						custom_kobold_endpoint = "";
+						render_gametext();
+					} else if (mdlname == "ReadOnly") {
+						msgbox("The custom endpoint is working, but no model was loaded.\n\nPlease select and load a model and try again.");
+						selected_models = [];
+						selected_workers = [];
+						custom_kobold_endpoint = "";
+						render_gametext();
+					} else {
+						//good to go
+						custom_kobold_endpoint = desiredkoboldendpoint;
+						custom_kobold_key = desiredkoboldkey;
+						localsettings.saved_kai_addr = custom_kobold_endpoint;
+						localsettings.saved_kai_key = custom_kobold_key;
+						selected_models = [{ "performance": 100.0, "queued": 0.0, "eta": 0, "name": mdlname, "count": 1 }];
+						selected_workers = [];
+						if (perfdata == null) {
+							//generate some fake perf data if horde is offline and using custom endpoint
+							perfdata = {
+								"queued_requests": 0,
+								"queued_tokens": 0,
+								"past_minute_tokens": 0,
+								"worker_count": 0
+							};
+							document.body.classList.add("connected");
+							document.getElementById("connectstatus").classList.add("color_offwhite");
 						}
-					})
-					.catch(error => {
+						document.getElementById("connectstatus").innerHTML = "KoboldAI Endpoint";
+						render_gametext();
 
-						//on first error, do not give up, switch to cors proxy and try again.
-						//if it still fails, then show error
-						console.log("Error: " + error);
+						{
+							//now we get the version number, however this is optional
+							//if it fails we can still proceed
+							fetch(apply_proxy_url(desiredkoboldendpoint + kobold_custom_version_endpoint),
+							{
+								method: 'GET',
+								headers: get_kobold_header(),
+							})
+							.then(response => response.json())
+							.then(values2 => {
+								console.log(values2);
+								let ep_version = values2.result;
+								kobold_endpoint_version = (ep_version?ep_version:"");
+							}).catch(error => {
+								console.log("Failed to get KAI version number: " + error);
+							});
 
-						let is_local = is_local_url(custom_kobold_endpoint);
-
-						if (uses_cors_proxy || is_local) {
-							if(is_local && sublocalpathname!="")
+							//also get max ctx supported
+							fetch(apply_proxy_url(desiredkoboldendpoint + kobold_custom_maxctxlen_endpoint),
 							{
-								sublocalpathname = ""; //one more try
-								attempt_connect(false);
-							}
-							else if(is_local && reattempt_local_port80)
-							{
-								reattempt_local_port80 = false;
-								localmodeport = 80;
-								attempt_connect(false);
-							}
-							else
-							{
-								msgbox("Failed to connect to Custom KoboldAI Endpoint!<br><br>Please check if KoboldAI is running at the url: " + desiredkoboldendpoint + "<br><br>You can also <a href='#' class='color_blueurl' onclick='hide_popups();display_endpoint_container();'>try a different URL or API type</a>.","Error Encountered",true);
-								selected_models = [];
-								selected_workers = [];
-								custom_kobold_endpoint = "";
-								if(localflag)
+								method: 'GET',
+								headers: get_kobold_header(),
+							})
+							.then(response => response.json())
+							.then(values3 => {
+								console.log(values3);
+								let ep_maxctx = values3.value;
+								if(ep_maxctx && ep_maxctx>document.getElementById("max_context_length_slide").max)
 								{
-									document.getElementById("connectstatus").innerHTML = "Offline Mode";
+									document.getElementById("max_context_length_slide").max = ep_maxctx;
+									document.getElementById("max_context_length_slide_label").innerText = ep_maxctx;
 								}
-								render_gametext();
-							}
-						} else {
-							uses_cors_proxy = true; //fallback to cors proxy, this will remain for rest of session
-							connect_custom_endpoint(); //one more try
+							}).catch(error => {
+								console.log("Failed to get KAI max ctx: " + error);
+							});
+
 						}
-					});
+
+						//allow kcpp version check for remote endpoints too
+						{
+							//for local mode, check if we are using koboldcpp, if so we can use streaming if permitted by version
+							fetch(apply_proxy_url(desiredkoboldendpoint + koboldcpp_version_endpoint),
+							{
+								method: 'GET',
+								headers: get_kobold_header(),
+							})
+							.then(x => x.json())
+							.then(data => {
+								if(data && data!="" && data.version && data.version!="")
+								{
+									koboldcpp_version_obj = data;
+									koboldcpp_version = data.version;
+									console.log("KoboldCpp Detected: " + koboldcpp_version);
+									document.getElementById("connectstatus").innerHTML = (`<span style='cursor: pointer;' onclick='fetch_koboldcpp_perf()'>KoboldCpp ${koboldcpp_version}</a>`);
+									koboldcpp_has_vision = (data.vision?true:false);
+									koboldcpp_has_whisper = (data.transcribe?true:false);
+									koboldcpp_has_multiplayer = (data.multiplayer?true:false);
+									koboldcpp_has_websearch = (data.websearch?true:false);
+									let has_password = (data.protected?true:false);
+									let has_txt2img = (data.txt2img?true:false);
+									let no_txt_model = (mdlname=="inactive");
+
+									//also check against kcpp's max true context length
+									fetch(apply_proxy_url(desiredkoboldendpoint + koboldcpp_truemaxctxlen_endpoint),
+									{
+										method: 'GET',
+										headers: get_kobold_header(),
+									})
+									.then(response => response.json())
+									.then(values4 => {
+										console.log(values4);
+										let ep_maxctx = values4.value;
+										if(ep_maxctx && ep_maxctx>document.getElementById("max_context_length_slide").max)
+										{
+											document.getElementById("max_context_length_slide").max = ep_maxctx;
+											document.getElementById("max_context_length_slide_label").innerText = ep_maxctx;
+										}
+										if(localflag && localsettings.max_context_length==4096 && ep_maxctx>4096)
+										{
+											localsettings.max_context_length = ep_maxctx;
+										}
+									}).catch(error => {
+										console.log("Failed to get true max ctx: " + error);
+									});
+
+									//and check if there's a kcpp savefile preloaded
+									fetch(apply_proxy_url(desiredkoboldendpoint + koboldcpp_preloadstory_endpoint),
+									{
+										method: 'GET',
+										headers: get_kobold_header(),
+									})
+									.then(response => response.json())
+									.then(values5 => {
+										let tmpstory = values5;
+										if(is_kai_json(tmpstory))
+										{
+											if (localsettings.persist_session && !safe_to_overwrite()) {
+												console.log("Preload story: Unsafe to overwrite");
+											} else {
+												close_welcome_panel(false);
+												kai_json_load(tmpstory, false);
+											}
+										}else{
+											if(koboldcpp_has_multiplayer)
+											{
+												//force refresh
+												render_gametext(false);
+											}
+										}
+									}).catch(error => {
+										console.log("Failed to get preloaded story: " + error);
+									});
+
+									//check if image gen is supported
+									fetch(apply_proxy_url(desiredkoboldendpoint + a1111_models_endpoint))
+									.then(response => response.json())
+									.then(values6 => {
+										console.log(values6);
+										if(values6 && values6.length>0 && values6[0].model_name!="inactive" && values6[0].filename!=null)
+										{
+											let firstitem = values6[0];
+											//local image gen is available
+											if(localsettings.generate_images_mode==0)
+											{
+												console.log("Connect to KoboldCpp Image Gen");
+												localsettings.generate_images_mode = 2;
+												localsettings.saved_a1111_url = desiredkoboldendpoint;
+												connect_to_a1111(true);
+												render_gametext(true);
+											}
+										}
+										else
+										{
+											//hide the add img if the image server is down
+											if(localsettings.generate_images_mode==2 && localsettings.saved_a1111_url==desiredkoboldendpoint)
+											{
+												localsettings.generate_images_mode = 0;
+												localsettings.saved_a1111_url = default_a1111_base
+												render_gametext(true);
+											}
+										}
+
+									}).catch(error => {
+										console.log("Failed to get local image models: " + error);
+									});
+
+									//prompt to request password for kcpp
+									if(localflag && has_password && !localmodekey)
+									{
+										console.log("Password protection detected. Prompting for password...");
+										inputBox("This KoboldCpp instance may be password protected.\nPlease input password:","API Key Required",localsettings.saved_kai_key,"(Input API Key)", ()=>{
+											let userinput = getInputBoxValue();
+											userinput = userinput.trim();
+											if (userinput != null && userinput!="") {
+												custom_kobold_key = document.getElementById("customkoboldkey").value = localmodekey = localsettings.saved_kai_key = userinput.trim();
+												update_custom_kobold_endpoint_model_display(true);
+											}
+										},false,false,true);
+									}
+									else if(localflag && has_txt2img && no_txt_model && safe_to_overwrite())
+									{
+										msgboxYesNo("This KoboldCpp instance seems to be running an Image Generation model without any Text Generation model loaded.\n\nWould you like to launch StableUI (Dedicated Image Generation WebUI bundled with KoboldCpp)?\n\nIf unsure, select 'No'.","Launch StableUI?", ()=>{
+											go_to_stableui();
+										},()=>{
+										});
+									}
+									else if(localflag && no_txt_model && !has_txt2img && !koboldcpp_has_vision && !koboldcpp_has_whisper)
+									{
+										msgboxYesNo("This KoboldCpp instance has no models loaded. You can still use the WebUI to edit or view existing stories.<br><br>Would you like to connect to an external API service?","No Models Loaded",
+										()=>{
+											localflag = false;
+											hide_popups();
+											restore_endpoint_dropdowns();
+											document.getElementById("customapidropdown").value = "1";
+											render_gametext(false);
+											display_endpoint_container();
+										},()=>{},true);
+									}
+
+								}else{
+									console.log("Unknown KoboldCpp Check Response: " + data);
+								}
+							}).catch((error) => {
+								console.log("Not using KoboldCpp");
+							});
+						}
+					}
+				})
+				.catch(error => {
+
+					//on first error, do not give up, switch to cors proxy and try again.
+					//if it still fails, then show error
+					console.log("Error: " + error);
+
+					let is_local = is_local_url(custom_kobold_endpoint);
+
+					if (uses_cors_proxy || is_local) {
+						if(is_local && sublocalpathname!="")
+						{
+							sublocalpathname = ""; //one more try
+							attempt_connect(false);
+						}
+						else if(is_local && reattempt_local_port80)
+						{
+							reattempt_local_port80 = false;
+							localmodeport = 80;
+							attempt_connect(false);
+						}
+						else
+						{
+							msgbox("Failed to connect to Custom KoboldAI Endpoint!<br><br>Please check if KoboldAI is running at the url: " + desiredkoboldendpoint + "<br><br>You can also <a href='#' class='color_blueurl' onclick='hide_popups();display_endpoint_container();'>try a different URL or API type</a>.","Error Encountered",true);
+							selected_models = [];
+							selected_workers = [];
+							custom_kobold_endpoint = "";
+							if(localflag)
+							{
+								document.getElementById("connectstatus").innerHTML = "Offline Mode";
+							}
+							render_gametext();
+						}
+					} else {
+						uses_cors_proxy = true; //fallback to cors proxy, this will remain for rest of session
+						connect_custom_endpoint(); //one more try
+					}
+				});
 			}
 		}
 		else if(epchoice==2 || epchoice==3 || epchoice==7 || epchoice==8 || epchoice==9) //connect to OAI / OpenRouter / MistralAI / Featherless / Grok Endpoint
@@ -9626,22 +9896,27 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		mainmenu_untab(true);
 		document.getElementById("saveloadcontainer").classList.remove("hidden");
 
-		let filetable = ``;
-
-		let entry = `<div style="display:flex">
-				<button type="button" style="font-size:12px; margin:2px;width:33%" name="localsave" class="btn btn-primary" onclick="hide_popups();save_file_button()">`+"💾<br>Download File to avoid data-loss"+`</button>
-				<button type="button" style="font-size:12px; margin:2px;width:33%" name="localload" class="btn btn-primary" onclick="hide_popups();load_file_button()">`+"📁<br>Open File from storage location"+`</button>
-				<button type="button" style="font-size:12px; margin:2px;width:34%" name="shareurl" class="btn btn-primary" onclick="hide_popups();share_story_button()">`+"🌐<br>Import / Export / Share Story"+`</button>
-				</div>
-				<div style="margin-top:0px; text-align: center; align-self: center; width: calc(100% - 184px);">
-				</div>`;
-		filetable += entry;
-
-		try
+		let slotpromises = [];
+		for(let i=0;i<SAVE_SLOTS;++i)
 		{
-			for(let i=0;i<SAVE_SLOTS;++i)
+			slotpromises.push(indexeddb_load("slot_"+i+"_meta",""));
+		}
+		Promise.all(slotpromises).then(slotlabels=>
+		{
+			let filetable = ``;
+			let entry = `<div style="display:flex">
+					<button type="button" style="font-size:12px; margin:2px;width:33%" name="localsave" class="btn btn-primary" onclick="hide_popups();save_file_button()">`+"💾<br>Download File"+`</button>
+					<button type="button" style="font-size:12px; margin:2px;width:33%" name="localload" class="btn btn-primary" onclick="hide_popups();load_file_button()">`+"📁<br>Open File"+`</button>
+					<button type="button" style="font-size:12px; margin:2px;width:34%" name="shareurl" class="btn btn-primary" onclick="hide_popups();share_story_button()">`+"🌐<br>Share"+`</button>
+					</div>
+					<div style="margin-top:3px; text-align: center; align-self: center; width: calc(100% - 184px);">
+					<span style="font-weight:bold;text-decoration: underline;">Temporary Browser Storage</span>
+					</div>`;
+			filetable += entry;
+
+			for(let i=0;i<slotlabels.length;++i)
 			{
-				let testslot = localStorage.getItem(STORAGE_PREFIX + "slot_"+i+"_meta");
+				let testslot = slotlabels[i];
 				let lbl = (i+1);
 				entry = `<div style="display:flex; height:33px;">
 					<div style="margin:3px; text-align: center; align-self: center; width: calc(100% - 184px);">
@@ -9655,88 +9930,81 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 					</div></div>`;
 				filetable += entry;
 			}
-
 			populate_corpo_leftpanel();
-		} catch (e) {
-			console.log("get slots failed: " + e);
-		}
-		document.getElementById("saveloadentries").innerHTML = filetable;
+			document.getElementById("saveloadentries").innerHTML = filetable;
+		});
 	}
 	function save_to_slot(slot)
 	{
 		let defaultsavename = (localsettings.opmode==1?"Untitled Story":(localsettings.opmode==2?"Untitled Adventure":(localsettings.opmode==3?"Untitled Chat":"Untitled Instruct")));
 		let savename = defaultsavename + " " + new Date().toLocaleString();
 		let slotnumshown = (slot+1);
-		let testslot = localStorage.getItem(STORAGE_PREFIX + "slot_"+slot+"_meta");
-		if(testslot)
-		{
-			savename = testslot;
-		}
-		let newcompressedstory = generate_compressed_story(true,true,true);
+		indexeddb_load("slot_"+slot+"_meta","").then(testslot=>{
+			if (testslot) {
+				savename = testslot;
+			}
+			let newcompressedstory = generate_compressed_story(true, true, true);
 
-		const slotwrite = function()
-		{
-			warn_on_quit = false;
-			inputBox("Enter a label for this Browser Storage Slot data","Enter a label",savename,defaultsavename,()=>{
-				let userinput = getInputBoxValue();
-				if(userinput.trim()=="")
-				{
-					userinput = defaultsavename;
-				}
-				localStorage.setItem(STORAGE_PREFIX + "slot_"+slot+"_data", newcompressedstory);
-				localStorage.setItem(STORAGE_PREFIX + "slot_"+slot+"_meta", userinput);
-				display_saveloadcontainer();
-			});
-		}
+			const slotwrite = function () {
+				warn_on_quit = false;
+				inputBox("Enter a label for this Browser Storage Slot data", "Enter a label", savename, defaultsavename, () => {
+					let userinput = getInputBoxValue();
+					if (userinput.trim() == "") {
+						userinput = defaultsavename;
+					}
+					indexeddb_save("slot_" + slot + "_data", newcompressedstory)
+					indexeddb_save("slot_" + slot + "_meta", userinput).then(()=>{display_saveloadcontainer()});
+				});
+			}
 
-		if(testslot)
-		{
-			msgboxYesNo("Overwrite existing story in Browser Storage Slot "+slotnumshown+"?","Overwrite Storage Slot "+slotnumshown,()=>{
+			if (testslot) {
+				msgboxYesNo("Overwrite existing story in Browser Storage Slot " + slotnumshown + "?", "Overwrite Storage Slot " + slotnumshown, () => {
+					slotwrite();
+				}, null);
+			}
+			else {
 				slotwrite();
-			},null);
-		}else{
-			slotwrite();
-		}
-
-
+			}
+		});
 	}
 	function load_from_slot(slot)
 	{
-		let loadedstorycompressed = localStorage.getItem(STORAGE_PREFIX + "slot_"+slot+"_data");
-		if(loadedstorycompressed)
-		{
-			hide_popups();
-			import_compressed_story(loadedstorycompressed,false);
-		}else{
-			msgbox("Unable to load story from browser storage","Browser Storage Load Failed");
-		}
+		indexeddb_load("slot_"+slot+"_data","").then(loadedstorycompressed=>{
+			if(loadedstorycompressed)
+			{
+				hide_popups();
+				import_compressed_story(loadedstorycompressed,false);
+			}else{
+				msgbox("Unable to load story from browser storage","Browser Storage Load Failed");
+			}
+		});
 	}
 	function download_from_slot(slot)
 	{
-		let loadedstorycompressed = localStorage.getItem(STORAGE_PREFIX + "slot_"+slot+"_data");
-		if(loadedstorycompressed)
-		{
-			tempfileobj = decompress_story(loadedstorycompressed);
-			if(tempfileobj)
+		indexeddb_load("slot_"+slot+"_data","").then(loadedstorycompressed=>{
+			if(loadedstorycompressed)
 			{
-				save_file_button(true);
+				tempfileobj = decompress_story(loadedstorycompressed);
+				if(tempfileobj)
+				{
+					save_file_button(true);
+				}
+				else
+				{
+					tempfileobj = generate_base_storyobj();
+					msgbox("Story could not be downloaded. Try loading it first.","Browser Storage Load Failed");
+				}
+			}else{
+				msgbox("Unable to load story from browser storage","Browser Storage Load Failed");
 			}
-			else
-			{
-				tempfileobj = generate_base_storyobj();
-				msgbox("Story could not be downloaded. Try loading it first.","Browser Storage Load Failed");
-			}
-		}else{
-			msgbox("Unable to load story from browser storage","Browser Storage Load Failed");
-		}
+		});
 	}
 	function delete_from_slot(slot)
 	{
 		let slotnumshown = (slot+1);
 		msgboxYesNo("Delete story in Browser Storage Slot "+slotnumshown+"?","Delete Storage Slot "+slotnumshown,()=>{
-			localStorage.setItem(STORAGE_PREFIX + "slot_"+slot+"_data", "");
-			localStorage.setItem(STORAGE_PREFIX + "slot_"+slot+"_meta", "");
-			display_saveloadcontainer();
+			indexeddb_save("slot_"+slot+"_data", "");
+			indexeddb_save("slot_"+slot+"_meta", "").then(()=>{display_saveloadcontainer()});
 		},()=>{
 			display_saveloadcontainer();
 		});
@@ -11133,7 +11401,19 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 				placeholder_tags_data.push({"p":v1,"r":v2});
 			}
 		}
-
+		documentdb_enabled = document.getElementById("documentdb_enabled").checked?true:false;
+		documentdb_searchhistory = document.getElementById("documentdb_searchhistory").checked?true:false;
+		documentdb_numresults = document.getElementById("documentdb_numresults").value;
+		documentdb_searchrange = document.getElementById("documentdb_searchrange").value;
+		documentdb_chunksize = document.getElementById("documentdb_chunksize").value;
+		documentdb_data = document.getElementById("documentdb_data").value;
+		documentdb_numresults = parseInt(documentdb_numresults);
+		documentdb_numresults = cleannum(documentdb_numresults,1,10);
+		documentdb_searchrange = parseInt(documentdb_searchrange);
+		documentdb_searchrange = cleannum(documentdb_searchrange,0,1024);
+		documentdb_chunksize = parseInt(documentdb_chunksize);
+		documentdb_chunksize = cleannum(documentdb_chunksize,32,2048);
+		websearch_enabled = document.getElementById("websearch_enabled").checked?true:false;
 	}
 
 	function set_personal_notes()
@@ -11221,6 +11501,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 
 	function handle_incoming_autosummary(gentxt)
 	{
+		retry_in_progress = false;
 		waiting_for_autosummary = false;
 		gentxt = gentxt.trim();
 		gentxt = gentxt.split("###")[0];
@@ -11269,19 +11550,20 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 	}
 	function apply_user_mod()
 	{
-		let currmod = localStorage.getItem(STORAGE_PREFIX + "savedusermod", "");
-		inputBoxOkCancel("Here, you can apply third-party mod scripts shared by other users.<br><br><span class='color_red'>Caution: This mod will have full access to your story and API keys, so only run third-party mods that you trust! For security, mods must always be manually applied every time.</span><br><br>Want to start modding? <a href='#' class='color_blueurl' onclick='simplemodexample()'>Click here</a> to load a simple example mod.","Apply Third-Party Mod",currmod,"Paste Mod Script Here",()=>{
+		indexeddb_load("savedusermod","").then(currmod=>{
+			inputBoxOkCancel("Here, you can apply third-party mod scripts shared by other users.<br><br><span class='color_red'>Caution: This mod will have full access to your story and API keys, so only run third-party mods that you trust! For security, mods must always be manually applied every time.</span><br><br>Want to start modding? <a href='#' class='color_blueurl' onclick='simplemodexample()'>Click here</a> to load a simple example mod.","Apply Third-Party Mod",currmod,"Paste Mod Script Here",()=>{
 			let userinput = getInputBoxValue().trim();
-			localStorage.setItem(STORAGE_PREFIX + "savedusermod", userinput);
+			indexeddb_save("savedusermod",userinput);
 			if(userinput!="" && userinput.trim()!="")
 			{
 				var userModScript = new Function(userinput);
 				userModScript();
 			}
-		},
-		()=>{
-			//do nothing on cancel
-		},true,true);
+			},
+			()=>{
+				//do nothing on cancel
+			},true,true);
+		});
 	}
 
 	function sanitize_css(input)
@@ -11293,20 +11575,34 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 	}
 	function apply_custom_css()
 	{
-		let currcss = localStorage.getItem(STORAGE_PREFIX + "savedcustomcss", "");
-		inputBoxOkCancel("Here, you can apply third-party custom CSS styles shared by other users.<br><br><span class='color_red'>Caution: This will modify the existing document, so only use third-party CSS styles that you trust! Custom CSS is persistent, but can be reset in this menu.</span><br><br>You can return to default styles by clearing the box below. If you get stuck, add ?resetcss=1 to the URL to clear custom styles.","Apply Custom CSS Styles",currcss,"Paste CSS Styles Here",()=>{
+		indexeddb_load("savedcustomcss","").then(currcss=>{
+			inputBoxOkCancel("Here, you can apply third-party custom CSS styles shared by other users.<br><br><span class='color_red'>Caution: This will modify the existing document, so only use third-party CSS styles that you trust! Custom CSS is persistent, but can be reset in this menu.</span><br><br>You can return to default styles by clearing the box below. If you get stuck, add ?resetcss=1 to the URL to clear custom styles.","Apply Custom CSS Styles",currcss,"Paste CSS Styles Here",()=>{
 			let userinput = sanitize_css(getInputBoxValue().trim());
-			localStorage.setItem(STORAGE_PREFIX + "savedcustomcss", userinput);
+			indexeddb_save("savedcustomcss", userinput);
 			let styleElement = document.getElementById('custom_css');
 			styleElement.innerHTML = userinput;
-		},
-		()=>{
-			//do nothing on cancel
-		},true,true);
+			},
+			()=>{
+				//do nothing on cancel
+			},true,true);
+		});
 	}
 
 	function clear_poll_flags()
 	{
+		if(retry_in_progress)
+		{
+			retry_in_progress = false;
+			if(retry_preserve_last)
+			{
+				//restore text before retry
+				if(retry_prev_text.length>0)
+				{
+					retry_preserve_last = false;
+					gametext_arr.push(retry_prev_text.pop());
+				}
+			}
+		}
 		pending_response_id = "";
 		poll_in_progress = false;
 		synchro_polled_response = null;
@@ -11326,6 +11622,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		last_response_obj = null;
 		retry_prev_text = [];
 		retry_preserve_last = false;
+		retry_in_progress = false;
 		redo_prev_text = [];
 		nextgeneratedimagemilestone = generateimagesinterval;
 		pending_response_id = "";
@@ -11368,6 +11665,13 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			current_anotetemplate = "[Author's note: <|>]";
 			regexreplace_data = [];
 			placeholder_tags_data = [];
+			documentdb_enabled = false;
+			documentdb_searchhistory = false;
+			documentdb_numresults = 3;
+			documentdb_searchrange = 300;
+			documentdb_chunksize = 800;
+			documentdb_data = "";
+			websearch_enabled = false;
 		}
 		warn_on_quit = false;
 		show_corpo_leftpanel(false);
@@ -11381,7 +11685,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			localsettings = JSON.parse(JSON.stringify(defaultsettings));
 			let ns = new AestheticInstructUISettings();
 			aestheticInstructUISettings = deepCopyAestheticSettings(ns);
-			refreshPreview(false);
+			refreshAestheticPreview(false);
 			leave_multiplayer();
 			restart_new_game();
 			display_settings();
@@ -11389,7 +11693,8 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			document.getElementById("keep_memory").checked = false;
 			clear_bg_img();
 			pick_default_horde_models();
-			localStorage.setItem(STORAGE_PREFIX + "savedusermod", "");
+			indexeddb_save("savedusermod","");
+			indexeddb_save("savedcustomcss", "");
 		},null);
 
 	}
@@ -11708,11 +12013,13 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		generate_new_image(sentence, base64img);
 		document.getElementById("btn_genimg").disabled = true;
 		document.getElementById("btn_genimg2").disabled = true;
-		//disable it for 8 sec to prevent spam
+		document.getElementById("corpo_chat_img_btn").disabled = true;
+		//disable it for 5 sec to prevent spam
 		setTimeout(() => {
 			document.getElementById("btn_genimg").disabled = false;
 			document.getElementById("btn_genimg2").disabled = false;
-		}, 8000);
+			document.getElementById("corpo_chat_img_btn").disabled = false;
+		}, 5000);
 	}
 
 	function do_auto_gen_image(truncated_context)
@@ -11766,9 +12073,17 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		compressImage(origImg, (newDataUri, outAspect) => {
 			image_db[imgid].done = true;
 			image_db[imgid].result = newDataUri;
-			if(outAspect<0.7)
+			if(outAspect<=0.5)
+			{
+				image_db[imgid].aspect = 4; //portrait_long
+			}
+			else if(outAspect<0.7)
 			{
 				image_db[imgid].aspect = 1; //portrait
+			}
+			else if(outAspect>=2)
+			{
+				image_db[imgid].aspect = 5; //landscape_long
 			}
 			else if(outAspect>1.4)
 			{
@@ -12373,12 +12688,42 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		}
 	}
 
-	function submit_generation()
+	function getMaxAllowedCharacters(content, maxctxlen, maxgenamt) {
+		//this is a hack since we dont have a proper tokenizer, but we can estimate 1 token per 3 characters
+		let chars_per_token = 3.0;
+		//we try to detect attempts at coding which tokenize poorly. This usually happens when the average word length is high.
+		let avgwordlen = (1.0 + content.length) / (1.0 + countWords(content));
+		if (avgwordlen >= 7.8) {
+			chars_per_token = 2.7;
+		}
+		if (current_memory == null || current_memory.trim() == "") {
+			//if there is no memory, then we can be a lot of lenient with the character counts since the backend will truncate excess anyway
+			chars_per_token = 4.8;
+		}
+		if (is_using_kcpp_with_added_memory()) //easily handle overflow
+		{
+			chars_per_token = 6;
+		}
+		chars_per_token = chars_per_token * (localsettings.token_count_multiplier * 0.01);
+		return Math.max(1, Math.floor(((maxctxlen - maxgenamt)) * chars_per_token) - 12);
+	}
+
+	function submit_generation() //wrap websearch into this
+	{
+		let senttext = document.getElementById("input_text").value;
+		document.getElementById("input_text").value = "";
+		PerformWebsearch(senttext,(res)=>{
+			submit_generation_post_search(senttext);
+		});
+	}
+
+	function submit_generation_post_search(senttext)
 	{
 		warn_on_quit = true;
-		let newgen = document.getElementById("input_text").value;
+		let newgen = senttext;
 		let img_gen_trigger_prompt = "";
 		let doNotGenerate = false;
+		retry_in_progress = false;
 
 		//match the request for creating images in instruct modes
 		if(newgen!="" && localsettings.img_gen_from_instruct && localsettings.opmode == 4 && localsettings.generate_images_mode!=0 && !newgen.includes("\n"))
@@ -12511,7 +12856,6 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			retry_prev_text = [];
 			retry_preserve_last = true; //initially set to true
 			redo_prev_text = [];
-			document.getElementById("input_text").value = "";
 			pending_response_id = "-1";
 
 			let mtl = document.getElementById("maintxtloader");
@@ -12567,25 +12911,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			let truncated_context = concat_gametext(true, "","","",false,true); //no need to truncate if memory is empty
 			truncated_context = truncated_context.replace(/\xA0/g,' '); //replace non breaking space nbsp
 
-			//this is a hack since we dont have a proper tokenizer, but we can estimate 1 token per 3 characters
-			let chars_per_token = 3.0;
-			//we try to detect attempts at coding which tokenize poorly. This usually happens when the average word length is high.
-			let avgwordlen = (1.0+truncated_context.length)/(1.0+countWords(truncated_context));
-			if(avgwordlen>=7.8)
-			{
-				chars_per_token = 2.7;
-			}
-			if (current_memory == null || current_memory.trim() == "")
-			{
-				//if there is no memory, then we can be a lot of lenient with the character counts since the backend will truncate excess anyway
-				chars_per_token = 4.8;
-			}
-			if(is_using_kcpp_with_added_memory()) //easily handle overflow
-			{
-				chars_per_token = 6;
-			}
-			chars_per_token = chars_per_token * (localsettings.token_count_multiplier*0.01);
-			let max_allowed_characters = Math.max(1, Math.floor((maxctxlen-maxgenamt) * chars_per_token) - 12);
+			let max_allowed_characters = getMaxAllowedCharacters(truncated_context, maxctxlen, maxgenamt);
 
 			//for adventure mode, inject hidden context, even more if there's nothing in memory
 			if (localsettings.opmode == 2  && localsettings.adventure_context_mod)
@@ -12708,6 +13034,8 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 				}
 
 			}
+
+			const rawNewText = newgen;
 
 			if (localsettings.opmode == 4)
 			{
@@ -12867,6 +13195,65 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 						{
 							//always insert
 							wistr += wi.content + "\n";
+						}
+					}
+				}
+			}
+
+			//use newest websearch results
+			if (websearch_enabled && is_using_kcpp_with_websearch() && lastSearchResults && lastSearchResults.length>0)
+			{
+				for(let i=0;i<lastSearchResults.length;++i)
+				{
+					let sresult = lastSearchResults[i];
+					let snippet = `\n[Search Snippet: ${sresult.title}\nSource: ${sresult.url}\nExcerpt: ${((sresult.content && sresult.content!="")?sresult.content:sresult.desc)}]`;
+					wistr = snippet + wistr;
+				}
+			}
+
+			// TextDB Long term memory minisearch
+			if (documentdb_enabled)
+			{
+				// Finds the relevant memory fragments, formats them in a similar way to an authors note and inserts them before WI
+				const ltmSearchQuery = !!rawNewText ? rawNewText : gametext_arr.length > 0 ? gametext_arr.slice(-1)[0] : undefined;
+				if(ltmSearchQuery)
+				{
+					let gameText = concat_gametext(true).replace(/\xA0/g, ' ').trim();
+					let maxAllowedCharacters = getMaxAllowedCharacters(gameText, maxctxlen, maxgenamt);
+					if (documentdb_data!="" || gameText.length > maxAllowedCharacters)
+					{
+						const recentTextLimit = documentdb_searchrange;
+						let skippedActiveContext = gameText;
+						let historicalContext = "";
+						if(gameText.length > maxAllowedCharacters)
+						{
+							skippedActiveContext = gameText.substring(gameText.length - maxAllowedCharacters);
+							historicalContext = gameText.substring(0, gameText.length - maxAllowedCharacters); //context that is no longer active
+						}
+						let recentTextStr = skippedActiveContext;
+						if (skippedActiveContext.length > recentTextLimit) {
+							recentTextStr = skippedActiveContext.substring(skippedActiveContext.length - recentTextLimit);
+						}
+						let fullDocument = documentdb_data;
+						if(documentdb_searchhistory && historicalContext)
+						{
+							fullDocument += "\n"+historicalContext;
+						}
+
+						let ltmSnippets = DatabaseMinisearch(fullDocument,ltmSearchQuery,recentTextStr);
+						if (ltmSnippets.length === 0)
+						{
+							console.log("No memory fragments found either as history is too short or no relevant content found");
+						}
+						else
+						{
+							console.log("Memory fragments", ltmSnippets);
+							let ltmContent = "";
+							for(let i=0;i<ltmSnippets.length;++i)
+							{
+								ltmContent += `\n[Info Snippet: ${ltmSnippets[i].snippet}]\n`;
+							}
+							wistr = ltmContent + wistr;
 						}
 					}
 				}
@@ -13961,6 +14348,19 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			iwidth = 768;
 			iheight = 768;
 		}
+		else if(localsettings.img_aspect==4)
+		{
+			iheight = 1024;
+		}
+		else if(localsettings.img_aspect==5)
+		{
+			iwidth = 1024;
+		}
+		else if(localsettings.img_aspect==6)
+		{
+			iwidth = 1024;
+			iheight = 1024;
+		}
 
 		let genimg_payload = {
 			"prompt": (sentence + negprompt),
@@ -14012,7 +14412,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 					let nimgtag = "[<|p|" + data.id + "|p|>]";
 					gametext_arr.push(nimgtag);
 					image_db[data.id] = { done: false, queue: "Starting", result: "", prompt:sentence, poll_category:1 };
-					image_db[data.id].aspect = (iwidth>iheight?2:(iwidth<iheight?1:0));
+					image_db[data.id].aspect = (iwidth>=iheight*2?5:(iheight>=iwidth*2?4:(iwidth>iheight?2:(iwidth<iheight?1:0))));
 					image_db[data.id].imsource = 0; //0=generated,1=uploaded
 					console.log("New image queued " + nimgtag);
 				}
@@ -14034,14 +14434,14 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			let nimgtag = "[<|p|" + imgid + "|p|>]";
 			gametext_arr.push(nimgtag);
 			image_db[imgid] = { done: false, queue: "Generating", result: "", prompt:sentence, poll_category:0 };
-			image_db[imgid].aspect = (iwidth>iheight?2:(iwidth<iheight?1:0));
+			image_db[imgid].aspect = (iwidth>=iheight*2?5:(iheight>=iwidth*2?4:(iwidth>iheight?2:(iwidth<iheight?1:0))));
 			image_db[imgid].imsource = 0; //0=generated,1=uploaded
 			generate_a1111_image(genimg_payload,(outputimg)=>{
 				if(outputimg)
 				{
 					//console.log(outputimg);
 					let origImg = "data:image/jpeg;base64," + outputimg;
-					let imgres = localsettings.img_allowhd?(localsettings.img_aspect==0?HD_RES_PX:BIG_HD_RES_PX):NO_HD_RES_PX;
+					let imgres = localsettings.img_allowhd?(localsettings.img_aspect==0?NO_HD_RES_PX:HD_RES_PX):NO_HD_RES_PX;
 					compressImage(origImg, (newDataUri) => {
 						image_db[imgid].done = true;
 						image_db[imgid].result = newDataUri;
@@ -14071,7 +14471,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 					{
 						//console.log(outputimg);
 						let origImg = "data:image/jpeg;base64," + outputimg;
-						let imgres = localsettings.img_allowhd?(localsettings.img_aspect==0?HD_RES_PX:BIG_HD_RES_PX):NO_HD_RES_PX;
+						let imgres = localsettings.img_allowhd?HD_RES_PX:NO_HD_RES_PX;
 						compressImage(origImg, (newDataUri) => {
 							image_db[imgid].done = true;
 							image_db[imgid].result = newDataUri;
@@ -14205,6 +14605,8 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		{
 			document.getElementById("zoomedimg").classList.remove("portrait");
 			document.getElementById("zoomedimg").classList.remove("landscape");
+			document.getElementById("zoomedimg").classList.remove("portrait_long");
+			document.getElementById("zoomedimg").classList.remove("landscape_long");
 			if(savedmeta.aspect==1)
 			{
 				document.getElementById("zoomedimg").classList.add("portrait");
@@ -14212,6 +14614,14 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			else if(savedmeta.aspect==2)
 			{
 				document.getElementById("zoomedimg").classList.add("landscape");
+			}
+			else if(savedmeta.aspect==4)
+			{
+				document.getElementById("zoomedimg").classList.add("portrait_long");
+			}
+			else if(savedmeta.aspect==5)
+			{
+				document.getElementById("zoomedimg").classList.add("landscape_long");
 			}
 
 			if(!savedmeta.visionmode)
@@ -14345,6 +14755,16 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 					dimW *= 1.35;
 					dimH *= 0.9;
 				}
+				else if(completed_imgs_meta[imghash].aspect==4) //portrait_long
+				{
+					dimH *= 1.5;
+					dimW *= 0.75;
+				}
+				else if(completed_imgs_meta[imghash].aspect==5) //landscape_long
+				{
+					dimW *= 1.5;
+					dimH *= 0.75;
+				}
 			}
 			return prefix + `<div class="`+siclass+reinvertcolor+`"><img src="` + data + `" width=` + dimW + ` height=` + dimH + ` title="`+alttxt+`" style="border-radius: 6%; cursor: pointer;" onclick="return click_image(this,\'`+imghash+`\');"></div>` + suffix;
 		}
@@ -14373,6 +14793,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 	}
 
 	function handle_incoming_text(gentxt, genworker, genmdl, genkudos) {
+		retry_in_progress = false;
 		//handle stopping tokens if they got missed (eg. horde)
 		gentxt = trim_extra_stop_seqs(gentxt,true);
 		let mychatname = get_my_multiplayer_chatname();
@@ -14746,7 +15167,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 										img.queue = 0;
 										let origImg = "data:image/jpeg;base64," + finalimg.generations[0].img;
 										//console.log("Original image: " + origImg);
-										let imgres = localsettings.img_allowhd?(localsettings.img_aspect==0?HD_RES_PX:BIG_HD_RES_PX):NO_HD_RES_PX;
+										let imgres = localsettings.img_allowhd?(localsettings.img_aspect==0?NO_HD_RES_PX:HD_RES_PX):NO_HD_RES_PX;
 										compressImage(origImg, (newDataUri) => {
 											img.result = newDataUri;
 										}, true, false, imgres,0.35,false);
@@ -14796,7 +15217,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 							reader.onloadend = () => {
 								img.queue = 0;
 								let origImg = reader.result;
-								let imgres = localsettings.img_allowhd?(localsettings.img_aspect==0?HD_RES_PX:BIG_HD_RES_PX):NO_HD_RES_PX;
+								let imgres = localsettings.img_allowhd?(localsettings.img_aspect==0?NO_HD_RES_PX:HD_RES_PX):NO_HD_RES_PX;
 								compressImage(origImg, (newDataUri) => {
 									img.result = newDataUri;
 								}, true, false, imgres,0.35,false);
@@ -14892,12 +15313,26 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 				let minsizeW = Math.min(origW, origH);
 				let minsizeH = Math.min(origW, origH);
 
-				if(aspectratio<0.7)
+				if(aspectratio<=0.5)
+				{
+					//portrait
+					minsizeH *= 2;
+					canvas.width = wantedWidth = maxSize/2;
+					canvas.height = wantedHeight = maxSize;
+				}
+				else if(aspectratio<0.7)
 				{
 					//portrait
 					minsizeH *= 1.5;
 					canvas.width = wantedWidth = maxSize/1.5;
 					canvas.height = wantedHeight = maxSize;
+				}
+				else if(aspectratio>=2)
+				{
+					//landscape
+					minsizeW *= 2;
+					canvas.width = wantedWidth = maxSize;
+					canvas.height = wantedHeight = maxSize/2;
 				}
 				else if(aspectratio>1.4)
 				{
@@ -17001,29 +17436,34 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 
 	function populate_corpo_leftpanel()
 	{
-		let panel = document.getElementById('corpoleftpanelitems');
-		let panelitems = `
-		<div onclick="btn_memory()" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_gear); padding-left: 44px;">Context</div>
-		<div onclick="btn_editmode()" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_corpo_edit); padding-left: 44px;">Raw Editor</div>
-		<div onclick="update_toggle_lightmode(true)" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_corpo_theme); padding-left: 44px;">Light / Dark Theme</div>
-		<div style="padding:2px;font-size:14px;margin-left:8px;font-weight:600;line-height:1.1;margin-top:22px">Quick Slot Load</div>
-		<hr style="margin-top:4px;margin-bottom:6px" />
-		`;
-
+		let slotpromises = [];
 		for(let i=0;i<SAVE_SLOTS;++i)
 		{
-			let testslot = localStorage.getItem(STORAGE_PREFIX + "slot_"+i+"_meta");
-			let entry = "";
-			if(testslot)
-			{
-				entry = `<div onclick="load_from_slot(`+i+`)" class="corpo_leftpanel_btn" type="button">`+testslot+`</div>`;
-			}
-
-			panelitems += entry;
+			slotpromises.push(indexeddb_load("slot_"+i+"_meta",""));
 		}
+		Promise.all(slotpromises).then(slotlabels=>
+		{
+			let panel = document.getElementById('corpoleftpanelitems');
+			let panelitems = `
+			<div onclick="btn_memory()" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_gear); padding-left: 44px;">Context</div>
+			<div onclick="btn_editmode()" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_corpo_edit); padding-left: 44px;">Raw Editor</div>
+			<div onclick="update_toggle_lightmode(true)" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_corpo_theme); padding-left: 44px;">Light / Dark Theme</div>
+			<div style="padding:2px;font-size:14px;margin-left:8px;font-weight:600;line-height:1.1;margin-top:22px">Quick Slot Load</div>
+			<hr style="margin-top:4px;margin-bottom:6px" />
+			`;
 
-
-		panel.innerHTML = panelitems;
+			for(let i=0;i<slotlabels.length;++i)
+			{
+				let testslot = slotlabels[i];
+				let entry = "";
+				if(testslot)
+				{
+					entry = `<div onclick="load_from_slot(`+i+`)" class="corpo_leftpanel_btn" type="button">`+testslot+`</div>`;
+				}
+				panelitems += entry;
+			}
+			panel.innerHTML = panelitems;
+		});
 	}
 
 	function show_corpo_leftpanel(open)
@@ -17323,12 +17763,12 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		//autosave
 		try {
 			update_prev_custom_endpoint_type();
-			localStorage.setItem(STORAGE_PREFIX + "settings", JSON.stringify(localsettings));
+			indexeddb_save("settings", JSON.stringify(localsettings));
 			if (localsettings.persist_session) {
 				autosave_compressed_story(true,true,true);
 			}
 		} catch (e) {
-			console.log("Autosave Failed: " + e);
+			console.error("Autosave Failed: " + e);
 		}
 
 	}
@@ -17345,10 +17785,15 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		memory_tab = newtab;
 		document.getElementById("memory_tab").classList.remove("active");
 		document.getElementById("wi_tab").classList.remove("active");
+		document.getElementById("websearch_tab").classList.remove("active");
 		document.getElementById("token_tab").classList.remove("active");
+		document.getElementById("documentdb_tab").classList.remove("active");
 		document.getElementById("memory_tab_container").classList.add("hidden");
 		document.getElementById("wi_tab_container").classList.add("hidden");
+		document.getElementById("websearch_tab_container").classList.add("hidden");
 		document.getElementById("token_tab_container").classList.add("hidden");
+		document.getElementById("documentdb_tab_container").classList.add("hidden");
+
 		switch (newtab) {
 			case 0:
 				document.getElementById("memory_tab").classList.add("active");
@@ -17359,6 +17804,14 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 				document.getElementById("wi_tab_container").classList.remove("hidden");
 				break;
 			case 2:
+				document.getElementById("documentdb_tab").classList.add("active");
+				document.getElementById("documentdb_tab_container").classList.remove("hidden");
+				break;
+			case 3:
+				document.getElementById("websearch_tab").classList.add("active");
+				document.getElementById("websearch_tab_container").classList.remove("hidden");
+				break;
+			case 4:
 				document.getElementById("token_tab").classList.add("active");
 				document.getElementById("token_tab_container").classList.remove("hidden");
 				break;
@@ -17394,6 +17847,22 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		//setup wi tab
 		start_editing_wi();
 		update_wi();
+
+		document.getElementById("documentdb_enabled").checked = documentdb_enabled;
+		document.getElementById("documentdb_searchhistory").checked = documentdb_searchhistory;
+		document.getElementById("documentdb_numresults").value = documentdb_numresults
+		document.getElementById("documentdb_searchrange").value = documentdb_searchrange;
+		document.getElementById("documentdb_chunksize").value = documentdb_chunksize;
+		document.getElementById("documentdb_data").value = documentdb_data;
+		document.getElementById("websearch_enabled").checked = websearch_enabled;
+		if(is_using_kcpp_with_websearch())
+		{
+			document.getElementById("websearchunsupporteddiv").classList.add("hidden");
+		}
+		else
+		{
+			document.getElementById("websearchunsupporteddiv").classList.remove("hidden");
+		}
 
 		populate_placeholder_tags();
 		populate_regex_replacers();
@@ -17816,13 +18285,16 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			document.getElementById("input_text").value = "";
 			let temp = gametext_arr[gametext_arr.length-1];
 			redo_prev_text = [];
+			let erased_last = false;
 			if(!retry_preserve_last)
 			{
 				gametext_arr.pop();
+				erased_last = true;
 			}
 			retry_preserve_last = false;
 			let last_retry_stack_temp = retry_prev_text;
 			submit_generation();
+			retry_in_progress = erased_last;
 			retry_prev_text = last_retry_stack_temp;
 			retry_prev_text.push(temp);
 			if(retry_prev_text.length>2)
@@ -18082,7 +18554,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 							aestheticInstructUISettings.AI_portrait = compressedImageURI;
 							document.getElementById('portrait_ratio_AI').value = aspectratio.toFixed(2);
 						}
-						refreshPreview(true);
+						refreshAestheticPreview(true);
 					}
 				}
 				reader.readAsDataURL(file);
@@ -18130,7 +18602,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			// Initialize the functionalities of the colorPicker
 			colorPicker.addEventListener('change', function() {
 				element.style[`${useBackground ? 'backgroundColor' : 'color'}`] = this.value;
-				refreshPreview();
+				refreshAestheticPreview();
 			});
 			element.addEventListener('mouseover', () => element.style.cursor = "pointer");
 		});
@@ -18164,17 +18636,17 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			document.getElementById('portrait_width_AI').value = 100;
 			document.getElementById('portrait_ratio_you').value = 1.0;
 			document.getElementById('portrait_width_you').value = 100;
-			refreshPreview(true);
+			refreshAestheticPreview(true);
 		});
 
 		document.getElementById("reset-all-aesthetic-instruct").addEventListener('click', (e) => {
 
 			let ns = new AestheticInstructUISettings();
 			aestheticInstructUISettings = deepCopyAestheticSettings(ns);
-			refreshPreview(false);
+			refreshAestheticPreview(false);
 		});
 
-		refreshPreview(false);
+		refreshAestheticPreview(false);
 	}
 
 	function openAestheticUISettingsMenu() {
@@ -18199,7 +18671,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		return copy;
 	}
 
-	function refreshPreview(updateFromUI = true) {
+	function refreshAestheticPreview(updateFromUI = true) {
 		if (updateFromUI) { updateDataFromUI(); }
 		updateUIFromData();
 		updateTextPreview();
@@ -18561,6 +19033,226 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 		}
 		document.getElementById('aesthetic_text_preview').innerHTML = render_aesthetic_ui(preview,true);
 	}
+
+	function PerformWebsearch(webSearchQuery, onDone)
+	{
+		//websearch
+		if (websearch_enabled && is_using_kcpp_with_websearch())
+		{
+			webSearchQuery = webSearchQuery.trim();
+			if(webSearchQuery=="")
+			{
+				webSearchQuery = (gametext_arr.length > 0 ? gametext_arr.slice(-1)[0] : "");
+			}
+			webSearchQuery = removeAndReplacePlaceholders(webSearchQuery);
+			webSearchQuery = webSearchQuery.trim();
+			webSearchQuery = webSearchQuery.replace(/(?:\r\n|\r|\n)/g, '. ');
+			if(webSearchQuery==lastSearchQuery || webSearchQuery=="")
+			{
+				onDone(); //use cached results
+			}
+			else
+			{
+				if(pending_response_id=="")
+				{
+					pending_response_id = "-1";
+					render_gametext(false);
+				}
+				let murl = `${custom_kobold_endpoint}${koboldcpp_websearch_endpoint}`;
+				murl = apply_proxy_url(murl);
+				fetch(murl, {
+					method: 'POST',
+					headers: get_kobold_header(),
+					body: JSON.stringify({q: webSearchQuery}),
+				})
+				.then(x => x.json())
+				.then(values => {
+					lastSearchQuery = webSearchQuery;
+					lastSearchResults = values;
+					if(pending_response_id=="-1")
+					{
+						pending_response_id = "";
+					}
+					onDone();
+				})
+				.catch(error => {
+					console.log("WebSearch Error: " + error);
+					lastSearchResults = [];
+					lastSearchQuery = "";
+					if(pending_response_id=="-1")
+					{
+						pending_response_id = "";
+					}
+					onDone();
+				});
+			}
+		}
+		else
+		{
+			lastSearchResults = [];
+			lastSearchQuery = "";
+			onDone();
+		}
+	}
+
+	//LTM TextDB Memsnipper searching
+	//searches dbText for searchStr and recentTextStr, returns up to 3 results
+	function DatabaseMinisearch(dbText, searchStr, recentTextStr)
+	{	//predefined minisearch constants
+		const chunkSize = documentdb_chunksize;
+		const chunkSizeOverlap = chunkSize*0.5;
+		const maxResultsPerSection = 5; //returns up to 5 matches per section
+		const valuesToReturn = documentdb_numresults;
+		const minSimilarity = 0.2;
+
+		if(dbText=="" || searchStr=="")
+		{
+			return [];
+		}
+
+		//utility functions used in minisearch
+		let cleanupSpecialTags = function(text) {
+			return text.replace(/\{\{\[INPUT\]\}\}/g, "").replace(/\{\{\[OUTPUT\]\}\}/g, "");
+		}
+
+		let stripToTokens = function(text) {
+			return cleanupSpecialTags(text).replace(/[^\w\s\d-]/g, " ").replace("\s+", " ");
+		}
+
+		let searchAndScore = function(searchStr, recentTextStr, paragraphs) {
+			let searchSections = [];
+			if(recentTextStr && recentTextStr!=searchStr) //extra nearby data passed to search
+			{
+				searchSections.push({term: stripToTokens(recentTextStr),strength: 1});
+			}
+			searchSections.push({term: stripToTokens(searchStr),strength: 2});
+
+			let sectionResults = searchSections.map((entry) => {
+				let term = entry.term, strength = entry.strength;
+				let docs = miniSearch.search(term);
+				if (docs.length === 0) {
+					return [];
+				}
+				let maxScore = docs[0].score;
+				return docs.slice(0, maxResultsPerSection).map(doc => {
+					doc.score *= strength / maxScore;
+					return doc;
+				})
+			}).flat();
+
+			// Adds scores together across results to form a summary
+			let sectionSummary = sectionResults.reduce((docs, doc) => {
+				const existingDoc = docs.find((c) => c["id"] === doc["id"]);
+				if (existingDoc) {
+					existingDoc.score += doc.score;
+				}
+				else {
+					docs.push(doc);
+				}
+				return docs;
+			}, []);
+
+			// Maps to the more simple standard output structure and sort by total score
+			let comparisons = sectionSummary.map(doc => {
+				return {
+					match: doc.score,
+					snippet: doc.snippet
+				};
+			}).sort((a, b) => {
+				return (a.match > b.match ? -1 : 1);
+			});
+
+			// Scales each score by max score to get a proportional match relevance
+			if (comparisons.length === 0) {
+				return [];
+			}
+			let maxScore = comparisons[0].match;
+			return comparisons.map(result => {
+				result.match /= maxScore;
+				return result;
+			});
+		}
+
+		//step 1: chunk the dbtext into paragraph chunks
+		let paragraphs = [];
+		let allText = cleanupSpecialTags(dbText);
+		allText = replaceAll(allText,recentTextStr,"");
+
+		// Ensure placeholders are replaced to allow searching for user / character
+		allText = removeAndReplacePlaceholders(allText)
+		searchStr = removeAndReplacePlaceholders(searchStr)
+		recentTextStr = removeAndReplacePlaceholders(recentTextStr)
+
+		let i = 0, startLoc = 0;
+		while (startLoc < allText.length && i < Number.MAX_SAFE_INTEGER) {
+			let actualChunkStart = Math.max(0, startLoc - chunkSizeOverlap);
+			let actualChunkEnd = Math.min(allText.length, actualChunkStart + chunkSize);
+			let currentSnippet = allText.substring(actualChunkStart, actualChunkEnd);
+			paragraphs.push(currentSnippet);
+			startLoc = actualChunkEnd;
+			i++;
+		}
+		paragraphs = paragraphs.map(c => c.replace(/\n\n/g, "\n")).filter(s => !!s);
+		let pgcount = 0;
+		paragraphs = paragraphs.map(txt => {
+			pgcount += 1;
+			return {
+				id: pgcount,
+				snippet: txt,
+				text: stripToTokens(txt),
+				category: "context"
+			}
+		});
+
+		// a list of commonly used words that have little meaning and can be excluded from analysis.
+		const stopwords = [
+			'about', 'above', 'after', 'again', 'all', 'also', 'am', 'an', 'and', 'another',
+			'any', 'are', 'as', 'at', 'be', 'because', 'been', 'before', 'being', 'below',
+			'between', 'both', 'but', 'by', 'came', 'can', 'cannot', 'come', 'could', 'did',
+			'do', 'does', 'doing', 'during', 'each', 'few', 'for', 'from', 'further', 'get',
+			'got', 'has', 'had', 'he', 'have', 'her', 'here', 'him', 'himself', 'his', 'how',
+			'if', 'in', 'into', 'is', 'it', 'its', 'itself', 'like', 'make', 'many', 'me',
+			'might', 'more', 'most', 'much', 'must', 'my', 'myself', 'never', 'now', 'of', 'on',
+			'only', 'or', 'other', 'our', 'ours', 'ourselves', 'out', 'over', 'own',
+			'said', 'same', 'see', 'she', 'should', 'since', 'so', 'some', 'still', 'such', 'take', 'than',
+			'that', 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there', 'these', 'they',
+			'this', 'those', 'through', 'to', 'too', 'under', 'until', 'up', 'very', 'was',
+			'way', 'we', 'well', 'were', 'what', 'where', 'when', 'which', 'while', 'who',
+			'whom', 'with', 'would', 'why', 'you', 'your', 'yours', 'yourself',
+			'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
+			'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '$', '1',
+			'2', '3', '4', '5', '6', '7', '8', '9', '0', '_',
+			'll', 're'
+		];
+		//step 2: initialize minisearch engine
+		let miniSearch = new MiniSearch({
+			fields: ["text"], // fields to index for full-text search
+			storeFields: ['category', "snippet"], // fields to return with search results
+			searchOptions: {
+				fuzzy: 0,
+				bm25: { // https://lucaong.github.io/minisearch/types/MiniSearch.BM25Params.html
+					b: 0.7, // Normalisation for the length of the string
+					d: 0.7, // Minimum significance of a term showing up once
+					k: 1.5 // Term frequency falloff (higher values allow for bigger differences based on amount of repetition of terms)
+				}
+			},
+			processTerm: (term, _fieldName) => {
+				let processedTerm = stopwords.includes(term.toLowerCase()) ? false : MiniSearch.getDefault("processTerm")(term);
+				return processedTerm;
+			},
+			tokenize: (str) => {
+				let terms = MiniSearch.getDefault("tokenize")(str);
+				return terms.concat(terms.map(porterStemmer));
+			}
+		});
+		miniSearch.addAll(paragraphs); //populate minisearch with paragraphs
+
+		//step 3: run the search over the dbText to generate matches
+		let searchResults = searchAndScore(searchStr,recentTextStr,paragraphs);
+		searchResults = searchResults.filter(x=>x.match>minSimilarity);
+		searchResults = searchResults.slice(0, valuesToReturn);
+		return searchResults;
+	}
 	</script>
 
 </head>
@@ -18772,6 +19464,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 					</div>
 					<div class="corpomainbtm">
 						<div class="corpo_chat_outer">
+							<button title="Image" onclick="add_img_btn_menu()" id="corpo_chat_img_btn" class="corpo_chat_img_btn mainnav" type="button"></button>
 							<div class="corpo_chat_inner" id="corpo_cht_inp_lengthtester" style="white-space: nowrap; visibility: hidden; height: 0px; position:absolute; width: auto;"></div>
 							<textarea title="User Input" class="corpo_chat_inner mainnav" id="corpo_cht_inp" type="text" name="crpchtinp"  role="presentation" autocomplete="noppynop" spellcheck="true" rows="1" wrap="on" placeholder="Message KoboldAI" value="" oninput="update_submit_button();chat_resize_input();" onkeypress="return chat_handle_typing(event)"/></textarea>
 							<button title="Submit" onclick="submit_generation_button(true)" id="corpo_chat_send_btn" class="corpo_chat_send_btn mainnav" type="button"></button>
@@ -19938,14 +20631,17 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 								</select>
 							</div>
 							<div class="inlinelabel">
-								<div class="justifyleft rowitem">Aspect Ratio <span class="helpicon">?
-									<span class="helptext">Square is recommended. Changing aspect ratio will affect the resolution used to generate. This may impact quality or memory usage.</span>
+								<div class="justifyleft rowitem">Resolution <span class="helpicon">?
+									<span class="helptext">Changing resolution will affect the aspect ratio used to generate. This may impact quality or memory usage.</span>
 								</span>: </div>
-								<select title="Image Aspect Ratio" style="padding:1px; font-size:12px; height:20px; width: 100px;" class="form-control" id="img_aspect">
-									<option value="0">Square</option>
-									<option value="1">Portrait</option>
-									<option value="2">Landscape</option>
-									<option value="3">BigSquare</option>
+								<select title="Resolution" style="padding:1px; font-size:12px; height:20px; width: 180px;" class="form-control" id="img_aspect">
+									<option value="0">512 x 512 (Square)</option>
+									<option value="1">512 x 768 (Portrait)</option>
+									<option value="2">768 x 512 (Landscape)</option>
+									<option value="3">768 x 768 (BigSquare)</option>
+									<option value="4">512 x 1024 (TallPortrait)</option>
+									<option value="5">1024 x 512 (LongLandscape)</option>
+									<option value="6">1024 x 1024 (HugeSquare)</option>
 								</select>
 							</div>
 							<div class="inlinelabel">
@@ -20138,7 +20834,9 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			<div><ul class="nav nav-tabs settingsnav">
 				<li id="memory_tab" class="active"><a class="" href="#" onclick="display_memory_tab(0)">Memory</a></li>
 				<li id="wi_tab"><a class="" href="#" onclick="display_memory_tab(1)">World Info</a></li>
-				<li id="token_tab"><a class="" href="#" onclick="display_memory_tab(2)">Tokens</a></li>
+				<li id="documentdb_tab"><a class="" href="#" onclick="display_memory_tab(2)">TextDB</a></li>
+				<li id="websearch_tab"><a class="" href="#" onclick="display_memory_tab(3)">WebSearch</a></li>
+				<li id="token_tab"><a class="" href="#" onclick="display_memory_tab(4)">Tokens</a></li>
 			  </ul></div>
 
 			<div class="memtabcontainer" id="memory_tab_container">
@@ -20222,6 +20920,59 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 				</div>
 			</div>
 
+			<div class="memtabcontainer" id="documentdb_tab_container">
+				<div class="settinglabel" style="padding: 4px;">Automatically search and include relevant snippets from a text document or history.</div>
+				<div class="settinglabel" style="padding: 4px;">
+					<div class="justifyleft settingsmall" title="Enable TextDB">Enable TextDB </div>
+					<input title="Enable TextDB" type="checkbox" id="documentdb_enabled" style="margin:0px 0 0;">
+				</div>
+
+				<div class="settinglabel" style="padding: 4px;">
+					<div class="justifyleft settingsmall" title="Search Includes Context History">Search Includes Context History <span class="helpicon">?
+						<span class="helptext">If enabled, the entire story/chat history is used as a searchable document</span></span></div>
+					<input title="Search Context History" type="checkbox" id="documentdb_searchhistory" style="margin:0px 0 0;">
+				</div>
+
+				<div class="settinglabel" style="padding: 4px;">
+					<div class="justifyleft settingsmall">Num. Search Results <span class="helpicon">?
+					<span class="helptext">Controls how many snippets to retrieve from DB</span></span></div>
+					<input title="Number of Search Results" class="settinglabel miniinput"
+						style="height:16px;margin:0px 4px 0; width:90px;font-size:10px;" type="number"
+						min="1" max="5" step="1" pattern="\d+" placeholder="" value="" id="documentdb_numresults">
+				</div>
+				<div class="settinglabel" style="padding: 4px;">
+					<div class="justifyleft settingsmall">Nearby Text Amount <span class="helpicon">?
+						<span class="helptext">Controls	amount of nearby text included in the search query</span></span>
+					</div>
+					<input title="Nearby Text Amount" class="settinglabel miniinput"
+						style="height:16px;margin:0px 4px 0; width:90px;font-size:10px;" type="number"
+						min="1" step="1" pattern="\d+" placeholder="" value="" id="documentdb_searchrange">
+				</div>
+				<div class="settinglabel" style="padding: 4px;">
+					<div class="justifyleft settingsmall">Search Chunk Size <span class="helpicon">?
+					<span class="helptext">Controls the size of each snippet being searched for</span></span>
+					</div>
+					<input title="Search Chunk Size" class="settinglabel miniinput"
+						style="height:16px;margin:0px 4px 0; width:90px;font-size:10px;" type="number"
+						min="0" step="1" pattern="\d+" placeholder="" value="" id="documentdb_chunksize">
+				</div>
+				<div class="settinglabel">
+					<div class="justifyleft"><br>TextDB Storage<span class="helpicon">?<span
+						class="helptext">Paste as much raw text data here as you like. E.g. background information, reference documents, etc. This text will populate the database that will be chunked and searched by TextDB.</span></span></div>
+				</div>
+				<textarea title="Edit TextDB" class="form-control" id="documentdb_data" style="height: 120px;"
+					placeholder="Paste as much text data here as you like. This text will populate the database that will be searched by TextDB."></textarea>
+			</div>
+
+			<div class="memtabcontainer" id="websearch_tab_container">
+				<div class="settinglabel" style="padding: 4px;">Search the Web for relavant information when using instruct mode<br>(Requires WebSearch enabled KoboldCpp)</div>
+				<div id="websearchunsupporteddiv" class="color_red hidden" style="font-weight:bold;padding:3px;font-size:12px">WebSearch Not Supported</div>
+				<div class="settinglabel" style="padding: 4px;">
+					<div class="justifyleft settingsmall" title="Enable WebSearch">Enable WebSearch </div>
+					<input title="Enable WebSearch" type="checkbox" id="websearch_enabled" style="margin:0px 0 0;">
+				</div>
+			</div>
+
 			<div class="memtabcontainer" id="token_tab_container">
 				<div class="justifyleft settinglabel">Extra Stopping Sequences <span class="helpicon">?<span
 					class="helptext">Triggers the text generator to stop generating early if this sequence appears, in addition to default stop sequences. If you want multiple sequences, separate them with the following delimiter: ||$||</span></span></div>
@@ -20288,11 +21039,6 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 					<table id="placeholder_replace_table" class="settinglabel" style="text-align: center; border-spacing: 3px 2px; border-collapse: separate;">
 					</table>
 				</div>
-
-				<!-- <div style="padding:3px;" class="justifyleft settinglabel">Repetition Exclusions <span class="helpicon">?<span
-					class="helptext">Configure specific tokens that will be excluded from repetition and presence penalties.</span></span>
-					<button type="button" class="btn btn-primary" style="font-size:12px;padding:2px 2px;" onclick="expand_tokens_section('')">Expand Section</button>
-				</div> -->
 
 			</div>
 
@@ -20500,7 +21246,7 @@ pre code,td,th{padding:0}pre code,table{background-color:transparent}.table,inpu
 			</div>
 			<div class="aidgpopuplistheader" style="display: flex; flex-direction: row; height:max(70vh, 480px);">
 				<!-- Settings panel -->
-				<div style="background-color: #122b40;" onchange="refreshPreview()">
+				<div style="background-color: #122b40;" onchange="refreshAestheticPreview()">
 					<div style="padding: 10px; width:350px; height:100%">
 
 						<!-- BACKGROUND STYLE SETTINGS -->
@@ -20753,5 +21499,4 @@ else
 	console.log("service workers API not available");
 }
 </script>
-
 </html>

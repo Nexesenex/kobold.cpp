@@ -23,6 +23,8 @@ import time
 import asyncio
 import socket
 import threading
+import html
+import urllib.parse as urlparse
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
@@ -63,10 +65,10 @@ maxhordelen = 400
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.80301"
-LcppVersion = "b4388"
+KcppVersion = "1.81000"
+LcppVersion = "b4393"
 CudaSpecifics = "CuCML_ArCML_SMC2_no_Dmmv"
-ReleaseDate = "2024/12/24"
+ReleaseDate = "2024/12/30"
 showdebug = True
 guimode = False
 showsamplerwarning = True
@@ -91,6 +93,8 @@ multiplayer_turn_major = 1 # to keep track of when a client needs to sync their 
 multiplayer_turn_minor = 1
 multiplayer_dataformat = "" # used to tell what is the data payload in saved story. set by client
 multiplayer_lastactive = {} # timestamp of last activity for each unique player
+websearch_lastquery = ""
+websearch_lastresponse = []
 preloaded_story = None
 chatcompl_adapter = None
 embedded_kailite = None
@@ -1806,6 +1810,167 @@ def detokenize_ids(tokids):
         detokstr = ctypes.string_at(detok).decode("UTF-8","ignore")
     return detokstr
 
+# Performs a web search using DuckDuckGo and extracts text content from the top results.
+def websearch(query):
+    global websearch_lastquery
+    global websearch_lastresponse
+    if not query or query=="":
+        return []
+    query = query[:300] # only search first 300 chars, due to search engine limits
+    if query==websearch_lastquery:
+        print("Returning cached websearch...")
+        return websearch_lastresponse
+    import urllib.parse
+    import urllib.request
+    import difflib
+    from html.parser import HTMLParser
+    from concurrent.futures import ThreadPoolExecutor
+    num_results = 3
+    searchresults = []
+    if args.debugmode != -1 and not args.quiet:
+        print("Performing new websearch...")
+
+    def fetch_searched_webpage(url):
+        if args.debugmode:
+            utfprint(f"WebSearch URL: {url}")
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'})
+            with urllib.request.urlopen(req,  timeout=15) as response:
+                html_content = response.read().decode('utf-8', errors='ignore')
+                return html_content
+        except urllib.error.HTTPError: #we got blocked? try 1 more time with a different user agent
+            try:
+                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36'})
+                with urllib.request.urlopen(req,  timeout=15) as response:
+                    html_content = response.read().decode('utf-8', errors='ignore')
+                    return html_content
+            except Exception as e:
+                if args.debugmode != -1 and not args.quiet:
+                    print(f"Error fetching text from URL {url}: {e}")
+                return ""
+        except Exception as e:
+            if args.debugmode != -1 and not args.quiet:
+                print(f"Error fetching text from URL {url}: {e}")
+            return ""
+    def fetch_webpages_parallel(urls):
+        with ThreadPoolExecutor() as executor:
+            # Submit tasks and gather results
+            results = list(executor.map(fetch_searched_webpage, urls))
+        return results
+
+    def normalize_page_text(text):
+        text = re.sub(r'\s+([.,!?])', r'\1', text)  # Remove spaces before punctuation
+        # text = re.sub(r'([.,!?])([^\s])', r'\1 \2', text) # Ensure a single space follows punctuation, if not at the end of a line
+        return text
+
+    class VisibleTextParser(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.texts = []
+            self.is_script_or_style = False
+        def handle_starttag(self, tag, attrs):
+            if tag in {'script', 'style'}:
+                self.is_script_or_style = True
+        def handle_endtag(self, tag):
+            if tag in {'script', 'style'}:
+                self.is_script_or_style = False
+        def handle_data(self, data):
+            if not self.is_script_or_style and data.strip():
+                self.texts.append(data.strip())
+        def get_text(self):
+            return ' '.join(self.texts)
+
+    class ExtractResultsParser(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.titles = []
+            self.urls = []
+            self.descs = []
+            self.recordingTitle = False
+            self.recordingUrl = False
+            self.recordingDesc = False
+            self.currsegmenttxt = ""
+
+        def handle_starttag(self, tag, attrs):
+            if tag == "a":
+                # Check if the "class" attribute matches the target class
+                for attr_name, attr_value in attrs:
+                    if not self.recordingTitle and attr_name == "class" and "result__a" in attr_value.split():
+                        self.recordingTitle = True
+                        self.currsegmenttxt = ""
+                    if not self.recordingUrl and attr_name == "class" and "result__url" in attr_value.split():
+                        self.recordingUrl = True
+                        self.currsegmenttxt = ""
+                    if not self.recordingDesc and attr_name == "class" and "result__snippet" in attr_value.split():
+                        self.recordingDesc = True
+                        self.currsegmenttxt = ""
+
+        def handle_endtag(self, tag):
+            if tag == "a" and self.recordingTitle:
+                self.recordingTitle = False
+                self.titles.append(self.currsegmenttxt.strip())
+                self.currsegmenttxt = ""
+            if tag == "a" and self.recordingUrl:
+                self.recordingUrl = False
+                self.urls.append(f"https://{self.currsegmenttxt.strip()}")
+                self.currsegmenttxt = ""
+            if tag == "a" and self.recordingDesc:
+                self.recordingDesc = False
+                self.descs.append(self.currsegmenttxt.strip())
+                self.currsegmenttxt = ""
+
+        def handle_data(self, data):
+            if self.recordingTitle or self.recordingDesc or self.recordingUrl:
+                self.currsegmenttxt += data
+
+    encoded_query = urllib.parse.quote(query)
+    search_url = f"https://html.duckduckgo.com/html/?q={encoded_query}"
+
+    try:
+        search_html = fetch_searched_webpage(search_url)
+        parser = ExtractResultsParser()
+        parser.feed(search_html)
+        titles = parser.titles[:num_results]
+        searchurls = parser.urls[:num_results]
+        descs = parser.descs[:num_results]
+        fetchedcontent = fetch_webpages_parallel(searchurls)
+        for i in range(len(descs)):
+            # dive into the results to try and get even more details
+            title = titles[i]
+            url = searchurls[i]
+            desc = descs[i]
+            pagedesc = ""
+            try:
+                desclen = len(desc)
+                html_content = fetchedcontent[i]
+                parser2 = VisibleTextParser()
+                parser2.feed(html_content)
+                scraped = parser2.get_text().strip()
+                scraped = normalize_page_text(scraped)
+                desc = normalize_page_text(desc)
+                s = difflib.SequenceMatcher(None, scraped.lower(), desc.lower(), autojunk=False)
+                matches = s.find_longest_match(0, len(scraped), 0, desclen)
+                if matches.size > 100 and desclen-matches.size < 100: #good enough match
+                    # expand description by some chars both sides
+                    expandamtbefore = 200
+                    expandamtafter = 800
+                    startpt = matches.a - expandamtbefore
+                    startpt = 0 if startpt < 0 else startpt
+                    endpt =  matches.a + expandamtafter + desclen
+                    pagedesc = scraped[startpt:endpt].strip()
+            except Exception:
+                pass
+            searchresults.append({"title":title,"url":url,"desc":desc,"content":pagedesc})
+
+    except Exception as e:
+        if args.debugmode != -1 and not args.quiet:
+            print(f"Error fetching URL {search_url}: {e}")
+        return ""
+    if len(searchresults) > 0:
+        websearch_lastquery = query
+        websearch_lastresponse = searchresults
+    return searchresults
+
 #################################################################
 ### A hacky simple HTTP server simulating a kobold api by Concedo
 ### we are intentionally NOT using flask, because we want MINIMAL dependencies
@@ -2335,8 +2500,6 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def noscript_webui(self):
         global modelbusy, sslvalid
-        import html
-        import urllib.parse as urlparse
         parsed_url = urlparse.urlparse(self.path)
         parsed_dict = urlparse.parse_qs(parsed_url.query)
         reply = ""
@@ -2472,7 +2635,8 @@ Enter Prompt:<br>
             has_vision = (mmprojpath!="")
             has_password = (password!="")
             has_whisper = (fullwhispermodelpath!="")
-            response_body = (json.dumps({"result":"KoboldCpp/Croco.Cpp","version":KcppVersion, "protected":has_password ,"txt2img":has_txt2img,"vision":has_vision,"transcribe":has_whisper,"multiplayer":has_multiplayer}).encode())
+            has_search = True if args.websearch else False
+            response_body = (json.dumps({"result":"KoboldCpp/Croco.Cpp","version":KcppVersion, "protected":has_password ,"txt2img":has_txt2img,"vision":has_vision,"transcribe":has_whisper,"multiplayer":has_multiplayer,"websearch":has_search}).encode())
 
         elif self.path.endswith(('/api/extra/perf')):
             global last_req_time, start_time
@@ -2807,6 +2971,22 @@ Enter Prompt:<br>
                     utfprint("Multiplayer Set Story - Body Error: " + str(e))
                     response_code = 400
                     response_body = (json.dumps({"success": False, "error":"Submitted story invalid!"}).encode())
+
+        elif self.path.startswith(("/api/extra/websearch")):
+            if not self.secure_endpoint():
+                return
+            if args.websearch:
+                try:
+                    tempbody = json.loads(body)
+                    searchstr = tempbody.get('q', "")
+                    searchres = websearch(searchstr)
+                    response_body = (json.dumps(searchres).encode())
+                except Exception as e:
+                    utfprint("WebSearch Parse Error: " + str(e))
+                    response_code = 400
+                    response_body = (json.dumps([]).encode())
+            else:
+                response_body = (json.dumps([]).encode())
 
         if response_body is not None:
             self.send_response(response_code)
@@ -3341,6 +3521,7 @@ def show_gui():
     host_var = ctk.StringVar(value="")
     multiuser_var = ctk.IntVar(value=1)
     multiplayer_var = ctk.IntVar(value=has_multiplayer)
+    websearch_var = ctk.IntVar(value=0)
     horde_name_var = ctk.StringVar(value="koboldcpp")
     horde_gen_var = ctk.StringVar(value=maxhordelen)
     horde_context_var = ctk.StringVar(value=maxhordectx)
@@ -3883,6 +4064,7 @@ def show_gui():
     makecheckbox(network_tab, "Quiet Mode", quietmode, 4,tooltiptxt="Prevents all generation related terminal output from being displayed.")
     makecheckbox(network_tab, "NoCertify Mode (Insecure)", nocertifymode, 4, 1,tooltiptxt="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.")
     makecheckbox(network_tab, "Shared Multiplayer", multiplayer_var, 5,tooltiptxt="Hosts a shared multiplayer session that others can join.")
+    makecheckbox(network_tab, "Enable WebSearch", websearch_var, 5, 1,tooltiptxt="Enable the local search engine proxy so Web Searches can be done.")
 
     makefileentry(network_tab, "SSL Cert:", "Select SSL cert.pem file",ssl_cert_var, 7, width=200 ,filetypes=[("Unencrypted Certificate PEM", "*.pem")], singlerow=True, singlecol=False,tooltiptxt="Select your unencrypted .pem SSL certificate file for https.\nCan be generated with OpenSSL.")
     makefileentry(network_tab, "SSL Key:", "Select SSL key.pem file", ssl_key_var, 9, width=200, filetypes=[("Unencrypted Key PEM", "*.pem")], singlerow=True, singlecol=False, tooltiptxt="Select your unencrypted .pem SSL key file for https.\nCan be generated with OpenSSL.")
@@ -4155,6 +4337,7 @@ def show_gui():
         args.host = host_var.get()
         args.multiuser = multiuser_var.get()
         args.multiplayer = (multiplayer_var.get()==1)
+        args.websearch = (websearch_var.get()==1)
 
         if usehorde_var.get() != 0:
             args.hordemodelname = horde_name_var.get()
@@ -4344,6 +4527,7 @@ def show_gui():
         host_var.set(dict["host"] if ("host" in dict and dict["host"]) else "")
         multiuser_var.set(dict["multiuser"] if ("multiuser" in dict) else 1)
         multiplayer_var.set(dict["multiplayer"] if ("multiplayer" in dict) else 0)
+        websearch_var.set(dict["websearch"] if ("websearch" in dict) else 0)
 
         horde_name_var.set(dict["hordemodelname"] if ("hordemodelname" in dict and dict["hordemodelname"]) else "koboldcpp")
         horde_context_var.set(dict["hordemaxctx"] if ("hordemaxctx" in dict and dict["hordemaxctx"]) else maxhordectx)
@@ -5237,6 +5421,9 @@ def main(launch_args,start_server=True):
     print("==========")
     time.sleep(1)
 
+    if args.password and args.password!="":
+        password = args.password.strip()
+
     #handle loading text model
     if args.model_param:
         if not os.path.exists(args.model_param):
@@ -5282,9 +5469,6 @@ def main(launch_args,start_server=True):
                 args.mmproj = os.path.abspath(args.mmproj)
                 mmprojpath = args.mmproj
 
-        if args.password and args.password!="":
-            password = args.password.strip()
-
         if not args.blasthreads or args.blasthreads <= 0:
             args.blasthreads = args.threads
 
@@ -5301,6 +5485,22 @@ def main(launch_args,start_server=True):
         if not loadok:
             exitcounter = 999
             exit_with_error(3,"Could not load text model: " + modelname)
+
+    if (chatcompl_adapter is not None and isinstance(chatcompl_adapter, list)):
+        # The chat completions adapter is a list that needs derivation from chat templates
+        # Try to derive chat completions adapter from chat template, now that we have the model loaded
+        ctbytes = handle.get_chat_template()
+        chat_template = ctypes.string_at(ctbytes).decode("UTF-8","ignore")
+        candidates = chatcompl_adapter
+        chatcompl_adapter = None
+        if chat_template != "":
+            for entry in candidates:
+                if all(s in chat_template for s in entry['search']):
+                    print(f"Chat completion heuristic: {entry['name']}")
+                    chatcompl_adapter = entry['adapter']
+                    break
+        if chatcompl_adapter is None:
+            print("Chat template heuristics failed to identify chat completions format. Alpaca will be used.")
 
     #handle loading image model
     if args.sdmodel and args.sdmodel!="":
@@ -5724,6 +5924,7 @@ if __name__ == '__main__':
     advparser.add_argument("--promptlimit", help="Sets the maximum number of generated tokens, usable only with --prompt or --benchmark",metavar=('[token limit]'), type=int, default=100)
     advparser.add_argument("--multiuser", help="Runs in multiuser mode, which queues incoming requests instead of blocking them.", metavar=('limit'), nargs='?', const=1, type=int, default=1)
     advparser.add_argument("--multiplayer", help="Hosts a shared multiplayer session that others can join.", action='store_true')
+    advparser.add_argument("--websearch", help="Enable the local search engine proxy so Web Searches can be done.", action='store_true')
     advparser.add_argument("--remotetunnel", help="Uses Cloudflare to create a remote tunnel, allowing you to access KoboldCpp/Croco.Cpp remotely over the internet even behind a firewall.", action='store_true')
     advparser.add_argument("--highpriority", help="Experimental flag. If set, increases the process CPU priority, potentially speeding up generation. Use caution.", action='store_true')
     advparser.add_argument("--foreground", help="Windows only. Sends the terminal to the foreground every time a new prompt is generated. This helps avoid some idle slowdown issues.", action='store_true')

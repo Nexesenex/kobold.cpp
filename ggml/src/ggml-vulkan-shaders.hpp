@@ -1683,62 +1683,62 @@ const uint64_t get_rows_q8_0_len = 3704;
 extern unsigned char get_rows_q8_0_f32_data[3688];
 const uint64_t get_rows_q8_0_f32_len = 3688;
 
-extern unsigned char mul_mat_vec_q2_k_f32_f32_data[9516];
-const uint64_t mul_mat_vec_q2_k_f32_f32_len = 9516;
+extern unsigned char mul_mat_vec_q2_k_f32_f32_data[17732];
+const uint64_t mul_mat_vec_q2_k_f32_f32_len = 17732;
 
-extern unsigned char mul_mat_vec_q2_k_f16_f32_data[9740];
-const uint64_t mul_mat_vec_q2_k_f16_f32_len = 9740;
+extern unsigned char mul_mat_vec_q2_k_f16_f32_data[18212];
+const uint64_t mul_mat_vec_q2_k_f16_f32_len = 18212;
 
-extern unsigned char mul_mat_vec_id_q2_k_f32_data[9300];
-const uint64_t mul_mat_vec_id_q2_k_f32_len = 9300;
+extern unsigned char mul_mat_vec_id_q2_k_f32_data[17228];
+const uint64_t mul_mat_vec_id_q2_k_f32_len = 17228;
 
 extern unsigned char dequant_q2_k_data[3960];
 const uint64_t dequant_q2_k_len = 3960;
 
-extern unsigned char mul_mat_vec_q3_k_f32_f32_data[13056];
-const uint64_t mul_mat_vec_q3_k_f32_f32_len = 13056;
+extern unsigned char mul_mat_vec_q3_k_f32_f32_data[25020];
+const uint64_t mul_mat_vec_q3_k_f32_f32_len = 25020;
 
-extern unsigned char mul_mat_vec_q3_k_f16_f32_data[13320];
-const uint64_t mul_mat_vec_q3_k_f16_f32_len = 13320;
+extern unsigned char mul_mat_vec_q3_k_f16_f32_data[25540];
+const uint64_t mul_mat_vec_q3_k_f16_f32_len = 25540;
 
-extern unsigned char mul_mat_vec_id_q3_k_f32_data[12856];
-const uint64_t mul_mat_vec_id_q3_k_f32_len = 12856;
+extern unsigned char mul_mat_vec_id_q3_k_f32_data[24532];
+const uint64_t mul_mat_vec_id_q3_k_f32_len = 24532;
 
 extern unsigned char dequant_q3_k_data[4828];
 const uint64_t dequant_q3_k_len = 4828;
 
-extern unsigned char mul_mat_vec_q4_k_f32_f32_data[8948];
-const uint64_t mul_mat_vec_q4_k_f32_f32_len = 8948;
+extern unsigned char mul_mat_vec_q4_k_f32_f32_data[16620];
+const uint64_t mul_mat_vec_q4_k_f32_f32_len = 16620;
 
-extern unsigned char mul_mat_vec_q4_k_f16_f32_data[9204];
-const uint64_t mul_mat_vec_q4_k_f16_f32_len = 9204;
+extern unsigned char mul_mat_vec_q4_k_f16_f32_data[17132];
+const uint64_t mul_mat_vec_q4_k_f16_f32_len = 17132;
 
-extern unsigned char mul_mat_vec_id_q4_k_f32_data[8716];
-const uint64_t mul_mat_vec_id_q4_k_f32_len = 8716;
+extern unsigned char mul_mat_vec_id_q4_k_f32_data[16100];
+const uint64_t mul_mat_vec_id_q4_k_f32_len = 16100;
 
 extern unsigned char dequant_q4_k_data[5984];
 const uint64_t dequant_q4_k_len = 5984;
 
-extern unsigned char mul_mat_vec_q5_k_f32_f32_data[9680];
-const uint64_t mul_mat_vec_q5_k_f32_f32_len = 9680;
+extern unsigned char mul_mat_vec_q5_k_f32_f32_data[18180];
+const uint64_t mul_mat_vec_q5_k_f32_f32_len = 18180;
 
-extern unsigned char mul_mat_vec_q5_k_f16_f32_data[9904];
-const uint64_t mul_mat_vec_q5_k_f16_f32_len = 9904;
+extern unsigned char mul_mat_vec_q5_k_f16_f32_data[18660];
+const uint64_t mul_mat_vec_q5_k_f16_f32_len = 18660;
 
-extern unsigned char mul_mat_vec_id_q5_k_f32_data[9448];
-const uint64_t mul_mat_vec_id_q5_k_f32_len = 9448;
+extern unsigned char mul_mat_vec_id_q5_k_f32_data[17660];
+const uint64_t mul_mat_vec_id_q5_k_f32_len = 17660;
 
 extern unsigned char dequant_q5_k_data[6032];
 const uint64_t dequant_q5_k_len = 6032;
 
-extern unsigned char mul_mat_vec_q6_k_f32_f32_data[9520];
-const uint64_t mul_mat_vec_q6_k_f32_f32_len = 9520;
+extern unsigned char mul_mat_vec_q6_k_f32_f32_data[17924];
+const uint64_t mul_mat_vec_q6_k_f32_f32_len = 17924;
 
-extern unsigned char mul_mat_vec_q6_k_f16_f32_data[9784];
-const uint64_t mul_mat_vec_q6_k_f16_f32_len = 9784;
+extern unsigned char mul_mat_vec_q6_k_f16_f32_data[18444];
+const uint64_t mul_mat_vec_q6_k_f16_f32_len = 18444;
 
-extern unsigned char mul_mat_vec_id_q6_k_f32_data[9288];
-const uint64_t mul_mat_vec_id_q6_k_f32_len = 9288;
+extern unsigned char mul_mat_vec_id_q6_k_f32_data[17404];
+const uint64_t mul_mat_vec_id_q6_k_f32_len = 17404;
 
 extern unsigned char dequant_q6_k_data[4264];
 const uint64_t dequant_q6_k_len = 4264;
