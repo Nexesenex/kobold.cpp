@@ -637,7 +637,12 @@ def exit_with_error(code, message, title="Error"):
     time.sleep(2)
     sys.exit(code)
 
-def utfprint(str):
+def utfprint(str, importance = 2): #0 = only debugmode, 1 = except quiet, 2 = always print
+    if args.debugmode < 1:
+        if importance==1 and (args.debugmode == -1 or args.quiet):
+            return
+        if importance==0:
+            return
     maxlen = 32000
     if args.debugmode >= 1:
         maxlen = 64000
@@ -1823,18 +1828,26 @@ def websearch(query):
     import urllib.parse
     import urllib.request
     import difflib
+    import random
     from html.parser import HTMLParser
     from concurrent.futures import ThreadPoolExecutor
     num_results = 10
     searchresults = []
-    if args.debugmode != -1 and not args.quiet:
-        print("Performing new websearch...")
+    utfprint("Performing new websearch...",1)
 
-    def fetch_searched_webpage(url):
+    def fetch_searched_webpage(url, random_agent=False):
+        uagent = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+        if random_agent:
+            agents = ["Mozilla/5.0 (Macintosh; Intel Mac OS X 13_2) Gecko/20100101 Firefox/114.0",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.1823.79 Safari/537.36 Edg/114.0.1823.79",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.5938.132 Safari/537.36"]
+            uagent = random.choice(agents)
         if args.debugmode != -1 and not args.quiet:
             utfprint(f"WebSearch URL: {url}")
         try:
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'})
+            req = urllib.request.Request(url, headers={'User-Agent': uagent})
             with urllib.request.urlopen(req,  timeout=15) as response:
                 html_content = response.read().decode('utf-8', errors='ignore')
                 # if args.debugmode != -1 and not args.quiet:
@@ -1849,12 +1862,10 @@ def websearch(query):
                         # print(f"Returning results with AppleWebKit/KHTML/Gecko compatible agent: {html_content}")
                     return html_content
             except Exception as e:
-                if args.debugmode != -1 and not args.quiet:
-                    print(f"Error fetching text from URL {url}: {e}")
+                utfprint(f"Error fetching text from URL {url}: {e}",1)
                 return ""
         except Exception as e:
-            if args.debugmode != -1 and not args.quiet:
-                print(f"Error fetching text from URL {url}: {e}")
+            utfprint(f"Error fetching text from URL {url}: {e}",1)
             return ""
     def fetch_webpages_parallel(urls):
         with ThreadPoolExecutor() as executor:
@@ -1936,13 +1947,15 @@ def websearch(query):
     search_url = f"https://html.duckduckgo.com/html/?q={encoded_query}"
 
     try:
-        search_html = fetch_searched_webpage(search_url)
+        search_html = fetch_searched_webpage(search_url, random_agent=True)
         parser = ExtractResultsParser()
         parser.feed(search_html)
         titles = parser.titles[:num_results]
         searchurls = parser.urls[:num_results]
         descs = parser.descs[:num_results]
         fetchedcontent = fetch_webpages_parallel(searchurls)
+        if len(descs)==0:
+            utfprint("No results found! Maybe something went wrong...",1)
         for i in range(len(descs)):
             # dive into the results to try and get even more details
             title = titles[i]
@@ -1972,8 +1985,7 @@ def websearch(query):
             searchresults.append({"title":title,"url":url,"desc":desc,"content":pagedesc})
 
     except Exception as e:
-        if args.debugmode != -1 and not args.quiet:
-            print(f"Error fetching URL {search_url}: {e}")
+        utfprint(f"Error fetching URL {search_url}: {e}",1)
         return ""
     if len(searchresults) > 0:
         websearch_lastquery = query
@@ -2317,8 +2329,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
             global last_non_horde_req_time
             last_non_horde_req_time = time.time()
 
-        if (args.debugmode != -1 and not is_quiet) or args.debugmode >= 1:
-            utfprint("\nOutput: " + recvtxt)
+        utfprint("\nOutput: " + recvtxt,1)
 
         if api_format == 1:
             res = {"data": {"seqs": [recvtxt]}}
@@ -3101,9 +3112,7 @@ Enter Prompt:<br>
                         }}).encode())
                         return
 
-                is_quiet = args.quiet
-                if (args.debugmode != -1 and not is_quiet) or args.debugmode >= 1:
-                    utfprint("\nInput: " + json.dumps(genparams))
+                utfprint("\nInput: " + json.dumps(genparams),1)
 
                 if args.foreground:
                     bring_terminal_to_foreground()
@@ -3124,8 +3133,7 @@ Enter Prompt:<br>
                             self.end_headers(content_type='application/json')
                             self.wfile.write(genresp)
                     except Exception as ex:
-                        if args.debugmode:
-                            print(ex)
+                        utfprint(ex,0)
                         print("Generate: The response could not be sent, maybe connection was terminated?")
                         handle.abort_generate()
                         time.sleep(0.2) #short delay
@@ -3151,8 +3159,7 @@ Enter Prompt:<br>
                         self.end_headers(content_type='application/json')
                         self.wfile.write(genresp)
                     except Exception as ex:
-                        if args.debugmode:
-                            print(ex)
+                        utfprint(ex,0)
                         print("Generate Image: The response could not be sent, maybe connection was terminated?")
                         time.sleep(0.2) #short delay
                     return
@@ -3165,8 +3172,7 @@ Enter Prompt:<br>
                         self.end_headers(content_type='application/json')
                         self.wfile.write(genresp)
                     except Exception as ex:
-                        if args.debugmode:
-                            print(ex)
+                        utfprint(ex,0)
                         print("Transcribe: The response could not be sent, maybe connection was terminated?")
                         time.sleep(0.2) #short delay
                     return
