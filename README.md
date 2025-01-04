@@ -1,4 +1,4 @@
-# Croco.Cpp (CCPP) :
+# Croco.Cpp (CCPP) - Readme to be updated :
 
 <details>
 <summary>Unroll DISCLAIMER:</summary>
@@ -8,7 +8,7 @@ The namechange is due to my boredom with the Frankenstein marker I myself initia
 As usual, the Croco.Cpp builds are NOT supported by the KoboldCPP (KCPP) team, Github, or Discord channel.
 They are for greedy-test and amusement only.
 Any potential support found them is a courtesy, not a due.
-My CCPP version number bumps as soon as the version number in the official experimental branch bumps in the following way x.xxx : (KCPP)x.xx.x.(CCPP)xx.
+My CCPP version number bumps as soon as the version number in the official experimental branch bumps in the following way x.xxx (ex : 1.80.1) : (KCPP)x.xxx.(CCPP)xx.
 They are not "upgrades" over the official version. And they might be bugged at time: only the official KCPP releases are to be considered correctly numbered, reliable and "fixed".
 The LllamaCPP version + the additional PRs integrated follow my CCPP versioning in the title, so everybody knows what version they deal with.
 Important : New models sometimes integrated in my builds (like recently Mistral Nemo, which posed problems for several users) are for personal testing only, and CAN'T be fixed if they fail because their support come from third party PRs coming from LlamaCPP merged "savagely" in my builds, sometimes before even being merged on LlamaCPP master.
@@ -17,18 +17,28 @@ Important : New models sometimes integrated in my builds (like recently Mistral 
 Presentation :
 
 Croco.Cpp (CCPP) is a fork of the experimental branch of KoboldCPP (KCPP), mainly aimed at NVidia Cuda users (I'm myself using Ampere GPUs, it MIGHT support the other backends also, everything is compîled but Hipblas/ROCm, but it's not tested), with a few modifications accordingly to my own needs :
-- More context steps in GUI, as well as more Blas Batch Size (supports MMVQ 1-8 for example)
-- 26 different modes of quantization for the context cache (F16, 20 KV modes with Flash Attention, 5 K modes without Flash Attention for models like Gemma)  
+- A more cluttered GUI that I had to enlarge to put all my mess.
+- More context steps in GUI, as well as more Blas Batch Size (supports MMVQ 1-8 for example).
+- Physical Blas Batch Size Exposed and configurable.
+- 22 or so different modes of quantization for the context cache (F16, around 15 KV modes with Flash Attention, 7 quantum legacy K cache modes without Flash Attention for models like Gemma).
+- KV cache supports IQ4_NL and Q6_0 (except for Gemma), thanks to Ikawrakow.
+- Supports inference for B16 models in Cuda (thanks Ikawrakow).
+- Supports inference for new quants made by Ikawrakow (Q6_0 legacy for irregularly shaped tensors ; IQ_2K, 3K, 4K, 5K, 6K (first gen) ; IQ2_KS, 4_KSS, 4_KS (second gen, working with IK's reworked MMVQ template) ; IQ2_KT, 3_KT, 4_KT (Trellis, working with a restored DMMV kernel).
+- A dozen or so commits taken from Ikawrakow's IK_Llama.CPP for performances (notably on Gemma). That includes a few more GGML ops.
 - A slightly different benchmark (one flag per column instead of a single flag space).
-- 8 Stories slots instead of 6 in the web-interface (KLite).
-- Often some PRs unsupported/not yet supported in KCPP.
+- 10 Stories slots instead of 6 in the web-interface (KLite).
+- Often some PRs unsupported/not yet supported in KCPP (I look especially at Cuda and KV cache related PRs).
 - More infos displayed in the CLI, without activating debug mode.
-- Smartcontext instead of contextshift by default in GUI for compatibility with Gemma
-- Since 1.71010, an enhanced model layers autoloader on GPU, based on Concedo's code and Pyroserenus formulas, but different from Henky's subsequent commit on KCPP-official. It's compatible with KV_Quants, works in single and multi-GPU, is accessible in CLI and GUI modes, and can be configured easily in tandem with tensor split for an entirely customized loading accordingly to one's rig and needs.
+- Smartcontext instead of contextshift by default in GUI for compatibility with Gemma.
+- Support the edition of NORM_EPS_RMS value.
+- More logging out of debug mode.
+- Support EmphasisFSM by Yoshku to handle the "" and ** formatting in KCPP and SillyTavern (mostly, if you have troubles of chat (thoughts, actions, dialogues) formatting, and anti-slop doesn't cut it for your needs somehow).
+- Since 1.71010, an enhanced model layers autoloader on GPU (which is less and less cluttered and bugged lol), based on Concedo's code and Pyroserenus formulas, but different from Henky's subsequent commit on KCPP-official. It's compatible with KV_Quants, accounts for FA, MMQ, LowVram, works in single and multi-GPU (up to 16?), is accessible in CLI and GUI modes, and can be configured easily in tandem with tensor split for an entirely customized loading accordingly to one's rig and needs.
+
 
 Recommanded settings for Commande Line Interface / GUI :
 ```
---flashattention (except for Gemma)
+--flashattention (except for Gemma?)
 --blastbatchsize 128 (256 for Gemma)
 --usecublas mmq (for NVidia users, MMQ mode is faster)
 ```
@@ -41,20 +51,23 @@ Check the help section (koboldcpp.exe --help or python koboldcpp.py --help) for 
 
 With Flash Attention :
 - F16 -> Fullproof (the usual KV quant since the beginning of LCPP/KCPP)
-- K F16 with : V Q8_0, Q5_1, Q5_0, Q4_1, Q4_0
-- K Q8_0 with : V F16, Q8_0 (stable, my current main, part of the LCPP/KCPP main triplet), Q5_1 (maybe unstable), Q5_0 (maybe unstable), Q4_1 (maybe stable), the rest is untested beyond benches), Q4_0 (maybe stable)
-- K Q5_1 with : V Q5_1, Q5_0, Q4_1, Q4_0
-- K Q5_0 with : V Q5_0, Q4_1, V Q4_0
-- K Q4_1 with : V Q4_1 (stable), Q4_0 (maybe stable)
+- BF16 (experimental)
+- K F16 with : V Q8_0, Q6_0 (experimental), Q5_1, Q5_0, iq4_nl
+- K Q8_0 with : V Q8_0 (stable, part of the LCPP/KCPP main triplet), Q6_0 (experimental), Q5_1 (maybe unstable), Q5_0 (maybe unstable), iq4_nl (maybe stable), Q4_0 (maybe stable)
+- K Q6_0 with : V Q6_0, Q5_0, iq4_nl
+- K Q5_1 with : V Q5_0, iq4_nl
+- K Q5_0 with : V iq4_nl
 - KV Q4_0 (quite stable, if we consider that it's part of the LCPP/KCPP main triplet)
 Works in command line, normally also via the GUI, and normally saves on .KCPPS config files.
+- KV iq4_nl (with -1% perplexity compared to Q4_0).
 
 Without Flash Attention nor MMQ (for models like Gemma) :
-- V F16 with KQ8_0, Q5_1, Q5_0, Q4_1, and Q4_0.
+- V F16 with K Q8_0, Q5_1, Q5_0, Q4_1, and Q4_0.
+- K Q6_0 and IQ4_NL to be tested, might not work.
 </details>
 
 <details>
-<summary>Unroll the options to set KV Quants</summary>
+<summary>Unroll the options to set KV Quants (obsolete)</summary>
 
 KCPP official KV quantized modes (modes 1 and 2 require Flash Attention) :
 
@@ -64,35 +77,30 @@ KCPP official KV quantized modes (modes 1 and 2 require Flash Attention) :
 
 CCPP unofficial KV quantized modes (require flash attention) :
 
-3 = FA1680/Kf16-Vq8_0 (12.25BPW),
-4 = FA1651/Kf16-Vq5_1 (11BPW),
-5 = FA1650/Kf16-Vq5_0 (10.75BPW),
-6 = FA1641/Kf16-Vq4_1 (10.5BPW),
-7 = FA1640/Kf16-Vq4_0 (10.25BPW),
-8 = FA8051/Kq8_0-Vq5_1 (7.25BPW),
-9 = FA8050/Kq8_0-Vq5_0 (7BPW),
-10 = FA8041/Kq8_0-Vq4_1 (6.75BPW),
-11 = FA8040/Kq8_0-Vq4_0 (6.5BPW),
-12 = FA5151/KVq5_1 (6BPW),
-13 = FA5150/Kq5_1-Vq5_0 (5.75BPW),
-14 = FA5141/Kq5_1-Vq4_1 (5.5BPW),
-15 = FA5140/Kq5_1-Vq4_0 (5.25BPW),
-16 = FA5050/Kq5_0-Vq5_0 (5.5BPW),
-17 = FA5041/Kq5_0-Vq4_1 (5.25BPW),
-18 = FA5040/Kq5_0-Vq4_0 (5BPW),
-19 = FA4141/Kq4_1-Vq4_1 (5BPW),
-20 = FA4140/Kq4_1-Vq4_0 (4.75BPW)
+    "1 - q8_0 - (8.5BPW) - FA",
+    "2 - q4_0 - (4.5BPW) - FA - possibly faulty on some models",
+    "3* - K F16 - V q8_0 (12.25BPW) - FA",
+    "4* - K F16 - V q6_0 (11.25BPW) - FA. Doesn't work on Gemma 2 FA.",   
+    "5 - K q8_0 - V q6_0 (7.5BPW) - FA. Doesn't work on Gemma 2 FA.",
+    "6* - K q8_0 - V q5_0 (7BPW) - FA",
+    "7 - K q8_0 - V iq4_nl (6.5BPW) - FA. Doesn't work on Gemma 2 FA.",
+    "8* - K q6_0 - V q6_0 (6.5BPW) - FA. Doesn't work on Gemma 2 FA.",
+    "9 - K q6_0 - V q5_0 (6BPW) - FA, best game in FA town. Doesn't work on Gemma 2 FA.",
+    "10* - K q6_0 - V iq4_nl (5.5BPW) - FA - faulty on some models (Gemma 2 FA. Qwen 2.5 1.5b?)",
+    "11 - K q5_1 - V q5_0 (5.5BPW) - FA - possibly faulty on some models (Qwen 2.5 1.5b?)",
+    "12* - K q5_1 - V iq4_nl (5.25BPW) - FA",
+    "13 - K q5_0 - V iq4_nl (5BPW) - FA - possibly faulty on some models (Qwen 2.5 1.5b?)",
+    "14 - K iq4_nl - V iq4_nl (4.5BPW) - FA",
+    "15 - BF16 (16BPW) - no FA, experimental for Cuda, not tested on other backends.",
+    "16 - K q8_0 - V F16 (12.25BPW) - NO FA, slower",
+    "17 - K q6_0 - V F16 (11.25BPW) - NO FA, slower, best game in non-FA town.",
+    "18 - K q5_1 - V F16 (11BPW) - NO FA, slower - possibly faulty on some models (Qwen 2.5 1.5b?)",
+    "19 - K q5_0 - V F16 (11.75BPW) - NO FA, slower - possibly faulty on some models (Qwen 2.5 1.5b?)",
+    "20 - K q4_1 - V F16 (10.5BPW) - NO FA, slower - possibly faulty on some models (Qwen 2.5 1.5b?)",
+    "21 - K q4-0 - V F16 (10.25BPW) - NO FA, slower - possibly faulty on some models (Qwen 2.5 1.5b?)",
+    "22 - K iq4_nl - V F16 (10.25BPW) - NO FA, slower"]
 
-21 = 1616/F16 (16 BPW),  (same as 0, I just used it for the GUI slider).
-
-22 = 8016/Kq8_0, Vf16 (12.25BPW), FA and no-FA both
-
-23 = 5116/Kq5_1-Vf16 (11BPW), no-FA
-24 = 5016/Kq5_1-Vf16 (10.75BPW), no-FA
-25 = 4116/Kq4_1-Vf16 (10.50BPW), no-FA
-26 = 4016/Kq4_0-Vf16 (10.25BPW), no-FA
-
-choices=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26], default=0)
+choices=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22], default=0)
 </details>
 
 <details>
