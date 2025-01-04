@@ -1819,6 +1819,9 @@ def detokenize_ids(tokids):
 def websearch(query):
     global websearch_lastquery
     global websearch_lastresponse
+    # sanitize query
+    query = re.sub(r'[+\-\"\\/*^|<>~`]', '', query) # Remove blacklisted characters
+    query = re.sub(r'\s+', ' ', query).strip() # Replace multiple spaces with a single space
     if not query or query=="":
         return []
     query = query[:499] # only search first 300 chars, due to search engine limits
@@ -1953,9 +1956,12 @@ def websearch(query):
         titles = parser.titles[:num_results]
         searchurls = parser.urls[:num_results]
         descs = parser.descs[:num_results]
-        fetchedcontent = fetch_webpages_parallel(searchurls)
-        if len(descs)==0:
+
+        if len(descs)==0 or len(titles)==0 or len(descs)==0:
             utfprint("No results found! Maybe something went wrong...",1)
+            return []
+
+        fetchedcontent = fetch_webpages_parallel(searchurls)
         for i in range(len(descs)):
             # dive into the results to try and get even more details
             title = titles[i]
@@ -1986,7 +1992,7 @@ def websearch(query):
 
     except Exception as e:
         utfprint(f"Error fetching URL {search_url}: {e}",1)
-        return ""
+        return []
     if len(searchresults) > 0:
         websearch_lastquery = query
         websearch_lastresponse = searchresults
@@ -4838,7 +4844,7 @@ def run_horde_worker(args, api_key, worker_name):
         current_id = pop['id']
         current_payload = pop['payload']
         print("") #empty newline
-        print_with_time(f"Job received from {cluster} for {current_payload.get('max_length',80)} tokens and {current_payload.get('max_context_length',1024)} max context. Starting generation...")
+        print_with_time(f"Job {current_id} received from {cluster} for {current_payload.get('max_length',80)} tokens and {current_payload.get('max_context_length',1024)} max context. Starting generation...")
 
         #do gen
         while exitcounter < 10:

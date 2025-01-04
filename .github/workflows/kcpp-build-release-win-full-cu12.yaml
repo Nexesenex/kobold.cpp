@@ -80,7 +80,7 @@ jobs:
           ./make_pyinstaller_cuda12.bat
 
       - name: Save artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: kcpp_windows_pyinstallers
           path: dist/

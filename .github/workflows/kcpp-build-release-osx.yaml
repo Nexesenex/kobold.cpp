@@ -34,7 +34,7 @@ jobs:
           dist/koboldcpp-mac-arm64 --model baby_llama.gguf --gpulayers 99 --benchmark --prompt 'Hi, my name is'
 
       - name: Save artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: kcpp_mac_binary
           path: dist/
