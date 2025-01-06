@@ -99,7 +99,7 @@ class model_backend(InferenceModel):
                                     "extra_classes": "",
                                     'children': [{'text': 'Use No BLAS', 'value': 0}, {'text': 'Use CuBLAS', 'value': 1},
                                     {'text': 'Use CLBLast GPU #1', 'value': 2},{'text': 'Use CLBLast GPU #2', 'value': 3},{'text': 'Use CLBLast GPU #3', 'value': 4}
-                                    ,{'text': 'NoAVX2 Mode (Old CPU)', 'value': 5},{'text': 'Failsafe Mode (Old CPU)', 'value': 6},{'text': 'Use Vulkan GPU #1', 'value': 7},{'text': 'Use Vulkan GPU #2', 'value': 8}],
+                                    ,{'text': 'NoAVX2 Mode (Old CPU)', 'value': 5},{'text': 'Failsafe Mode (Older CPU)', 'value': 6},{'text': 'Use Vulkan GPU #1', 'value': 7},{'text': 'Use Vulkan GPU #2', 'value': 8}],
                                     })
         requested_parameters.append({
                                     "uitype": "text",
