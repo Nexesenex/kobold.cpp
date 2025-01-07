@@ -1147,6 +1147,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
                     print(f"Model layers: {layers} ; Size per layer: {sizeperlayer/1024/1024:.3f} MiB ; Attention heads: {headcount} ; Head size : {headkvlen}")
                     print("***")
                     if headcount > 0:
+                        if headcount == 120: headcount = 8
                         print(f"STEP_2a : PRECISE CALC of the ratio possible because detected model attention heads: {headcount} > 0")
                         print(f"COEFS : BBS: {bbs}, BBS.Ratio: {bbs_ratio}, FA: {fa}, FA.Ratio: {fa_ratio}, MMQ: {mmq}, MMQ.Ratio: {mmq_ratio}, Quant KV mode: {kvq}, QKV bpw: {kvbpw} bits")
                         print(f"Secondary Coefficients : Lowvram: {lv} ; LowVram-ConText.Ratio: {lvctx_ratio} ; LowVram-ComPute.Ratio: {lvcomp_ratio}")
