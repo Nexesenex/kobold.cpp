@@ -15,7 +15,7 @@ VSVersionInfo(
                 StringTable(
                     u'040904b0',
                     [
-                        StringStruct(u'CompanyName', u'Your Company Name'),
+                        StringStruct(u'CompanyName', u'KoboldCpp'),
                         StringStruct(u'FileDescription', u'KoboldCpp'),
                         StringStruct(u'InternalName', u'KoboldCpp'),
                         StringStruct(u'LegalCopyright', u'AGPLv3'),

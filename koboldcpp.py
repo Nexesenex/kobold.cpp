@@ -65,10 +65,10 @@ maxhordelen = 400
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.81001"
+KcppVersion = "1.81101"
 LcppVersion = "b4407"
 CudaSpecifics = "CuCML_ArCML_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/01/03"
+ReleaseDate = "2025/01/06"
 showdebug = True
 guimode = False
 showsamplerwarning = True
@@ -371,9 +371,9 @@ lib_option_pairs = [
     (lib_hipblas, "Use hipBLAS (ROCm)"),
     (lib_vulkan, "Use Vulkan"),
     (lib_noavx2, "Use CPU (Old CPU)"),
-    (lib_clblast_noavx2, "Use CLBlast (Old CPU)"),
     (lib_vulkan_noavx2, "Use Vulkan (Old CPU)"),
-    (lib_failsafe, "Failsafe Mode (Old CPU)")]
+    (lib_clblast_noavx2, "Use CLBlast (Older CPU)"),
+    (lib_failsafe, "Failsafe Mode (Older CPU)")]
 default_option, clblast_option, cublas_option, hipblas_option, vulkan_option, noavx2_option, clblast_noavx2_option, vulkan_noavx2_option, failsafe_option = (opt if file_exists(lib) or (os.name == 'nt' and file_exists(opt + ".dll")) else None for lib, opt in lib_option_pairs)
 runopts = [opt for lib, opt in lib_option_pairs if file_exists(lib)]
 
@@ -1819,6 +1819,7 @@ def detokenize_ids(tokids):
 def websearch(query):
     global websearch_lastquery
     global websearch_lastresponse
+    global nocertify
     # sanitize query
     query = re.sub(r'[+\-\"\\/*^|<>~`]', '', query) # Remove blacklisted characters
     query = re.sub(r'\s+', ' ', query).strip() # Replace multiple spaces with a single space
@@ -1850,8 +1851,11 @@ def websearch(query):
         if args.debugmode != -1 and not args.quiet:
             utfprint(f"WebSearch URL: {url}")
         try:
+            ssl_cert_dir = os.environ.get('SSL_CERT_DIR')
+            if not ssl_cert_dir and not nocertify and os.name != 'nt':
+                os.environ['SSL_CERT_DIR'] = '/etc/ssl/certs'
             req = urllib.request.Request(url, headers={'User-Agent': uagent})
-            with urllib.request.urlopen(req,  timeout=15) as response:
+            with urllib.request.urlopen(req, timeout=15) as response:
                 html_content = response.read().decode('utf-8', errors='ignore')
                 # if args.debugmode != -1 and not args.quiet:
                     # print(f"Returning results with Googlebot compatible agent: {html_content}")
@@ -1859,7 +1863,7 @@ def websearch(query):
         except urllib.error.HTTPError: #we got blocked? try 1 more time with a different user agent
             try:
                 req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36'})
-                with urllib.request.urlopen(req,  timeout=15) as response:
+                with urllib.request.urlopen(req, timeout=15) as response:
                     html_content = response.read().decode('utf-8', errors='ignore')
                     # if args.debugmode != -1 and not args.quiet:
                         # print(f"Returning results with AppleWebKit/KHTML/Gecko compatible agent: {html_content}")
@@ -3705,7 +3709,7 @@ def show_gui():
         nl = '\n'
         tooltxt = "Number of backends you have built and available." + (f"\n\nMissing Backends: \n\n{nl.join(antirunopts)}" if len(runopts) < 8 else "")
         num_backends_built = makelabel(parent, str(len(runopts)) + "/8", 5, 2,tooltxt)
-        num_backends_built.grid(row=1, column=1, padx=195, pady=0)
+        num_backends_built.grid(row=1, column=1, padx=205, pady=0)
         num_backends_built.configure(text_color="#00ff00")
 
     def gui_changed_modelfile(*args):
@@ -3724,7 +3728,7 @@ def show_gui():
         predicted_gpu_layers = autoset_gpu_layers(int(contextsize_text[context_var.get()]),(sd_quant_var.get()==1),int(blasbatchsize_values[int(blas_size_var.get())]),flashattention.get(),int(quantkv_values[int(quantkv_var.get())]),mmq_var.get(),lowvram_var.get(),int(poslayeroffset_values[int(poslayeroffset_var.get())]),int(neglayeroffset_values[int(neglayeroffset_var.get())]))
         max_gpu_layers = (f"/{modelfile_extracted_meta[0][0]+3}" if (modelfile_extracted_meta and modelfile_extracted_meta[0] and modelfile_extracted_meta[0][0]!=0) else "")
         index = runopts_var.get()
-        gpu_be = (index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Old CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)")
+        gpu_be = (index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Older CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)")
         layercounter_label.grid(row=6, column=1, padx=75, sticky="W")
         quick_layercounter_label.grid(row=6, column=1, padx=75, sticky="W")
         if sys.platform=="darwin" and gpulayers_var.get()=="-1":
@@ -3755,7 +3759,7 @@ def show_gui():
                 if v == "Use Vulkan" or v == "Use Vulkan (Old CPU)":
                     quick_gpuname_label.configure(text=VKDevicesNames[s])
                     gpuname_label.configure(text=VKDevicesNames[s])
-                elif v == "Use CLBlast" or v == "Use CLBlast (Old CPU)":
+                elif v == "Use CLBlast" or v == "Use CLBlast (Older CPU)":
                     quick_gpuname_label.configure(text=CLDevicesNames[s])
                     gpuname_label.configure(text=CLDevicesNames[s])
                 else:
@@ -3812,12 +3816,12 @@ def show_gui():
         global runmode_untouched
         runmode_untouched = False
         index = runopts_var.get()
-        if index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Old CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
+        if index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Older CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
             quick_gpuname_label.grid(row=3, column=1, padx=75, sticky="W")
             gpuname_label.grid(row=3, column=1, padx=75, sticky="W")
             gpu_selector_label.grid(row=3, column=0, padx = 8, pady=1, stick="nw")
             quick_gpu_selector_label.grid(row=3, column=0, padx = 8, pady=1, stick="nw")
-            if index == "Use CLBlast" or index == "Use CLBlast (Old CPU)":
+            if index == "Use CLBlast" or index == "Use CLBlast (Older CPU)":
                 gpu_selector_box.grid(row=3, column=1, padx=8, pady=1, stick="nw")
                 quick_gpu_selector_box.grid(row=3, column=1, padx=8, pady=1, stick="nw")
                 CUDA_gpu_selector_box.grid_remove()
@@ -3861,7 +3865,7 @@ def show_gui():
         else:
             quick_use_flashattn.grid(row=22, column=1, padx=8, pady=1,  stick="nw")
 
-        if index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Old CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
+        if index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Older CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
             gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
             gpu_layers_entry.grid(row=6, column=1, padx=8, pady=1, stick="nw")
             quick_gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
@@ -3883,7 +3887,7 @@ def show_gui():
     # presets selector
     makelabel(quick_tab, "Presets:", 1,0,"Select a backend to use.\nCuBLAS runs on Nvidia GPUs, and is much faster.\nVulkan and CLBlast works on all GPUs but is somewhat slower.\nOtherwise, runs on CPU only.\nNoAVX2 and Failsafe modes support older PCs.")
 
-    runoptbox = ctk.CTkComboBox(quick_tab, values=runopts, width=180,variable=runopts_var, state="readonly")
+    runoptbox = ctk.CTkComboBox(quick_tab, values=runopts, width=190,variable=runopts_var, state="readonly")
     runoptbox.grid(row=1, column=1,padx=8, stick="nw")
     runoptbox.set(runopts[0]) # Set to first available option
 
@@ -4196,7 +4200,9 @@ def show_gui():
         filename = asksaveasfile(filetypes=file_type, defaultextension=file_type)
         if filename is None:
             return
-        file = open(str(filename.name), 'a')
+        filenamestr = str(filename.name).strip()
+        filenamestr = f"{filenamestr}.kcppt" if ".kcppt" not in filenamestr.lower() else filenamestr
+        file = open(filenamestr, 'a')
         file.write(json.dumps(savdict))
         file.close()
         pass
@@ -4269,9 +4275,9 @@ def show_gui():
         args.noavx2 = False
         if gpu_choice_var.get()!="All":
             gpuchoiceidx = int(gpu_choice_var.get())-1
-        if runopts_var.get() == "Use CLBlast" or runopts_var.get() == "Use CLBlast (Old CPU)":
+        if runopts_var.get() == "Use CLBlast" or runopts_var.get() == "Use CLBlast (Older CPU)":
             args.useclblast = [[0,0], [1,0], [0,1], [1,1]][gpuchoiceidx]
-            if runopts_var.get() == "Use CLBlast (Old CPU)":
+            if runopts_var.get() == "Use CLBlast (Older CPU)":
                 args.noavx2 = True
         if runopts_var.get() == "Use CuBLAS" or runopts_var.get() == "Use hipBLAS (ROCm)":
             if gpu_choice_var.get()=="All":
@@ -4297,7 +4303,7 @@ def show_gui():
             args.usecpu = True
         if runopts_var.get()=="Use CPU (Old CPU)":
             args.noavx2 = True
-        if runopts_var.get()=="Failsafe Mode (Old CPU)":
+        if runopts_var.get()=="Failsafe Mode (Older CPU)":
             args.noavx2 = True
             args.usecpu = True
             args.nommap = True
@@ -4585,7 +4591,9 @@ def show_gui():
         filename = asksaveasfile(filetypes=file_type, defaultextension=file_type)
         if filename is None:
             return
-        file = open(str(filename.name), 'a')
+        filenamestr = str(filename.name).strip()
+        filenamestr = f"{filenamestr}.kcpps" if ".kcpps" not in filenamestr.lower() else filenamestr
+        file = open(filenamestr, 'a')
         file.write(json.dumps(savdict))
         file.close()
         pass
@@ -4696,17 +4704,12 @@ def print_with_time(txt):
 
 def make_url_request(url, data, method='POST', headers={}):
     import urllib.request
-    import ssl
     global nocertify
     try:
         request = None
         ssl_cert_dir = os.environ.get('SSL_CERT_DIR')
         if not ssl_cert_dir and not nocertify and os.name != 'nt':
             os.environ['SSL_CERT_DIR'] = '/etc/ssl/certs'
-        ssl_context = ssl.create_default_context()
-        if nocertify:
-            ssl_context.check_hostname = False
-            ssl_context.verify_mode = ssl.CERT_NONE
         if method=='POST':
             json_payload = json.dumps(data).encode('utf-8')
             request = urllib.request.Request(url, data=json_payload, headers=headers, method=method)
@@ -4714,7 +4717,7 @@ def make_url_request(url, data, method='POST', headers={}):
         else:
             request = urllib.request.Request(url, headers=headers, method=method)
         response_data = ""
-        with urllib.request.urlopen(request,context=ssl_context,timeout=300) as response:
+        with urllib.request.urlopen(request,timeout=300) as response:
             response_data = response.read().decode('utf-8',"ignore")
             json_response = json.loads(response_data)
             return json_response
@@ -5172,6 +5175,9 @@ def main(launch_args,start_server=True):
     global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath
 
     args = launch_args
+    if (args.version) and len(sys.argv) <= 2:
+        print(f"{KcppVersion}") # just print version and exit
+        return
     if (args.model_param or args.model) and args.prompt and not args.benchmark and not (args.debugmode >= 1):
         suppress_stdout()
 
@@ -5404,8 +5410,10 @@ def main(launch_args,start_server=True):
         maxctx = args.contextsize
 
     if args.nocertify:
+        import ssl
         global nocertify
         nocertify = True
+        ssl._create_default_https_context = ssl._create_unverified_context
 
     if args.gpulayers:
         shouldavoidgpu = False
@@ -5923,6 +5931,7 @@ if __name__ == '__main__':
 
     #more advanced params
     advparser = parser.add_argument_group('Advanced Commands')
+    advparser.add_argument("--version", help="Prints version and exits.", action='store_true')
     advparser.add_argument("--ropeconfig", help="If set, uses customized RoPE scaling from configured frequency scale and frequency base (e.g. --ropeconfig 0.25 10000). Otherwise, uses NTK-Aware scaling set automatically based on context size. For linear rope, simply set the freq-scale and ignore the freq-base",metavar=('[rope-freq-scale]', '[rope-freq-base]'), default=[0.0, 10000.0], type=float, nargs='+')
     advparser.add_argument("--blasbatchsize", help="Sets the Logical batch size used in BLAS processing (default 128 for VRAM savings, optimal speed is 512, 256 is a great compromise). Setting it to -1 disables BLAS mode, but keeps other benefits like GPU offload. Steps : 1,2,4,8,16,20,24,28,32,40,48,56,64,80,96,112,128,160,192,224,256,384,512,768,1024,1536,2048,3072, max 4096.", type=check_range(int,-1,4096), default=128)
 

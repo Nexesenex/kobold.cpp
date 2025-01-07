@@ -15,7 +15,7 @@ VSVersionInfo(
                 StringTable(
                     u'040904b0',
                     [
-                        StringStruct(u'CompanyName', u'NexeSenex'),
+                        StringStruct(u'CompanyName', u'KoboldCPP-NexeSenex'),
                         StringStruct(u'FileDescription', u'Croco.Cpp'),
                         StringStruct(u'InternalName', u'Croco.Cpp'),
                         StringStruct(u'LegalCopyright', u'Croco.CppIsFreeAndOpenSource-AGPLv3'),

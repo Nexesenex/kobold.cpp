@@ -81,6 +81,7 @@ FASTCXXFLAGS = $(subst -O3,-Ofast,$(CXXFLAGS))
 
 # these are used on windows, to build some libraries with extra old device compatibility
 SIMPLECFLAGS =
+SIMPLERCFLAGS =
 FULLCFLAGS =
 NONECFLAGS =
 
@@ -97,6 +98,7 @@ CUBLAS_OBJS =
 
 OBJS_FULL += ggml-alloc.o ggml-cpu-traits.o ggml-quants.o ggml-cpu-quants.o ggml-cpu-aarch64.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o sgemm.o common.o sampling.o
 OBJS_SIMPLE += ggml-alloc.o ggml-cpu-traits.o ggml-quants_noavx2.o ggml-cpu-quants_noavx2.o ggml-cpu-aarch64_noavx2.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o sgemm_noavx2.o common.o sampling.o
+OBJS_SIMPLER += ggml-alloc.o ggml-cpu-traits.o ggml-quants_noavx1.o ggml-cpu-quants_noavx1.o ggml-cpu-aarch64_noavx1.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o sgemm_noavx1.o common.o sampling.o
 OBJS_FAILSAFE += ggml-alloc.o ggml-cpu-traits.o ggml-quants_failsafe.o ggml-cpu-quants_failsafe.o ggml-cpu-aarch64_failsafe.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o sgemm_failsafe.o common.o sampling.o
 
 # OS specific
@@ -153,11 +155,12 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 		ifdef LLAMA_PORTABLE
 		CFLAGS +=
 		NONECFLAGS +=
-		SIMPLECFLAGS += -mavx -msse3
+		SIMPLECFLAGS += -mavx -msse3 -mssse3
+		SIMPLERCFLAGS += -msse3 -mssse3
 		ifdef LLAMA_NOAVX2
-			FULLCFLAGS += -msse3 -mavx
+			FULLCFLAGS += -msse3 -mssse3 -mavx
 		else
-			FULLCFLAGS += -mavx2 -msse3 -mfma -mf16c -mavx
+			FULLCFLAGS += -mavx2 -msse3 -mssse3 -mfma -mf16c -mavx
 		endif
 		else
 		CFLAGS += -march=native -mtune=native
@@ -166,11 +169,12 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 		ifdef LLAMA_PORTABLE
 		CFLAGS +=
 		NONECFLAGS +=
-		SIMPLECFLAGS += -mavx -msse3
+		SIMPLECFLAGS += -mavx -msse3 -mssse3
+		SIMPLERCFLAGS += -msse3 -mssse3
 		ifdef LLAMA_NOAVX2
-			FULLCFLAGS += -msse3 -mavx
+			FULLCFLAGS += -msse3 -mssse3 -mavx
 		else
-			FULLCFLAGS += -mavx2 -msse3 -mfma -mf16c -mavx
+			FULLCFLAGS += -mavx2 -msse3 -mssse3 -mfma -mf16c -mavx
 		endif
 		else
 		CFLAGS += -march=native -mtune=native
@@ -512,7 +516,7 @@ ggml_v4_clblast.o: ggml/src/ggml.c ggml/include/ggml.h
 ggml_v4_cublas.o: ggml/src/ggml.c ggml/include/ggml.h
 	$(CC)  $(FASTCFLAGS) $(FULLCFLAGS) $(CUBLAS_FLAGS) $(HIPFLAGS) -c $< -o $@
 ggml_v4_clblast_noavx2.o: ggml/src/ggml.c ggml/include/ggml.h
-	$(CC)  $(FASTCFLAGS) $(SIMPLECFLAGS) $(CLBLAST_FLAGS) -c $< -o $@
+	$(CC)  $(FASTCFLAGS) $(SIMPLERCFLAGS) $(CLBLAST_FLAGS) -c $< -o $@
 ggml_v4_vulkan.o: ggml/src/ggml.c ggml/include/ggml.h
 	$(CC)  $(FASTCFLAGS) $(FULLCFLAGS) $(VULKAN_FLAGS) -c $< -o $@
 ggml_v4_vulkan_noavx2.o: ggml/src/ggml.c ggml/include/ggml.h
@@ -528,19 +532,23 @@ ggml-cpu_v4_noavx2.o: ggml/src/ggml-cpu/ggml-cpu.c ggml/include/ggml-cpu.h ggml/
 ggml-cpu_v4_clblast.o: ggml/src/ggml-cpu/ggml-cpu.c ggml/include/ggml-cpu.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
 	$(CC)  $(FASTCFLAGS) $(FULLCFLAGS) $(CLBLAST_FLAGS) -c $< -o $@
 ggml-cpu_v4_clblast_noavx2.o: ggml/src/ggml-cpu/ggml-cpu.c ggml/include/ggml-cpu.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
-	$(CC)  $(FASTCFLAGS) $(SIMPLECFLAGS) $(CLBLAST_FLAGS) -c $< -o $@
+	$(CC)  $(FASTCFLAGS) $(SIMPLERCFLAGS) $(CLBLAST_FLAGS) -c $< -o $@
 
 #quants
 ggml-quants.o: ggml/src/ggml-quants.c ggml/include/ggml.h ggml/src/ggml-quants.h ggml/src/ggml-common.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
 	$(CC)  $(CFLAGS) $(FULLCFLAGS) -c $< -o $@
 ggml-quants_noavx2.o: ggml/src/ggml-quants.c ggml/include/ggml.h ggml/src/ggml-quants.h ggml/src/ggml-common.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
 	$(CC)  $(CFLAGS) $(SIMPLECFLAGS) -c $< -o $@
+ggml-quants_noavx1.o: ggml/src/ggml-quants.c ggml/include/ggml.h ggml/src/ggml-quants.h ggml/src/ggml-common.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
+	$(CC)  $(CFLAGS) $(SIMPLERCFLAGS) -c $< -o $@
 ggml-quants_failsafe.o: ggml/src/ggml-quants.c ggml/include/ggml.h ggml/src/ggml-quants.h ggml/src/ggml-common.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
 	$(CC)  $(CFLAGS) $(NONECFLAGS) -c $< -o $@
 ggml-cpu-quants.o: ggml/src/ggml-cpu/ggml-cpu-quants.c ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-quants.h ggml/src/ggml-common.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
 	$(CC)  $(CFLAGS) $(FULLCFLAGS) -c $< -o $@
 ggml-cpu-quants_noavx2.o: ggml/src/ggml-cpu/ggml-cpu-quants.c ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-quants.h ggml/src/ggml-common.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
 	$(CC)  $(CFLAGS) $(SIMPLECFLAGS) -c $< -o $@
+ggml-cpu-quants_noavx1.o: ggml/src/ggml-cpu/ggml-cpu-quants.c ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-quants.h ggml/src/ggml-common.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
+	$(CC)  $(CFLAGS) $(SIMPLERCFLAGS) -c $< -o $@
 ggml-cpu-quants_failsafe.o: ggml/src/ggml-cpu/ggml-cpu-quants.c ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-quants.h ggml/src/ggml-common.h ggml/src/iqk_croco/iqk_quantize_croco.cpp ggml/src/iqk_croco/iqk_quantize_croco.h
 	$(CC)  $(CFLAGS) $(NONECFLAGS) -c $< -o $@
 
@@ -549,6 +557,8 @@ ggml-cpu-aarch64.o: ggml/src/ggml-cpu/ggml-cpu-aarch64.cpp ggml/include/ggml.h g
 	$(CXX) $(CXXFLAGS) $(FULLCFLAGS) -c $< -o $@
 ggml-cpu-aarch64_noavx2.o: ggml/src/ggml-cpu/ggml-cpu-aarch64.cpp ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-aarch64.h
 	$(CXX) $(CXXFLAGS) $(SIMPLECFLAGS) -c $< -o $@
+ggml-cpu-aarch64_noavx1.o: ggml/src/ggml-cpu/ggml-cpu-aarch64.cpp ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-aarch64.h
+	$(CXX) $(CXXFLAGS) $(SIMPLERCFLAGS) -c $< -o $@
 ggml-cpu-aarch64_failsafe.o: ggml/src/ggml-cpu/ggml-cpu-aarch64.cpp ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-aarch64.h
 	$(CXX) $(CXXFLAGS) $(NONECFLAGS) -c $< -o $@
 
@@ -557,6 +567,8 @@ sgemm.o: ggml/src/ggml-cpu/llamafile/sgemm.cpp ggml/src/ggml-cpu/llamafile/sgemm
 	$(CXX) $(CXXFLAGS) $(FULLCFLAGS) -c $< -o $@
 sgemm_noavx2.o: ggml/src/ggml-cpu/llamafile/sgemm.cpp ggml/src/ggml-cpu/llamafile/sgemm.h ggml/include/ggml.h
 	$(CXX) $(CXXFLAGS) $(SIMPLECFLAGS) -c $< -o $@
+sgemm_noavx1.o: ggml/src/ggml-cpu/llamafile/sgemm.cpp ggml/src/ggml-cpu/llamafile/sgemm.h ggml/include/ggml.h
+	$(CXX) $(CXXFLAGS) $(SIMPLERCFLAGS) -c $< -o $@
 sgemm_failsafe.o: ggml/src/ggml-cpu/llamafile/sgemm.cpp ggml/src/ggml-cpu/llamafile/sgemm.h ggml/include/ggml.h
 	$(CXX) $(CXXFLAGS) $(NONECFLAGS) -c $< -o $@
 
@@ -612,7 +624,7 @@ ggml_v3_clblast.o: otherarch/ggml_v3.c otherarch/ggml_v3.h
 ggml_v3_cublas.o: otherarch/ggml_v3.c otherarch/ggml_v3.h
 	$(CC)  $(FASTCFLAGS) $(FULLCFLAGS) $(CUBLAS_FLAGS) $(HIPFLAGS) -c $< -o $@
 ggml_v3_clblast_noavx2.o: otherarch/ggml_v3.c otherarch/ggml_v3.h
-	$(CC)  $(FASTCFLAGS) $(SIMPLECFLAGS) $(CLBLAST_FLAGS) -c $< -o $@
+	$(CC)  $(FASTCFLAGS) $(SIMPLERCFLAGS) $(CLBLAST_FLAGS) -c $< -o $@
 
 #version 2 libs
 ggml_v2.o: otherarch/ggml_v2.c otherarch/ggml_v2.h
@@ -626,7 +638,7 @@ ggml_v2_clblast.o: otherarch/ggml_v2.c otherarch/ggml_v2.h
 ggml_v2_cublas.o: otherarch/ggml_v2.c otherarch/ggml_v2.h
 	$(CC)  $(FASTCFLAGS) $(FULLCFLAGS) $(CUBLAS_FLAGS) $(HIPFLAGS) -c $< -o $@
 ggml_v2_clblast_noavx2.o: otherarch/ggml_v2.c otherarch/ggml_v2.h
-	$(CC)  $(FASTCFLAGS) $(SIMPLECFLAGS) $(CLBLAST_FLAGS) -c $< -o $@
+	$(CC)  $(FASTCFLAGS) $(SIMPLERCFLAGS) $(CLBLAST_FLAGS) -c $< -o $@
 
 #extreme old version compat
 ggml_v1.o: otherarch/ggml_v1.c otherarch/ggml_v1.h
@@ -747,7 +759,7 @@ ifdef CLBLAST_BUILD
 koboldcpp_clblast: ggml_v4_clblast.o ggml-cpu_v4_clblast.o ggml_v3_clblast.o ggml_v2_clblast.o ggml_v1.o expose.o gpttype_adapter_clblast.o ggml-opencl.o ggml_v3-opencl.o ggml_v2-opencl.o ggml_v2-opencl-legacy.o sdcpp_default.o whispercpp_default.o llavaclip_default.o llava.o ggml-backend_default.o ggml-backend-reg_default.o $(OBJS_FULL) $(OBJS)
 	$(CLBLAST_BUILD)
 ifdef NOAVX2_BUILD
-koboldcpp_clblast_noavx2: ggml_v4_clblast_noavx2.o ggml-cpu_v4_clblast_noavx2.o ggml_v3_clblast_noavx2.o ggml_v2_clblast_noavx2.o ggml_v1_failsafe.o expose.o gpttype_adapter_clblast_noavx2.o ggml-opencl.o ggml_v3-opencl.o ggml_v2-opencl.o ggml_v2-opencl-legacy.o sdcpp_default.o whispercpp_default.o llavaclip_default.o llava.o ggml-backend_default.o ggml-backend-reg_default.o $(OBJS_SIMPLE) $(OBJS)
+koboldcpp_clblast_noavx2: ggml_v4_clblast_noavx2.o ggml-cpu_v4_clblast_noavx2.o ggml_v3_clblast_noavx2.o ggml_v2_clblast_noavx2.o ggml_v1_failsafe.o expose.o gpttype_adapter_clblast_noavx2.o ggml-opencl.o ggml_v3-opencl.o ggml_v2-opencl.o ggml_v2-opencl-legacy.o sdcpp_default.o whispercpp_default.o llavaclip_default.o llava.o ggml-backend_default.o ggml-backend-reg_default.o $(OBJS_SIMPLER) $(OBJS)
 	$(CLBLAST_BUILD)
 else
 koboldcpp_clblast_noavx2:
