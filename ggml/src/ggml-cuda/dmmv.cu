@@ -670,6 +670,20 @@ static __device__ void convert_f16(const void * vx, const int64_t ib, const int 
     v.y = __high2float(x_reg);
 }
 
+static __device__ void convert_bf16(const void * vx, const int64_t ib, const int iqs, dfloat2 & v){
+    const nv_bfloat16 * x = (const nv_bfloat16 *) vx;
+
+/*     // automatic __nv_bfloat16 -> float type cast if dfloat == float
+    v.x = x[ib + iqs + 0];
+    v.y = x[ib + iqs + 1]; */
+
+    // load 2 halfs into register in a single instruction
+    const nv_bfloat162 x_reg = *((nv_bfloat162 *) &(x[ib + iqs]));
+    // automatic half -> float type cast if dfloat == float
+    v.x = __low2float(x_reg);
+    v.y = __high2float(x_reg);
+}
+
 static constexpr __device__ dequantize_kernel_t get_dequantize_kernel(ggml_type type) {
     return type == GGML_TYPE_Q4_0 ? dequantize_q4_0 :
         type == GGML_TYPE_Q4_1 ? dequantize_q4_1 :
@@ -677,16 +691,8 @@ static constexpr __device__ dequantize_kernel_t get_dequantize_kernel(ggml_type 
         type == GGML_TYPE_Q5_1 ? dequantize_q5_1 :
         type == GGML_TYPE_Q8_0 ? dequantize_q8_0 :
         type == GGML_TYPE_F16 ? convert_f16 :
+        type == GGML_TYPE_BF16 ? convert_bf16 :
         nullptr;
-}
-
-
-static __device__ void convert_bf16(const void * vx, const int64_t ib, const int iqs, dfloat2 & v){
-    const __nv_bfloat16 * x = (const __nv_bfloat16 *) vx;
-
-    // automatic __nv_bfloat16 -> float type cast if dfloat == float
-    v.x = x[ib + iqs + 0];
-    v.y = x[ib + iqs + 1];
 }
 
 template <ggml_type type>
@@ -903,7 +909,7 @@ static void convert_mul_mat_vec_bf16_cuda(const void * vx, const dfloat * y, flo
     const int block_num_y = (nrows + GGML_CUDA_MMV_Y - 1) / GGML_CUDA_MMV_Y;
     const dim3 block_nums(block_num_y, 1, 1);
     const dim3 block_dims(WARP_SIZE, GGML_CUDA_MMV_Y, 1);
-    dequantize_mul_mat_vec<1, 1, convert_bf16>
+    dequantize_mul_mat_vec<GGML_TYPE_BF16>
         <<<block_nums, block_dims, 0, stream>>>(vx, y, dst, ncols, nrows);
 }
 
