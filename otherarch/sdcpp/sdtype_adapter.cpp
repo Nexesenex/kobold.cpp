@@ -135,6 +135,7 @@ std::string base64_encode(const unsigned char* data, unsigned int data_length) {
 }
 
 static std::string sdplatformenv, sddeviceenv, sdvulkandeviceenv;
+static bool notiling = false;
 bool sdtype_load_model(const sd_load_model_inputs inputs) {
 
     executable_path = inputs.executable_path;
@@ -144,6 +145,7 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
     std::string t5xxl_filename = inputs.t5xxl_filename;
     std::string clipl_filename = inputs.clipl_filename;
     std::string clipg_filename = inputs.clipg_filename;
+    notiling = inputs.notile;
     printf("\nImageGen Init - Load Model: %s\n",inputs.model_filename);
     if(lorafilename!="")
     {
@@ -352,7 +354,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
         sd_params->width = newwidth;
         sd_params->height = newheight;
     }
-    bool dotile = (sd_params->width>768 || sd_params->height>768);
+    bool dotile = (sd_params->width>768 || sd_params->height>768) && !notiling;
     set_sd_vae_tiling(sd_ctx,dotile); //changes vae tiling, prevents memory related crash/oom
 
     //for img2img

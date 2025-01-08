@@ -52,6 +52,25 @@
 #define __STATIC_INLINE__ static inline
 #endif
 
+__STATIC_INLINE__ void* sd_aligned_malloc(size_t required_bytes, size_t alignment)
+{
+    void* p1; // original block
+    void** p2; // aligned block
+    int offset = alignment - 1 + sizeof(void*);
+    if ((p1 = (void*)calloc(1, required_bytes + offset)) == NULL)
+    {
+       return NULL;
+    }
+    p2 = (void**)(((size_t)(p1) + offset) & ~(alignment - 1));
+    p2[-1] = p1;
+    return p2;
+}
+
+__STATIC_INLINE__ void sd_aligned_free(void *p)
+{
+    free(((void**)p)[-1]);
+}
+
 __STATIC_INLINE__ void ggml_log_callback_default(ggml_log_level level, const char* text, void* user_data) {
     (void)level;
     (void)user_data;
@@ -507,15 +526,23 @@ __STATIC_INLINE__ void sd_tiling(ggml_tensor* input, ggml_tensor* output, const 
     params.mem_size += tile_size * tile_size * input->ne[2] * sizeof(float);                       // input chunk
     params.mem_size += (tile_size * scale) * (tile_size * scale) * output->ne[2] * sizeof(float);  // output chunk
     params.mem_size += 3 * ggml_tensor_overhead();
+    params.mem_size += 512; //extra 512 bytes why not, we will use and handle our own memory
+    params.mem_size = GGML_PAD(params.mem_size, GGML_MEM_ALIGN);
     params.mem_buffer = NULL;
     params.no_alloc   = false;
 
     LOG_DEBUG("tile work buffer size: %.2f MB", params.mem_size / 1024.f / 1024.f);
 
+    params.mem_buffer = sd_aligned_malloc(params.mem_size,64);
+
     // draft context
     struct ggml_context* tiles_ctx = ggml_init(params);
     if (!tiles_ctx) {
         LOG_ERROR("ggml_init() failed");
+        if(params.mem_buffer!=NULL)
+        {
+            sd_aligned_free(params.mem_buffer);
+        }
         return;
     }
 
@@ -554,6 +581,10 @@ __STATIC_INLINE__ void sd_tiling(ggml_tensor* input, ggml_tensor* output, const 
         pretty_progress(num_tiles, num_tiles, last_time);
     }
     ggml_free(tiles_ctx);
+    if(params.mem_buffer!=NULL)
+    {
+        sd_aligned_free(params.mem_buffer);
+    }
 }
 
 __STATIC_INLINE__ struct ggml_tensor* ggml_group_norm_32(struct ggml_context* ctx,

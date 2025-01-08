@@ -1084,7 +1084,8 @@ public:
                 ggml_tensor_scale_output(result);
             }
         } else {
-            if (vae_tiling && decode) {  // TODO: support tiling vae encode
+            //koboldcpp never use tiling with taesd
+            if (false && vae_tiling && decode) {  // TODO: support tiling vae encode
                 // split latent in 64x64 tiles and compute in several steps
                 auto on_tiling = [&](ggml_tensor* in, ggml_tensor* out, bool init) {
                     tae_first_stage->compute(n_threads, in, decode, &out);
