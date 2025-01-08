@@ -71,6 +71,8 @@ jobs:
               --add-data './kcpp_sdui.embd:.' \
               --add-data './taesd.embd:.' \
               --add-data './taesd_xl.embd:.' \
+              --add-data './taesd_f.embd:.' \
+              --add-data './taesd_3.embd:.' \
               --add-data './rwkv_vocab.embd:.' \
               --add-data './rwkv_world_vocab.embd:.' \
               --version-file './version.txt' \

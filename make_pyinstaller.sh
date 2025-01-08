@@ -9,6 +9,8 @@ pyinstaller --noconfirm --onefile --clean --console --collect-all customtkinter 
 --add-data "./kcpp_sdui.embd:." \
 --add-data "./taesd.embd:." \
 --add-data "./taesd_xl.embd:." \
+--add-data "./taesd_f.embd:." \
+--add-data "./taesd_3.embd:." \
 --add-data "./koboldcpp_default.so:." \
 --add-data "./koboldcpp_failsafe.so:." \
 --add-data "./koboldcpp_noavx2.so:." \

@@ -17,13 +17,21 @@ struct common_ngram {
 
     common_ngram() {
         for (int i = 0; i < common_ngram_MAX; ++i) {
-            tokens[i] = -1;
+            tokens[i] = LLAMA_TOKEN_NULL;
+
+        // for (int i = 0; i < LLAMA_NGRAM_MAX; ++i) {
+            // tokens[i] = LLAMA_TOKEN_NULL;
         }
     }
 
     common_ngram(const llama_token * input, const int ngram_size) {
+
         for (int i = 0; i < common_ngram_MAX; ++i) {
-            tokens[i] = i < ngram_size ? input[i] : -1;
+            tokens[i] = i < ngram_size ? input[i] : LLAMA_TOKEN_NULL;
+
+        // for (int i = 0; i < LLAMA_NGRAM_MAX; ++i) {
+            // tokens[i] = i < ngram_size ? input[i] : LLAMA_TOKEN_NULL;
+
         }
     }
 

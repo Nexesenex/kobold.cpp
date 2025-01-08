@@ -848,7 +848,7 @@ struct common_init_result common_init_from_params(common_params & params) {
     } else if (!params.model_url.empty()) {
         model = common_load_model_from_url(params.model_url, params.model, params.hf_token, mparams);
     } else {
-        model = llama_load_model_from_file(params.model.c_str(), mparams);
+        model = llama_model_load_from_file(params.model.c_str(), mparams);
     }
 
     if (model == NULL) {
@@ -875,7 +875,7 @@ struct common_init_result common_init_from_params(common_params & params) {
         }
 
         if (!ok) {
-            llama_free_model(model);
+            llama_model_free(model);
 
             return iparams;
         }
@@ -886,7 +886,7 @@ struct common_init_result common_init_from_params(common_params & params) {
     llama_context * lctx = llama_new_context_with_model(model, cparams);
     if (lctx == NULL) {
         LOG_ERR("%s: failed to create context with model '%s'\n", __func__, params.model.c_str());
-        llama_free_model(model);
+        llama_model_free(model);
         return iparams;
     }
 
@@ -902,7 +902,7 @@ struct common_init_result common_init_from_params(common_params & params) {
         const auto cvec = common_control_vector_load(params.control_vectors);
         if (cvec.n_embd == -1) {
             llama_free(lctx);
-            llama_free_model(model);
+            llama_model_free(model);
 
             return iparams;
         }
@@ -915,7 +915,7 @@ struct common_init_result common_init_from_params(common_params & params) {
                                              params.control_vector_layer_end);
         if (err) {
             llama_free(lctx);
-            llama_free_model(model);
+            llama_model_free(model);
 
             return iparams;
         }
@@ -928,7 +928,7 @@ struct common_init_result common_init_from_params(common_params & params) {
         if (lora == nullptr) {
             LOG_ERR("%s: failed to apply lora adapter '%s'\n", __func__, la.path.c_str());
             llama_free(lctx);
-            llama_free_model(model);
+            llama_model_free(model);
             return iparams;
         }
 
@@ -984,7 +984,7 @@ struct common_init_result common_init_from_params(common_params & params) {
         if (llama_model_has_encoder(model)) {
             llama_encode(lctx, llama_batch_get_one(tmp.data(), tmp.size()));
             llama_token decoder_start_token_id = llama_model_decoder_start_token(model);
-            if (decoder_start_token_id == -1) {
+            if (decoder_start_token_id == LLAMA_TOKEN_NULL) {
                 decoder_start_token_id = bos;
             }
             tmp.clear();
@@ -1413,7 +1413,7 @@ struct llama_model * common_load_model_from_url(
         }
     }
 
-    return llama_load_model_from_file(local_path.c_str(), params);
+    return llama_model_load_from_file(local_path.c_str(), params);
 }
 
 struct llama_model * common_load_model_from_hf(

@@ -249,13 +249,29 @@ public:
 
         LOG_INFO("Version: %s ", model_version_to_str[version]);
 
-        if(use_tiny_autoencoder && version==VERSION_SDXL)
+        if(use_tiny_autoencoder)
         {
             std::string to_search = "taesd.embd";
-            std::string to_replace = "taesd_xl.embd";
-            size_t pos = taesd_path_fixed.find(to_search);
-            if (pos != std::string::npos) {
-                taesd_path_fixed.replace(pos, to_search.length(), to_replace);
+            std::string to_replace = "";
+            if(version==VERSION_SDXL)
+            {
+                to_replace = "taesd_xl.embd";
+            }
+            else if(version==VERSION_FLUX)
+            {
+                to_replace = "taesd_f.embd";
+            }
+            else if(version==VERSION_SD3)
+            {
+                to_replace = "taesd_3.embd";
+            }
+
+            if(to_replace!="")
+            {
+                size_t pos = taesd_path_fixed.find(to_search);
+                if (pos != std::string::npos) {
+                    taesd_path_fixed.replace(pos, to_search.length(), to_replace);
+                }
             }
         }
 
@@ -379,7 +395,7 @@ public:
                 first_stage_model->alloc_params_buffer();
                 first_stage_model->get_param_tensors(tensors, "first_stage_model");
             } else {
-                tae_first_stage = std::make_shared<TinyAutoEncoder>(backend, model_loader.tensor_storages_types, "decoder.layers", vae_decode_only);
+                tae_first_stage = std::make_shared<TinyAutoEncoder>(backend, model_loader.tensor_storages_types, "decoder.layers", vae_decode_only, version);
             }
             // first_stage_model->get_param_tensors(tensors, "first_stage_model.");
 
