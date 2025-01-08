@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <!--
-KoboldAI Lite WebUI is a standalone WebUI for use with KoboldAI United, AI Horde, or koboldcpp.
+KoboldAI Lite WebUI is a standalone WebUI for use with KoboldAI United, AI Horde, or KoboldCpp/Croco.Cpp.
 It requires no dependencies, installation or setup.
 Just copy this single static HTML file anywhere and open it in a browser, or from a webserver.
 Please go to https://github.com/LostRuins/lite.koboldai.net for updates on KoboldAI Lite.
@@ -2936,7 +2936,7 @@ Current version indicated by LITEVER below.
 	var reattempt_local_port80 = false;
 	var localmodekey = "";
 	var kobold_endpoint_version = ""; //used to track problematic versions to avoid sending extra fields
-	var koboldcpp_version = ""; //detect if we are using koboldcpp
+	var koboldcpp_version = ""; //detect if we are using KoboldCpp/Croco.Cpp
 	var koboldcpp_version_obj = {};
 	var koboldcpp_has_vision = false;
 	var koboldcpp_has_multiplayer = false;
@@ -19612,7 +19612,7 @@ initializeInstructUIFunctionality();
 		<div class="popupbg flex"></div>
 		<div class="nspopup flexsize" style="margin-top: 4vh; background-color:#102840">
 			<div class="popuptitlebar">
-				<div class="popuptitletext" title="Settings Menu">Kobold Lite / KoboldCPP / Croco.CPP Settings</div>
+				<div class="popuptitletext" title="Settings Menu">Kobold Lite / KoboldCPP/Croco.Cpp Settings</div>
 			</div>
 			<div><ul class="nav nav-tabs settingsnav">
 				<li id="settingsmenuformat_tab" class="active"><a class="" href="#" title="Open Format Menu" onclick="display_settings_tab(0)">Format</a></li>
@@ -20092,7 +20092,7 @@ initializeInstructUIFunctionality();
 				<div id="settingsmenumedia" class="settingsmenu hidden" onchange="setting_tweaked()">
 					<div class="settingitem">
 						<div class="settinglabel">
-							<div class="justifyleft settingsmall">Generate Images <span class="helpicon">?<span class="helptext">Use the AI Horde or a local KoboldCpp / Forge / A1111 instance to insert AI generated images into your story.</span></span></div>
+							<div class="justifyleft settingsmall">Generate Images <span class="helpicon">?<span class="helptext">Use the AI Horde or a local KoboldCpp/Croco.Cpp / Forge / A1111 instance to insert AI generated images into your story.</span></span></div>
 						</div>
 							<select title="Generate Images" class="form-control" id="generate_images_mode" style="height:20px;padding:0;margin:0px 0 0;" onchange="toggle_generate_images_mode(true)">
 								<option value="0">[Disabled]</option>
@@ -20219,7 +20219,7 @@ initializeInstructUIFunctionality();
 
 
 						<div class="settinglabel" style="border-top: 1px solid #12324f; margin-top: 4px;">
-							<div class="justifyleft settingsmall" style="margin-top: 4px;">Voice Input <span class="helpicon">?<span class="helptext">Requires KoboldCpp with Whisper model loaded. Enables Speech-To-Text voice input. Automatically listens for speech in 'On' mode (Voice Detection), or use Push-To-Talk (PTT).</span></span></div>
+							<div class="justifyleft settingsmall" style="margin-top: 4px;">Voice Input <span class="helpicon">?<span class="helptext">Requires KoboldCpp/Croco.Cpp with Whisper model loaded. Enables Speech-To-Text voice input. Automatically listens for speech in 'On' mode (Voice Detection), or use Push-To-Talk (PTT).</span></span></div>
 							<select title="Speech To Text Mode" style="padding:1px; height:auto; font-size: 8pt;" class="form-control" id="voice_typing_mode">
 								<option value="0">Off</option>
 								<option value="1">Detect Voice</option>
@@ -20603,7 +20603,7 @@ initializeInstructUIFunctionality();
 			</div>
 
 			<div class="context_tab_container" id="websearch_tab_container">
-				<div class="settinglabel" style="padding: 4px;">Search the Web for relavant information when using instruct mode<br>(Requires WebSearch enabled KoboldCpp)</div>
+				<div class="settinglabel" style="padding: 4px;">Search the Web for relavant information when using instruct mode<br>(Requires WebSearch enabled KoboldCpp/Croco.Cpp)</div>
 				<div id="websearchunsupporteddiv" class="color_red hidden" style="font-weight:bold;padding:3px;font-size:12px">WebSearch Not Supported</div>
 				<div class="settinglabel" style="padding: 4px;">
 					<div class="justifyleft settingsmall" title="Enable WebSearch">Enable WebSearch </div>

@@ -2579,10 +2579,10 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KoboldCpp NoScript Mode</title></head><body>
-<h2>KoboldCpp NoScript Mode</h2>
+<title>KoboldCpp/Croco.Cpp NoScript Mode</title></head><body>
+<h2>KoboldCpp/Croco.Cpp NoScript Mode</h2>
 <div>
-<p>KoboldCpp can be used without Javascript enabled, however this is not recommended.
+<p>KoboldCpp/Croco.Cpp can be used without Javascript enabled, however this is not recommended.
 <br>If you have Javascript, please use <a href="/">KoboldAI Lite WebUI</a> instead.</p><hr>
 <form action="/noscript">
 Enter Prompt:<br>
@@ -2744,7 +2744,7 @@ Enter Prompt:<br>
             response_body = (json.dumps({"12345678-0000-0000-0000-000000000001":{"prompt":[0,"12345678-0000-0000-0000-000000000001",{"3":{"class_type":"KSampler","inputs":{"cfg":5.0,"denoise":1.0,"latent_image":["5",0],"model":["4",0],"negative":["7",0],"positive":["6",0],"sampler_name":"euler","scheduler":"normal","seed":1,"steps":20}},"4":{"class_type":"CheckpointLoaderSimple","inputs":{"ckpt_name":friendlysdmodelname}},"5":{"class_type":"EmptyLatentImage","inputs":{"batch_size":1,"height":512,"width":512}},"6":{"class_type":"CLIPTextEncode","inputs":{"clip":["4",1],"text":"prompt"}},"7":{"class_type":"CLIPTextEncode","inputs":{"clip":["4",1],"text":""}},"8":{"class_type":"VAEDecode","inputs":{"samples":["3",0],"vae":["4",2]}},"9":{"class_type":"SaveImage","inputs":{"filename_prefix":"kliteimg","images":["8",0]}}},{},["9"]],"outputs":{"9":{"images":[{"filename":"kliteimg_00001_.png","subfolder":"","type":"output"}]}},"status":{"status_str":"success","completed":imgdone,"messages":[["execution_start",{"prompt_id":"12345678-0000-0000-0000-000000000001","timestamp":1}],["execution_cached",{"nodes":[],"prompt_id":"12345678-0000-0000-0000-000000000001","timestamp":1}],["execution_success",{"prompt_id":"12345678-0000-0000-0000-000000000001","timestamp":1}]]},"meta":{"9":{"node_id":"9","display_node":"9","parent_node":None,"real_node_id":"9"}}}}).encode())
 
         elif self.path.endswith(('/.well-known/serviceinfo')):
-            response_body = (json.dumps({"version":"0.2","software":{"name":"KoboldCpp","version":KcppVersion,"repository":"https://github.com/LostRuins/koboldcpp","homepage":"https://github.com/LostRuins/koboldcpp","logo":"https://raw.githubusercontent.com/LostRuins/koboldcpp/refs/heads/concedo/niko.ico"},"api":{"koboldai":{"name":"KoboldAI API","rel_url":"/api","documentation":"https://lite.koboldai.net/koboldcpp_api","version":KcppVersion},"openai":{"name":"OpenAI API","rel_url ":"/v1","documentation":"https://openai.com/documentation/api","version":KcppVersion}}}).encode())
+            response_body = (json.dumps({"version":"0.2","software":{"name":"KoboldCpp/Croco.Cpp","version":KcppVersion,"repository":"https://github.com/LostRuins/koboldcpp","homepage":"https://github.com/LostRuins/koboldcpp","logo":"https://raw.githubusercontent.com/LostRuins/koboldcpp/refs/heads/concedo/niko.ico"},"api":{"koboldai":{"name":"KoboldAI API","rel_url":"/api","documentation":"https://lite.koboldai.net/koboldcpp_api","version":KcppVersion},"openai":{"name":"OpenAI API","rel_url ":"/v1","documentation":"https://openai.com/documentation/api","version":KcppVersion}}}).encode())
 
         elif self.path=="/props":
             ctbytes = handle.get_chat_template()
@@ -3489,7 +3489,7 @@ def show_gui():
 
     if not any(runopts):
         exitcounter = 999
-        exit_with_error(2,"KoboldCPP couldn't locate any backends to use (i.e Default, Vulkan, CLBlast, CuBLAS).\n\nTo use the program, please run the 'make' command from the directory.","No Backends Available!")
+        exit_with_error(2,"KoboldCPP/Croco.Cpp couldn't locate any backends to use (i.e Default, Vulkan, CLBlast, CuBLAS).\n\nTo use the program, please run the 'make' command from the directory.","No Backends Available!")
 
     # Vars - should be in scope to be used by multiple widgets
     gpulayers_var = ctk.StringVar(value="-1")
@@ -3916,7 +3916,7 @@ def show_gui():
         "Launch Browser": [launchbrowser, "Launches your default browser after model loading is complete"],
         "Disable MMAP": [disablemmap,  "Avoids using mmap to load models if enabled"],
         "Use ContextShift": [contextshift, "Uses Context Shifting to reduce reprocessing.\nRecommended. Check the wiki for more info."],
-        "Remote Tunnel": [remotetunnel,  "Creates a trycloudflare tunnel.\nAllows you to access koboldcpp from other devices over an internet URL."],
+        "Remote Tunnel": [remotetunnel,  "Creates a trycloudflare tunnel.\nAllows you to access KoboldCpp/Croco.Cpp from other devices over an internet URL."],
         "Quiet Mode": [quietmode, "Prevents all generation related terminal output from being displayed."]
     }
 
@@ -4085,7 +4085,7 @@ def show_gui():
     network_tab = tabcontent["Network"]
 
     # interfaces
-    makelabelentry(network_tab, "Port: ", port_var, 1, 150,tooltip="Select the port to host the KoboldCPP webserver.\n(Defaults to 5001)")
+    makelabelentry(network_tab, "Port: ", port_var, 1, 150,tooltip="Select the port to host the KoboldCPP/Croco.Cpp webserver.\n(Defaults to 5001)")
     makelabelentry(network_tab, "Host: ", host_var, 2, 150,tooltip="Select a specific host interface to bind to.\n(Defaults to all)")
 
     makecheckbox(network_tab, "Multiuser Mode", multiuser_var, 3,tooltiptxt="Allows requests by multiple different clients to be queued and handled in sequence.")
@@ -4217,7 +4217,7 @@ def show_gui():
     makelabel(extra_tab, "Unpack KoboldCpp/Croco.Cpp to a local directory to modify its files.", 1, 0)
     makelabel(extra_tab, "You can also launch via koboldcpp.py for faster startup.", 2, 0)
     ctk.CTkButton(extra_tab , text = "Unpack KoboldCpp/Croco.Cpp To Folder", command = unpack_to_dir ).grid(row=3,column=0, stick="w", padx= 8, pady=2)
-    makelabel(extra_tab, "Export as launcher .kcppt template (Expert Only)", 4, 0,tooltiptxt="Creates a KoboldCpp launch template for others to use.\nEmbeds JSON files directly into exported file when saving.\nWhen loaded, forces the backend to be automatically determined.\nWarning! Not recommended for beginners!")
+    makelabel(extra_tab, "Export as launcher .kcppt template (Expert Only)", 4, 0,tooltiptxt="Creates a KoboldCpp/Croco.Cpp launch template for others to use.\nEmbeds JSON files directly into exported file when saving.\nWhen loaded, forces the backend to be automatically determined.\nWarning! Not recommended for beginners!")
     ctk.CTkButton(extra_tab , text = "Generate LaunchTemplate", command = kcpp_export_template ).grid(row=5,column=0, stick="w", padx= 8, pady=2)
 
     # launch
@@ -4606,7 +4606,7 @@ def show_gui():
         pass
 
     def load_config_gui(): #this is used to populate the GUI with a config file, whereas load_config_cli simply overwrites cli args
-        file_type = [("KoboldCpp Settings", "*.kcpps *.kcppt")]
+        file_type = [("KoboldCpp/Croco.Cpp Settings", "*.kcpps *.kcppt")]
         global runmode_untouched
         filename = askopenfilename(filetypes=file_type, defaultextension=file_type, initialdir=None)
         if not filename or filename=="":
@@ -5618,7 +5618,7 @@ def main(launch_args,start_server=True):
             embedded_kailite = f.read()
             # patch it with extra stuff
             origStr = "Sorry, KoboldAI Lite requires Javascript to function."
-            patchedStr = "Sorry, KoboldAI Lite requires Javascript to function.<br>You can use <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp NoScript mode</a> instead."
+            patchedStr = "Sorry, KoboldAI Lite requires Javascript to function.<br>You can use <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp/Croco.Cpp NoScript mode</a> instead."
             embedded_kailite = embedded_kailite.decode("UTF-8","ignore")
             embedded_kailite = embedded_kailite.replace(origStr, patchedStr)
             embedded_kailite = embedded_kailite.encode()
@@ -5632,7 +5632,7 @@ def main(launch_args,start_server=True):
             embedded_kcpp_docs = f.read()
             print("Embedded API docs loaded.")
     except Exception:
-        print("Could not find Embedded KoboldCpp API docs.")
+        print("Could not find Embedded KoboldCpp/Croco.Cpp API docs.")
 
     try:
         basepath = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
@@ -5915,7 +5915,7 @@ if __name__ == '__main__':
             return f
         return range_checker
 
-    parser = argparse.ArgumentParser(description=f'KoboldCpp Server - Version {KcppVersion}')
+    parser = argparse.ArgumentParser(description=f'KoboldCpp/Croco.Cpp Server - Version {KcppVersion}')
     modelgroup = parser.add_mutually_exclusive_group() #we want to be backwards compatible with the unnamed positional args
     modelgroup.add_argument("--model", metavar=('[filename]'), help="Model file to load", type=str, default="")
     modelgroup.add_argument("model_param", help="Model file to load (positional)", nargs="?")
