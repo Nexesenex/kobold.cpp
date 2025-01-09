@@ -793,6 +793,8 @@ else ()
 				ggml/src/ggml-cpu/ggml-cpu-quants.c
 				ggml/src/ggml-cpu/ggml-cpu-quants.h
 				ggml/src/ggml-backend-reg.cpp
+                ggml/include/gguf.h
+                ggml/src/gguf.cpp
 				${GGML_SOURCES_CUDA})
     target_include_directories(ggml PUBLIC . ./ggml/include ./ggml/src ./ggml/src/ggml-cpu ./include ./otherarch ./otherarch/tools)
     target_compile_features(ggml PUBLIC c_std_11) # don't bump

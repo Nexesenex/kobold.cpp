@@ -1,3 +1,7 @@
+#ifndef GGML_VULKAN_COOPMAT_GLSLC_SUPPORT
+#define GGML_VULKAN_COOPMAT_GLSLC_SUPPORT
+#endif
+
 #include "ggml-vulkan.h"
 #include <vulkan/vulkan_core.h>
 #if defined(GGML_VULKAN_RUN_TESTS) || defined(GGML_VULKAN_PERF) || defined(GGML_VULKAN_CHECK_RESULTS)
@@ -1645,6 +1649,7 @@ static void ggml_vk_load_shaders(vk_device& device) {
 #undef CREATE_MM2
     } else
 #endif  // defined(VK_NV_cooperative_matrix2) && defined(GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT)
+#if defined(VK_KHR_cooperative_matrix) && defined(GGML_VULKAN_COOPMAT_GLSLC_SUPPORT)
     if (device->coopmat_support) {
         // Create 6 variants, {s,m,l}x{unaligned,aligned}
 #define CREATE_MM(PIPELINE_NAME, NAMELC, F16ACC, WG_DENOMS, WARPTILE, PUSHCONST, PARAMCOUNT, ID) \
@@ -1739,7 +1744,9 @@ static void ggml_vk_load_shaders(vk_device& device) {
         }
 #undef CREATE_MM2
 #undef CREATE_MM
-    } else if (device->fp16) {
+    } else
+#endif  // defined(VK_KHR_cooperative_matrix) && defined(GGML_VULKAN_COOPMAT_GLSLC_SUPPORT)
+    if (device->fp16) {
         // Create 6 variants, {s,m,l}x{unaligned,aligned}
 #define CREATE_MM(PIPELINE_NAME, NAMELC, F16ACC, WG_DENOMS, WARPTILE, PUSHCONST, PARAMCOUNT, ID) \
         if (device->mul_mat ## ID ## _l) \
@@ -2181,6 +2188,10 @@ static vk_device ggml_vk_get_device(size_t idx) {
             device->coopmat_support = false;
         }
 
+        #if !defined(GGML_VULKAN_COOPMAT_GLSLC_SUPPORT) //prevent crash if we do a non-coopmat build
+                device->coopmat_support = false;
+        #endif
+
         std::vector<vk::QueueFamilyProperties> queue_family_props = device->physical_device.getQueueFamilyProperties();
 
         // Try to find a non-graphics compute queue and transfer-focused queues
@@ -2242,6 +2253,7 @@ static vk_device ggml_vk_get_device(size_t idx) {
             last_struct = (VkBaseOutStructure *)&subgroup_size_control_features;
         }
 
+#if defined(VK_KHR_cooperative_matrix)
         VkPhysicalDeviceCooperativeMatrixFeaturesKHR coopmat_features;
         coopmat_features.pNext = nullptr;
         coopmat_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_KHR;
@@ -2251,6 +2263,7 @@ static vk_device ggml_vk_get_device(size_t idx) {
             last_struct->pNext = (VkBaseOutStructure *)&coopmat_features;
             last_struct = (VkBaseOutStructure *)&coopmat_features;
         }
+#endif
 
 #if defined(VK_NV_cooperative_matrix2)
         VkPhysicalDeviceCooperativeMatrix2FeaturesNV coopmat2_features {};
@@ -2283,7 +2296,9 @@ static vk_device ggml_vk_get_device(size_t idx) {
             device_extensions.push_back("VK_EXT_subgroup_size_control");
         }
 
+#if defined(VK_KHR_cooperative_matrix)
         device->coopmat_support = device->coopmat_support && coopmat_features.cooperativeMatrix;
+#endif
 
         if (coopmat2_support) {
 #if defined(VK_NV_cooperative_matrix2) && defined(GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT)
@@ -2376,6 +2391,7 @@ static vk_device ggml_vk_get_device(size_t idx) {
             device_extensions.push_back("VK_KHR_shader_float16_int8");
         }
 
+#if defined(VK_KHR_cooperative_matrix)
         if (device->coopmat_support) {
             // Query supported shapes
             std::vector<VkCooperativeMatrixPropertiesKHR> cm_props;
@@ -2442,7 +2458,7 @@ static vk_device ggml_vk_get_device(size_t idx) {
         if (device->coopmat_support) {
             device_extensions.push_back("VK_KHR_cooperative_matrix");
         }
-
+#endif
         device->name = GGML_VK_NAME + std::to_string(idx);
 
         device_create_info = {
@@ -2553,9 +2569,11 @@ static void ggml_vk_print_gpu_info(size_t idx) {
             fp16_storage = true;
         } else if (strcmp("VK_KHR_shader_float16_int8", properties.extensionName) == 0) {
             fp16_compute = true;
-        } else if (strcmp("VK_KHR_cooperative_matrix", properties.extensionName) == 0 &&
+#if defined(GGML_VULKAN_COOPMAT_GLSLC_SUPPORT)
+       } else if (strcmp("VK_KHR_cooperative_matrix", properties.extensionName) == 0 &&
                    !getenv("GGML_VK_DISABLE_COOPMAT")) {
             coopmat_support = true;
+#endif
 #if defined(GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT)
         } else if (strcmp("VK_NV_cooperative_matrix2", properties.extensionName) == 0 &&
                    !getenv("GGML_VK_DISABLE_COOPMAT2")) {
@@ -2593,6 +2611,7 @@ static void ggml_vk_print_gpu_info(size_t idx) {
     // Pointer to the last chain element
     VkBaseOutStructure * last_struct = (VkBaseOutStructure *)&vk12_features;
 
+#if defined(GGML_VULKAN_COOPMAT_GLSLC_SUPPORT)
     VkPhysicalDeviceCooperativeMatrixFeaturesKHR coopmat_features;
     coopmat_features.pNext = nullptr;
     coopmat_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_KHR;
@@ -2608,6 +2627,7 @@ static void ggml_vk_print_gpu_info(size_t idx) {
     fp16 = fp16 && vk12_features.shaderFloat16;
 
     coopmat_support = coopmat_support && coopmat_features.cooperativeMatrix;
+#endif
 
     std::string matrix_cores = coopmat2_support ? "NV_coopmat2" : coopmat_support ? "KHR_coopmat" : "none";
 
