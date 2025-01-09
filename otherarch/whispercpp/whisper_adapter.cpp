@@ -217,6 +217,7 @@ whisper_generation_outputs whispertype_generate(const whisper_generation_inputs 
 
     const std::string b64data = std::string(inputs.audio_data);
     const std::string initprompt = std::string(inputs.prompt);
+    const std::string langcode = std::string(inputs.langcode);
 
     std::vector<float> pcmf32;               // mono-channel F32 PCM
     std::vector<std::vector<float>> pcmf32s; // stereo-channel F32 PCM
@@ -236,7 +237,7 @@ whisper_generation_outputs whispertype_generate(const whisper_generation_inputs 
     wparams.print_timestamps = false;
     wparams.print_special    = false;
     wparams.translate        = false;
-    wparams.language         = "auto";
+    wparams.language         = langcode.c_str();
     wparams.detect_language  = false;
     wparams.n_threads        = 4;
     wparams.n_max_text_ctx   = wparams.n_max_text_ctx;
@@ -248,7 +249,7 @@ whisper_generation_outputs whispertype_generate(const whisper_generation_inputs 
     wparams.split_on_word    = false;
     wparams.audio_ctx        = 0;
     wparams.speed_up         = false;
-    wparams.debug_mode       = false;
+    wparams.debug_mode       = (whisperdebugmode==1);
     wparams.tdrz_enable      = false;
     wparams.suppress_regex   = nullptr;
     wparams.suppress_non_speech_tokens = inputs.suppress_non_speech;
