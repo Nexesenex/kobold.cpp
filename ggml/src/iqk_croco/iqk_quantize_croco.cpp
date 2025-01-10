@@ -118,6 +118,10 @@ float make_qx_quants(int n, int nmax, const float * x, int8_t * L, const float *
     return scale;
 }
 
+//
+// IQ1_BN & IQ2_BN
+//
+
 struct IQ1BNQuantizer {
     int8_t L[QK_IQ1BN];
     void quantize_one_row_1bn(const float * src, block_iq1_bn * y, int n_per_row, const float * imatrix);
@@ -206,7 +210,7 @@ void IQ1BNQuantizer::quantize_one_row_2bn(const float * src, block_iq2_bn * y, i
 
 }
 
-/* size_t quantize_iq1_bn(const float * src, void * dst, int64_t nrows, int64_t n_per_row, const float * imatrix) {
+size_t quantize_iq1_bn(const float * src, void * dst, int64_t nrows, int64_t n_per_row, const float * imatrix) {
     IQ1BNQuantizer iq1bn;
     auto row_size = ggml_row_size(GGML_TYPE_IQ1_BN, n_per_row);
     auto qrow = (char *)dst;
@@ -337,7 +341,7 @@ static const int8_t iq1bn_values[1280] = {
      1,  1, -1,  0,  1,  1,  1,  0,  0,  1,  1,  1,  1,  0,  1,  1,  1, -1,  1,  1,  1,  1,  0,  1,  1,  1,  1,  1,  1,  1,  1,  1,
 };
 
-void ggml_vec_dot_iq1_bn_q8_K64(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
+void vec_dot_iq1_bn_q8_K64(int n, float * s, size_t bs, const void * vx, size_t bx, const void * vy, size_t by, int nrc) {
 
     GGML_UNUSED(bs);
     GGML_UNUSED(bx);
@@ -433,7 +437,7 @@ void vec_dot_iq2_bn_q8_K64(int n, float * s, size_t bs, const void * vx, size_t 
     }
     *s = sumf;
 
-} */
+}
 
 void quantize_row_q8_K64_ref(const float * x, block_q8_K64 * y, int64_t k) {
 
