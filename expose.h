@@ -2,7 +2,7 @@
 #include <cstdint>
 
 const int tensor_split_max = 16;
-const int images_max = 4;
+const int images_max = 8;
 const int logprobs_max = 5;
 
 // match kobold's sampler list and order
@@ -194,6 +194,7 @@ struct whisper_generation_inputs
     const char * prompt = nullptr;
     const char * audio_data = nullptr;
     const bool suppress_non_speech = false;
+    const char * langcode = nullptr;
     const bool quiet = false;
 };
 struct whisper_generation_outputs

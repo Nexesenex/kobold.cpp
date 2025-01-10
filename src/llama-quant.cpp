@@ -408,7 +408,10 @@ static ggml_type llama_tensor_get_type(quantize_state_impl & qs, ggml_type new_t
             case GGML_TYPE_Q5_K:   new_type = GGML_TYPE_Q6_0;   break;
             case GGML_TYPE_IQ6_K:
             case GGML_TYPE_Q6_K:   new_type = GGML_TYPE_Q8_0;   break;
-            default: throw std::runtime_error("\nUnsupported tensor size encountered\n");
+            default:
+                printf("\nUnsupported tensor size encountered! Will use %s for %s\n",ggml_type_name(tensor->type),name.c_str()) ;
+                new_type = tensor->type;
+            break;
         }
         if (tensor->ne[0] % ggml_blck_size(new_type) != 0) {
             new_type = GGML_TYPE_F16;
@@ -646,7 +649,8 @@ static void llama_model_quantize_impl(const std::string & fname_inp, const std::
 
     qs.n_ffn_down = qs.n_ffn_gate = qs.n_ffn_up = (int)model.hparams.n_layer;
 
-    // sanity checks
+    // sanity checks for models that have attention layers
+    if (qs.n_attention_wv != 0)
     {
         const auto & n_head_kv_iter = model.hparams.n_head_kv_arr.begin();
         // attention layers have a non-zero number of kv heads
@@ -654,7 +658,7 @@ static void llama_model_quantize_impl(const std::string & fname_inp, const std::
         if (llama_model_has_encoder(&model)) {
             n_attn_layer *= 3;
         }
-        GGML_ASSERT((qs.n_attention_wv == n_attn_layer) && "n_attention_wv is unexpected");
+        GGML_ASSERT_CONTINUE((qs.n_attention_wv == n_attn_layer) && "n_attention_wv is unexpected");
     }
 
     size_t total_size_org = 0;
@@ -784,6 +788,7 @@ static void llama_model_quantize_impl(const std::string & fname_inp, const std::
         quantize &= name.find("time_mix_w2.weight") == std::string::npos;
         quantize &= name.find("time_mix_decay_w1.weight") == std::string::npos;
         quantize &= name.find("time_mix_decay_w2.weight") == std::string::npos;
+        quantize &= name.find("time_mix_lerp_fused.weight") == std::string::npos;
 
         // do not quantize relative position bias (T5)
         quantize &= name.find("attn_rel_b.weight") == std::string::npos;

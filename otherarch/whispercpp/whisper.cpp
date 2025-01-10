@@ -5355,13 +5355,19 @@ int whisper_full_with_state(
 
         const auto lang_id = whisper_lang_auto_detect_with_state(ctx, state, 0, params.n_threads, probs.data());
         if (lang_id < 0) {
-            WHISPER_LOG_ERROR("%s: failed to auto-detect language\n", __func__);
+            if(params.debug_mode)
+            {
+                printf("\n%s: failed to auto-detect language\n", __func__);
+            }
             return -3;
         }
         state->lang_id = lang_id;
         params.language = whisper_lang_str(lang_id);
 
-        WHISPER_LOG_INFO("%s: auto-detected language: %s (p = %f)\n", __func__, params.language, probs[whisper_lang_id(params.language)]);
+        if(params.debug_mode)
+        {
+            printf("\n%s: auto-detected language: %s (p = %f)\n", __func__, params.language, probs[whisper_lang_id(params.language)]);
+        }
         if (params.detect_language) {
             return 0;
         }
@@ -5477,7 +5483,11 @@ int whisper_full_with_state(
     std::vector<whisper_token> prompt_init = { whisper_token_sot(ctx), };
 
     if (whisper_is_multilingual(ctx)) {
-        const int lang_id = whisper_lang_id(params.language);
+        int lang_id = whisper_lang_id(params.language);
+        if(lang_id<0)
+        {
+            lang_id = 0; //default to english
+        }
         state->lang_id = lang_id;
         prompt_init.push_back(whisper_token_lang(ctx, lang_id));
         if (params.translate) {

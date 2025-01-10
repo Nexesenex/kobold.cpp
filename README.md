@@ -404,4 +404,10 @@ when you can't use the precompiled binary directly, we provide an automated buil
   - [Stable Diffusion 1.5 and SDXL safetensor models](https://github.com/LostRuins/koboldcpp/wiki#can-i-generate-images-with-koboldcpp)
   - [LLaVA based Vision models and multimodal projectors (mmproj)](https://github.com/LostRuins/koboldcpp/wiki#what-is-llava-and-mmproj)
   - [Whisper models for Speech-To-Text](https://huggingface.co/koboldcpp/whisper/tree/main)
-  
+
+# Where can I download AI model files?
+- The best place to get GGUF text models is huggingface. For image models, CivitAI has a good selection. Here are some to get started.
+  - Text Generation: [BookAdventures 8B](https://huggingface.co/KoboldAI/Llama-3.1-8B-BookAdventures-GGUF/resolve/main/Llama-3.1-8B-BookAdventures.Q4_K_S.gguf) or [Tiefighter 13B](https://huggingface.co/KoboldAI/LLaMA2-13B-Tiefighter-GGUF/resolve/main/LLaMA2-13B-Tiefighter.Q4_K_S.gguf) (larger model).
+  - Image Generation: [Anything v3](https://huggingface.co/admruul/anything-v3.0/resolve/main/Anything-V3.0-pruned-fp16.safetensors) or [Deliberate V2](https://huggingface.co/Yntec/Deliberate2/resolve/main/Deliberate_v2.safetensors) or [Dreamshaper SDXL](https://huggingface.co/Lykon/dreamshaper-xl-v2-turbo/resolve/main/DreamShaperXL_Turbo_v2_1.safetensors)
+  - Image Recognition MMproj: [Pick the correct one for your model architecture here](https://huggingface.co/koboldcpp/mmproj/tree/main)
+  - Speech Recognition: [Whisper models for Speech-To-Text](https://huggingface.co/koboldcpp/whisper/tree/main)

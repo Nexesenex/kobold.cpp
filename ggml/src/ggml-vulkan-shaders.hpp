@@ -468,317 +468,317 @@ const uint64_t matmul_iq4_nl_f16_f16acc_len = 11276;
 extern unsigned char matmul_iq4_nl_f16_aligned_f16acc_data[11772];
 const uint64_t matmul_iq4_nl_f16_aligned_f16acc_len = 11772;
 
-extern unsigned char matmul_f32_f16_coopmat_data[18284];
-const uint64_t matmul_f32_f16_coopmat_len = 18284;
+extern unsigned char matmul_f32_f16_coopmat_data[18396];
+const uint64_t matmul_f32_f16_coopmat_len = 18396;
 
-extern unsigned char matmul_f32_f16_aligned_coopmat_data[19728];
-const uint64_t matmul_f32_f16_aligned_coopmat_len = 19728;
+extern unsigned char matmul_f32_f16_aligned_coopmat_data[19840];
+const uint64_t matmul_f32_f16_aligned_coopmat_len = 19840;
 
-extern unsigned char matmul_f16_aligned_coopmat_data[19568];
-const uint64_t matmul_f16_aligned_coopmat_len = 19568;
+extern unsigned char matmul_f16_aligned_coopmat_data[19680];
+const uint64_t matmul_f16_aligned_coopmat_len = 19680;
 
-extern unsigned char matmul_f16_coopmat_data[18268];
-const uint64_t matmul_f16_coopmat_len = 18268;
+extern unsigned char matmul_f16_coopmat_data[18380];
+const uint64_t matmul_f16_coopmat_len = 18380;
 
-extern unsigned char matmul_f32_f32_coopmat_data[18276];
-const uint64_t matmul_f32_f32_coopmat_len = 18276;
+extern unsigned char matmul_f32_f32_coopmat_data[18388];
+const uint64_t matmul_f32_f32_coopmat_len = 18388;
 
-extern unsigned char matmul_f32_f32_aligned_coopmat_data[19800];
-const uint64_t matmul_f32_f32_aligned_coopmat_len = 19800;
+extern unsigned char matmul_f32_f32_aligned_coopmat_data[19912];
+const uint64_t matmul_f32_f32_aligned_coopmat_len = 19912;
 
-extern unsigned char matmul_f16_f32_coopmat_data[18284];
-const uint64_t matmul_f16_f32_coopmat_len = 18284;
+extern unsigned char matmul_f16_f32_coopmat_data[18396];
+const uint64_t matmul_f16_f32_coopmat_len = 18396;
 
-extern unsigned char matmul_f16_f32_aligned_coopmat_data[19728];
-const uint64_t matmul_f16_f32_aligned_coopmat_len = 19728;
+extern unsigned char matmul_f16_f32_aligned_coopmat_data[19840];
+const uint64_t matmul_f16_f32_aligned_coopmat_len = 19840;
 
-extern unsigned char matmul_q4_0_f32_coopmat_data[18892];
-const uint64_t matmul_q4_0_f32_coopmat_len = 18892;
+extern unsigned char matmul_q4_0_f32_coopmat_data[19004];
+const uint64_t matmul_q4_0_f32_coopmat_len = 19004;
 
-extern unsigned char matmul_q4_0_f32_aligned_coopmat_data[19696];
-const uint64_t matmul_q4_0_f32_aligned_coopmat_len = 19696;
+extern unsigned char matmul_q4_0_f32_aligned_coopmat_data[19808];
+const uint64_t matmul_q4_0_f32_aligned_coopmat_len = 19808;
 
-extern unsigned char matmul_q4_0_f16_coopmat_data[18876];
-const uint64_t matmul_q4_0_f16_coopmat_len = 18876;
+extern unsigned char matmul_q4_0_f16_coopmat_data[18988];
+const uint64_t matmul_q4_0_f16_coopmat_len = 18988;
 
-extern unsigned char matmul_q4_0_f16_aligned_coopmat_data[19568];
-const uint64_t matmul_q4_0_f16_aligned_coopmat_len = 19568;
+extern unsigned char matmul_q4_0_f16_aligned_coopmat_data[19680];
+const uint64_t matmul_q4_0_f16_aligned_coopmat_len = 19680;
 
-extern unsigned char matmul_q4_1_f32_coopmat_data[19048];
-const uint64_t matmul_q4_1_f32_coopmat_len = 19048;
+extern unsigned char matmul_q4_1_f32_coopmat_data[19160];
+const uint64_t matmul_q4_1_f32_coopmat_len = 19160;
 
-extern unsigned char matmul_q4_1_f32_aligned_coopmat_data[19852];
-const uint64_t matmul_q4_1_f32_aligned_coopmat_len = 19852;
+extern unsigned char matmul_q4_1_f32_aligned_coopmat_data[19964];
+const uint64_t matmul_q4_1_f32_aligned_coopmat_len = 19964;
 
-extern unsigned char matmul_q4_1_f16_coopmat_data[19032];
-const uint64_t matmul_q4_1_f16_coopmat_len = 19032;
+extern unsigned char matmul_q4_1_f16_coopmat_data[19144];
+const uint64_t matmul_q4_1_f16_coopmat_len = 19144;
 
-extern unsigned char matmul_q4_1_f16_aligned_coopmat_data[19724];
-const uint64_t matmul_q4_1_f16_aligned_coopmat_len = 19724;
+extern unsigned char matmul_q4_1_f16_aligned_coopmat_data[19836];
+const uint64_t matmul_q4_1_f16_aligned_coopmat_len = 19836;
 
-extern unsigned char matmul_q5_0_f32_coopmat_data[19740];
-const uint64_t matmul_q5_0_f32_coopmat_len = 19740;
+extern unsigned char matmul_q5_0_f32_coopmat_data[19852];
+const uint64_t matmul_q5_0_f32_coopmat_len = 19852;
 
-extern unsigned char matmul_q5_0_f32_aligned_coopmat_data[20544];
-const uint64_t matmul_q5_0_f32_aligned_coopmat_len = 20544;
+extern unsigned char matmul_q5_0_f32_aligned_coopmat_data[20656];
+const uint64_t matmul_q5_0_f32_aligned_coopmat_len = 20656;
 
-extern unsigned char matmul_q5_0_f16_coopmat_data[19724];
-const uint64_t matmul_q5_0_f16_coopmat_len = 19724;
+extern unsigned char matmul_q5_0_f16_coopmat_data[19836];
+const uint64_t matmul_q5_0_f16_coopmat_len = 19836;
 
-extern unsigned char matmul_q5_0_f16_aligned_coopmat_data[20416];
-const uint64_t matmul_q5_0_f16_aligned_coopmat_len = 20416;
+extern unsigned char matmul_q5_0_f16_aligned_coopmat_data[20528];
+const uint64_t matmul_q5_0_f16_aligned_coopmat_len = 20528;
 
-extern unsigned char matmul_q5_1_f32_coopmat_data[19692];
-const uint64_t matmul_q5_1_f32_coopmat_len = 19692;
+extern unsigned char matmul_q5_1_f32_coopmat_data[19804];
+const uint64_t matmul_q5_1_f32_coopmat_len = 19804;
 
-extern unsigned char matmul_q5_1_f32_aligned_coopmat_data[20496];
-const uint64_t matmul_q5_1_f32_aligned_coopmat_len = 20496;
+extern unsigned char matmul_q5_1_f32_aligned_coopmat_data[20608];
+const uint64_t matmul_q5_1_f32_aligned_coopmat_len = 20608;
 
-extern unsigned char matmul_q5_1_f16_coopmat_data[19676];
-const uint64_t matmul_q5_1_f16_coopmat_len = 19676;
+extern unsigned char matmul_q5_1_f16_coopmat_data[19788];
+const uint64_t matmul_q5_1_f16_coopmat_len = 19788;
 
-extern unsigned char matmul_q5_1_f16_aligned_coopmat_data[20368];
-const uint64_t matmul_q5_1_f16_aligned_coopmat_len = 20368;
+extern unsigned char matmul_q5_1_f16_aligned_coopmat_data[20480];
+const uint64_t matmul_q5_1_f16_aligned_coopmat_len = 20480;
 
-extern unsigned char matmul_q8_0_f32_coopmat_data[18896];
-const uint64_t matmul_q8_0_f32_coopmat_len = 18896;
+extern unsigned char matmul_q8_0_f32_coopmat_data[19008];
+const uint64_t matmul_q8_0_f32_coopmat_len = 19008;
 
-extern unsigned char matmul_q8_0_f32_aligned_coopmat_data[19700];
-const uint64_t matmul_q8_0_f32_aligned_coopmat_len = 19700;
+extern unsigned char matmul_q8_0_f32_aligned_coopmat_data[19812];
+const uint64_t matmul_q8_0_f32_aligned_coopmat_len = 19812;
 
-extern unsigned char matmul_q8_0_f16_coopmat_data[18880];
-const uint64_t matmul_q8_0_f16_coopmat_len = 18880;
+extern unsigned char matmul_q8_0_f16_coopmat_data[18992];
+const uint64_t matmul_q8_0_f16_coopmat_len = 18992;
 
-extern unsigned char matmul_q8_0_f16_aligned_coopmat_data[19572];
-const uint64_t matmul_q8_0_f16_aligned_coopmat_len = 19572;
+extern unsigned char matmul_q8_0_f16_aligned_coopmat_data[19684];
+const uint64_t matmul_q8_0_f16_aligned_coopmat_len = 19684;
 
-extern unsigned char matmul_q2_k_f32_coopmat_data[19920];
-const uint64_t matmul_q2_k_f32_coopmat_len = 19920;
+extern unsigned char matmul_q2_k_f32_coopmat_data[20032];
+const uint64_t matmul_q2_k_f32_coopmat_len = 20032;
 
-extern unsigned char matmul_q2_k_f32_aligned_coopmat_data[20724];
-const uint64_t matmul_q2_k_f32_aligned_coopmat_len = 20724;
+extern unsigned char matmul_q2_k_f32_aligned_coopmat_data[20836];
+const uint64_t matmul_q2_k_f32_aligned_coopmat_len = 20836;
 
-extern unsigned char matmul_q2_k_f16_coopmat_data[19920];
-const uint64_t matmul_q2_k_f16_coopmat_len = 19920;
+extern unsigned char matmul_q2_k_f16_coopmat_data[20032];
+const uint64_t matmul_q2_k_f16_coopmat_len = 20032;
 
-extern unsigned char matmul_q2_k_f16_aligned_coopmat_data[20612];
-const uint64_t matmul_q2_k_f16_aligned_coopmat_len = 20612;
+extern unsigned char matmul_q2_k_f16_aligned_coopmat_data[20724];
+const uint64_t matmul_q2_k_f16_aligned_coopmat_len = 20724;
 
-extern unsigned char matmul_q3_k_f32_coopmat_data[22548];
-const uint64_t matmul_q3_k_f32_coopmat_len = 22548;
+extern unsigned char matmul_q3_k_f32_coopmat_data[22660];
+const uint64_t matmul_q3_k_f32_coopmat_len = 22660;
 
-extern unsigned char matmul_q3_k_f32_aligned_coopmat_data[23352];
-const uint64_t matmul_q3_k_f32_aligned_coopmat_len = 23352;
+extern unsigned char matmul_q3_k_f32_aligned_coopmat_data[23464];
+const uint64_t matmul_q3_k_f32_aligned_coopmat_len = 23464;
 
-extern unsigned char matmul_q3_k_f16_coopmat_data[22532];
-const uint64_t matmul_q3_k_f16_coopmat_len = 22532;
+extern unsigned char matmul_q3_k_f16_coopmat_data[22644];
+const uint64_t matmul_q3_k_f16_coopmat_len = 22644;
 
-extern unsigned char matmul_q3_k_f16_aligned_coopmat_data[23224];
-const uint64_t matmul_q3_k_f16_aligned_coopmat_len = 23224;
+extern unsigned char matmul_q3_k_f16_aligned_coopmat_data[23336];
+const uint64_t matmul_q3_k_f16_aligned_coopmat_len = 23336;
 
-extern unsigned char matmul_q4_k_f32_coopmat_data[22328];
-const uint64_t matmul_q4_k_f32_coopmat_len = 22328;
+extern unsigned char matmul_q4_k_f32_coopmat_data[22440];
+const uint64_t matmul_q4_k_f32_coopmat_len = 22440;
 
-extern unsigned char matmul_q4_k_f32_aligned_coopmat_data[23132];
-const uint64_t matmul_q4_k_f32_aligned_coopmat_len = 23132;
+extern unsigned char matmul_q4_k_f32_aligned_coopmat_data[23244];
+const uint64_t matmul_q4_k_f32_aligned_coopmat_len = 23244;
 
-extern unsigned char matmul_q4_k_f16_coopmat_data[22328];
-const uint64_t matmul_q4_k_f16_coopmat_len = 22328;
+extern unsigned char matmul_q4_k_f16_coopmat_data[22440];
+const uint64_t matmul_q4_k_f16_coopmat_len = 22440;
 
-extern unsigned char matmul_q4_k_f16_aligned_coopmat_data[23020];
-const uint64_t matmul_q4_k_f16_aligned_coopmat_len = 23020;
+extern unsigned char matmul_q4_k_f16_aligned_coopmat_data[23132];
+const uint64_t matmul_q4_k_f16_aligned_coopmat_len = 23132;
 
-extern unsigned char matmul_q5_k_f32_coopmat_data[23132];
-const uint64_t matmul_q5_k_f32_coopmat_len = 23132;
+extern unsigned char matmul_q5_k_f32_coopmat_data[23244];
+const uint64_t matmul_q5_k_f32_coopmat_len = 23244;
 
-extern unsigned char matmul_q5_k_f32_aligned_coopmat_data[23936];
-const uint64_t matmul_q5_k_f32_aligned_coopmat_len = 23936;
+extern unsigned char matmul_q5_k_f32_aligned_coopmat_data[24048];
+const uint64_t matmul_q5_k_f32_aligned_coopmat_len = 24048;
 
-extern unsigned char matmul_q5_k_f16_coopmat_data[23132];
-const uint64_t matmul_q5_k_f16_coopmat_len = 23132;
+extern unsigned char matmul_q5_k_f16_coopmat_data[23244];
+const uint64_t matmul_q5_k_f16_coopmat_len = 23244;
 
-extern unsigned char matmul_q5_k_f16_aligned_coopmat_data[23824];
-const uint64_t matmul_q5_k_f16_aligned_coopmat_len = 23824;
+extern unsigned char matmul_q5_k_f16_aligned_coopmat_data[23936];
+const uint64_t matmul_q5_k_f16_aligned_coopmat_len = 23936;
 
-extern unsigned char matmul_q6_k_f32_coopmat_data[20672];
-const uint64_t matmul_q6_k_f32_coopmat_len = 20672;
+extern unsigned char matmul_q6_k_f32_coopmat_data[20784];
+const uint64_t matmul_q6_k_f32_coopmat_len = 20784;
 
-extern unsigned char matmul_q6_k_f32_aligned_coopmat_data[21476];
-const uint64_t matmul_q6_k_f32_aligned_coopmat_len = 21476;
+extern unsigned char matmul_q6_k_f32_aligned_coopmat_data[21588];
+const uint64_t matmul_q6_k_f32_aligned_coopmat_len = 21588;
 
-extern unsigned char matmul_q6_k_f16_coopmat_data[20656];
-const uint64_t matmul_q6_k_f16_coopmat_len = 20656;
+extern unsigned char matmul_q6_k_f16_coopmat_data[20768];
+const uint64_t matmul_q6_k_f16_coopmat_len = 20768;
 
-extern unsigned char matmul_q6_k_f16_aligned_coopmat_data[21348];
-const uint64_t matmul_q6_k_f16_aligned_coopmat_len = 21348;
+extern unsigned char matmul_q6_k_f16_aligned_coopmat_data[21460];
+const uint64_t matmul_q6_k_f16_aligned_coopmat_len = 21460;
 
-extern unsigned char matmul_iq4_nl_f32_coopmat_data[19836];
-const uint64_t matmul_iq4_nl_f32_coopmat_len = 19836;
+extern unsigned char matmul_iq4_nl_f32_coopmat_data[19948];
+const uint64_t matmul_iq4_nl_f32_coopmat_len = 19948;
 
-extern unsigned char matmul_iq4_nl_f32_aligned_coopmat_data[20640];
-const uint64_t matmul_iq4_nl_f32_aligned_coopmat_len = 20640;
+extern unsigned char matmul_iq4_nl_f32_aligned_coopmat_data[20752];
+const uint64_t matmul_iq4_nl_f32_aligned_coopmat_len = 20752;
 
-extern unsigned char matmul_iq4_nl_f16_coopmat_data[19820];
-const uint64_t matmul_iq4_nl_f16_coopmat_len = 19820;
+extern unsigned char matmul_iq4_nl_f16_coopmat_data[19932];
+const uint64_t matmul_iq4_nl_f16_coopmat_len = 19932;
 
-extern unsigned char matmul_iq4_nl_f16_aligned_coopmat_data[20512];
-const uint64_t matmul_iq4_nl_f16_aligned_coopmat_len = 20512;
+extern unsigned char matmul_iq4_nl_f16_aligned_coopmat_data[20624];
+const uint64_t matmul_iq4_nl_f16_aligned_coopmat_len = 20624;
 
-extern unsigned char matmul_f32_f16_f16acc_coopmat_data[18344];
-const uint64_t matmul_f32_f16_f16acc_coopmat_len = 18344;
+extern unsigned char matmul_f32_f16_f16acc_coopmat_data[18456];
+const uint64_t matmul_f32_f16_f16acc_coopmat_len = 18456;
 
-extern unsigned char matmul_f32_f16_aligned_f16acc_coopmat_data[19804];
-const uint64_t matmul_f32_f16_aligned_f16acc_coopmat_len = 19804;
+extern unsigned char matmul_f32_f16_aligned_f16acc_coopmat_data[19916];
+const uint64_t matmul_f32_f16_aligned_f16acc_coopmat_len = 19916;
 
-extern unsigned char matmul_f16_aligned_f16acc_coopmat_data[19644];
-const uint64_t matmul_f16_aligned_f16acc_coopmat_len = 19644;
+extern unsigned char matmul_f16_aligned_f16acc_coopmat_data[19756];
+const uint64_t matmul_f16_aligned_f16acc_coopmat_len = 19756;
 
-extern unsigned char matmul_f16_f16acc_coopmat_data[18328];
-const uint64_t matmul_f16_f16acc_coopmat_len = 18328;
+extern unsigned char matmul_f16_f16acc_coopmat_data[18440];
+const uint64_t matmul_f16_f16acc_coopmat_len = 18440;
 
-extern unsigned char matmul_f32_f32_f16acc_coopmat_data[18336];
-const uint64_t matmul_f32_f32_f16acc_coopmat_len = 18336;
+extern unsigned char matmul_f32_f32_f16acc_coopmat_data[18448];
+const uint64_t matmul_f32_f32_f16acc_coopmat_len = 18448;
 
-extern unsigned char matmul_f32_f32_aligned_f16acc_coopmat_data[19876];
-const uint64_t matmul_f32_f32_aligned_f16acc_coopmat_len = 19876;
+extern unsigned char matmul_f32_f32_aligned_f16acc_coopmat_data[19988];
+const uint64_t matmul_f32_f32_aligned_f16acc_coopmat_len = 19988;
 
-extern unsigned char matmul_f16_f32_f16acc_coopmat_data[18344];
-const uint64_t matmul_f16_f32_f16acc_coopmat_len = 18344;
+extern unsigned char matmul_f16_f32_f16acc_coopmat_data[18456];
+const uint64_t matmul_f16_f32_f16acc_coopmat_len = 18456;
 
-extern unsigned char matmul_f16_f32_aligned_f16acc_coopmat_data[19804];
-const uint64_t matmul_f16_f32_aligned_f16acc_coopmat_len = 19804;
+extern unsigned char matmul_f16_f32_aligned_f16acc_coopmat_data[19916];
+const uint64_t matmul_f16_f32_aligned_f16acc_coopmat_len = 19916;
 
-extern unsigned char matmul_q4_0_f32_f16acc_coopmat_data[18952];
-const uint64_t matmul_q4_0_f32_f16acc_coopmat_len = 18952;
+extern unsigned char matmul_q4_0_f32_f16acc_coopmat_data[19064];
+const uint64_t matmul_q4_0_f32_f16acc_coopmat_len = 19064;
 
-extern unsigned char matmul_q4_0_f32_aligned_f16acc_coopmat_data[19772];
-const uint64_t matmul_q4_0_f32_aligned_f16acc_coopmat_len = 19772;
+extern unsigned char matmul_q4_0_f32_aligned_f16acc_coopmat_data[19884];
+const uint64_t matmul_q4_0_f32_aligned_f16acc_coopmat_len = 19884;
 
-extern unsigned char matmul_q4_0_f16_f16acc_coopmat_data[18936];
-const uint64_t matmul_q4_0_f16_f16acc_coopmat_len = 18936;
+extern unsigned char matmul_q4_0_f16_f16acc_coopmat_data[19048];
+const uint64_t matmul_q4_0_f16_f16acc_coopmat_len = 19048;
 
-extern unsigned char matmul_q4_0_f16_aligned_f16acc_coopmat_data[19644];
-const uint64_t matmul_q4_0_f16_aligned_f16acc_coopmat_len = 19644;
+extern unsigned char matmul_q4_0_f16_aligned_f16acc_coopmat_data[19756];
+const uint64_t matmul_q4_0_f16_aligned_f16acc_coopmat_len = 19756;
 
-extern unsigned char matmul_q4_1_f32_f16acc_coopmat_data[19108];
-const uint64_t matmul_q4_1_f32_f16acc_coopmat_len = 19108;
+extern unsigned char matmul_q4_1_f32_f16acc_coopmat_data[19220];
+const uint64_t matmul_q4_1_f32_f16acc_coopmat_len = 19220;
 
-extern unsigned char matmul_q4_1_f32_aligned_f16acc_coopmat_data[19928];
-const uint64_t matmul_q4_1_f32_aligned_f16acc_coopmat_len = 19928;
+extern unsigned char matmul_q4_1_f32_aligned_f16acc_coopmat_data[20040];
+const uint64_t matmul_q4_1_f32_aligned_f16acc_coopmat_len = 20040;
 
-extern unsigned char matmul_q4_1_f16_f16acc_coopmat_data[19092];
-const uint64_t matmul_q4_1_f16_f16acc_coopmat_len = 19092;
+extern unsigned char matmul_q4_1_f16_f16acc_coopmat_data[19204];
+const uint64_t matmul_q4_1_f16_f16acc_coopmat_len = 19204;
 
-extern unsigned char matmul_q4_1_f16_aligned_f16acc_coopmat_data[19800];
-const uint64_t matmul_q4_1_f16_aligned_f16acc_coopmat_len = 19800;
+extern unsigned char matmul_q4_1_f16_aligned_f16acc_coopmat_data[19912];
+const uint64_t matmul_q4_1_f16_aligned_f16acc_coopmat_len = 19912;
 
-extern unsigned char matmul_q5_0_f32_f16acc_coopmat_data[19800];
-const uint64_t matmul_q5_0_f32_f16acc_coopmat_len = 19800;
+extern unsigned char matmul_q5_0_f32_f16acc_coopmat_data[19912];
+const uint64_t matmul_q5_0_f32_f16acc_coopmat_len = 19912;
 
-extern unsigned char matmul_q5_0_f32_aligned_f16acc_coopmat_data[20620];
-const uint64_t matmul_q5_0_f32_aligned_f16acc_coopmat_len = 20620;
+extern unsigned char matmul_q5_0_f32_aligned_f16acc_coopmat_data[20732];
+const uint64_t matmul_q5_0_f32_aligned_f16acc_coopmat_len = 20732;
 
-extern unsigned char matmul_q5_0_f16_f16acc_coopmat_data[19784];
-const uint64_t matmul_q5_0_f16_f16acc_coopmat_len = 19784;
+extern unsigned char matmul_q5_0_f16_f16acc_coopmat_data[19896];
+const uint64_t matmul_q5_0_f16_f16acc_coopmat_len = 19896;
 
-extern unsigned char matmul_q5_0_f16_aligned_f16acc_coopmat_data[20492];
-const uint64_t matmul_q5_0_f16_aligned_f16acc_coopmat_len = 20492;
+extern unsigned char matmul_q5_0_f16_aligned_f16acc_coopmat_data[20604];
+const uint64_t matmul_q5_0_f16_aligned_f16acc_coopmat_len = 20604;
 
-extern unsigned char matmul_q5_1_f32_f16acc_coopmat_data[19752];
-const uint64_t matmul_q5_1_f32_f16acc_coopmat_len = 19752;
+extern unsigned char matmul_q5_1_f32_f16acc_coopmat_data[19864];
+const uint64_t matmul_q5_1_f32_f16acc_coopmat_len = 19864;
 
-extern unsigned char matmul_q5_1_f32_aligned_f16acc_coopmat_data[20572];
-const uint64_t matmul_q5_1_f32_aligned_f16acc_coopmat_len = 20572;
+extern unsigned char matmul_q5_1_f32_aligned_f16acc_coopmat_data[20684];
+const uint64_t matmul_q5_1_f32_aligned_f16acc_coopmat_len = 20684;
 
-extern unsigned char matmul_q5_1_f16_f16acc_coopmat_data[19736];
-const uint64_t matmul_q5_1_f16_f16acc_coopmat_len = 19736;
+extern unsigned char matmul_q5_1_f16_f16acc_coopmat_data[19848];
+const uint64_t matmul_q5_1_f16_f16acc_coopmat_len = 19848;
 
-extern unsigned char matmul_q5_1_f16_aligned_f16acc_coopmat_data[20444];
-const uint64_t matmul_q5_1_f16_aligned_f16acc_coopmat_len = 20444;
+extern unsigned char matmul_q5_1_f16_aligned_f16acc_coopmat_data[20556];
+const uint64_t matmul_q5_1_f16_aligned_f16acc_coopmat_len = 20556;
 
-extern unsigned char matmul_q8_0_f32_f16acc_coopmat_data[18956];
-const uint64_t matmul_q8_0_f32_f16acc_coopmat_len = 18956;
+extern unsigned char matmul_q8_0_f32_f16acc_coopmat_data[19068];
+const uint64_t matmul_q8_0_f32_f16acc_coopmat_len = 19068;
 
-extern unsigned char matmul_q8_0_f32_aligned_f16acc_coopmat_data[19776];
-const uint64_t matmul_q8_0_f32_aligned_f16acc_coopmat_len = 19776;
+extern unsigned char matmul_q8_0_f32_aligned_f16acc_coopmat_data[19888];
+const uint64_t matmul_q8_0_f32_aligned_f16acc_coopmat_len = 19888;
 
-extern unsigned char matmul_q8_0_f16_f16acc_coopmat_data[18940];
-const uint64_t matmul_q8_0_f16_f16acc_coopmat_len = 18940;
+extern unsigned char matmul_q8_0_f16_f16acc_coopmat_data[19052];
+const uint64_t matmul_q8_0_f16_f16acc_coopmat_len = 19052;
 
-extern unsigned char matmul_q8_0_f16_aligned_f16acc_coopmat_data[19648];
-const uint64_t matmul_q8_0_f16_aligned_f16acc_coopmat_len = 19648;
+extern unsigned char matmul_q8_0_f16_aligned_f16acc_coopmat_data[19760];
+const uint64_t matmul_q8_0_f16_aligned_f16acc_coopmat_len = 19760;
 
-extern unsigned char matmul_q2_k_f32_f16acc_coopmat_data[19980];
-const uint64_t matmul_q2_k_f32_f16acc_coopmat_len = 19980;
+extern unsigned char matmul_q2_k_f32_f16acc_coopmat_data[20092];
+const uint64_t matmul_q2_k_f32_f16acc_coopmat_len = 20092;
 
-extern unsigned char matmul_q2_k_f32_aligned_f16acc_coopmat_data[20800];
-const uint64_t matmul_q2_k_f32_aligned_f16acc_coopmat_len = 20800;
+extern unsigned char matmul_q2_k_f32_aligned_f16acc_coopmat_data[20912];
+const uint64_t matmul_q2_k_f32_aligned_f16acc_coopmat_len = 20912;
 
-extern unsigned char matmul_q2_k_f16_f16acc_coopmat_data[19980];
-const uint64_t matmul_q2_k_f16_f16acc_coopmat_len = 19980;
+extern unsigned char matmul_q2_k_f16_f16acc_coopmat_data[20092];
+const uint64_t matmul_q2_k_f16_f16acc_coopmat_len = 20092;
 
-extern unsigned char matmul_q2_k_f16_aligned_f16acc_coopmat_data[20688];
-const uint64_t matmul_q2_k_f16_aligned_f16acc_coopmat_len = 20688;
+extern unsigned char matmul_q2_k_f16_aligned_f16acc_coopmat_data[20800];
+const uint64_t matmul_q2_k_f16_aligned_f16acc_coopmat_len = 20800;
 
-extern unsigned char matmul_q3_k_f32_f16acc_coopmat_data[22608];
-const uint64_t matmul_q3_k_f32_f16acc_coopmat_len = 22608;
+extern unsigned char matmul_q3_k_f32_f16acc_coopmat_data[22720];
+const uint64_t matmul_q3_k_f32_f16acc_coopmat_len = 22720;
 
-extern unsigned char matmul_q3_k_f32_aligned_f16acc_coopmat_data[23428];
-const uint64_t matmul_q3_k_f32_aligned_f16acc_coopmat_len = 23428;
+extern unsigned char matmul_q3_k_f32_aligned_f16acc_coopmat_data[23540];
+const uint64_t matmul_q3_k_f32_aligned_f16acc_coopmat_len = 23540;
 
-extern unsigned char matmul_q3_k_f16_f16acc_coopmat_data[22592];
-const uint64_t matmul_q3_k_f16_f16acc_coopmat_len = 22592;
+extern unsigned char matmul_q3_k_f16_f16acc_coopmat_data[22704];
+const uint64_t matmul_q3_k_f16_f16acc_coopmat_len = 22704;
 
-extern unsigned char matmul_q3_k_f16_aligned_f16acc_coopmat_data[23300];
-const uint64_t matmul_q3_k_f16_aligned_f16acc_coopmat_len = 23300;
+extern unsigned char matmul_q3_k_f16_aligned_f16acc_coopmat_data[23412];
+const uint64_t matmul_q3_k_f16_aligned_f16acc_coopmat_len = 23412;
 
-extern unsigned char matmul_q4_k_f32_f16acc_coopmat_data[22388];
-const uint64_t matmul_q4_k_f32_f16acc_coopmat_len = 22388;
+extern unsigned char matmul_q4_k_f32_f16acc_coopmat_data[22500];
+const uint64_t matmul_q4_k_f32_f16acc_coopmat_len = 22500;
 
-extern unsigned char matmul_q4_k_f32_aligned_f16acc_coopmat_data[23208];
-const uint64_t matmul_q4_k_f32_aligned_f16acc_coopmat_len = 23208;
+extern unsigned char matmul_q4_k_f32_aligned_f16acc_coopmat_data[23320];
+const uint64_t matmul_q4_k_f32_aligned_f16acc_coopmat_len = 23320;
 
-extern unsigned char matmul_q4_k_f16_f16acc_coopmat_data[22388];
-const uint64_t matmul_q4_k_f16_f16acc_coopmat_len = 22388;
+extern unsigned char matmul_q4_k_f16_f16acc_coopmat_data[22500];
+const uint64_t matmul_q4_k_f16_f16acc_coopmat_len = 22500;
 
-extern unsigned char matmul_q4_k_f16_aligned_f16acc_coopmat_data[23096];
-const uint64_t matmul_q4_k_f16_aligned_f16acc_coopmat_len = 23096;
+extern unsigned char matmul_q4_k_f16_aligned_f16acc_coopmat_data[23208];
+const uint64_t matmul_q4_k_f16_aligned_f16acc_coopmat_len = 23208;
 
-extern unsigned char matmul_q5_k_f32_f16acc_coopmat_data[23192];
-const uint64_t matmul_q5_k_f32_f16acc_coopmat_len = 23192;
+extern unsigned char matmul_q5_k_f32_f16acc_coopmat_data[23304];
+const uint64_t matmul_q5_k_f32_f16acc_coopmat_len = 23304;
 
-extern unsigned char matmul_q5_k_f32_aligned_f16acc_coopmat_data[24012];
-const uint64_t matmul_q5_k_f32_aligned_f16acc_coopmat_len = 24012;
+extern unsigned char matmul_q5_k_f32_aligned_f16acc_coopmat_data[24124];
+const uint64_t matmul_q5_k_f32_aligned_f16acc_coopmat_len = 24124;
 
-extern unsigned char matmul_q5_k_f16_f16acc_coopmat_data[23192];
-const uint64_t matmul_q5_k_f16_f16acc_coopmat_len = 23192;
+extern unsigned char matmul_q5_k_f16_f16acc_coopmat_data[23304];
+const uint64_t matmul_q5_k_f16_f16acc_coopmat_len = 23304;
 
-extern unsigned char matmul_q5_k_f16_aligned_f16acc_coopmat_data[23900];
-const uint64_t matmul_q5_k_f16_aligned_f16acc_coopmat_len = 23900;
+extern unsigned char matmul_q5_k_f16_aligned_f16acc_coopmat_data[24012];
+const uint64_t matmul_q5_k_f16_aligned_f16acc_coopmat_len = 24012;
 
-extern unsigned char matmul_q6_k_f32_f16acc_coopmat_data[20732];
-const uint64_t matmul_q6_k_f32_f16acc_coopmat_len = 20732;
+extern unsigned char matmul_q6_k_f32_f16acc_coopmat_data[20844];
+const uint64_t matmul_q6_k_f32_f16acc_coopmat_len = 20844;
 
-extern unsigned char matmul_q6_k_f32_aligned_f16acc_coopmat_data[21552];
-const uint64_t matmul_q6_k_f32_aligned_f16acc_coopmat_len = 21552;
+extern unsigned char matmul_q6_k_f32_aligned_f16acc_coopmat_data[21664];
+const uint64_t matmul_q6_k_f32_aligned_f16acc_coopmat_len = 21664;
 
-extern unsigned char matmul_q6_k_f16_f16acc_coopmat_data[20716];
-const uint64_t matmul_q6_k_f16_f16acc_coopmat_len = 20716;
+extern unsigned char matmul_q6_k_f16_f16acc_coopmat_data[20828];
+const uint64_t matmul_q6_k_f16_f16acc_coopmat_len = 20828;
 
-extern unsigned char matmul_q6_k_f16_aligned_f16acc_coopmat_data[21424];
-const uint64_t matmul_q6_k_f16_aligned_f16acc_coopmat_len = 21424;
+extern unsigned char matmul_q6_k_f16_aligned_f16acc_coopmat_data[21536];
+const uint64_t matmul_q6_k_f16_aligned_f16acc_coopmat_len = 21536;
 
-extern unsigned char matmul_iq4_nl_f32_f16acc_coopmat_data[19896];
-const uint64_t matmul_iq4_nl_f32_f16acc_coopmat_len = 19896;
+extern unsigned char matmul_iq4_nl_f32_f16acc_coopmat_data[20008];
+const uint64_t matmul_iq4_nl_f32_f16acc_coopmat_len = 20008;
 
-extern unsigned char matmul_iq4_nl_f32_aligned_f16acc_coopmat_data[20716];
-const uint64_t matmul_iq4_nl_f32_aligned_f16acc_coopmat_len = 20716;
+extern unsigned char matmul_iq4_nl_f32_aligned_f16acc_coopmat_data[20828];
+const uint64_t matmul_iq4_nl_f32_aligned_f16acc_coopmat_len = 20828;
 
-extern unsigned char matmul_iq4_nl_f16_f16acc_coopmat_data[19880];
-const uint64_t matmul_iq4_nl_f16_f16acc_coopmat_len = 19880;
+extern unsigned char matmul_iq4_nl_f16_f16acc_coopmat_data[19992];
+const uint64_t matmul_iq4_nl_f16_f16acc_coopmat_len = 19992;
 
-extern unsigned char matmul_iq4_nl_f16_aligned_f16acc_coopmat_data[20588];
-const uint64_t matmul_iq4_nl_f16_aligned_f16acc_coopmat_len = 20588;
+extern unsigned char matmul_iq4_nl_f16_aligned_f16acc_coopmat_data[20700];
+const uint64_t matmul_iq4_nl_f16_aligned_f16acc_coopmat_len = 20700;
 
 extern unsigned char matmul_id_f32_f16_fp32_data[10780];
 const uint64_t matmul_id_f32_f16_fp32_len = 10780;
@@ -1248,317 +1248,317 @@ const uint64_t matmul_id_iq4_nl_f16_f16acc_len = 11760;
 extern unsigned char matmul_id_iq4_nl_f16_aligned_f16acc_data[12472];
 const uint64_t matmul_id_iq4_nl_f16_aligned_f16acc_len = 12472;
 
-extern unsigned char matmul_id_f32_f16_coopmat_data[15372];
-const uint64_t matmul_id_f32_f16_coopmat_len = 15372;
+extern unsigned char matmul_id_f32_f16_coopmat_data[15432];
+const uint64_t matmul_id_f32_f16_coopmat_len = 15432;
 
-extern unsigned char matmul_id_f32_f16_aligned_coopmat_data[17072];
-const uint64_t matmul_id_f32_f16_aligned_coopmat_len = 17072;
+extern unsigned char matmul_id_f32_f16_aligned_coopmat_data[17132];
+const uint64_t matmul_id_f32_f16_aligned_coopmat_len = 17132;
 
-extern unsigned char matmul_id_f16_aligned_coopmat_data[16912];
-const uint64_t matmul_id_f16_aligned_coopmat_len = 16912;
+extern unsigned char matmul_id_f16_aligned_coopmat_data[16972];
+const uint64_t matmul_id_f16_aligned_coopmat_len = 16972;
 
-extern unsigned char matmul_id_f16_coopmat_data[15356];
-const uint64_t matmul_id_f16_coopmat_len = 15356;
+extern unsigned char matmul_id_f16_coopmat_data[15416];
+const uint64_t matmul_id_f16_coopmat_len = 15416;
 
-extern unsigned char matmul_id_f32_f32_coopmat_data[15364];
-const uint64_t matmul_id_f32_f32_coopmat_len = 15364;
+extern unsigned char matmul_id_f32_f32_coopmat_data[15424];
+const uint64_t matmul_id_f32_f32_coopmat_len = 15424;
 
-extern unsigned char matmul_id_f32_f32_aligned_coopmat_data[17144];
-const uint64_t matmul_id_f32_f32_aligned_coopmat_len = 17144;
+extern unsigned char matmul_id_f32_f32_aligned_coopmat_data[17204];
+const uint64_t matmul_id_f32_f32_aligned_coopmat_len = 17204;
 
-extern unsigned char matmul_id_f16_f32_coopmat_data[15372];
-const uint64_t matmul_id_f16_f32_coopmat_len = 15372;
+extern unsigned char matmul_id_f16_f32_coopmat_data[15432];
+const uint64_t matmul_id_f16_f32_coopmat_len = 15432;
 
-extern unsigned char matmul_id_f16_f32_aligned_coopmat_data[17072];
-const uint64_t matmul_id_f16_f32_aligned_coopmat_len = 17072;
+extern unsigned char matmul_id_f16_f32_aligned_coopmat_data[17132];
+const uint64_t matmul_id_f16_f32_aligned_coopmat_len = 17132;
 
-extern unsigned char matmul_id_q4_0_f32_coopmat_data[15980];
-const uint64_t matmul_id_q4_0_f32_coopmat_len = 15980;
+extern unsigned char matmul_id_q4_0_f32_coopmat_data[16040];
+const uint64_t matmul_id_q4_0_f32_coopmat_len = 16040;
 
-extern unsigned char matmul_id_q4_0_f32_aligned_coopmat_data[17040];
-const uint64_t matmul_id_q4_0_f32_aligned_coopmat_len = 17040;
+extern unsigned char matmul_id_q4_0_f32_aligned_coopmat_data[17100];
+const uint64_t matmul_id_q4_0_f32_aligned_coopmat_len = 17100;
 
-extern unsigned char matmul_id_q4_0_f16_coopmat_data[15964];
-const uint64_t matmul_id_q4_0_f16_coopmat_len = 15964;
+extern unsigned char matmul_id_q4_0_f16_coopmat_data[16024];
+const uint64_t matmul_id_q4_0_f16_coopmat_len = 16024;
 
-extern unsigned char matmul_id_q4_0_f16_aligned_coopmat_data[16912];
-const uint64_t matmul_id_q4_0_f16_aligned_coopmat_len = 16912;
+extern unsigned char matmul_id_q4_0_f16_aligned_coopmat_data[16972];
+const uint64_t matmul_id_q4_0_f16_aligned_coopmat_len = 16972;
 
-extern unsigned char matmul_id_q4_1_f32_coopmat_data[16136];
-const uint64_t matmul_id_q4_1_f32_coopmat_len = 16136;
+extern unsigned char matmul_id_q4_1_f32_coopmat_data[16196];
+const uint64_t matmul_id_q4_1_f32_coopmat_len = 16196;
 
-extern unsigned char matmul_id_q4_1_f32_aligned_coopmat_data[17196];
-const uint64_t matmul_id_q4_1_f32_aligned_coopmat_len = 17196;
+extern unsigned char matmul_id_q4_1_f32_aligned_coopmat_data[17256];
+const uint64_t matmul_id_q4_1_f32_aligned_coopmat_len = 17256;
 
-extern unsigned char matmul_id_q4_1_f16_coopmat_data[16120];
-const uint64_t matmul_id_q4_1_f16_coopmat_len = 16120;
+extern unsigned char matmul_id_q4_1_f16_coopmat_data[16180];
+const uint64_t matmul_id_q4_1_f16_coopmat_len = 16180;
 
-extern unsigned char matmul_id_q4_1_f16_aligned_coopmat_data[17068];
-const uint64_t matmul_id_q4_1_f16_aligned_coopmat_len = 17068;
+extern unsigned char matmul_id_q4_1_f16_aligned_coopmat_data[17128];
+const uint64_t matmul_id_q4_1_f16_aligned_coopmat_len = 17128;
 
-extern unsigned char matmul_id_q5_0_f32_coopmat_data[16812];
-const uint64_t matmul_id_q5_0_f32_coopmat_len = 16812;
+extern unsigned char matmul_id_q5_0_f32_coopmat_data[16872];
+const uint64_t matmul_id_q5_0_f32_coopmat_len = 16872;
 
-extern unsigned char matmul_id_q5_0_f32_aligned_coopmat_data[17872];
-const uint64_t matmul_id_q5_0_f32_aligned_coopmat_len = 17872;
+extern unsigned char matmul_id_q5_0_f32_aligned_coopmat_data[17932];
+const uint64_t matmul_id_q5_0_f32_aligned_coopmat_len = 17932;
 
-extern unsigned char matmul_id_q5_0_f16_coopmat_data[16796];
-const uint64_t matmul_id_q5_0_f16_coopmat_len = 16796;
+extern unsigned char matmul_id_q5_0_f16_coopmat_data[16856];
+const uint64_t matmul_id_q5_0_f16_coopmat_len = 16856;
 
-extern unsigned char matmul_id_q5_0_f16_aligned_coopmat_data[17744];
-const uint64_t matmul_id_q5_0_f16_aligned_coopmat_len = 17744;
+extern unsigned char matmul_id_q5_0_f16_aligned_coopmat_data[17804];
+const uint64_t matmul_id_q5_0_f16_aligned_coopmat_len = 17804;
 
-extern unsigned char matmul_id_q5_1_f32_coopmat_data[16780];
-const uint64_t matmul_id_q5_1_f32_coopmat_len = 16780;
+extern unsigned char matmul_id_q5_1_f32_coopmat_data[16840];
+const uint64_t matmul_id_q5_1_f32_coopmat_len = 16840;
 
-extern unsigned char matmul_id_q5_1_f32_aligned_coopmat_data[17840];
-const uint64_t matmul_id_q5_1_f32_aligned_coopmat_len = 17840;
+extern unsigned char matmul_id_q5_1_f32_aligned_coopmat_data[17900];
+const uint64_t matmul_id_q5_1_f32_aligned_coopmat_len = 17900;
 
-extern unsigned char matmul_id_q5_1_f16_coopmat_data[16764];
-const uint64_t matmul_id_q5_1_f16_coopmat_len = 16764;
+extern unsigned char matmul_id_q5_1_f16_coopmat_data[16824];
+const uint64_t matmul_id_q5_1_f16_coopmat_len = 16824;
 
-extern unsigned char matmul_id_q5_1_f16_aligned_coopmat_data[17712];
-const uint64_t matmul_id_q5_1_f16_aligned_coopmat_len = 17712;
+extern unsigned char matmul_id_q5_1_f16_aligned_coopmat_data[17772];
+const uint64_t matmul_id_q5_1_f16_aligned_coopmat_len = 17772;
 
-extern unsigned char matmul_id_q8_0_f32_coopmat_data[15984];
-const uint64_t matmul_id_q8_0_f32_coopmat_len = 15984;
+extern unsigned char matmul_id_q8_0_f32_coopmat_data[16044];
+const uint64_t matmul_id_q8_0_f32_coopmat_len = 16044;
 
-extern unsigned char matmul_id_q8_0_f32_aligned_coopmat_data[17044];
-const uint64_t matmul_id_q8_0_f32_aligned_coopmat_len = 17044;
+extern unsigned char matmul_id_q8_0_f32_aligned_coopmat_data[17104];
+const uint64_t matmul_id_q8_0_f32_aligned_coopmat_len = 17104;
 
-extern unsigned char matmul_id_q8_0_f16_coopmat_data[15968];
-const uint64_t matmul_id_q8_0_f16_coopmat_len = 15968;
+extern unsigned char matmul_id_q8_0_f16_coopmat_data[16028];
+const uint64_t matmul_id_q8_0_f16_coopmat_len = 16028;
 
-extern unsigned char matmul_id_q8_0_f16_aligned_coopmat_data[16916];
-const uint64_t matmul_id_q8_0_f16_aligned_coopmat_len = 16916;
+extern unsigned char matmul_id_q8_0_f16_aligned_coopmat_data[16976];
+const uint64_t matmul_id_q8_0_f16_aligned_coopmat_len = 16976;
 
-extern unsigned char matmul_id_q2_k_f32_coopmat_data[17008];
-const uint64_t matmul_id_q2_k_f32_coopmat_len = 17008;
+extern unsigned char matmul_id_q2_k_f32_coopmat_data[17068];
+const uint64_t matmul_id_q2_k_f32_coopmat_len = 17068;
 
-extern unsigned char matmul_id_q2_k_f32_aligned_coopmat_data[18068];
-const uint64_t matmul_id_q2_k_f32_aligned_coopmat_len = 18068;
+extern unsigned char matmul_id_q2_k_f32_aligned_coopmat_data[18128];
+const uint64_t matmul_id_q2_k_f32_aligned_coopmat_len = 18128;
 
-extern unsigned char matmul_id_q2_k_f16_coopmat_data[17008];
-const uint64_t matmul_id_q2_k_f16_coopmat_len = 17008;
+extern unsigned char matmul_id_q2_k_f16_coopmat_data[17068];
+const uint64_t matmul_id_q2_k_f16_coopmat_len = 17068;
 
-extern unsigned char matmul_id_q2_k_f16_aligned_coopmat_data[17956];
-const uint64_t matmul_id_q2_k_f16_aligned_coopmat_len = 17956;
+extern unsigned char matmul_id_q2_k_f16_aligned_coopmat_data[18016];
+const uint64_t matmul_id_q2_k_f16_aligned_coopmat_len = 18016;
 
-extern unsigned char matmul_id_q3_k_f32_coopmat_data[19652];
-const uint64_t matmul_id_q3_k_f32_coopmat_len = 19652;
+extern unsigned char matmul_id_q3_k_f32_coopmat_data[19712];
+const uint64_t matmul_id_q3_k_f32_coopmat_len = 19712;
 
-extern unsigned char matmul_id_q3_k_f32_aligned_coopmat_data[20696];
-const uint64_t matmul_id_q3_k_f32_aligned_coopmat_len = 20696;
+extern unsigned char matmul_id_q3_k_f32_aligned_coopmat_data[20756];
+const uint64_t matmul_id_q3_k_f32_aligned_coopmat_len = 20756;
 
-extern unsigned char matmul_id_q3_k_f16_coopmat_data[19636];
-const uint64_t matmul_id_q3_k_f16_coopmat_len = 19636;
+extern unsigned char matmul_id_q3_k_f16_coopmat_data[19696];
+const uint64_t matmul_id_q3_k_f16_coopmat_len = 19696;
 
-extern unsigned char matmul_id_q3_k_f16_aligned_coopmat_data[20568];
-const uint64_t matmul_id_q3_k_f16_aligned_coopmat_len = 20568;
+extern unsigned char matmul_id_q3_k_f16_aligned_coopmat_data[20628];
+const uint64_t matmul_id_q3_k_f16_aligned_coopmat_len = 20628;
 
-extern unsigned char matmul_id_q4_k_f32_coopmat_data[19432];
-const uint64_t matmul_id_q4_k_f32_coopmat_len = 19432;
+extern unsigned char matmul_id_q4_k_f32_coopmat_data[19492];
+const uint64_t matmul_id_q4_k_f32_coopmat_len = 19492;
 
-extern unsigned char matmul_id_q4_k_f32_aligned_coopmat_data[20476];
-const uint64_t matmul_id_q4_k_f32_aligned_coopmat_len = 20476;
+extern unsigned char matmul_id_q4_k_f32_aligned_coopmat_data[20536];
+const uint64_t matmul_id_q4_k_f32_aligned_coopmat_len = 20536;
 
-extern unsigned char matmul_id_q4_k_f16_coopmat_data[19432];
-const uint64_t matmul_id_q4_k_f16_coopmat_len = 19432;
+extern unsigned char matmul_id_q4_k_f16_coopmat_data[19492];
+const uint64_t matmul_id_q4_k_f16_coopmat_len = 19492;
 
-extern unsigned char matmul_id_q4_k_f16_aligned_coopmat_data[20364];
-const uint64_t matmul_id_q4_k_f16_aligned_coopmat_len = 20364;
+extern unsigned char matmul_id_q4_k_f16_aligned_coopmat_data[20424];
+const uint64_t matmul_id_q4_k_f16_aligned_coopmat_len = 20424;
 
-extern unsigned char matmul_id_q5_k_f32_coopmat_data[20236];
-const uint64_t matmul_id_q5_k_f32_coopmat_len = 20236;
+extern unsigned char matmul_id_q5_k_f32_coopmat_data[20296];
+const uint64_t matmul_id_q5_k_f32_coopmat_len = 20296;
 
-extern unsigned char matmul_id_q5_k_f32_aligned_coopmat_data[21280];
-const uint64_t matmul_id_q5_k_f32_aligned_coopmat_len = 21280;
+extern unsigned char matmul_id_q5_k_f32_aligned_coopmat_data[21340];
+const uint64_t matmul_id_q5_k_f32_aligned_coopmat_len = 21340;
 
-extern unsigned char matmul_id_q5_k_f16_coopmat_data[20236];
-const uint64_t matmul_id_q5_k_f16_coopmat_len = 20236;
+extern unsigned char matmul_id_q5_k_f16_coopmat_data[20296];
+const uint64_t matmul_id_q5_k_f16_coopmat_len = 20296;
 
-extern unsigned char matmul_id_q5_k_f16_aligned_coopmat_data[21168];
-const uint64_t matmul_id_q5_k_f16_aligned_coopmat_len = 21168;
+extern unsigned char matmul_id_q5_k_f16_aligned_coopmat_data[21228];
+const uint64_t matmul_id_q5_k_f16_aligned_coopmat_len = 21228;
 
-extern unsigned char matmul_id_q6_k_f32_coopmat_data[17776];
-const uint64_t matmul_id_q6_k_f32_coopmat_len = 17776;
+extern unsigned char matmul_id_q6_k_f32_coopmat_data[17836];
+const uint64_t matmul_id_q6_k_f32_coopmat_len = 17836;
 
-extern unsigned char matmul_id_q6_k_f32_aligned_coopmat_data[18820];
-const uint64_t matmul_id_q6_k_f32_aligned_coopmat_len = 18820;
+extern unsigned char matmul_id_q6_k_f32_aligned_coopmat_data[18880];
+const uint64_t matmul_id_q6_k_f32_aligned_coopmat_len = 18880;
 
-extern unsigned char matmul_id_q6_k_f16_coopmat_data[17760];
-const uint64_t matmul_id_q6_k_f16_coopmat_len = 17760;
+extern unsigned char matmul_id_q6_k_f16_coopmat_data[17820];
+const uint64_t matmul_id_q6_k_f16_coopmat_len = 17820;
 
-extern unsigned char matmul_id_q6_k_f16_aligned_coopmat_data[18692];
-const uint64_t matmul_id_q6_k_f16_aligned_coopmat_len = 18692;
+extern unsigned char matmul_id_q6_k_f16_aligned_coopmat_data[18752];
+const uint64_t matmul_id_q6_k_f16_aligned_coopmat_len = 18752;
 
-extern unsigned char matmul_id_iq4_nl_f32_coopmat_data[16924];
-const uint64_t matmul_id_iq4_nl_f32_coopmat_len = 16924;
+extern unsigned char matmul_id_iq4_nl_f32_coopmat_data[16984];
+const uint64_t matmul_id_iq4_nl_f32_coopmat_len = 16984;
 
-extern unsigned char matmul_id_iq4_nl_f32_aligned_coopmat_data[17984];
-const uint64_t matmul_id_iq4_nl_f32_aligned_coopmat_len = 17984;
+extern unsigned char matmul_id_iq4_nl_f32_aligned_coopmat_data[18044];
+const uint64_t matmul_id_iq4_nl_f32_aligned_coopmat_len = 18044;
 
-extern unsigned char matmul_id_iq4_nl_f16_coopmat_data[16908];
-const uint64_t matmul_id_iq4_nl_f16_coopmat_len = 16908;
+extern unsigned char matmul_id_iq4_nl_f16_coopmat_data[16968];
+const uint64_t matmul_id_iq4_nl_f16_coopmat_len = 16968;
 
-extern unsigned char matmul_id_iq4_nl_f16_aligned_coopmat_data[17856];
-const uint64_t matmul_id_iq4_nl_f16_aligned_coopmat_len = 17856;
+extern unsigned char matmul_id_iq4_nl_f16_aligned_coopmat_data[17916];
+const uint64_t matmul_id_iq4_nl_f16_aligned_coopmat_len = 17916;
 
-extern unsigned char matmul_id_f32_f16_f16acc_coopmat_data[15356];
-const uint64_t matmul_id_f32_f16_f16acc_coopmat_len = 15356;
+extern unsigned char matmul_id_f32_f16_f16acc_coopmat_data[15416];
+const uint64_t matmul_id_f32_f16_f16acc_coopmat_len = 15416;
 
-extern unsigned char matmul_id_f32_f16_aligned_f16acc_coopmat_data[17072];
-const uint64_t matmul_id_f32_f16_aligned_f16acc_coopmat_len = 17072;
+extern unsigned char matmul_id_f32_f16_aligned_f16acc_coopmat_data[17132];
+const uint64_t matmul_id_f32_f16_aligned_f16acc_coopmat_len = 17132;
 
-extern unsigned char matmul_id_f16_aligned_f16acc_coopmat_data[16912];
-const uint64_t matmul_id_f16_aligned_f16acc_coopmat_len = 16912;
+extern unsigned char matmul_id_f16_aligned_f16acc_coopmat_data[16972];
+const uint64_t matmul_id_f16_aligned_f16acc_coopmat_len = 16972;
 
-extern unsigned char matmul_id_f16_f16acc_coopmat_data[15340];
-const uint64_t matmul_id_f16_f16acc_coopmat_len = 15340;
+extern unsigned char matmul_id_f16_f16acc_coopmat_data[15400];
+const uint64_t matmul_id_f16_f16acc_coopmat_len = 15400;
 
-extern unsigned char matmul_id_f32_f32_f16acc_coopmat_data[15348];
-const uint64_t matmul_id_f32_f32_f16acc_coopmat_len = 15348;
+extern unsigned char matmul_id_f32_f32_f16acc_coopmat_data[15408];
+const uint64_t matmul_id_f32_f32_f16acc_coopmat_len = 15408;
 
-extern unsigned char matmul_id_f32_f32_aligned_f16acc_coopmat_data[17144];
-const uint64_t matmul_id_f32_f32_aligned_f16acc_coopmat_len = 17144;
+extern unsigned char matmul_id_f32_f32_aligned_f16acc_coopmat_data[17204];
+const uint64_t matmul_id_f32_f32_aligned_f16acc_coopmat_len = 17204;
 
-extern unsigned char matmul_id_f16_f32_f16acc_coopmat_data[15356];
-const uint64_t matmul_id_f16_f32_f16acc_coopmat_len = 15356;
+extern unsigned char matmul_id_f16_f32_f16acc_coopmat_data[15416];
+const uint64_t matmul_id_f16_f32_f16acc_coopmat_len = 15416;
 
-extern unsigned char matmul_id_f16_f32_aligned_f16acc_coopmat_data[17072];
-const uint64_t matmul_id_f16_f32_aligned_f16acc_coopmat_len = 17072;
+extern unsigned char matmul_id_f16_f32_aligned_f16acc_coopmat_data[17132];
+const uint64_t matmul_id_f16_f32_aligned_f16acc_coopmat_len = 17132;
 
-extern unsigned char matmul_id_q4_0_f32_f16acc_coopmat_data[15964];
-const uint64_t matmul_id_q4_0_f32_f16acc_coopmat_len = 15964;
+extern unsigned char matmul_id_q4_0_f32_f16acc_coopmat_data[16024];
+const uint64_t matmul_id_q4_0_f32_f16acc_coopmat_len = 16024;
 
-extern unsigned char matmul_id_q4_0_f32_aligned_f16acc_coopmat_data[17040];
-const uint64_t matmul_id_q4_0_f32_aligned_f16acc_coopmat_len = 17040;
+extern unsigned char matmul_id_q4_0_f32_aligned_f16acc_coopmat_data[17100];
+const uint64_t matmul_id_q4_0_f32_aligned_f16acc_coopmat_len = 17100;
 
-extern unsigned char matmul_id_q4_0_f16_f16acc_coopmat_data[15948];
-const uint64_t matmul_id_q4_0_f16_f16acc_coopmat_len = 15948;
+extern unsigned char matmul_id_q4_0_f16_f16acc_coopmat_data[16008];
+const uint64_t matmul_id_q4_0_f16_f16acc_coopmat_len = 16008;
 
-extern unsigned char matmul_id_q4_0_f16_aligned_f16acc_coopmat_data[16912];
-const uint64_t matmul_id_q4_0_f16_aligned_f16acc_coopmat_len = 16912;
+extern unsigned char matmul_id_q4_0_f16_aligned_f16acc_coopmat_data[16972];
+const uint64_t matmul_id_q4_0_f16_aligned_f16acc_coopmat_len = 16972;
 
-extern unsigned char matmul_id_q4_1_f32_f16acc_coopmat_data[16120];
-const uint64_t matmul_id_q4_1_f32_f16acc_coopmat_len = 16120;
+extern unsigned char matmul_id_q4_1_f32_f16acc_coopmat_data[16180];
+const uint64_t matmul_id_q4_1_f32_f16acc_coopmat_len = 16180;
 
-extern unsigned char matmul_id_q4_1_f32_aligned_f16acc_coopmat_data[17196];
-const uint64_t matmul_id_q4_1_f32_aligned_f16acc_coopmat_len = 17196;
+extern unsigned char matmul_id_q4_1_f32_aligned_f16acc_coopmat_data[17256];
+const uint64_t matmul_id_q4_1_f32_aligned_f16acc_coopmat_len = 17256;
 
-extern unsigned char matmul_id_q4_1_f16_f16acc_coopmat_data[16104];
-const uint64_t matmul_id_q4_1_f16_f16acc_coopmat_len = 16104;
+extern unsigned char matmul_id_q4_1_f16_f16acc_coopmat_data[16164];
+const uint64_t matmul_id_q4_1_f16_f16acc_coopmat_len = 16164;
 
-extern unsigned char matmul_id_q4_1_f16_aligned_f16acc_coopmat_data[17068];
-const uint64_t matmul_id_q4_1_f16_aligned_f16acc_coopmat_len = 17068;
+extern unsigned char matmul_id_q4_1_f16_aligned_f16acc_coopmat_data[17128];
+const uint64_t matmul_id_q4_1_f16_aligned_f16acc_coopmat_len = 17128;
 
-extern unsigned char matmul_id_q5_0_f32_f16acc_coopmat_data[16796];
-const uint64_t matmul_id_q5_0_f32_f16acc_coopmat_len = 16796;
+extern unsigned char matmul_id_q5_0_f32_f16acc_coopmat_data[16856];
+const uint64_t matmul_id_q5_0_f32_f16acc_coopmat_len = 16856;
 
-extern unsigned char matmul_id_q5_0_f32_aligned_f16acc_coopmat_data[17872];
-const uint64_t matmul_id_q5_0_f32_aligned_f16acc_coopmat_len = 17872;
+extern unsigned char matmul_id_q5_0_f32_aligned_f16acc_coopmat_data[17932];
+const uint64_t matmul_id_q5_0_f32_aligned_f16acc_coopmat_len = 17932;
 
-extern unsigned char matmul_id_q5_0_f16_f16acc_coopmat_data[16780];
-const uint64_t matmul_id_q5_0_f16_f16acc_coopmat_len = 16780;
+extern unsigned char matmul_id_q5_0_f16_f16acc_coopmat_data[16840];
+const uint64_t matmul_id_q5_0_f16_f16acc_coopmat_len = 16840;
 
-extern unsigned char matmul_id_q5_0_f16_aligned_f16acc_coopmat_data[17744];
-const uint64_t matmul_id_q5_0_f16_aligned_f16acc_coopmat_len = 17744;
+extern unsigned char matmul_id_q5_0_f16_aligned_f16acc_coopmat_data[17804];
+const uint64_t matmul_id_q5_0_f16_aligned_f16acc_coopmat_len = 17804;
 
-extern unsigned char matmul_id_q5_1_f32_f16acc_coopmat_data[16764];
-const uint64_t matmul_id_q5_1_f32_f16acc_coopmat_len = 16764;
+extern unsigned char matmul_id_q5_1_f32_f16acc_coopmat_data[16824];
+const uint64_t matmul_id_q5_1_f32_f16acc_coopmat_len = 16824;
 
-extern unsigned char matmul_id_q5_1_f32_aligned_f16acc_coopmat_data[17840];
-const uint64_t matmul_id_q5_1_f32_aligned_f16acc_coopmat_len = 17840;
+extern unsigned char matmul_id_q5_1_f32_aligned_f16acc_coopmat_data[17900];
+const uint64_t matmul_id_q5_1_f32_aligned_f16acc_coopmat_len = 17900;
 
-extern unsigned char matmul_id_q5_1_f16_f16acc_coopmat_data[16748];
-const uint64_t matmul_id_q5_1_f16_f16acc_coopmat_len = 16748;
+extern unsigned char matmul_id_q5_1_f16_f16acc_coopmat_data[16808];
+const uint64_t matmul_id_q5_1_f16_f16acc_coopmat_len = 16808;
 
-extern unsigned char matmul_id_q5_1_f16_aligned_f16acc_coopmat_data[17712];
-const uint64_t matmul_id_q5_1_f16_aligned_f16acc_coopmat_len = 17712;
+extern unsigned char matmul_id_q5_1_f16_aligned_f16acc_coopmat_data[17772];
+const uint64_t matmul_id_q5_1_f16_aligned_f16acc_coopmat_len = 17772;
 
-extern unsigned char matmul_id_q8_0_f32_f16acc_coopmat_data[15968];
-const uint64_t matmul_id_q8_0_f32_f16acc_coopmat_len = 15968;
+extern unsigned char matmul_id_q8_0_f32_f16acc_coopmat_data[16028];
+const uint64_t matmul_id_q8_0_f32_f16acc_coopmat_len = 16028;
 
-extern unsigned char matmul_id_q8_0_f32_aligned_f16acc_coopmat_data[17044];
-const uint64_t matmul_id_q8_0_f32_aligned_f16acc_coopmat_len = 17044;
+extern unsigned char matmul_id_q8_0_f32_aligned_f16acc_coopmat_data[17104];
+const uint64_t matmul_id_q8_0_f32_aligned_f16acc_coopmat_len = 17104;
 
-extern unsigned char matmul_id_q8_0_f16_f16acc_coopmat_data[15952];
-const uint64_t matmul_id_q8_0_f16_f16acc_coopmat_len = 15952;
+extern unsigned char matmul_id_q8_0_f16_f16acc_coopmat_data[16012];
+const uint64_t matmul_id_q8_0_f16_f16acc_coopmat_len = 16012;
 
-extern unsigned char matmul_id_q8_0_f16_aligned_f16acc_coopmat_data[16916];
-const uint64_t matmul_id_q8_0_f16_aligned_f16acc_coopmat_len = 16916;
+extern unsigned char matmul_id_q8_0_f16_aligned_f16acc_coopmat_data[16976];
+const uint64_t matmul_id_q8_0_f16_aligned_f16acc_coopmat_len = 16976;
 
-extern unsigned char matmul_id_q2_k_f32_f16acc_coopmat_data[16992];
-const uint64_t matmul_id_q2_k_f32_f16acc_coopmat_len = 16992;
+extern unsigned char matmul_id_q2_k_f32_f16acc_coopmat_data[17052];
+const uint64_t matmul_id_q2_k_f32_f16acc_coopmat_len = 17052;
 
-extern unsigned char matmul_id_q2_k_f32_aligned_f16acc_coopmat_data[18068];
-const uint64_t matmul_id_q2_k_f32_aligned_f16acc_coopmat_len = 18068;
+extern unsigned char matmul_id_q2_k_f32_aligned_f16acc_coopmat_data[18128];
+const uint64_t matmul_id_q2_k_f32_aligned_f16acc_coopmat_len = 18128;
 
-extern unsigned char matmul_id_q2_k_f16_f16acc_coopmat_data[16992];
-const uint64_t matmul_id_q2_k_f16_f16acc_coopmat_len = 16992;
+extern unsigned char matmul_id_q2_k_f16_f16acc_coopmat_data[17052];
+const uint64_t matmul_id_q2_k_f16_f16acc_coopmat_len = 17052;
 
-extern unsigned char matmul_id_q2_k_f16_aligned_f16acc_coopmat_data[17956];
-const uint64_t matmul_id_q2_k_f16_aligned_f16acc_coopmat_len = 17956;
+extern unsigned char matmul_id_q2_k_f16_aligned_f16acc_coopmat_data[18016];
+const uint64_t matmul_id_q2_k_f16_aligned_f16acc_coopmat_len = 18016;
 
-extern unsigned char matmul_id_q3_k_f32_f16acc_coopmat_data[19636];
-const uint64_t matmul_id_q3_k_f32_f16acc_coopmat_len = 19636;
+extern unsigned char matmul_id_q3_k_f32_f16acc_coopmat_data[19696];
+const uint64_t matmul_id_q3_k_f32_f16acc_coopmat_len = 19696;
 
-extern unsigned char matmul_id_q3_k_f32_aligned_f16acc_coopmat_data[20696];
-const uint64_t matmul_id_q3_k_f32_aligned_f16acc_coopmat_len = 20696;
+extern unsigned char matmul_id_q3_k_f32_aligned_f16acc_coopmat_data[20756];
+const uint64_t matmul_id_q3_k_f32_aligned_f16acc_coopmat_len = 20756;
 
-extern unsigned char matmul_id_q3_k_f16_f16acc_coopmat_data[19620];
-const uint64_t matmul_id_q3_k_f16_f16acc_coopmat_len = 19620;
+extern unsigned char matmul_id_q3_k_f16_f16acc_coopmat_data[19680];
+const uint64_t matmul_id_q3_k_f16_f16acc_coopmat_len = 19680;
 
-extern unsigned char matmul_id_q3_k_f16_aligned_f16acc_coopmat_data[20568];
-const uint64_t matmul_id_q3_k_f16_aligned_f16acc_coopmat_len = 20568;
+extern unsigned char matmul_id_q3_k_f16_aligned_f16acc_coopmat_data[20628];
+const uint64_t matmul_id_q3_k_f16_aligned_f16acc_coopmat_len = 20628;
 
-extern unsigned char matmul_id_q4_k_f32_f16acc_coopmat_data[19416];
-const uint64_t matmul_id_q4_k_f32_f16acc_coopmat_len = 19416;
+extern unsigned char matmul_id_q4_k_f32_f16acc_coopmat_data[19476];
+const uint64_t matmul_id_q4_k_f32_f16acc_coopmat_len = 19476;
 
-extern unsigned char matmul_id_q4_k_f32_aligned_f16acc_coopmat_data[20476];
-const uint64_t matmul_id_q4_k_f32_aligned_f16acc_coopmat_len = 20476;
+extern unsigned char matmul_id_q4_k_f32_aligned_f16acc_coopmat_data[20536];
+const uint64_t matmul_id_q4_k_f32_aligned_f16acc_coopmat_len = 20536;
 
-extern unsigned char matmul_id_q4_k_f16_f16acc_coopmat_data[19416];
-const uint64_t matmul_id_q4_k_f16_f16acc_coopmat_len = 19416;
+extern unsigned char matmul_id_q4_k_f16_f16acc_coopmat_data[19476];
+const uint64_t matmul_id_q4_k_f16_f16acc_coopmat_len = 19476;
 
-extern unsigned char matmul_id_q4_k_f16_aligned_f16acc_coopmat_data[20364];
-const uint64_t matmul_id_q4_k_f16_aligned_f16acc_coopmat_len = 20364;
+extern unsigned char matmul_id_q4_k_f16_aligned_f16acc_coopmat_data[20424];
+const uint64_t matmul_id_q4_k_f16_aligned_f16acc_coopmat_len = 20424;
 
-extern unsigned char matmul_id_q5_k_f32_f16acc_coopmat_data[20220];
-const uint64_t matmul_id_q5_k_f32_f16acc_coopmat_len = 20220;
+extern unsigned char matmul_id_q5_k_f32_f16acc_coopmat_data[20280];
+const uint64_t matmul_id_q5_k_f32_f16acc_coopmat_len = 20280;
 
-extern unsigned char matmul_id_q5_k_f32_aligned_f16acc_coopmat_data[21280];
-const uint64_t matmul_id_q5_k_f32_aligned_f16acc_coopmat_len = 21280;
+extern unsigned char matmul_id_q5_k_f32_aligned_f16acc_coopmat_data[21340];
+const uint64_t matmul_id_q5_k_f32_aligned_f16acc_coopmat_len = 21340;
 
-extern unsigned char matmul_id_q5_k_f16_f16acc_coopmat_data[20220];
-const uint64_t matmul_id_q5_k_f16_f16acc_coopmat_len = 20220;
+extern unsigned char matmul_id_q5_k_f16_f16acc_coopmat_data[20280];
+const uint64_t matmul_id_q5_k_f16_f16acc_coopmat_len = 20280;
 
-extern unsigned char matmul_id_q5_k_f16_aligned_f16acc_coopmat_data[21168];
-const uint64_t matmul_id_q5_k_f16_aligned_f16acc_coopmat_len = 21168;
+extern unsigned char matmul_id_q5_k_f16_aligned_f16acc_coopmat_data[21228];
+const uint64_t matmul_id_q5_k_f16_aligned_f16acc_coopmat_len = 21228;
 
-extern unsigned char matmul_id_q6_k_f32_f16acc_coopmat_data[17760];
-const uint64_t matmul_id_q6_k_f32_f16acc_coopmat_len = 17760;
+extern unsigned char matmul_id_q6_k_f32_f16acc_coopmat_data[17820];
+const uint64_t matmul_id_q6_k_f32_f16acc_coopmat_len = 17820;
 
-extern unsigned char matmul_id_q6_k_f32_aligned_f16acc_coopmat_data[18820];
-const uint64_t matmul_id_q6_k_f32_aligned_f16acc_coopmat_len = 18820;
+extern unsigned char matmul_id_q6_k_f32_aligned_f16acc_coopmat_data[18880];
+const uint64_t matmul_id_q6_k_f32_aligned_f16acc_coopmat_len = 18880;
 
-extern unsigned char matmul_id_q6_k_f16_f16acc_coopmat_data[17744];
-const uint64_t matmul_id_q6_k_f16_f16acc_coopmat_len = 17744;
+extern unsigned char matmul_id_q6_k_f16_f16acc_coopmat_data[17804];
+const uint64_t matmul_id_q6_k_f16_f16acc_coopmat_len = 17804;
 
-extern unsigned char matmul_id_q6_k_f16_aligned_f16acc_coopmat_data[18692];
-const uint64_t matmul_id_q6_k_f16_aligned_f16acc_coopmat_len = 18692;
+extern unsigned char matmul_id_q6_k_f16_aligned_f16acc_coopmat_data[18752];
+const uint64_t matmul_id_q6_k_f16_aligned_f16acc_coopmat_len = 18752;
 
-extern unsigned char matmul_id_iq4_nl_f32_f16acc_coopmat_data[16908];
-const uint64_t matmul_id_iq4_nl_f32_f16acc_coopmat_len = 16908;
+extern unsigned char matmul_id_iq4_nl_f32_f16acc_coopmat_data[16968];
+const uint64_t matmul_id_iq4_nl_f32_f16acc_coopmat_len = 16968;
 
-extern unsigned char matmul_id_iq4_nl_f32_aligned_f16acc_coopmat_data[17984];
-const uint64_t matmul_id_iq4_nl_f32_aligned_f16acc_coopmat_len = 17984;
+extern unsigned char matmul_id_iq4_nl_f32_aligned_f16acc_coopmat_data[18044];
+const uint64_t matmul_id_iq4_nl_f32_aligned_f16acc_coopmat_len = 18044;
 
-extern unsigned char matmul_id_iq4_nl_f16_f16acc_coopmat_data[16892];
-const uint64_t matmul_id_iq4_nl_f16_f16acc_coopmat_len = 16892;
+extern unsigned char matmul_id_iq4_nl_f16_f16acc_coopmat_data[16952];
+const uint64_t matmul_id_iq4_nl_f16_f16acc_coopmat_len = 16952;
 
-extern unsigned char matmul_id_iq4_nl_f16_aligned_f16acc_coopmat_data[17856];
-const uint64_t matmul_id_iq4_nl_f16_aligned_f16acc_coopmat_len = 17856;
+extern unsigned char matmul_id_iq4_nl_f16_aligned_f16acc_coopmat_data[17916];
+const uint64_t matmul_id_iq4_nl_f16_aligned_f16acc_coopmat_len = 17916;
 
 extern unsigned char mul_mat_vec_f32_f32_f32_data[16528];
 const uint64_t mul_mat_vec_f32_f32_f32_len = 16528;
@@ -1596,8 +1596,8 @@ const uint64_t get_rows_f16_f32_len = 3312;
 extern unsigned char mul_mat_vec_q4_0_f32_f32_data[21928];
 const uint64_t mul_mat_vec_q4_0_f32_f32_len = 21928;
 
-extern unsigned char mul_mat_vec_q4_0_f16_f32_data[22720];
-const uint64_t mul_mat_vec_q4_0_f16_f32_len = 22720;
+extern unsigned char mul_mat_vec_q4_0_f16_f32_data[22136];
+const uint64_t mul_mat_vec_q4_0_f16_f32_len = 22136;
 
 extern unsigned char mul_mat_vec_id_q4_0_f32_data[21784];
 const uint64_t mul_mat_vec_id_q4_0_f32_len = 21784;
@@ -1614,8 +1614,8 @@ const uint64_t get_rows_q4_0_f32_len = 3748;
 extern unsigned char mul_mat_vec_q4_1_f32_f32_data[24180];
 const uint64_t mul_mat_vec_q4_1_f32_f32_len = 24180;
 
-extern unsigned char mul_mat_vec_q4_1_f16_f32_data[24972];
-const uint64_t mul_mat_vec_q4_1_f16_f32_len = 24972;
+extern unsigned char mul_mat_vec_q4_1_f16_f32_data[24388];
+const uint64_t mul_mat_vec_q4_1_f16_f32_len = 24388;
 
 extern unsigned char mul_mat_vec_id_q4_1_f32_data[24020];
 const uint64_t mul_mat_vec_id_q4_1_f32_len = 24020;
@@ -1632,8 +1632,8 @@ const uint64_t get_rows_q4_1_f32_len = 3832;
 extern unsigned char mul_mat_vec_q5_0_f32_f32_data[28760];
 const uint64_t mul_mat_vec_q5_0_f32_f32_len = 28760;
 
-extern unsigned char mul_mat_vec_q5_0_f16_f32_data[29552];
-const uint64_t mul_mat_vec_q5_0_f16_f32_len = 29552;
+extern unsigned char mul_mat_vec_q5_0_f16_f32_data[28968];
+const uint64_t mul_mat_vec_q5_0_f16_f32_len = 28968;
 
 extern unsigned char mul_mat_vec_id_q5_0_f32_data[28600];
 const uint64_t mul_mat_vec_id_q5_0_f32_len = 28600;
@@ -1650,8 +1650,8 @@ const uint64_t get_rows_q5_0_f32_len = 4276;
 extern unsigned char mul_mat_vec_q5_1_f32_f32_data[30188];
 const uint64_t mul_mat_vec_q5_1_f32_f32_len = 30188;
 
-extern unsigned char mul_mat_vec_q5_1_f16_f32_data[30980];
-const uint64_t mul_mat_vec_q5_1_f16_f32_len = 30980;
+extern unsigned char mul_mat_vec_q5_1_f16_f32_data[30396];
+const uint64_t mul_mat_vec_q5_1_f16_f32_len = 30396;
 
 extern unsigned char mul_mat_vec_id_q5_1_f32_data[30028];
 const uint64_t mul_mat_vec_id_q5_1_f32_len = 30028;
@@ -1683,14 +1683,14 @@ const uint64_t get_rows_q8_0_len = 3704;
 extern unsigned char get_rows_q8_0_f32_data[3688];
 const uint64_t get_rows_q8_0_f32_len = 3688;
 
-extern unsigned char mul_mat_vec_q2_k_f32_f32_data[19580];
-const uint64_t mul_mat_vec_q2_k_f32_f32_len = 19580;
+extern unsigned char mul_mat_vec_q2_k_f32_f32_data[19540];
+const uint64_t mul_mat_vec_q2_k_f32_f32_len = 19540;
 
-extern unsigned char mul_mat_vec_q2_k_f16_f32_data[20060];
-const uint64_t mul_mat_vec_q2_k_f16_f32_len = 20060;
+extern unsigned char mul_mat_vec_q2_k_f16_f32_data[19780];
+const uint64_t mul_mat_vec_q2_k_f16_f32_len = 19780;
 
-extern unsigned char mul_mat_vec_id_q2_k_f32_data[19316];
-const uint64_t mul_mat_vec_id_q2_k_f32_len = 19316;
+extern unsigned char mul_mat_vec_id_q2_k_f32_data[19276];
+const uint64_t mul_mat_vec_id_q2_k_f32_len = 19276;
 
 extern unsigned char dequant_q2_k_data[3960];
 const uint64_t dequant_q2_k_len = 3960;
@@ -1698,8 +1698,8 @@ const uint64_t dequant_q2_k_len = 3960;
 extern unsigned char mul_mat_vec_q3_k_f32_f32_data[26868];
 const uint64_t mul_mat_vec_q3_k_f32_f32_len = 26868;
 
-extern unsigned char mul_mat_vec_q3_k_f16_f32_data[27388];
-const uint64_t mul_mat_vec_q3_k_f16_f32_len = 27388;
+extern unsigned char mul_mat_vec_q3_k_f16_f32_data[27140];
+const uint64_t mul_mat_vec_q3_k_f16_f32_len = 27140;
 
 extern unsigned char mul_mat_vec_id_q3_k_f32_data[26604];
 const uint64_t mul_mat_vec_id_q3_k_f32_len = 26604;
@@ -1707,26 +1707,26 @@ const uint64_t mul_mat_vec_id_q3_k_f32_len = 26604;
 extern unsigned char dequant_q3_k_data[4828];
 const uint64_t dequant_q3_k_len = 4828;
 
-extern unsigned char mul_mat_vec_q4_k_f32_f32_data[18468];
-const uint64_t mul_mat_vec_q4_k_f32_f32_len = 18468;
+extern unsigned char mul_mat_vec_q4_k_f32_f32_data[18444];
+const uint64_t mul_mat_vec_q4_k_f32_f32_len = 18444;
 
-extern unsigned char mul_mat_vec_q4_k_f16_f32_data[18980];
-const uint64_t mul_mat_vec_q4_k_f16_f32_len = 18980;
+extern unsigned char mul_mat_vec_q4_k_f16_f32_data[18588];
+const uint64_t mul_mat_vec_q4_k_f16_f32_len = 18588;
 
-extern unsigned char mul_mat_vec_id_q4_k_f32_data[18204];
-const uint64_t mul_mat_vec_id_q4_k_f32_len = 18204;
+extern unsigned char mul_mat_vec_id_q4_k_f32_data[18180];
+const uint64_t mul_mat_vec_id_q4_k_f32_len = 18180;
 
 extern unsigned char dequant_q4_k_data[5984];
 const uint64_t dequant_q4_k_len = 5984;
 
-extern unsigned char mul_mat_vec_q5_k_f32_f32_data[20028];
-const uint64_t mul_mat_vec_q5_k_f32_f32_len = 20028;
+extern unsigned char mul_mat_vec_q5_k_f32_f32_data[19988];
+const uint64_t mul_mat_vec_q5_k_f32_f32_len = 19988;
 
-extern unsigned char mul_mat_vec_q5_k_f16_f32_data[20508];
-const uint64_t mul_mat_vec_q5_k_f16_f32_len = 20508;
+extern unsigned char mul_mat_vec_q5_k_f16_f32_data[20228];
+const uint64_t mul_mat_vec_q5_k_f16_f32_len = 20228;
 
-extern unsigned char mul_mat_vec_id_q5_k_f32_data[19764];
-const uint64_t mul_mat_vec_id_q5_k_f32_len = 19764;
+extern unsigned char mul_mat_vec_id_q5_k_f32_data[19724];
+const uint64_t mul_mat_vec_id_q5_k_f32_len = 19724;
 
 extern unsigned char dequant_q5_k_data[6032];
 const uint64_t dequant_q5_k_len = 6032;
@@ -1734,8 +1734,8 @@ const uint64_t dequant_q5_k_len = 6032;
 extern unsigned char mul_mat_vec_q6_k_f32_f32_data[19772];
 const uint64_t mul_mat_vec_q6_k_f32_f32_len = 19772;
 
-extern unsigned char mul_mat_vec_q6_k_f16_f32_data[20292];
-const uint64_t mul_mat_vec_q6_k_f16_f32_len = 20292;
+extern unsigned char mul_mat_vec_q6_k_f16_f32_data[19916];
+const uint64_t mul_mat_vec_q6_k_f16_f32_len = 19916;
 
 extern unsigned char mul_mat_vec_id_q6_k_f32_data[19508];
 const uint64_t mul_mat_vec_id_q6_k_f32_len = 19508;
@@ -1746,8 +1746,8 @@ const uint64_t dequant_q6_k_len = 4264;
 extern unsigned char mul_mat_vec_iq4_nl_f32_f32_data[23328];
 const uint64_t mul_mat_vec_iq4_nl_f32_f32_len = 23328;
 
-extern unsigned char mul_mat_vec_iq4_nl_f16_f32_data[24120];
-const uint64_t mul_mat_vec_iq4_nl_f16_f32_len = 24120;
+extern unsigned char mul_mat_vec_iq4_nl_f16_f32_data[23536];
+const uint64_t mul_mat_vec_iq4_nl_f16_f32_len = 23536;
 
 extern unsigned char mul_mat_vec_id_iq4_nl_f32_data[23184];
 const uint64_t mul_mat_vec_id_iq4_nl_f32_len = 23184;

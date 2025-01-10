@@ -27,11 +27,12 @@ import html
 import urllib.parse as urlparse
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from pathlib import Path
 
 # constants
 sampler_order_max = 7
 tensor_split_max = 16
-images_max = 4
+images_max = 8
 bias_min_value = -100.0
 bias_max_value = 100.0
 logprobs_max = 5
@@ -65,10 +66,10 @@ maxhordelen = 400
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.82002"
-LcppVersion = "b4450"
+KcppVersion = "1.82004"
+LcppVersion = "b4458"
 CudaSpecifics = "Cu124_Ar6175_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/01/09"
+ReleaseDate = "2025/01/10"
 showdebug = True
 guimode = False
 showsamplerwarning = True
@@ -285,6 +286,7 @@ class whisper_generation_inputs(ctypes.Structure):
     _fields_ = [("prompt", ctypes.c_char_p),
                 ("audio_data", ctypes.c_char_p),
                 ("suppress_non_speech", ctypes.c_bool),
+                ("langcode", ctypes.c_char_p),
                 ("quiet", ctypes.c_bool)]
 
 class whisper_generation_outputs(ctypes.Structure):
@@ -1791,6 +1793,9 @@ def whisper_generate(genparams):
     inputs.prompt = prompt.encode("UTF-8")
     inputs.audio_data = audio_data.encode("UTF-8")
     inputs.quiet = is_quiet
+    lc = genparams.get("langcode", "auto")
+    lc = lc.strip().lower() if (lc and lc.strip().lower()!="") else "auto"
+    inputs.langcode = lc.encode("UTF-8")
     inputs.suppress_non_speech = genparams.get("suppress_non_speech", False)
     ret = handle.whisper_generate(inputs)
     outstr = ""
@@ -4219,6 +4224,8 @@ def show_gui():
     ctk.CTkButton(extra_tab , text = "Unpack KoboldCpp/Croco.Cpp To Folder", command = unpack_to_dir ).grid(row=3,column=0, stick="w", padx= 8, pady=2)
     makelabel(extra_tab, "Export as launcher .kcppt template (Expert Only)", 4, 0,tooltiptxt="Creates a KoboldCpp/Croco.Cpp launch template for others to use.\nEmbeds JSON files directly into exported file when saving.\nWhen loaded, forces the backend to be automatically determined.\nWarning! Not recommended for beginners!")
     ctk.CTkButton(extra_tab , text = "Generate LaunchTemplate", command = kcpp_export_template ).grid(row=5,column=0, stick="w", padx= 8, pady=2)
+    makelabel(extra_tab, "Analyze GGUF Metadata", 6, 0,tooltiptxt="Reads the metadata, weight types and tensor names in any GGUF file.")
+    ctk.CTkButton(extra_tab , text = "Analyze GGUF", command = analyze_gguf_model_wrapper ).grid(row=7,column=0, stick="w", padx= 8, pady=2)
 
     # launch
     def guilaunch():
@@ -5177,6 +5184,33 @@ def download_model_from_url(url,permitted_types=[".gguf",".safetensors"]):
             return dlfile
     return None
 
+def analyze_gguf_model(args,filename):
+    try:
+        stime = datetime.now()
+        from gguf.scripts.gguf_dump import dump_metadata
+        from gguf import GGUFReader
+        reader = GGUFReader(filename, 'r')
+        ns = argparse.Namespace()
+        ns.no_tensors = False
+        dump_metadata(reader, ns)
+        atime = (datetime.now() - stime).total_seconds()
+        print(f"---\nAnalyzing completed in {atime:.2f}s.\n---",flush=True)
+    except Exception as e:
+        print(f"Cannot Analyze File: {e}")
+    return
+
+def analyze_gguf_model_wrapper(filename=""):
+    if not filename or filename=="":
+        from tkinter.filedialog import askopenfilename
+        filename = askopenfilename(title="Select GGUF to analyze")
+    if not filename or filename=="" or not os.path.exists(filename):
+        print("Selected GGUF file not found. Please select a valid GGUF file to analyze.")
+        return
+    print("---")
+    print(f"Analyzing {filename}, please wait...\n---",flush=True)
+    dumpthread = threading.Thread(target=analyze_gguf_model, args=(args,filename))
+    dumpthread.start()
+
 def main(launch_args,start_server=True):
     global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
     global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath
@@ -5192,7 +5226,15 @@ def main(launch_args,start_server=True):
     print(f"***\nBased on LlamaCpp - Version {LcppVersion}") # just update LlamaCPP version manually
     print(f"***\nRelease date: {ReleaseDate}") # just update date manually
     print(f"***\nCuda mode compiled, if any: {CudaSpecifics}") # just update Cuda options used in CMake manually
-    print("***")    # print("Python version: " + sys.version)
+    print("***")    
+    # print("Python version: " + sys.version)
+    # connect path
+    try:
+        if (Path(__file__).parent / "gguf-py").exists():
+            ggufpy_path = str(Path(__file__).parent / "gguf-py")
+            sys.path.append(ggufpy_path)
+    except Exception as e:
+        print(f"Cannot import gguf-py path: {e}")
 
     #perform some basic cleanup of old temporary directories
     try:
@@ -5202,6 +5244,10 @@ def main(launch_args,start_server=True):
 
     if args.unpack:
         unpack_to_dir(args.unpack)
+        return
+
+    if args.analyze:
+        analyze_gguf_model_wrapper(args.analyze)
         return
 
     if args.config and len(args.config)==1:
@@ -5932,13 +5978,14 @@ if __name__ == '__main__':
     compatgroup.add_argument("--usevulkan", help="Use Vulkan for GPU Acceleration. Can optionally specify one or more GPU Device ID (e.g. --usevulkan 0), leave blank to autodetect.", metavar=('[Device IDs]'), nargs='*', type=int, default=None)
     compatgroup.add_argument("--useclblast", help="Use CLBlast for GPU Acceleration. Must specify exactly 2 arguments, platform ID and device ID (e.g. --useclblast 1 0).", type=int, choices=range(0,9), nargs=2)
     compatgroup.add_argument("--usecpu", help="Do not use any GPU acceleration (CPU Only)", action='store_true')
-    parser.add_argument("--contextsize", help="Controls the memory allocated for maximum context size, only change if you need more RAM for big contexts. (default 4096). Supported values are [256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072]. IF YOU USE ANYTHING ELSE YOU ARE ON YOUR OWN.",metavar=('[256,512,1024,2048,3072,4096,6144,8192,12288,16384,24576,32768,49152,65536,98304,131072]'), type=check_range(int,256,1048576), default=4096)
+    parser.add_argument("--contextsize", help="Controls the memory allocated for maximum context size, only change if you need more RAM for big contexts. (default 4096). Supported values are [256,512,1024,2048,3072,4096,6144,8192,10240,12288,14336,16384,20480,24576,28672,32768,40960,49152,57344,65536,81920,98304,114688,131072]. IF YOU USE ANYTHING ELSE YOU ARE ON YOUR OWN.",metavar=('[256,512,1024,2048,3072,4096,6144,8192,10240,12288,14336,16384,20480,24576,28672,32768,40960,49152,57344,65536,81920,98304,114688,131072]'), type=check_range(int,256,1048576), default=4096)
     parser.add_argument("--gpulayers", help="Set number of layers to offload to GPU when using GPU. Requires GPU. Set to -1 to try autodetect, set to 0 to disable GPU offload.",metavar=('[GPU layers]'), nargs='?', const=1, type=int, default=-1)
     parser.add_argument("--tensor_split", help="For CUDA and Vulkan only, ratio to split tensors across multiple GPUs, space-separated list of proportions, e.g. 7 3", metavar=('[Ratios]'), type=float, nargs='+')
 
     #more advanced params
     advparser = parser.add_argument_group('Advanced Commands')
     advparser.add_argument("--version", help="Prints version and exits.", action='store_true')
+    advparser.add_argument("--analyze", metavar=('[filename]'), help="Reads the metadata, weight types and tensor names in any GGUF file.", default="")
     advparser.add_argument("--ropeconfig", help="If set, uses customized RoPE scaling from configured frequency scale and frequency base (e.g. --ropeconfig 0.25 10000). Otherwise, uses NTK-Aware scaling set automatically based on context size. For linear rope, simply set the freq-scale and ignore the freq-base",metavar=('[rope-freq-scale]', '[rope-freq-base]'), default=[0.0, 10000.0], type=float, nargs='+')
     advparser.add_argument("--blasbatchsize", help="Sets the Logical batch size used in BLAS processing (default 128 for VRAM savings, optimal speed is 512, 256 is a great compromise). Setting it to -1 disables BLAS mode, but keeps other benefits like GPU offload. Steps : 1,2,4,8,16,20,24,28,32,40,48,56,64,80,96,112,128,160,192,224,256,384,512,768,1024,1536,2048,3072, max 4096.", type=check_range(int,-1,4096), default=128)
 
