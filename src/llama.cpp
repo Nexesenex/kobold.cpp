@@ -11132,9 +11132,9 @@ static int llama_decode_impl(
         }
     }
 
-    GGML_ASSERT(n_tokens_all <= cparams.n_batch);
+    GGML_ASSERT_CONTINUE(n_tokens_all <= cparams.n_batch);
 
-    GGML_ASSERT((cparams.causal_attn || cparams.n_ubatch >= n_tokens_all) && "non-causal attention requires n_ubatch >= n_tokens");
+    GGML_ASSERT_CONTINUE((cparams.causal_attn || cparams.n_ubatch >= n_tokens_all) && "non-causal attention requires n_ubatch >= n_tokens");
 
     if (lctx.t_compute_start_us == 0) {
         lctx.t_compute_start_us = ggml_time_us();
