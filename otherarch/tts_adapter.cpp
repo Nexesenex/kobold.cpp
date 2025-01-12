@@ -433,7 +433,7 @@ bool ttstype_load_model(const tts_load_model_inputs inputs)
 
     llama_backend_init();
 
-    llama_model * ttcmodel = llama_load_model_from_file(modelfile_ttc.c_str(), tts_model_params);
+    llama_model * ttcmodel = llama_model_load_from_file(modelfile_ttc.c_str(), tts_model_params);
     ttc_ctx = llama_new_context_with_model(ttcmodel, tts_ctx_params);
 
     if (ttc_ctx == nullptr) {
@@ -441,7 +441,7 @@ bool ttstype_load_model(const tts_load_model_inputs inputs)
         return false;
     }
 
-    llama_model * ctsmodel = llama_load_model_from_file(modelfile_cts.c_str(), tts_model_params);
+    llama_model * ctsmodel = llama_model_load_from_file(modelfile_cts.c_str(), tts_model_params);
     cts_ctx = llama_new_context_with_model(ctsmodel, tts_ctx_params);
 
     if (cts_ctx == nullptr) {
