@@ -68,13 +68,13 @@ static void fill_hann_window(int length, bool periodic, float * output) {
         offset = 0;
     }
     for (int i = 0; i < length; i++) {
-        output[i] = 0.5 * (1.0 - cosf((2.0 * M_PI * i) / (length + offset)));
+        output[i] = 0.5 * (1.0 - cosf((2.0 * 3.14159265358979323846 * i) / (length + offset)));
     }
 }
 
 // very poor-man fft
 static void twiddle(float * real, float * imag, int k, int N) {
-    float angle = 2 * M_PI * k / N;
+    float angle = 2 * 3.14159265358979323846 * k / N;
     *real = cos(angle);
     *imag = sin(angle);
 }
