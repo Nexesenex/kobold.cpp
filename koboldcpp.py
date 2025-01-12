@@ -3881,7 +3881,7 @@ def show_gui():
 
         if tts_model_var.get() != "" and wavtokenizer_var.get() != "":
             args.ttsmodel = tts_model_var.get()
-            args.wavtokenizer = wavtokenizer_var.get()
+            args.ttswavtokenizer = wavtokenizer_var.get()
 
     def import_vars(dict):
         global importvars_in_progress
@@ -4044,7 +4044,7 @@ def show_gui():
         whisper_model_var.set(dict["whispermodel"] if ("whispermodel" in dict and dict["whispermodel"]) else "")
 
         tts_model_var.set(dict["ttsmodel"] if ("ttsmodel" in dict and dict["ttsmodel"]) else "")
-        wavtokenizer_var.set(dict["wavtokenizer"] if ("wavtokenizer" in dict and dict["wavtokenizer"]) else "")
+        wavtokenizer_var.set(dict["ttswavtokenizer"] if ("ttswavtokenizer" in dict and dict["ttswavtokenizer"]) else "")
 
         importvars_in_progress = False
         gui_changed_modelfile()
@@ -4851,10 +4851,10 @@ def main(launch_args,start_server=True):
         dlfile = download_model_from_url(args.ttsmodel,[".gguf"])
         if dlfile:
             args.ttsmodel = dlfile
-    if args.wavtokenizer and args.wavtokenizer!="":
-        dlfile = download_model_from_url(args.wavtokenizer,[".gguf"])
+    if args.ttswavtokenizer and args.ttswavtokenizer!="":
+        dlfile = download_model_from_url(args.ttswavtokenizer,[".gguf"])
         if dlfile:
-            args.wavtokenizer = dlfile
+            args.ttswavtokenizer = dlfile
 
     # sanitize and replace the default vanity name. remember me....
     if args.model_param and args.model_param!="":
@@ -5102,19 +5102,19 @@ def main(launch_args,start_server=True):
                 exit_with_error(3,"Could not load whisper model: " + whispermodel)
 
     #handle tts model
-    if args.ttsmodel and args.ttsmodel!="" and args.wavtokenizer and args.wavtokenizer!="":
-        if not os.path.exists(args.ttsmodel) or not os.path.exists(args.wavtokenizer):
+    if args.ttsmodel and args.ttsmodel!="" and args.ttswavtokenizer and args.ttswavtokenizer!="":
+        if not os.path.exists(args.ttsmodel) or not os.path.exists(args.ttswavtokenizer):
             if args.ignoremissing:
                 print("Ignoring missing TTS model files!")
                 args.ttsmodel = None
-                args.wavtokenizer = None
+                args.ttswavtokenizer = None
             else:
                 exitcounter = 999
-                exit_with_error(2,f"Cannot find tts model files: {args.ttsmodel} or {args.wavtokenizer}")
+                exit_with_error(2,f"Cannot find tts model files: {args.ttsmodel} or {args.ttswavtokenizer}")
         else:
             ttsmodelpath = args.ttsmodel
             ttsmodelpath = os.path.abspath(ttsmodelpath)
-            wavtokpath = args.wavtokenizer
+            wavtokpath = args.ttswavtokenizer
             wavtokpath = os.path.abspath(wavtokpath)
             loadok = tts_load_model(ttsmodelpath,wavtokpath)
             print("Load TTS Model OK: " + str(loadok))

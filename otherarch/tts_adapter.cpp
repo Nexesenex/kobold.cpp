@@ -408,6 +408,7 @@ bool ttstype_load_model(const tts_load_model_inputs inputs)
         putenv((char*)ttsvulkandeviceenv.c_str());
     }
 
+    llama_backend_init();
 
     std::string modelfile_ttc = inputs.ttc_model_filename;
     std::string modelfile_cts = inputs.cts_model_filename;
@@ -448,6 +449,15 @@ bool ttstype_load_model(const tts_load_model_inputs inputs)
 
     if (cts_ctx == nullptr) {
         printf("\nTTS Load Error: Failed to initialize cts context!\n");
+        return false;
+    }
+
+    std::vector<int> tmp = {1, 2, 3, 4};
+    llama_kv_cache_clear(ttc_ctx);
+    auto er = llama_decode(ttc_ctx, llama_batch_get_one(tmp.data(), tmp.size()));
+    if(er!=0)
+    {
+        printf("\nTTS Eval returned nonzero: %d\n",er);
         return false;
     }
 
@@ -528,9 +538,9 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
     //create batch with tokens for decoding prompt processing
     llama_kv_cache_clear(ttc_ctx);
     llama_kv_cache_clear(cts_ctx);
-    llama_batch batch = llama_batch_get_one(prompt_inp.data(), prompt_inp.size());
+    kcpp_embd_batch tts_batch = kcpp_embd_batch(prompt_inp, 0, false, true);
 
-    auto evalok = (llama_decode(ttc_ctx, batch)==0);
+    auto evalok = (llama_decode(ttc_ctx, tts_batch.batch)==0);
     if (!evalok) {
         printf("\nError: TTS prompt batch processing failed\n");
         output.data = "";

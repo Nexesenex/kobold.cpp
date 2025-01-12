@@ -8,6 +8,7 @@
 #include <random>
 #include <thread>
 #include "ggml_v3.h"
+#include "llama.h"
 
 //
 // CLI argument parsing
@@ -61,3 +62,14 @@ std::string kcpp_base64_encode(const std::string &data);
 
 std::string get_timestamp_str();
 int32_t kcpp_quick_sample(float * logits, const int n_logits, int top_k, float temp, std::mt19937 & rng);
+
+struct kcpp_embd_batch { //duplcated from llava_embd_batch
+    std::vector<int32_t> pos;
+    std::vector<int32_t> n_seq_id;
+    std::vector<int32_t> seq_id_0;
+    std::vector<int32_t *> seq_ids;
+    std::vector<int8_t> logits;
+    llama_batch batch;
+    kcpp_embd_batch(float * embd, int32_t n_tokens, int32_t npast, bool use_mrope);
+    kcpp_embd_batch(std::vector<llama_token> & tokens, int32_t npast, bool use_mrope, bool return_all_logits);
+};

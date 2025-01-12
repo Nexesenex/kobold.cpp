@@ -1,5 +1,6 @@
 #include "utils.h"
 #include "common.h"
+#include "llama.h"
 
 #include <cmath>
 #include <cstring>
@@ -359,8 +360,6 @@ std::string get_timestamp_str()
 //a very rudimentary all in one sampling function which has no dependencies
 int32_t kcpp_quick_sample(float * logits, const int n_logits, int top_k, float temp, std::mt19937 & rng)
 {
-    std::vector<std::pair<float, int32_t>> logits_id;
-
     if (temp <= 0 || top_k==1) {
         // select the token with the highest logit directly
         float max_logit = logits[0];
@@ -377,6 +376,7 @@ int32_t kcpp_quick_sample(float * logits, const int n_logits, int top_k, float t
     top_k = (top_k<=0 || top_k>300)?300:top_k;
     top_k = std::min(top_k, n_logits);
 
+    std::vector<std::pair<float, int32_t>> logits_id;
     logits_id.reserve(n_logits);
 
     //temperature sample
@@ -414,4 +414,92 @@ int32_t kcpp_quick_sample(float * logits, const int n_logits, int top_k, float t
     int idx = dist(rng);
 
     return logits_id[idx].second;
+}
+
+kcpp_embd_batch::kcpp_embd_batch(float * embd, int32_t n_tokens, int32_t npast, bool use_mrope)
+{
+     int32_t seq_id = 0;
+        pos.resize(n_tokens * (use_mrope?4:1));
+        std::fill(pos.begin(), pos.end(), 0);
+        n_seq_id.resize(n_tokens);
+        seq_ids.resize(n_tokens + 1);
+        logits.resize(n_tokens);
+        seq_id_0.resize(1);
+        seq_id_0[0] = seq_id;
+        seq_ids [n_tokens] = nullptr;
+        batch = {
+            /*n_tokens       =*/ n_tokens,
+            /*tokens         =*/ nullptr,
+            /*embd           =*/ embd,
+            /*pos            =*/ pos.data(),
+            /*n_seq_id       =*/ n_seq_id.data(),
+            /*seq_id         =*/ seq_ids.data(),
+            /*logits         =*/ logits.data(),
+        };
+
+        if(!use_mrope)
+        {
+           for (int i = 0; i < n_tokens; i++) {
+                batch.pos     [i] = npast + i;
+                batch.n_seq_id[i] = 1;
+                batch.seq_id  [i] = seq_id_0.data();
+                batch.logits  [i] = false;
+            }
+        }
+        else
+        {
+            for (int i = 0; i < n_tokens; i++) {
+                batch.n_seq_id[i] = 1;
+                batch.seq_id  [i] = seq_id_0.data();
+                batch.logits  [i] = false;
+            }
+             for (int j = 0; j < batch.n_tokens * 3; j++) {
+                batch.pos[j] = npast + (j % batch.n_tokens);
+            }
+        }
+}
+
+kcpp_embd_batch::kcpp_embd_batch(std::vector<llama_token> & tokens, int32_t npast, bool use_mrope, bool return_all_logits)
+{
+       int32_t seq_id = 0;
+        int32_t n_tokens = tokens.size();
+        pos.resize(n_tokens * (use_mrope?4:1));
+        std::fill(pos.begin(), pos.end(), 0);
+        n_seq_id.resize(n_tokens);
+        seq_ids.resize(n_tokens + 1);
+        logits.resize(n_tokens);
+        seq_id_0.resize(1);
+        seq_id_0[0] = seq_id;
+        seq_ids[n_tokens] = nullptr;
+        batch = {
+            /*n_tokens       =*/ n_tokens,
+            /*tokens         =*/ tokens.data(),
+            /*embd           =*/ nullptr,
+            /*pos            =*/ pos.data(),
+            /*n_seq_id       =*/ n_seq_id.data(),
+            /*seq_id         =*/ seq_ids.data(),
+            /*logits         =*/ logits.data(),
+        };
+
+        if(!use_mrope)
+        {
+           for (int i = 0; i < n_tokens; i++) {
+                batch.pos     [i] = npast + i;
+                batch.n_seq_id[i] = 1;
+                batch.seq_id  [i] = seq_id_0.data();
+                batch.logits  [i] = (return_all_logits?true:false);
+            }
+        }
+        else
+        {
+            for (int i = 0; i < n_tokens; i++) {
+                batch.n_seq_id[i] = 1;
+                batch.seq_id  [i] = seq_id_0.data();
+                batch.logits  [i] = (return_all_logits?true:false);
+            }
+             for (int j = 0; j < batch.n_tokens * 3; j++) {
+                batch.pos[j] = npast + (j % batch.n_tokens);
+            }
+        }
+        batch.logits[n_tokens - 1] = true;
 }
