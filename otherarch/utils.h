@@ -60,3 +60,4 @@ std::string kcpp_base64_encode(const unsigned char* data, unsigned int data_leng
 std::string kcpp_base64_encode(const std::string &data);
 
 std::string get_timestamp_str();
+int32_t kcpp_quick_sample(float * logits, const int n_logits, int top_k, float temp, std::mt19937 & rng);

@@ -379,6 +379,8 @@ static llama_context * cts_ctx = nullptr; //codes to speech
 
 static int ttsdebugmode = 0;
 static std::string ttsplatformenv, ttsdeviceenv, ttsvulkandeviceenv;
+static std::string last_generated_audio = "";
+
 bool ttstype_load_model(const tts_load_model_inputs inputs)
 {
     //duplicated from expose.cpp
@@ -417,6 +419,8 @@ bool ttstype_load_model(const tts_load_model_inputs inputs)
     llama_model_params tts_model_params = llama_model_default_params();
     llama_context_params tts_ctx_params = llama_context_default_params();
 
+    const int nthreads = 4;
+
     tts_model_params.use_mmap = false;
     tts_model_params.use_mlock = false;
     tts_model_params.n_gpu_layers = 999; //offload if possible
@@ -426,12 +430,10 @@ bool ttstype_load_model(const tts_load_model_inputs inputs)
     tts_ctx_params.offload_kqv = true;
     tts_ctx_params.n_batch = 8192;
     tts_ctx_params.n_ubatch = 512;
-    tts_ctx_params.n_threads = 4;
-    tts_ctx_params.n_threads_batch = 4;
+    tts_ctx_params.n_threads = nthreads;
+    tts_ctx_params.n_threads_batch = nthreads;
     tts_ctx_params.flash_attn = false;
     tts_ctx_params.embeddings = true;
-
-    llama_backend_init();
 
     llama_model * ttcmodel = llama_model_load_from_file(modelfile_ttc.c_str(), tts_model_params);
     ttc_ctx = llama_new_context_with_model(ttcmodel, tts_ctx_params);
@@ -455,207 +457,169 @@ bool ttstype_load_model(const tts_load_model_inputs inputs)
 
 tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
 {
-    // tts_generation_outputs output;
+    tts_generation_outputs output;
 
-    // if(ttc_ctx==nullptr || cts_ctx==nullptr)
-    // {
-    //     printf("\nWarning: KCPP TTS not initialized!\n");
-    //     output.data = nullptr;
-    //     output.status = 0;
-    //     return output;
-    // }
+    if(ttc_ctx==nullptr || cts_ctx==nullptr)
+    {
+        printf("\nWarning: KCPP TTS not initialized!\n");
+        output.data = "";
+        output.status = 0;
+        return output;
+    }
 
-    // if(!inputs.quiet)
-    // {
-    //     printf("\nTTS Generating...");
-    // }
+    std::vector<llama_token> codes;
+    std::vector<llama_token> guide_tokens;
+    const llama_model * model_ttc = &(ttc_ctx->model);
+    const llama_model * model_cts = &(cts_ctx->model);
+    const int ttc_n_vocab = llama_n_vocab(model_ttc);
+    std::string prompt = inputs.prompt;
 
-    // std::vector<llama_token> codes;
-    // std::vector<llama_token> guide_tokens;
-    // const llama_model * model_ttc = &(ttc_ctx->model);
-    // std::string prompt = inputs.prompt;
+    if(!inputs.quiet)
+    {
+        printf("\nTTS Generating... ");
+    }
 
-    // // process prompt and generate voice codes
-    // {
-    //     std::vector<llama_token> prompt_inp;
-    //     prompt_init(prompt_inp, model_ttc);
-    //     prompt_add(prompt_inp, model_ttc, "<|text_start|>", false, true);
+    // process prompt and generate voice codes
 
-    //     //add the speaker based on the seed
-    //     if(inputs.speaker_seed>0)
-    //     {
-    //         std::string sampletext = "but<|text_sep|>that<|text_sep|>is<|text_sep|>what<|text_sep|>it<|text_sep|>is<|text_sep|>";
-    //     }
+    std::vector<llama_token> prompt_inp;
+    prompt_init(prompt_inp, model_ttc);
+    prompt_add(prompt_inp, model_ttc, "<|text_start|>", false, true);
 
-    //     // convert the input text into the necessary format expected by OuteTTS
-    //     std::string prompt_clean = process_text(prompt);
-    //     guide_tokens = prepare_guide_tokens(model_ttc,prompt_clean);
-    //     prompt_add(prompt_inp, model_ttc, prompt_clean, false, true);
+    int speaker_seed = inputs.speaker_seed;
+    int audio_seed = inputs.audio_seed;
+    if (speaker_seed <= 0 || speaker_seed==0xFFFFFFFF)
+    {
+        speaker_seed = (((uint32_t)time(NULL)) % 1000000u);
+        if(ttsdebugmode==1)
+        {
+            printf("\nUsing Speaker Seed: %d", speaker_seed);
+        }
+    }
+    if (audio_seed <= 0 || audio_seed==0xFFFFFFFF)
+    {
+        audio_seed = (((uint32_t)time(NULL)) % 1000000u);
+        if(ttsdebugmode==1)
+        {
+            printf("\nUsing Audio Seed: %d", audio_seed);
+        }
+    }
 
-    //     prompt_add(prompt_inp, model_ttc, "<|text_end|>\n", false, true);
+    std::mt19937 tts_rng(audio_seed);
+    std::mt19937 speaker_rng(speaker_seed);
 
-    //     //create batch with tokens for decoding prompt processing
-    //     llama_kv_cache_clear(ttc_ctx);
-    //     llama_kv_cache_clear(cts_ctx);
-    //     llama_batch batch = llama_batch_get_one(prompt_inp.data(), prompt_inp.size());
+    //add the speaker based on the seed
+    if(speaker_seed>0)
+    {
+        std::string sampletext = "but<|text_sep|>that<|text_sep|>is<|text_sep|>what<|text_sep|>it<|text_sep|>is<|text_sep|>";
+    }
 
-    //     if (llama_decode(ttc_ctx, batch) != 0) {
-    //         printf("\nError: TTS prompt batch processing failed\n");
-    //         output.data = nullptr;
-    //         output.status = 0;
-    //         return output;
-    //     }
+    // convert the input text into the necessary format expected by OuteTTS
+    std::string prompt_clean = process_text(prompt);
+    guide_tokens = prepare_guide_tokens(model_ttc,prompt_clean);
+    prompt_add(prompt_inp, model_ttc, prompt_clean, false, true);
 
-    //     // main loop
-    //     int n_past   = batch.n_tokens;
-    //     int n_decode = 0;
-    //     int n_predict = 4096; //max 4096 tokens
+    if(!inputs.quiet)
+    {
+        printf(" (%d input words)...", guide_tokens.size());
+    }
 
-    //     bool next_token_uses_guide_token = true;
+    prompt_add(prompt_inp, model_ttc, "<|text_end|>\n", false, true);
 
-    //     while (n_decode <= n_predict)
-    //     {
-    //         float * logits = llama_get_logits(ttc_ctx);
+    //create batch with tokens for decoding prompt processing
+    llama_kv_cache_clear(ttc_ctx);
+    llama_kv_cache_clear(cts_ctx);
+    llama_batch batch = llama_batch_get_one(prompt_inp.data(), prompt_inp.size());
 
-    //         llama_token new_token_id = common_sampler_sample(smpl[i], ctx_ttc, i_batch[i]);
+    auto evalok = (llama_decode(ttc_ctx, batch)==0);
+    if (!evalok) {
+        printf("\nError: TTS prompt batch processing failed\n");
+        output.data = "";
+        output.status = 0;
+        return output;
+    }
 
-    //             //guide tokens help prevent hallucinations by forcing the TTS to use the correct word
-    //             if(!guide_tokens.empty() && next_token_uses_guide_token && !llama_token_is_control(model_ttc, new_token_id) && !llama_token_is_eog(model_ttc, new_token_id))
-    //             {
-    //                 llama_token guide_token = guide_tokens[0];
-    //                 guide_tokens.erase(guide_tokens.begin());
-    //                 new_token_id = guide_token; //ensure correct word fragment is used
-    //             }
+    // main loop
+    int n_decode = 0;
+    int n_predict = 4096; //max 4096 tokens
 
-    //             //this is the token id that always precedes a new word
-    //             next_token_uses_guide_token = (new_token_id == 198);
+    bool next_token_uses_guide_token = true;
 
-    //             common_sampler_accept(smpl[i], new_token_id, true);
+    while (n_decode <= n_predict)
+    {
+        float * logits = llama_get_logits(ttc_ctx);
 
-    //             codes.push_back(new_token_id);
+        llama_token new_token_id = kcpp_quick_sample(logits,ttc_n_vocab,20,1.0,tts_rng);
 
-    //             const auto * cands = common_sampler_get_candidates(smpl[i]);
+        //guide tokens help prevent hallucinations by forcing the TTS to use the correct word
+        if(!guide_tokens.empty() && next_token_uses_guide_token && !llama_token_is_control(model_ttc, new_token_id) && !llama_token_is_eog(model_ttc, new_token_id))
+        {
+            llama_token guide_token = guide_tokens[0];
+            guide_tokens.erase(guide_tokens.begin());
+            new_token_id = guide_token; //ensure correct word fragment is used
+        }
 
-    //             // is it an end of generation? -> mark the stream as finished
-    //             if (llama_token_is_eog(model_ttc, new_token_id) || n_decode == n_predict) {
-    //                 std::string reason;
-    //                 if (llama_token_is_eog(model_ttc, new_token_id)) {
-    //                     reason = "eos";
-    //                 } else {
-    //                     reason = "n_predict";
-    //                 }
+        //this is the token id that always precedes a new word
+        next_token_uses_guide_token = (new_token_id == 198);
 
-    //                 i_batch[i] = -1;
+        codes.push_back(new_token_id);
 
-    //                 LOG("\n");
-    //                 if (n_parallel > 1) {
-    //                     LOG_CNT("\n");
-    //                     LOG_INF("%s: stream %d finished at n_past = %d, reason = '%s'\n", __func__, i, n_past, reason.c_str());
-    //                 }
+        // is it an end of generation? -> mark the stream as finished
+        if (llama_token_is_eog(model_ttc, new_token_id) || n_decode >= n_predict) {
+            break;
+        }
 
-    //                 continue;
-    //             }
+        n_decode += 1;
+        std::vector<llama_token> next = {new_token_id};
+        llama_batch batch = llama_batch_get_one(next.data(), next.size());
 
-    //             {
-    //                 const float p = cands->data[cands->selected].p;
+        // evaluate the current batch with the transformer model
+        if (llama_decode(ttc_ctx, batch)) {
+            printf("\nError: TTS code generation failed!\n");
+            output.data = "";
+            output.status = 0;
+            return output;
+        }
+    }
 
-    //                 const int col = std::max(0, std::min((int) k_colors.size() - 1, (int) ((3*p)*float(k_colors.size()))));
+    // remove all non-audio tokens (i.e. < 151672 || > 155772)
+    codes.erase(std::remove_if(codes.begin(), codes.end(), [](llama_token t) { return t < 151672 || t > 155772; }), codes.end());
 
-    //                 LOG_CNT("%s%d%s", k_colors[col].c_str(), i, "\033[0m");
-    //                 //LOG_CNT("%d", i);
-    //             }
+    for (auto & token : codes) {
+        token -= 151672;
+    }
 
-    //             i_batch[i] = batch.n_tokens;
+    const int n_codes = codes.size();
+    llama_batch codebatch = llama_batch_get_one(codes.data(), n_codes);
 
-    //             // push this new token for next evaluation
-    //             common_batch_add(batch, new_token_id, n_past, { i }, true);
-    //         }
+    if (llama_decode(cts_ctx, codebatch) != 0) {
+        printf("\nError: TTS vocoder generation failed!\n");
+        output.data = "";
+        output.status = 0;
+        return output;
+    }
+    else
+    {
+        // spectral operations
+        const int n_embd = llama_n_embd(model_cts);
+        const float * embd = llama_get_embeddings(cts_ctx);
+        std::vector<float> audio = embd_to_audio(embd, n_codes, n_embd, 4);
 
-    //         // all streams are finished
-    //         if (batch.n_tokens == 0) {
-    //             break;
-    //         }
+        const int n_sr = 24000; // sampling rate
 
-    //         n_decode += 1;
-    //         n_past += 1;
+        // zero out first 0.25 seconds
+        for (int i = 0; i < 24000/4; ++i) {
+            audio[i] = 0.0f;
+        }
 
-    //         // evaluate the current batch with the transformer model
-    //         if (llama_decode(ctx_ttc, batch)) {
-    //             LOG_ERR("%s : failed to eval, return code %d\n", __func__, 1);
-    //             return 1;
-    //         }
-    //     }
+        last_generated_audio = save_wav16_base64(audio, n_sr);
 
-    //     llama_batch_free(batch);
+        if(!inputs.quiet)
+        {
+            printf("\nTTS Generated %d audio tokens.\n",(int) codes.size());
+        }
 
-    //     LOG("\n");
-    //     LOG_INF("%s: time for decoder:       %.3f ms\n", __func__, (ggml_time_us() - t_dec_start) / 1000.0f);
-
-
-
-
-    // const std::string inp_txt = common_detokenize(ctx_ttc, codes, true);
-    // printf("codes (size %d): '%s'\n",(int) codes.size(), inp_txt.c_str());
-
-    // // remove all non-audio tokens (i.e. < 151672 || > 155772)
-    // codes.erase(std::remove_if(codes.begin(), codes.end(), [](llama_token t) { return t < 151672 || t > 155772; }), codes.end());
-
-    // for (auto & token : codes) {
-    //     token -= 151672;
-    // }
-
-    // const auto t_voc_start = ggml_time_us();
-    // const int n_codes = codes.size();
-
-    // llama_batch batch = llama_batch_init(n_codes, 0, 1);
-
-    // for (size_t i = 0; i < codes.size(); ++i) {
-    //     common_batch_add(batch, codes[i], i, { 0 }, true); // TODO: all logits?
-    // }
-    // GGML_ASSERT(batch.n_tokens == n_codes);
-
-    // if (llama_decode(ctx_cts, batch) != 0) {
-    //     LOG_ERR("%s: llama_decode() failed\n", __func__);
-    //     return 1;
-    // }
-
-    // llama_synchronize(ctx_cts);
-
-    // LOG_INF("%s: time for vocoder:      %.3f ms\n", __func__, (ggml_time_us() - t_voc_start) / 1000.0f);
-
-    // const auto t_spec_start = ggml_time_us();
-
-    // // spectral operations
-    // const int n_embd = llama_n_embd(model_cts);
-    // const float * embd = llama_get_embeddings(ctx_cts);
-
-    // auto audio = embd_to_audio(embd, n_codes, n_embd, params.cpuparams.n_threads);
-
-
-
-    // const std::string fname = "output.wav";
-
-    // const int n_sr = 24000; // sampling rate
-
-    // // zero out first 0.25 seconds
-    // for (int i = 0; i < 24000/4; ++i) {
-    //     audio[i] = 0.0f;
-    // }
-
-    // LOG_INF("%s: time for spectral ops: %.3f ms\n", __func__, (ggml_time_us() - t_spec_start) / 1000.0f);
-    // LOG_INF("%s: total time:            %.3f ms\n", __func__, (ggml_time_us() - t_main_start) / 1000.0f);
-
-    // save_wav16(fname, audio, n_sr);
-
-    // LOG_INF("%s: audio written to file '%s'\n", __func__, fname.c_str());
-
-    // llama_backend_free();
-
-    // return 0;
-
-
-
-
-
-
+        output.data = last_generated_audio.c_str();
+        output.status = 1;
+        return output;
+    }
 }

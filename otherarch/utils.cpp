@@ -355,3 +355,63 @@ std::string get_timestamp_str()
     std::string timestamp(buffer);
     return timestamp;
 }
+
+//a very rudimentary all in one sampling function which has no dependencies
+int32_t kcpp_quick_sample(float * logits, const int n_logits, int top_k, float temp, std::mt19937 & rng)
+{
+    std::vector<std::pair<float, int32_t>> logits_id;
+
+    if (temp <= 0 || top_k==1) {
+        // select the token with the highest logit directly
+        float max_logit = logits[0];
+        int32_t max_id = 0;
+        for (int i = 1; i < n_logits; ++i) {
+            if (logits[i] > max_logit) {
+                max_logit = logits[i];
+                max_id = i;
+            }
+        }
+        return max_id;
+    }
+
+    top_k = (top_k<=0 || top_k>300)?300:top_k;
+    top_k = std::min(top_k, n_logits);
+
+    logits_id.reserve(n_logits);
+
+    //temperature sample
+    const float scale = 1.0f/temp;
+    for (int i = 0; i < n_logits; ++i) {
+        logits_id.push_back(std::make_pair(logits[i]*scale, i));
+    }
+
+    //sample top_k
+    std::partial_sort(
+            logits_id.begin(),
+            logits_id.begin() + top_k, logits_id.end(),
+            [](const std::pair<float, int32_t> & a, const std::pair<float, int32_t> & b) {
+        return a.first > b.first;
+    });
+    logits_id.resize(top_k);
+
+    // compute probs for the top k tokens
+    std::vector<float> probs;
+    probs.reserve(logits_id.size());
+    float maxl = logits_id[0].first;
+    double sum = 0.0;
+    for (const auto & kv : logits_id) {
+        const float p = expf(kv.first - maxl);
+        probs.push_back(p);
+        sum += p;
+    }
+
+    // normalize the probs
+    for (auto & p : probs) {
+        p /= sum;
+    }
+
+    std::discrete_distribution<> dist(probs.begin(), probs.end());
+    int idx = dist(rng);
+
+    return logits_id[idx].second;
+}

@@ -21,12 +21,13 @@
 #include <cctype>
 #include <locale>
 
+#include "utils.h"
+
 //for easier compilation
 //concat source files into one file for compilation purposes
 #include "llama_v2.cpp"
 #include "llama_v3.cpp"
 #include "src/llama.cpp"
-#include "utils.cpp"
 #include "gptj_v1.cpp"
 #include "gptj_v2.cpp"
 #include "gptj_v3.cpp"

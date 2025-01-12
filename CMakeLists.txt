@@ -495,7 +495,9 @@ add_library(common2
             examples/llava/clip.h
             src/unicode.h
             src/unicode.cpp
-            src/unicode-data.cpp)
+            src/unicode-data.cpp
+            otherarch/utils.cpp
+            otherarch/utils.h)
 target_include_directories(common2 PUBLIC . ./ggml/include ./ggml/src ./ggml/src/ggml-cpu ./include ./otherarch ./otherarch/tools ./otherarch/sdcpp ./otherarch/sdcpp/thirdparty ./examples ./common)
 target_compile_features(common2 PUBLIC cxx_std_17) # don't bump
 target_link_libraries(common2 PRIVATE ggml ${LLAMA_EXTRA_LIBS})
