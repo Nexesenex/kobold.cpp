@@ -15,7 +15,7 @@
 #include <thread>
 #include <vector>
 
-#include "llama-context.h"
+#include "src/llama-context.h"
 
 #if defined(_MSC_VER)
 #pragma warning(disable: 4244 4267) // possible loss of data
