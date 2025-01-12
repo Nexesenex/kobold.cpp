@@ -333,6 +333,7 @@ enum ggml_status ggml_backend_graph_compute_async(ggml_backend_t backend, struct
 }
 
 bool ggml_backend_supports_op(ggml_backend_t backend, const struct ggml_tensor * op) {
+    // GGML_ASSERT(ggml_backend_dev_supports_op(backend->device, op));
     return ggml_backend_dev_supports_op(backend->device, op);
 }
 
