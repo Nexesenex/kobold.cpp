@@ -303,6 +303,47 @@ std::vector<uint8_t> kcpp_base64_decode(const std::string & encoded_string)
 
     return ret;
 }
+std::string kcpp_base64_encode(const unsigned char* data, unsigned int data_length) {
+    const std::string base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string encoded;
+    encoded.reserve(((data_length + 2) / 3) * 4);
+    for (unsigned int i = 0; i < data_length; i += 3) {
+        unsigned int triple = (data[i] << 16) + (i + 1 < data_length ? data[i + 1] << 8 : 0) + (i + 2 < data_length ? data[i + 2] : 0);
+        encoded.push_back(base64_chars[(triple >> 18) & 0x3F]);
+        encoded.push_back(base64_chars[(triple >> 12) & 0x3F]);
+        if (i + 1 < data_length) {
+            encoded.push_back(base64_chars[(triple >> 6) & 0x3F]);
+        } else {
+            encoded.push_back('=');
+        }
+        if (i + 2 < data_length) {
+            encoded.push_back(base64_chars[triple & 0x3F]);
+        } else {
+            encoded.push_back('=');
+        }
+    }
+    return encoded;
+}
+std::string kcpp_base64_encode(const std::string &data) {
+    static const char lookup[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string encoded;
+    int val = 0, valb = -6;
+    for (unsigned char c : data) {
+        val = (val << 8) + c;
+        valb += 8;
+        while (valb >= 0) {
+            encoded.push_back(lookup[(val >> valb) & 0x3F]);
+            valb -= 6;
+        }
+    }
+    if (valb > -6) {
+        encoded.push_back(lookup[((val << 8) >> (valb + 8)) & 0x3F]);
+    }
+    while (encoded.size() % 4) {
+        encoded.push_back('=');
+    }
+    return encoded;
+}
 
 std::string get_timestamp_str()
 {

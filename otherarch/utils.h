@@ -52,10 +52,11 @@ void gpt_split_words(std::string str, std::vector<std::string>& words);
 //
 std::vector<gpt_vocab::id> gpt_tokenize(const gpt_vocab & vocab, const std::string & text);
 
-
 bool should_transpose_layer(std::string name);
 void kcpp_graph_compute_helper(ggml_v3_cgraph * graph, int n_threads);
 
 std::vector<uint8_t> kcpp_base64_decode(const std::string & encoded_string);
+std::string kcpp_base64_encode(const unsigned char* data, unsigned int data_length);
+std::string kcpp_base64_encode(const std::string &data);
 
 std::string get_timestamp_str();

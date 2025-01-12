@@ -139,6 +139,7 @@ struct last_logprobs_outputs {
     int count = 0;
     logprob_item * logprob_items = nullptr;
 };
+
 struct sd_load_model_inputs
 {
     const char * model_filename = nullptr;
@@ -178,6 +179,7 @@ struct sd_generation_outputs
     int status = -1;
     const char * data = "";
 };
+
 struct whisper_load_model_inputs
 {
     const char * model_filename = nullptr;
@@ -199,6 +201,29 @@ struct whisper_generation_outputs
 {
     int status = -1;
     const char * text = "";
+};
+
+struct tts_load_model_inputs
+{
+    const char * ttc_model_filename = nullptr;
+    const char * cts_model_filename = nullptr;
+    const char * executable_path = nullptr;
+    const int clblast_info = 0;
+    const int cublas_info = 0;
+    const char * vulkan_info = nullptr;
+    const int debugmode = 0;
+};
+struct tts_generation_inputs
+{
+    const char * prompt = nullptr;
+    const int speaker_seed = 0;
+    const int audio_seed = 0;
+    const bool quiet = false;
+};
+struct tts_generation_outputs
+{
+    int status = -1;
+    const char * data = "";
 };
 
 extern std::string executable_path;

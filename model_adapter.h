@@ -105,6 +105,9 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs);
 bool whispertype_load_model(const whisper_load_model_inputs inputs);
 whisper_generation_outputs whispertype_generate(const whisper_generation_inputs inputs);
 
+bool ttstype_load_model(const tts_load_model_inputs inputs);
+tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs);
+
 void timer_start();
 double timer_check();
 void print_tok_vec(std::vector<int> &embd);
