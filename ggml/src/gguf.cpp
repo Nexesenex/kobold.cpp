@@ -383,7 +383,7 @@ struct gguf_context * gguf_init_from_file_impl(FILE * file, struct gguf_init_par
         }
 
         if (ok && gr.read(n_kv_32)) {
-            n_kv_32 = n_kv_32;
+            n_kv = n_kv_32;
         } else {
             ok = false;
         }

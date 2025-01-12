@@ -238,6 +238,15 @@ extern "C"
         return whispertype_generate(inputs);
     }
 
+    bool tts_load_model(const tts_load_model_inputs inputs)
+    {
+        return ttstype_load_model(inputs);
+    }
+    tts_generation_outputs tts_generate(const tts_generation_inputs inputs)
+    {
+        return ttstype_generate(inputs);
+    }
+
     const char * new_token(int idx) {
         if (generated_tokens.size() <= idx || idx < 0) return nullptr;
 
