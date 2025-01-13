@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "llama.h"
+#include "llama-cpp.h"
 
 #include <string>
 #include <vector>
@@ -24,13 +24,11 @@
 
 #define DEFAULT_MODEL_PATH "models/7B/ggml-model-f16.gguf"
 
-struct common_lora_adapter_info {
+struct common_adapter_lora_info {
     std::string path;
     float scale;
-};
 
-struct common_lora_adapter_container : common_lora_adapter_info {
-    struct llama_lora_adapter * adapter;
+    struct llama_adapter_lora * ptr;
 };
 
 using llama_tokens = std::vector<llama_token>;
@@ -248,8 +246,8 @@ struct common_params {
     std::vector<std::string> antiprompt; // strings upon which more user input is prompted (a.k.a. reverse prompts)
     std::vector<llama_model_kv_override> kv_overrides;
 
-    bool lora_init_without_apply = false; // only load lora to memory, but do not apply it to ctx (user can manually apply lora later using llama_lora_adapter_apply)
-    std::vector<common_lora_adapter_info> lora_adapters; // lora adapter path with user defined scale
+    bool lora_init_without_apply = false; // only load lora to memory, but do not apply it to ctx (user can manually apply lora later using llama_adapter_lora_apply)
+    std::vector<common_adapter_lora_info> lora_adapters; // lora adapter path with user defined scale
 
     std::vector<common_control_vector_load_info> control_vectors; // control vector with user defined scale
 
@@ -478,10 +476,12 @@ std::string fs_get_cache_file(const std::string & filename);
 // Model utils
 //
 
+// note: defines object's lifetime
 struct common_init_result {
-    struct llama_model   * model   = nullptr;
-    struct llama_context * context = nullptr;
-    std::vector<common_lora_adapter_container> lora_adapters;
+    llama_model_ptr   model;
+    llama_context_ptr context;
+
+    std::vector<llama_adapter_lora_ptr> lora;
 };
 
 struct common_init_result     common_init_from_params(common_params & params);
@@ -503,7 +503,7 @@ struct llama_model * common_load_model_from_hf(
     const struct llama_model_params & params);
 
 // clear LoRA adapters from context, then apply new list of adapters
-void common_lora_adapters_apply(struct llama_context * ctx, std::vector<common_lora_adapter_container> & lora_adapters);
+void common_set_adapter_lora(struct llama_context * ctx, std::vector<common_adapter_lora_info> & lora);
 
 //
 // Batch utils
@@ -541,7 +541,7 @@ std::vector<llama_token> common_tokenize(
                         bool   parse_special = false);
 
 std::vector<llama_token> common_tokenize(
-    const struct llama_model * model,
+    const struct llama_vocab * vocab,
            const std::string & text,
                         bool   add_special,
                         bool   parse_special = false);
@@ -553,11 +553,21 @@ std::string common_token_to_piece(
                        llama_token   token,
                        bool          special = true);
 
+std::string common_token_to_piece(
+          const struct llama_vocab * vocab,
+                       llama_token   token,
+                       bool          special = true);
+
 // detokenizes a vector of tokens into a string
 // should work similar to Python's `tokenizer.decode`
 // optionally renders special/control tokens
 std::string common_detokenize(
-                         llama_context * ctx,
+            const struct llama_context * ctx,
+        const std::vector<llama_token> & tokens,
+                                  bool   special = true);
+
+std::string common_detokenize(
+              const struct llama_vocab * vocab,
         const std::vector<llama_token> & tokens,
                                   bool   special = true);
 
@@ -640,6 +650,10 @@ common_control_vector_data common_control_vector_load(const std::vector<common_c
 // Split utils
 //
 
-static const char * const LLM_KV_SPLIT_NO            = "split.no";
-static const char * const LLM_KV_SPLIT_COUNT         = "split.count";
-static const char * const LLM_KV_SPLIT_TENSORS_COUNT = "split.tensors.count";
+namespace {
+
+const char * const LLM_KV_SPLIT_NO            = "split.no";
+const char * const LLM_KV_SPLIT_COUNT         = "split.count";
+const char * const LLM_KV_SPLIT_TENSORS_COUNT = "split.tensors.count";
+
+}
