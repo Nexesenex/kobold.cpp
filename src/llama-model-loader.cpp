@@ -484,7 +484,7 @@ llama_model_loader::llama_model_loader(const std::string & fname, bool use_mmap,
 
     // determine file type based on the number of tensors for each quantization and print meta data
     // TODO: make optional
-    if(false) //disable this log for now
+    // if(false) //disable this log for now
     {
         std::map<enum ggml_type, uint32_t> n_type;
 
