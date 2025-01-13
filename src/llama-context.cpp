@@ -87,7 +87,7 @@ void llama_set_inputs(llama_context & lctx, const llama_ubatch & ubatch) {
         //GGML_ASSERT(lctx.inp_out_ids && "every model that can must skip unused outputs");
 
         if (!lctx.inp_out_ids) {
-            LLAMA_LOG_WARN("%s: 'lctx.inp_out_ids' is not created\n", __func__);
+            //LLAMA_LOG_WARN("%s: 'lctx.inp_out_ids' is not created\n", __func__);
         } else {
             const int64_t n_tokens = ubatch.n_tokens;
 

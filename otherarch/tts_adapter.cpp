@@ -23,6 +23,10 @@
 #pragma warning(disable: 4244 4267) // possible loss of data
 #endif
 
+#ifndef M_PI
+#define M_PI		3.14159265358979323846
+#endif
+
 struct wav_header {
     char riff[4] = {'R', 'I', 'F', 'F'};
     uint32_t chunk_size;
@@ -576,6 +580,10 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
         }
     }
 
+    double ttstime = 0;
+    timer_start();
+
+
     if(!inputs.quiet && ttsdebugmode==1)
     {
         printf("\nInput: %s\n", prompt_clean.c_str());
@@ -592,6 +600,14 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
             if(!inputs.quiet && ttsdebugmode==1)
             {
                 printf("\nReuse speaker ID=%d (%d tokens)...", last_speaker_seed, last_speaker_codes.size());
+            }
+        } else if (speaker_seed==1){ //1 is a special seed
+            std::string speaker = "but<|t_0.31|><|code_start|><|1023|><|1474|><|17|><|121|><|1362|><|744|><|438|><|1319|><|744|><|1419|><|1246|><|923|><|1338|><|406|><|939|><|975|><|1491|><|965|><|1212|><|248|><|794|><|464|><|830|><|code_end|>\nthat<|t_0.13|><|code_start|><|1578|><|1773|><|660|><|1074|><|221|><|1803|><|142|><|914|><|798|><|485|><|code_end|>\nis<|t_0.11|><|code_start|><|737|><|794|><|1288|><|182|><|895|><|1653|><|448|><|471|><|code_end|>\nwhat<|t_0.12|><|code_start|><|1734|><|1306|><|779|><|490|><|525|><|1028|><|37|><|1633|><|1353|><|code_end|>\nit<|t_0.09|><|code_start|><|1343|><|898|><|270|><|1035|><|94|><|1409|><|388|><|code_end|>\nis<|t_0.23|><|code_start|><|694|><|695|><|577|><|692|><|1047|><|388|><|28|><|905|><|1155|><|50|><|1629|><|1775|><|1711|><|1729|><|404|><|1027|><|344|><|code_end|>";
+            last_speaker_codes = common_tokenize(model_ttc, speaker, false, true);
+            last_speaker_seed = speaker_seed;
+            if(!inputs.quiet && ttsdebugmode==1)
+            {
+                printf("\nSpecial ID=%d (%d tokens)...", last_speaker_seed, last_speaker_codes.size());
             }
         } else {
             //generate the voice texture of our new speaker
@@ -687,7 +703,7 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
 
     if(!inputs.quiet)
     {
-        printf("\nTTS Generating (%d input tokens)...", prompt_inp.size());
+        printf("\nTTS Processing (%d input tokens)...\n", prompt_inp.size());
     }
 
     prompt_add(prompt_inp, model_ttc, "<|text_end|>\n<|audio_start|>\n", false, true);
@@ -761,6 +777,10 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
             output.status = 0;
             return output;
         }
+        if(!inputs.quiet)
+        {
+            printf("\rTTS Generating (%d AudioTokens)", n_decode);
+        }
     }
 
     if(!inputs.quiet && ttsdebugmode==1)
@@ -802,21 +822,22 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
 
         const int n_sr = 24000; // sampling rate
 
-        // zero out first 0.25 seconds or 0.05 depending on whether its seeded
-        const int cutout = (speaker_seed>0?(24000/4):(24000/20));
+        // zero out first 0.2 seconds or 0.05 depending on whether its seeded
+        const int cutout = (speaker_seed>0?(24000/5):(24000/20));
         for (int i = 0; i < cutout; ++i) {
             audio[i] = 0.0f;
         }
         //add some silence at the end
-        for (int i = 0; i < 24000/20; ++i) {
+        for (int i = 0; i < 24000/10; ++i) {
             audio.push_back(0.0f);
         }
 
         last_generated_audio = save_wav16_base64(audio, n_sr);
+        ttstime = timer_check();
 
         if(!inputs.quiet)
         {
-            printf("\nTTS Generated %d audio tokens.\n",(int) codes.size());
+            printf("\nTTS Generated %d audio tokens in %.2fs.\n",(int) codes.size(),ttstime);
         }
 
         output.data = last_generated_audio.c_str();

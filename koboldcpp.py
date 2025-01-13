@@ -67,10 +67,10 @@ maxhordelen = 400
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.82004"
+KcppVersion = "1.82008"
 LcppVersion = "b4458"
 CudaSpecifics = "Cu124_Ar6175_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/01/10"
+ReleaseDate = "2025/01/13"
 showdebug = True
 guimode = False
 showsamplerwarning = True
@@ -1295,7 +1295,6 @@ def fetch_gpu_properties(testCL,testCU,testVK):
             FetchedCUdeviceMem = [line.split(",")[1].strip().split(" ")[0].strip() for line in output.splitlines()]
             FetchedCUfreeMem = [line.split(",")[2].strip().split(" ")[0].strip() for line in output.splitlines()]
         except Exception:
-            FetchedCUdevices = []
             FetchedCUdeviceMem = []
             FetchedCUfreeMem = []
             faileddetectvram = True
@@ -1318,7 +1317,6 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                     if getamdvram:
                         FetchedCUdeviceMem = [line.split(",")[1].strip() for line in getamdvram.splitlines()[1:] if line.strip()]
             except Exception:
-                FetchedCUdevices = []
                 FetchedCUdeviceMem = []
                 FetchedCUfreeMem = []
                 faileddetectvram = True
@@ -1374,6 +1372,27 @@ def fetch_gpu_properties(testCL,testCU,testVK):
 
         # if faileddetectvram:
             # print("Unable to detect VRAM, please set layers manually.")
+
+# or then :
+
+        # lowestcumem = 0
+        # lowestfreecumem = 0
+        # try:
+            # for idx in range(0,4):
+                # if(len(FetchedCUdevices)>idx):
+                    # CUDevicesNames[idx] = FetchedCUdevices[idx]
+            # for idx in range(0,4):
+                # if(len(FetchedCUdevices)>idx):
+                    # if len(FetchedCUdeviceMem)>idx:
+                        # dmem = int(FetchedCUdeviceMem[idx]) if AMDgpu else (int(FetchedCUdeviceMem[idx])*1024*1024)
+                        # lowestcumem = dmem if lowestcumem==0 else (dmem if dmem<lowestcumem else lowestcumem)
+                    # if len(FetchedCUfreeMem)>idx:
+                        # dmem = (int(FetchedCUfreeMem[idx])*1024*1024)
+                        # lowestfreecumem = dmem if lowestfreecumem==0 else (dmem if dmem<lowestfreecumem else lowestfreecumem)
+        # except Exception:
+            # lowestcumem = 0
+            # lowestfreecumem = 0
+            # faileddetectvram = True
 
     if testVK:
         try: # Get Vulkan names
@@ -1910,12 +1929,16 @@ def tts_generate(genparams):
     is_quiet = True if (args.quiet or args.debugmode == -1) else False
     prompt = genparams.get("input", genparams.get("text", ""))
     prompt = prompt.strip()
+    voice = 1
     voicestr = genparams.get("voice", genparams.get("speaker_wav", ""))
-    voice = simple_lcg_hash(voicestr) if voicestr else 1
+    if voicestr and voicestr.strip().lower()=="kobo":
+        voice = 1
+    else:
+        voice = simple_lcg_hash(voicestr.strip()) if voicestr else 1
     inputs = tts_generation_inputs()
     inputs.prompt = prompt.encode("UTF-8")
     inputs.speaker_seed = voice
-    inputs.audio_seed = 0
+    inputs.audio_seed = -1
     inputs.quiet = is_quiet
     ret = handle.tts_generate(inputs)
     outstr = ""
