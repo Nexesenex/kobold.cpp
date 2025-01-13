@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef LLAMA_H
 #define LLAMA_H
 

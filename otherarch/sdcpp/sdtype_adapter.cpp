@@ -112,28 +112,6 @@ static sd_ctx_t * sd_ctx = nullptr;
 static int sddebugmode = 0;
 static std::string recent_data = "";
 
-std::string base64_encode(const unsigned char* data, unsigned int data_length) {
-    const std::string base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    std::string encoded;
-    encoded.reserve(((data_length + 2) / 3) * 4);
-    for (unsigned int i = 0; i < data_length; i += 3) {
-        unsigned int triple = (data[i] << 16) + (i + 1 < data_length ? data[i + 1] << 8 : 0) + (i + 2 < data_length ? data[i + 2] : 0);
-        encoded.push_back(base64_chars[(triple >> 18) & 0x3F]);
-        encoded.push_back(base64_chars[(triple >> 12) & 0x3F]);
-        if (i + 1 < data_length) {
-            encoded.push_back(base64_chars[(triple >> 6) & 0x3F]);
-        } else {
-            encoded.push_back('=');
-        }
-        if (i + 2 < data_length) {
-            encoded.push_back(base64_chars[triple & 0x3F]);
-        } else {
-            encoded.push_back('=');
-        }
-    }
-    return encoded;
-}
-
 static std::string sdplatformenv, sddeviceenv, sdvulkandeviceenv;
 static bool notiling = false;
 bool sdtype_load_model(const sd_load_model_inputs inputs) {
@@ -553,7 +531,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
         unsigned char * png = stbi_write_png_to_mem(results[i].data, 0, results[i].width, results[i].height, results[i].channel, &out_data_len, "");
         if (png != NULL)
         {
-            recent_data = base64_encode(png,out_data_len);
+            recent_data = kcpp_base64_encode(png,out_data_len);
             free(png);
         }
 

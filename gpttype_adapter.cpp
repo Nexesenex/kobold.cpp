@@ -21,12 +21,13 @@
 #include <cctype>
 #include <locale>
 
+#include "utils.h"
+
 //for easier compilation
 //concat source files into one file for compilation purposes
 #include "llama_v2.cpp"
 #include "llama_v3.cpp"
 #include "src/llama.cpp"
-#include "utils.cpp"
 #include "gptj_v1.cpp"
 #include "gptj_v2.cpp"
 #include "gptj_v3.cpp"
@@ -536,99 +537,6 @@ const char * kcpp_print_system_info(void) {
     return s.c_str();
 }
 
-struct kcpp_embd_batch { //duplcated from llava_embd_batch
-    std::vector<int32_t> pos;
-    std::vector<int32_t> n_seq_id;
-    std::vector<int32_t> seq_id_0;
-    std::vector<int32_t *> seq_ids;
-    std::vector<int8_t> logits;
-    llama_batch batch;
-    kcpp_embd_batch(float * embd, int32_t n_tokens, int32_t npast, bool use_mrope) {
-        int32_t seq_id = 0;
-        pos.resize(n_tokens * (use_mrope?4:1));
-        std::fill(pos.begin(), pos.end(), 0);
-        n_seq_id.resize(n_tokens);
-        seq_ids.resize(n_tokens + 1);
-        logits.resize(n_tokens);
-        seq_id_0.resize(1);
-        seq_id_0[0] = seq_id;
-        seq_ids [n_tokens] = nullptr;
-        batch = {
-            /*n_tokens       =*/ n_tokens,
-            /*tokens         =*/ nullptr,
-            /*embd           =*/ embd,
-            /*pos            =*/ pos.data(),
-            /*n_seq_id       =*/ n_seq_id.data(),
-            /*seq_id         =*/ seq_ids.data(),
-            /*logits         =*/ logits.data(),
-        };
-
-        if(!use_mrope)
-        {
-           for (int i = 0; i < n_tokens; i++) {
-                batch.pos     [i] = npast + i;
-                batch.n_seq_id[i] = 1;
-                batch.seq_id  [i] = seq_id_0.data();
-                batch.logits  [i] = false;
-            }
-        }
-        else
-        {
-            for (int i = 0; i < n_tokens; i++) {
-                batch.n_seq_id[i] = 1;
-                batch.seq_id  [i] = seq_id_0.data();
-                batch.logits  [i] = false;
-            }
-             for (int j = 0; j < batch.n_tokens * 3; j++) {
-                batch.pos[j] = npast + (j % batch.n_tokens);
-            }
-        }
-    }
-    kcpp_embd_batch(std::vector<llama_token> & tokens, int32_t npast, bool use_mrope, bool return_all_logits) {
-        int32_t seq_id = 0;
-        int32_t n_tokens = tokens.size();
-        pos.resize(n_tokens * (use_mrope?4:1));
-        std::fill(pos.begin(), pos.end(), 0);
-        n_seq_id.resize(n_tokens);
-        seq_ids.resize(n_tokens + 1);
-        logits.resize(n_tokens);
-        seq_id_0.resize(1);
-        seq_id_0[0] = seq_id;
-        seq_ids[n_tokens] = nullptr;
-        batch = {
-            /*n_tokens       =*/ n_tokens,
-            /*tokens         =*/ tokens.data(),
-            /*embd           =*/ nullptr,
-            /*pos            =*/ pos.data(),
-            /*n_seq_id       =*/ n_seq_id.data(),
-            /*seq_id         =*/ seq_ids.data(),
-            /*logits         =*/ logits.data(),
-        };
-
-        if(!use_mrope)
-        {
-           for (int i = 0; i < n_tokens; i++) {
-                batch.pos     [i] = npast + i;
-                batch.n_seq_id[i] = 1;
-                batch.seq_id  [i] = seq_id_0.data();
-                batch.logits  [i] = (return_all_logits?true:false);
-            }
-        }
-        else
-        {
-            for (int i = 0; i < n_tokens; i++) {
-                batch.n_seq_id[i] = 1;
-                batch.seq_id  [i] = seq_id_0.data();
-                batch.logits  [i] = (return_all_logits?true:false);
-            }
-             for (int j = 0; j < batch.n_tokens * 3; j++) {
-                batch.pos[j] = npast + (j % batch.n_tokens);
-            }
-        }
-        batch.logits[n_tokens - 1] = true;
-    }
-};
-
 //loads a model for speculative decoding.
 static void speculative_decoding_setup(std::string spec_model_filename, const llama_model_params & base_model_params, const llama_context_params & base_ctx_params, int base_n_vocab, const float * draft_gpusplit, int draft_gpulayers)
 {
@@ -665,7 +573,7 @@ static void speculative_decoding_setup(std::string spec_model_filename, const ll
     draft_ctx_params.type_k = base_ctx_params.type_k;
     draft_ctx_params.type_v = base_ctx_params.type_v;
 
-    llama_model * draftmodel = llama_load_model_from_file(spec_model_filename.c_str(), draft_model_params);
+    llama_model * draftmodel = llama_model_load_from_file(spec_model_filename.c_str(), draft_model_params);
     draft_ctx = llama_new_context_with_model(draftmodel, draft_ctx_params);
     if(draft_ctx == NULL)
     {
@@ -2324,6 +2232,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             kvos.push_back(kvo);
             model_params.kv_overrides = kvos.data();
         }
+
         if(inputs.norm_rms_eps>0)
         {
             printf("\nOverriding norm rms epsilon to %f\n",inputs.norm_rms_eps);

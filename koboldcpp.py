@@ -60,6 +60,7 @@ fullsdmodelpath = ""  #if empty, it's not initialized
 mmprojpath = "" #if empty, it's not initialized
 password = "" #if empty, no auth key required
 fullwhispermodelpath = "" #if empty, it's not initialized
+ttsmodelpath = "" #if empty, not initialized
 maxctx = 4096
 maxhordectx = 4096
 maxhordelen = 400
@@ -293,6 +294,26 @@ class whisper_generation_outputs(ctypes.Structure):
     _fields_ = [("status", ctypes.c_int),
                 ("data", ctypes.c_char_p)]
 
+class tts_load_model_inputs(ctypes.Structure):
+    _fields_ = [("ttc_model_filename", ctypes.c_char_p),
+                ("cts_model_filename", ctypes.c_char_p),
+                ("executable_path", ctypes.c_char_p),
+                ("clblast_info", ctypes.c_int),
+                ("cublas_info", ctypes.c_int),
+                ("vulkan_info", ctypes.c_char_p),
+                ("gpulayers", ctypes.c_int),
+                ("debugmode", ctypes.c_int)]
+
+class tts_generation_inputs(ctypes.Structure):
+    _fields_ = [("prompt", ctypes.c_char_p),
+                ("speaker_seed", ctypes.c_int),
+                ("audio_seed", ctypes.c_int),
+                ("quiet", ctypes.c_bool)]
+
+class tts_generation_outputs(ctypes.Structure):
+    _fields_ = [("status", ctypes.c_int),
+                ("data", ctypes.c_char_p)]
+
 def getdirpath():
     return os.path.dirname(os.path.realpath(__file__))
 def getabspath():
@@ -452,6 +473,10 @@ def init_library():
     handle.whisper_load_model.restype = ctypes.c_bool
     handle.whisper_generate.argtypes = [whisper_generation_inputs]
     handle.whisper_generate.restype = whisper_generation_outputs
+    handle.tts_load_model.argtypes = [tts_load_model_inputs]
+    handle.tts_load_model.restype = ctypes.c_bool
+    handle.tts_generate.argtypes = [tts_generation_inputs]
+    handle.tts_generate.restype = tts_generation_outputs
     handle.last_logprobs.restype = last_logprobs_outputs
     handle.detokenize.argtypes = [token_count_outputs]
     handle.detokenize.restype = ctypes.c_char_p
@@ -649,9 +674,13 @@ def utfprint(str, importance = 2): #0 = only debugmode, 1 = except quiet, 2 = al
     maxlen = 32000
     if args.debugmode >= 1:
         maxlen = 64000
-    strlength = len(str)
-    if strlength > maxlen: #limit max output len
-        str = str[:maxlen] + f"... (+{strlength-maxlen} chars)"
+    try:
+        strlength = len(str)
+        if strlength > maxlen: #limit max output len
+            str = str[:maxlen] + f"... (+{strlength-maxlen} chars)"
+    except Exception:
+        pass
+
     try:
         print(str)
     except UnicodeEncodeError:
@@ -664,6 +693,16 @@ def bring_terminal_to_foreground():
     if os.name=='nt':
         ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 9)
         ctypes.windll.user32.SetForegroundWindow(ctypes.windll.kernel32.GetConsoleWindow())
+
+def simple_lcg_hash(input_string): #turns any string into a number between 10000 and 99999
+    a = 1664525
+    c = 1013904223
+    m = 89999  # Modulo
+    hash_value = 25343
+    for char in input_string:
+        hash_value = (a * hash_value + ord(char) + c) % m
+    hash_value += 10000
+    return hash_value
 
 def string_has_overlap(str_a, str_b, maxcheck):
     max_overlap = min(maxcheck, len(str_a), len(str_b))
@@ -719,13 +758,14 @@ def read_gguf_metadata(file_path):
     except Exception:
         return None
 
-def extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath,draftmodelpath):
+def extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath,draftmodelpath,ttsmodelpath):
     global modelfile_extracted_meta
     modelfile_extracted_meta = None
     sdfsize = 0
     whisperfsize = 0
     mmprojsize = 0
     draftmodelsize = 0
+    ttsmodelsize = 0
     if sdfilepath and os.path.exists(sdfilepath):
         sdfsize = os.path.getsize(sdfilepath)
     if whisperfilepath and os.path.exists(whisperfilepath):
@@ -734,12 +774,14 @@ def extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath,
         mmprojsize = os.path.getsize(mmprojfilepath)
     if draftmodelpath and os.path.exists(draftmodelpath):
         draftmodelsize = os.path.getsize(draftmodelpath)
+    if ttsmodelpath and os.path.exists(ttsmodelpath):
+        ttsmodelsize = os.path.getsize(ttsmodelpath)
     if filepath and os.path.exists(filepath):
         try:
             fsize = os.path.getsize(filepath)
             if fsize>10000000: #dont bother with models < 10mb as they are probably bad
                 ggufmeta = read_gguf_metadata(filepath)
-                modelfile_extracted_meta = [ggufmeta,fsize,sdfsize,whisperfsize,mmprojsize,draftmodelsize] #extract done. note that meta may be null
+                modelfile_extracted_meta = [ggufmeta,fsize,sdfsize,whisperfsize,mmprojsize,draftmodelsize,ttsmodelsize] #extract done. note that meta may be null
         except Exception:
             modelfile_extracted_meta = None
 
@@ -1026,6 +1068,14 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
                 mem -= 350*1024*1024
                 print(f"GPUs total VRAM available after Mmproj tax: {int(mem/1024/1024)} MiB")
                 print("***")
+            if modelfile_extracted_meta[5] > 1024*1024*10: #draft model tax
+                mem -= (modelfile_extracted_meta[5] * 1.5)
+                print(f"GPUs total VRAM available after Draft model tax: {int(mem/1024/1024)} MiB")
+                print("***")
+            if modelfile_extracted_meta[6] > 1024*1024*10: #tts model tax
+                mem -= 350*1024*1024
+                print(f"GPUs total VRAM available after TTS model tax: {int(mem/1024/1024)} MiB")
+                print("***")
 
             bbs = blasbatchsize
             bbs_ratio = bbs / 128
@@ -1098,6 +1148,12 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
                 kvbpw = 20.5
             if kvq == 22:
                 kvbpw = 20.5
+
+            # if modelfile_extracted_meta[5] > 1024*1024*10: #draft model tax
+                # mem -= (modelfile_extracted_meta[5] * 1.5)
+            # if modelfile_extracted_meta[6] > 1024*1024*10: #tts model tax
+                # mem -= max(600*1024*1024, modelfile_extracted_meta[6] * 3)
+            # mem = 0 if mem < 0 else mem
 
             if cs:
                 csmul = ((cs+4096)/6144) if cs >= 2048 else 1.0 #Nexes 2
@@ -1230,6 +1286,8 @@ def fetch_gpu_properties(testCL,testCU,testVK):
         FetchedCUdevices = []
         FetchedCUdeviceMem = []
         FetchedCUfreeMem = []
+        faileddetectvram = False
+
         AMDgpu = None
         try: # Get NVIDIA GPU names
             output = subprocess.run(['nvidia-smi','--query-gpu=name,memory.total,memory.free','--format=csv,noheader'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
@@ -1237,6 +1295,10 @@ def fetch_gpu_properties(testCL,testCU,testVK):
             FetchedCUdeviceMem = [line.split(",")[1].strip().split(" ")[0].strip() for line in output.splitlines()]
             FetchedCUfreeMem = [line.split(",")[2].strip().split(" ")[0].strip() for line in output.splitlines()]
         except Exception:
+            FetchedCUdevices = []
+            FetchedCUdeviceMem = []
+            FetchedCUfreeMem = []
+            faileddetectvram = True
             pass
         if len(FetchedCUdevices)==0:
             try: # Get AMD ROCm GPU names
@@ -1256,9 +1318,15 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                     if getamdvram:
                         FetchedCUdeviceMem = [line.split(",")[1].strip() for line in getamdvram.splitlines()[1:] if line.strip()]
             except Exception:
+                FetchedCUdevices = []
+                FetchedCUdeviceMem = []
+                FetchedCUfreeMem = []
+                faileddetectvram = True
                 pass
+
         # lowestcumem = 0
         # lowestfreecumem = 0
+
         for idx in range(0,16):
             if(len(FetchedCUdevices)>idx):
                 CUDevicesNames[idx] = FetchedCUdevices[idx]
@@ -1282,8 +1350,30 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                     # dmem = (int(FetchedCUfreeMem[idx])*1024*1024)
                     # lowestfreecumem = dmem if lowestfreecumem==0 else (dmem if dmem<lowestfreecumem else lowestfreecumem)
 
+# To check:
+
         # MaxMemory[0] = max(lowestcumem,MaxMemory[0])
         # MaxFreeMemory[0] = max(lowestfreecumem,MaxFreeMemory[0])
+
+        # lowestcumem = 0
+        # lowestfreecumem = 0
+        # try:
+            # for idx in range(0,16):
+                # if(len(FetchedCUdevices)>idx):
+                    # CUDevicesNames[idx] = FetchedCUdevices[idx]
+                    # if len(FetchedCUdeviceMem)>idx:
+                        # dmem = int(FetchedCUdeviceMem[idx]) if AMDgpu else (int(FetchedCUdeviceMem[idx])*1024*1024)
+                        # lowestcumem = dmem if lowestcumem==0 else (dmem if dmem<lowestcumem else lowestcumem)
+                    # if len(FetchedCUfreeMem)>idx:
+                        # dmem = (int(FetchedCUfreeMem[idx])*1024*1024)
+                        # lowestfreecumem = dmem if lowestfreecumem==0 else (dmem if dmem<lowestfreecumem else lowestfreecumem)
+        # except Exception:
+            # lowestcumem = 0
+            # lowestfreecumem = 0
+            # faileddetectvram = True
+
+        # if faileddetectvram:
+            # print("Unable to detect VRAM, please set layers manually.")
 
     if testVK:
         try: # Get Vulkan names
@@ -1803,6 +1893,36 @@ def whisper_generate(genparams):
         outstr = ret.data.decode("UTF-8","ignore")
     return outstr
 
+def tts_load_model(ttc_model_filename,cts_model_filename):
+    global args
+    inputs = tts_load_model_inputs()
+    inputs.debugmode = args.debugmode
+    inputs.executable_path = (getdirpath()+"/").encode("UTF-8")
+    inputs.ttc_model_filename = ttc_model_filename.encode("UTF-8")
+    inputs.cts_model_filename = cts_model_filename.encode("UTF-8")
+    inputs.gpulayers = (999 if args.ttsgpu else 0)
+    inputs = set_backend_props(inputs)
+    ret = handle.tts_load_model(inputs)
+    return ret
+
+def tts_generate(genparams):
+    global args
+    is_quiet = True if (args.quiet or args.debugmode == -1) else False
+    prompt = genparams.get("input", genparams.get("text", ""))
+    prompt = prompt.strip()
+    voicestr = genparams.get("voice", genparams.get("speaker_wav", ""))
+    voice = simple_lcg_hash(voicestr) if voicestr else 1
+    inputs = tts_generation_inputs()
+    inputs.prompt = prompt.encode("UTF-8")
+    inputs.speaker_seed = voice
+    inputs.audio_seed = 0
+    inputs.quiet = is_quiet
+    ret = handle.tts_generate(inputs)
+    outstr = ""
+    if ret.status==1:
+        outstr = ret.data.decode("UTF-8","ignore")
+    return outstr
+
 def tokenize_ids(countprompt,tcaddspecial):
     rawcountdata = handle.token_count(countprompt.encode("UTF-8"),tcaddspecial)
     countlimit = rawcountdata.count if (rawcountdata.count>=0 and rawcountdata.count<50000) else 0
@@ -2010,10 +2130,24 @@ def websearch(query):
         websearch_lastresponse = searchresults
     return searchresults
 
-#################################################################
-### A hacky simple HTTP server simulating a kobold api by Concedo
-### we are intentionally NOT using flask, because we want MINIMAL dependencies
-#################################################################
+def is_port_in_use(portNum):
+    try:
+        import socket
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            return s.connect_ex(('localhost', portNum)) == 0
+    except Exception:
+        return True
+
+def is_ipv6_supported():
+    try:
+        # Attempt to create an IPv6 socket
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+        sock.close()
+        return True
+    except Exception:
+        return False
 
 # Used to parse json for openai tool calls
 def extract_json_from_string(input_string):
@@ -2268,6 +2402,27 @@ ws ::= | " " | "\n" [ \t]{0,20}
         genparams["prompt"] = ollamasysprompt + ollamabodyprompt
     return genparams
 
+def LaunchWebbrowser(target_url, failedmsg):
+    try:
+        import webbrowser as wb
+        if wb.open(target_url, autoraise=True):
+            return
+        raise RuntimeError("Cannot open default browser")
+    except Exception as e:
+        try:
+            print(f"Browser failed to launch: {e}, attempting to use xdg-open...")
+            import webbrowser as wb
+            if wb.get('xdg-open').open(target_url, autoraise=True):
+                return
+            raise RuntimeError("Cannot open xdg-open browser")
+        except Exception:
+            print(failedmsg)
+            print(f"Please manually open your browser to {target_url}")
+
+#################################################################
+### A hacky simple HTTP server simulating a kobold api by Concedo
+### we are intentionally NOT using flask, because we want MINIMAL dependencies
+#################################################################
 class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
     sys_version = ""
     server_version = "ConcedoLlamaForKoboldServer"
@@ -2616,7 +2771,7 @@ Enter Prompt:<br>
 
     def do_GET(self):
         global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
-        global has_multiplayer, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat, multiplayer_lastactive, maxctx, maxhordelen, friendlymodelname, lastgeneratedcomfyimg, KcppVersion, totalgens, preloaded_story, exitcounter, currentusergenkey, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath
+        global has_multiplayer, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat, multiplayer_lastactive, maxctx, maxhordelen, friendlymodelname, lastgeneratedcomfyimg, KcppVersion, totalgens, preloaded_story, exitcounter, currentusergenkey, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath
         self.path = self.path.rstrip('/')
         response_body = None
         content_type = 'application/json'
@@ -2674,7 +2829,8 @@ Enter Prompt:<br>
             has_password = (password!="")
             has_whisper = (fullwhispermodelpath!="")
             has_search = True if args.websearch else False
-            response_body = (json.dumps({"result":"KoboldCpp/Croco.Cpp","version":KcppVersion, "protected":has_password ,"txt2img":has_txt2img,"vision":has_vision,"transcribe":has_whisper,"multiplayer":has_multiplayer,"websearch":has_search}).encode())
+            has_tts = (ttsmodelpath!="")
+            response_body = (json.dumps({"result":"KoboldCpp/Croco.Cpp","version":KcppVersion, "protected":has_password ,"txt2img":has_txt2img,"vision":has_vision,"transcribe":has_whisper,"multiplayer":has_multiplayer,"websearch":has_search,"tts":has_tts}).encode())
 
         elif self.path.endswith(('/api/extra/perf')):
             global last_req_time, start_time
@@ -2727,6 +2883,9 @@ Enter Prompt:<br>
            response_body = (json.dumps([]).encode())
         elif self.path.endswith('/sdapi/v1/upscalers'):
            response_body = (json.dumps([]).encode())
+
+        elif self.path.endswith(('/speakers_list')): #xtts compatible
+            response_body = (json.dumps(["kobo","bean","corn","spicy","lime","fire","metal","potato"]).encode()) #some random voices for them to enjoy
 
         elif self.path.endswith(('/api/tags')): #ollama compatible
             response_body = (json.dumps({"models":[{"name":"koboldcpp","model":friendlymodelname,"modified_at":"2024-07-19T15:26:55.6122841+08:00","size":394998579,"digest":"b5dc5e784f2a3ee1582373093acf69a2f4e2ac1710b253a001712b86a61f88bb","details":{"parent_model":"","format":"gguf","family":"koboldcpp","families":["koboldcpp"],"parameter_size":"128M","quantization_level":"Q4_0"}}]}).encode())
@@ -3035,7 +3194,7 @@ Enter Prompt:<br>
 
         reqblocking = False
         muint = int(args.multiuser)
-        if muint<=0 and ((args.whispermodel and args.whispermodel!="") or (args.sdmodel and args.sdmodel!="")):
+        if muint<=0 and ((args.whispermodel and args.whispermodel!="") or (args.sdmodel and args.sdmodel!="") or (args.ttsmodel and args.ttsmodel!="")):
             muint = 2 # this prevents errors when using voice/img together with text
         multiuserlimit = ((muint-1) if muint > 1 else 6)
         #backwards compatibility for up to 7 concurrent requests, use default limit of 7 if multiuser set to 1
@@ -3060,6 +3219,7 @@ Enter Prompt:<br>
             is_imggen = False
             is_comfyui_imggen = False
             is_transcribe = False
+            is_tts = False
 
             if self.path.endswith('/request'):
                 api_format = 1
@@ -3102,11 +3262,14 @@ Enter Prompt:<br>
             if self.path.endswith('/api/extra/transcribe') or self.path.endswith('/v1/audio/transcriptions'):
                 is_transcribe = True
 
-            if is_imggen or is_transcribe or api_format > 0:
+            if self.path.endswith('/api/extra/tts') or self.path.endswith('/v1/audio/speech') or self.path.endswith('/tts_to_audio'):
+                is_tts = True
+
+            if is_imggen or is_transcribe or is_tts or api_format > 0:
                 global last_req_time
                 last_req_time = time.time()
 
-                if not is_imggen and not is_transcribe and api_format!=5:
+                if not is_imggen and not is_transcribe and not is_tts and api_format!=5:
                     if not self.secure_endpoint():
                         return
 
@@ -3194,6 +3357,21 @@ Enter Prompt:<br>
                         print("Transcribe: The response could not be sent, maybe connection was terminated?")
                         time.sleep(0.2) #short delay
                     return
+                elif is_tts:
+                    try:
+                        gen = tts_generate(genparams)
+                        wav_data = b''
+                        if gen:
+                            wav_data = base64.b64decode(gen) # Decode the Base64 string into binary data
+                        self.send_response(200)
+                        self.send_header('content-length', str(len(wav_data)))  # Set content length
+                        self.end_headers(content_type='audio/wav')
+                        self.wfile.write(wav_data) # Write the binary WAV data to the response
+                    except Exception as ex:
+                        utfprint(ex,0)
+                        print("TTS: The response could not be sent, maybe connection was terminated?")
+                        time.sleep(0.2) #short delay
+                    return
 
         finally:
             time.sleep(0.05)
@@ -3219,25 +3397,6 @@ Enter Prompt:<br>
         if content_type is not None:
             self.send_header('content-type', content_type)
         return super(ServerRequestHandler, self).end_headers()
-
-def is_port_in_use(portNum):
-    try:
-        import socket
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            return s.connect_ex(('localhost', portNum)) == 0
-    except Exception:
-        return True
-
-def is_ipv6_supported():
-    try:
-        # Attempt to create an IPv6 socket
-        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
-        sock.close()
-        return True
-    except Exception:
-        return False
 
 def RunServerMultiThreaded(addr, port):
     global exitcounter, sslvalid
@@ -3339,7 +3498,7 @@ def show_gui():
             if dlfile:
                 args.model_param = dlfile
             load_config_cli(args.model_param)
-        if not args.model_param and not args.sdmodel and not args.whispermodel and not args.nomodel:
+        if not args.model_param and not args.sdmodel and not args.whispermodel and not args.ttsmodel and not args.nomodel:
             global exitcounter
             exitcounter = 999
             exit_with_error(2,"No ggml model or kcpps file was selected. Exiting.")
@@ -3579,6 +3738,9 @@ def show_gui():
     sd_quant_var = ctk.IntVar(value=0)
 
     whisper_model_var = ctk.StringVar()
+    tts_model_var = ctk.StringVar()
+    wavtokenizer_var = ctk.StringVar()
+    ttsgpu_var = ctk.IntVar(value=0)
 
     def tabbuttonaction(name):
         for t in tabcontent:
@@ -3729,7 +3891,8 @@ def show_gui():
             whisperfilepath = whisper_model_var.get()
             mmprojfilepath = mmproj_var.get()
             draftmodelpath = draftmodel_var.get()
-            extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath,draftmodelpath)
+            ttsmodelpath = tts_model_var.get() if ttsgpu_var.get()==1 else ""
+            extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath,draftmodelpath,ttsmodelpath)
             changed_gpulayers_estimate()
         pass
 
@@ -4179,8 +4342,14 @@ def show_gui():
 
     # audio tab
     audio_tab = tabcontent["Audio"]
-    makefileentry(audio_tab, "Whisper Model (Speech-To-Text):", "Select Whisper .bin Model File", whisper_model_var, 1, width=280, filetypes=[("*.bin","*.bin")], tooltiptxt="Select a Whisper .bin model file on disk to be loaded.")
+    makefileentry(audio_tab, "Whisper Model (Speech-To-Text):", "Select Whisper .bin Model File", whisper_model_var, 1, width=280, filetypes=[("*.bin","*.bin")], tooltiptxt="Select a Whisper .bin model file on disk to be loaded for Voice Recognition.")
     whisper_model_var.trace("w", gui_changed_modelfile)
+    makefileentry(audio_tab, "OuteTTS Model (Text-To-Speech):", "Select OuteTTS GGUF Model File", tts_model_var, 3, width=280, filetypes=[("*.gguf","*.gguf")], tooltiptxt="Select a OuteTTS GGUF model file on disk to be loaded for Narration.")
+    tts_model_var.trace("w", gui_changed_modelfile)
+    makefileentry(audio_tab, "WavTokenizer Model (Text-To-Speech):", "Select WavTokenizer GGUF Model File", wavtokenizer_var, 5, width=280, filetypes=[("*.gguf","*.gguf")], tooltiptxt="Select a WavTokenizer GGUF model file on disk to be loaded for Narration.")
+    wavtokenizer_var.trace("w", gui_changed_modelfile)
+    makecheckbox(audio_tab, "TTS Use GPU", ttsgpu_var, 7, 0,tooltiptxt="Uses the GPU for TTS.")
+    ttsgpu_var.trace("w", gui_changed_modelfile)
 
     def kcpp_export_template():
         nonlocal kcpp_exporting_template
@@ -4229,7 +4398,7 @@ def show_gui():
 
     # launch
     def guilaunch():
-        if model_var.get() == "" and sd_model_var.get() == "" and whisper_model_var.get() == "" and nomodel.get()!=1:
+        if model_var.get() == "" and sd_model_var.get() == "" and whisper_model_var.get() == "" and tts_model_var.get() == "" and nomodel.get()!=1:
             tmp = askopenfilename(title="Select ggml model .bin or .gguf file")
             model_var.set(tmp)
         nonlocal nextstate
@@ -4419,6 +4588,11 @@ def show_gui():
         if whisper_model_var.get() != "":
             args.whispermodel = whisper_model_var.get()
 
+        if tts_model_var.get() != "" and wavtokenizer_var.get() != "":
+            args.ttsmodel = tts_model_var.get()
+            args.ttswavtokenizer = wavtokenizer_var.get()
+            args.ttsgpu = (ttsgpu_var.get()==1)
+
     def import_vars(dict):
         global importvars_in_progress
         importvars_in_progress = True
@@ -4591,6 +4765,10 @@ def show_gui():
 
         whisper_model_var.set(dict["whispermodel"] if ("whispermodel" in dict and dict["whispermodel"]) else "")
 
+        tts_model_var.set(dict["ttsmodel"] if ("ttsmodel" in dict and dict["ttsmodel"]) else "")
+        wavtokenizer_var.set(dict["ttswavtokenizer"] if ("ttswavtokenizer" in dict and dict["ttswavtokenizer"]) else "")
+        ttsgpu_var.set(dict["ttsgpu"] if ("ttsgpu" in dict) else 0)
+
         importvars_in_progress = False
         gui_changed_modelfile()
         if "istemplate" in dict and dict["istemplate"]:
@@ -4625,23 +4803,20 @@ def show_gui():
         pass
 
     def display_help():
-        try:
-            import webbrowser as wb
-            wb.open("https://github.com/LostRuins/koboldcpp/wiki")
-        except Exception:
-            print("Cannot launch help in browser.")
+        LaunchWebbrowser("https://github.com/LostRuins/koboldcpp/wiki","Cannot launch help in browser.")
+
     def display_help_models():
-        try:
-            import webbrowser as wb
-            wb.open("https://github.com/LostRuins/koboldcpp/wiki#what-models-does-koboldcpp-support-what-architectures-are-supported")
-        except Exception:
-            print("Cannot launch help in browser.")
+        LaunchWebbrowser("https://github.com/LostRuins/koboldcpp/wiki#what-models-does-koboldcpp-support-what-architectures-are-supported","Cannot launch help in browser.")
+
     def display_updates():
-        try:
-            import webbrowser as wb
-            wb.open("https://github.com/Nexesenex/croco.cpp/releases")
-        except Exception:
-            print("Cannot launch updates in browser.")
+
+        # try:
+            # import webbrowser as wb
+            # wb.open("https://github.com/Nexesenex/croco.cpp/releases")
+        # except Exception:
+            # print("Cannot launch updates in browser.")
+
+        LaunchWebbrowser("https://github.com/Nexesenex/croco.cpp/releases","Cannot launch updates in browser.")
 
     ctk.CTkButton(tabs , text = "Launch", fg_color="#2f8d3c", hover_color="#2faa3c", command = guilaunch, width=80, height = 35 ).grid(row=1,column=1, stick="se", padx= 25, pady=5)
     ctk.CTkButton(tabs , text = "Launch Model Only", fg_color="#2f8d3c", hover_color="#2faa3c", command = guilaunchmodel, width=160, height = 35 ).grid(row=1,column=1, stick="se", padx= 110, pady=5)
@@ -4672,7 +4847,7 @@ def show_gui():
         kcpp_exporting_template = False
         export_vars()
 
-        if not args.model_param and not args.sdmodel and not args.whispermodel and not args.nomodel:
+        if not args.model_param and not args.sdmodel and not args.whispermodel and not args.ttsmodel and not args.nomodel:
             exitcounter = 999
             print("")
             time.sleep(0.5)
@@ -5201,8 +5376,11 @@ def analyze_gguf_model(args,filename):
 
 def analyze_gguf_model_wrapper(filename=""):
     if not filename or filename=="":
-        from tkinter.filedialog import askopenfilename
-        filename = askopenfilename(title="Select GGUF to analyze")
+        try:
+            from tkinter.filedialog import askopenfilename
+            filename = askopenfilename(title="Select GGUF to analyze")
+        except Exception as e:
+            print(f"Cannot select file to analyze: {e}")
     if not filename or filename=="" or not os.path.exists(filename):
         print("Selected GGUF file not found. Please select a valid GGUF file to analyze.")
         return
@@ -5213,7 +5391,7 @@ def analyze_gguf_model_wrapper(filename=""):
 
 def main(launch_args,start_server=True):
     global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
-    global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath
+    global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath
 
     args = launch_args
     if (args.version) and len(sys.argv) <= 2:
@@ -5286,7 +5464,7 @@ def main(launch_args,start_server=True):
     if not args.model_param:
         args.model_param = args.model
 
-    if args.showgui or (not args.model_param and not args.sdmodel and not args.whispermodel and not args.nomodel):
+    if args.showgui or (not args.model_param and not args.sdmodel and not args.whispermodel and not args.ttsmodel and not args.nomodel):
         #give them a chance to pick a file
         print("For command line arguments, please refer to --help")
         print("***")
@@ -5410,6 +5588,14 @@ def main(launch_args,start_server=True):
         dlfile = download_model_from_url(args.draftmodel,[".gguf"])
         if dlfile:
             args.draftmodel = dlfile
+    if args.ttsmodel and args.ttsmodel!="":
+        dlfile = download_model_from_url(args.ttsmodel,[".gguf"])
+        if dlfile:
+            args.ttsmodel = dlfile
+    if args.ttswavtokenizer and args.ttswavtokenizer!="":
+        dlfile = download_model_from_url(args.ttswavtokenizer,[".gguf"])
+        if dlfile:
+            args.ttswavtokenizer = dlfile
 
     # sanitize and replace the default vanity name. remember me....
     if args.model_param and args.model_param!="":
@@ -5487,7 +5673,7 @@ def main(launch_args,start_server=True):
                 pass
             if args.gpulayers==-1:
                 if MaxMemory[0] > 0 and (not args.usecpu) and ((args.usecublas is not None) or (args.usevulkan is not None) or (args.useclblast is not None) or sys.platform=="darwin"):
-                    extract_modelfile_params(args.model_param,args.sdmodel,args.whispermodel,args.mmproj,args.draftmodel)
+                    extract_modelfile_params(args.model_param,args.sdmodel,args.whispermodel,args.mmproj,args.draftmodel,args.ttsmodel if args.ttsgpu else "")
                     layeramt = autoset_gpu_layers(args.contextsize,args.sdquant,args.blasbatchsize, args.flashattention, args.quantkv, "mmq" in args.usecublas, "lowvram" in args.usecublas, args.poslayeroffset, args.neglayeroffset)
                     print(f"Auto Recommended GPU Layers: {layeramt}")
                     args.gpulayers = layeramt
@@ -5656,6 +5842,27 @@ def main(launch_args,start_server=True):
                 exitcounter = 999
                 exit_with_error(3,"Could not load whisper model: " + whispermodel)
 
+    #handle tts model
+    if args.ttsmodel and args.ttsmodel!="" and args.ttswavtokenizer and args.ttswavtokenizer!="":
+        if not os.path.exists(args.ttsmodel) or not os.path.exists(args.ttswavtokenizer):
+            if args.ignoremissing:
+                print("Ignoring missing TTS model files!")
+                args.ttsmodel = None
+                args.ttswavtokenizer = None
+            else:
+                exitcounter = 999
+                exit_with_error(2,f"Cannot find tts model files: {args.ttsmodel} or {args.ttswavtokenizer}")
+        else:
+            ttsmodelpath = args.ttsmodel
+            ttsmodelpath = os.path.abspath(ttsmodelpath)
+            wavtokpath = args.ttswavtokenizer
+            wavtokpath = os.path.abspath(wavtokpath)
+            loadok = tts_load_model(ttsmodelpath,wavtokpath)
+            print("Load TTS Model OK: " + str(loadok))
+            if not loadok:
+                exitcounter = 999
+                exit_with_error(3,"Could not load TTS model!")
+
 
     #load embedded lite
     try:
@@ -5712,11 +5919,7 @@ def main(launch_args,start_server=True):
             print(f"StableUI is available at {epurl}/sdui/")
 
     if args.launch:
-        try:
-            import webbrowser as wb
-            wb.open(epurl)
-        except Exception:
-            print("--launch was set, but could not launch web browser automatically.")
+        LaunchWebbrowser(epurl,"--launch was set, but could not launch web browser automatically.")
 
     if args.hordekey and args.hordekey!="":
         if args.hordeworkername and args.hordeworkername!="":
@@ -6063,7 +6266,12 @@ if __name__ == '__main__':
     sdparsergroup.add_argument("--sdnotile", help="Disables VAE tiling, may not work for large images.", action='store_true')
 
     whisperparsergroup = parser.add_argument_group('Whisper Transcription Commands')
-    whisperparsergroup.add_argument("--whispermodel", metavar=('[filename]'), help="Specify a Whisper bin model to enable Speech-To-Text transcription.", default="")
+    whisperparsergroup.add_argument("--whispermodel", metavar=('[filename]'), help="Specify a Whisper .bin model to enable Speech-To-Text transcription.", default="")
+
+    ttsparsergroup = parser.add_argument_group('TTS Narration Commands')
+    ttsparsergroup.add_argument("--ttsmodel", metavar=('[filename]'), help="Specify the OuteTTS Text-To-Speech GGUF model.", default="")
+    ttsparsergroup.add_argument("--ttswavtokenizer", metavar=('[filename]'), help="Specify the WavTokenizer GGUF model.", default="")
+    ttsparsergroup.add_argument("--ttsgpu", help="Use the GPU for TTS.", action='store_true')
 
     deprecatedgroup = parser.add_argument_group('Deprecated Commands, DO NOT USE!')
     deprecatedgroup.add_argument("--hordeconfig", help=argparse.SUPPRESS, nargs='+')
