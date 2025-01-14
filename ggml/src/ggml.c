@@ -3294,7 +3294,6 @@ struct ggml_tensor * ggml_get_rows(
 }
 
 // ggml_get_rows_back
-// TODO reorder arguments to be consistent with other _back ops
 
 struct ggml_tensor * ggml_get_rows_back(
         struct ggml_context * ctx,
