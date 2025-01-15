@@ -718,36 +718,37 @@ endif()
 #
 
 if (GGML_IQK_MUL_MAT)
-	add_library(ggml
-				ggml/src/ggml.c
-				ggml/include/ggml_ik.h
-				ggml/src/ggml-cpu.c
-				ggml/include/ggml-cpu.h
-				ggml/src/iqk/iqk_mul_mat.cpp
-				ggml/src/iqk/iqk_mul_mat.h
-				ggml/src/ggml-alloc.c
-				ggml/include/ggml-alloc.h
-				ggml/src/ggml-backend.cpp
-				ggml/src/ggml-backend-impl.h
-				ggml/include/ggml-backend.h
-				ggml/include/ggml-cpp.h
-				ggml/src/ggml-quants_ik.c
-				ggml/src/ggml-quants_ik.h
-				ggml/src/llamafile/sgemm.cpp
-				ggml/src/llamafile/sgemm.h
-				ggml/src/ggml-aarch64.c
-				ggml/src/ggml-aarch64.h
-				${GGML_SOURCES_CUDA})
-	target_include_directories(ggml PUBLIC . ./ggml/include ./ggml/src ./include ./otherarch ./otherarch/tools)
-	target_compile_features(ggml PUBLIC c_std_11) # don't bump
-	target_link_libraries(ggml PUBLIC Threads::Threads ${LLAMA_EXTRA_LIBS})
-	set_target_properties(ggml PROPERTIES POSITION_INDEPENDENT_CODE ON)
+	# add_library(ggml
+				# ggml/src/ggml.c
+				# ggml/include/ggml_ik.h
+				# ggml/src/ggml-cpu.c
+				# ggml/include/ggml-cpu.h
+				# ggml/src/iqk/iqk_mul_mat.cpp
+				# ggml/src/iqk/iqk_mul_mat.h
+				# ggml/src/ggml-alloc.c
+				# ggml/include/ggml-alloc.h
+				# ggml/src/ggml-backend.cpp
+				# ggml/src/ggml-backend-impl.h
+				# ggml/include/ggml-backend.h
+				# ggml/include/ggml-cpp.h
+				# ggml/src/ggml-quants_ik.c
+				# ggml/src/ggml-quants_ik.h
+				# ggml/src/llamafile/sgemm.cpp
+				# ggml/src/llamafile/sgemm.h
+				# ggml/src/ggml-aarch64.c
+				# ggml/src/ggml-aarch64.h
+				# ${GGML_SOURCES_CUDA})
+	# target_include_directories(ggml PUBLIC . ./ggml/include ./ggml/src ./ggml/src/ggml-cpu ./include ./otherarch ./otherarch/tools)
+	# target_compile_features(ggml PUBLIC c_std_11) # don't bump
+	# target_link_libraries(ggml PUBLIC Threads::Threads ${LLAMA_EXTRA_LIBS})
+	# set_target_properties(ggml PROPERTIES POSITION_INDEPENDENT_CODE ON)
     add_compile_definitions(GGML_USE_IQK_MULMAT)
 elseif (GGML_USE_LLAMA_CPP_MAINLINE)
 	# add_library(ggml
 				# ggml/src/ggml.c
+                # ggml/src/iqk_croco/iqk_quantize_croco.cpp
 				# ggml/include/ggml.h
-				# ggml/src/ggml-cpu.c
+				# ggml/src/ggml-cpu/ggml-cpu.c
 				# ggml/include/ggml-cpu.h
 				# ggml/src/ggml-alloc.c
 				# ggml/include/ggml-alloc.h
@@ -757,12 +758,21 @@ elseif (GGML_USE_LLAMA_CPP_MAINLINE)
 				# ggml/include/ggml-cpp.h
 				# ggml/src/ggml-quants.c
 				# ggml/src/ggml-quants.h
-				# ggml/src/llamafile/sgemm.cpp
-				# ggml/src/llamafile/sgemm.h
-				# ggml/src/ggml-aarch64.c
-				# ggml/src/ggml-aarch64.h
+				# ggml/src/ggml-cpu/llamafile/sgemm.cpp
+				# ggml/src/ggml-cpu/llamafile/sgemm.h
+				# ggml/src/ggml-cpu/ggml-cpu-traits.cpp
+				# ggml/src/ggml-cpu/ggml-cpu-traits.h
+				# ggml/src/ggml-threading.cpp
+				# ggml/src/ggml-cpu/ggml-cpu.cpp
+				# ggml/src/ggml-cpu/ggml-cpu-aarch64.cpp
+				# ggml/src/ggml-cpu/ggml-cpu-aarch64.h
+				# ggml/src/ggml-cpu/ggml-cpu-quants.c
+				# ggml/src/ggml-cpu/ggml-cpu-quants.h
+				# ggml/src/ggml-backend-reg.cpp
+                # ggml/include/gguf.h
+                # ggml/src/gguf.cpp
 				# ${GGML_SOURCES_CUDA})
-	# target_include_directories(ggml PUBLIC . ./ggml/include ./ggml/src ./include ./otherarch ./otherarch/tools)
+	# target_include_directories(ggml PUBLIC . ./ggml/include ./ggml/src ./ggml/src/ggml-cpu ./include ./otherarch ./otherarch/tools)
 	# target_compile_features(ggml PUBLIC c_std_11) # don't bump
 	# target_link_libraries(ggml PUBLIC Threads::Threads ${LLAMA_EXTRA_LIBS})
 	# set_target_properties(ggml PROPERTIES POSITION_INDEPENDENT_CODE ON)
