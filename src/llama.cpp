@@ -1269,7 +1269,7 @@ struct llm_build_context {
         return gf;
     }
 
-    struct ggml_cgraph * build_defrag(const std::vector<uint32_t> & ids) {
+    struct ggml_cgraph * build_defrag(const std::vector<struct llama_kv_defrag_move> & moves) {
         struct ggml_cgraph * gf = ggml_new_graph_custom(ctx0, model.max_nodes(), false);
 
         for (const auto & move : moves) {
