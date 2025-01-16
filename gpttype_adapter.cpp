@@ -211,7 +211,8 @@ static void TokenizeString(const std::string & str_to_tokenize, std::vector<int>
             output_tokens = ::common_tokenize(llama_ctx_v4, str_to_tokenize, add_bos, true);
             if(add_bos)
             {
-                llama_token bostoadd = llama_token_bos(&(llama_ctx_v4->model));
+                const llama_vocab * tmpvocab = llama_model_get_vocab(&(llama_ctx_v4->model));
+                llama_token bostoadd = llama_vocab_bos(tmpvocab);
                 if(bostoadd != LLAMA_TOKEN_NULL) //if bos does not exist, do not add it
                 {
                     if(output_tokens.size()==0)
@@ -243,7 +244,8 @@ static int GetEosID(FileFormat file_format, int32_t n_vocab)
     {
         if(file_format == FileFormat::GGUF_GENERIC)
         {
-            eosID = llama_token_eos(&(llama_ctx_v4->model));
+            const llama_vocab * tmpvocab = llama_model_get_vocab(&(llama_ctx_v4->model));
+            eosID = llama_vocab_eos(tmpvocab);
         }
         else if(file_format == FileFormat::GGJT_3)
         {
@@ -294,7 +296,8 @@ static int GetEotID(FileFormat file_format)
 {
     if(file_format == FileFormat::GGUF_GENERIC)
     {
-        return llama_token_eot(&(llama_ctx_v4->model));
+        const llama_vocab * tmpvocab = llama_model_get_vocab(&(llama_ctx_v4->model));
+        return llama_vocab_eot(tmpvocab);
     }
     return -1;
 }
@@ -582,7 +585,8 @@ static void speculative_decoding_setup(std::string spec_model_filename, const ll
     }
     else
     {
-        int draftvocab = llama_n_vocab(draftmodel);
+        const llama_vocab * tmpvocab = llama_model_get_vocab(draftmodel);
+        int draftvocab = llama_vocab_n_tokens(tmpvocab);
         if(llama_model_is_recurrent(draftmodel))
         {
             printf("Error: Speculative decoding cannot be used with Recurrent draft models!\n");
@@ -2275,7 +2279,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         if(file_format_meta.model_architecture==GGUFArch::ARCH_RWKV)
         {
             printf("\nRWKV6 Overriding EOS and BOS IDs to 0\n");
-            llamamodel->vocab.special_bos_id = llamamodel->vocab.special_eos_id = 0;
+            llamamodel->vocab.set_eos_bos(0,0);
         }
 
         llama_ctx_params.flash_attn = kcpp_data->flash_attn;
@@ -2344,12 +2348,12 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
                 lora_base_arg = lora_base.c_str();
             }
 
-            auto adapter = llama_lora_adapter_init(llamamodel, lora_filename.c_str());
+            auto adapter = llama_adapter_lora_init(llamamodel, lora_filename.c_str());
             if (adapter == nullptr) {
                 fprintf(stderr, "%s: error: failed to apply lora adapter\n", __func__);
                 return ModelLoadResult::FAIL;
             }
-            llama_lora_adapter_set(llama_ctx_v4, adapter, 1.0f);
+            llama_set_adapter_lora(llama_ctx_v4, adapter, 1.0f);
         }
 
         if(mmproj_filename != "" && file_format==FileFormat::GGUF_GENERIC)
@@ -2376,7 +2380,8 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             clp_img_data = clip_image_u8_init();
         }
 
-        n_vocab = llama_n_vocab(llamamodel);
+        const llama_vocab * tmpvocab = llama_model_get_vocab(llamamodel);
+        n_vocab = llama_vocab_n_tokens(tmpvocab);
 
         if(draftmodel_filename !="" && file_format==FileFormat::GGUF_GENERIC)
         {

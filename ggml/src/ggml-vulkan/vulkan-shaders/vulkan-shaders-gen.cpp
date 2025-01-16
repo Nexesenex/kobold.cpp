@@ -31,8 +31,6 @@
     #include <fcntl.h>
 #endif
 
-#include <vulkan/vulkan_core.h>
-
 #define ASYNCIO_CONCURRENCY 64
 #ifndef GGML_VULKAN_COOPMAT_GLSLC_SUPPORT
 #define GGML_VULKAN_COOPMAT_GLSLC_SUPPORT

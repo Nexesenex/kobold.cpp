@@ -222,6 +222,7 @@ struct tts_generation_inputs
     const int speaker_seed = 0;
     const int audio_seed = 0;
     const bool quiet = false;
+    const bool nocache = false;
 };
 struct tts_generation_outputs
 {

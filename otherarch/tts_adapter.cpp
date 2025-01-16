@@ -27,6 +27,12 @@
 #define M_PI		3.14159265358979323846
 #endif
 
+enum TTS_VER
+{
+    TTS_VER_2,
+    TTS_VER_3
+};
+
 struct wav_header {
     char riff[4] = {'R', 'I', 'F', 'F'};
     uint32_t chunk_size;
@@ -325,41 +331,60 @@ static std::string replace_numbers_with_words(const std::string & input_text) {
     return result;
 }
 
-static std::string process_text(const std::string & text) {
+static std::string process_text(const std::string & text, TTS_VER ver) {
 
     std::string processed_text = replace_numbers_with_words(text);
 
     std::transform(processed_text.begin(), processed_text.end(),
                   processed_text.begin(), ::tolower);
 
-    std::regex special_chars(R"([-_/,\.\\])");
-    processed_text = std::regex_replace(processed_text, special_chars, " ");
-    std::regex non_alpha(R"([^a-z\s])");
-    processed_text = std::regex_replace(processed_text, non_alpha, "");
-    std::regex multiple_spaces(R"(\s+)");
-    processed_text = std::regex_replace(processed_text, multiple_spaces, " ");
-    processed_text = std::regex_replace(processed_text, std::regex(R"(^\s+|\s+$)"), "");
-    processed_text = std::regex_replace(processed_text, std::regex(R"(\s)"), "<|text_sep|>");
+    if(ver==TTS_VER_2)
+    {
+        std::regex special_chars(R"([-_/,\.\\])");
+        processed_text = std::regex_replace(processed_text, special_chars, " ");
+        std::regex non_alpha(R"([^a-z\s])");
+        processed_text = std::regex_replace(processed_text, non_alpha, "");
+        std::regex multiple_spaces(R"(\s+)");
+        processed_text = std::regex_replace(processed_text, multiple_spaces, " ");
+        processed_text = std::regex_replace(processed_text, std::regex(R"(^\s+|\s+$)"), "");
+        processed_text = std::regex_replace(processed_text, std::regex(R"(\s)"), "<|text_sep|>");
+    } else {
+        std::regex special_chars(R"([-_/\\])");
+        processed_text = std::regex_replace(processed_text, special_chars, " ");
+        std::regex non_alpha(R"([^a-z\s.,?!])");
+        processed_text = std::regex_replace(processed_text, non_alpha, "");
+        processed_text = std::regex_replace(processed_text, std::regex(R"(\,)"), "<|comma|>");
+        processed_text = std::regex_replace(processed_text, std::regex(R"(\.)"), "<|period|>");
+        processed_text = std::regex_replace(processed_text, std::regex(R"(\?)"), "<|question_mark|>");
+        processed_text = std::regex_replace(processed_text, std::regex(R"(\!)"), "<|exclamation_mark|>");
+        std::regex multiple_spaces(R"(\s+)");
+        processed_text = std::regex_replace(processed_text, multiple_spaces, " ");
+        processed_text = std::regex_replace(processed_text, std::regex(R"(^\s+|\s+$)"), "");
+        processed_text = std::regex_replace(processed_text, std::regex(R"(\s)"), "<|space|>");
+    }
 
     return processed_text;
 }
 
-
 static void prompt_add(llama_tokens & prompt, const llama_tokens & tokens) {
     prompt.insert(prompt.end(), tokens.begin(), tokens.end());
 }
-static void prompt_add(llama_tokens & prompt, const llama_model * model, const std::string & txt, bool add_special, bool parse_special) {
-    auto tmp = common_tokenize(model, txt, add_special, parse_special);
+static void prompt_add(llama_tokens & prompt, const llama_vocab * vocab, const std::string & txt, bool add_special, bool parse_special) {
+    auto tmp = common_tokenize(vocab, txt, add_special, parse_special);
     prompt_add(prompt, tmp);
 }
-static void prompt_init(llama_tokens & prompt, const llama_model * model) {
+static void prompt_init(llama_tokens & prompt, const llama_vocab * vocab) {
     prompt.clear();
-    prompt_add(prompt, model, "<|im_start|>\n", true, true);
+    prompt_add(prompt, vocab, "<|im_start|>\n<|text_start|>", true, true);
 }
 
-static std::vector<llama_token> prepare_guide_tokens(const llama_model * model, const std::string& str)
+static std::vector<llama_token> prepare_guide_tokens(const llama_vocab * vocab, const std::string& str, TTS_VER ver)
 {
-    const std::string& delimiter = "<|text_sep|>";
+    std::string delimiter = "<|text_sep|>";
+    if(ver==TTS_VER_3)
+    {
+        delimiter = "<|space|>";
+    }
 
     std::vector<llama_token> result;
     size_t start = 0;
@@ -367,7 +392,7 @@ static std::vector<llama_token> prepare_guide_tokens(const llama_model * model, 
 
     while (end != std::string::npos) {
         std::string current_word = str.substr(start, end - start);
-        auto tmp = common_tokenize(model, current_word, false, true);
+        auto tmp = common_tokenize(vocab, current_word, false, true);
         result.push_back(tmp[0]);
         start = end + delimiter.length();
         end = str.find(delimiter, start);
@@ -377,12 +402,25 @@ static std::vector<llama_token> prepare_guide_tokens(const llama_model * model, 
     std::string current_word = str.substr(start);
     if(current_word!="")
     {
-        auto tmp = common_tokenize(model, current_word, false, true);
+        auto tmp = common_tokenize(vocab, current_word, false, true);
         if(tmp.size()>0){
             result.push_back(tmp[0]);
         }
     }
+
     return result;
+}
+
+std::string format_audiotokens(const std::string& input, TTS_VER ver)
+{
+    if (ver == TTS_VER_2) {
+        //already correct
+        return input;
+    } else {
+        std::string clean = std::regex_replace(input, std::regex(R"(<\|code_start\|>)"), "");
+        clean = std::regex_replace(clean, std::regex(R"(<\|code_end\|>)"), "<|space|>");
+        return clean;
+    }
 }
 
 std::string trim_words(const std::string& input, const std::string& separator, size_t maxWords) {
@@ -420,9 +458,13 @@ std::string trim_words(const std::string& input, const std::string& separator, s
 static llama_context * ttc_ctx = nullptr; //text to codes ctx
 static llama_context * cts_ctx = nullptr; //codes to speech
 
+static TTS_VER ttsver = TTS_VER_2;
 static int ttsdebugmode = 0;
 static std::string ttsplatformenv, ttsdeviceenv, ttsvulkandeviceenv;
 static std::string last_generated_audio = "";
+static std::string last_generation_settings_prompt = ""; //for caching purposes to fix ST bug
+static int last_generation_settings_speaker_seed;
+static int last_generation_settings_audio_seed;
 static std::vector<llama_token> last_speaker_codes; //will store cached speaker
 static int last_speaker_seed = -999;
 
@@ -507,6 +549,16 @@ bool ttstype_load_model(const tts_load_model_inputs inputs)
         return false;
     }
 
+    const llama_vocab * ttcvocab = llama_model_get_vocab(ttcmodel);
+    llama_tokens testoks = common_tokenize(ttcvocab,"<|space|>",false,true);
+    if (testoks.size() == 1) {
+        ttsver = TTS_VER_3;
+        printf("\nUsing v0.3 mode");
+    } else {
+        ttsver = TTS_VER_2;
+        printf("\nUsing v0.2 mode");
+    }
+
     printf("\nTTS Load Complete.\n");
     return true;
 }
@@ -526,17 +578,18 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
     std::vector<llama_token> codes;
     std::vector<llama_token> guide_tokens;
     const llama_model * model_ttc = &(ttc_ctx->model);
+    const llama_vocab * ttcvocab = llama_model_get_vocab(model_ttc);
     const llama_model * model_cts = &(cts_ctx->model);
-    const int ttc_n_vocab = llama_n_vocab(model_ttc);
+    const llama_vocab * ctsvocab = llama_model_get_vocab(model_cts);
+    const int ttc_n_vocab = llama_vocab_n_tokens(ttcvocab);
     std::string prompt = inputs.prompt;
-    const std::string sampletext = "but<|text_sep|>that<|text_sep|>is<|text_sep|>what<|text_sep|>it<|text_sep|>is";
+    const std::string sampletext = process_text("but that is what it is",ttsver);
 
     // process prompt and generate voice codes
     llama_kv_cache_clear(ttc_ctx);
     llama_kv_cache_clear(cts_ctx);
     std::vector<llama_token> prompt_inp;
-    prompt_init(prompt_inp, model_ttc);
-    prompt_add(prompt_inp, model_ttc, "<|text_start|>", false, true);
+    prompt_init(prompt_inp, ttcvocab);
 
     int speaker_seed = inputs.speaker_seed;
     int audio_seed = inputs.audio_seed;
@@ -557,15 +610,32 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
     std::mt19937 tts_rng(audio_seed);
     std::mt19937 speaker_rng(speaker_seed);
 
+    //if we can reuse an old generation, do so
+    if(!inputs.nocache
+    && last_generation_settings_audio_seed == inputs.audio_seed
+    && last_generation_settings_speaker_seed == inputs.speaker_seed
+    && last_generated_audio!=""
+    && last_generation_settings_prompt == std::string(inputs.prompt))
+    {
+        if(ttsdebugmode==1 || !inputs.quiet)
+        {
+            printf("\nReusing Cached Audio.\n");
+            output.data = last_generated_audio.c_str();
+            output.status = 1;
+            return output;
+        }
+    }
+
+
     int n_decode = 0;
     int n_predict = 2048; //will be updated later
     bool next_token_uses_guide_token = true;
 
     // convert the input text into the necessary format expected by OuteTTS
-    std::string prompt_clean = process_text(prompt);
+    std::string prompt_clean = process_text(prompt,ttsver);
 
     //further clean it by keeping only the last 300 words
-    prompt_clean = trim_words(prompt_clean,"<|text_sep|>",300);
+    prompt_clean = trim_words(prompt_clean,(ttsver==TTS_VER_3?"<|space|>":"<|text_sep|>"),300);
 
     if(prompt_clean.size()==0)
     {
@@ -589,6 +659,8 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
         printf("\nInput: %s\n", prompt_clean.c_str());
     }
 
+    llama_token newlineid = common_tokenize(ttcvocab,"\n",false,true)[0];
+
     //2 passes. first pass, we generate the speaker voice if required, then cache it for reuse
     //second pass, we use the speaker snipper to align output voice to match the desired speaker
     if(speaker_seed>0) //first pass
@@ -606,28 +678,28 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
             switch(speaker_seed)
             {
                 case 1:
-                speaker = "but<|t_0.31|><|code_start|><|1023|><|1474|><|17|><|121|><|1362|><|744|><|438|><|1319|><|744|><|1419|><|1246|><|923|><|1338|><|406|><|939|><|975|><|1491|><|965|><|1212|><|248|><|794|><|464|><|830|><|code_end|>\nthat<|t_0.13|><|code_start|><|1578|><|1773|><|660|><|1074|><|221|><|1803|><|142|><|914|><|798|><|485|><|code_end|>\nis<|t_0.11|><|code_start|><|737|><|794|><|1288|><|182|><|895|><|1653|><|448|><|471|><|code_end|>\nwhat<|t_0.12|><|code_start|><|1734|><|1306|><|779|><|490|><|525|><|1028|><|37|><|1633|><|1353|><|code_end|>\nit<|t_0.09|><|code_start|><|1343|><|898|><|270|><|1035|><|94|><|1409|><|388|><|code_end|>\nis<|t_0.23|><|code_start|><|694|><|695|><|577|><|692|><|1047|><|388|><|28|><|905|><|1155|><|50|><|1629|><|1775|><|1711|><|1729|><|404|><|1027|><|344|><|code_end|>";
+                speaker = format_audiotokens("but<|t_0.31|><|code_start|><|1023|><|1474|><|17|><|121|><|1362|><|744|><|438|><|1319|><|744|><|1419|><|1246|><|923|><|1338|><|406|><|939|><|975|><|1491|><|965|><|1212|><|248|><|794|><|464|><|830|><|code_end|>\nthat<|t_0.13|><|code_start|><|1578|><|1773|><|660|><|1074|><|221|><|1803|><|142|><|914|><|798|><|485|><|code_end|>\nis<|t_0.11|><|code_start|><|737|><|794|><|1288|><|182|><|895|><|1653|><|448|><|471|><|code_end|>\nwhat<|t_0.12|><|code_start|><|1734|><|1306|><|779|><|490|><|525|><|1028|><|37|><|1633|><|1353|><|code_end|>\nit<|t_0.09|><|code_start|><|1343|><|898|><|270|><|1035|><|94|><|1409|><|388|><|code_end|>\nis<|t_0.23|><|code_start|><|694|><|695|><|577|><|692|><|1047|><|388|><|28|><|905|><|1155|><|50|><|1629|><|1775|><|1711|><|1729|><|404|><|1027|><|344|><|code_end|>",ttsver);
                 break;
                 case 2:
-                speaker = "but<|t_0.23|><|code_start|><|762|><|612|><|316|><|1128|><|171|><|250|><|1765|><|60|><|1075|><|81|><|1159|><|140|><|81|><|1158|><|678|><|1639|><|970|><|code_end|>\nthat<|t_0.21|><|code_start|><|1254|><|460|><|378|><|1621|><|1477|><|210|><|270|><|571|><|179|><|324|><|408|><|81|><|642|><|408|><|794|><|1506|><|code_end|>\nis<|t_0.16|><|code_start|><|36|><|57|><|1132|><|881|><|844|><|260|><|79|><|1794|><|1195|><|333|><|1808|><|1375|><|code_end|>\nwhat<|t_0.23|><|code_start|><|485|><|1583|><|1091|><|736|><|668|><|1703|><|670|><|832|><|959|><|853|><|983|><|969|><|576|><|697|><|721|><|1032|><|990|><|code_end|>\nit<|t_0.16|><|code_start|><|772|><|741|><|794|><|1015|><|110|><|965|><|1060|><|62|><|1305|><|470|><|284|><|259|><|code_end|>\nis<|t_0.35|><|code_start|><|516|><|1099|><|405|><|1831|><|1051|><|1471|><|26|><|1207|><|809|><|0|><|1303|><|1329|><|1196|><|798|><|679|><|992|><|1358|><|930|><|1065|><|942|><|1573|><|823|><|823|><|1527|><|1617|><|865|><|code_end|>";
+                speaker = format_audiotokens("but<|t_0.23|><|code_start|><|762|><|612|><|316|><|1128|><|171|><|250|><|1765|><|60|><|1075|><|81|><|1159|><|140|><|81|><|1158|><|678|><|1639|><|970|><|code_end|>\nthat<|t_0.21|><|code_start|><|1254|><|460|><|378|><|1621|><|1477|><|210|><|270|><|571|><|179|><|324|><|408|><|81|><|642|><|408|><|794|><|1506|><|code_end|>\nis<|t_0.16|><|code_start|><|36|><|57|><|1132|><|881|><|844|><|260|><|79|><|1794|><|1195|><|333|><|1808|><|1375|><|code_end|>\nwhat<|t_0.23|><|code_start|><|485|><|1583|><|1091|><|736|><|668|><|1703|><|670|><|832|><|959|><|853|><|983|><|969|><|576|><|697|><|721|><|1032|><|990|><|code_end|>\nit<|t_0.16|><|code_start|><|772|><|741|><|794|><|1015|><|110|><|965|><|1060|><|62|><|1305|><|470|><|284|><|259|><|code_end|>\nis<|t_0.35|><|code_start|><|516|><|1099|><|405|><|1831|><|1051|><|1471|><|26|><|1207|><|809|><|0|><|1303|><|1329|><|1196|><|798|><|679|><|992|><|1358|><|930|><|1065|><|942|><|1573|><|823|><|823|><|1527|><|1617|><|865|><|code_end|>",ttsver);
                 break;
                 case 3:
-                speaker = "but<|t_0.32|><|code_start|><|862|><|899|><|1601|><|1749|><|121|><|1176|><|1601|><|1007|><|1722|><|121|><|1142|><|1465|><|696|><|1284|><|1698|><|1275|><|860|><|113|><|590|><|1356|><|577|><|1346|><|1433|><|1779|><|code_end|>\nthat<|t_0.40|><|code_start|><|1248|><|1181|><|1792|><|735|><|1289|><|1346|><|975|><|1751|><|1587|><|1042|><|221|><|29|><|991|><|797|><|1184|><|1171|><|152|><|352|><|1119|><|1282|><|110|><|73|><|524|><|1424|><|1276|><|996|><|777|><|1119|><|1166|><|859|><|code_end|>\nis<|t_0.61|><|code_start|><|1666|><|1819|><|566|><|1333|><|1658|><|981|><|1705|><|1185|><|939|><|1813|><|899|><|1465|><|1176|><|712|><|1390|><|1578|><|1275|><|92|><|1729|><|1200|><|1615|><|1484|><|1200|><|1574|><|1307|><|1221|><|1606|><|1307|><|428|><|1759|><|1127|><|1574|><|1581|><|127|><|1507|><|1060|><|1769|><|34|><|1583|><|1579|><|1828|><|1580|><|652|><|1688|><|1527|><|1547|><|code_end|>\nwhat<|t_0.93|><|code_start|><|1691|><|731|><|1592|><|1573|><|1547|><|1617|><|1528|><|1547|><|1664|><|867|><|1571|><|1637|><|273|><|1354|><|1573|><|34|><|1724|><|1669|><|1538|><|1293|><|1623|><|1536|><|1233|><|1176|><|1348|><|1011|><|1722|><|899|><|1176|><|1419|><|899|><|1763|><|1293|><|1601|><|1543|><|939|><|1543|><|1419|><|799|><|1722|><|1233|><|1011|><|1543|><|1007|><|1176|><|1628|><|1114|><|1763|><|862|><|957|><|1693|><|274|><|1176|><|1719|><|805|><|1706|><|1472|><|1249|><|1365|><|877|><|269|><|197|><|1068|><|969|><|1591|><|1192|><|996|><|1764|><|1455|><|1643|><|code_end|>\nit<|t_0.15|><|code_start|><|804|><|1141|><|1566|><|1013|><|529|><|1650|><|1149|><|1744|><|763|><|1640|><|1692|><|code_end|>\nis<|t_0.40|><|code_start|><|1218|><|774|><|1576|><|1192|><|286|><|1831|><|1407|><|92|><|803|><|1311|><|26|><|546|><|1124|><|978|><|319|><|1062|><|1675|><|1608|><|1158|><|1456|><|1572|><|1199|><|1603|><|1592|><|1664|><|1586|><|1571|><|1354|><|34|><|1627|><|code_end|>";
+                speaker = format_audiotokens("but<|t_0.32|><|code_start|><|862|><|899|><|1601|><|1749|><|121|><|1176|><|1601|><|1007|><|1722|><|121|><|1142|><|1465|><|696|><|1284|><|1698|><|1275|><|860|><|113|><|590|><|1356|><|577|><|1346|><|1433|><|1779|><|code_end|>\nthat<|t_0.40|><|code_start|><|1248|><|1181|><|1792|><|735|><|1289|><|1346|><|975|><|1751|><|1587|><|1042|><|221|><|29|><|991|><|797|><|1184|><|1171|><|152|><|352|><|1119|><|1282|><|110|><|73|><|524|><|1424|><|1276|><|996|><|777|><|1119|><|1166|><|859|><|code_end|>\nis<|t_0.61|><|code_start|><|1666|><|1819|><|566|><|1333|><|1658|><|981|><|1705|><|1185|><|939|><|1813|><|899|><|1465|><|1176|><|712|><|1390|><|1578|><|1275|><|92|><|1729|><|1200|><|1615|><|1484|><|1200|><|1574|><|1307|><|1221|><|1606|><|1307|><|428|><|1759|><|1127|><|1574|><|1581|><|127|><|1507|><|1060|><|1769|><|34|><|1583|><|1579|><|1828|><|1580|><|652|><|1688|><|1527|><|1547|><|code_end|>\nwhat<|t_0.93|><|code_start|><|1691|><|731|><|1592|><|1573|><|1547|><|1617|><|1528|><|1547|><|1664|><|867|><|1571|><|1637|><|273|><|1354|><|1573|><|34|><|1724|><|1669|><|1538|><|1293|><|1623|><|1536|><|1233|><|1176|><|1348|><|1011|><|1722|><|899|><|1176|><|1419|><|899|><|1763|><|1293|><|1601|><|1543|><|939|><|1543|><|1419|><|799|><|1722|><|1233|><|1011|><|1543|><|1007|><|1176|><|1628|><|1114|><|1763|><|862|><|957|><|1693|><|274|><|1176|><|1719|><|805|><|1706|><|1472|><|1249|><|1365|><|877|><|269|><|197|><|1068|><|969|><|1591|><|1192|><|996|><|1764|><|1455|><|1643|><|code_end|>\nit<|t_0.15|><|code_start|><|804|><|1141|><|1566|><|1013|><|529|><|1650|><|1149|><|1744|><|763|><|1640|><|1692|><|code_end|>\nis<|t_0.40|><|code_start|><|1218|><|774|><|1576|><|1192|><|286|><|1831|><|1407|><|92|><|803|><|1311|><|26|><|546|><|1124|><|978|><|319|><|1062|><|1675|><|1608|><|1158|><|1456|><|1572|><|1199|><|1603|><|1592|><|1664|><|1586|><|1571|><|1354|><|34|><|1627|><|code_end|>",ttsver);
                 break;
                 case 4:
-                speaker = "but<|t_0.24|><|code_start|><|710|><|505|><|555|><|1255|><|1474|><|1315|><|1740|><|530|><|1446|><|1651|><|991|><|186|><|1310|><|816|><|175|><|935|><|776|><|672|><|code_end|>\nthat<|t_0.40|><|code_start|><|1440|><|807|><|712|><|1525|><|177|><|584|><|1006|><|1288|><|1664|><|1732|><|951|><|79|><|797|><|790|><|172|><|1111|><|106|><|1222|><|186|><|186|><|1122|><|1153|><|81|><|1055|><|1355|><|1757|><|861|><|1067|><|971|><|563|><|code_end|>\nis<|t_0.36|><|code_start|><|915|><|396|><|869|><|1779|><|805|><|1489|><|1157|><|1142|><|1011|><|555|><|686|><|1578|><|1428|><|1624|><|1252|><|949|><|175|><|239|><|154|><|1280|><|716|><|1729|><|1445|><|1791|><|1679|><|1769|><|884|><|code_end|>\nwhat<|t_0.36|><|code_start|><|1710|><|1734|><|1364|><|1789|><|1805|><|1628|><|1025|><|859|><|1595|><|987|><|136|><|1584|><|635|><|1006|><|1789|><|552|><|871|><|1505|><|1206|><|474|><|705|><|803|><|1305|><|1595|><|627|><|1137|><|486|><|code_end|>\nit<|t_0.47|><|code_start|><|676|><|1746|><|1672|><|1465|><|1346|><|673|><|957|><|1293|><|1348|><|1628|><|710|><|1233|><|1628|><|727|><|1338|><|1536|><|673|><|686|><|1273|><|1114|><|1523|><|1338|><|1510|><|273|><|1487|><|1656|><|1573|><|1786|><|813|><|1284|><|1442|><|17|><|325|><|975|><|555|><|code_end|>\nis<|t_0.47|><|code_start|><|1747|><|1419|><|1465|><|1538|><|17|><|862|><|1419|><|986|><|1628|><|1157|><|933|><|1176|><|939|><|899|><|625|><|939|><|1085|><|101|><|1224|><|1744|><|1777|><|1462|><|176|><|1618|><|972|><|1623|><|1580|><|1252|><|1479|><|1702|><|1802|><|895|><|1673|><|1510|><|1513|><|code_end|>";
+                speaker = format_audiotokens("but<|t_0.24|><|code_start|><|710|><|505|><|555|><|1255|><|1474|><|1315|><|1740|><|530|><|1446|><|1651|><|991|><|186|><|1310|><|816|><|175|><|935|><|776|><|672|><|code_end|>\nthat<|t_0.40|><|code_start|><|1440|><|807|><|712|><|1525|><|177|><|584|><|1006|><|1288|><|1664|><|1732|><|951|><|79|><|797|><|790|><|172|><|1111|><|106|><|1222|><|186|><|186|><|1122|><|1153|><|81|><|1055|><|1355|><|1757|><|861|><|1067|><|971|><|563|><|code_end|>\nis<|t_0.36|><|code_start|><|915|><|396|><|869|><|1779|><|805|><|1489|><|1157|><|1142|><|1011|><|555|><|686|><|1578|><|1428|><|1624|><|1252|><|949|><|175|><|239|><|154|><|1280|><|716|><|1729|><|1445|><|1791|><|1679|><|1769|><|884|><|code_end|>\nwhat<|t_0.36|><|code_start|><|1710|><|1734|><|1364|><|1789|><|1805|><|1628|><|1025|><|859|><|1595|><|987|><|136|><|1584|><|635|><|1006|><|1789|><|552|><|871|><|1505|><|1206|><|474|><|705|><|803|><|1305|><|1595|><|627|><|1137|><|486|><|code_end|>\nit<|t_0.47|><|code_start|><|676|><|1746|><|1672|><|1465|><|1346|><|673|><|957|><|1293|><|1348|><|1628|><|710|><|1233|><|1628|><|727|><|1338|><|1536|><|673|><|686|><|1273|><|1114|><|1523|><|1338|><|1510|><|273|><|1487|><|1656|><|1573|><|1786|><|813|><|1284|><|1442|><|17|><|325|><|975|><|555|><|code_end|>\nis<|t_0.47|><|code_start|><|1747|><|1419|><|1465|><|1538|><|17|><|862|><|1419|><|986|><|1628|><|1157|><|933|><|1176|><|939|><|899|><|625|><|939|><|1085|><|101|><|1224|><|1744|><|1777|><|1462|><|176|><|1618|><|972|><|1623|><|1580|><|1252|><|1479|><|1702|><|1802|><|895|><|1673|><|1510|><|1513|><|code_end|>",ttsver);
                 break;
                 case 5:
-                speaker = "but<|t_0.20|><|code_start|><|686|><|1288|><|1251|><|1428|><|481|><|702|><|1812|><|829|><|81|><|756|><|76|><|104|><|952|><|1723|><|1632|><|code_end|>\nthat<|t_0.20|><|code_start|><|1006|><|1067|><|1614|><|1810|><|887|><|43|><|1192|><|106|><|400|><|43|><|730|><|660|><|186|><|87|><|467|><|code_end|>\nis<|t_0.27|><|code_start|><|648|><|1625|><|9|><|685|><|243|><|106|><|996|><|990|><|228|><|809|><|1009|><|2|><|806|><|1325|><|1332|><|1766|><|202|><|725|><|416|><|822|><|code_end|>\nwhat<|t_0.36|><|code_start|><|1287|><|328|><|1241|><|1661|><|1651|><|1708|><|1740|><|1685|><|1715|><|1787|><|1381|><|197|><|1769|><|525|><|1000|><|234|><|364|><|115|><|212|><|632|><|1153|><|228|><|73|><|1002|><|1800|><|1277|><|1117|><|code_end|>\nit<|t_0.40|><|code_start|><|1830|><|1199|><|1282|><|1163|><|1195|><|1752|><|1092|><|1481|><|1003|><|513|><|1639|><|1805|><|1485|><|1645|><|195|><|1464|><|181|><|195|><|123|><|87|><|433|><|878|><|170|><|1265|><|375|><|1708|><|1739|><|1519|><|1185|><|1099|><|code_end|>\nis<|t_0.76|><|code_start|><|1748|><|1422|><|276|><|1337|><|1322|><|1519|><|1779|><|1067|><|1724|><|891|><|1205|><|1419|><|1144|><|1667|><|591|><|1003|><|1543|><|566|><|1390|><|426|><|1824|><|182|><|1138|><|52|><|129|><|1056|><|155|><|1056|><|1298|><|919|><|155|><|125|><|500|><|1022|><|571|><|315|><|400|><|100|><|617|><|295|><|757|><|324|><|592|><|1298|><|1310|><|57|><|876|><|1175|><|1353|><|1770|><|1649|><|1828|><|1637|><|362|><|1744|><|884|><|1027|><|code_end|>";
+                speaker = format_audiotokens("but<|t_0.20|><|code_start|><|686|><|1288|><|1251|><|1428|><|481|><|702|><|1812|><|829|><|81|><|756|><|76|><|104|><|952|><|1723|><|1632|><|code_end|>\nthat<|t_0.20|><|code_start|><|1006|><|1067|><|1614|><|1810|><|887|><|43|><|1192|><|106|><|400|><|43|><|730|><|660|><|186|><|87|><|467|><|code_end|>\nis<|t_0.27|><|code_start|><|648|><|1625|><|9|><|685|><|243|><|106|><|996|><|990|><|228|><|809|><|1009|><|2|><|806|><|1325|><|1332|><|1766|><|202|><|725|><|416|><|822|><|code_end|>\nwhat<|t_0.36|><|code_start|><|1287|><|328|><|1241|><|1661|><|1651|><|1708|><|1740|><|1685|><|1715|><|1787|><|1381|><|197|><|1769|><|525|><|1000|><|234|><|364|><|115|><|212|><|632|><|1153|><|228|><|73|><|1002|><|1800|><|1277|><|1117|><|code_end|>\nit<|t_0.40|><|code_start|><|1830|><|1199|><|1282|><|1163|><|1195|><|1752|><|1092|><|1481|><|1003|><|513|><|1639|><|1805|><|1485|><|1645|><|195|><|1464|><|181|><|195|><|123|><|87|><|433|><|878|><|170|><|1265|><|375|><|1708|><|1739|><|1519|><|1185|><|1099|><|code_end|>\nis<|t_0.76|><|code_start|><|1748|><|1422|><|276|><|1337|><|1322|><|1519|><|1779|><|1067|><|1724|><|891|><|1205|><|1419|><|1144|><|1667|><|591|><|1003|><|1543|><|566|><|1390|><|426|><|1824|><|182|><|1138|><|52|><|129|><|1056|><|155|><|1056|><|1298|><|919|><|155|><|125|><|500|><|1022|><|571|><|315|><|400|><|100|><|617|><|295|><|757|><|324|><|592|><|1298|><|1310|><|57|><|876|><|1175|><|1353|><|1770|><|1649|><|1828|><|1637|><|362|><|1744|><|884|><|1027|><|code_end|>",ttsver);
                 break;
                 case 6:
-                speaker = "but<|t_0.39|><|code_start|><|1338|><|1319|><|805|><|1176|><|799|><|591|><|325|><|1023|><|274|><|1348|><|1246|><|1176|><|591|><|555|><|758|><|591|><|438|><|710|><|727|><|1419|><|1157|><|1157|><|1293|><|633|><|1003|><|832|><|871|><|1399|><|1315|><|code_end|>\nthat<|t_0.20|><|code_start|><|1352|><|668|><|859|><|1793|><|1455|><|260|><|1117|><|260|><|186|><|1209|><|106|><|1098|><|260|><|1088|><|752|><|code_end|>\nis<|t_0.17|><|code_start|><|949|><|869|><|352|><|821|><|475|><|788|><|1150|><|1286|><|1079|><|1726|><|328|><|1624|><|1641|><|code_end|>\nwhat<|t_0.47|><|code_start|><|1175|><|1710|><|640|><|231|><|1781|><|884|><|1649|><|930|><|1270|><|1824|><|1383|><|1748|><|1011|><|1176|><|1023|><|986|><|1419|><|1425|><|686|><|899|><|627|><|1419|><|1023|><|799|><|1338|><|1163|><|1464|><|627|><|840|><|361|><|693|><|159|><|1041|><|562|><|1444|><|code_end|>\nit<|t_0.12|><|code_start|><|1078|><|685|><|982|><|277|><|1494|><|793|><|229|><|853|><|308|><|code_end|>\nis<|t_0.23|><|code_start|><|1291|><|1308|><|902|><|531|><|1022|><|231|><|992|><|1671|><|967|><|992|><|1646|><|1654|><|1791|><|701|><|1624|><|1565|><|1532|><|code_end|>";
+                speaker = format_audiotokens("but<|t_0.39|><|code_start|><|1338|><|1319|><|805|><|1176|><|799|><|591|><|325|><|1023|><|274|><|1348|><|1246|><|1176|><|591|><|555|><|758|><|591|><|438|><|710|><|727|><|1419|><|1157|><|1157|><|1293|><|633|><|1003|><|832|><|871|><|1399|><|1315|><|code_end|>\nthat<|t_0.20|><|code_start|><|1352|><|668|><|859|><|1793|><|1455|><|260|><|1117|><|260|><|186|><|1209|><|106|><|1098|><|260|><|1088|><|752|><|code_end|>\nis<|t_0.17|><|code_start|><|949|><|869|><|352|><|821|><|475|><|788|><|1150|><|1286|><|1079|><|1726|><|328|><|1624|><|1641|><|code_end|>\nwhat<|t_0.47|><|code_start|><|1175|><|1710|><|640|><|231|><|1781|><|884|><|1649|><|930|><|1270|><|1824|><|1383|><|1748|><|1011|><|1176|><|1023|><|986|><|1419|><|1425|><|686|><|899|><|627|><|1419|><|1023|><|799|><|1338|><|1163|><|1464|><|627|><|840|><|361|><|693|><|159|><|1041|><|562|><|1444|><|code_end|>\nit<|t_0.12|><|code_start|><|1078|><|685|><|982|><|277|><|1494|><|793|><|229|><|853|><|308|><|code_end|>\nis<|t_0.23|><|code_start|><|1291|><|1308|><|902|><|531|><|1022|><|231|><|992|><|1671|><|967|><|992|><|1646|><|1654|><|1791|><|701|><|1624|><|1565|><|1532|><|code_end|>",ttsver);
                 break;
                 case 7:
-                speaker = "but<|t_0.31|><|code_start|><|174|><|544|><|68|><|391|><|131|><|187|><|559|><|534|><|223|><|1185|><|612|><|301|><|387|><|94|><|1224|><|1159|><|162|><|236|><|1133|><|774|><|888|><|144|><|1038|><|code_end|>\nthat<|t_0.20|><|code_start|><|223|><|77|><|1517|><|446|><|1207|><|140|><|873|><|147|><|1051|><|210|><|1216|><|147|><|1148|><|678|><|501|><|code_end|>\nis<|t_0.13|><|code_start|><|912|><|822|><|622|><|519|><|1017|><|546|><|1740|><|1823|><|1561|><|273|><|code_end|>\nwhat<|t_0.16|><|code_start|><|1571|><|1597|><|486|><|1417|><|130|><|747|><|1088|><|1045|><|580|><|239|><|431|><|40|><|code_end|>\nit<|t_0.12|><|code_start|><|1736|><|878|><|1159|><|1004|><|1168|><|594|><|544|><|77|><|1032|><|code_end|>\nis<|t_0.28|><|code_start|><|1088|><|873|><|1726|><|1099|><|1095|><|1412|><|1106|><|1317|><|1292|><|149|><|1429|><|967|><|873|><|1754|><|229|><|1046|><|1595|><|1003|><|1603|><|1529|><|101|><|code_end|>";
+                speaker = format_audiotokens("but<|t_0.31|><|code_start|><|174|><|544|><|68|><|391|><|131|><|187|><|559|><|534|><|223|><|1185|><|612|><|301|><|387|><|94|><|1224|><|1159|><|162|><|236|><|1133|><|774|><|888|><|144|><|1038|><|code_end|>\nthat<|t_0.20|><|code_start|><|223|><|77|><|1517|><|446|><|1207|><|140|><|873|><|147|><|1051|><|210|><|1216|><|147|><|1148|><|678|><|501|><|code_end|>\nis<|t_0.13|><|code_start|><|912|><|822|><|622|><|519|><|1017|><|546|><|1740|><|1823|><|1561|><|273|><|code_end|>\nwhat<|t_0.16|><|code_start|><|1571|><|1597|><|486|><|1417|><|130|><|747|><|1088|><|1045|><|580|><|239|><|431|><|40|><|code_end|>\nit<|t_0.12|><|code_start|><|1736|><|878|><|1159|><|1004|><|1168|><|594|><|544|><|77|><|1032|><|code_end|>\nis<|t_0.28|><|code_start|><|1088|><|873|><|1726|><|1099|><|1095|><|1412|><|1106|><|1317|><|1292|><|149|><|1429|><|967|><|873|><|1754|><|229|><|1046|><|1595|><|1003|><|1603|><|1529|><|101|><|code_end|>",ttsver);
                 break;
             }
-            last_speaker_codes = common_tokenize(model_ttc, speaker, false, true);
+            last_speaker_codes = common_tokenize(ttcvocab, speaker, false, true);
             last_speaker_seed = speaker_seed;
             if(!inputs.quiet && ttsdebugmode==1)
             {
@@ -636,9 +708,16 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
         } else {
             //generate the voice texture of our new speaker
             last_speaker_codes.clear();
-            guide_tokens = prepare_guide_tokens(model_ttc,sampletext);
-            prompt_add(prompt_inp, model_ttc, sampletext, false, true);
-            prompt_add(prompt_inp, model_ttc, "<|text_end|>\n<|audio_start|>\n", false, true);
+            guide_tokens = prepare_guide_tokens(ttcvocab,sampletext,ttsver);
+            if(!inputs.quiet && ttsdebugmode==1)
+            {
+                printf("\nGuide Tokens (%d tokens):\n", guide_tokens.size());
+                const std::string inp_txt = common_detokenize(ttc_ctx, guide_tokens, true);
+                printf("%s", inp_txt.c_str());
+                printf("\n");
+            }
+            prompt_add(prompt_inp, ttcvocab, sampletext, false, true);
+            prompt_add(prompt_inp, ttcvocab, "<|text_end|>\n<|audio_start|>\n", false, true);
             if(!inputs.quiet && ttsdebugmode==1)
             {
                 printf("\nPrepare new speaker (%d input tokens)...", prompt_inp.size());
@@ -662,7 +741,7 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
                 llama_token new_token_id = kcpp_quick_sample(logits,ttc_n_vocab,topk,temp,speaker_rng);
 
                 //guide tokens help prevent hallucinations by forcing the TTS to use the correct word
-                if(next_token_uses_guide_token && !llama_token_is_control(model_ttc, new_token_id) && !llama_token_is_eog(model_ttc, new_token_id))
+                if(next_token_uses_guide_token && !llama_vocab_is_control(ttcvocab, new_token_id) && !llama_vocab_is_eog(ttcvocab, new_token_id))
                 {
                     if(!guide_tokens.empty())
                     {
@@ -675,11 +754,11 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
                 }
 
                 //this is the token id that always precedes a new word
-                next_token_uses_guide_token = (new_token_id == 198);
+                next_token_uses_guide_token = (new_token_id == newlineid);
                 last_speaker_codes.push_back(new_token_id);
 
                 // is it an end of generation? -> mark the stream as finished
-                if (llama_token_is_eog(model_ttc, new_token_id) || n_decode >= n_predict) {
+                if (llama_vocab_is_eog(ttcvocab, new_token_id) || n_decode >= n_predict) {
                     break;
                 }
 
@@ -712,25 +791,31 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
         }
         guide_tokens.clear();
         llama_kv_cache_clear(ttc_ctx);
-        prompt_init(prompt_inp, model_ttc);
-        prompt_add(prompt_inp, model_ttc, "<|text_start|>", false, true);
+        prompt_init(prompt_inp, ttcvocab);
         next_token_uses_guide_token = true;
     }
 
     //second pass: add the speaker before the actual prompt
-    guide_tokens = prepare_guide_tokens(model_ttc,prompt_clean);
+    guide_tokens = prepare_guide_tokens(ttcvocab,prompt_clean,ttsver);
+    if(!inputs.quiet && ttsdebugmode==1)
+    {
+        printf("\nGuide Tokens (%d tokens):\n", guide_tokens.size());
+        const std::string inp_txt = common_detokenize(ttc_ctx, guide_tokens, true);
+        printf("%s", inp_txt.c_str());
+        printf("\n");
+    }
     if(speaker_seed > 0)
     {
-        prompt_clean = sampletext + "<|text_sep|>" + prompt_clean;
+        prompt_clean = sampletext + (ttsver==TTS_VER_3?"<|space|>":"<|text_sep|>") + prompt_clean;
     }
-    prompt_add(prompt_inp, model_ttc, prompt_clean, false, true);
+    prompt_add(prompt_inp, ttcvocab, prompt_clean, false, true);
 
     if(!inputs.quiet)
     {
         printf("\nTTS Processing (%d input tokens)...\n", prompt_inp.size());
     }
 
-    prompt_add(prompt_inp, model_ttc, "<|text_end|>\n<|audio_start|>\n", false, true);
+    prompt_add(prompt_inp, ttcvocab, "<|text_end|>\n<|audio_start|>\n", false, true);
 
     if(!last_speaker_codes.empty() && speaker_seed > 0) //apply speaker voice output
     {
@@ -769,7 +854,7 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
         llama_token new_token_id = kcpp_quick_sample(logits,ttc_n_vocab,topk,temp,tts_rng);
 
         //guide tokens help prevent hallucinations by forcing the TTS to use the correct word
-        if(next_token_uses_guide_token && !llama_token_is_control(model_ttc, new_token_id) && !llama_token_is_eog(model_ttc, new_token_id))
+        if(next_token_uses_guide_token && !llama_vocab_is_control(ttcvocab, new_token_id) && !llama_vocab_is_eog(ttcvocab, new_token_id))
         {
             if(!guide_tokens.empty())
             {
@@ -782,11 +867,11 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
         }
 
         //this is the token id that always precedes a new word
-        next_token_uses_guide_token = (new_token_id == 198);
+        next_token_uses_guide_token = (new_token_id == newlineid);
         codes.push_back(new_token_id);
 
         // is it an end of generation? -> mark the stream as finished
-        if (llama_token_is_eog(model_ttc, new_token_id) || n_decode >= n_predict) {
+        if (llama_vocab_is_eog(ttcvocab, new_token_id) || n_decode >= n_predict) {
             break;
         }
 
@@ -840,24 +925,25 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
     else
     {
         // spectral operations
-        const int n_embd = llama_n_embd(model_cts);
+        const int n_embd = llama_model_n_embd(model_cts);
         const float * embd = llama_get_embeddings(cts_ctx);
         std::vector<float> audio = embd_to_audio(embd, n_codes, n_embd, 4);
 
         const int n_sr = 24000; // original sampling rate
         const int t_sr = 16000; //final target sampling rate
 
-        // zero out first 0.1 seconds or 0.05 depending on whether its seeded
-        const int cutout = (speaker_seed>0?(n_sr/10):(n_sr/20));
+        // zero out first x seconds depending on whether its seeded
+        const int cutout = t_sr/4;
+
+        audio = resample_wav(audio,n_sr,t_sr); //resample to 16k
+
         for (int i = 0; i < cutout; ++i) {
             audio[i] = 0.0f;
         }
         //add some silence at the end
-        for (int i = 0; i < n_sr/10; ++i) {
+        for (int i = 0; i < t_sr/10; ++i) {
             audio.push_back(0.0f);
         }
-
-        audio = resample_wav(audio,n_sr,t_sr); //resample to 16k
 
         last_generated_audio = save_wav16_base64(audio, t_sr);
         ttstime = timer_check();
@@ -869,6 +955,11 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
 
         output.data = last_generated_audio.c_str();
         output.status = 1;
+
+        last_generation_settings_audio_seed = inputs.audio_seed;
+        last_generation_settings_speaker_seed = inputs.speaker_seed;
+        last_generation_settings_prompt = std::string(inputs.prompt);
+
         return output;
     }
 }
