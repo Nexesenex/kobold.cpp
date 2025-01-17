@@ -207,6 +207,7 @@ struct whisper_generation_outputs
 
 struct tts_load_model_inputs
 {
+    const int threads = 4;
     const char * ttc_model_filename = nullptr;
     const char * cts_model_filename = nullptr;
     const char * executable_path = nullptr;

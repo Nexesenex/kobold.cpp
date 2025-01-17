@@ -467,6 +467,10 @@ static int last_generation_settings_speaker_seed;
 static int last_generation_settings_audio_seed;
 static std::vector<llama_token> last_speaker_codes; //will store cached speaker
 static int last_speaker_seed = -999;
+static int cts_offset = 151672;
+static int space_id = 151670;
+static int code_terminate_id = 151670;
+static int nthreads = 4;
 
 bool ttstype_load_model(const tts_load_model_inputs inputs)
 {
@@ -507,7 +511,7 @@ bool ttstype_load_model(const tts_load_model_inputs inputs)
     llama_model_params tts_model_params = llama_model_default_params();
     llama_context_params tts_ctx_params = llama_context_default_params();
 
-    const int nthreads = 4;
+    nthreads = inputs.threads;
 
     tts_model_params.use_mmap = false;
     tts_model_params.use_mlock = false;
@@ -554,9 +558,21 @@ bool ttstype_load_model(const tts_load_model_inputs inputs)
     if (testoks.size() == 1) {
         ttsver = TTS_VER_3;
         printf("\nUsing v0.3 mode");
+        //note that the final word does NOT have a space at the end.
+        space_id = testoks[0];
+        testoks = common_tokenize(ttcvocab,"<|audio_end|>",false,true);
+        if (testoks.size() == 1) {
+            code_terminate_id = testoks[0];
+        }
     } else {
         ttsver = TTS_VER_2;
         printf("\nUsing v0.2 mode");
+    }
+
+    //determine offset of <|0|>
+    testoks = common_tokenize(ttcvocab,"<|0|>",false,true);
+    if (testoks.size() == 1) {
+        cts_offset = testoks[0];
     }
 
     printf("\nTTS Load Complete.\n");
@@ -673,7 +689,7 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
             {
                 printf("\nReuse speaker ID=%d (%d tokens)...", last_speaker_seed, last_speaker_codes.size());
             }
-        } else if (speaker_seed>=1 && speaker_seed<=7){ //special seeds
+        } else if (speaker_seed>=1 && speaker_seed<=5){ //special seeds
             std::string speaker = "";
             switch(speaker_seed)
             {
@@ -681,22 +697,16 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
                 speaker = format_audiotokens("but<|t_0.31|><|code_start|><|1023|><|1474|><|17|><|121|><|1362|><|744|><|438|><|1319|><|744|><|1419|><|1246|><|923|><|1338|><|406|><|939|><|975|><|1491|><|965|><|1212|><|248|><|794|><|464|><|830|><|code_end|>\nthat<|t_0.13|><|code_start|><|1578|><|1773|><|660|><|1074|><|221|><|1803|><|142|><|914|><|798|><|485|><|code_end|>\nis<|t_0.11|><|code_start|><|737|><|794|><|1288|><|182|><|895|><|1653|><|448|><|471|><|code_end|>\nwhat<|t_0.12|><|code_start|><|1734|><|1306|><|779|><|490|><|525|><|1028|><|37|><|1633|><|1353|><|code_end|>\nit<|t_0.09|><|code_start|><|1343|><|898|><|270|><|1035|><|94|><|1409|><|388|><|code_end|>\nis<|t_0.23|><|code_start|><|694|><|695|><|577|><|692|><|1047|><|388|><|28|><|905|><|1155|><|50|><|1629|><|1775|><|1711|><|1729|><|404|><|1027|><|344|><|code_end|>",ttsver);
                 break;
                 case 2:
-                speaker = format_audiotokens("but<|t_0.23|><|code_start|><|762|><|612|><|316|><|1128|><|171|><|250|><|1765|><|60|><|1075|><|81|><|1159|><|140|><|81|><|1158|><|678|><|1639|><|970|><|code_end|>\nthat<|t_0.21|><|code_start|><|1254|><|460|><|378|><|1621|><|1477|><|210|><|270|><|571|><|179|><|324|><|408|><|81|><|642|><|408|><|794|><|1506|><|code_end|>\nis<|t_0.16|><|code_start|><|36|><|57|><|1132|><|881|><|844|><|260|><|79|><|1794|><|1195|><|333|><|1808|><|1375|><|code_end|>\nwhat<|t_0.23|><|code_start|><|485|><|1583|><|1091|><|736|><|668|><|1703|><|670|><|832|><|959|><|853|><|983|><|969|><|576|><|697|><|721|><|1032|><|990|><|code_end|>\nit<|t_0.16|><|code_start|><|772|><|741|><|794|><|1015|><|110|><|965|><|1060|><|62|><|1305|><|470|><|284|><|259|><|code_end|>\nis<|t_0.35|><|code_start|><|516|><|1099|><|405|><|1831|><|1051|><|1471|><|26|><|1207|><|809|><|0|><|1303|><|1329|><|1196|><|798|><|679|><|992|><|1358|><|930|><|1065|><|942|><|1573|><|823|><|823|><|1527|><|1617|><|865|><|code_end|>",ttsver);
+                speaker = format_audiotokens("but<|t_0.45|><|code_start|><|920|><|1824|><|1138|><|1387|><|1096|><|1712|><|1642|><|810|><|1685|><|620|><|954|><|584|><|23|><|1467|><|509|><|659|><|1598|><|465|><|567|><|1440|><|3|><|476|><|740|><|288|><|419|><|1440|><|1477|><|254|><|25|><|811|><|882|><|476|><|246|><|246|><|code_end|>\nthat<|t_0.17|><|code_start|><|419|><|1690|><|208|><|1044|><|300|><|1100|><|375|><|1222|><|371|><|1045|><|637|><|1719|><|314|><|code_end|>\nis<|t_0.12|><|code_start|><|319|><|1131|><|794|><|1103|><|1296|><|1615|><|1587|><|233|><|863|><|code_end|>\nwhat<|t_0.16|><|code_start|><|793|><|902|><|391|><|946|><|437|><|95|><|1133|><|110|><|58|><|853|><|1283|><|449|><|code_end|>\nit<|t_0.12|><|code_start|><|774|><|239|><|974|><|213|><|1095|><|1612|><|101|><|1569|><|882|><|code_end|>\nis<|t_0.32|><|code_start|><|1131|><|529|><|1144|><|774|><|1114|><|483|><|693|><|648|><|1112|><|1470|><|1112|><|319|><|1294|><|1417|><|1660|><|729|><|1789|><|1413|><|1728|><|554|><|273|><|736|><|640|><|1549|><|code_end|>",ttsver);
                 break;
                 case 3:
-                speaker = format_audiotokens("but<|t_0.32|><|code_start|><|862|><|899|><|1601|><|1749|><|121|><|1176|><|1601|><|1007|><|1722|><|121|><|1142|><|1465|><|696|><|1284|><|1698|><|1275|><|860|><|113|><|590|><|1356|><|577|><|1346|><|1433|><|1779|><|code_end|>\nthat<|t_0.40|><|code_start|><|1248|><|1181|><|1792|><|735|><|1289|><|1346|><|975|><|1751|><|1587|><|1042|><|221|><|29|><|991|><|797|><|1184|><|1171|><|152|><|352|><|1119|><|1282|><|110|><|73|><|524|><|1424|><|1276|><|996|><|777|><|1119|><|1166|><|859|><|code_end|>\nis<|t_0.61|><|code_start|><|1666|><|1819|><|566|><|1333|><|1658|><|981|><|1705|><|1185|><|939|><|1813|><|899|><|1465|><|1176|><|712|><|1390|><|1578|><|1275|><|92|><|1729|><|1200|><|1615|><|1484|><|1200|><|1574|><|1307|><|1221|><|1606|><|1307|><|428|><|1759|><|1127|><|1574|><|1581|><|127|><|1507|><|1060|><|1769|><|34|><|1583|><|1579|><|1828|><|1580|><|652|><|1688|><|1527|><|1547|><|code_end|>\nwhat<|t_0.93|><|code_start|><|1691|><|731|><|1592|><|1573|><|1547|><|1617|><|1528|><|1547|><|1664|><|867|><|1571|><|1637|><|273|><|1354|><|1573|><|34|><|1724|><|1669|><|1538|><|1293|><|1623|><|1536|><|1233|><|1176|><|1348|><|1011|><|1722|><|899|><|1176|><|1419|><|899|><|1763|><|1293|><|1601|><|1543|><|939|><|1543|><|1419|><|799|><|1722|><|1233|><|1011|><|1543|><|1007|><|1176|><|1628|><|1114|><|1763|><|862|><|957|><|1693|><|274|><|1176|><|1719|><|805|><|1706|><|1472|><|1249|><|1365|><|877|><|269|><|197|><|1068|><|969|><|1591|><|1192|><|996|><|1764|><|1455|><|1643|><|code_end|>\nit<|t_0.15|><|code_start|><|804|><|1141|><|1566|><|1013|><|529|><|1650|><|1149|><|1744|><|763|><|1640|><|1692|><|code_end|>\nis<|t_0.40|><|code_start|><|1218|><|774|><|1576|><|1192|><|286|><|1831|><|1407|><|92|><|803|><|1311|><|26|><|546|><|1124|><|978|><|319|><|1062|><|1675|><|1608|><|1158|><|1456|><|1572|><|1199|><|1603|><|1592|><|1664|><|1586|><|1571|><|1354|><|34|><|1627|><|code_end|>",ttsver);
+                speaker = format_audiotokens("but<|t_0.21|><|code_start|><|348|><|1776|><|1620|><|1262|><|118|><|288|><|258|><|1407|><|1331|><|1102|><|664|><|1300|><|1647|><|1536|><|71|><|23|><|code_end|>        \nthat<|t_0.19|><|code_start|><|3|><|1740|><|1253|><|1122|><|549|><|715|><|718|><|657|><|1136|><|1247|><|517|><|1333|><|815|><|634|><|code_end|>\nis<|t_0.12|><|code_start|><|1330|><|839|><|753|><|1826|><|1602|><|50|><|1441|><|889|><|948|><|code_end|>\nwhat<|t_0.16|><|code_start|><|899|><|869|><|250|><|894|><|876|><|1471|><|1308|><|1436|><|1328|><|1700|><|1425|><|1330|><|code_end|>\nit<|t_0.12|><|code_start|><|1027|><|1162|><|1344|><|1170|><|86|><|1562|><|1575|><|176|><|1186|><|code_end|>\nis<|t_0.25|><|code_start|><|361|><|1533|><|1697|><|903|><|333|><|1232|><|1337|><|1611|><|1196|><|0|><|1328|><|1245|><|1718|><|1635|><|1616|><|1599|><|1363|><|962|><|328|><|code_end|>",ttsver);
                 break;
                 case 4:
-                speaker = format_audiotokens("but<|t_0.24|><|code_start|><|710|><|505|><|555|><|1255|><|1474|><|1315|><|1740|><|530|><|1446|><|1651|><|991|><|186|><|1310|><|816|><|175|><|935|><|776|><|672|><|code_end|>\nthat<|t_0.40|><|code_start|><|1440|><|807|><|712|><|1525|><|177|><|584|><|1006|><|1288|><|1664|><|1732|><|951|><|79|><|797|><|790|><|172|><|1111|><|106|><|1222|><|186|><|186|><|1122|><|1153|><|81|><|1055|><|1355|><|1757|><|861|><|1067|><|971|><|563|><|code_end|>\nis<|t_0.36|><|code_start|><|915|><|396|><|869|><|1779|><|805|><|1489|><|1157|><|1142|><|1011|><|555|><|686|><|1578|><|1428|><|1624|><|1252|><|949|><|175|><|239|><|154|><|1280|><|716|><|1729|><|1445|><|1791|><|1679|><|1769|><|884|><|code_end|>\nwhat<|t_0.36|><|code_start|><|1710|><|1734|><|1364|><|1789|><|1805|><|1628|><|1025|><|859|><|1595|><|987|><|136|><|1584|><|635|><|1006|><|1789|><|552|><|871|><|1505|><|1206|><|474|><|705|><|803|><|1305|><|1595|><|627|><|1137|><|486|><|code_end|>\nit<|t_0.47|><|code_start|><|676|><|1746|><|1672|><|1465|><|1346|><|673|><|957|><|1293|><|1348|><|1628|><|710|><|1233|><|1628|><|727|><|1338|><|1536|><|673|><|686|><|1273|><|1114|><|1523|><|1338|><|1510|><|273|><|1487|><|1656|><|1573|><|1786|><|813|><|1284|><|1442|><|17|><|325|><|975|><|555|><|code_end|>\nis<|t_0.47|><|code_start|><|1747|><|1419|><|1465|><|1538|><|17|><|862|><|1419|><|986|><|1628|><|1157|><|933|><|1176|><|939|><|899|><|625|><|939|><|1085|><|101|><|1224|><|1744|><|1777|><|1462|><|176|><|1618|><|972|><|1623|><|1580|><|1252|><|1479|><|1702|><|1802|><|895|><|1673|><|1510|><|1513|><|code_end|>",ttsver);
-                break;
-                case 5:
                 speaker = format_audiotokens("but<|t_0.20|><|code_start|><|686|><|1288|><|1251|><|1428|><|481|><|702|><|1812|><|829|><|81|><|756|><|76|><|104|><|952|><|1723|><|1632|><|code_end|>\nthat<|t_0.20|><|code_start|><|1006|><|1067|><|1614|><|1810|><|887|><|43|><|1192|><|106|><|400|><|43|><|730|><|660|><|186|><|87|><|467|><|code_end|>\nis<|t_0.27|><|code_start|><|648|><|1625|><|9|><|685|><|243|><|106|><|996|><|990|><|228|><|809|><|1009|><|2|><|806|><|1325|><|1332|><|1766|><|202|><|725|><|416|><|822|><|code_end|>\nwhat<|t_0.36|><|code_start|><|1287|><|328|><|1241|><|1661|><|1651|><|1708|><|1740|><|1685|><|1715|><|1787|><|1381|><|197|><|1769|><|525|><|1000|><|234|><|364|><|115|><|212|><|632|><|1153|><|228|><|73|><|1002|><|1800|><|1277|><|1117|><|code_end|>\nit<|t_0.40|><|code_start|><|1830|><|1199|><|1282|><|1163|><|1195|><|1752|><|1092|><|1481|><|1003|><|513|><|1639|><|1805|><|1485|><|1645|><|195|><|1464|><|181|><|195|><|123|><|87|><|433|><|878|><|170|><|1265|><|375|><|1708|><|1739|><|1519|><|1185|><|1099|><|code_end|>\nis<|t_0.76|><|code_start|><|1748|><|1422|><|276|><|1337|><|1322|><|1519|><|1779|><|1067|><|1724|><|891|><|1205|><|1419|><|1144|><|1667|><|591|><|1003|><|1543|><|566|><|1390|><|426|><|1824|><|182|><|1138|><|52|><|129|><|1056|><|155|><|1056|><|1298|><|919|><|155|><|125|><|500|><|1022|><|571|><|315|><|400|><|100|><|617|><|295|><|757|><|324|><|592|><|1298|><|1310|><|57|><|876|><|1175|><|1353|><|1770|><|1649|><|1828|><|1637|><|362|><|1744|><|884|><|1027|><|code_end|>",ttsver);
                 break;
-                case 6:
-                speaker = format_audiotokens("but<|t_0.39|><|code_start|><|1338|><|1319|><|805|><|1176|><|799|><|591|><|325|><|1023|><|274|><|1348|><|1246|><|1176|><|591|><|555|><|758|><|591|><|438|><|710|><|727|><|1419|><|1157|><|1157|><|1293|><|633|><|1003|><|832|><|871|><|1399|><|1315|><|code_end|>\nthat<|t_0.20|><|code_start|><|1352|><|668|><|859|><|1793|><|1455|><|260|><|1117|><|260|><|186|><|1209|><|106|><|1098|><|260|><|1088|><|752|><|code_end|>\nis<|t_0.17|><|code_start|><|949|><|869|><|352|><|821|><|475|><|788|><|1150|><|1286|><|1079|><|1726|><|328|><|1624|><|1641|><|code_end|>\nwhat<|t_0.47|><|code_start|><|1175|><|1710|><|640|><|231|><|1781|><|884|><|1649|><|930|><|1270|><|1824|><|1383|><|1748|><|1011|><|1176|><|1023|><|986|><|1419|><|1425|><|686|><|899|><|627|><|1419|><|1023|><|799|><|1338|><|1163|><|1464|><|627|><|840|><|361|><|693|><|159|><|1041|><|562|><|1444|><|code_end|>\nit<|t_0.12|><|code_start|><|1078|><|685|><|982|><|277|><|1494|><|793|><|229|><|853|><|308|><|code_end|>\nis<|t_0.23|><|code_start|><|1291|><|1308|><|902|><|531|><|1022|><|231|><|992|><|1671|><|967|><|992|><|1646|><|1654|><|1791|><|701|><|1624|><|1565|><|1532|><|code_end|>",ttsver);
-                break;
-                case 7:
-                speaker = format_audiotokens("but<|t_0.31|><|code_start|><|174|><|544|><|68|><|391|><|131|><|187|><|559|><|534|><|223|><|1185|><|612|><|301|><|387|><|94|><|1224|><|1159|><|162|><|236|><|1133|><|774|><|888|><|144|><|1038|><|code_end|>\nthat<|t_0.20|><|code_start|><|223|><|77|><|1517|><|446|><|1207|><|140|><|873|><|147|><|1051|><|210|><|1216|><|147|><|1148|><|678|><|501|><|code_end|>\nis<|t_0.13|><|code_start|><|912|><|822|><|622|><|519|><|1017|><|546|><|1740|><|1823|><|1561|><|273|><|code_end|>\nwhat<|t_0.16|><|code_start|><|1571|><|1597|><|486|><|1417|><|130|><|747|><|1088|><|1045|><|580|><|239|><|431|><|40|><|code_end|>\nit<|t_0.12|><|code_start|><|1736|><|878|><|1159|><|1004|><|1168|><|594|><|544|><|77|><|1032|><|code_end|>\nis<|t_0.28|><|code_start|><|1088|><|873|><|1726|><|1099|><|1095|><|1412|><|1106|><|1317|><|1292|><|149|><|1429|><|967|><|873|><|1754|><|229|><|1046|><|1595|><|1003|><|1603|><|1529|><|101|><|code_end|>",ttsver);
+                case 5:
+                speaker = format_audiotokens("but<|t_0.68|><|code_start|><|1761|><|1164|><|1543|><|1677|><|1120|><|1634|><|1496|><|1639|><|1717|><|1306|><|1016|><|1713|><|976|><|1474|><|1817|><|976|><|1595|><|1255|><|584|><|1440|><|1121|><|287|><|91|><|44|><|246|><|160|><|1233|><|247|><|776|><|44|><|246|><|12|><|1352|><|866|><|168|><|71|><|246|><|246|><|804|><|933|><|168|><|193|><|44|><|1663|><|1097|><|411|><|1393|><|1326|><|21|><|342|><|118|><|code_end|>\nthat<|t_0.17|><|code_start|><|220|><|1750|><|1160|><|260|><|1738|><|300|><|291|><|989|><|147|><|1150|><|947|><|803|><|930|><|code_end|>\nis<|t_0.15|><|code_start|><|798|><|1632|><|412|><|1084|><|1166|><|1014|><|416|><|1637|><|415|><|1|><|1660|><|code_end|>\nwhat<|t_0.21|><|code_start|><|1412|><|707|><|572|><|1092|><|898|><|673|><|770|><|1787|><|994|><|983|><|1096|><|221|><|924|><|1323|><|1726|><|387|><|code_end|>\nit<|t_0.12|><|code_start|><|798|><|665|><|513|><|695|><|1410|><|337|><|237|><|1717|><|1353|><|code_end|>\nis<|t_0.24|><|code_start|><|1355|><|1084|><|65|><|1422|><|674|><|1280|><|940|><|1752|><|396|><|1431|><|1761|><|957|><|1440|><|634|><|333|><|1627|><|821|><|788|><|code_end|>",ttsver);
                 break;
             }
             last_speaker_codes = common_tokenize(ttcvocab, speaker, false, true);
@@ -713,16 +723,17 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
             {
                 printf("\nGuide Tokens (%d tokens):\n", guide_tokens.size());
                 const std::string inp_txt = common_detokenize(ttc_ctx, guide_tokens, true);
-                printf("%s", inp_txt.c_str());
+                printf("%s,", inp_txt.c_str());
                 printf("\n");
             }
             prompt_add(prompt_inp, ttcvocab, sampletext, false, true);
             prompt_add(prompt_inp, ttcvocab, "<|text_end|>\n<|audio_start|>\n", false, true);
             if(!inputs.quiet && ttsdebugmode==1)
             {
-                printf("\nPrepare new speaker (%d input tokens)...", prompt_inp.size());
+                printf("\nPrepare new speaker (%d input tokens)...\n", prompt_inp.size());
+                print_tok_vec(prompt_inp);
             }
-            kcpp_embd_batch tts_batch = kcpp_embd_batch(prompt_inp, 0, false, true);
+            kcpp_embd_batch tts_batch = kcpp_embd_batch(prompt_inp, 0, false, false);
             auto evalok = (llama_decode(ttc_ctx, tts_batch.batch)==0);
             if (!evalok) {
                 printf("\nError: TTS prompt batch processing failed\n");
@@ -775,11 +786,17 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
                 }
             }
 
-            //trim everything after final <|code_end|>
-            auto it = std::find(last_speaker_codes.rbegin(), last_speaker_codes.rend(), 151670);
+            //trim everything after final <|code_end|> for v2, or <|audio_end|> offset-1 replaced with <|space|> for v3
+            auto it = std::find(last_speaker_codes.rbegin(), last_speaker_codes.rend(), code_terminate_id);
             if (it != last_speaker_codes.rend()) {
-                // Erase elements after the found 999 (inclusive)
+                // Erase elements after the found token (inclusive)
                 last_speaker_codes.erase(it.base(), last_speaker_codes.end());
+                if(ttsver==TTS_VER_3 && last_speaker_codes.size()>2)
+                {
+                    last_speaker_codes.pop_back();
+                    last_speaker_codes.pop_back();
+                    last_speaker_codes.push_back(space_id);
+                }
             }
             last_speaker_seed = speaker_seed;
             if(!inputs.quiet && ttsdebugmode==1)
@@ -819,18 +836,20 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
 
     if(!last_speaker_codes.empty() && speaker_seed > 0) //apply speaker voice output
     {
-       prompt_add(prompt_inp, last_speaker_codes);
+        prompt_add(prompt_inp, last_speaker_codes);
+        prompt_add(prompt_inp, ttcvocab, "\n", false, true);
     }
 
     if(!inputs.quiet && ttsdebugmode==1)
     {
         printf("\nDUMP TTS PROMPT (%d tokens):\n", prompt_inp.size());
+        print_tok_vec(prompt_inp);
         const std::string inp_txt = common_detokenize(ttc_ctx, prompt_inp, true);
         printf("\n%s\n", inp_txt.c_str());
     }
 
     //create batch with tokens for decoding prompt processing
-    kcpp_embd_batch tts_batch = kcpp_embd_batch(prompt_inp, 0, false, true);
+    kcpp_embd_batch tts_batch = kcpp_embd_batch(prompt_inp, 0, false, false);
 
     auto evalok = (llama_decode(ttc_ctx, tts_batch.batch)==0);
     if (!evalok) {
@@ -888,7 +907,7 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
         }
         if(!inputs.quiet)
         {
-            printf("\rTTS Generating (%d AudioTokens)", n_decode);
+            printf("\rTTS Generating (%d outputs)", n_decode);
         }
     }
 
@@ -899,10 +918,10 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
     }
 
     // remove all non-audio tokens (i.e. < 151672 || > 155772)
-    codes.erase(std::remove_if(codes.begin(), codes.end(), [](llama_token t) { return t < 151672 || t > 155772; }), codes.end());
+    codes.erase(std::remove_if(codes.begin(), codes.end(), [](llama_token t) { return t < cts_offset || t > (cts_offset+4100); }), codes.end());
 
     for (auto & token : codes) {
-        token -= 151672;
+        token -= cts_offset;
     }
 
     const int n_codes = codes.size();
@@ -915,6 +934,7 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
         return output;
     }
     kcpp_embd_batch codebatch = kcpp_embd_batch(codes,0,false,true);
+    printf("\nRunning Vocoder (%d AudioTokens)", codes.size());
 
     if (llama_decode(cts_ctx, codebatch.batch) != 0) {
         printf("\nError: TTS vocoder generation failed!\n");
@@ -927,21 +947,21 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
         // spectral operations
         const int n_embd = llama_model_n_embd(model_cts);
         const float * embd = llama_get_embeddings(cts_ctx);
-        std::vector<float> audio = embd_to_audio(embd, n_codes, n_embd, 4);
+        std::vector<float> audio = embd_to_audio(embd, n_codes, n_embd, nthreads);
 
         const int n_sr = 24000; // original sampling rate
-        const int t_sr = 16000; //final target sampling rate
+        const int t_sr = 24000; //final target sampling rate
 
         // zero out first x seconds depending on whether its seeded
         const int cutout = t_sr/4;
 
-        audio = resample_wav(audio,n_sr,t_sr); //resample to 16k
+        //audio = resample_wav(audio,n_sr,t_sr); //resample to 16k
 
         for (int i = 0; i < cutout; ++i) {
             audio[i] = 0.0f;
         }
         //add some silence at the end
-        for (int i = 0; i < t_sr/10; ++i) {
+        for (int i = 0; i < cutout; ++i) {
             audio.push_back(0.0f);
         }
 

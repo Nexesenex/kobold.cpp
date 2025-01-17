@@ -295,7 +295,8 @@ class whisper_generation_outputs(ctypes.Structure):
                 ("data", ctypes.c_char_p)]
 
 class tts_load_model_inputs(ctypes.Structure):
-    _fields_ = [("ttc_model_filename", ctypes.c_char_p),
+    _fields_ = [("threads", ctypes.c_int),
+                ("ttc_model_filename", ctypes.c_char_p),
                 ("cts_model_filename", ctypes.c_char_p),
                 ("executable_path", ctypes.c_char_p),
                 ("clblast_info", ctypes.c_int),
@@ -1932,6 +1933,12 @@ def tts_load_model(ttc_model_filename,cts_model_filename):
     inputs.ttc_model_filename = ttc_model_filename.encode("UTF-8")
     inputs.cts_model_filename = cts_model_filename.encode("UTF-8")
     inputs.gpulayers = (999 if args.ttsgpu else 0)
+    thds = args.threads
+    if args.ttsthreads and args.ttsthreads > 0:
+        ttst = int(args.ttsthreads)
+        if ttst > 0:
+            thds = ttst
+    inputs.threads = thds
     inputs = set_backend_props(inputs)
     ret = handle.tts_load_model(inputs)
     return ret
@@ -1943,7 +1950,7 @@ def tts_generate(genparams):
     prompt = prompt.strip()
     voice = 1
     voicestr = genparams.get("voice", genparams.get("speaker_wav", ""))
-    voice_mapping = ["kobo","cheery","sleepy","tutor","shouty","bored","record"]
+    voice_mapping = ["kobo","cheery","sleepy","shouty","chatty"]
     normalized_voice = voicestr.strip().lower() if voicestr else ""
     if normalized_voice in voice_mapping:
         voice = voice_mapping.index(normalized_voice) + 1
@@ -2936,9 +2943,9 @@ Enter Prompt:<br>
            response_body = (json.dumps([]).encode())
 
         elif self.path.endswith(('/speakers_list')): #xtts compatible
-            response_body = (json.dumps(["kobo","cheery","sleepy","tutor","shouty","bored","record"]).encode()) #some random voices for them to enjoy
+            response_body = (json.dumps(["kobo","cheery","sleepy","shouty","chatty"]).encode()) #some random voices for them to enjoy
         elif self.path.endswith(('/speakers')): #xtts compatible
-            response_body = (json.dumps([{"name":"kobo","voice_id":"kobo","preview_url":""},{"name":"cheery","voice_id":"cheery","preview_url":""},{"name":"sleepy","voice_id":"sleepy","preview_url":""},{"name":"tutor","voice_id":"tutor","preview_url":""},{"name":"shouty","voice_id":"shouty","preview_url":""},{"name":"bored","voice_id":"bored","preview_url":""},{"name":"record","voice_id":"record","preview_url":""}]).encode()) #some random voices for them to enjoy
+            response_body = (json.dumps([{"name":"kobo","voice_id":"kobo","preview_url":""},{"name":"cheery","voice_id":"cheery","preview_url":""},{"name":"sleepy","voice_id":"sleepy","preview_url":""},{"name":"shouty","voice_id":"shouty","preview_url":""},{"name":"chatty","voice_id":"chatty","preview_url":""}]).encode()) #some random voices for them to enjoy
         elif self.path.endswith(('/get_tts_settings')): #xtts compatible
             response_body = (json.dumps({"temperature":0.75,"speed":1,"length_penalty":1,"repetition_penalty":1,"top_p":1,"top_k":4,"enable_text_splitting":True,"stream_chunk_size":100}).encode()) #some random voices for them to enjoy
 
@@ -3530,7 +3537,7 @@ def RunServerMultiThreaded(addr, port):
     while 1:
         try:
             time.sleep(10)
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt,SystemExit):
             global exitcounter
             exitcounter = 999
             for i in range(numThreads):
@@ -3800,6 +3807,7 @@ def show_gui():
     tts_model_var = ctk.StringVar()
     wavtokenizer_var = ctk.StringVar()
     ttsgpu_var = ctk.IntVar(value=0)
+    tts_threads_var = ctk.StringVar(value=str(default_threads))
 
     def tabbuttonaction(name):
         for t in tabcontent:
@@ -4403,11 +4411,12 @@ def show_gui():
     audio_tab = tabcontent["Audio"]
     makefileentry(audio_tab, "Whisper Model (Speech-To-Text):", "Select Whisper .bin Model File", whisper_model_var, 1, width=280, filetypes=[("*.bin","*.bin")], tooltiptxt="Select a Whisper .bin model file on disk to be loaded for Voice Recognition.")
     whisper_model_var.trace("w", gui_changed_modelfile)
-    makefileentry(audio_tab, "OuteTTS Model (Text-To-Speech):", "Select OuteTTS GGUF Model File", tts_model_var, 3, width=280, filetypes=[("*.gguf","*.gguf")], tooltiptxt="Select a OuteTTS GGUF model file on disk to be loaded for Narration.")
+    makelabelentry(audio_tab, "OuteTTS Threads:" , tts_threads_var, 3, 50,padx=290,singleline=True,tooltip="How many threads to use during TTS generation.\nIf left blank, uses same value as threads.")
+    makefileentry(audio_tab, "OuteTTS Model (Text-To-Speech):", "Select OuteTTS GGUF Model File", tts_model_var, 5, width=280, filetypes=[("*.gguf","*.gguf")], tooltiptxt="Select a OuteTTS GGUF model file on disk to be loaded for Narration.")
     tts_model_var.trace("w", gui_changed_modelfile)
-    makefileentry(audio_tab, "WavTokenizer Model (Text-To-Speech):", "Select WavTokenizer GGUF Model File", wavtokenizer_var, 5, width=280, filetypes=[("*.gguf","*.gguf")], tooltiptxt="Select a WavTokenizer GGUF model file on disk to be loaded for Narration.")
+    makefileentry(audio_tab, "WavTokenizer Model (Text-To-Speech):", "Select WavTokenizer GGUF Model File", wavtokenizer_var, 7, width=280, filetypes=[("*.gguf","*.gguf")], tooltiptxt="Select a WavTokenizer GGUF model file on disk to be loaded for Narration.")
     wavtokenizer_var.trace("w", gui_changed_modelfile)
-    makecheckbox(audio_tab, "TTS Use GPU", ttsgpu_var, 7, 0,tooltiptxt="Uses the GPU for TTS.")
+    makecheckbox(audio_tab, "TTS Use GPU", ttsgpu_var, 9, 0,tooltiptxt="Uses the GPU for TTS.")
     ttsgpu_var.trace("w", gui_changed_modelfile)
 
     def kcpp_export_template():
@@ -4435,6 +4444,7 @@ def show_gui():
         savdict["tensor_split"] = None
         savdict["draftgpusplit"] = None
         savdict["config"] = None
+        savdict["ttsthreads"] = 0
         filename = asksaveasfile(filetypes=file_type, defaultextension=file_type)
         if filename is None:
             return
@@ -4648,6 +4658,7 @@ def show_gui():
             args.whispermodel = whisper_model_var.get()
 
         if tts_model_var.get() != "" and wavtokenizer_var.get() != "":
+            args.ttsthreads = (0 if tts_threads_var.get()=="" else int(tts_threads_var.get()))
             args.ttsmodel = tts_model_var.get()
             args.ttswavtokenizer = wavtokenizer_var.get()
             args.ttsgpu = (ttsgpu_var.get()==1)
@@ -4824,6 +4835,7 @@ def show_gui():
 
         whisper_model_var.set(dict["whispermodel"] if ("whispermodel" in dict and dict["whispermodel"]) else "")
 
+        tts_threads_var.set(str(dict["ttsthreads"]) if ("ttsthreads" in dict and dict["ttsthreads"]) else str(default_threads))
         tts_model_var.set(dict["ttsmodel"] if ("ttsmodel" in dict and dict["ttsmodel"]) else "")
         wavtokenizer_var.set(dict["ttswavtokenizer"] if ("ttswavtokenizer" in dict and dict["ttswavtokenizer"]) else "")
         ttsgpu_var.set(dict["ttsgpu"] if ("ttsgpu" in dict) else 0)
@@ -4883,7 +4895,7 @@ def show_gui():
     ctk.CTkButton(tabs , text = "Update", fg_color="#9900cc", hover_color="#aa11dd", command = display_updates, width=90, height = 35 ).grid(row=1,column=0, stick="sw", padx= 5, pady=5)
     ctk.CTkButton(tabs , text = "Save", fg_color="#084a66", hover_color="#085a88", command = save_config_gui, width=60, height = 35 ).grid(row=1,column=1, stick="sw", padx= 5, pady=5)
     ctk.CTkButton(tabs , text = "Load", fg_color="#084a66", hover_color="#085a88", command = load_config_gui, width=60, height = 35 ).grid(row=1,column=1, stick="sw", padx= 70, pady=5)
-    ctk.CTkButton(tabs , text = "Help", fg_color="#992222", hover_color="#bb3333", command = display_help, width=60, height = 35 ).grid(row=1,column=1, stick="sw", padx= 135, pady=5)
+    ctk.CTkButton(tabs , text = "Help (Find Models)", fg_color="#992222", hover_color="#bb3333", command = display_help, width=100, height = 35 ).grid(row=1,column=1, stick="sw", padx= 135, pady=5)
 
     # start a thread that tries to get actual gpu names and layer counts
     gpuinfo_thread = threading.Thread(target=auto_set_backend_gui)
@@ -4895,7 +4907,13 @@ def show_gui():
             import_vars(dict)
 
     # runs main loop until closed or launch clicked
-    root.mainloop()
+    try:
+        root.mainloop()
+    except (KeyboardInterrupt,SystemExit):
+        exitcounter = 999
+        print("Exiting by user request.")
+        sys.exit(0)
+
 
     if nextstate==0:
         exitcounter = 999
@@ -6361,6 +6379,7 @@ if __name__ == '__main__':
     ttsparsergroup.add_argument("--ttsmodel", metavar=('[filename]'), help="Specify the OuteTTS Text-To-Speech GGUF model.", default="")
     ttsparsergroup.add_argument("--ttswavtokenizer", metavar=('[filename]'), help="Specify the WavTokenizer GGUF model.", default="")
     ttsparsergroup.add_argument("--ttsgpu", help="Use the GPU for TTS.", action='store_true')
+    ttsparsergroup.add_argument("--ttsthreads", metavar=('[threads]'), help="Use a different number of threads for TTS if specified. Otherwise, has the same value as --threads.", type=int, default=0)
 
     deprecatedgroup = parser.add_argument_group('Deprecated Commands, DO NOT USE!')
     deprecatedgroup.add_argument("--hordeconfig", help=argparse.SUPPRESS, nargs='+')

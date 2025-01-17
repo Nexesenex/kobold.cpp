@@ -1794,6 +1794,42 @@ const uint64_t contig_cpy_f32_f16_len = 3280;
 extern unsigned char contig_cpy_f16_f16_data[3184];
 const uint64_t contig_cpy_f16_f16_len = 3184;
 
+extern unsigned char cpy_f32_q4_0_data[15164];
+const uint64_t cpy_f32_q4_0_len = 15164;
+
+extern unsigned char cpy_q4_0_f32_data[10616];
+const uint64_t cpy_q4_0_f32_len = 10616;
+
+extern unsigned char cpy_f32_q4_1_data[15832];
+const uint64_t cpy_f32_q4_1_len = 15832;
+
+extern unsigned char cpy_q4_1_f32_data[10708];
+const uint64_t cpy_q4_1_f32_len = 10708;
+
+extern unsigned char cpy_f32_q5_0_data[18660];
+const uint64_t cpy_f32_q5_0_len = 18660;
+
+extern unsigned char cpy_q5_0_f32_data[14080];
+const uint64_t cpy_q5_0_f32_len = 14080;
+
+extern unsigned char cpy_f32_q5_1_data[17616];
+const uint64_t cpy_f32_q5_1_len = 17616;
+
+extern unsigned char cpy_q5_1_f32_data[14000];
+const uint64_t cpy_q5_1_f32_len = 14000;
+
+extern unsigned char cpy_f32_q8_0_data[12460];
+const uint64_t cpy_f32_q8_0_len = 12460;
+
+extern unsigned char cpy_q8_0_f32_data[11636];
+const uint64_t cpy_q8_0_f32_len = 11636;
+
+extern unsigned char cpy_f32_iq4_nl_data[13684];
+const uint64_t cpy_f32_iq4_nl_len = 13684;
+
+extern unsigned char cpy_iq4_nl_f32_data[11880];
+const uint64_t cpy_iq4_nl_f32_len = 11880;
+
 extern unsigned char add_f32_data[5916];
 const uint64_t add_f32_len = 5916;
 
