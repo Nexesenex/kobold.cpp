@@ -9233,8 +9233,8 @@ static void llama_kv_cache_update_impl(struct llama_context & lctx) {
 
     if (lctx.kv_self.has_shift) {
         if (!llama_kv_cache_can_shift(&lctx)) {
-            GGML_ABORT("The current context does not support K-shift");
-        }
+            printf("\nWARNING: The current context does not support K-shift!\n");
+        } else {
 
         // apply K-shift if needed
         if (lctx.model.hparams.rope_type != LLAMA_ROPE_TYPE_NONE) {
@@ -9259,6 +9259,7 @@ static void llama_kv_cache_update_impl(struct llama_context & lctx) {
             for (uint32_t i = 0; i < kv_self.size; ++i) {
                 kv_self.cells[i].delta = 0;
             }
+        }
         }
     }
 

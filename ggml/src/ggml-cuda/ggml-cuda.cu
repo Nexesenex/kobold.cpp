@@ -2,7 +2,7 @@
 #include "ggml-impl.h"
 #include "ggml-backend-impl.h"
 
-bool g_mul_mat_q = false;
+bool g_mul_mat_q = true;
 
 #include "ggml-cuda/common.cuh"
 #include "ggml-cuda/acc.cuh"

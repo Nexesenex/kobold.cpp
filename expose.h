@@ -215,6 +215,7 @@ struct tts_load_model_inputs
     const int cublas_info = 0;
     const char * vulkan_info = nullptr;
     const int gpulayers = 0;
+    const bool flash_attention = false;
     const int debugmode = 0;
 };
 struct tts_generation_inputs

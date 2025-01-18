@@ -338,9 +338,14 @@ static std::string process_text(const std::string & text, TTS_VER ver) {
     std::transform(processed_text.begin(), processed_text.end(),
                   processed_text.begin(), ::tolower);
 
+    // replace multiple punctuation with single
+    processed_text = std::regex_replace(processed_text, std::regex(R"(([,.!?])\1+)"), "$1");
+    //handle words connected by periods, replace the matches with " dot ".
+    processed_text = std::regex_replace(processed_text, std::regex(R"((\S)\.(\S))"), "$1 dot $2");
+
     if(ver==TTS_VER_2)
     {
-        std::regex special_chars(R"([-_/,\.\\])");
+        std::regex special_chars(R"([\(\)\[\]\{\}\:-_/,\.\\])");
         processed_text = std::regex_replace(processed_text, special_chars, " ");
         std::regex non_alpha(R"([^a-z\s])");
         processed_text = std::regex_replace(processed_text, non_alpha, "");
@@ -349,7 +354,7 @@ static std::string process_text(const std::string & text, TTS_VER ver) {
         processed_text = std::regex_replace(processed_text, std::regex(R"(^\s+|\s+$)"), "");
         processed_text = std::regex_replace(processed_text, std::regex(R"(\s)"), "<|text_sep|>");
     } else {
-        std::regex special_chars(R"([-_/\\])");
+        std::regex special_chars(R"([\(\)\[\]\{\}\:-_/\\])");
         processed_text = std::regex_replace(processed_text, special_chars, " ");
         std::regex non_alpha(R"([^a-z\s.,?!])");
         processed_text = std::regex_replace(processed_text, non_alpha, "");
@@ -524,7 +529,7 @@ bool ttstype_load_model(const tts_load_model_inputs inputs)
     tts_ctx_params.n_ubatch = 512;
     tts_ctx_params.n_threads = nthreads;
     tts_ctx_params.n_threads_batch = nthreads;
-    tts_ctx_params.flash_attn = false;
+    tts_ctx_params.flash_attn = inputs.flash_attention;
 
     llama_model * ttcmodel = llama_model_load_from_file(modelfile_ttc.c_str(), tts_model_params);
     ttc_ctx = llama_new_context_with_model(ttcmodel, tts_ctx_params);
@@ -649,11 +654,12 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
 
     // convert the input text into the necessary format expected by OuteTTS
     std::string prompt_clean = process_text(prompt,ttsver);
+    bool empty_check = (process_text(prompt,TTS_VER_2).size()==0); //if there is no audio, will crash, so prevent that
 
     //further clean it by keeping only the last 300 words
     prompt_clean = trim_words(prompt_clean,(ttsver==TTS_VER_3?"<|space|>":"<|text_sep|>"),300);
 
-    if(prompt_clean.size()==0)
+    if(empty_check)
     {
         //no input
          if(!inputs.quiet)
@@ -968,10 +974,7 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
         last_generated_audio = save_wav16_base64(audio, t_sr);
         ttstime = timer_check();
 
-        if(!inputs.quiet)
-        {
-            printf("\nTTS Generated %d audio tokens in %.2fs.\n",(int) codes.size(),ttstime);
-        }
+        printf("\nTTS Generated %d audio tokens in %.2fs.\n",(int) codes.size(),ttstime);
 
         output.data = last_generated_audio.c_str();
         output.status = 1;
