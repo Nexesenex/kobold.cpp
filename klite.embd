@@ -3223,16 +3223,16 @@ Current version indicated by LITEVER below.
 	},
 	{
 		"id":10,
-		"name":"Mistral V7 & V3-Tekken",
-		"user":"</s>[INST]",
+		"name":"Mistral V7",
+		"user":"</s>[INST] ",
 		"assistant":"[/INST]",
-		"system":"[SYSTEM_PROMPT]", //if not sysprompt provided, treat as V3 tekken
+		"system":"[SYSTEM_PROMPT]",
 	},
 	{
 		"id":11,
-		"name":"Phi-3 Mini",
-		"user":"<|end|><|user|>\\n",
-		"assistant":"<|end|>\\n<|assistant|>",
+		"name":"Phi",
+		"user":"<|end|>\\n<|user|>\\n",
+		"assistant":"<|end|>\\n<|assistant|>\\n",
 		"system":"<|system|>\\n",
 	},
 	{
@@ -3241,6 +3241,62 @@ Current version indicated by LITEVER below.
 		"user":"\\nUSER: ",
 		"assistant":"\\nASSISTANT: ",
 		"system":"",
+	},
+	{
+		"id":53,
+		"name":"Alpaca-IIR",
+		"user":"\\n### Instruction:\\n",
+		"assistant":"\\n### Response:\\n",
+		"system":"\\n### Imput:\\n",
+	},
+	{
+		"id":54,
+		"name":"Alpaca-HA",
+		"user":"\\n### Human:\\n",
+		"assistant":"\\n### Assistant:\\n",
+		"system":"",
+	},
+	{
+		"id":55,
+		"name":"Alpaca-SHA",
+		"user":"\\n### Human:\\n",
+		"assistant":"\\n### Assistant:\\n",
+		"system":"\\n### System:\\n",
+	},
+	{
+		"id":56,
+		"name":"Gemma-2-no-system-role",
+		"user":"<end_of_turn>\\n<start_of_turn>user\\n",
+		"assistant":"<end_of_turn>\\n<start_of_turn>model\\n",
+		"system":"",
+	},
+	{
+		"id":57,
+		"name":"Mistral V3-Tekken",
+		"user":"</s>[INST]",
+		"assistant":"[/INST]",
+		"system":"",
+	},
+	{
+		"id":58,
+		"name":"Pygmalion",
+		"user":"<|user|>\\n",
+		"assistant":"<|assistant|>\\n",
+		"system":"<|system|>\\n",
+	},
+	{
+		"id":59,
+		"name":"Tulu",
+		"user":"<|end_of_text|>\\n<|user|>\\n",
+		"assistant":"<|assistant|>\\n",
+		"system":"<|system|>\\n",
+	},
+	{
+		"id":60,
+		"name":"Vicuna-SUA",
+		"user":"\\nUSER: ",
+		"assistant":"\\nASSISTANT: ",
+		"system":"\\nSYSTEM: ",
 	}
 	];
 

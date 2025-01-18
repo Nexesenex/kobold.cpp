@@ -1,8 +1,0 @@
-{
-"system_start":"",
-"system_end":"",
-"user_start":"<start_of_turn>user",
-"user_end":"<end_of_turn>\n",
-"assistant_start":"<start_of_turn>model",
-"assistant_end":"<end_of_turn>\n"
-}
