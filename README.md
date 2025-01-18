@@ -23,7 +23,8 @@ Croco.Cpp (CCPP) is a fork of the experimental branch of KoboldCPP (KCPP), mainl
 - 22 or so different modes of quantization for the context cache (F16, around 15 KV modes with Flash Attention, 7 quantum legacy K cache modes without Flash Attention for models like Gemma).
 - KV cache supports IQ4_NL and Q6_0 (except for Gemma), thanks to Ikawrakow.
 - Supports inference for B16 models in Cuda (thanks Ikawrakow).
-- Supports inference for new quants made by Ikawrakow (Q6_0 legacy for irregularly shaped tensors ; IQ_2K, 3K, 4K, 5K, 6K (first gen) ; IQ2_KS, 4_KSS, 4_KS (second gen, working with IK's reworked MMVQ template) ; IQ2_KT, 3_KT, 4_KT (Trellis, working with a restored DMMV kernel).
+- Supports inference for new quants made by Ikawrakow (Q6_0 legacy for irregularly shaped tensors ; IQ_2K, 3K, 4K, 5K, 6K (first gen)
+- Supported (up to v b4435) IQ2_KS, 4_KSS, 4_KS (second gen, working with IK's reworked MMVQ template) ; IQ2_KT, 3_KT, 4_KT (Trellis, working with a restored DMMV kernel). Not available in newer versions due to incompatibility with GGUF v14 format.
 - A dozen or so commits taken from Ikawrakow's IK_Llama.CPP for performances (notably on Gemma). That includes a few more GGML ops.
 - A slightly different benchmark (one flag per column instead of a single flag space).
 - 10 Stories slots instead of 6 in the web-interface (KLite).
