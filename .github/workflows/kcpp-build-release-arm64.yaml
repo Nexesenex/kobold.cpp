@@ -65,7 +65,6 @@ jobs:
               pyinstaller --noconfirm --onefile --collect-all customtkinter --collect-all psutil \
               --add-data './koboldcpp_default.so:.' \
               --add-data './kcpp_adapters:./kcpp_adapters' \
-              --add-data './gguf-py:./gguf-py' \
               --add-data './koboldcpp.py:.' \
               --add-data './klite.embd:.' \
               --add-data './kcpp_docs.embd:.' \

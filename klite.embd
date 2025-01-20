@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 204;
+	const LITEVER = 205;
 	const urlParams = new URLSearchParams(window.location.search);
 	var localflag = true;
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -2940,6 +2940,7 @@ Current version indicated by LITEVER below.
 	var temp_scenario = null;
 	var last_token_budget = ""; //to display token limits
 	var last_known_filename = "saved_story.json";
+	var backup_localmodeport = 5001; //sometimes we reattempt a different port, this stores a backup
 	var localmodeport = 5001;
 	var localmodehost = "localhost";
 	var localprotocol = "http://";
@@ -3696,6 +3697,7 @@ Current version indicated by LITEVER below.
 		if (inputport) {
 			localmodeport = parseInt(inputport);
 		}
+		backup_localmodeport = localmodeport;
 
 		let inputhost = urlParams.get('host');
 		sublocalpathname = "";
@@ -4004,15 +4006,21 @@ initializeInstructUIFunctionality();
 	}
 	function replace_noninstruct_placeholders(inputtxt,escape=false)
 	{
+		let firstopponent = localsettings.chatopponent;
+		if (firstopponent && firstopponent.includes("||$||")) {
+			let coarr = firstopponent.split("||$||");
+			coarr = coarr.filter(x => (x && x != ""));
+			firstopponent = coarr.length>0?coarr[0]:defaultchatopponent;
+		}
 		if(escape)
 		{
 			inputtxt = replaceAll(inputtxt,"{{user}}",escape_html(localsettings.chatname?localsettings.chatname:"User"),true);
-			inputtxt = replaceAll(inputtxt,"{{char}}",escape_html(localsettings.chatopponent?localsettings.chatopponent:defaultchatopponent),true);
+			inputtxt = replaceAll(inputtxt,"{{char}}",escape_html(localsettings.chatopponent?firstopponent:defaultchatopponent),true);
 		}
 		else
 		{
 			inputtxt = replaceAll(inputtxt,"{{user}}",(localsettings.chatname?localsettings.chatname:"User"),true);
-			inputtxt = replaceAll(inputtxt,"{{char}}",(localsettings.chatopponent?localsettings.chatopponent:defaultchatopponent),true);
+			inputtxt = replaceAll(inputtxt,"{{char}}",(localsettings.chatopponent?firstopponent:defaultchatopponent),true);
 		}
 
 		for(let i=0;i<placeholder_tags_data.length;++i)
@@ -5193,10 +5201,10 @@ initializeInstructUIFunctionality();
 		}
 	}
 
-
-
-
-
+	function clear_cors_proxy_flag()
+	{
+		uses_cors_proxy = false;
+	}
 
 	// attempt to connect to the selected backend
 	function attempt_connect(popup_aiselect = true)
@@ -5854,6 +5862,9 @@ initializeInstructUIFunctionality();
 						|| target_url.toLowerCase().includes("192.168.")
 						|| target_url.toLowerCase().includes("10.0.0.")
 						|| target_url.toLowerCase().includes("://10.0.")
+						|| (target_url.toLowerCase().includes(".lan:") || target_url.toLowerCase().includes(".lan?") || target_url.toLowerCase().includes(".lan/") || target_url.toLowerCase().endsWith(".lan"))
+						|| (target_url.toLowerCase().includes(".local:") || target_url.toLowerCase().includes(".local?") || target_url.toLowerCase().includes(".local/") || target_url.toLowerCase().endsWith(".local"))
+						|| (target_url.toLowerCase().includes(".internal:") || target_url.toLowerCase().includes(".internal?") || target_url.toLowerCase().includes(".internal/") || target_url.toLowerCase().endsWith(".internal"))
 						|| !target_url.toLowerCase().includes(".")); //hostname without dots cannot be wan accessible
 		return is_local;
 	}
@@ -9147,6 +9158,9 @@ initializeInstructUIFunctionality();
 		custom_cohere_key = "";
 
 		let epchoice = document.getElementById("customapidropdown").value;
+		document.getElementById("connectstatusproxied").classList.add("hidden");
+		document.getElementById("connectstatus").innerHTML = "Connecting";
+
 		if(epchoice==0) //ai horde
 		{
 			confirm_horde_models();
@@ -9179,6 +9193,7 @@ initializeInstructUIFunctionality();
 				custom_kobold_key = desiredkoboldkey;
 
 				let fetchedurl = apply_proxy_url(desiredkoboldendpoint + kobold_custom_mdl_endpoint);
+
 				fetch(fetchedurl,{
 					method: 'GET',
 					headers: get_kobold_header(),
@@ -9201,6 +9216,15 @@ initializeInstructUIFunctionality();
 						custom_kobold_endpoint = "";
 						render_gametext();
 					} else {
+
+						if(uses_cors_proxy && !is_local_url(fetchedurl))
+						{
+							document.getElementById("connectstatusproxied").classList.remove("hidden");
+						}else
+						{
+							document.getElementById("connectstatusproxied").classList.add("hidden");
+						}
+
 						//good to go
 						custom_kobold_endpoint = desiredkoboldendpoint;
 						custom_kobold_key = desiredkoboldkey;
@@ -9419,34 +9443,40 @@ initializeInstructUIFunctionality();
 
 					let is_local = is_local_url(custom_kobold_endpoint);
 
-					if (uses_cors_proxy || is_local) {
-						if(is_local && sublocalpathname!="")
-						{
-							sublocalpathname = ""; //one more try
-							attempt_connect(false);
-						}
-						else if(is_local && reattempt_local_port80)
-						{
-							reattempt_local_port80 = false;
-							localmodeport = 80;
-							attempt_connect(false);
-						}
-						else
-						{
-							msgbox("Failed to connect to Custom KoboldAI Endpoint!<br><br>Please check if KoboldAI is running at the url: " + desiredkoboldendpoint + "<br><br>You can also <a href='#' class='color_blueurl' onclick='hide_popups();display_endpoint_container();'>try a different URL or API type</a>.","Error Encountered",true);
-							selected_models = [];
-							selected_workers = [];
-							custom_kobold_endpoint = "";
-							if(localflag)
-							{
-								document.getElementById("connectstatus").innerHTML = "Offline Mode";
-							}
-							render_gametext();
-						}
-					} else {
-						uses_cors_proxy = true; //fallback to cors proxy, this will remain for rest of session
+					//we will go down the fallbacks one by one until we run out of options
+					localmodeport = backup_localmodeport;
+					if(is_local && sublocalpathname!="")
+					{
+						sublocalpathname = ""; // first fallback, check subdir paths
+						attempt_connect(false);
+					}
+					else if(reattempt_local_port80) // second fallback, try port 80
+					{
+						reattempt_local_port80 = false;
+						localmodeport = 80;
+						attempt_connect(false);
+					}
+					else if(!is_local && !uses_cors_proxy) //third fallback, use cors proxy if not a local IP
+					{
+						uses_cors_proxy = true; // fallback to cors proxy, this will remain for rest of session
 						connect_custom_endpoint(); //one more try
 					}
+					else //finally, we give up
+					{
+						msgbox("Failed to connect to Custom KoboldAI Endpoint!<br><br>Please check if KoboldAI is running at the url: " + desiredkoboldendpoint + "<br><br>You can also <a href='#' class='color_blueurl' onclick='hide_popups();display_endpoint_container();'>try a different URL or API type</a>.","Error Encountered",true);
+						selected_models = [];
+						selected_workers = [];
+						custom_kobold_endpoint = "";
+						if(localflag)
+						{
+							document.getElementById("connectstatus").innerHTML = "Offline Mode";
+						}else{
+							document.getElementById("connectstatus").innerHTML = "Error";
+						}
+
+						render_gametext();
+					}
+
 				});
 			}
 		}
@@ -9544,6 +9574,11 @@ initializeInstructUIFunctionality();
 			if(desired_claude_key!="" && desired_claude_ep!="")
 			{
 				dismiss_endpoint_container();
+
+				if(desired_claude_ep.toLowerCase().includes("api.anthropic.com"))
+				{
+					document.getElementById("connectstatusproxied").classList.remove("hidden");
+				}
 
 				//good to go
 				custom_claude_endpoint = desired_claude_ep;
@@ -9954,12 +9989,19 @@ initializeInstructUIFunctionality();
 		custom_palm_key = "";
 		custom_cohere_key = "";
 
-		if (selected_idx_arr.length > 0) {
-			let prep_sel_models = [];
-			let prep_sel_workers = []; //if selected, pick a specific worker ids to use
+		let prep_sel_models = [];
+		let prep_sel_workers = []; //if selected, pick a specific worker ids to use
 
-			let manualworker = (document.getElementById("manualworker").checked ? true : false);
+		let manualworker = (document.getElementById("manualworker").checked ? true : false);
 
+		if (selected_idx_arr.length == 0) { //select everything
+			manualworker = false;
+			for (let i = 0; i < models_data.length; ++i) {
+				prep_sel_models.push(models_data[i]);
+			}
+		}
+		else
+		{
 			for (var i = 0; i < selected_idx_arr.length; ++i) {
 				if (manualworker) //we are looping through selected workers
 				{
@@ -9979,24 +10021,24 @@ initializeInstructUIFunctionality();
 					prep_sel_models.push(addedmodel);
 				}
 			}
-
-			//remove undefined and nulls
-			prep_sel_models = prep_sel_models.filter(x=>x);
-			prep_sel_workers = prep_sel_workers.filter(x=>x);
-
-			selected_models = prep_sel_models;
-			selected_workers = prep_sel_workers;
-			localsettings.my_api_key = document.getElementById("apikey").value;
-			if(localsettings.my_api_key==null || localsettings.my_api_key=="")
-			{
-				localsettings.my_api_key = defaultsettings.my_api_key;
-			}
-
-			document.getElementById("connectstatus").innerHTML = "AI Horde";
-
-			render_gametext();
-			hide_popups();
 		}
+
+		//remove undefined and nulls
+		prep_sel_models = prep_sel_models.filter(x=>x);
+		prep_sel_workers = prep_sel_workers.filter(x=>x);
+
+		selected_models = prep_sel_models;
+		selected_workers = prep_sel_workers;
+		localsettings.my_api_key = document.getElementById("apikey").value;
+		if(localsettings.my_api_key==null || localsettings.my_api_key=="")
+		{
+			localsettings.my_api_key = defaultsettings.my_api_key;
+		}
+
+		render_gametext();
+		hide_popups();
+
+		document.getElementById("connectstatus").innerHTML = "AI Horde";
 	}
 
 	function delete_my_worker(index)
@@ -14568,7 +14610,7 @@ initializeInstructUIFunctionality();
 		//fix alpaca leakage
 		if(localsettings.fix_alpaca_leak && (localsettings.opmode == 2 || localsettings.opmode == 3 || localsettings.opmode == 4) && get_instruct_starttag(true).toLowerCase().includes("### instruction"))
 		{
-			let matches = gentxt.match(/\n### (.+?):/g);
+			let matches = gentxt.match(/\n### ([^\s]+?):\n/g);
 			for(let m in matches)
 			{
 				let foundStop = gentxt.indexOf(matches[m]);
@@ -19116,6 +19158,7 @@ initializeInstructUIFunctionality();
 			<div id="connectstatusdiv">
 				<div id="connectstatus">Connecting</div>
 				<div class="hidden" style="font-size: 12px;" id="connectstatusmultiplayer"></div>
+				<div class="hidden color_orange" style="font-size: 12px;" id="connectstatusproxied">(Proxied)</div>
 			</div>
 		</div>
 
@@ -19645,7 +19688,7 @@ initializeInstructUIFunctionality();
 				</span>
 			</div>
 			<div class="popupfooter">
-				<button type="button" class="btn btn-primary" onclick="connect_custom_endpoint()">Ok</button>
+				<button type="button" class="btn btn-primary" onclick="clear_cors_proxy_flag();connect_custom_endpoint()">Ok</button>
 				<button type="button" class="btn btn-primary" onclick="dismiss_endpoint_container()">Cancel</button>
 			</div>
 		</div>
