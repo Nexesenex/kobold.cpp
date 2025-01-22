@@ -24,6 +24,7 @@
 #endif
 
 static int whisperdebugmode = 0;
+static bool whisperquiet = false;
 static whisper_context * whisper_ctx = nullptr;
 static std::string whisper_output_text = "";
 
@@ -89,7 +90,7 @@ static bool read_wav(const std::string & b64data, std::vector<float>& pcmf32, st
     std::vector<float> raw_pcm;
     raw_pcm.resize(n);
 
-    if(whisperdebugmode==1)
+    if(whisperdebugmode==1 && !whisperquiet)
     {
         printf("\nwav_data_size: %d, n:%d",wav_data.size(),n);
     }
@@ -106,7 +107,7 @@ static bool read_wav(const std::string & b64data, std::vector<float>& pcmf32, st
     }
 
     if (wav.sampleRate != COMMON_SAMPLE_RATE) {
-        if(whisperdebugmode==1)
+        if(whisperdebugmode==1 && !whisperquiet)
         {
             printf("\nResample wav from %" PRIu32 " to %" PRIu32 " (in size: %zu)",
             wav.sampleRate, COMMON_SAMPLE_RATE, raw_pcm.size());
@@ -202,7 +203,8 @@ whisper_generation_outputs whispertype_generate(const whisper_generation_inputs 
         return output;
     }
 
-    if(!inputs.quiet)
+    whisperquiet = inputs.quiet;
+    if(!whisperquiet)
     {
         printf("\nWhisper Transcribe Generating...");
     }
@@ -261,14 +263,14 @@ whisper_generation_outputs whispertype_generate(const whisper_generation_inputs 
         return output;
     }
 
-    if (!inputs.quiet && whisperdebugmode==1) {
+    if (!whisperquiet && whisperdebugmode==1) {
         whisper_print_timings(whisper_ctx);
     }
 
     // output text transcription
     whisper_output_text = output_txt(whisper_ctx, pcmf32s);
     std::string ts = get_timestamp_str();
-    if(!inputs.quiet)
+    if(!whisperquiet)
     {
         printf("\n[%s] Whisper Transcribe Output: %s",ts.c_str(),whisper_output_text.c_str());
     } else {

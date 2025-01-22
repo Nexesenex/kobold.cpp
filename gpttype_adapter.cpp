@@ -108,6 +108,7 @@ static kcpp_params * kcpp_data = nullptr;
 static int max_context_limit_at_load = 0;
 static int n_past = 0;
 static int debugmode = 0; //-1 = hide all, 0 = normal, 1 = showall
+static bool quiet = false;
 static std::vector<gpt_vocab::id> last_n_tokens;
 static std::vector<gpt_vocab::id> current_context_tokens;
 static size_t mem_per_token = 0;
@@ -936,12 +937,12 @@ void sample_xtc(llama_token_data_array * candidates, float xtc_threshold, float 
 
     if(last_idx>1) //if there are 2 or more viable candidates
     {
-        if (debugmode==1) {
+        if (debugmode==1 && !quiet) {
             printf("XTC penalties [");
         }
         // then remove all other tokens above threshold EXCEPT the least likely one
         for (size_t i = 0; i < last_idx - 1; ++i) {
-            if (debugmode==1)
+            if (debugmode==1 && !quiet)
             {
                 gpt_vocab::id token = candidates->data[i].id;
                 std::string tokenizedstr = FileFormatTokenizeID(token, file_format);
@@ -950,7 +951,7 @@ void sample_xtc(llama_token_data_array * candidates, float xtc_threshold, float 
             }
             candidates->data[i].logit -= 999.0f; //infinity gets wonky results downstream, this hack works well enough
         }
-        if (debugmode==1) {
+        if (debugmode==1 && !quiet) {
             printf("]\n");
         }
         candidates->sorted = false;
@@ -1139,7 +1140,7 @@ void sample_dry(int n_ctx, int penalty_range, float penalty_multiplier, float pe
         max_exponent = FLOAT_MAX_LOG / std::log(penalty_base);
     }
 
-    if (debugmode==1 && !dry_max_token_repeat.empty()) {
+    if (debugmode==1 && !quiet && !dry_max_token_repeat.empty()) {
         printf("DRY penalties [");
     }
     size_t count = 0;
@@ -1150,7 +1151,7 @@ void sample_dry(int n_ctx, int penalty_range, float penalty_multiplier, float pe
             repeat_exp = max_exponent;
         }
         float penalty = penalty_multiplier * pow(penalty_base, repeat_exp);
-        if (debugmode==1)
+        if (debugmode==1 && !quiet)
         {
             std::string tokenizedstr = FileFormatTokenizeID(token, file_format);
             ::utreplace(tokenizedstr, "\n", "\\n");
@@ -1163,7 +1164,7 @@ void sample_dry(int n_ctx, int penalty_range, float penalty_multiplier, float pe
     {
         candidates->sorted = false;
     }
-    if (debugmode==1 && !dry_max_token_repeat.empty()) {
+    if (debugmode==1 && !quiet && !dry_max_token_repeat.empty()) {
         printf("]\n");
     }
 }
@@ -1694,7 +1695,7 @@ static void load_grammar(const std::string & gammarstr)
             printf("\nIgnored invalid grammar sampler.");
             return;
         }
-        if(debugmode==1)
+        if(debugmode==1 && !quiet)
         {
             parsed_grammar.print(stderr);
         }
@@ -1864,7 +1865,7 @@ static float CalcGradientAIRopeFreqBase(float original_rope_base, int n_ctx_trai
         printf("Trained max context length (value:%.d).\n", n_ctx_train);
         printf("Desired context length (value:%.d).\n", n_ctx_desired);
 
-        if(debugmode==1)
+        if(debugmode==1 && !quiet)
         {
             printf("Solar context multiplier (value:%.3f).\n", ctx_multiplier);
             printf("Chi context train (value:%.3f).\n", chi_ctx_train_value);
@@ -1880,7 +1881,7 @@ static float CalcGradientAIRopeFreqBase(float original_rope_base, int n_ctx_trai
         {
             float extended_rope_positive_offset_value = 1 + ((log10f(chi_ctx_value) - log10f(chi_ctx_train_value)) / ((log10f(chi_ctx_value) * log10f(chi_ctx_train_value)) - (log10f(chi_ctx_value) + log10f(chi_ctx_train_value))));
             float rope_freq_base_with_positive_offset = gradient_ai_rope_freq_base_value * extended_rope_positive_offset_value;
-            // if(debugmode==1)
+            // if(debugmode==1 && !quiet)
             // {
             printf("Extended RoPE Positive Offset (multiplicator) for Solar based models. (value:%.3f).\n", extended_rope_positive_offset_value);
             printf("RoPE base calculated via Gradient AI formula for Solar based models. (value:%.1f).\n", rope_freq_base_with_positive_offset);
@@ -3034,13 +3035,13 @@ std::vector<int> gpttype_get_token_arr(const std::string & input, bool addbos)
         printf("\nWarning: KCPP text generation not initialized!\n");
         return toks;
     }
-    if(debugmode==1)
+    if(debugmode==1 && !quiet)
     {
         printf("\nFileFormat: %d, Tokenizing: %s",file_format ,input.c_str());
     }
     TokenizeString(input, toks, file_format,addbos);
     int tokcount = toks.size();
-    if(debugmode==1)
+    if(debugmode==1 && !quiet)
     {
         printf("\nTokens Counted: %d\n",tokcount);
     }
@@ -3125,6 +3126,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         llama_perf_context_reset(llama_ctx_v4);
     }
 
+    quiet = inputs.quiet;
     generation_finished = false; // Set current generation status
     generated_tokens.clear(); // New Generation, new tokens
     delayed_generated_tokens.clear();
@@ -3203,7 +3205,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     banned_token_ids.clear();
     if(banned_tokens.size()>0)
     {
-        // if(debugmode==1)
+        // if(debugmode==1 && !quiet)
         // {
         printf("\nBanning %zu single character sequences...",banned_tokens.size());
         // }
@@ -3220,16 +3222,18 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 }
             }
         }
-        // if(debugmode==1)
+        // if(debugmode==1 && !quiet)
         // {
         printf("\nBanned a total of %zu individual tokens.\n",banned_token_ids.size());
         // }
     }
 
-    // if(debugmode==1 && banned_phrases.size()>0)
     if(banned_phrases.size()>0)
     {
+        // if(debugmode==1 && !quiet)
+        // {
         printf("\nBanned a total of %zu phrases, with max token count of %d.\n",banned_phrases.size(),delayed_generated_tokens_limit);
+        // }
     }
 
     logit_biases.clear();
@@ -3272,7 +3276,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         //images have changed. swap identifiers to force reprocessing
         current_llava_identifier = (current_llava_identifier==LLAVA_TOKEN_IDENTIFIER_A?LLAVA_TOKEN_IDENTIFIER_B:LLAVA_TOKEN_IDENTIFIER_A);
         llava_composite_image_signature = new_llava_composite;
-        if(debugmode==1)
+        if(debugmode==1 && !quiet)
         {
             printf("\nLLAVA images changed, existing cache invalidated");
         }
@@ -3328,10 +3332,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
             const int MAX_CHAR_LEN = 40;
             const int MAX_SEQ_LEN = 20;
 
-            // if (debugmode == 1)
-
+            // if (debugmode == 1 && !quiet)
+            {
             printf("\nProcessing %zu dry break strings...", kcpp_data->dry_sequence_breakers.size());
-
+            }
             for (auto sequence_break : kcpp_data->dry_sequence_breakers)
             {
                 if (sequence_break.size() > MAX_CHAR_LEN)
@@ -3340,7 +3344,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 }
                 GetOverlappingTokenSequences(sequence_break, dry_sequence_breakers, MAX_SEQ_LEN);
             }
-            if (debugmode == 1)
+            if (debugmode == 1 && !quiet)
             {
                 int trivial = 0, non_trivial = 0;
                 for (const auto &seq : dry_sequence_breakers)
@@ -3360,9 +3364,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     }
 
     bool stream_sse = inputs.stream_sse;
-
-    bool allow_regular_prints = (debugmode!=-1 && !inputs.quiet) || debugmode >= 1;
-
+    bool allow_regular_prints = (!quiet && debugmode!=-1);
 
     std::string grammarstr = inputs.grammar;
     bool grammar_retain_state = inputs.grammar_retain_state;
@@ -3395,7 +3397,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     if (kcpp_data->seed <= 0 || kcpp_data->seed==0xFFFFFFFF)
     {
         kcpp_data->seed = (((uint32_t)time(NULL)) % 1000000u);
-        if(debugmode==1)
+        if(debugmode==1 && !quiet)
         {
             printf("\nUsing Seed: %d",kcpp_data->seed);
         }
@@ -3427,7 +3429,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
             }
             else
             {
-                if(debugmode==1)
+                if(debugmode==1 && !quiet)
                 {
                     printf("\nCreating clip image embed...");
                 }
@@ -3435,7 +3437,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 if (!llava_image_embed_make_with_clip_img(clp_ctx, kcpp_data->n_threads, clp_img_data, &llava_images[i].clp_img_embd, &llava_images[i].clp_image_tokens)) {
                     printf("\nError: Clip image %d failed to create embd!",i);
                 }
-                if(debugmode==1)
+                if(debugmode==1 && !quiet)
                 {
                     printf("\nLLAVA Clip Embed %i used Tokens: %d",i,llava_images[i].clp_image_tokens);
                 }
@@ -3558,7 +3560,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     std::fill(last_n_tokens.begin(), last_n_tokens.end(), 0);
     n_past = 0;
 
-    if (debugmode==1)
+    if (debugmode==1 && !quiet)
     {
         std::string outstr = "";
         printf("\n\n[Debug: Dump Raw Input Tokens, format: %d]\n", file_format);
@@ -3703,7 +3705,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         printf("\n");
     }
 
-    if (debugmode==1)
+    if (debugmode==1 && !quiet)
     {
         std::string outstr = "";
         printf("\n[Debug: Dump Forwarded Input Tokens, format: %d]\n", file_format);
@@ -3757,7 +3759,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                     draft_used = true;
                     draft_results = speculative_decoding_eval_chunk(draft_ctx, llama_ctx_v4, embd, n_vocab, n_past);
                     evalres = draft_results.draft_success;
-                    if(debugmode==1)
+                    if(debugmode==1 && !quiet)
                     {
                         std::string draftedtoks = get_tok_vec_str(draft_results.draftids);
                         printf("\nDrafted %d Tokens: [%s]\n",speculative_chunk_amt,draftedtoks.c_str());
@@ -4052,7 +4054,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 if(draft_used)
                 {
                     int32_t draftedid = draft_results.draftids[logits_sampled];
-                    if(debugmode==1)
+                    if(debugmode==1 && !quiet)
                     {
                         std::string drafttok = FileFormatTokenizeID(draftedid, file_format, true);
                         std::string realtok = FileFormatTokenizeID(id, file_format, true);
@@ -4105,7 +4107,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 {
                     printf("\rGenerating (%d / %d tokens)", (kcpp_data->n_predict - remaining_tokens), kcpp_data->n_predict);
                 }
-                if(debugmode==1 && top_picks_history.size()>0)
+                if(debugmode==1 && !quiet && top_picks_history.size()>0)
                 {
                     printf(" [");
                     bool firstloop = true;
@@ -4370,7 +4372,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         delayed_generated_tokens.pop_front();
     }
 
-    if(debugmode==1 && file_format == FileFormat::GGUF_GENERIC)
+    if(debugmode==1 && !quiet && file_format == FileFormat::GGUF_GENERIC)
     {
         printf("\n");
         llama_perf_context_print(llama_ctx_v4);

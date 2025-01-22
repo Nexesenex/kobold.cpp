@@ -66,10 +66,10 @@ maxhordelen = 400
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.83000"
+KcppVersion = "1.83001"
 LcppVersion = "b4517"
 CudaSpecifics = "Cu124_Ar6175_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/01/20"
+ReleaseDate = "2025/01/22"
 showdebug = True
 guimode = False
 showsamplerwarning = True
@@ -400,7 +400,7 @@ lib_option_pairs = [
     (lib_vulkan_noavx2, "Use Vulkan (Old CPU)"),
     (lib_clblast_noavx2, "Use CLBlast (Older CPU)"),
     (lib_failsafe, "Failsafe Mode (Older CPU)")]
-default_option, clblast_option, cublas_option, hipblas_option, vulkan_option, noavx2_option, clblast_noavx2_option, vulkan_noavx2_option, failsafe_option = (opt if file_exists(lib) or (os.name == 'nt' and file_exists(opt + ".dll")) else None for lib, opt in lib_option_pairs)
+default_option, clblast_option, cublas_option, hipblas_option, vulkan_option, noavx2_option, vulkan_noavx2_option, clblast_noavx2_option, failsafe_option = (opt if file_exists(lib) or (os.name == 'nt' and file_exists(opt + ".dll")) else None for lib, opt in lib_option_pairs)
 runopts = [opt for lib, opt in lib_option_pairs if file_exists(lib)]
 
 def init_library():
@@ -668,6 +668,8 @@ def exit_with_error(code, message, title="Error"):
     sys.exit(code)
 
 def utfprint(str, importance = 2): #0 = only debugmode, 1 = except quiet, 2 = always print
+    if args.quiet and importance<2: #quiet overrides debugmode
+        return
     if args.debugmode < 1:
         if importance==1 and (args.debugmode == -1 or args.quiet):
             return
