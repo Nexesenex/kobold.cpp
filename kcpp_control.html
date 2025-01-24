@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <select id="prefOptions"></select>
+        <button id="restart">Restart server</button>
+        <br/>
+        <select id="saveOptions"></select>
+    </body>
+    <script>
+        let prefOptions = document.getElementById("prefOptions"), saveOptions = document.getElementById("saveOptions"), restart = document.getElementById("restart");
+        restart.onclick = () => {
+            fetch("control/restart", {
+                method: "POST",
+                body: JSON.stringify({"config": prefOptions.value})
+            })
+            .then(resp => resp.text())
+            .then(console.log)
+            .catch(e => {
+                console.error(e)
+            })
+        }
+
+        fetch("control/configs")
+            .then(resp => resp.json())
+            .then(arr => {
+                arr.forEach(elem => {
+                    prefOptions.appendChild(new Option(elem, elem))
+                });
+            })
+            .catch(e => {
+                console.error(e)
+            })
+
+        fetch("control/saves")
+            .then(resp => resp.json())
+            .then(arr => {
+                arr.forEach(elem => {
+                    saveOptions.appendChild(new Option(elem, elem))
+                });
+            })
+            .catch(e => {
+                console.error(e)
+            })
+    </script>
+</html>
