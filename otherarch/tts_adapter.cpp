@@ -756,8 +756,9 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
 
                 //use creative settings to generate speakers
                 const int topk = 20;
+                const float top_p = 1.0f;
                 const float temp = 1.2f;
-                llama_token new_token_id = kcpp_quick_sample(logits,ttc_n_vocab,topk,temp,speaker_rng);
+                llama_token new_token_id = kcpp_quick_sample(logits,ttc_n_vocab,std::vector<int32_t>(),1.0,top_p,topk,temp,speaker_rng);
 
                 //guide tokens help prevent hallucinations by forcing the TTS to use the correct word
                 if(next_token_uses_guide_token && !llama_vocab_is_control(ttcvocab, new_token_id) && !llama_vocab_is_eog(ttcvocab, new_token_id))
@@ -878,7 +879,8 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
         //use predictable settings to generate voice
         const int topk = 4;
         const float temp = 0.75f;
-        llama_token new_token_id = kcpp_quick_sample(logits,ttc_n_vocab,topk,temp,tts_rng);
+        const float top_p = 1.0f;
+        llama_token new_token_id = kcpp_quick_sample(logits,ttc_n_vocab,std::vector<int32_t>(),1.0,top_p,topk,temp,speaker_rng);
 
         //guide tokens help prevent hallucinations by forcing the TTS to use the correct word
         if(next_token_uses_guide_token && !llama_vocab_is_control(ttcvocab, new_token_id) && !llama_vocab_is_eog(ttcvocab, new_token_id))
@@ -935,7 +937,7 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
     const int n_codes = codes.size();
     if(n_codes<=1)
     {
-        printf("\nWarning: TTS vocoder generated nothing!\n");
+        printf("\nWarning: No Audio Tokens Produced!\n");
         last_generated_audio = "";
         output.data = last_generated_audio.c_str();
         output.status = 1;
@@ -965,12 +967,23 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
 
         //audio = resample_wav(audio,n_sr,t_sr); //resample to 16k
 
-        for (int i = 0; i < cutout; ++i) {
-            audio[i] = 0.0f;
+        if(audio.size()>cutout+16)
+        {
+            for (int i = 0; i < cutout; ++i) {
+                audio[i] = 0.0f;
+            }
+            //add some silence at the end
+            for (int i = 0; i < cutout; ++i) {
+                audio.push_back(0.0f);
+            }
         }
-        //add some silence at the end
-        for (int i = 0; i < cutout; ++i) {
-            audio.push_back(0.0f);
+        else
+        {
+            printf("\nWarning: TTS vocoder generated nothing!\n");
+            last_generated_audio = "";
+            output.data = last_generated_audio.c_str();
+            output.status = 1;
+            return output;
         }
 
         last_generated_audio = save_wav16_base64(audio, t_sr);

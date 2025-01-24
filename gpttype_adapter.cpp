@@ -601,16 +601,23 @@ static void speculative_decoding_setup(std::string spec_model_filename, const ll
             {
                 printf("WARNING: Draft model vocab of (%d) does not match base vocab of (%d).\nIn debug mode, this restriction is bypassed. However, speculative decoding may malfunction!\n",draftvocab,base_n_vocab);
             }
-            else if((draftvocab >= base_n_vocab-512) || (draftvocab <= base_n_vocab+512))
+            else if((draftvocab >= base_n_vocab-128) || (draftvocab <= base_n_vocab+128))
             {
-                printf("WARNING: Draft model vocab of (%d) does not match base vocab of (%d).\nIn Croco.Cpp, a tolerance of +/- 512 tokens is allowed to account for some variations between the base models and their finetunes/updates and other self-merged frankenmodels + eventual finetunes of those.\nHowever, speculative decoding may malfuction in such cases if the difference between their vocab/tokenizers is too big!\n",draftvocab,base_n_vocab);
+                printf("WARNING: Draft model vocab of (%d) does not match base vocab of (%d).\nIn Croco.Cpp, a tolerance of +/- 128 tokens is allowed to account for some variations between the base models and their finetunes/updates and other self-merged frankenmodels + eventual finetunes of those.\nHowever, speculative decoding may malfuction in such cases if the difference between their vocab/tokenizers is too big!\n",draftvocab,base_n_vocab);
             }
             else
             {
-                printf("Error: Draft model vocab of (%d) does not match base vocab of (%d), or is above 512 tokens of difference. Speculative decoding cannot be used!\n",draftvocab,base_n_vocab);
-                printf("If you REALLY want to override this, run in --debugmode and this restriction will be completely disabled. However, you might encounter unwanted results!\n");
-                llama_free(draft_ctx);
-                draft_ctx = nullptr;
+                int diff = abs(draftvocab-base_n_vocab);
+                if(diff <= 256)
+                {
+                    //allow small differences to work
+                    printf("WARNING: Draft model vocab of (%d) does not match base vocab of (%d).\nIn KoboldCpp, a tolerance of +/- 256 tokens is allowed.\nSpeculative decoding may malfunction!\n",draftvocab,base_n_vocab);
+                } else {
+                    printf("Error: Draft model vocab of (%d) is too different from base vocab of (%d). Speculative decoding cannot be used!\n",draftvocab,base_n_vocab);
+                    printf("If you REALLY want to override this, run in --debugmode and this restriction will be disabled. However, you might encounter unwanted results!\n");
+                    llama_free(draft_ctx);
+                    draft_ctx = nullptr;
+                }
             }
         }
     }
