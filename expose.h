@@ -217,6 +217,7 @@ struct tts_load_model_inputs
     const char * vulkan_info = nullptr;
     const int gpulayers = 0;
     const bool flash_attention = false;
+    const int ttsmaxlen = 4096;
     const bool quiet = false;
     const int debugmode = 0;
 };
