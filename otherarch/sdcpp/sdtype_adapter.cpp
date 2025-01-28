@@ -114,8 +114,11 @@ static std::string recent_data = "";
 
 static std::string sdplatformenv, sddeviceenv, sdvulkandeviceenv;
 static bool notiling = false;
-bool sdtype_load_model(const sd_load_model_inputs inputs) {
+static bool sd_is_quiet = false;
 
+bool sdtype_load_model(const sd_load_model_inputs inputs) {
+    sd_is_quiet = inputs.quiet;
+    set_sd_quiet(sd_is_quiet);
     executable_path = inputs.executable_path;
     std::string taesdpath = "";
     std::string lorafilename = inputs.lora_filename;
@@ -290,9 +293,6 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
     sd_image_t * results;
     sd_image_t* control_image = NULL;
 
-    bool is_quiet = inputs.quiet;
-    set_sd_quiet(is_quiet);
-
     //sanitize prompts, remove quotes and limit lengths
     std::string cleanprompt = clean_input_prompt(inputs.prompt);
     std::string cleannegprompt = clean_input_prompt(inputs.negative_prompt);
@@ -345,7 +345,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
     std::vector<uint8_t> resized_image_buf(img2imgW * img2imgH * img2imgC);
 
     std::string ts = get_timestamp_str();
-    if(!is_quiet)
+    if(!sd_is_quiet)
     {
         printf("\n[%s] Generating Image (%d steps)\n",ts.c_str(),inputs.sample_steps);
     }else{
@@ -385,7 +385,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
 
     if (sd_params->mode == TXT2IMG) {
 
-        if(!is_quiet && sddebugmode==1)
+        if(!sd_is_quiet && sddebugmode==1)
         {
             printf("\nTXT2IMG PROMPT:%s\nNPROMPT:%s\nCLPSKP:%d\nCFGSCLE:%f\nW:%d\nH:%d\nSM:%d\nSTEP:%d\nSEED:%d\nBATCH:%d\nCIMG:%p\nCSTR:%f\n\n",
             sd_params->prompt.c_str(),
@@ -471,7 +471,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
         input_image.channel = img2imgC;
         input_image.data = resized_image_buf.data();
 
-        if(!is_quiet && sddebugmode==1)
+        if(!sd_is_quiet && sddebugmode==1)
         {
             printf("\nIMG2IMG PROMPT:%s\nNPROMPT:%s\nCLPSKP:%d\nCFGSCLE:%f\nW:%d\nH:%d\nSM:%d\nSTEP:%d\nSEED:%d\nBATCH:%d\nCIMG:%p\nSTR:%f\n\n",
             sd_params->prompt.c_str(),

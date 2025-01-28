@@ -55,8 +55,8 @@ struct load_model_inputs
     const char * vulkan_info = nullptr;
     const int blasbatchsize = 128;
     const int blasubatchsize = 128;
-    const int debugmode = 0;
-    const int forceversion = 6;
+    // const int debugmode = 0;
+    const int forceversion = 6; // DEFAULT 0
     const int gpulayers = 0;
     const float rope_freq_scale = 1.0f;
     const float rope_freq_base = 10000.0f;
@@ -66,6 +66,8 @@ struct load_model_inputs
     const float tensor_split[tensor_split_max] = {};
     const int quant_k = 0;
     const int quant_v = 0;
+    const bool quiet = false;
+    const int debugmode = 0;
 };
 struct generation_inputs
 {
@@ -99,7 +101,6 @@ struct generation_inputs
     const bool stream_sse = false;
     const char * grammar = nullptr;
     const bool grammar_retain_state = false;
-    const bool quiet = false;
     const float dynatemp_range = 0.0f;
     const float dynatemp_exponent = 1.0f;
     const float smoothing_factor = 0.0f;
@@ -159,6 +160,7 @@ struct sd_load_model_inputs
     const char * vae_filename = nullptr;
     const char * lora_filename = nullptr;
     const float lora_multiplier = 1.0f;
+    const bool quiet = false;
     const int debugmode = 0;
 };
 struct sd_generation_inputs
@@ -174,7 +176,6 @@ struct sd_generation_inputs
     const int seed = 0;
     const char * sample_method = nullptr;
     const int clip_skip = -1;
-    const bool quiet = false;
 };
 struct sd_generation_outputs
 {
@@ -189,6 +190,7 @@ struct whisper_load_model_inputs
     const int clblast_info = 0;
     const int cublas_info = 0;
     const char * vulkan_info = nullptr;
+    const bool quiet = false;
     const int debugmode = 0;
 };
 struct whisper_generation_inputs
@@ -197,7 +199,6 @@ struct whisper_generation_inputs
     const char * audio_data = nullptr;
     const bool suppress_non_speech = false;
     const char * langcode = nullptr;
-    const bool quiet = false;
 };
 struct whisper_generation_outputs
 {
@@ -216,6 +217,7 @@ struct tts_load_model_inputs
     const char * vulkan_info = nullptr;
     const int gpulayers = 0;
     const bool flash_attention = false;
+    const bool quiet = false;
     const int debugmode = 0;
 };
 struct tts_generation_inputs
@@ -223,7 +225,6 @@ struct tts_generation_inputs
     const char * prompt = nullptr;
     const int speaker_seed = 0;
     const int audio_seed = 0;
-    const bool quiet = false;
     const bool nocache = false;
 };
 struct tts_generation_outputs
