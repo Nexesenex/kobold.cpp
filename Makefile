@@ -30,14 +30,14 @@ endif
 # Mac OS + Arm can report x86_64
 # ref: https://github.com/ggerganov/whisper.cpp/issues/66#issuecomment-1282546789
 ifeq ($(UNAME_S),Darwin)
-	ifneq ($(UNAME_P),arm)
-		SYSCTL_M := $(shell sysctl -n hw.optional.arm64 2>/dev/null)
-		ifeq ($(SYSCTL_M),1)
-			# UNAME_P := arm
-			# UNAME_M := arm64
-			warn := $(warning Your arch is announced as x86_64, but it seems to actually be ARM64. Not fixing that can lead to bad performance. For more info see: https://github.com/ggerganov/whisper.cpp/issues/66\#issuecomment-1282546789)
-		endif
-	endif
+ifneq ($(UNAME_P),arm)
+	SYSCTL_M := $(shell sysctl -n hw.optional.arm64 2>/dev/null)
+ifeq ($(SYSCTL_M),1)
+	# UNAME_P := arm
+	# UNAME_M := arm64
+	warn := $(warning Your arch is announced as x86_64, but it seems to actually be ARM64. Not fixing that can lead to bad performance. For more info see: https://github.com/ggerganov/whisper.cpp/issues/66\#issuecomment-1282546789)
+endif
+endif
 endif
 
 #
@@ -112,9 +112,9 @@ ifeq ($(UNAME_S),Darwin)
 	CFLAGS   += -pthread
 	CXXFLAGS += -pthread
 	CLANG_VER = $(shell clang -v 2>&1 | head -n 1 | awk 'BEGIN {FS="[. ]"};{print $$1 $$2 $$4}')
-	ifeq ($(CLANG_VER),Appleclang15)
-		LDFLAGS += -ld_classic
-	endif
+ifeq ($(CLANG_VER),Appleclang15)
+	LDFLAGS += -ld_classic
+endif
 endif
 ifeq ($(UNAME_S),FreeBSD)
 	CFLAGS   += -pthread
@@ -149,48 +149,48 @@ CXXV := $(shell $(CXX) --version | head -n 1)
 # TODO: probably these flags need to be tweaked on some architectures
 # feel free to update the Makefile for your architecture and send a pull request or issue
 ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
-	# Use all CPU extensions that are available:
+# Use all CPU extensions that are available:
 # old library NEEDS mf16c to work. so we must build with it. new one doesnt
-	ifeq ($(OS),Windows_NT)
-		ifdef LLAMA_PORTABLE
-		CFLAGS +=
-		NONECFLAGS +=
-		SIMPLECFLAGS += -mavx -msse3 -mssse3
-		SIMPLERCFLAGS += -msse3 -mssse3
-		ifdef LLAMA_NOAVX2
-			FULLCFLAGS += -msse3 -mssse3 -mavx
-		else
-			FULLCFLAGS += -mavx2 -msse3 -mssse3 -mfma -mf16c -mavx
-		endif
-		else
-		CFLAGS += -march=native -mtune=native
-		endif
-	else
-		ifdef LLAMA_PORTABLE
-		CFLAGS +=
-		NONECFLAGS +=
-		SIMPLECFLAGS += -mavx -msse3 -mssse3
-		SIMPLERCFLAGS += -msse3 -mssse3
-		ifdef LLAMA_NOAVX2
-			FULLCFLAGS += -msse3 -mssse3 -mavx
-		else
-			FULLCFLAGS += -mavx2 -msse3 -mssse3 -mfma -mf16c -mavx
-		endif
-		else
-		CFLAGS += -march=native -mtune=native
-		endif
-	endif
+ifeq ($(OS),Windows_NT)
+ifdef LLAMA_PORTABLE
+	CFLAGS +=
+	NONECFLAGS +=
+	SIMPLECFLAGS += -mavx -msse3 -mssse3
+	SIMPLERCFLAGS += -msse3 -mssse3
+ifdef LLAMA_NOAVX2
+	FULLCFLAGS += -msse3 -mssse3 -mavx
+else
+	FULLCFLAGS += -mavx2 -msse3 -mssse3 -mfma -mf16c -mavx
+endif
+else
+	CFLAGS += -march=native -mtune=native
+endif
+else
+ifdef LLAMA_PORTABLE
+	CFLAGS +=
+	NONECFLAGS +=
+	SIMPLECFLAGS += -mavx -msse3 -mssse3
+	SIMPLERCFLAGS += -msse3 -mssse3
+ifdef LLAMA_NOAVX2
+	FULLCFLAGS += -msse3 -mssse3 -mavx
+else
+	FULLCFLAGS += -mavx2 -msse3 -mssse3 -mfma -mf16c -mavx
+endif
+else
+	CFLAGS += -march=native -mtune=native
+endif
+endif
 endif
 
 ifndef LLAMA_NO_ACCELERATE
-	# Mac M1 - include Accelerate framework.
-	# `-framework Accelerate` works on Mac Intel as well, with negliable performance boost (as of the predict time).
-	ifeq ($(UNAME_S),Darwin)
-		CFLAGS  += -DGGML_USE_ACCELERATE -DGGML_USE_BLAS -DGGML_BLAS_USE_ACCELERATE
-		CXXFLAGS  += -DGGML_USE_ACCELERATE -DGGML_USE_BLAS -DGGML_BLAS_USE_ACCELERATE
-		LDFLAGS += -framework Accelerate
-		OBJS += ggml-blas.o
-	endif
+# Mac M1 - include Accelerate framework.
+# `-framework Accelerate` works on Mac Intel as well, with negliable performance boost (as of the predict time).
+ifeq ($(UNAME_S),Darwin)
+	CFLAGS  += -DGGML_USE_ACCELERATE -DGGML_USE_BLAS -DGGML_BLAS_USE_ACCELERATE
+	CXXFLAGS  += -DGGML_USE_ACCELERATE -DGGML_USE_BLAS -DGGML_BLAS_USE_ACCELERATE
+	LDFLAGS += -framework Accelerate
+	OBJS += ggml-blas.o
+endif
 endif
 
 # it is recommended to use the CMAKE file to build for cublas if you can - will likely work better
@@ -315,17 +315,17 @@ ggml_v3-cuda.o: otherarch/ggml_v3-cuda.cu otherarch/ggml_v3-cuda.h
 endif # LLAMA_CUBLAS
 
 ifdef LLAMA_HIPBLAS
-	ifeq ($(wildcard /opt/rocm),)
-		ROCM_PATH	?= /usr
-		GPU_TARGETS ?= $(shell $(shell which amdgpu-arch))
-		HCC         := $(ROCM_PATH)/bin/hipcc
-		HCXX        := $(ROCM_PATH)/bin/hipcc
-	else
-		ROCM_PATH	?= /opt/rocm
-		GPU_TARGETS ?= gfx803 gfx900 gfx906 gfx908 gfx90a gfx1030 gfx1100 $(shell $(ROCM_PATH)/llvm/bin/amdgpu-arch)
-		HCC         := $(ROCM_PATH)/llvm/bin/clang
-		HCXX        := $(ROCM_PATH)/llvm/bin/clang++
-	endif
+ifeq ($(wildcard /opt/rocm),)
+	ROCM_PATH	?= /usr
+	GPU_TARGETS ?= $(shell $(shell which amdgpu-arch))
+	HCC         := $(ROCM_PATH)/bin/hipcc
+	HCXX        := $(ROCM_PATH)/bin/hipcc
+else
+	ROCM_PATH	?= /opt/rocm
+	GPU_TARGETS ?= gfx803 gfx900 gfx906 gfx908 gfx90a gfx1030 gfx1100 $(shell $(ROCM_PATH)/llvm/bin/amdgpu-arch)
+	HCC         := $(ROCM_PATH)/llvm/bin/clang
+	HCXX        := $(ROCM_PATH)/llvm/bin/clang++
+endif
 	LLAMA_CUDA_DMMV_X       ?= 32
 	LLAMA_CUDA_MMV_Y        ?= 1
 	LLAMA_CUDA_KQUANTS_ITER ?= 2
@@ -370,26 +370,26 @@ ggml-metal.o: ggml/src/ggml-metal/ggml-metal.m ggml/src/ggml-metal/ggml-metal-im
 endif # LLAMA_METAL
 
 ifneq ($(filter aarch64%,$(UNAME_M)),)
-	# Apple M1, M2, etc.
-	# Raspberry Pi 3, 4, Zero 2 (64-bit)
-	ifdef LLAMA_PORTABLE
-		CFLAGS +=
-		CXXFLAGS +=
-	else
-		# sve is cooked on termux so we are disabling it
-		ifeq ($(UNAME_O), Android)
-			ifneq ($(findstring clang, $(CCV)), )
-				CFLAGS += -mcpu=native+nosve
-				CXXFLAGS += -mcpu=native+nosve
-			else
-				CFLAGS += -mcpu=native
-				CXXFLAGS += -mcpu=native
-			endif
-		else
-			CFLAGS += -mcpu=native
-			CXXFLAGS += -mcpu=native
-		endif
-	endif
+# Apple M1, M2, etc.
+# Raspberry Pi 3, 4, Zero 2 (64-bit)
+ifdef LLAMA_PORTABLE
+	CFLAGS +=
+	CXXFLAGS +=
+else
+# sve is cooked on termux so we are disabling it
+ifeq ($(UNAME_O), Android)
+ifneq ($(findstring clang, $(CCV)), )
+	CFLAGS += -mcpu=native+nosve
+	CXXFLAGS += -mcpu=native+nosve
+else
+	CFLAGS += -mcpu=native
+	CXXFLAGS += -mcpu=native
+endif
+else
+	CFLAGS += -mcpu=native
+	CXXFLAGS += -mcpu=native
+endif
+endif
 endif
 
 ifneq ($(filter armv6%,$(UNAME_M)),)
@@ -409,10 +409,10 @@ ifneq ($(filter armv8%,$(UNAME_M)),)
 endif
 ifneq ($(filter ppc64%,$(UNAME_M)),)
 	POWER9_M := $(shell grep "POWER9" /proc/cpuinfo)
-	ifneq (,$(findstring POWER9,$(POWER9_M)))
-		CFLAGS   += -mcpu=power9
-		CXXFLAGS += -mcpu=power9
-	endif
+ifneq (,$(findstring POWER9,$(POWER9_M)))
+	CFLAGS   += -mcpu=power9
+	CXXFLAGS += -mcpu=power9
+endif
 endif
 
 
@@ -427,49 +427,49 @@ NOTIFY_MSG =
 
 ifeq ($(OS),Windows_NT)
 	DEFAULT_BUILD = $(CXX) $(CXXFLAGS)  $^ -shared -o $@.dll $(LDFLAGS)
-	ifdef LLAMA_PORTABLE
+ifdef LLAMA_PORTABLE
 	FAILSAFE_BUILD = $(CXX) $(CXXFLAGS) $^ -shared -o $@.dll $(LDFLAGS)
 	NOAVX2_BUILD = $(CXX) $(CXXFLAGS) $^ -shared -o $@.dll $(LDFLAGS)
-	endif
+endif
 
-	ifdef LLAMA_CLBLAST
+ifdef LLAMA_CLBLAST
 	CLBLAST_BUILD = $(CXX) $(CXXFLAGS) $^ lib/OpenCL.lib lib/clblast.lib -shared -o $@.dll $(LDFLAGS)
-	endif
-	ifdef LLAMA_VULKAN
+endif
+ifdef LLAMA_VULKAN
 	VULKAN_BUILD = $(CXX) $(CXXFLAGS) $^ lib/vulkan-1.lib -shared -o $@.dll $(LDFLAGS)
-	endif
+endif
 
-	ifdef LLAMA_CUBLAS
-		CUBLAS_BUILD = $(CXX) $(CXXFLAGS) $(CUBLAS_FLAGS) $^ -shared -o $@.dll $(CUBLASLD_FLAGS) $(LDFLAGS)
-	endif
-	ifdef LLAMA_HIPBLAS
-		HIPBLAS_BUILD = $(HCXX) $(CXXFLAGS) $(HIPFLAGS) $^ -shared -o $@.dll $(HIPLDFLAGS) $(LDFLAGS)
-	endif
+ifdef LLAMA_CUBLAS
+	CUBLAS_BUILD = $(CXX) $(CXXFLAGS) $(CUBLAS_FLAGS) $^ -shared -o $@.dll $(CUBLASLD_FLAGS) $(LDFLAGS)
+endif
+ifdef LLAMA_HIPBLAS
+	HIPBLAS_BUILD = $(HCXX) $(CXXFLAGS) $(HIPFLAGS) $^ -shared -o $@.dll $(HIPLDFLAGS) $(LDFLAGS)
+endif
 else
 	DEFAULT_BUILD = $(CXX) $(CXXFLAGS)  $^ -shared -o $@.so $(LDFLAGS)
-	ifdef LLAMA_PORTABLE
-	ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
+ifdef LLAMA_PORTABLE
+ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 	FAILSAFE_BUILD = $(CXX) $(CXXFLAGS)  $^ -shared -o $@.so $(LDFLAGS)
 	NOAVX2_BUILD = $(CXX) $(CXXFLAGS)  $^ -shared -o $@.so $(LDFLAGS)
-	endif
-	endif
+endif
+endif
 
-	ifdef LLAMA_CLBLAST
-		ifeq ($(UNAME_S),Darwin)
-			CLBLAST_BUILD = $(CXX) $(CXXFLAGS) $^ -lclblast -framework OpenCL $(ARCH_ADD) -shared -o $@.so $(LDFLAGS)
-		else
-			CLBLAST_BUILD = $(CXX) $(CXXFLAGS) $^ -lclblast -lOpenCL $(ARCH_ADD) -shared -o $@.so $(LDFLAGS)
-		endif
-	endif
-	ifdef LLAMA_CUBLAS
-		CUBLAS_BUILD = $(CXX) $(CXXFLAGS) $(CUBLAS_FLAGS) $^ -shared -o $@.so $(CUBLASLD_FLAGS) $(LDFLAGS)
-	endif
-	ifdef LLAMA_HIPBLAS
-		HIPBLAS_BUILD = $(HCXX) $(CXXFLAGS) $(HIPFLAGS) $^ -shared -o $@.so $(HIPLDFLAGS) $(LDFLAGS)
-	endif
-	ifdef LLAMA_VULKAN
-		VULKAN_BUILD = $(CXX) $(CXXFLAGS) $^ -lvulkan -shared -o $@.so $(LDFLAGS)
-	endif
+ifdef LLAMA_CLBLAST
+ifeq ($(UNAME_S),Darwin)
+	CLBLAST_BUILD = $(CXX) $(CXXFLAGS) $^ -lclblast -framework OpenCL $(ARCH_ADD) -shared -o $@.so $(LDFLAGS)
+else
+	CLBLAST_BUILD = $(CXX) $(CXXFLAGS) $^ -lclblast -lOpenCL $(ARCH_ADD) -shared -o $@.so $(LDFLAGS)
+endif
+endif
+ifdef LLAMA_CUBLAS
+	CUBLAS_BUILD = $(CXX) $(CXXFLAGS) $(CUBLAS_FLAGS) $^ -shared -o $@.so $(CUBLASLD_FLAGS) $(LDFLAGS)
+endif
+ifdef LLAMA_HIPBLAS
+	HIPBLAS_BUILD = $(HCXX) $(CXXFLAGS) $(HIPFLAGS) $^ -shared -o $@.so $(HIPLDFLAGS) $(LDFLAGS)
+endif
+ifdef LLAMA_VULKAN
+	VULKAN_BUILD = $(CXX) $(CXXFLAGS) $^ -lvulkan -shared -o $@.so $(LDFLAGS)
+endif
 endif
 
 ifndef LLAMA_CLBLAST

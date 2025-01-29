@@ -45,6 +45,7 @@ struct load_model_inputs
     const int draft_gpulayers = 999;
     const float draft_gpusplit[tensor_split_max] = {};
     const char * mmproj_filename = nullptr;
+    const int visionmaxres = 2048;
     const bool use_mmap = false;
     const bool use_mlock = false;
     const bool use_smartcontext = false;

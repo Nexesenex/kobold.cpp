@@ -1744,7 +1744,7 @@ uint8_t* scale_down_image(uint8_t* input_image, int& nx, int& ny, int nc, int ma
     return resized_image;
 }
 
-bool clip_image_load_from_bytes(const unsigned char * bytes, size_t bytes_length, struct clip_image_u8 * img) {
+bool clip_image_load_from_bytes(const unsigned char * bytes, size_t bytes_length, struct clip_image_u8 * img, const int maxdims) {
     int nx, ny, nc;
     auto * data = stbi_load_from_memory(bytes, bytes_length, &nx, &ny, &nc, 3);
     if (!data) {
@@ -1753,7 +1753,6 @@ bool clip_image_load_from_bytes(const unsigned char * bytes, size_t bytes_length
     }
 
     float maxaspect = 4.0f;
-    int maxdims = 2048;
 
     //check if image needs downscaling
     if (nx > maxdims || ny > maxdims) {

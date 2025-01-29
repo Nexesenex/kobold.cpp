@@ -103,6 +103,7 @@ static clip_image_u8 * clp_img_data = nullptr; //most recent image
 static std::vector<llava_image> llava_images;
 static std::string llava_composite_image_signature = ""; //for identifying when the llava images change, we need to invalidate the cache
 static int current_llava_identifier = LLAVA_TOKEN_IDENTIFIER_A;
+static int vision_max_res = 2048;
 
 static kcpp_params * kcpp_data = nullptr;
 static int max_context_limit_at_load = 0;
@@ -1951,6 +1952,8 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     = gpt2_ctx_v1.hparams.n_ctx = gpt2_ctx_v2.hparams.n_ctx = gpt2_ctx_v3.hparams.n_ctx
     = mpt_ctx_v3.hparams.n_ctx = kcpp_data->n_ctx;
 
+    vision_max_res = inputs.visionmaxres;
+
     //determine rope scaling params
     float rope_freq_scale = 1.0f;
     float rope_freq_base = 10000.0f;
@@ -2198,7 +2201,8 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         }
         if(file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2VL)
         {
-            printf("Qwen2VL detected! Mrope will be used!\n");
+            printf("Qwen2VL detected! Mrope will be used, and context shift will be disabled!\n");
+            kcpp_data->use_contextshift = false;
         }
         model_params.main_gpu = cu_parseinfo_maindevice;
 
@@ -3432,7 +3436,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         {
             std::string llava_image = llava_images[i].b64data;
             const std::vector<uint8_t> image_buffer = kcpp_base64_decode(llava_image);
-            if (!clip_image_load_from_bytes(image_buffer.data(), image_buffer.size(), clp_img_data))
+            if (!clip_image_load_from_bytes(image_buffer.data(), image_buffer.size(), clp_img_data, vision_max_res))
             {
                 //failed to load image
                 printf("\nError: Clip image %d failed to load!",i);
