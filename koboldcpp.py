@@ -611,6 +611,7 @@ def exit_with_error(code, message, title="Error"):
     else:
         print(message, flush=True)
     time.sleep(2)
+    interProcessSend("kill")
     sys.exit(code)
 
 def utfprint(str, importance = 2): #0 = only debugmode, 1 = except quiet, 2 = always print
@@ -4461,12 +4462,14 @@ def show_gui():
     except (KeyboardInterrupt,SystemExit):
         exitcounter = 999
         print("Exiting by user request.")
+        interProcessSend("kill")
         sys.exit(0)
 
 
     if nextstate==0:
         exitcounter = 999
         print("Exiting by user request.")
+        interProcessSend("kill")
         sys.exit(0)
     else:
         # processing vars
@@ -4484,6 +4487,7 @@ def show_gui():
             else:
                 print("No text or image model file was selected. Cannot continue.", flush=True)
             time.sleep(2)
+            interProcessSend("kill")
             sys.exit(2)
 
 def show_gui_msgbox(title,message):
@@ -4703,6 +4707,7 @@ def run_horde_worker(args, api_key, worker_name):
         print_with_time("Horde Worker Shutdown - Server Closing.")
     exitcounter = 999
     time.sleep(3)
+    interProcessSend("kill")
     sys.exit(2)
 
 def convert_outdated_args(args):
@@ -5025,7 +5030,6 @@ def main(launch_args,start_server=True):
 
     args = launch_args
 
-    embedded_kcpp_control = args.embedded_kcpp_control
     comPort = args.comPort
     controlEnabled = args.controlEnabled
     # comPassword = args.comPassword
@@ -5102,6 +5106,7 @@ def main(launch_args,start_server=True):
             if args.skiplauncher:
                 print("Note: In order to use --skiplauncher, you need to specify a model with --model")
             time.sleep(3)
+            interProcessSend("kill")
             sys.exit(2)
 
     #try to read story if provided
@@ -5524,6 +5529,14 @@ def main(launch_args,start_server=True):
     except Exception:
         print("Could not find Embedded SDUI.")
 
+    try:
+        basepath = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
+        with open(os.path.join(basepath, "kcpp_control.html"), mode='rb') as f:
+            embedded_kcpp_control = f.read()
+            print("Embedded control API loaded.")
+    except Exception:
+        print("Could not find Embedded KoboldCpp control API.")
+
     # print enabled modules
     caps = get_capabilities()
     enabledmlist = []
@@ -5842,14 +5855,6 @@ if __name__ == '__main__':
 
     print("Attempting to run KCPP in daemon thread")
     try:
-        basepath = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
-        with open(os.path.join(basepath, "kcpp_control.html"), mode='rb') as f:
-            argsIn.embedded_kcpp_control = f.read()
-            print("Embedded control API loaded.")
-    except Exception:
-        print("Could not find Embedded KoboldCpp control API.")
-
-    try:
         argsIn.customConfigs = [each for each in os.listdir(argsIn.configsDir) if (each.endswith('.kcpps') or each.endswith('.kcppt'))]
         print(f"Custom configs found: {', '.join(argsIn.customConfigs)}")
     except Exception:
@@ -5884,6 +5889,8 @@ if __name__ == '__main__':
                         break
                     elif msg == "kill":
                         runFlag = False
+                    else:
+                        configAfterRestart = None
                 except:
                     runFlag = False
                     break
@@ -5892,6 +5899,8 @@ if __name__ == '__main__':
             if runFlag:
                 print(f'Server restarting with new config: {configAfterRestart}')
             kcppThread.terminate()
+            if configAfterRestart is None:
+                break
             argsIn.config = [os.path.join(argsIn.configsDir, configAfterRestart)]
         except:
             break        
