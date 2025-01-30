@@ -76,7 +76,7 @@ CLIP_API void clip_image_f32_batch_free(struct clip_image_f32_batch * batch);
 CLIP_API bool clip_image_load_from_file(const char * fname, struct clip_image_u8 * img);
 
 /** interpret bytes as an image file with length bytes_length, and use the result to populate img */
-CLIP_API bool clip_image_load_from_bytes(const unsigned char * bytes, size_t bytes_length, struct clip_image_u8 * img);
+CLIP_API bool clip_image_load_from_bytes(const unsigned char * bytes, size_t bytes_length, struct clip_image_u8 * img, const int maxdims);
 
 /** preprocess img and store the result in res_imgs, pad_to_square may be overridden to false depending on model configuration */
 CLIP_API bool clip_image_preprocess(struct clip_ctx * ctx, const struct clip_image_u8 * img, struct clip_image_f32_batch * res_imgs );

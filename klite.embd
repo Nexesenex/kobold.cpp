@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 205;
+	const LITEVER = 207;
 	const urlParams = new URLSearchParams(window.location.search);
 	var localflag = true;
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -2909,6 +2909,7 @@ Current version indicated by LITEVER below.
 	var documentdb_chunksize = 800;
 	var documentdb_data = "";
 	var websearch_enabled = false;
+	var websearch_multipass = false;
 	var generateimagesinterval = 750; //if generated images is enabled, it will trigger after every 700 new characters in context.
 	var nextgeneratedimagemilestone = generateimagesinterval; //used to keep track of when to generate the next image
 	var image_db = {}; //stores a dictionary of pending images
@@ -2932,7 +2933,7 @@ Current version indicated by LITEVER below.
 	var synchro_polled_response = null;
 	var last_stop_reason = ""; //update stop reason if known
 	var synchro_pending_stream = ""; //used for token pseduo streaming for kobold api only
-	var waiting_for_autosummary = false;
+	var waiting_for_tool_call = 0; //0=not waiting, 1=autosummary, 2=websearchsummary
 	var oaiemulatecompletionscontent = "";
 	var italics_regex = new RegExp(/\*(\S[^*]+\S)\*/g); //the fallback regex
 	var bold_regex = new RegExp(/\*\*(\S[^*]+\S)\*\*/g); //the fallback regex
@@ -3240,6 +3241,13 @@ Current version indicated by LITEVER below.
 		"name":"Vicuna",
 		"user":"\\nUSER: ",
 		"assistant":"\\nASSISTANT: ",
+		"system":"",
+	},
+	{
+		"id":13,
+		"name":"Deepseek V2.5",
+		"user":"<｜end▁of▁sentence｜><｜User｜>",
+		"assistant":"<｜Assistant｜>",
 		"system":"",
 	}
 	];
@@ -5009,8 +5017,17 @@ initializeInstructUIFunctionality();
 	function copyMarkdownCode(btn)
 	{
 		const codeContainer = btn.parentElement.querySelector('pre code');
-		//selectElementContents(codeContainer);
-		navigator.clipboard.writeText(codeContainer.innerText);
+		let innercode = codeContainer.innerText;
+		//remove common language descriptiors from the start
+		let langsmatched = ["matlab","jsonc","powershell","ps1","haskell","hs","vbnet","vb","apache","apacheconf","makefile","mk","ini","protobuf","proto","typescript","tsx","markdown","md","mkdown","mkd","python","py","javascript","js","jsx","html","xhtml","xml","css","json","typescript","ts","tsx","bash","sh","zsh","java","csharp","cs","c","h","cpp","hpp","php","sql","ruby","rb","go","golang","kotlin","kt","swift","rust","rs","r","dart","scala","dockerfile","docker","yaml","yml","ini","toml","perl","pl","shell","console","powershell","ps1","lua","typescript","ts"];
+		for(let i = 0; i < langsmatched.length; ++i) {
+			let matcher = langsmatched[i]+"\n";
+			if (innercode.startsWith(matcher)) {
+				innercode = innercode.substring(matcher.length);
+				break;
+			 }
+		}
+		navigator.clipboard.writeText(innercode);
 	}
 
 	function simpleMarkdown(text) {
@@ -5032,10 +5049,12 @@ initializeInstructUIFunctionality();
 		};
 		const replaceLatex = (input) =>{
 			//all latex patterns except inline tex
-			input = input.replace(/(^```math\n([\s\S]*?)\n```$|^\\\[\n([\s\S]*?)\n\\\]$|^\$\$\n([\s\S]*?)\n\$\$$|\$\$([^\n]+?)\$\$|\\\(([^\n]+?)\\\)|\\\[([^\n]+?)\\\])/gm, (match, p1, p2, p3, p4, p5, p6, p7) => {
+			input = input.replace(/(^```math\n([\s\S]*?)\n```$|^ {0,6}\\\[\n([\s\S]*?)\n {0,6}\\\]$|^\$\$\n([\s\S]*?)\n\$\$$|\$\$([^\n]+?)\$\$|\\\(([^\n]+?)\\\)|\\\[([^\n]+?)\\\])/gm, (match, p1, p2, p3, p4, p5, p6, p7) => {
 				let content = p2 || p3 || p4 || p5 || p6 || p7;
+				const matchedlw = match.match(/^[ \t]*/);
+				const leadingWhitespace = matchedlw ? matchedlw[0] : '';
 				content = unescape_html(content);
-				return temml.renderToString(content); // render LaTeX content
+				return leadingWhitespace + temml.renderToString(content); // render LaTeX content
 			});
 			input = input.replace(/(?:^|[^\\])\$(\S[^$\n]*?\S)\$(?!\d)/g, (match, p1) => {
 				let content = p1;
@@ -5047,6 +5066,32 @@ initializeInstructUIFunctionality();
 				content = unescape_html(content);
 				return temml.renderToString(content); // render LaTeX content
 			});
+			return input;
+		};
+		const replaceTabbedCodeblocks = (input) => {
+			let previousIndentation = 0;
+			let inCodeBlock = false;
+			input = input.replace(/\t/g, "    "); //replace tabs with 4 spaces
+			const lines = input.split("\n");
+			const regex = /^( {4,10})(.*)/;
+			let prevIsNewline = false;
+			let withinCodeBlock = false;
+			input = lines.map((line) => {
+				let isNewline = (line.trim()=="");
+				const match = line.match(regex);
+				if (match && (withinCodeBlock||prevIsNewline)) {
+					const [, spaces, content] = match;
+					let lessspaces = spaces.substring(4);
+					withinCodeBlock = true;
+					line = `<pre><code>${lessspaces}${escapeHTML(content)}</code></pre>`;
+				}
+				else
+				{
+					withinCodeBlock = false;
+				}
+				prevIsNewline = isNewline;
+				return line; // Return unmodified if no match or condition not met
+			}).join("\n");
 			return input;
 		};
 		const formatMarkdown = (md) => {
@@ -5105,12 +5150,9 @@ initializeInstructUIFunctionality();
 			.replace(/\{\{(\w.*?)\}\}/gm, "<mark>$1</mark>")
 			.replace(/^((?:\|[^|\r\n]*[^|\r\n\s]\s*)+\|(?:\r?\n|\r|))+/gm,
 				(matchedTable) => convertMarkdownTableToHtml(matchedTable))
-			.replace(/  \n/g, "\n<br/>")
-			.replace(/^ {4,10}(.*)/gm, (match, code) => {
-				return `<pre><code>${escapeHTML(code)}</code></pre>`;})
-			.replace(/^\t(.*)/gm, (match, code) => {
-				return `<pre><code>${escapeHTML(code)}</code></pre>`;})
-			.replace(/<\/code\><\/pre\>\n<pre\><code\>/g, "\n");
+			.replace(/  \n/g, "\n<br/>");
+			md = replaceTabbedCodeblocks(md);
+			md = md.replace(/<\/code\><\/pre\>\n<pre\><code\>/g, "\n");
 			md = replaceLatex(md);
 			md = md.replace(/\\([`_~\*\+\-\.\^\\\<\>\(\)\[\]])/gm, "$1");
 			return md;
@@ -6158,6 +6200,7 @@ initializeInstructUIFunctionality();
 		new_save_storyobj.documentdb_chunksize = documentdb_chunksize;
 		new_save_storyobj.documentdb_data = documentdb_data;
 		new_save_storyobj.websearch_enabled = websearch_enabled;
+		new_save_storyobj.websearch_multipass = websearch_multipass;
 
 		if (export_settings) {
 			new_save_storyobj.savedsettings = JSON.parse(JSON.stringify(localsettings));
@@ -6468,6 +6511,10 @@ initializeInstructUIFunctionality();
 				if(storyobj.websearch_enabled)
 				{
 					websearch_enabled = storyobj.websearch_enabled;
+				}
+				if(storyobj.websearch_multipass)
+				{
+					websearch_multipass = storyobj.websearch_multipass;
 				}
 			} else {
 				//v2 load
@@ -10594,13 +10641,13 @@ initializeInstructUIFunctionality();
 
 	function confirm_settings() {
 		hide_popups();
-		localsettings.max_context_length = document.getElementById("max_context_length").value;
-		localsettings.max_length = document.getElementById("max_length").value;
-		localsettings.temperature = document.getElementById("temperature").value;
-		localsettings.rep_pen = document.getElementById("rep_pen").value;
-		localsettings.rep_pen_slope = document.getElementById("rep_pen_slope").value;
-		localsettings.rep_pen_range = document.getElementById("rep_pen_range").value;
-		localsettings.top_p = document.getElementById("top_p").value;
+		localsettings.max_context_length = parseInt(document.getElementById("max_context_length").value);
+		localsettings.max_length = parseInt(document.getElementById("max_length").value);
+		localsettings.temperature = parseFloat(document.getElementById("temperature").value);
+		localsettings.rep_pen = parseFloat(document.getElementById("rep_pen").value);
+		localsettings.rep_pen_slope = parseFloat(document.getElementById("rep_pen_slope").value);
+		localsettings.rep_pen_range = parseInt(document.getElementById("rep_pen_range").value);
+		localsettings.top_p = parseFloat(document.getElementById("top_p").value);
 		localsettings.autoscroll = (document.getElementById("autoscroll").checked ? true : false);
 		localsettings.printer_view = (document.getElementById("printer_view").checked ? true : false);
 		localsettings.viewport_width_mode = document.getElementById("viewport_width_mode").value;
@@ -10651,25 +10698,25 @@ initializeInstructUIFunctionality();
 		localsettings.opmode = document.getElementById("opmode").value;
 		confirm_chat_and_instruct_tags();
 		localsettings.sampler_seed = document.getElementById("sampler_seed").value;
-		localsettings.min_p = document.getElementById("min_p").value;
-		localsettings.dynatemp_range = document.getElementById("dynatemp_range").value;
-		localsettings.dynatemp_exponent = document.getElementById("dynatemp_exponent").value;
-		localsettings.smoothing_factor = document.getElementById("smoothing_factor").value;
-		localsettings.presence_penalty = document.getElementById("presence_penalty").value;
-		localsettings.top_k = document.getElementById("top_k").value;
-		localsettings.top_a = document.getElementById("top_a").value;
-		localsettings.typ_s = document.getElementById("typ_s").value;
-		localsettings.tfs_s = document.getElementById("tfs_s").value;
-		localsettings.miro_type = document.getElementById("miro_type").value;
-		localsettings.miro_tau = document.getElementById("miro_tau").value;
-		localsettings.miro_eta = document.getElementById("miro_eta").value;
-		localsettings.dry_multiplier = document.getElementById("dry_multiplier").value;
-		localsettings.dry_base = document.getElementById("dry_base").value;
-		localsettings.dry_allowed_length = document.getElementById("dry_allowed_length").value;
+		localsettings.min_p = parseFloat(document.getElementById("min_p").value);
+		localsettings.dynatemp_range = parseFloat(document.getElementById("dynatemp_range").value);
+		localsettings.dynatemp_exponent = parseFloat(document.getElementById("dynatemp_exponent").value);
+		localsettings.smoothing_factor = parseFloat(document.getElementById("smoothing_factor").value);
+		localsettings.presence_penalty = parseFloat(document.getElementById("presence_penalty").value);
+		localsettings.top_k = parseInt(document.getElementById("top_k").value);
+		localsettings.top_a = parseFloat(document.getElementById("top_a").value);
+		localsettings.typ_s = parseFloat(document.getElementById("typ_s").value);
+		localsettings.tfs_s = parseFloat(document.getElementById("tfs_s").value);
+		localsettings.miro_type = parseInt(document.getElementById("miro_type").value);
+		localsettings.miro_tau = parseFloat(document.getElementById("miro_tau").value);
+		localsettings.miro_eta = parseFloat(document.getElementById("miro_eta").value);
+		localsettings.dry_multiplier = parseFloat(document.getElementById("dry_multiplier").value);
+		localsettings.dry_base = parseFloat(document.getElementById("dry_base").value);
+		localsettings.dry_allowed_length = parseInt(document.getElementById("dry_allowed_length").value);
 		localsettings.dry_sequence_breakers = pendingsequencebreakers;
-		localsettings.xtc_threshold = document.getElementById("xtc_threshold").value;
-		localsettings.xtc_probability = document.getElementById("xtc_probability").value;
-		localsettings.token_count_multiplier = document.getElementById("token_count_multiplier").value;
+		localsettings.xtc_threshold = parseFloat(document.getElementById("xtc_threshold").value);
+		localsettings.xtc_probability = parseFloat(document.getElementById("xtc_probability").value);
+		localsettings.token_count_multiplier = parseInt(document.getElementById("token_count_multiplier").value);
 
 		localsettings.speech_synth = document.getElementById("ttsselect").value;
 		localsettings.xtts_voice = document.getElementById("xtts_voices").value;
@@ -11151,6 +11198,7 @@ initializeInstructUIFunctionality();
 		documentdb_chunksize = parseInt(documentdb_chunksize);
 		documentdb_chunksize = cleannum(documentdb_chunksize,32,2048);
 		websearch_enabled = document.getElementById("websearch_enabled").checked?true:false;
+		websearch_multipass = document.getElementById("websearch_multipass").checked?true:false;
 	}
 
 	function set_personal_notes()
@@ -11161,13 +11209,62 @@ initializeInstructUIFunctionality();
 		},false,true);
 	}
 
+	var on_searchsummary_done = null;
+	function generate_websearch_prompt(recentCtx, search_query, onDoneFn)
+	{
+		if (recentCtx.trim() == "") {
+			console.log("Cannot websearch nothing.");
+			onDoneFn("");
+		} else {
+			pending_response_id = "-1";
+			waiting_for_tool_call = 2;
+			let max_allowed_characters = Math.floor(localsettings.max_context_length * 3.0) - 100;
+			let truncated_context = recentCtx.substring(recentCtx.length - max_allowed_characters);
+
+			truncated_context = replace_placeholders(truncated_context);
+			truncated_context += `\n\n### New Task:\nFrom above text, rephrase the search engine query "${search_query}" as a single short phrase (for search engines) using proper nouns, references and names to avoid ambiguity.\n\n### Rephrased Search Query Created:\n`;
+
+			let submit_payload = {
+				"prompt": truncated_context,
+				"params": {
+					"n": 1,
+					"max_context_length": localsettings.max_context_length,
+					"max_length": 200,
+					"rep_pen": localsettings.rep_pen,
+					"temperature": localsettings.temperature,
+					"top_p": localsettings.top_p,
+					"top_k": localsettings.top_k,
+					"top_a": localsettings.top_a,
+					"typical": localsettings.typ_s,
+					"tfs": localsettings.tfs_s,
+					"rep_pen_range": localsettings.rep_pen_range,
+					"rep_pen_slope": localsettings.rep_pen_slope,
+					"sampler_order": localsettings.sampler_order
+				},
+				"models": selected_models.map((m) => { return m.name }),
+			};
+
+			if (localsettings.sampler_seed >= 1) {
+				submit_payload.params.sampler_seed = localsettings.sampler_seed;
+			}
+
+			//v2 api specific fields
+			submit_payload.workers = selected_workers.map((m) => { return m.id });
+
+			on_searchsummary_done = onDoneFn;
+
+			dispatch_submit_generation(submit_payload, false);
+			render_gametext();
+		}
+	}
+
 	let temp_automem_store = "";
 	function autogenerate_summary_memory()
 	{
 		temp_automem_store = document.getElementById("memorytext").value;
 		let onOk = ()=>{
 			pending_response_id = "-1";
-			waiting_for_autosummary = true;
+			waiting_for_tool_call = 1;
 			let max_allowed_characters = Math.floor(localsettings.max_context_length * 3.0)-100;
 			let truncated_context = concat_gametext(true, "");
 
@@ -11239,7 +11336,7 @@ initializeInstructUIFunctionality();
 	function handle_incoming_autosummary(gentxt)
 	{
 		retry_in_progress = false;
-		waiting_for_autosummary = false;
+		waiting_for_tool_call = 0;
 		gentxt = gentxt.trim();
 		gentxt = gentxt.split("###")[0];
 		gentxt = replaceAll(gentxt,"\n\n","\n");
@@ -11273,7 +11370,43 @@ initializeInstructUIFunctionality();
 		{
 			document.getElementById("memorytext").value = temp_automem_store + "\n\n[Summary Continued: "+gentxt+"]";
 		}
+	}
 
+	function handle_incoming_searchsummary(gentxt)
+	{
+		retry_in_progress = false;
+		waiting_for_tool_call = 0;
+		gentxt = gentxt.trim();
+		gentxt = gentxt.split("###")[0];
+		gentxt = replaceAll(gentxt,"\n\n","\n");
+		let gtar = gentxt.split("\n");
+
+		gentxt = gtar[0];
+		let deslen = 200; //deal with point form response
+		if(gentxt.length<100 && gtar.length>1)
+		{
+			for(var k=1;k<gtar.length;++k)
+			{
+				deslen -= gtar[k].length;
+				if(gtar[k].trim().length>5)
+				{
+					gentxt += "\n"+gtar[k];
+				}
+				if(deslen<=0)
+				{
+					break;
+				}
+			}
+		}
+
+		//clean up text
+		gentxt = end_trim_to_sentence(gentxt,true);
+		if(on_searchsummary_done!=null)
+		{
+			let cb = on_searchsummary_done;
+			on_searchsummary_done = null;
+			cb(gentxt);
+		}
 	}
 
 	function simplemodexample()
@@ -11345,7 +11478,7 @@ initializeInstructUIFunctionality();
 		synchro_polled_response = null;
 		last_stop_reason = "";
 		synchro_pending_stream = "";
-		waiting_for_autosummary = false;
+		waiting_for_tool_call = 0;
 		horde_poll_nearly_completed = false;
 		oaiemulatecompletionscontent = "";
 	}
@@ -11366,7 +11499,7 @@ initializeInstructUIFunctionality();
 		synchro_polled_response = null;
 		last_stop_reason = "";
 		synchro_pending_stream = "";
-		waiting_for_autosummary = false;
+		waiting_for_tool_call = 0;
 		oaiemulatecompletionscontent = "";
 		last_reply_was_empty = false;
 		pending_context_preinjection = "";
@@ -11409,6 +11542,7 @@ initializeInstructUIFunctionality();
 			documentdb_chunksize = 800;
 			documentdb_data = "";
 			websearch_enabled = false;
+			websearch_multipass = false;
 		}
 		warn_on_quit = false;
 		show_corpo_leftpanel(false);
@@ -11471,24 +11605,24 @@ initializeInstructUIFunctionality();
 		render_gametext(false);
 	}
 
-
-
 	function apply_display_only_regex(inputtxt)
 	{
 		//apply regex transforms
 		if(regexreplace_data && regexreplace_data.length>0)
 		{
+			inputtxt = unescape_html(inputtxt);
 			for(let i=0;i<regexreplace_data.length;++i)
 			{
 				if(regexreplace_data[i].d && regexreplace_data[i].p!="")
 				{
-					let escapedpat = escape_html(regexreplace_data[i].p);
+					let escapedpat = regexreplace_data[i].p;
 					let pat = new RegExp(escapedpat, "gm");
 					let rep = regexreplace_data[i].r;
 					rep = unescape_regex_newlines(rep);
 					inputtxt = inputtxt.replace(pat, rep);
 				}
 			}
+			inputtxt = escape_html(inputtxt);
 		}
 		return inputtxt;
 	}
@@ -11942,14 +12076,25 @@ initializeInstructUIFunctionality();
 
 	function test_tts()
 	{
-		inputBox("Enter phrase to speak.","Test TTS","","Input text to speak", ()=>{
+		let ssval = document.getElementById("ttsselect").value;
+		let speakprompt = "Enter phrase to speak.";
+
+		if(ssval==XTTS_ID || ssval==ALLTALK_ID || ssval==OAI_TTS_ID || ssval==KCPP_TTS_ID)
+		{
+			speakprompt = `Enter phrase to speak.<br><div><input type="checkbox" id="downloadtts" title="Add Endpoint Version Number"><div class="box-label">Download as .wav file</div></div>`;
+		}
+		inputBox(speakprompt,"Test TTS","","Input text to speak", ()=>{
 			let userinput = getInputBoxValue();
-			userinput = userinput.trim();
-			let ssval = document.getElementById("ttsselect").value;
-			if (userinput != null && userinput!="" && ssval > 0) {
-				tts_speak(userinput,ssval);
+			let downloadtts = false;
+			if(document.getElementById("downloadtts")!=null)
+			{
+				downloadtts = (document.getElementById("downloadtts").checked?true:false);
 			}
-		},false);
+			userinput = userinput.trim();
+			if (userinput != null && userinput!="" && ssval > 0) {
+				tts_speak(userinput,ssval,downloadtts);
+			}
+		},true);
 	}
 
 	function toggle_tts_mode()
@@ -12062,7 +12207,21 @@ initializeInstructUIFunctionality();
 		},false);
 	}
 
-	function tts_speak(text, speech_synth_override=null)
+	function tts_download(arrayBufferData)
+	{
+		var a = document.getElementById("tempfile");
+		var file = new Blob([arrayBufferData], { type: 'audio/wav' });
+		if (tempfileurl) {
+			window.URL.revokeObjectURL(tempfileurl);
+		}
+		tempfileurl = window.URL.createObjectURL(file);
+		a.href = tempfileurl;
+		a.target = '_blank';
+		a.download = "audio.wav";
+		setTimeout(function(){a.click()},20);
+	}
+
+	function tts_speak(text, speech_synth_override=null, do_download=false)
 	{
 		if(!text || text=="" || text.trim()=="")
 		{
@@ -12103,6 +12262,7 @@ initializeInstructUIFunctionality();
 			let is_oai_tts = (ssval==OAI_TTS_ID);
 			let is_kcpp_tts = (ssval==KCPP_TTS_ID);
 			const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+			let audiofile_ref = null;
 
 			if(is_oai_tts || is_kcpp_tts)
 			{
@@ -12140,9 +12300,14 @@ initializeInstructUIFunctionality();
 				})
 				.then(response => response.arrayBuffer())
 				.then(data => {
+					audiofile_ref = data.slice(0);
 					return audioContext.decodeAudioData(data);
 				})
 				.then(decodedData => {
+					if(do_download)
+					{
+						tts_download(audiofile_ref);
+					}
 					const playSound = audioContext.createBufferSource();
 					playSound.buffer = decodedData;
 					playSound.connect(audioContext.destination);
@@ -12178,9 +12343,14 @@ initializeInstructUIFunctionality();
 					})
 					.then(response => response.arrayBuffer())
 					.then(data => {
+						audiofile_ref = data.slice(0);
 						return audioContext.decodeAudioData(data);
 					})
 					.then(decodedData => {
+						if(do_download)
+						{
+							tts_download(audiofile_ref);
+						}
 						const playSound = audioContext.createBufferSource();
 						playSound.buffer = decodedData;
 						playSound.connect(audioContext.destination);
@@ -12236,9 +12406,14 @@ initializeInstructUIFunctionality();
 						fetch(streamingUrl)
 						.then(response => response.arrayBuffer())
 						.then(data => {
+							audiofile_ref = data.slice(0);
 							return audioContext.decodeAudioData(data);
 						})
 						.then(decodedData => {
+							if(do_download)
+							{
+								tts_download(audiofile_ref);
+							}
 							playDecodedAllTalkData(decodedData);
 						})
 						.catch((error) => {
@@ -12282,9 +12457,14 @@ initializeInstructUIFunctionality();
 										fetch(audioUrl)
 										.then(response => response.arrayBuffer())
 										.then(data => {
+											audiofile_ref = data.slice(0);
 											return audioContext.decodeAudioData(data);
 										})
 										.then(decodedData => {
+											if(do_download)
+											{
+												tts_download(audiofile_ref);
+											}
 											playDecodedAllTalkData(decodedData);
 										})
 										.catch((error) => {
@@ -12307,9 +12487,14 @@ initializeInstructUIFunctionality();
 							else //alltalk v1 audio
 							{
 								return response.arrayBuffer().then(data => {
+									audiofile_ref = data.slice(0);
 									return audioContext.decodeAudioData(data);
 								})
 								.then(decodedData => {
+									if(do_download)
+									{
+										tts_download(audiofile_ref);
+									}
 									playDecodedAllTalkData(decodedData);
 								}).catch((error) => {
 									console.log("AllTalk v1 Speak Error: " + error);
@@ -12485,7 +12670,7 @@ initializeInstructUIFunctionality();
 
 		if (!user_input_empty || gametext_arr.length > 0 || current_memory != "" || current_anote != "")
 		{
-			waiting_for_autosummary = false;
+			waiting_for_tool_call = 0;
 			idle_timer = 0;
 			idle_triggered_counter = 0;
 			if (localsettings.speech_synth > 0)
@@ -13469,7 +13654,12 @@ initializeInstructUIFunctionality();
 					if (document.getElementById("jailbreakprompt2") && document.getElementById("jailbreakprompt2").checked && document.getElementById("jailbreakprompttext2").value!="") {
 						let addrole = document.getElementById("jailbreakprompttext2role").value;
 						addrole = ((addrole==2)?"system":(addrole==1?"assistant":"user"));
-						oai_payload.messages.push({ "role": addrole, "content": document.getElementById("jailbreakprompttext2").value });
+						let postmsg = { "role": addrole, "content": document.getElementById("jailbreakprompttext2").value };
+						if(addrole=="assistant" && targetep.toLowerCase().includes("api.deepseek.com"))
+						{
+							postmsg["prefix"] = true;
+						}
+						oai_payload.messages.push(postmsg);
 					}
 
 					oaiemulatecompletionscontent = "";
@@ -15649,7 +15839,7 @@ initializeInstructUIFunctionality();
 					{
 						//still waiting, do nothing until next poll
 						console.log("sync request: still awaiting reply");
-						let polledstreaming = (!waiting_for_autosummary && localsettings.tokenstreammode==1 && is_using_kcpp_with_streaming());
+						let polledstreaming = (waiting_for_tool_call==0 && localsettings.tokenstreammode==1 && is_using_kcpp_with_streaming());
 						//only check once every 2 ticks if remote
 						if (polledstreaming && (localflag?true:(poll_ticks_passed%2==0)))
 						{
@@ -15694,7 +15884,7 @@ initializeInstructUIFunctionality();
 						pending_response_id = "";
 						poll_in_progress = false;
 						let resp = synchro_polled_response;
-						if(!waiting_for_autosummary)
+						if(waiting_for_tool_call==0)
 						{
 							last_reply_was_empty = (resp=="" || resp.trim()=="");
 						}
@@ -15703,7 +15893,11 @@ initializeInstructUIFunctionality();
 							let genworker = "Custom Endpoint";
 							let genkudos = "0";
 							let genmdl = (selected_models.length>0?selected_models[0].name:"Unknown Model");
-							if(waiting_for_autosummary)
+							if(waiting_for_tool_call==2)
+							{
+								handle_incoming_searchsummary(gentxt);
+							}
+							else if(waiting_for_tool_call==1)
 							{
 								handle_incoming_autosummary(gentxt);
 							}
@@ -15765,7 +15959,9 @@ initializeInstructUIFunctionality();
 												let genworker = data.generations[0].worker_name;
 												let genmdl = data.generations[0].model;
 												let genkudos = data.kudos;
-												if (waiting_for_autosummary) {
+												if (waiting_for_tool_call == 2) {
+													handle_incoming_searchsummary(gentxt);
+												} else if (waiting_for_tool_call == 1) {
 													handle_incoming_autosummary(gentxt);
 												}
 												else {
@@ -16433,7 +16629,7 @@ initializeInstructUIFunctionality();
 			}
 
 			//streaming display
-			if(synchro_pending_stream!="")
+			if(synchro_pending_stream!="" && waiting_for_tool_call==0)
 			{
 				fulltxt += `<span class="color_yellow pending_text">${escape_html(pending_context_preinjection) + escape_html(synchro_pending_stream)}</span>`;
 			}
@@ -17593,6 +17789,7 @@ initializeInstructUIFunctionality();
 		document.getElementById("documentdb_chunksize").value = documentdb_chunksize;
 		document.getElementById("documentdb_data").value = documentdb_data;
 		document.getElementById("websearch_enabled").checked = websearch_enabled;
+		document.getElementById("websearch_multipass").checked = websearch_multipass;
 		if(is_using_kcpp_with_websearch())
 		{
 			document.getElementById("websearchunsupporteddiv").classList.add("hidden");
@@ -18774,24 +18971,9 @@ initializeInstructUIFunctionality();
 
 	function PerformWebsearch(webSearchQuery, onDone)
 	{
-		//websearch
-		if (websearch_enabled && is_using_kcpp_with_websearch())
+		let proceedSearching = function() //called once search query is prepared
 		{
-			webSearchQuery = webSearchQuery.trim();
-			if(webSearchQuery=="")
-			{
-				webSearchQuery = (gametext_arr.length > 0 ? gametext_arr.slice(-1)[0] : "");
-				webSearchQuery = replace_search_placeholders(webSearchQuery);
-				webSearchQuery = webSearchQuery.trim();
-				if(webSearchQuery=="")
-				{
-					webSearchQuery = (gametext_arr.length > 1 ? gametext_arr.slice(-2,-1)[0] : "");
-				}
-			}
-			webSearchQuery = replace_search_placeholders(webSearchQuery);
-			webSearchQuery = webSearchQuery.trim();
-			webSearchQuery = webSearchQuery.replace(/(?:\r\n|\r|\n)/g, '. ');
-			if(webSearchQuery==lastSearchQuery || webSearchQuery=="")
+			if(!websearch_multipass && (webSearchQuery==lastSearchQuery || webSearchQuery==""))
 			{
 				onDone(); //use cached results
 			}
@@ -18832,6 +19014,41 @@ initializeInstructUIFunctionality();
 					websearch_in_progress = false;
 					onDone();
 				});
+			}
+		}
+
+		//websearch
+		if (websearch_enabled && is_using_kcpp_with_websearch())
+		{
+			webSearchQuery = webSearchQuery.trim();
+
+			if(webSearchQuery=="")
+			{
+				webSearchQuery = (gametext_arr.length > 0 ? gametext_arr.slice(-1)[0] : "");
+				webSearchQuery = replace_search_placeholders(webSearchQuery);
+				webSearchQuery = webSearchQuery.trim();
+				if(webSearchQuery=="")
+				{
+					webSearchQuery = (gametext_arr.length > 1 ? gametext_arr.slice(-2,-1)[0] : "");
+				}
+			}
+			webSearchQuery = replace_search_placeholders(webSearchQuery);
+			webSearchQuery = webSearchQuery.trim();
+			webSearchQuery = webSearchQuery.replace(/(?:\r\n|\r|\n)/g, '. ');
+
+			if(websearch_multipass && gametext_arr.length > 0)
+			{
+				let search_context = concat_gametext(true, ""); //will be truncated later
+
+				//use tool call to generate the search prompt to be used
+				generate_websearch_prompt(search_context,webSearchQuery,(generated_searchstr)=>{
+					webSearchQuery = generated_searchstr;
+					proceedSearching();
+				});
+			}
+			else
+			{
+				proceedSearching();
 			}
 		}
 		else
@@ -20323,7 +20540,7 @@ initializeInstructUIFunctionality();
 								</table>
 							</div>
 							<div id="kcpp_tts_container" class="hidden">
-								<div class="color_red hidden" id="nokcpptts">KoboldCpp Not Connected</div>
+								<div class="color_red hidden" id="nokcpptts">KoboldCpp TTS Unavailable</div>
 								<div class="settinglabel">
 								<table width="100%">
 								<tr style="font-size:12px;padding:2px;margin:0px 0 0;"><td>TTS Voice </td><td>
@@ -20750,6 +20967,11 @@ initializeInstructUIFunctionality();
 				<div class="settinglabel" style="padding: 4px;">
 					<div class="justifyleft settingsmall" title="Enable WebSearch">Enable WebSearch </div>
 					<input title="Enable WebSearch" type="checkbox" id="websearch_enabled" style="margin:0px 0 0;">
+				</div>
+				<div class="settinglabel" style="padding: 4px;">
+					<div class="justifyleft settingsmall" title="Use Multiple Passes">Use Multiple Passes <span class="helpicon">?<span
+						class="helptext">Using this option will run a second LLM tool call to summarize context and create a more accurate search query. Slower but may be more accurate.</span></span></div>
+					<input title="Use Multiple Passes" type="checkbox" id="websearch_multipass" style="margin:0px 0 0;">
 				</div>
 			</div>
 

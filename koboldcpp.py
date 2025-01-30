@@ -36,6 +36,8 @@ bias_min_value = -100.0
 bias_max_value = 100.0
 logprobs_max = 5
 default_draft_amount = 8
+default_ttsmaxlen = 4096
+default_visionmaxres = 1024
 
 # abuse prevention
 stop_token_max = 256
@@ -60,7 +62,7 @@ maxhordelen = 400
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.82.4"
+KcppVersion = "1.83"
 showdebug = True
 guimode = False
 showsamplerwarning = True
@@ -154,6 +156,7 @@ class load_model_inputs(ctypes.Structure):
                 ("draft_gpulayers", ctypes.c_int),
                 ("draft_gpusplit", ctypes.c_float * tensor_split_max),
                 ("mmproj_filename", ctypes.c_char_p),
+                ("visionmaxres", ctypes.c_int),
                 ("use_mmap", ctypes.c_bool),
                 ("use_mlock", ctypes.c_bool),
                 ("use_smartcontext", ctypes.c_bool),
@@ -163,7 +166,6 @@ class load_model_inputs(ctypes.Structure):
                 ("cublas_info", ctypes.c_int),
                 ("vulkan_info", ctypes.c_char_p),
                 ("blasbatchsize", ctypes.c_int),
-                ("debugmode", ctypes.c_int),
                 ("forceversion", ctypes.c_int),
                 ("gpulayers", ctypes.c_int),
                 ("rope_freq_scale", ctypes.c_float),
@@ -172,7 +174,9 @@ class load_model_inputs(ctypes.Structure):
                 ("flash_attention", ctypes.c_bool),
                 ("tensor_split", ctypes.c_float * tensor_split_max),
                 ("quant_k", ctypes.c_int),
-                ("quant_v", ctypes.c_int)]
+                ("quant_v", ctypes.c_int),
+                ("quiet", ctypes.c_bool),
+                ("debugmode", ctypes.c_int)]
 
 class generation_inputs(ctypes.Structure):
     _fields_ = [("seed", ctypes.c_int),
@@ -205,7 +209,6 @@ class generation_inputs(ctypes.Structure):
                 ("stream_sse", ctypes.c_bool),
                 ("grammar", ctypes.c_char_p),
                 ("grammar_retain_state", ctypes.c_bool),
-                ("quiet", ctypes.c_bool),
                 ("dynatemp_range", ctypes.c_float),
                 ("dynatemp_exponent", ctypes.c_float),
                 ("smoothing_factor", ctypes.c_float),
@@ -245,6 +248,7 @@ class sd_load_model_inputs(ctypes.Structure):
                 ("vae_filename", ctypes.c_char_p),
                 ("lora_filename", ctypes.c_char_p),
                 ("lora_multiplier", ctypes.c_float),
+                ("quiet", ctypes.c_bool),
                 ("debugmode", ctypes.c_int)]
 
 class sd_generation_inputs(ctypes.Structure):
@@ -258,8 +262,7 @@ class sd_generation_inputs(ctypes.Structure):
                 ("height", ctypes.c_int),
                 ("seed", ctypes.c_int),
                 ("sample_method", ctypes.c_char_p),
-                ("clip_skip", ctypes.c_int),
-                ("quiet", ctypes.c_bool)]
+                ("clip_skip", ctypes.c_int)]
 
 class sd_generation_outputs(ctypes.Structure):
     _fields_ = [("status", ctypes.c_int),
@@ -271,14 +274,14 @@ class whisper_load_model_inputs(ctypes.Structure):
                 ("clblast_info", ctypes.c_int),
                 ("cublas_info", ctypes.c_int),
                 ("vulkan_info", ctypes.c_char_p),
+                ("quiet", ctypes.c_bool),
                 ("debugmode", ctypes.c_int)]
 
 class whisper_generation_inputs(ctypes.Structure):
     _fields_ = [("prompt", ctypes.c_char_p),
                 ("audio_data", ctypes.c_char_p),
                 ("suppress_non_speech", ctypes.c_bool),
-                ("langcode", ctypes.c_char_p),
-                ("quiet", ctypes.c_bool)]
+                ("langcode", ctypes.c_char_p)]
 
 class whisper_generation_outputs(ctypes.Structure):
     _fields_ = [("status", ctypes.c_int),
@@ -294,13 +297,14 @@ class tts_load_model_inputs(ctypes.Structure):
                 ("vulkan_info", ctypes.c_char_p),
                 ("gpulayers", ctypes.c_int),
                 ("flash_attention", ctypes.c_bool),
+                ("ttsmaxlen", ctypes.c_int),
+                ("quiet", ctypes.c_bool),
                 ("debugmode", ctypes.c_int)]
 
 class tts_generation_inputs(ctypes.Structure):
     _fields_ = [("prompt", ctypes.c_char_p),
                 ("speaker_seed", ctypes.c_int),
                 ("audio_seed", ctypes.c_int),
-                ("quiet", ctypes.c_bool),
                 ("nocache", ctypes.c_bool)]
 
 class tts_generation_outputs(ctypes.Structure):
@@ -376,6 +380,7 @@ lib_failsafe = pick_existant_file("koboldcpp_failsafe.dll","koboldcpp_failsafe.s
 lib_noavx2 = pick_existant_file("koboldcpp_noavx2.dll","koboldcpp_noavx2.so")
 lib_clblast = pick_existant_file("koboldcpp_clblast.dll","koboldcpp_clblast.so")
 lib_clblast_noavx2 = pick_existant_file("koboldcpp_clblast_noavx2.dll","koboldcpp_clblast_noavx2.so")
+lib_clblast_failsafe = pick_existant_file("koboldcpp_clblast_failsafe.dll","koboldcpp_clblast_failsafe.so")
 lib_cublas = pick_existant_file("koboldcpp_cublas.dll","koboldcpp_cublas.so")
 lib_hipblas = pick_existant_file("koboldcpp_hipblas.dll","koboldcpp_hipblas.so")
 lib_vulkan = pick_existant_file("koboldcpp_vulkan.dll","koboldcpp_vulkan.so")
@@ -383,26 +388,30 @@ lib_vulkan_noavx2 = pick_existant_file("koboldcpp_vulkan_noavx2.dll","koboldcpp_
 libname = ""
 lib_option_pairs = [
     (lib_default, "Use CPU"),
-    (lib_clblast, "Use CLBlast"),
     (lib_cublas, "Use CuBLAS"),
     (lib_hipblas, "Use hipBLAS (ROCm)"),
     (lib_vulkan, "Use Vulkan"),
+    (lib_clblast, "Use CLBlast"),
     (lib_noavx2, "Use CPU (Old CPU)"),
     (lib_vulkan_noavx2, "Use Vulkan (Old CPU)"),
-    (lib_clblast_noavx2, "Use CLBlast (Older CPU)"),
+    (lib_clblast_noavx2, "Use CLBlast (Old CPU)"),
+    (lib_clblast_failsafe, "Use CLBlast (Older CPU)"),
     (lib_failsafe, "Failsafe Mode (Older CPU)")]
-default_option, clblast_option, cublas_option, hipblas_option, vulkan_option, noavx2_option, vulkan_noavx2_option, clblast_noavx2_option, failsafe_option = (opt if file_exists(lib) or (os.name == 'nt' and file_exists(opt + ".dll")) else None for lib, opt in lib_option_pairs)
+default_option, cublas_option, hipblas_option, vulkan_option, clblast_option, noavx2_option, vulkan_noavx2_option, clblast_noavx2_option, clblast_failsafe_option, failsafe_option = (opt if file_exists(lib) or (os.name == 'nt' and file_exists(opt + ".dll")) else None for lib, opt in lib_option_pairs)
 runopts = [opt for lib, opt in lib_option_pairs if file_exists(lib)]
 
 def init_library():
     global handle, args, libname
-    global lib_default,lib_failsafe,lib_noavx2,lib_clblast,lib_clblast_noavx2,lib_cublas,lib_hipblas,lib_vulkan,lib_vulkan_noavx2
+    global lib_default,lib_failsafe,lib_noavx2,lib_clblast,lib_clblast_noavx2,lib_clblast_failsafe,lib_cublas,lib_hipblas,lib_vulkan,lib_vulkan_noavx2
 
     libname = lib_default
 
     if args.noavx2:
-        if args.useclblast and file_exists(lib_clblast_noavx2) and (os.name!='nt' or file_exists("clblast.dll")):
-            libname = lib_clblast_noavx2
+        if args.useclblast and (os.name!='nt' or file_exists("clblast.dll")):
+            if (args.failsafe) and file_exists(lib_clblast_failsafe):
+                libname = lib_clblast_failsafe
+            elif file_exists(lib_clblast_noavx2):
+                libname = lib_clblast_noavx2
         elif (args.usevulkan is not None) and file_exists(lib_vulkan_noavx2):
             libname = lib_vulkan_noavx2
         elif (args.failsafe) and file_exists(lib_failsafe):
@@ -516,6 +525,12 @@ def set_backend_props(inputs):
         inputs.vulkan_info = s.encode("UTF-8")
     else:
         inputs.vulkan_info = "".encode("UTF-8")
+
+    # set universal flags
+    inputs.quiet = args.quiet
+    inputs.debugmode = args.debugmode
+    inputs.executable_path = (getdirpath()+"/").encode("UTF-8")
+
     return inputs
 
 def end_trim_to_sentence(input_text):
@@ -1053,6 +1068,7 @@ def load_model(model_filename):
         else:
             inputs.draft_gpusplit[n] = 0
     inputs.mmproj_filename = args.mmproj.encode("UTF-8") if args.mmproj else "".encode("UTF-8")
+    inputs.visionmaxres = (512 if args.visionmaxres < 512 else (2048 if args.visionmaxres > 2048 else args.visionmaxres))
     inputs.use_smartcontext = args.smartcontext
     inputs.use_contextshift = (0 if args.noshift else 1)
     inputs.use_fastforward = (0 if args.nofastforward else 1)
@@ -1080,41 +1096,38 @@ def load_model(model_filename):
 
     inputs.moe_experts = args.moeexperts
     inputs = set_backend_props(inputs)
-
-    inputs.executable_path = (getdirpath()+"/").encode("UTF-8")
-    inputs.debugmode = args.debugmode
     ret = handle.load_model(inputs)
     return ret
 
-def generate(genparams, is_quiet=False, stream_flag=False):
+def generate(genparams, stream_flag=False):
     global maxctx, args, currentusergenkey, totalgens, pendingabortkey
 
     prompt = genparams.get('prompt', "")
     memory = genparams.get('memory', "")
     images = genparams.get('images', [])
-    max_context_length = genparams.get('max_context_length', maxctx)
-    max_length = genparams.get('max_length', 200)
-    temperature = genparams.get('temperature', 0.75)
-    top_k = genparams.get('top_k', 100)
-    top_a = genparams.get('top_a', 0.0)
-    top_p = genparams.get('top_p', 0.92)
-    min_p = genparams.get('min_p', 0.0)
-    typical_p = genparams.get('typical', 1.0)
-    tfs = genparams.get('tfs', 1.0)
-    rep_pen = genparams.get('rep_pen', 1.0)
-    rep_pen_range = genparams.get('rep_pen_range', 320)
-    rep_pen_slope = genparams.get('rep_pen_slope', 1.0)
-    presence_penalty = genparams.get('presence_penalty', 0.0)
-    mirostat = genparams.get('mirostat', 0)
-    mirostat_tau = genparams.get('mirostat_tau', 5.0)
-    mirostat_eta = genparams.get('mirostat_eta', 0.1)
-    dry_multiplier = genparams.get('dry_multiplier', 0.0)
-    dry_base = genparams.get('dry_base', 1.75)
-    dry_allowed_length = genparams.get('dry_allowed_length', 2)
-    dry_penalty_last_n = genparams.get('dry_penalty_last_n', 320)
+    max_context_length = int(genparams.get('max_context_length', maxctx))
+    max_length = int(genparams.get('max_length', 200))
+    temperature = float(genparams.get('temperature', 0.75))
+    top_k = int(genparams.get('top_k', 100))
+    top_a = float(genparams.get('top_a', 0.0))
+    top_p = float(genparams.get('top_p', 0.92))
+    min_p = float(genparams.get('min_p', 0.0))
+    typical_p = float(genparams.get('typical', 1.0))
+    tfs = float(genparams.get('tfs', 1.0))
+    rep_pen = float(genparams.get('rep_pen', 1.0))
+    rep_pen_range = int(genparams.get('rep_pen_range', 320))
+    rep_pen_slope = float(genparams.get('rep_pen_slope', 1.0))
+    presence_penalty = float(genparams.get('presence_penalty', 0.0))
+    mirostat = int(genparams.get('mirostat', 0))
+    mirostat_tau = float(genparams.get('mirostat_tau', 5.0))
+    mirostat_eta = float(genparams.get('mirostat_eta', 0.1))
+    dry_multiplier = float(genparams.get('dry_multiplier', 0.0))
+    dry_base = float(genparams.get('dry_base', 1.75))
+    dry_allowed_length = int(genparams.get('dry_allowed_length', 2))
+    dry_penalty_last_n = int(genparams.get('dry_penalty_last_n', 320))
     dry_sequence_breakers = genparams.get('dry_sequence_breakers', [])
-    xtc_threshold = genparams.get('xtc_threshold', 0.2)
-    xtc_probability = genparams.get('xtc_probability', 0)
+    xtc_threshold = float(genparams.get('xtc_threshold', 0.2))
+    xtc_probability = float(genparams.get('xtc_probability', 0))
     sampler_order = genparams.get('sampler_order', [6, 0, 1, 3, 4, 2, 5])
     seed = tryparseint(genparams.get('sampler_seed', -1))
     stop_sequence = genparams.get('stop_sequence', [])
@@ -1124,10 +1137,9 @@ def generate(genparams, is_quiet=False, stream_flag=False):
     grammar_retain_state = genparams.get('grammar_retain_state', False)
     genkey = genparams.get('genkey', '')
     trimstop = genparams.get('trim_stop', True)
-    quiet = is_quiet
-    dynatemp_range = genparams.get('dynatemp_range', 0.0)
-    dynatemp_exponent = genparams.get('dynatemp_exponent', 1.0)
-    smoothing_factor = genparams.get('smoothing_factor', 0.0)
+    dynatemp_range = float(genparams.get('dynatemp_range', 0.0))
+    dynatemp_exponent = float(genparams.get('dynatemp_exponent', 1.0))
+    smoothing_factor = float(genparams.get('smoothing_factor', 0.0))
     logit_biases = genparams.get('logit_bias', {})
     render_special = genparams.get('render_special', False)
     banned_strings = genparams.get('banned_strings', []) # SillyTavern uses that name
@@ -1173,7 +1185,6 @@ def generate(genparams, is_quiet=False, stream_flag=False):
     inputs.rep_pen_slope = rep_pen_slope
     inputs.presence_penalty = presence_penalty
     inputs.stream_sse = stream_sse
-    inputs.quiet = quiet
     inputs.dynatemp_range = dynatemp_range
     inputs.dynatemp_exponent = dynatemp_exponent
     inputs.smoothing_factor = smoothing_factor
@@ -1292,8 +1303,6 @@ def generate(genparams, is_quiet=False, stream_flag=False):
 def sd_load_model(model_filename,vae_filename,lora_filename,t5xxl_filename,clipl_filename,clipg_filename):
     global args
     inputs = sd_load_model_inputs()
-    inputs.debugmode = args.debugmode
-    inputs.executable_path = (getdirpath()+"/").encode("UTF-8")
     inputs.model_filename = model_filename.encode("UTF-8")
     thds = args.threads
     quant = 0
@@ -1371,7 +1380,6 @@ def sd_generate(genparams):
     height = tryparseint(genparams.get("height", 512))
     seed = tryparseint(genparams.get("seed", -1))
     sample_method = genparams.get("sampler_name", "k_euler_a")
-    is_quiet = True if (args.quiet or args.debugmode == -1) else False
     clip_skip = tryparseint(genparams.get("clip_skip", -1))
 
     #clean vars
@@ -1408,7 +1416,6 @@ def sd_generate(genparams):
     inputs.height = height
     inputs.seed = seed
     inputs.sample_method = sample_method.lower().encode("UTF-8")
-    inputs.quiet = is_quiet
     inputs.clip_skip = clip_skip
     ret = handle.sd_generate(inputs)
     outstr = ""
@@ -1420,8 +1427,6 @@ def sd_generate(genparams):
 def whisper_load_model(model_filename):
     global args
     inputs = whisper_load_model_inputs()
-    inputs.debugmode = args.debugmode
-    inputs.executable_path = (getdirpath()+"/").encode("UTF-8")
     inputs.model_filename = model_filename.encode("UTF-8")
     inputs = set_backend_props(inputs)
     ret = handle.whisper_load_model(inputs)
@@ -1429,7 +1434,6 @@ def whisper_load_model(model_filename):
 
 def whisper_generate(genparams):
     global args
-    is_quiet = True if (args.quiet or args.debugmode == -1) else False
     prompt = genparams.get("prompt", "")
     audio_data = genparams.get("audio_data", "")
     if audio_data.startswith("data:audio"):
@@ -1437,7 +1441,6 @@ def whisper_generate(genparams):
     inputs = whisper_generation_inputs()
     inputs.prompt = prompt.encode("UTF-8")
     inputs.audio_data = audio_data.encode("UTF-8")
-    inputs.quiet = is_quiet
     lc = genparams.get("langcode", genparams.get("language", "auto"))
     lc = lc.strip().lower() if (lc and lc.strip().lower()!="") else "auto"
     inputs.langcode = lc.encode("UTF-8")
@@ -1451,8 +1454,6 @@ def whisper_generate(genparams):
 def tts_load_model(ttc_model_filename,cts_model_filename):
     global args
     inputs = tts_load_model_inputs()
-    inputs.debugmode = args.debugmode
-    inputs.executable_path = (getdirpath()+"/").encode("UTF-8")
     inputs.ttc_model_filename = ttc_model_filename.encode("UTF-8")
     inputs.cts_model_filename = cts_model_filename.encode("UTF-8")
     inputs.gpulayers = (999 if args.ttsgpu else 0)
@@ -1463,13 +1464,13 @@ def tts_load_model(ttc_model_filename,cts_model_filename):
         if ttst > 0:
             thds = ttst
     inputs.threads = thds
+    inputs.ttsmaxlen = args.ttsmaxlen if args.ttsmaxlen < 4096 else 4096
     inputs = set_backend_props(inputs)
     ret = handle.tts_load_model(inputs)
     return ret
 
 def tts_generate(genparams):
     global args
-    is_quiet = True if (args.quiet or args.debugmode == -1) else False
     prompt = genparams.get("input", genparams.get("text", ""))
     prompt = prompt.strip()
     voice = 1
@@ -1489,7 +1490,6 @@ def tts_generate(genparams):
     except Exception:
         aseed = -1
     inputs.audio_seed = aseed
-    inputs.quiet = is_quiet
     inputs.nocache = genparams.get("nocache", False)
     ret = handle.tts_generate(inputs)
     outstr = ""
@@ -1780,9 +1780,9 @@ def transform_genparams(genparams, api_format):
     global chatcompl_adapter, maxctx
     #api format 1=basic,2=kai,3=oai,4=oai-chat,5=interrogate,6=ollama,7=ollamachat
     #alias all nonstandard alternative names for rep pen.
-    rp1 = genparams.get('repeat_penalty', 1.0)
-    rp2 = genparams.get('repetition_penalty', 1.0)
-    rp3 = genparams.get('rep_pen', 1.0)
+    rp1 = float(genparams.get('repeat_penalty', 1.0))
+    rp2 = float(genparams.get('repetition_penalty', 1.0))
+    rp3 = float(genparams.get('rep_pen', 1.0))
     rp_max = max(rp1,rp2,rp3)
     genparams["rep_pen"] = rp_max
     if "use_default_badwordsids" in genparams and "ban_eos_token" not in genparams:
@@ -1791,7 +1791,7 @@ def transform_genparams(genparams, api_format):
     if api_format==1:
         genparams["prompt"] = genparams.get('text', "")
         genparams["top_k"] = int(genparams.get('top_k', 120))
-        genparams["max_length"] = genparams.get('max', 200)
+        genparams["max_length"] = int(genparams.get('max', 200))
 
     elif api_format==2:
         pass
@@ -1800,9 +1800,9 @@ def transform_genparams(genparams, api_format):
         default_adapter = {} if chatcompl_adapter is None else chatcompl_adapter
         adapter_obj = genparams.get('adapter', default_adapter)
         default_max_tok = (adapter_obj.get("max_length", 512) if (api_format==4 or api_format==7) else 200)
-        genparams["max_length"] = genparams.get('max_tokens', genparams.get('max_completion_tokens', default_max_tok))
+        genparams["max_length"] = int(genparams.get('max_tokens', genparams.get('max_completion_tokens', default_max_tok)))
         presence_penalty = genparams.get('presence_penalty', genparams.get('frequency_penalty', 0.0))
-        genparams["presence_penalty"] = presence_penalty
+        genparams["presence_penalty"] = float(presence_penalty)
         # openai allows either a string or a list as a stop sequence
         if isinstance(genparams.get('stop',[]), list):
             genparams["stop_sequence"] = genparams.get('stop', [])
@@ -2086,7 +2086,6 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     async def generate_text(self, genparams, api_format, stream_flag):
         global friendlymodelname, chatcompl_adapter, currfinishreason
-        is_quiet = args.quiet
         currfinishreason = "null"
 
         def run_blocking():  # api format 1=basic,2=kai,3=oai,4=oai-chat
@@ -2096,7 +2095,7 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 global last_non_horde_req_time
                 last_non_horde_req_time = time.time()
 
-            return generate(genparams=genparams,is_quiet=is_quiet,stream_flag=stream_flag)
+            return generate(genparams=genparams,stream_flag=stream_flag)
 
         genout = {"text": "", "status": -1, "stopreason": -1, "prompt_tokens":0, "completion_tokens": 0, "total_tokens": 0}
         if stream_flag:
@@ -3375,7 +3374,7 @@ def show_gui():
     customrope_var = ctk.IntVar()
     customrope_scale = ctk.StringVar(value="1.0")
     customrope_base = ctk.StringVar(value="10000")
-    chatcompletionsadapter_var = ctk.StringVar()
+    chatcompletionsadapter_var = ctk.StringVar(value="AutoGuess")
     moeexperts_var = ctk.StringVar(value=str(-1))
 
     model_var = ctk.StringVar()
@@ -3383,6 +3382,7 @@ def show_gui():
     lora_base_var = ctk.StringVar()
     preloadstory_var = ctk.StringVar()
     mmproj_var = ctk.StringVar()
+    visionmaxres_var = ctk.StringVar(value=str(default_visionmaxres))
     draftmodel_var = ctk.StringVar()
     draftamount_var = ctk.StringVar(value=str(default_draft_amount))
     draftgpulayers_var = ctk.StringVar(value=str(999))
@@ -3422,6 +3422,7 @@ def show_gui():
     wavtokenizer_var = ctk.StringVar()
     ttsgpu_var = ctk.IntVar(value=0)
     tts_threads_var = ctk.StringVar(value=str(default_threads))
+    ttsmaxlen_var = ctk.StringVar(value=str(default_ttsmaxlen))
 
     def tabbuttonaction(name):
         for t in tabcontent:
@@ -3560,7 +3561,7 @@ def show_gui():
         # backend count label with the tooltip function
         nl = '\n'
         tooltxt = "Number of backends you have built and available." + (f"\n\nMissing Backends: \n\n{nl.join(antirunopts)}" if len(runopts) < 8 else "")
-        num_backends_built = makelabel(parent, str(len(runopts)) + "/8", 5, 2,tooltxt)
+        num_backends_built = makelabel(parent, str(len(runopts)) + "/9", 5, 2,tooltxt)
         num_backends_built.grid(row=1, column=1, padx=205, pady=0)
         num_backends_built.configure(text_color="#00ff00")
 
@@ -3581,7 +3582,7 @@ def show_gui():
         predicted_gpu_layers = autoset_gpu_layers(int(contextsize_text[context_var.get()]),(sd_quant_var.get()==1),int(blasbatchsize_values[int(blas_size_var.get())]))
         max_gpu_layers = (f"/{modelfile_extracted_meta[0][0]+3}" if (modelfile_extracted_meta and modelfile_extracted_meta[0] and modelfile_extracted_meta[0][0]!=0) else "")
         index = runopts_var.get()
-        gpu_be = (index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Older CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)")
+        gpu_be = (index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Old CPU)" or index == "Use CLBlast (Older CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)")
         layercounter_label.grid(row=6, column=1, padx=75, sticky="W")
         quick_layercounter_label.grid(row=6, column=1, padx=75, sticky="W")
         if sys.platform=="darwin" and gpulayers_var.get()=="-1":
@@ -3612,7 +3613,7 @@ def show_gui():
                 if v == "Use Vulkan" or v == "Use Vulkan (Old CPU)":
                     quick_gpuname_label.configure(text=VKDevicesNames[s])
                     gpuname_label.configure(text=VKDevicesNames[s])
-                elif v == "Use CLBlast" or v == "Use CLBlast (Older CPU)":
+                elif v == "Use CLBlast" or v == "Use CLBlast (Old CPU)" or v == "Use CLBlast (Older CPU)":
                     quick_gpuname_label.configure(text=CLDevicesNames[s])
                     gpuname_label.configure(text=CLDevicesNames[s])
                 else:
@@ -3669,12 +3670,12 @@ def show_gui():
         global runmode_untouched
         runmode_untouched = False
         index = runopts_var.get()
-        if index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Older CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
+        if index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast"  or index == "Use CLBlast (Old CPU)" or index == "Use CLBlast (Older CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
             quick_gpuname_label.grid(row=3, column=1, padx=75, sticky="W")
             gpuname_label.grid(row=3, column=1, padx=75, sticky="W")
             gpu_selector_label.grid(row=3, column=0, padx = 8, pady=1, stick="nw")
             quick_gpu_selector_label.grid(row=3, column=0, padx = 8, pady=1, stick="nw")
-            if index == "Use CLBlast" or index == "Use CLBlast (Older CPU)":
+            if index == "Use CLBlast" or index == "Use CLBlast (Old CPU)" or index == "Use CLBlast (Older CPU)":
                 gpu_selector_box.grid(row=3, column=1, padx=8, pady=1, stick="nw")
                 quick_gpu_selector_box.grid(row=3, column=1, padx=8, pady=1, stick="nw")
                 CUDA_gpu_selector_box.grid_remove()
@@ -3718,7 +3719,7 @@ def show_gui():
         else:
             quick_use_flashattn.grid(row=22, column=1, padx=8, pady=1,  stick="nw")
 
-        if index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Older CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
+        if index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Old CPU)" or index == "Use CLBlast (Older CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
             gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
             gpu_layers_entry.grid(row=6, column=1, padx=8, pady=1, stick="nw")
             quick_gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
@@ -3879,10 +3880,11 @@ def show_gui():
     makefileentry(model_tab, "Text Lora:", "Select Lora File",lora_var, 3,width=280,singlerow=True,tooltiptxt="Select an optional GGML Text LoRA adapter to use.\nLeave blank to skip.")
     makefileentry(model_tab, "Lora Base:", "Select Lora Base File", lora_base_var, 5,width=280,singlerow=True,tooltiptxt="Select an optional F16 GGML Text LoRA base file to use.\nLeave blank to skip.")
     makefileentry(model_tab, "Vision mmproj:", "Select Vision mmproj File", mmproj_var, 7,width=280,singlerow=True,tooltiptxt="Select a mmproj file to use for vision models like LLaVA.\nLeave blank to skip.")
-    makefileentry(model_tab, "Draft Model:", "Select Speculative Text Model File", draftmodel_var, 9,width=280,singlerow=True,tooltiptxt="Select a draft text model file to use for speculative decoding.\nLeave blank to skip.")
-    makelabelentry(model_tab, "Draft Amount: ", draftamount_var, 11, 50,padx=100,singleline=True,tooltip="How many tokens to draft per chunk before verifying results")
-    makelabelentry(model_tab, "Splits: ", draftgpusplit_str_vars, 11, 50,padx=210,singleline=True,tooltip="Distribution of draft model layers. Leave blank to follow main model's gpu split. Only works if multi-gpu (All) selected in main model.", labelpadx=160)
-    makelabelentry(model_tab, "Layers: ", draftgpulayers_var, 11, 50,padx=320,singleline=True,tooltip="How many layers to GPU offload for the draft model", labelpadx=270)
+    makelabelentry(model_tab, "Vision MaxRes:", visionmaxres_var, 9, padx=100, singleline=True, tooltip=f"Clamp MMProj vision maximum allowed resolution. Allowed values are between 512 to 2048 px (default {default_visionmaxres}).")
+    makefileentry(model_tab, "Draft Model:", "Select Speculative Text Model File", draftmodel_var, 11,width=280,singlerow=True,tooltiptxt="Select a draft text model file to use for speculative decoding.\nLeave blank to skip.")
+    makelabelentry(model_tab, "Draft Amount: ", draftamount_var, 13, 50,padx=100,singleline=True,tooltip="How many tokens to draft per chunk before verifying results")
+    makelabelentry(model_tab, "Splits: ", draftgpusplit_str_vars, 13, 50,padx=210,singleline=True,tooltip="Distribution of draft model layers. Leave blank to follow main model's gpu split. Only works if multi-gpu (All) selected in main model.", labelpadx=160)
+    makelabelentry(model_tab, "Layers: ", draftgpulayers_var, 13, 50,padx=320,singleline=True,tooltip="How many layers to GPU offload for the draft model", labelpadx=270)
     makefileentry(model_tab, "Preload Story:", "Select Preloaded Story File", preloadstory_var, 15,width=280,singlerow=True,tooltiptxt="Select an optional KoboldAI JSON savefile \nto be served on launch to any client.")
     makefileentry(model_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 24, width=250, filetypes=[("JSON Adapter", "*.json")], tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
     def pickpremadetemplate():
@@ -3998,6 +4000,7 @@ def show_gui():
     makefileentry(audio_tab, "WavTokenizer Model (Text-To-Speech):", "Select WavTokenizer GGUF Model File", wavtokenizer_var, 7, width=280, filetypes=[("*.gguf","*.gguf")], tooltiptxt="Select a WavTokenizer GGUF model file on disk to be loaded for Narration.")
     wavtokenizer_var.trace("w", gui_changed_modelfile)
     makecheckbox(audio_tab, "TTS Use GPU", ttsgpu_var, 9, 0,tooltiptxt="Uses the GPU for TTS.")
+    makelabelentry(audio_tab, "OuteTTS Max Tokens:" , ttsmaxlen_var, 11, 50,padx=290,singleline=True,tooltip="Max allowed audiotokens to generate per TTS request.")
     ttsgpu_var.trace("w", gui_changed_modelfile)
 
     def kcpp_export_template():
@@ -4087,10 +4090,13 @@ def show_gui():
         args.noavx2 = False
         if gpu_choice_var.get()!="All":
             gpuchoiceidx = int(gpu_choice_var.get())-1
-        if runopts_var.get() == "Use CLBlast" or runopts_var.get() == "Use CLBlast (Older CPU)":
+        if runopts_var.get() == "Use CLBlast" or runopts_var.get() == "Use CLBlast (Old CPU)" or runopts_var.get() == "Use CLBlast (Older CPU)":
             args.useclblast = [[0,0], [1,0], [0,1], [1,1]][gpuchoiceidx]
-            if runopts_var.get() == "Use CLBlast (Older CPU)":
+            if runopts_var.get() == "Use CLBlast (Old CPU)":
                 args.noavx2 = True
+            elif runopts_var.get() == "Use CLBlast (Older CPU)":
+                args.noavx2 = True
+                args.failsafe = True
         if runopts_var.get() == "Use CuBLAS" or runopts_var.get() == "Use hipBLAS (ROCm)":
             if gpu_choice_var.get()=="All":
                 args.usecublas = ["lowvram"] if lowvram_var.get() == 1 else ["normal"]
@@ -4161,6 +4167,7 @@ def show_gui():
         except Exception:
             pass
         args.mmproj = None if mmproj_var.get() == "" else mmproj_var.get()
+        args.visionmaxres = int(visionmaxres_var.get()) if visionmaxres_var.get()!="" else default_visionmaxres
         args.draftmodel = None if draftmodel_var.get() == "" else draftmodel_var.get()
         args.draftamount = int(draftamount_var.get()) if draftamount_var.get()!="" else default_draft_amount
         args.draftgpulayers = int(draftgpulayers_var.get()) if draftgpulayers_var.get()!="" else 999
@@ -4220,6 +4227,7 @@ def show_gui():
             args.ttsmodel = tts_model_var.get()
             args.ttswavtokenizer = wavtokenizer_var.get()
             args.ttsgpu = (ttsgpu_var.get()==1)
+            args.ttsmaxlen = int(ttsmaxlen_var.get())
 
     def import_vars(dict):
         global importvars_in_progress
@@ -4337,6 +4345,8 @@ def show_gui():
                 lora_var.set(dict["lora"][0])
 
         mmproj_var.set(dict["mmproj"] if ("mmproj" in dict and dict["mmproj"]) else "")
+        if "visionmaxres" in dict and dict["visionmaxres"]:
+            visionmaxres_var.set(dict["visionmaxres"])
         draftmodel_var.set(dict["draftmodel"] if ("draftmodel" in dict and dict["draftmodel"]) else "")
         if "draftamount" in dict:
             draftamount_var.set(dict["draftamount"])
@@ -4385,6 +4395,7 @@ def show_gui():
         tts_model_var.set(dict["ttsmodel"] if ("ttsmodel" in dict and dict["ttsmodel"]) else "")
         wavtokenizer_var.set(dict["ttswavtokenizer"] if ("ttswavtokenizer" in dict and dict["ttswavtokenizer"]) else "")
         ttsgpu_var.set(dict["ttsgpu"] if ("ttsgpu" in dict) else 0)
+        ttsmaxlen_var.set(str(dict["ttsmaxlen"]) if ("ttsmaxlen" in dict and dict["ttsmaxlen"]) else str(default_ttsmaxlen))
 
         importvars_in_progress = False
         gui_changed_modelfile()
@@ -5072,6 +5083,9 @@ def main(launch_args,start_server=True):
     if args.quantkv and args.quantkv>0 and not args.flashattention:
         exit_with_error(1, "Error: Using --quantkv requires --flashattention")
 
+    if args.failsafe: #failsafe implies noavx2
+        args.noavx2 = True
+
     if not args.model_param:
         args.model_param = args.model
 
@@ -5747,7 +5761,7 @@ if __name__ == '__main__':
     compatgroup3.add_argument("--usemmap", help="If set, uses mmap to load model. This model will not be unloadable.", action='store_true')
     advparser.add_argument("--usemlock", help="Enables mlock, preventing the RAM used to load the model from being paged out. Not usually recommended.", action='store_true')
     advparser.add_argument("--noavx2", help="Do not use AVX2 instructions, a slower compatibility mode for older devices.", action='store_true')
-    advparser.add_argument("--failsafe", help="Use failsafe mode, extremely slow CPU only compatibility mode that should work on all devices.", action='store_true')
+    advparser.add_argument("--failsafe", help="Use failsafe mode, extremely slow CPU only compatibility mode that should work on all devices. Can be combined with useclblast if your device supports OpenCL.", action='store_true')
     advparser.add_argument("--debugmode", help="Shows additional debug info in the terminal.", nargs='?', const=1, type=int, default=0)
     advparser.add_argument("--onready", help="An optional shell command to execute after the model has been loaded.", metavar=('[shell command]'), type=str, default="",nargs=1)
     advparser.add_argument("--benchmark", help="Do not start server, instead run benchmarks. If filename is provided, appends results to provided file.", metavar=('[filename]'), nargs='?', const="stdout", type=str, default=None)
@@ -5764,13 +5778,14 @@ if __name__ == '__main__':
     advparser.add_argument("--ssl", help="Allows all content to be served over SSL instead. A valid UNENCRYPTED SSL cert and key .pem files must be provided", metavar=('[cert_pem]', '[key_pem]'), nargs='+')
     advparser.add_argument("--nocertify", help="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.", action='store_true')
     advparser.add_argument("--mmproj", metavar=('[filename]'), help="Select a multimodal projector file for vision models like LLaVA.", default="")
+    advparser.add_argument("--visionmaxres", metavar=('[max px]'), help="Clamp MMProj vision maximum allowed resolution. Allowed values are between 512 to 2048 px (default 1024).", type=int, default=default_visionmaxres)
     advparser.add_argument("--draftmodel", metavar=('[filename]'), help="Load a small draft model for speculative decoding. It will be fully offloaded. Vocab must match the main model.", default="")
     advparser.add_argument("--draftamount", metavar=('[tokens]'), help="How many tokens to draft per chunk before verifying results", type=int, default=default_draft_amount)
     advparser.add_argument("--draftgpulayers", metavar=('[layers]'), help="How many layers to offload to GPU for the draft model (default=full offload)", type=int, default=999)
     advparser.add_argument("--draftgpusplit", help="GPU layer distribution ratio for draft model (default=same as main). Only works if multi-GPUs selected for MAIN model and tensor_split is set!", metavar=('[Ratios]'), type=float, nargs='+')
     advparser.add_argument("--password", metavar=('[API key]'), help="Enter a password required to use this instance. This key will be required for all text endpoints. Image endpoints are not secured.", default=None)
     advparser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
-    advparser.add_argument("--chatcompletionsadapter", metavar=('[filename]'), help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="")
+    advparser.add_argument("--chatcompletionsadapter", metavar=('[filename]'), help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="AutoGuess")
     advparser.add_argument("--flashattention", help="Enables flash attention.", action='store_true')
     advparser.add_argument("--quantkv", help="Sets the KV cache data type quantization, 0=f16, 1=q8, 2=q4. Requires Flash Attention, and disables context shifting.",metavar=('[quantization level 0/1/2]'), type=int, choices=[0,1,2], default=0)
     advparser.add_argument("--forceversion", help="If the model file format detection fails (e.g. rogue modified model) you can set this to override the detected format (enter desired version, e.g. 401 for GPTNeoX-Type2).",metavar=('[version]'), type=int, default=0)
@@ -5812,6 +5827,7 @@ if __name__ == '__main__':
     ttsparsergroup.add_argument("--ttsmodel", metavar=('[filename]'), help="Specify the OuteTTS Text-To-Speech GGUF model.", default="")
     ttsparsergroup.add_argument("--ttswavtokenizer", metavar=('[filename]'), help="Specify the WavTokenizer GGUF model.", default="")
     ttsparsergroup.add_argument("--ttsgpu", help="Use the GPU for TTS.", action='store_true')
+    ttsparsergroup.add_argument("--ttsmaxlen", help="Limit number of audio tokens generated with TTS.",  type=int, default=default_ttsmaxlen)
     ttsparsergroup.add_argument("--ttsthreads", metavar=('[threads]'), help="Use a different number of threads for TTS if specified. Otherwise, has the same value as --threads.", type=int, default=0)
 
     deprecatedgroup = parser.add_argument_group('Deprecated Commands, DO NOT USE!')

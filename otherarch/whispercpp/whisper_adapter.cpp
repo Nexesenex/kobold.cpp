@@ -24,7 +24,7 @@
 #endif
 
 static int whisperdebugmode = 0;
-static bool whisperquiet = false;
+static bool whisper_is_quiet = false;
 static whisper_context * whisper_ctx = nullptr;
 static std::string whisper_output_text = "";
 
@@ -90,7 +90,7 @@ static bool read_wav(const std::string & b64data, std::vector<float>& pcmf32, st
     std::vector<float> raw_pcm;
     raw_pcm.resize(n);
 
-    if(whisperdebugmode==1 && !whisperquiet)
+    if(whisperdebugmode==1 && !whisper_is_quiet)
     {
         printf("\nwav_data_size: %d, n:%d",wav_data.size(),n);
     }
@@ -107,7 +107,7 @@ static bool read_wav(const std::string & b64data, std::vector<float>& pcmf32, st
     }
 
     if (wav.sampleRate != COMMON_SAMPLE_RATE) {
-        if(whisperdebugmode==1 && !whisperquiet)
+        if(whisperdebugmode==1 && !whisper_is_quiet)
         {
             printf("\nResample wav from %" PRIu32 " to %" PRIu32 " (in size: %zu)",
             wav.sampleRate, COMMON_SAMPLE_RATE, raw_pcm.size());
@@ -140,6 +140,8 @@ void cb_log_disable(enum ggml_log_level , const char * , void * ) { }
 static std::string whisperplatformenv, whisperdeviceenv, whispervulkandeviceenv;
 bool whispertype_load_model(const whisper_load_model_inputs inputs)
 {
+    whisper_is_quiet = inputs.quiet;
+
     //duplicated from expose.cpp
     int cl_parseinfo = inputs.clblast_info; //first digit is whether configured, second is platform, third is devices
     std::string usingclblast = "GGML_OPENCL_CONFIGURED="+std::to_string(cl_parseinfo>0?1:0);
@@ -203,8 +205,7 @@ whisper_generation_outputs whispertype_generate(const whisper_generation_inputs 
         return output;
     }
 
-    whisperquiet = inputs.quiet;
-    if(!whisperquiet)
+    if(!whisper_is_quiet)
     {
         printf("\nWhisper Transcribe Generating...");
     }
@@ -263,14 +264,14 @@ whisper_generation_outputs whispertype_generate(const whisper_generation_inputs 
         return output;
     }
 
-    if (!whisperquiet && whisperdebugmode==1) {
+    if (!whisper_is_quiet && whisperdebugmode==1) {
         whisper_print_timings(whisper_ctx);
     }
 
     // output text transcription
     whisper_output_text = output_txt(whisper_ctx, pcmf32s);
     std::string ts = get_timestamp_str();
-    if(!whisperquiet)
+    if(!whisper_is_quiet)
     {
         printf("\n[%s] Whisper Transcribe Output: %s",ts.c_str(),whisper_output_text.c_str());
     } else {

@@ -9419,11 +9419,8 @@ static void ggml_v3_cuda_mul_mat(const ggml_v3_tensor * src0, const ggml_v3_tens
         ggml_v3_cuda_op_mul_mat(src0, src1, dst, ggml_v3_cuda_op_mul_mat_cublas, false);
     } else if (ggml_v3_is_quantized(src0->type) || src0->type == GGML_V3_TYPE_F16) {
         if (src1->ne[1] == 1 && src0->ne[0] % GGML_V3_CUDA_DMMV_X == 0 && src1->type == GGML_V3_TYPE_F32) {
-#ifdef GGML_V3_CUDA_FORCE_DMMV
-            const bool use_mul_mat_vec_q = false;
-#else
+
             const bool use_mul_mat_vec_q = min_compute_capability >= MIN_CC_DP4A && ggml_v3_is_quantized(src0->type) && ggml_v3_nrows(src1) == 1;
-#endif // GGML_V3_CUDA_FORCE_DMMV
 
             if (use_mul_mat_vec_q) {
                 // NOTE: this kernel does not support ggml_v3_nrows(src1) > 1

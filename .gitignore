@@ -110,6 +110,7 @@ tests/test-tokenizer-1-bpe
 /koboldcpp_noavx2.so
 /koboldcpp_clblast.so
 /koboldcpp_clblast_noavx2.so
+/koboldcpp_clblast_failsafe.so
 /koboldcpp_cublas.so
 /koboldcpp_vulkan.so
 /koboldcpp_vulkan_noavx2.so
@@ -119,6 +120,7 @@ tests/test-tokenizer-1-bpe
 /koboldcpp_clblast.dll
 /koboldcpp_clblast_noavx2.dll
 /koboldcpp_vulkan_noavx2.dll
+/koboldcpp_clblast_failsafe.dll
 /koboldcpp_cublas.dll
 /koboldcpp_vulkan.dll
 /cublas64_11.dll
