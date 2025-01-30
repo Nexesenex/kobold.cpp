@@ -36,6 +36,8 @@ bias_min_value = -100.0
 bias_max_value = 100.0
 logprobs_max = 5
 default_draft_amount = 8
+default_ttsmaxlen = 4096
+default_visionmaxres = 1024
 
 # abuse prevention (don't abuse the antislop! :D)
 stop_token_max = 1024
@@ -66,10 +68,10 @@ maxhordelen = 400
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.83004"
+KcppVersion = "1.83006"
 LcppVersion = "b4569"
 CudaSpecifics = "Cu124_Ar6175_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/01/28"
+ReleaseDate = "2025/01/30"
 showdebug = True
 guimode = False
 showsamplerwarning = True
@@ -161,6 +163,7 @@ class load_model_inputs(ctypes.Structure):
                 ("draft_gpulayers", ctypes.c_int),
                 ("draft_gpusplit", ctypes.c_float * tensor_split_max),
                 ("mmproj_filename", ctypes.c_char_p),
+                ("visionmaxres", ctypes.c_int),
                 ("use_mmap", ctypes.c_bool),
                 ("use_mlock", ctypes.c_bool),
                 ("use_smartcontext", ctypes.c_bool),
@@ -387,6 +390,7 @@ lib_failsafe = pick_existant_file("koboldcpp_failsafe.dll","koboldcpp_failsafe.s
 lib_noavx2 = pick_existant_file("koboldcpp_noavx2.dll","koboldcpp_noavx2.so")
 lib_clblast = pick_existant_file("koboldcpp_clblast.dll","koboldcpp_clblast.so")
 lib_clblast_noavx2 = pick_existant_file("koboldcpp_clblast_noavx2.dll","koboldcpp_clblast_noavx2.so")
+lib_clblast_failsafe = pick_existant_file("koboldcpp_clblast_failsafe.dll","koboldcpp_clblast_failsafe.so")
 lib_cublas = pick_existant_file("koboldcpp_cublas.dll","koboldcpp_cublas.so")
 lib_hipblas = pick_existant_file("koboldcpp_hipblas.dll","koboldcpp_hipblas.so")
 lib_vulkan = pick_existant_file("koboldcpp_vulkan.dll","koboldcpp_vulkan.so")
@@ -394,26 +398,30 @@ lib_vulkan_noavx2 = pick_existant_file("koboldcpp_vulkan_noavx2.dll","koboldcpp_
 libname = ""
 lib_option_pairs = [
     (lib_default, "Use CPU"),
-    (lib_clblast, "Use CLBlast"),
     (lib_cublas, "Use CuBLAS"),
     (lib_hipblas, "Use hipBLAS (ROCm)"),
     (lib_vulkan, "Use Vulkan"),
+    (lib_clblast, "Use CLBlast"),
     (lib_noavx2, "Use CPU (Old CPU)"),
     (lib_vulkan_noavx2, "Use Vulkan (Old CPU)"),
-    (lib_clblast_noavx2, "Use CLBlast (Older CPU)"),
+    (lib_clblast_noavx2, "Use CLBlast (Old CPU)"),
+    (lib_clblast_failsafe, "Use CLBlast (Older CPU)"),
     (lib_failsafe, "Failsafe Mode (Older CPU)")]
-default_option, clblast_option, cublas_option, hipblas_option, vulkan_option, noavx2_option, vulkan_noavx2_option, clblast_noavx2_option, failsafe_option = (opt if file_exists(lib) or (os.name == 'nt' and file_exists(opt + ".dll")) else None for lib, opt in lib_option_pairs)
+default_option, cublas_option, hipblas_option, vulkan_option, clblast_option, noavx2_option, vulkan_noavx2_option, clblast_noavx2_option, clblast_failsafe_option, failsafe_option = (opt if file_exists(lib) or (os.name == 'nt' and file_exists(opt + ".dll")) else None for lib, opt in lib_option_pairs)
 runopts = [opt for lib, opt in lib_option_pairs if file_exists(lib)]
 
 def init_library():
     global handle, args, libname
-    global lib_default,lib_failsafe,lib_noavx2,lib_clblast,lib_clblast_noavx2,lib_cublas,lib_hipblas,lib_vulkan,lib_vulkan_noavx2
+    global lib_default,lib_failsafe,lib_noavx2,lib_clblast,lib_clblast_noavx2,lib_clblast_failsafe,lib_cublas,lib_hipblas,lib_vulkan,lib_vulkan_noavx2
 
     libname = lib_default
 
     if args.noavx2:
-        if args.useclblast and file_exists(lib_clblast_noavx2) and (os.name!='nt' or file_exists("clblast.dll")):
-            libname = lib_clblast_noavx2
+        if args.useclblast and (os.name!='nt' or file_exists("clblast.dll")):
+            if (args.failsafe) and file_exists(lib_clblast_failsafe):
+                libname = lib_clblast_failsafe
+            elif file_exists(lib_clblast_noavx2):
+                libname = lib_clblast_noavx2
         elif (args.usevulkan is not None) and file_exists(lib_vulkan_noavx2):
             libname = lib_vulkan_noavx2
         elif (args.failsafe) and file_exists(lib_failsafe):
@@ -1618,6 +1626,7 @@ def load_model(model_filename):
         else:
             inputs.draft_gpusplit[n] = 0
     inputs.mmproj_filename = args.mmproj.encode("UTF-8") if args.mmproj else "".encode("UTF-8")
+    inputs.visionmaxres = (512 if args.visionmaxres < 512 else (2048 if args.visionmaxres > 2048 else args.visionmaxres))
     inputs.use_smartcontext = args.smartcontext
     inputs.use_contextshift = (1 if args.contextshift else 0)
 
@@ -3876,7 +3885,7 @@ def show_gui():
     customrope_var = ctk.IntVar()
     customrope_scale = ctk.StringVar(value="1.0")
     customrope_base = ctk.StringVar(value="10000")
-    chatcompletionsadapter_var = ctk.StringVar()
+    chatcompletionsadapter_var = ctk.StringVar(value="AutoGuess")
     moeexperts_var = ctk.StringVar(value=str(-1))
     normrmseps_var = ctk.StringVar(value=str(-1.0))
 
@@ -3885,6 +3894,7 @@ def show_gui():
     lora_base_var = ctk.StringVar()
     preloadstory_var = ctk.StringVar()
     mmproj_var = ctk.StringVar()
+    visionmaxres_var = ctk.StringVar(value=str(default_visionmaxres))
     draftmodel_var = ctk.StringVar()
     draftamount_var = ctk.StringVar(value=str(default_draft_amount))
     draftgpulayers_var = ctk.StringVar(value=str(999))
@@ -3924,7 +3934,7 @@ def show_gui():
     wavtokenizer_var = ctk.StringVar()
     ttsgpu_var = ctk.IntVar(value=0)
     tts_threads_var = ctk.StringVar(value=str(default_threads))
-    ttsmaxlen_var = ctk.StringVar(value=str(4096))
+    ttsmaxlen_var = ctk.StringVar(value=str(default_ttsmaxlen))
 
     def tabbuttonaction(name):
         for t in tabcontent:
@@ -4063,7 +4073,7 @@ def show_gui():
         # backend count label with the tooltip function
         nl = '\n'
         tooltxt = "Number of backends you have built and available." + (f"\n\nMissing Backends: \n\n{nl.join(antirunopts)}" if len(runopts) < 8 else "")
-        num_backends_built = makelabel(parent, str(len(runopts)) + "/8", 5, 2,tooltxt)
+        num_backends_built = makelabel(parent, str(len(runopts)) + "/9", 5, 2,tooltxt)
         num_backends_built.grid(row=1, column=1, padx=205, pady=0)
         num_backends_built.configure(text_color="#00ff00")
 
@@ -4084,7 +4094,7 @@ def show_gui():
         predicted_gpu_layers = autoset_gpu_layers(int(contextsize_text[context_var.get()]),(sd_quant_var.get()==1),int(blasbatchsize_values[int(blas_size_var.get())]),flashattention.get(),int(quantkv_values[int(quantkv_var.get())]),mmq_var.get(),lowvram_var.get(),int(poslayeroffset_values[int(poslayeroffset_var.get())]),int(neglayeroffset_values[int(neglayeroffset_var.get())]))
         max_gpu_layers = (f"/{modelfile_extracted_meta[0][0]+3}" if (modelfile_extracted_meta and modelfile_extracted_meta[0] and modelfile_extracted_meta[0][0]!=0) else "")
         index = runopts_var.get()
-        gpu_be = (index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Older CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)")
+        gpu_be = (index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Old CPU)" or index == "Use CLBlast (Older CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)")
         layercounter_label.grid(row=6, column=1, padx=75, sticky="W")
         quick_layercounter_label.grid(row=6, column=1, padx=75, sticky="W")
         if sys.platform=="darwin" and gpulayers_var.get()=="-1":
@@ -4115,7 +4125,7 @@ def show_gui():
                 if v == "Use Vulkan" or v == "Use Vulkan (Old CPU)":
                     quick_gpuname_label.configure(text=VKDevicesNames[s])
                     gpuname_label.configure(text=VKDevicesNames[s])
-                elif v == "Use CLBlast" or v == "Use CLBlast (Older CPU)":
+                elif v == "Use CLBlast" or v == "Use CLBlast (Old CPU)" or v == "Use CLBlast (Older CPU)":
                     quick_gpuname_label.configure(text=CLDevicesNames[s])
                     gpuname_label.configure(text=CLDevicesNames[s])
                 else:
@@ -4172,12 +4182,12 @@ def show_gui():
         global runmode_untouched
         runmode_untouched = False
         index = runopts_var.get()
-        if index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Older CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
+        if index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast"  or index == "Use CLBlast (Old CPU)" or index == "Use CLBlast (Older CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
             quick_gpuname_label.grid(row=3, column=1, padx=75, sticky="W")
             gpuname_label.grid(row=3, column=1, padx=75, sticky="W")
             gpu_selector_label.grid(row=3, column=0, padx = 8, pady=1, stick="nw")
             quick_gpu_selector_label.grid(row=3, column=0, padx = 8, pady=1, stick="nw")
-            if index == "Use CLBlast" or index == "Use CLBlast (Older CPU)":
+            if index == "Use CLBlast" or index == "Use CLBlast (Old CPU)" or index == "Use CLBlast (Older CPU)":
                 gpu_selector_box.grid(row=3, column=1, padx=8, pady=1, stick="nw")
                 quick_gpu_selector_box.grid(row=3, column=1, padx=8, pady=1, stick="nw")
                 CUDA_gpu_selector_box.grid_remove()
@@ -4221,7 +4231,7 @@ def show_gui():
         else:
             quick_use_flashattn.grid(row=22, column=1, padx=8, pady=1,  stick="nw")
 
-        if index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Older CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
+        if index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Old CPU)" or index == "Use CLBlast (Older CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
             gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
             gpu_layers_entry.grid(row=6, column=1, padx=8, pady=1, stick="nw")
             quick_gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
@@ -4414,10 +4424,12 @@ def show_gui():
     makefileentry(model_tab, "Text Lora Adapter:", "Select Lora Adapter File",lora_var, 3,width=280,singlerow=True,tooltiptxt="Select an optional GGML Text LoRA adapter to use.\nLeave blank to skip.")
     makefileentry(model_tab, "Text Lora Base:", "Select Lora Base File", lora_base_var, 5,width=280,singlerow=True,tooltiptxt="Select an optional F16 GGML Text LoRA base file to use.\nLeave blank to skip.")
     makefileentry(model_tab, "Vision mmproj:", "Select Vision mmproj File", mmproj_var, 7,width=280,singlerow=True,tooltiptxt="Select a mmproj file to use for vision models like LLaVA.\nLeave blank to skip.")
-    makefileentry(model_tab, "Draft Model:", "Select Speculative Text Model File", draftmodel_var, 9,width=280,singlerow=True,tooltiptxt="Select a draft text model file to use for speculative decoding.\nLeave blank to skip.")
-    makelabelentry(model_tab, "Draft Amount: ", draftamount_var, 11, 50,padx=100,singleline=True,tooltip="How many tokens to draft per chunk before verifying results")
-    makelabelentry(model_tab, "Splits: ", draftgpusplit_str_vars, 11, 50,padx=210,singleline=True,tooltip="Distribution of draft model layers. Leave blank to follow main model's gpu split. Only works if multi-gpu (All) selected in main model.", labelpadx=160)
-    makelabelentry(model_tab, "Layers: ", draftgpulayers_var, 11, 50,padx=320,singleline=True,tooltip="How many layers to GPU offload for the draft model", labelpadx=270)
+
+    makelabelentry(model_tab, "Vision MaxRes:", visionmaxres_var, 9, padx=100, singleline=True, tooltip=f"Clamp MMProj vision maximum allowed resolution. Allowed values are between 512 to 2048 px (default {default_visionmaxres}).")
+    makefileentry(model_tab, "Draft Model:", "Select Speculative Text Model File", draftmodel_var, 11,width=280,singlerow=True,tooltiptxt="Select a draft text model file to use for speculative decoding.\nLeave blank to skip.")
+    makelabelentry(model_tab, "Draft Amount: ", draftamount_var, 13, 50,padx=100,singleline=True,tooltip="How many tokens to draft per chunk before verifying results")
+    makelabelentry(model_tab, "Splits: ", draftgpusplit_str_vars, 13, 50,padx=210,singleline=True,tooltip="Distribution of draft model layers. Leave blank to follow main model's gpu split. Only works if multi-gpu (All) selected in main model.", labelpadx=160)
+    makelabelentry(model_tab, "Layers: ", draftgpulayers_var, 13, 50,padx=320,singleline=True,tooltip="How many layers to GPU offload for the draft model", labelpadx=270)
     makefileentry(model_tab, "Preloaded Story:", "Select Preloaded Story File", preloadstory_var, 15,width=280,singlerow=True,tooltiptxt="Select an optional KoboldAI JSON savefile \nto be served on launch to any client.")
     makefileentry(model_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 24, width=250, filetypes=[("JSON Adapter", "*.json")], tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
     def pickpremadetemplate():
@@ -4643,10 +4655,13 @@ def show_gui():
         args.noavx2 = False
         if gpu_choice_var.get()!="All":
             gpuchoiceidx = int(gpu_choice_var.get())-1
-        if runopts_var.get() == "Use CLBlast" or runopts_var.get() == "Use CLBlast (Older CPU)":
+        if runopts_var.get() == "Use CLBlast" or runopts_var.get() == "Use CLBlast (Old CPU)" or runopts_var.get() == "Use CLBlast (Older CPU)":
             args.useclblast = [[0,0], [1,0], [0,1], [1,1]][gpuchoiceidx]
-            if runopts_var.get() == "Use CLBlast (Older CPU)":
+            if runopts_var.get() == "Use CLBlast (Old CPU)":
                 args.noavx2 = True
+            elif runopts_var.get() == "Use CLBlast (Older CPU)":
+                args.noavx2 = True
+                args.failsafe = True
         if runopts_var.get() == "Use CuBLAS" or runopts_var.get() == "Use hipBLAS (ROCm)":
             if gpu_choice_var.get()=="All":
                 args.usecublas = ["lowvram"] if lowvram_var.get() == 1 else ["normal"]
@@ -4721,6 +4736,7 @@ def show_gui():
         except Exception:
             pass
         args.mmproj = None if mmproj_var.get() == "" else mmproj_var.get()
+        args.visionmaxres = int(visionmaxres_var.get()) if visionmaxres_var.get()!="" else default_visionmaxres
         args.draftmodel = None if draftmodel_var.get() == "" else draftmodel_var.get()
         args.draftamount = int(draftamount_var.get()) if draftamount_var.get()!="" else default_draft_amount
         args.draftgpulayers = int(draftgpulayers_var.get()) if draftgpulayers_var.get()!="" else 999
@@ -4910,6 +4926,8 @@ def show_gui():
                 lora_var.set(dict["lora"][0])
 
         mmproj_var.set(dict["mmproj"] if ("mmproj" in dict and dict["mmproj"]) else "")
+        if "visionmaxres" in dict and dict["visionmaxres"]:
+            visionmaxres_var.set(dict["visionmaxres"])
         draftmodel_var.set(dict["draftmodel"] if ("draftmodel" in dict and dict["draftmodel"]) else "")
         if "draftamount" in dict:
             draftamount_var.set(dict["draftamount"])
@@ -4958,7 +4976,7 @@ def show_gui():
         tts_model_var.set(dict["ttsmodel"] if ("ttsmodel" in dict and dict["ttsmodel"]) else "")
         wavtokenizer_var.set(dict["ttswavtokenizer"] if ("ttswavtokenizer" in dict and dict["ttswavtokenizer"]) else "")
         ttsgpu_var.set(dict["ttsgpu"] if ("ttsgpu" in dict) else 0)
-        ttsmaxlen_var.set(str(dict["ttsmaxlen"]) if ("ttsmaxlen" in dict and dict["ttsmaxlen"]) else str(4096))
+        ttsmaxlen_var.set(str(dict["ttsmaxlen"]) if ("ttsmaxlen" in dict and dict["ttsmaxlen"]) else str(default_ttsmaxlen))
 
         importvars_in_progress = False
         gui_changed_modelfile()
@@ -5645,6 +5663,9 @@ def main(launch_args,start_server=True):
         print("KV bf16 cache (experimental for Cuda, not tested on other backends) can work only in no-FA mode.")
     if args.quantkv and args.quantkv >15 and args.quantkv <23 and args.flashattention:
         exit_with_error(1, "Error: The --quantkv 16 <-> 22 (quantum cache K, and V F16) are non-FA modes.")
+
+    if args.failsafe: #failsafe implies noavx2
+        args.noavx2 = True
 
     if not args.model_param:
         args.model_param = args.model
@@ -6418,7 +6439,7 @@ if __name__ == '__main__':
     compatgroup3.add_argument("--usemmap", help="If set, uses mmap to load model. This model will not be unloadable.", action='store_true')
     advparser.add_argument("--usemlock", help="Enables mlock, preventing the RAM used to load the model from being paged out. Not usually recommended.", action='store_true')
     advparser.add_argument("--noavx2", help="Do not use AVX2 instructions, a slower compatibility mode for older devices.", action='store_true')
-    advparser.add_argument("--failsafe", help="Use failsafe mode, extremely slow CPU only compatibility mode that should work on all devices.", action='store_true')
+    advparser.add_argument("--failsafe", help="Use failsafe mode, extremely slow CPU only compatibility mode that should work on all devices. Can be combined with useclblast if your device supports OpenCL.", action='store_true')
     advparser.add_argument("--debugmode", help="Shows additional debug info in the terminal.", nargs='?', const=1, type=int, default=0)
     advparser.add_argument("--onready", help="An optional shell command to execute after the model has been loaded.", metavar=('[shell command]'), type=str, default="",nargs=1)
     advparser.add_argument("--benchmark", help="Do not start server, instead run benchmarks. If filename is provided, appends results to provided file.", metavar=('[filename]'), nargs='?', const="stdout", type=str, default=None)
@@ -6435,13 +6456,14 @@ if __name__ == '__main__':
     advparser.add_argument("--ssl", help="Allows all content to be served over SSL instead. A valid UNENCRYPTED SSL cert and key .pem files must be provided", metavar=('[cert_pem]', '[key_pem]'), nargs='+')
     advparser.add_argument("--nocertify", help="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.", action='store_true')
     advparser.add_argument("--mmproj", metavar=('[filename]'), help="Select a multimodal projector file for vision models like LLaVA.", default="")
+    advparser.add_argument("--visionmaxres", metavar=('[max px]'), help="Clamp MMProj vision maximum allowed resolution. Allowed values are between 512 to 2048 px (default 1024).", type=int, default=default_visionmaxres)
     advparser.add_argument("--draftmodel", metavar=('[filename]'), help="Load a small draft model for speculative decoding. It will be fully offloaded. Vocab must match the main model.", default="")
     advparser.add_argument("--draftamount", metavar=('[tokens]'), help="How many tokens to draft per chunk before verifying results", type=int, default=default_draft_amount)
     advparser.add_argument("--draftgpulayers", metavar=('[layers]'), help="How many layers to offload to GPU for the draft model (default=full offload)", type=int, default=999)
     advparser.add_argument("--draftgpusplit", help="GPU layer distribution ratio for draft model (default=same as main). Only works if multi-GPUs selected for MAIN model and tensor_split is set!", metavar=('[Ratios]'), type=float, nargs='+')
     advparser.add_argument("--password", metavar=('[API key]'), help="Enter a password required to use this instance. This key will be required for all text endpoints. Image endpoints are not secured.", default=None)
     advparser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
-    advparser.add_argument("--chatcompletionsadapter", metavar=('[filename]'), help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="")
+    advparser.add_argument("--chatcompletionsadapter", metavar=('[filename]'), help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="AutoGuess")
     advparser.add_argument("--flashattention", help="Enables flash attention.", action='store_true')
     advparser.add_argument("--quantkv", help="Sets the KV cache data quantization (KVQ) type to save VRAM in NVidia Video Cards, 0 - F16 (16BPW) - FA or not, 1 - q8_0 - (8.5BPW) - FA, 2 - q4_0 - (4.5BPW) - FA, 3 - K F16 - V q8_0 (12.25BPW) - FA, 4 - K F16 - V q6_0 (11.25BPW) - FA, 5 - K q8_0 - V q6_0 (7.5BPW) - FA, 6 - K q8_0 - V q5_0 (7BPW), slower, best FA game in town, 7 - K q8_0 - V iq4_nl (6.5BPW) - FA, 8 - K q6_0 - V q6_0 (6.5BPW) - FA, 9 - K q6_0 - V q5_0 (6BPW) - FA, 10 - K q6_0 - V iq4_nl (5.5BPW) - FA, 11 - K q5_1 - V q5_0 (5.5BPW) - FA, 12 - K q5_1 - V iq4_nl (5.25BPW) - FA, 13 - K q5_0 - V iq4_nl (5BPW) - FA, 14 - K iq4_nl - V iq4_nl (4.5BPW) - FA, 15 - BF16 (16BPW) - no FA, slower, 16 - K q8_0 - V F16 (12.25BPW) - NO FA, slower, 17 - K q6_0 - V F16 (11.25BPW) - NO FA, slower, best non-FA game in town, 18 - K q5_1 - V F16 (11BPW) - NO FA, slower, 19 - K q5_0 - V F16 (11.75BPW) - NO FA, slower, 20 - K q4_1 - V F16 (10.5BPW) - NO FA, slower, 21 - K q4-0 - V F16 (10.25BPW) - NO FA, slower, 22 - K iq4_nl - V F16 (10.25BPW) - NO FA, slower.", metavar=('[quantization level 0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22]'), type=check_range(int,0,22), default=0)
     advparser.add_argument("--forceversion", help="If the model file format detection fails (e.g. rogue modified model) you can set this to override the detected format (enter desired version, e.g. 401 for GPTNeoX-Type2).",metavar=('[version]'), type=int, default=0)
@@ -6487,7 +6509,7 @@ if __name__ == '__main__':
     ttsparsergroup.add_argument("--ttsmodel", metavar=('[filename]'), help="Specify the OuteTTS Text-To-Speech GGUF model.", default="")
     ttsparsergroup.add_argument("--ttswavtokenizer", metavar=('[filename]'), help="Specify the WavTokenizer GGUF model.", default="")
     ttsparsergroup.add_argument("--ttsgpu", help="Use the GPU for TTS.", action='store_true')
-    ttsparsergroup.add_argument("--ttsmaxlen", help="Limit number of audio tokens generated with TTS.",  type=int, default=4096)
+    ttsparsergroup.add_argument("--ttsmaxlen", help="Limit number of audio tokens generated with TTS.",  type=int, default=default_ttsmaxlen)
     ttsparsergroup.add_argument("--ttsthreads", metavar=('[threads]'), help="Use a different number of threads for TTS if specified. Otherwise, has the same value as --threads.", type=int, default=0)
 
     deprecatedgroup = parser.add_argument_group('Deprecated Commands, DO NOT USE!')
