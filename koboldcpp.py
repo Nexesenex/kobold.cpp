@@ -1292,51 +1292,51 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
 
             kvq = quantkv
             kvbpw = 0
-            if kvq == 0:
+            if kvq == 0: # F16
                 kvbpw = 32
-            if kvq == 1:
+            if kvq == 1: # Q8_0
                 kvbpw = 17
-            if kvq == 2:
+            if kvq == 2: # 4_0
                 kvbpw = 9
-            if kvq == 3:
+            if kvq == 3: # F16-Q8_0
                 kvbpw = 24.5
-            if kvq == 4:
+            if kvq == 4: # F16-Q6_0
                 kvbpw = 22.5
-            if kvq == 5:
+            if kvq == 5: # Q8_0-Q6_0
                 kvbpw = 15
-            if kvq == 6:
+            if kvq == 6: # Q8_0-Q5_0
                 kvbpw = 14
-            if kvq == 7:
+            if kvq == 7: # Q8_0-IQ4_NL
                 kvbpw = 13
-            if kvq == 8:
+            if kvq == 8: # Q6_0-Q6_0
                 kvbpw = 13
-            if kvq == 9:
+            if kvq == 9: # Q6_0-Q5_0
                 kvbpw = 12
-            if kvq == 10:
+            if kvq == 10: # Q6_0-IQ4_NL
                 kvbpw = 11
-            if kvq == 11:
+            if kvq == 11: # Q5_1-Q5_0
                 kvbpw = 11
-            if kvq == 12:
+            if kvq == 12: # Q5_1-IQ4_NL
                 kvbpw = 10.5
-            if kvq == 13:
+            if kvq == 13: # Q5_0-IQ4_NL
                 kvbpw = 10
-            if kvq == 14:
+            if kvq == 14: # IQ4_NL-IQ4_NL
                 kvbpw = 9
-            if kvq == 15:
+            if kvq == 15: # BF16
                 kvbpw = 32
-            if kvq == 16:
+            if kvq == 16: # Q8_0-F16
                 kvbpw = 24.5
-            if kvq == 17:
+            if kvq == 17: # Q6_0-F16
                 kvbpw = 22.5
-            if kvq == 18:
+            if kvq == 18: # Q5_1-F16
                 kvbpw = 22
-            if kvq == 19:
+            if kvq == 19: # Q5_0-F16
                 kvbpw = 21.5
-            if kvq == 20:
+            if kvq == 20: # Q4_1-F16
                 kvbpw = 21
-            if kvq == 21:
+            if kvq == 21: # Q4_0-F16
                 kvbpw = 20.5
-            if kvq == 22:
+            if kvq == 22: # IQ4_NL-F16
                 kvbpw = 20.5
 
             # if modelfile_extracted_meta[5] > 1024*1024*10: #draft model tax
@@ -3880,7 +3880,7 @@ def show_gui():
     "8* - K q6_0 - V q6_0 (6.5BPW) - FA. Doesn't work on Gemma 2 FA.",
     "9 - K q6_0 - V q5_0 (6BPW) - FA, best game in FA town. Doesn't work on Gemma 2 FA.",
     "10* - K q6_0 - V iq4_nl (5.5BPW) - FA - faulty on some models (Gemma 2 FA. Qwen 2.5 1.5b?)",
-    "11 - K q5_1 - V q5_0 (5.5BPW) - FA - possibly faulty on some models (Qwen 2.5 1.5b?)",
+    "11 - K q5_1 - V q5_0 (5.75BPW) - FA - possibly faulty on some models (Qwen 2.5 1.5b?)",
     "12* - K q5_1 - V iq4_nl (5.25BPW) - FA",
     "13 - K q5_0 - V iq4_nl (5BPW) - FA - possibly faulty on some models (Qwen 2.5 1.5b?)",
     "14 - K iq4_nl - V iq4_nl (4.5BPW) - FA",
@@ -6520,7 +6520,7 @@ if __name__ == '__main__':
     advparser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
     advparser.add_argument("--chatcompletionsadapter", metavar=('[filename]'), help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="AutoGuess")
     advparser.add_argument("--flashattention", help="Enables flash attention.", action='store_true')
-    advparser.add_argument("--quantkv", help="Sets the KV cache data quantization (KVQ) type to save VRAM in NVidia Video Cards, 0 - F16 (16BPW) - FA or not, 1 - q8_0 - (8.5BPW) - FA, 2 - q4_0 - (4.5BPW) - FA, 3 - K F16 - V q8_0 (12.25BPW) - FA, 4 - K F16 - V q6_0 (11.25BPW) - FA, 5 - K q8_0 - V q6_0 (7.5BPW) - FA, 6 - K q8_0 - V q5_0 (7BPW), slower, best FA game in town, 7 - K q8_0 - V iq4_nl (6.5BPW) - FA, 8 - K q6_0 - V q6_0 (6.5BPW) - FA, 9 - K q6_0 - V q5_0 (6BPW) - FA, 10 - K q6_0 - V iq4_nl (5.5BPW) - FA, 11 - K q5_1 - V q5_0 (5.5BPW) - FA, 12 - K q5_1 - V iq4_nl (5.25BPW) - FA, 13 - K q5_0 - V iq4_nl (5BPW) - FA, 14 - K iq4_nl - V iq4_nl (4.5BPW) - FA, 15 - BF16 (16BPW) - no FA, slower, 16 - K q8_0 - V F16 (12.25BPW) - NO FA, slower, 17 - K q6_0 - V F16 (11.25BPW) - NO FA, slower, best non-FA game in town, 18 - K q5_1 - V F16 (11BPW) - NO FA, slower, 19 - K q5_0 - V F16 (11.75BPW) - NO FA, slower, 20 - K q4_1 - V F16 (10.5BPW) - NO FA, slower, 21 - K q4-0 - V F16 (10.25BPW) - NO FA, slower, 22 - K iq4_nl - V F16 (10.25BPW) - NO FA, slower.", metavar=('[quantization level 0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22]'), type=check_range(int,0,22), default=0)
+    advparser.add_argument("--quantkv", help="Sets the KV cache data quantization (KVQ) type to save VRAM in NVidia Video Cards, 0 - F16 (16BPW) - FA or not, 1 - q8_0 - (8.5BPW) - FA, 2 - q4_0 - (4.5BPW) - FA, 3 - K F16 - V q8_0 (12.25BPW) - FA, 4 - K F16 - V q6_0 (11.25BPW) - FA, 5 - K q8_0 - V q6_0 (7.5BPW) - FA, 6 - K q8_0 - V q5_0 (7BPW), slower, best FA game in town, 7 - K q8_0 - V iq4_nl (6.5BPW) - FA, 8 - K q6_0 - V q6_0 (6.5BPW) - FA, 9 - K q6_0 - V q5_0 (6BPW) - FA, 10 - K q6_0 - V iq4_nl (5.5BPW) - FA, 11 - K q5_1 - V q5_0 (5.75BPW) - FA, 12 - K q5_1 - V iq4_nl (5.25BPW) - FA, 13 - K q5_0 - V iq4_nl (5BPW) - FA, 14 - K iq4_nl - V iq4_nl (4.5BPW) - FA, 15 - BF16 (16BPW) - no FA, slower, 16 - K q8_0 - V F16 (12.25BPW) - NO FA, slower, 17 - K q6_0 - V F16 (11.25BPW) - NO FA, slower, best non-FA game in town, 18 - K q5_1 - V F16 (11BPW) - NO FA, slower, 19 - K q5_0 - V F16 (11.75BPW) - NO FA, slower, 20 - K q4_1 - V F16 (10.5BPW) - NO FA, slower, 21 - K q4-0 - V F16 (10.25BPW) - NO FA, slower, 22 - K iq4_nl - V F16 (10.25BPW) - NO FA, slower.", metavar=('[quantization level 0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22]'), type=check_range(int,0,22), default=0)
     advparser.add_argument("--forceversion", help="If the model file format detection fails (e.g. rogue modified model) you can set this to override the detected format (enter desired version, e.g. 401 for GPTNeoX-Type2).",metavar=('[version]'), type=int, default=0)
     advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated. Not recommended.", action='store_true')
     advparser.add_argument("--unpack", help="Extracts the file contents of the KoboldCpp/Croco.Cpp binary into a target directory.", metavar=('destination'), type=str, default="")
