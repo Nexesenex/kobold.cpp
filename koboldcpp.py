@@ -1989,22 +1989,12 @@ def LaunchWebbrowser(target_url, failedmsg):
             print(failedmsg)
             print(f"Please manually open your browser to {target_url}")
 
-
-
 def getSaves():
     import sqlite3
     dbPath = os.path.join(configsDir, "kcpp.db")
     with sqlite3.connect(dbPath) as con:
         try:
             cursor = con.cursor()
-
-            # Write a query and execute it with cursor
-            query = 'select sqlite_version();'
-            cursor.execute(query)
-        
-            # Fetch and output result
-            result = cursor.fetchall()
-            print(f'SQLite Version is {result}')
 
             result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='saveData';").fetchall()
             if result == []:
@@ -2026,7 +2016,33 @@ def getSaves():
         except sqlite3.Error as error:
             print(f'Error occurred - {error}')
         
-    
+def setSave(saveName, b64Data):
+    import sqlite3
+    dbPath = os.path.join(configsDir, "kcpp.db")
+    with sqlite3.connect(dbPath) as con:
+        try:
+            cursor = con.cursor()
+            cursor.execute(f"INSERT INTO saveData(name, encodedSave) VALUES ('{saveName}', '{b64Data.decode('utf-8')}');")
+            cursor.close()
+            return True
+        # Handle errors
+        except sqlite3.Error as error:
+            print(f'Error occurred - {error}')
+            return False
+        
+def deleteSave(saveName):
+    import sqlite3
+    dbPath = os.path.join(configsDir, "kcpp.db")
+    with sqlite3.connect(dbPath) as con:
+        try:
+            cursor = con.cursor()
+            cursor.execute(f"DELETE FROM saveData WHERE name = '{saveName}';")
+            cursor.close()
+            return True
+        # Handle errors
+        except sqlite3.Error as error:
+            print(f'Error occurred - {error}')
+            return False
 
 #################################################################
 ### A hacky simple HTTP server simulating a kobold api by Concedo
@@ -2598,6 +2614,24 @@ Enter Prompt:<br>
                 response_body = (json.dumps({}).encode())
             else:
                 response_body = preloaded_story
+        elif "/control/saves/get/" in self.path and self.path.index("/control/saves/get/") == 0:
+            saveToLoad = self.path[self.path.rindex("/") + 1:]
+            if not controlEnabled:
+                content_type = 'text/html'
+                response_body = ("Control API disabled").encode()
+            elif not self.secure_control_endpoint():
+                return
+            else:
+                content_type = 'application/json'
+                if configsDir is None:
+                    response_body = ("\{\}").encode()
+                else:
+                    saves = getSaves()
+                    if saveToLoad in saves:
+                        jsonArray = json.dumps(saves[saveToLoad])
+                        response_body = (jsonArray).encode()
+                    else:
+                        response_body = ("\{\}").encode()
         elif self.path=="/control/saves":
             if not controlEnabled:
                 content_type = 'text/html'
@@ -2878,6 +2912,42 @@ Enter Prompt:<br>
             else:
                 response_body = (json.dumps([]).encode())
         
+        elif "/control/saves/put/" in self.path and self.path.index("/control/saves/put/") == 0:
+            saveName = self.path[self.path.rindex("/") + 1:]
+            if not controlEnabled:
+                response_body = ("Control API disabled").encode()
+            elif not self.secure_control_endpoint():
+                return
+            else:
+                if configsDir is None:
+                    response_body = ("No config directory provided").encode()
+                else:
+                    saves = getSaves()
+                    if saveName is not None and saveName not in saves:
+                        if (setSave(saveName, body)):
+                            response_body = ("Saved to DB").encode()
+                        else:
+                            response_body = ("Error when saving to DB").encode()
+                    else:
+                        response_body = ("Save already exists or no save name provided").encode()
+        elif "/control/saves/delete/" in self.path and self.path.index("/control/saves/delete/") == 0:
+            saveName = self.path[self.path.rindex("/") + 1:]
+            if not controlEnabled:
+                response_body = ("Control API disabled").encode()
+            elif not self.secure_control_endpoint():
+                return
+            else:
+                if configsDir is None:
+                    response_body = ("No config directory provided").encode()
+                else:
+                    saves = getSaves()
+                    if saveName is not None and saveName in saves:
+                        if (deleteSave(saveName)):
+                            response_body = ("Deleted from DB").encode()
+                        else:
+                            response_body = ("Error when deleting to DB").encode()
+                    else:
+                        response_body = ("Save does not exists or no save name provided").encode()
         elif self.path=="/control/restart":
             if not controlEnabled:
                 response_body = ("Control API disabled").encode()
