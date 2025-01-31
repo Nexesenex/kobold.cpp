@@ -73,6 +73,8 @@ option(LLAMA_CUDA_ENABLE_UNIFIED_MEMORY      "llama: enable to avoid OOM in Full
 option(GGML_IQK_MUL_MAT                     "ggml: use optimized iqk matrix multiplications"    OFF)
 option(GGML_USE_LLAMA_CPP_MAINLINE          "ggml: use Llama CPP mainline MatMul           "    OFF)
 
+option(GGML_CCACHE                          "ggml: use ccache if available"                     ON)
+
 #
 # Compile flags
 #
@@ -103,6 +105,27 @@ set(GGML_V3_CUDA_SOURCES otherarch/ggml_v3-cuda.cu otherarch/ggml_v3-cuda.h)
 set(GGML_V2_CUDA_SOURCES otherarch/ggml_v2-cuda.cu otherarch/ggml_v2-cuda.h)
 set(GGML_V2_LEGACY_CUDA_SOURCES otherarch/ggml_v2-cuda-legacy.cu otherarch/ggml_v2-cuda-legacy.h)
 
+
+# Ccache
+
+if (GGML_CCACHE)
+    find_program(GGML_CCACHE_FOUND ccache)
+    find_program(GGML_SCCACHE_FOUND sccache)
+
+    if (GGML_CCACHE_FOUND OR GGML_SCCACHE_FOUND)
+        if(GGML_CCACHE_FOUND)
+            set(GGML_CCACHE_VARIANT ccache)
+        else()
+            set(GGML_CCACHE_VARIANT sccache)
+        endif()
+        # TODO: should not be set globally
+        set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${GGML_CCACHE_VARIANT}")
+        set(ENV{CCACHE_SLOPPINESS} time_macros)
+        message(STATUS "${GGML_CCACHE_VARIANT} found, compilation results will be cached. Disable with GGML_CCACHE=OFF.")
+    else()
+        message(STATUS "Warning: ccache not found - consider installing it for faster compilation or disable this warning with GGML_CCACHE=OFF")
+    endif ()
+endif()
 
 # Croco.Cpp with IK MM
 if (GGML_IQK_MUL_MAT)
