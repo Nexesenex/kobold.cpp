@@ -5771,6 +5771,7 @@ def main(launch_args,start_server=True):
         # Flush stdout for previous win32 issue so the client can see output.
         if not args.prompt or args.benchmark:
             print("Server was not started, main function complete. Idling.", flush=True)
+            interProcessSend("kill")
 
 def run_in_queue(launch_args, input_queue, output_queue):
     main(launch_args, start_server=False)
