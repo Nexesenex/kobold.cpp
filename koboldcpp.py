@@ -4841,13 +4841,14 @@ def check_deprecation_warning():
 
 
 
-def setuptunnel(has_sd):
+def setuptunnel(argsObj, has_sd):
     # This script will help setup a cloudflared tunnel for accessing KoboldCpp over the internet
     # It should work out of the box on both linux and windows
     try:
         import subprocess
         import re
-        global sslvalid
+        
+        sslvalid = argsObj.ssl and len(argsObj.ssl)==2 and isinstance(argsObj.ssl[0], str) and os.path.exists(argsObj.ssl[0]) and isinstance(argsObj.ssl[1], str) and os.path.exists(argsObj.ssl[1])
         httpsaffix = ("https" if sslvalid else "http")
         def run_tunnel():
             tunnelproc = None
@@ -4856,13 +4857,13 @@ def setuptunnel(has_sd):
             time.sleep(0.2)
             if os.name == 'nt':
                 print("Starting Cloudflare Tunnel for Windows, please wait...", flush=True)
-                tunnelproc = subprocess.Popen(f"cloudflared.exe tunnel --url {httpsaffix}://localhost:{args.port}", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                tunnelproc = subprocess.Popen(f"cloudflared.exe tunnel --url {httpsaffix}://localhost:{argsObj.port} --no-tls-verify", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
             elif sys.platform=="darwin":
                 print("Starting Cloudflare Tunnel for MacOS, please wait...", flush=True)
-                tunnelproc = subprocess.Popen(f"./cloudflared tunnel --url {httpsaffix}://localhost:{args.port}", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                tunnelproc = subprocess.Popen(f"./cloudflared tunnel --url {httpsaffix}://localhost:{argsObj.port} --no-tls-verify", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
             else:
                 print("Starting Cloudflare Tunnel for Linux, please wait...", flush=True)
-                tunnelproc = subprocess.Popen(f"./cloudflared-linux-amd64 tunnel --url {httpsaffix}://localhost:{args.port}", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                tunnelproc = subprocess.Popen(f"./cloudflared-linux-amd64 tunnel --url {httpsaffix}://localhost:{argsObj.port} --no-tls-verify", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
             time.sleep(10)
             def tunnel_reader():
                 nonlocal tunnelproc,tunneloutput,tunnelrawlog
@@ -5774,8 +5775,8 @@ def main(launch_args,start_server=True):
 
     check_deprecation_warning()
     if start_server:
-        if args.remotetunnel:
-            setuptunnel(True if args.sdmodel else False)
+        if not controlEnabled and args.remotetunnel:
+            setuptunnel(launch_args, True if args.sdmodel else False)
         else:
             # Flush stdout for previous win32 issue so the client can see output.
             print(f"======\nPlease connect to custom endpoint at {epurl}", flush=True)
@@ -5951,6 +5952,10 @@ if __name__ == '__main__':
     print(f"Control endpoint: {argsIn.controlEnabled}")
     runFlag = True
     exitCode = 0
+
+    if argsIn.controlEnabled and argsIn.remotetunnel:
+        setuptunnel(argsIn, True) # Always show the SDUI URL just in case
+    
     while runFlag:
         import multiprocessing
         try:
