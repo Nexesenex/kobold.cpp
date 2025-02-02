@@ -6000,4 +6000,4 @@ if __name__ == '__main__':
             break        
     
     print("Server exiting")
-    exit(exitCode)
+    sys.exit(exitCode)
