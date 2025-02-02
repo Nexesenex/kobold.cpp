@@ -611,7 +611,7 @@ def exit_with_error(code, message, title="Error"):
     else:
         print(message, flush=True)
     time.sleep(2)
-    interProcessSend("kill")
+    interProcessSend(f"kill.{code}")
     sys.exit(code)
 
 def utfprint(str, importance = 2): #0 = only debugmode, 1 = except quiet, 2 = always print
@@ -3251,18 +3251,18 @@ def RunServerMultiThreaded(addr, port):
                 except (KeyboardInterrupt,SystemExit):
                     exitcounter = 999
                     self.httpd.server_close()
-                    interProcessSend("kill")
+                    interProcessSend("kill.0")
                     sys.exit(0)
                 finally:
                     exitcounter = 999
                     self.httpd.server_close()
-                    interProcessSend("kill")
+                    interProcessSend("kill.0")
                     os._exit(0)
         def stop(self):
             global exitcounter
             exitcounter = 999
             self.httpd.server_close()
-            interProcessSend("kill")
+            interProcessSend("kill.0")
 
     threadArr = []
     for i in range(numThreads):
@@ -3275,7 +3275,7 @@ def RunServerMultiThreaded(addr, port):
             exitcounter = 999
             for i in range(numThreads):
                 threadArr[i].stop()
-            interProcessSend("kill")
+            interProcessSend("kill.0")
             sys.exit(0)
 
 # note: customtkinter-5.2.0
@@ -4544,14 +4544,14 @@ def show_gui():
     except (KeyboardInterrupt,SystemExit):
         exitcounter = 999
         print("Exiting by user request.")
-        interProcessSend("kill")
+        interProcessSend("kill.0")
         sys.exit(0)
 
 
     if nextstate==0:
         exitcounter = 999
         print("Exiting by user request.")
-        interProcessSend("kill")
+        interProcessSend("kill.0")
         sys.exit(0)
     else:
         # processing vars
@@ -4569,7 +4569,7 @@ def show_gui():
             else:
                 print("No text or image model file was selected. Cannot continue.", flush=True)
             time.sleep(2)
-            interProcessSend("kill")
+            interProcessSend("kill.2")
             sys.exit(2)
 
 def show_gui_msgbox(title,message):
@@ -4789,7 +4789,7 @@ def run_horde_worker(args, api_key, worker_name):
         print_with_time("Horde Worker Shutdown - Server Closing.")
     exitcounter = 999
     time.sleep(3)
-    interProcessSend("kill")
+    interProcessSend("kill.2")
     sys.exit(2)
 
 def convert_outdated_args(args):
@@ -5189,7 +5189,7 @@ def main(launch_args,start_server=True):
             if args.skiplauncher:
                 print("Note: In order to use --skiplauncher, you need to specify a model with --model")
             time.sleep(3)
-            interProcessSend("kill")
+            interProcessSend("kill.2")
             sys.exit(2)
 
     #try to read story if provided
@@ -5784,7 +5784,7 @@ def main(launch_args,start_server=True):
         # Flush stdout for previous win32 issue so the client can see output.
         if not args.prompt or args.benchmark:
             print("Server was not started, main function complete. Idling.", flush=True)
-            interProcessSend("kill")
+            interProcessSend("kill.0")
 
 def run_in_queue(launch_args, input_queue, output_queue):
     main(launch_args, start_server=False)
@@ -5950,6 +5950,7 @@ if __name__ == '__main__':
     argsIn.controlEnabled = argsIn.controlPassword is not None and (len(argsIn.customConfigs) > 0)
     print(f"Control endpoint: {argsIn.controlEnabled}")
     runFlag = True
+    exitCode = 0
     while runFlag:
         import multiprocessing
         try:
@@ -5966,13 +5967,17 @@ if __name__ == '__main__':
             while True:
                 try:
                     msg = conn.recv()
-                    print(msg)
+                    print(f"Server received internal message: {msg}")
                     if argsIn.controlEnabled and msg in argsIn.customConfigs:
                         configAfterRestart = msg
                         conn.close()
                         break
-                    elif msg == "kill":
-                        runFlag = False
+                    elif "kill." in msg:
+                        killCode = str(msg).replace("kill.", "")
+                        if killCode.isdigit:
+                            print(f"Kill code {killCode} received")
+                            exitCode = int(killCode)
+                            runFlag = False
                     else:
                         configAfterRestart = None
                 except:
@@ -5990,3 +5995,4 @@ if __name__ == '__main__':
             break        
     
     print("Server exiting")
+    exit(exitCode)
