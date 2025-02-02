@@ -37,6 +37,21 @@
                     prefOptions.appendChild(new Option(elem, elem))
                 });
             })
+            .then(() => {
+                // After getting the configs, find the current one and set it
+                fetch("control/configs/current")
+                    .then(resp => resp.text())
+                    .then(currentConfig => {
+                        let optionElem = prefOptions.querySelector(`[value='${currentConfig}']`)
+                        if (!!optionElem)
+                        {
+                            optionElem.selected = true   
+                        }
+                    })
+                    .catch(e => {
+                        console.error(e)
+                    })
+            })
             .catch(e => {
                 console.error(e)
             })

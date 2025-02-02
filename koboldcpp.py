@@ -2659,6 +2659,18 @@ Enter Prompt:<br>
                 else:
                     jsonArray = json.dumps(customConfigs)
                     response_body = (jsonArray).encode()
+        elif self.path=="/control/configs/current":
+            if not controlEnabled:
+                content_type = 'text/html'
+                response_body = ("Control API disabled").encode()
+            elif not self.secure_control_endpoint():
+                return
+            else:
+                content_type = 'text/plain'
+                if config is None:
+                    response_body = ("").encode()
+                else:
+                    response_body = (str(os.path.basename(config[0]))).encode()
         elif self.path=="/control":
             if not controlEnabled:
                 content_type = 'text/html'
@@ -5096,7 +5108,7 @@ def interProcessSend(obj):
 def main(launch_args,start_server=True):
     global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui, embedded_kcpp_control
     global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath
-    global configsDir, customConfigs, comPort, comPassword, controlEnabled, controlPassword
+    global configsDir, customConfigs, comPort, comPassword, controlEnabled, controlPassword, config
 
     args = launch_args
 
@@ -5106,6 +5118,7 @@ def main(launch_args,start_server=True):
     if ('customConfigs' in args):
         configsDir = args.configsDir
         customConfigs = args.customConfigs
+        config = args.config
 
     if (args.version) and len(sys.argv) <= 2:
         print(f"{KcppVersion}") # just print version and exit
