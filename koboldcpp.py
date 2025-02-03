@@ -611,7 +611,7 @@ def exit_with_error(code, message, title="Error"):
     else:
         print(message, flush=True)
     time.sleep(2)
-    interProcessSend(f"kill.{code}")
+    interProcessSend(["kill", code])
     sys.exit(code)
 
 def utfprint(str, importance = 2): #0 = only debugmode, 1 = except quiet, 2 = always print
@@ -2614,6 +2614,15 @@ Enter Prompt:<br>
                 response_body = (json.dumps({}).encode())
             else:
                 response_body = preloaded_story
+        elif self.path=="/control/live":
+            if not controlEnabled:
+                content_type = 'text/html'
+                response_body = ("Control API disabled").encode()
+            elif not self.secure_control_endpoint():
+                return
+            else:
+                content_type = 'text/plain'
+                response_body = ("Online").encode()
         elif "/control/saves/get/" in self.path and self.path.index("/control/saves/get/") == 0:
             saveToLoad = self.path[self.path.rindex("/") + 1:]
             if not controlEnabled:
@@ -2646,6 +2655,31 @@ Enter Prompt:<br>
                     saves = getSaves()
                     jsonArray = json.dumps(list(saves.keys()))
                     response_body = (jsonArray).encode()
+        elif self.path=="/control/models":
+            if not controlEnabled:
+                content_type = 'text/html'
+                response_body = ("Control API disabled").encode()
+            elif not self.secure_control_endpoint():
+                return
+            else:
+                content_type = 'application/json'
+                if customModels is None:
+                    response_body = ("[]").encode()
+                else:
+                    jsonArray = json.dumps(customModels)
+                    response_body = (jsonArray).encode()
+        elif self.path=="/control/models/current":
+            if not controlEnabled:
+                content_type = 'text/html'
+                response_body = ("Control API disabled").encode()
+            elif not self.secure_control_endpoint():
+                return
+            else:
+                content_type = 'text/plain'
+                if config is None:
+                    response_body = ("").encode()
+                else:
+                    response_body = (str(modelFilename)).encode()
         elif self.path=="/control/configs":
             if not controlEnabled:
                 content_type = 'text/html'
@@ -2968,9 +3002,28 @@ Enter Prompt:<br>
             else:
                 tempbody = json.loads(body)
                 configSelected = tempbody.get('config', "")
-                if configSelected != "" and configSelected in customConfigs:
-                    interProcessSend(configSelected)
+                modelSelected = tempbody.get('model', "")
+                if configSelected != "" and configSelected in customConfigs and modelSelected in customModels:
+                    resp = "Switch confirmed".encode()
+                    self.send_response(200)
+                    self.send_header('content-length', str(len(resp)))
+                    self.end_headers(content_type='text/plain')
+                    self.wfile.write(resp)
+
+                    interProcessSend(["switch", configSelected, modelSelected])
                     exit(0)
+                elif configSelected != "" and configSelected in customConfigs:
+                    resp = "Switch confirmed".encode()
+                    self.send_response(200)
+                    self.send_header('content-length', str(len(resp)))
+                    self.end_headers(content_type='text/plain')
+                    self.wfile.write(resp)
+
+                    interProcessSend(["switch", configSelected])
+                    exit(0)
+                else:
+                    response_body = ("Provided config / model are not valid").encode()
+
 
         elif self.path.endswith('/set_tts_settings'): #return dummy response
             response_body = (json.dumps({"message": "Settings successfully applied"}).encode())
@@ -3251,18 +3304,18 @@ def RunServerMultiThreaded(addr, port):
                 except (KeyboardInterrupt,SystemExit):
                     exitcounter = 999
                     self.httpd.server_close()
-                    interProcessSend("kill.0")
+                    interProcessSend(["kill", 0])
                     sys.exit(0)
                 finally:
                     exitcounter = 999
                     self.httpd.server_close()
-                    interProcessSend("kill.0")
+                    interProcessSend(["kill", 0])
                     os._exit(0)
         def stop(self):
             global exitcounter
             exitcounter = 999
             self.httpd.server_close()
-            interProcessSend("kill.0")
+            interProcessSend(["kill", 0])
 
     threadArr = []
     for i in range(numThreads):
@@ -3275,7 +3328,7 @@ def RunServerMultiThreaded(addr, port):
             exitcounter = 999
             for i in range(numThreads):
                 threadArr[i].stop()
-            interProcessSend("kill.0")
+            interProcessSend(["kill", 0])
             sys.exit(0)
 
 # note: customtkinter-5.2.0
@@ -4544,14 +4597,14 @@ def show_gui():
     except (KeyboardInterrupt,SystemExit):
         exitcounter = 999
         print("Exiting by user request.")
-        interProcessSend("kill.0")
+        interProcessSend(["kill", 0])
         sys.exit(0)
 
 
     if nextstate==0:
         exitcounter = 999
         print("Exiting by user request.")
-        interProcessSend("kill.0")
+        interProcessSend(["kill", 0])
         sys.exit(0)
     else:
         # processing vars
@@ -4569,7 +4622,7 @@ def show_gui():
             else:
                 print("No text or image model file was selected. Cannot continue.", flush=True)
             time.sleep(2)
-            interProcessSend("kill.2")
+            interProcessSend(["kill", 2])
             sys.exit(2)
 
 def show_gui_msgbox(title,message):
@@ -4789,7 +4842,7 @@ def run_horde_worker(args, api_key, worker_name):
         print_with_time("Horde Worker Shutdown - Server Closing.")
     exitcounter = 999
     time.sleep(3)
-    interProcessSend("kill.2")
+    interProcessSend(["kill", 2])
     sys.exit(2)
 
 def convert_outdated_args(args):
@@ -5109,7 +5162,7 @@ def interProcessSend(obj):
 def main(launch_args,start_server=True):
     global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui, embedded_kcpp_control
     global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath
-    global configsDir, customConfigs, comPort, comPassword, controlEnabled, controlPassword, config
+    global configsDir, customConfigs, customModels, comPort, comPassword, controlEnabled, controlPassword, config, modelFilename
 
     args = launch_args
 
@@ -5119,7 +5172,10 @@ def main(launch_args,start_server=True):
     if ('customConfigs' in args):
         configsDir = args.configsDir
         customConfigs = args.customConfigs
+    if ('config' in args):
         config = args.config
+    if ('customModels' in args):
+        customModels = args.customModels
 
     if (args.version) and len(sys.argv) <= 2:
         print(f"{KcppVersion}") # just print version and exit
@@ -5166,6 +5222,9 @@ def main(launch_args,start_server=True):
         if dlfile:
             args.model_param = dlfile
         load_config_cli(args.model_param)
+    
+    if "modelOverride" in args and args.modelOverride is not None:
+        args.model_param = args.modelOverride[0]
 
     #prevent quantkv from being used without flash attn
     if args.quantkv and args.quantkv>0 and not args.flashattention:
@@ -5190,7 +5249,7 @@ def main(launch_args,start_server=True):
             if args.skiplauncher:
                 print("Note: In order to use --skiplauncher, you need to specify a model with --model")
             time.sleep(3)
-            interProcessSend("kill.2")
+            interProcessSend(["kill", 2])
             sys.exit(2)
 
     #try to read story if provided
@@ -5314,6 +5373,7 @@ def main(launch_args,start_server=True):
     # sanitize and replace the default vanity name. remember me....
     if args.model_param and args.model_param!="":
         newmdldisplayname = os.path.basename(args.model_param)
+        modelFilename = newmdldisplayname
         newmdldisplayname = os.path.splitext(newmdldisplayname)[0]
         friendlymodelname = "koboldcpp/" + sanitize_string(newmdldisplayname)
 
@@ -5785,7 +5845,7 @@ def main(launch_args,start_server=True):
         # Flush stdout for previous win32 issue so the client can see output.
         if not args.prompt or args.benchmark:
             print("Server was not started, main function complete. Idling.", flush=True)
-            interProcessSend("kill.0")
+            interProcessSend(["kill", 0])
 
 def run_in_queue(launch_args, input_queue, output_queue):
     main(launch_args, start_server=False)
@@ -5936,18 +5996,26 @@ if __name__ == '__main__':
 
     advparser.add_argument("--controlPassword", help="Used to enable remote control. By passing in this argument, control endpoint will use the provided password.  Both the configs directory and password must be provided to enable the functionality.", default=None)
     advparser.add_argument("--configsDir", help="Used to enable remote control. By passing in this argument, configs in the directory will by available for restarting operations.", default=None)
+    advparser.add_argument("--textModelsDir", help="Used with remote control config switching. By passing in this argument, models in the directory will by available for restarting operations.", default=None)
     argsIn = parser.parse_args()
 
     print("Attempting to run KCPP in daemon thread")
-    try:
-        argsIn.customConfigs = [each for each in os.listdir(argsIn.configsDir) if (each.endswith('.kcpps') or each.endswith('.kcppt'))]
-        print(f"Custom configs found: {', '.join(argsIn.customConfigs)}")
-    except Exception:
-        print("Could not load custom config dir.")
+    if argsIn.configsDir is not None:
+        try:
+            argsIn.customConfigs = [each for each in os.listdir(argsIn.configsDir) if (each.endswith('.kcpps') or each.endswith('.kcppt'))]
+            print(f"Custom configs found: {', '.join(argsIn.customConfigs)}")
+        except Exception:
+            print("Could not load custom config dir.")
+    
+    if argsIn.textModelsDir is not None:
+        try:
+            argsIn.customModels = [each for each in os.listdir(argsIn.textModelsDir) if (each.endswith('.gguf'))]
+            print(f"Custom models found: {', '.join(argsIn.customModels)}")
+        except Exception:
+            print("Could not load custom model dir.")
     
     configAfterRestart = argsIn.config
     
-    argsIn.comPort = 65001
     argsIn.controlEnabled = argsIn.controlPassword is not None and (len(argsIn.customConfigs) > 0)
     print(f"Control endpoint: {argsIn.controlEnabled}")
     runFlag = True
@@ -5973,18 +6041,27 @@ if __name__ == '__main__':
                 try:
                     msg = conn.recv()
                     print(f"Server received internal message: {msg}")
-                    if argsIn.controlEnabled and msg in argsIn.customConfigs:
-                        configAfterRestart = msg
-                        conn.close()
-                        break
-                    elif "kill." in msg:
-                        killCode = str(msg).replace("kill.", "")
-                        if killCode.isdigit:
-                            print(f"Kill code {killCode} received")
-                            exitCode = int(killCode)
-                            runFlag = False
-                    else:
-                        configAfterRestart = None
+                    configAfterRestart = None
+                    modelAfterRestart = None
+                    if type(msg) is list:
+                        msgAsList = list(msg)
+                        if msgAsList[0] == "switch":
+                            if len(msgAsList) == 3 and msgAsList[1] in argsIn.customConfigs and msgAsList[2] in argsIn.customModels:
+                                configAfterRestart = msgAsList[1]
+                                modelAfterRestart = msgAsList[2]
+                                conn.close()
+                                break
+                            elif len(msgAsList) == 2 and msgAsList[1] in argsIn.customConfigs:
+                                configAfterRestart = msgAsList[1]
+                                conn.close()
+                                break
+                        elif msgAsList[0] == "kill":
+                            killCode = str(msgAsList[1]) if len(msgAsList) == 2 else "0"
+                            if killCode.isdigit:
+                                print(f"Kill code {killCode} received")
+                                exitCode = int(killCode)
+                                runFlag = False
+                                break
                 except:
                     runFlag = False
                     break
@@ -5996,6 +6073,8 @@ if __name__ == '__main__':
             if configAfterRestart is None:
                 break
             argsIn.config = [os.path.join(argsIn.configsDir, configAfterRestart)]
+            argsIn.modelOverride = [os.path.join(argsIn.textModelsDir, modelAfterRestart)] if modelAfterRestart is not None else None
+
         except:
             break        
     
