@@ -59,6 +59,11 @@ const std::vector<std::string> type_names = {
     "q4_k",
     "q5_k",
     "q6_k",
+    "iq2_xxs",
+    "iq2_xs",
+    "iq2_s",
+    "iq3_xxs",
+    "iq3_s",
     "iq4_nl"
 };
 
@@ -207,6 +212,8 @@ void string_to_spv_func(const std::string& _name, const std::string& in_fname, c
     std::string out_fname = join_paths(output_dir, name + ".spv");
     std::string in_path = join_paths(input_dir, in_fname);
 
+    std::cout << "string_to_spv: " << name << "\n";
+
     std::string target_env = (name.find("_cm2") != std::string::npos) ? "--target-env=vulkan1.3" : "--target-env=vulkan1.2";
 
     // disable spirv-opt for coopmat shaders for https://github.com/ggerganov/llama.cpp/issues/10734
@@ -265,22 +272,18 @@ std::map<std::string, std::string> merge_maps(const std::map<std::string, std::s
 }
 
 static std::vector<std::future<void>> compiles;
-// void string_to_spv(const std::string& _name, const std::string& in_fname, const std::map<std::string, std::string>& defines, bool fp16 = true, bool coopmat = false, bool coopmat2 = false, bool f16acc = false) {
-//     {
-//         // wait until fewer than N compiles are in progress.
-//         // 16 is an arbitrary limit, the goal is to avoid "failed to create pipe" errors.
-//         uint32_t N = 16;
-//         std::unique_lock<std::mutex> guard(compile_count_mutex);
-//         while (compile_count >= N) {
-//             compile_count_cond.wait(guard);
-//         }
-//         compile_count++;
-//     }
-//     compiles.push_back(std::async(string_to_spv_func, _name, in_fname, defines, fp16, coopmat, coopmat2, f16acc));
-// }
 void string_to_spv(const std::string& _name, const std::string& in_fname, const std::map<std::string, std::string>& defines, bool fp16 = true, bool coopmat = false, bool coopmat2 = false, bool f16acc = false) {
-     std::cout << "string_to_spv: " << _name << "\n";
-     string_to_spv_func(_name, in_fname, defines, fp16, coopmat, coopmat2, f16acc); //non async version
+    {
+        // wait until fewer than N compiles are in progress.
+        // 16 is an arbitrary limit, the goal is to avoid "failed to create pipe" errors.
+        uint32_t N = 16;
+        std::unique_lock<std::mutex> guard(compile_count_mutex);
+        while (compile_count >= N) {
+            compile_count_cond.wait(guard);
+        }
+        compile_count++;
+    }
+    compiles.push_back(std::async(string_to_spv_func, _name, in_fname, defines, fp16, coopmat, coopmat2, f16acc));
 }
 
 void matmul_shaders(bool fp16, bool matmul_id, bool coopmat, bool coopmat2, bool f16acc) {
@@ -510,7 +513,7 @@ void write_output_files() {
     fprintf(hdr, "#include <cstdint>\n\n");
     fprintf(src, "#include \"%s\"\n\n", basename(target_hpp).c_str());
 
-    //std::sort(shader_fnames.begin(), shader_fnames.end()); //remove sort for kcpp for now
+    std::sort(shader_fnames.begin(), shader_fnames.end());
     for (const auto& pair : shader_fnames) {
         const std::string& name = pair.first;
         #ifdef _WIN32

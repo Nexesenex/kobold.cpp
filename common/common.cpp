@@ -12,8 +12,9 @@
 // Change JSON_ASSERT from assert() to GGML_ASSERT:
 #define JSON_ASSERT GGML_ASSERT
 #include "json.hpp"
-#include "json-schema-to-grammar.h"
+#include "json-schema-to-grammar.cpp"
 #include "llama.h"
+#include "chat.cpp"
 #include "chat-template.hpp"
 
 #include <algorithm>
@@ -1776,11 +1777,13 @@ std::string common_detokenize(const struct llama_vocab * vocab, const std::vecto
 bool common_chat_verify_template(const std::string & tmpl, bool use_jinja) {
     if (use_jinja) {
         try {
-            auto chat_template = minja::chat_template(tmpl, "<s>", "</s>");
-            chat_template.apply({{
+            auto chat_template = common_chat_template(tmpl, "<s>", "</s>");
+            common_chat_inputs inputs;
+            inputs.messages = json::array({{
                 {"role", "user"},
                 {"content", "test"},
-            }}, json(), true);
+            }});
+            common_chat_params_init(chat_template, inputs);
             return true;
         } catch (const std::exception & e) {
             LOG_ERR("%s: failed to apply template: %s\n", __func__, e.what());
@@ -1802,7 +1805,10 @@ std::string common_chat_apply_template(
         for (const auto & msg : msgs) {
             messages.push_back({{"role", msg.role}, {"content", msg.content}});
         }
-        return tmpl.apply(messages, /* tools= */ json(), add_ass);
+        common_chat_inputs inputs;
+        inputs.messages = messages;
+        inputs.add_generation_prompt = add_ass;
+        return common_chat_params_init(tmpl, inputs).prompt;
     }
 
     int alloc_size = 0;
@@ -1857,10 +1863,10 @@ std::string common_chat_format_single(
 
 std::string common_chat_format_example(const common_chat_template & tmpl, bool use_jinja) {
     std::vector<common_chat_msg> msgs = {
-        {"system",    "You are a helpful assistant"},
-        {"user",      "Hello"},
-        {"assistant", "Hi there"},
-        {"user",      "How are you?"},
+        {"system",    "You are a helpful assistant", {}},
+        {"user",      "Hello", {}},
+        {"assistant", "Hi there", {}},
+        {"user",      "How are you?", {}},
     };
     return common_chat_apply_template(tmpl, msgs, true, use_jinja);
 }
