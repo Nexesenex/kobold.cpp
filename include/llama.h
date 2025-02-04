@@ -93,6 +93,7 @@ extern "C" {
         LLAMA_VOCAB_PRE_TYPE_TEKKEN         = 20,
         LLAMA_VOCAB_PRE_TYPE_SMOLLM         = 21,
         LLAMA_VOCAB_PRE_TYPE_CODESHELL      = 22,
+        LLAMA_VOCAB_PRE_TYPE_DEEPSEEK3_LLM  = 23, //llama.cpp lists this as 28
     };
 
     // note: these values should be synchronized with ggml_rope
@@ -192,6 +193,7 @@ extern "C" {
         LLAMA_FTYPE_MOSTLY_IQ2_XS_R4     = 220, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_IQ3_XXS_R4    = 223, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_IQ4_NL_R4     = 225, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ3_S_R4      = 226, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_IQ2_M_R4      = 229, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_IQ4_XS_R4     = 230, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_Q6_0_R4       = 335, // except 1d tensors
@@ -1046,6 +1048,8 @@ extern "C" {
                                   bool   add_ass,
                                   char * buf,
                                int32_t   length);
+    // Get list of built-in chat templates
+    LLAMA_API int32_t llama_chat_builtin_templates(const char ** output, size_t len);
 
     //
     // Grammar

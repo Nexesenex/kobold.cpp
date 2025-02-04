@@ -240,6 +240,11 @@ typedef struct {
     int8_t qs[4*QK8_0];
 } block_q8_0_x4;
 static_assert(sizeof(block_q8_0_x4) == 4*sizeof(block_q8_0), "wrong q8_0_x4 block size/padding");
+typedef struct {
+    ggml_half d[8];
+    int8_t qs[8*QK8_0];
+} block_q8_0_r8;
+static_assert(sizeof(block_q8_0_r8) == 8*sizeof(block_q8_0), "wrong q8_0_r8 block size/padding");
 
 typedef struct {
     ggml_half d[4];        // deltas for 4 q4_0 blocks
@@ -469,6 +474,15 @@ typedef struct {
 static_assert(sizeof(block_iq3_s) == sizeof(ggml_half) + 13*(QK_K/32) + IQ3S_N_SCALE, "wrong iq3_s block size/padding");
 
 typedef struct {
+    ggml_half d[4];
+    uint8_t qs[QK_K];
+    uint8_t qh[QK_K/8];
+    uint8_t signs[QK_K/2];
+    uint8_t scales[4*IQ3S_N_SCALE];
+} block_iq3_s_r4;
+static_assert(sizeof(block_iq3_s_r4) == 4*sizeof(block_iq3_s), "wrong iq3_s_r4 block size/padding");
+
+typedef struct {
     ggml_half d;
     uint8_t  qs[QK_K/8];
     uint16_t qh[QK_K/32];
@@ -518,7 +532,12 @@ typedef struct {
     ggml_half d[4];
     uint8_t qs[2*QK4_NL];
 } block_iq4_nl_r4;
-static_assert(sizeof(block_iq4_nl_r4) == 4*sizeof(ggml_half) + 2*QK4_NL, "wrong iq4_nl_x4 block size/padding");
+static_assert(sizeof(block_iq4_nl_r4) == 4*sizeof(ggml_half) + 2*QK4_NL, "wrong iq4_nl_r4 block size/padding");
+typedef struct {
+    ggml_half d[8];
+    uint8_t qs[4*QK4_NL];
+} block_iq4_nl_r8;
+static_assert(sizeof(block_iq4_nl_r8) == 8*sizeof(ggml_half) + 4*QK4_NL, "wrong iq4_nl_r8 block size/padding");
 
 typedef struct {
     ggml_half d;
@@ -529,12 +548,12 @@ typedef struct {
 static_assert(sizeof(block_iq4_xs) == sizeof(ggml_half) + sizeof(uint16_t) + QK_K/64 + QK_K/2, "wrong iq4_xs block size/padding");
 
 typedef struct {
-    ggml_half d[4];
-    uint8_t scales_h[QK_K/32];
-    uint8_t scales_l[QK_K/16];
-    uint8_t qs[QK_K*2];
+    ggml_half d[8];
+    uint8_t scales_h[QK_K/16];
+    uint8_t scales_l[QK_K/ 8];
+    uint8_t qs[QK_K*4];
 } block_iq4_xs_r4;
-static_assert(sizeof(block_iq4_xs_r4) == 4*sizeof(ggml_half) + QK_K/32 + QK_K/16 + QK_K*2, "wrong iq4_xs_rs block size/padding");
+static_assert(sizeof(block_iq4_xs_r4) == 8*sizeof(block_iq4_xs), "wrong iq4_xs_rs block size/padding");
 
 typedef struct {
     uint8_t  scales[QK_K/32];
