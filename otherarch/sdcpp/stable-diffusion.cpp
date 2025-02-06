@@ -1276,7 +1276,7 @@ sd_image_t* generate_image(sd_ctx_t* sd_ctx,
     LOG_DEBUG("prompt after extract and remove lora: \"%s\"", prompt.c_str());
 
     int64_t t0 = ggml_time_ms();
-    sd_ctx->sd->apply_loras(lora_f2m);
+    // sd_ctx->sd->apply_loras(lora_f2m); //only use hardcoded lora for kcpp
     if(pending_apply_lora_fname!="" && pending_apply_lora_power>0)
     {
         printf("\nApplying LoRA now...\n");

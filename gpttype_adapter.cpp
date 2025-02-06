@@ -1842,28 +1842,10 @@ static float CalcGradientAIRopeFreqBase(float original_rope_base, int n_ctx_trai
         float chi_ctx_value = (n_ctx_desired * ctx_multiplier) / 6.28318;
         float gradient_ai_rope_freq_base_value = powf(original_rope_base, log10f(chi_ctx_value) / log10f(chi_ctx_train_value));
 
-        if(debugmode==1 && !is_quiet)
-        {
-            printf("Trained max context length (value:%.d).\n", n_ctx_train);
-            printf("Desired context length (value:%.d).\n", n_ctx_desired);
-            // printf("Solar context multiplier (value:%.3f).\n", ctx_multiplier);
-            // printf("Chi context train (value:%.3f).\n", chi_ctx_train_value);
-            // printf("Chi chosen context (value:%.3f).\n", chi_ctx_value);
-            // printf("Log Chi context train (value:%.3f).\n", log10f(chi_ctx_train_value));
-            // printf("Log Chi chosen context (value:%.3f).\n", log10f(chi_ctx_value));
-            printf("RoPE Frequency Base value (value:%.3f).\n", original_rope_base);
-            printf("RoPE base calculated via Gradient AI formula. (value:%.1f).\n", gradient_ai_rope_freq_base_value);
-        }
-
 	    if(model_arch==GGUFArch::ARCH_SOLAR)
         {
             float extended_rope_positive_offset_value = 1 + ((log10f(chi_ctx_value) - log10f(chi_ctx_train_value)) / ((log10f(chi_ctx_value) * log10f(chi_ctx_train_value)) - (log10f(chi_ctx_value) + log10f(chi_ctx_train_value))));
             float rope_freq_base_with_positive_offset = gradient_ai_rope_freq_base_value * extended_rope_positive_offset_value;
-            if(debugmode==1 && !is_quiet)
-            {
-                printf("Extended RoPE Positive Offset (multiplicator) for Solar based models. (value:%.3f).\n", extended_rope_positive_offset_value);
-                printf("RoPE base calculated via Gradient AI formula for Solar based models. (value:%.1f).\n", rope_freq_base_with_positive_offset);
-            }
             return rope_freq_base_with_positive_offset;
         }
         else
@@ -1931,7 +1913,6 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         if(file_format==FileFormat::GGUF_GENERIC)
         {
             printf("Using automatic RoPE scaling for GGUF. If the model has custom RoPE settings, they'll be used directly instead!\n");
-            printf("It means that the RoPE values written above will be replaced by the RoPE values indicated after loading.\n");
         }
         else
         {
