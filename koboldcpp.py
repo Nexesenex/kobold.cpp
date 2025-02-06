@@ -1993,10 +1993,12 @@ def LaunchWebbrowser(target_url, failedmsg):
             print(failedmsg)
             print(f"Please manually open your browser to {target_url}")
 
+def getDBPath():
+    return os.path.join(args.admindatadir, "kcpp.db")
+
 def getSaves():
     import sqlite3
-    dbPath = os.path.join(configsDir, "kcpp.db")
-    with sqlite3.connect(dbPath) as con:
+    with sqlite3.connect(getDBPath()) as con:
         try:
             cursor = con.cursor()
 
@@ -2022,8 +2024,7 @@ def getSaves():
         
 def setSave(saveName, b64Data):
     import sqlite3
-    dbPath = os.path.join(configsDir, "kcpp.db")
-    with sqlite3.connect(dbPath) as con:
+    with sqlite3.connect(getDBPath()) as con:
         try:
             cursor = con.cursor()
             cursor.execute(f"INSERT INTO saveData(name, encodedSave) VALUES ('{saveName}', '{b64Data.decode('utf-8')}');")
@@ -2036,7 +2037,7 @@ def setSave(saveName, b64Data):
         
 def deleteSave(saveName):
     import sqlite3
-    dbPath = os.path.join(configsDir, "kcpp.db")
+    dbPath = os.path.join(getDBPath(), "kcpp.db")
     with sqlite3.connect(dbPath) as con:
         try:
             cursor = con.cursor()
@@ -2470,6 +2471,27 @@ Enter Prompt:<br>
                 opts = [f for f in os.listdir(dirpath) if f.endswith(".kcpps") and os.path.isfile(os.path.join(dirpath, f))]
             response_body = (json.dumps(opts).encode())
 
+        elif self.path.endswith(('/api/admin/list_models')): #used by admin to get info about model reload options
+            opts = []
+            if args.admin and args.admintextmodelsdir and os.path.exists(args.admintextmodelsdir) and self.check_header_password(args.adminpassword):
+                dirpath = os.path.abspath(args.admintextmodelsdir)
+                opts = [f for f in os.listdir(dirpath) if f.endswith(".kcpps") and os.path.isfile(os.path.join(dirpath, f))]
+            response_body = (json.dumps(opts).encode())
+        elif self.path=="/api/data/list":
+            saveName = self.path[self.path.rindex("/") + 1:]
+            if not args.admin:
+                response_body = ("Data API disabled").encode()
+            elif not self.check_header_password(args.adminpassword):
+                return
+            else:
+                if args.admindatadir == "":
+                    response_body = ("No data directory provided").encode()
+                else:
+                    content_type = 'application/json'
+                    saves = getSaves()
+                    jsonArray = json.dumps(list(saves.keys()))
+                    response_body = (jsonArray).encode()
+
         elif self.path.endswith(('/api/extra/perf')):
             lastp = handle.get_last_process_time()
             laste = handle.get_last_eval_time()
@@ -2585,26 +2607,16 @@ Enter Prompt:<br>
                 response_body = (json.dumps({}).encode())
             else:
                 response_body = preloaded_story
-        elif self.path=="/control/live":
-            if not controlEnabled:
-                content_type = 'text/html'
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
-                return
-            else:
-                content_type = 'text/plain'
-                response_body = ("Online").encode()
-        elif "/control/saves/get/" in self.path and self.path.index("/control/saves/get/") == 0:
+        
+        elif "/api/saves/get/" in self.path and self.path.index("/api/saves/get/") == 0:
             saveToLoad = self.path[self.path.rindex("/") + 1:]
-            if not controlEnabled:
-                content_type = 'text/html'
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
+            if not args.admin:
+                response_body = ("Data API disabled").encode()
+            elif not self.check_header_password(args.adminpassword):
                 return
             else:
-                content_type = 'application/json'
-                if configsDir is None:
-                    response_body = ("\{\}").encode()
+                if args.admindatadir == "":
+                    response_body = ("No data directory provided").encode()
                 else:
                     saves = getSaves()
                     if saveToLoad in saves:
@@ -2612,82 +2624,30 @@ Enter Prompt:<br>
                         response_body = (jsonArray).encode()
                     else:
                         response_body = ("\{\}").encode()
-        elif self.path=="/control/saves":
-            if not controlEnabled:
-                content_type = 'text/html'
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
-                return
-            else:
-                content_type = 'application/json'
-                if configsDir is None:
-                    response_body = ("\{\}").encode()
-                else:
-                    saves = getSaves()
-                    jsonArray = json.dumps(list(saves.keys()))
-                    response_body = (jsonArray).encode()
-        elif self.path=="/control/models":
-            if not controlEnabled:
-                content_type = 'text/html'
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
-                return
-            else:
-                content_type = 'application/json'
-                if customModels is None:
-                    response_body = ("[]").encode()
-                else:
-                    jsonArray = json.dumps(customModels)
-                    response_body = (jsonArray).encode()
-        elif self.path=="/control/models/current":
-            if not controlEnabled:
-                content_type = 'text/html'
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
+
+        elif self.path=="/api/admin/current_model":
+            if not args.admin:
+                response_body = ("Admin API disabled").encode()
+            elif not self.check_header_password(args.adminpassword):
                 return
             else:
                 content_type = 'text/plain'
-                if config is None:
+                if modelFilename is None:
                     response_body = ("").encode()
                 else:
-                    response_body = (str(modelFilename)).encode()
-        elif self.path=="/control/configs":
-            if not controlEnabled:
-                content_type = 'text/html'
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
-                return
-            else:
-                content_type = 'application/json'
-                if customConfigs is None:
-                    response_body = ("[]").encode()
-                else:
-                    jsonArray = json.dumps(customConfigs)
-                    response_body = (jsonArray).encode()
-        elif self.path=="/control/configs/current":
-            if not controlEnabled:
-                content_type = 'text/html'
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
+                    response_body = (str(os.path.basename(args.modelOverride[0]))).encode()
+            
+        elif self.path=="/api/admin/current_config":
+            if not args.admin:
+                response_body = ("Admin API disabled").encode()
+            elif not self.check_header_password(args.adminpassword):
                 return
             else:
                 content_type = 'text/plain'
-                if config is None:
+                if args.config is None:
                     response_body = ("").encode()
                 else:
-                    response_body = (str(os.path.basename(config[0]))).encode()
-        elif self.path=="/control":
-            if not controlEnabled:
-                content_type = 'text/html'
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
-                return
-            else:
-                content_type = 'text/html'
-                if embedded_kcpp_docs is None:
-                    response_body = ("Control API disabled").encode()
-                else:
-                    response_body = embedded_kcpp_control
+                    response_body = (str(os.path.basename(args.config[0]))).encode()
         elif self.path.endswith(('/api')) or self.path.endswith(('/api/v1')):
             self.path = "/api"
             self.send_response(302)
@@ -2929,15 +2889,15 @@ Enter Prompt:<br>
             else:
                 response_body = (json.dumps([]).encode())
         
-        elif "/control/saves/put/" in self.path and self.path.index("/control/saves/put/") == 0:
+        elif "/api/data/put/" in self.path and self.path.index("/api/data/put/") == 0:
             saveName = self.path[self.path.rindex("/") + 1:]
-            if not controlEnabled:
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
+            if not args.admin:
+                response_body = ("Data API disabled").encode()
+            elif not self.check_header_password(args.adminpassword):
                 return
             else:
-                if configsDir is None:
-                    response_body = ("No config directory provided").encode()
+                if args.admindatadir == "":
+                    response_body = ("No data directory provided").encode()
                 else:
                     saves = getSaves()
                     if saveName is not None and saveName not in saves:
@@ -2947,15 +2907,15 @@ Enter Prompt:<br>
                             response_body = ("Error when saving to DB").encode()
                     else:
                         response_body = ("Save already exists or no save name provided").encode()
-        elif "/control/saves/delete/" in self.path and self.path.index("/control/saves/delete/") == 0:
+        elif "/api/data/delete/" in self.path and self.path.index("/api/data/delete/") == 0:
             saveName = self.path[self.path.rindex("/") + 1:]
-            if not controlEnabled:
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
+            if not args.admin:
+                response_body = ("Data API disabled").encode()
+            elif not self.check_header_password(args.adminpassword):
                 return
             else:
-                if configsDir is None:
-                    response_body = ("No config directory provided").encode()
+                if args.admindatadir == "":
+                    response_body = ("No data directory provided").encode()
                 else:
                     saves = getSaves()
                     if saveName is not None and saveName in saves:
@@ -2965,45 +2925,17 @@ Enter Prompt:<br>
                             response_body = ("Error when deleting to DB").encode()
                     else:
                         response_body = ("Save does not exists or no save name provided").encode()
-        elif self.path=="/control/restart":
-            if not controlEnabled:
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
-                return
-            else:
-                tempbody = json.loads(body)
-                configSelected = tempbody.get('config', "")
-                modelSelected = tempbody.get('model', "")
-                if (configSelected != "" and configSelected in customConfigs) and (modelSelected != "" and customModels is not None and modelSelected in customModels):
-                    resp = "Switch confirmed".encode()
-                    self.send_response(200)
-                    self.send_header('content-length', str(len(resp)))
-                    self.end_headers(content_type='text/plain')
-                    self.wfile.write(resp)
-
-                    interProcessSend(["switch", configSelected, modelSelected])
-                    exit(0)
-                elif configSelected != "" and configSelected in customConfigs:
-                    resp = "Switch confirmed".encode()
-                    self.send_response(200)
-                    self.send_header('content-length', str(len(resp)))
-                    self.end_headers(content_type='text/plain')
-                    self.wfile.write(resp)
-
-                    interProcessSend(["switch", configSelected])
-                    exit(0)
-                else:
-                    response_body = ("Provided config / model are not valid").encode()
-
 
         elif self.path.startswith(("/api/admin/reload_config")):
             resp = {"success": False}
             if global_memory and args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
                 targetfile = ""
+                targetModel = ""
                 try:
                     tempbody = json.loads(body)
                     if isinstance(tempbody, dict):
                         targetfile = tempbody.get('filename', "")
+                        targetModel = tempbody.get('modelName', "")
                 except Exception:
                     targetfile = ""
                 if targetfile and targetfile!="":
@@ -3011,27 +2943,18 @@ Enter Prompt:<br>
                     targetfilepath = os.path.join(dirpath, targetfile)
                     opts = [f for f in os.listdir(dirpath) if f.endswith(".kcpps") and os.path.isfile(os.path.join(dirpath, f))]
                     if targetfile in opts and os.path.exists(targetfilepath):
-                        print(f"Admin: Received request to reload config to {targetfile}")
-                        global_memory["restart_target"] = targetfile
-                        resp = {"success": True}
-            response_body = (json.dumps(resp).encode())
+                        # Now check targetModel
+                        if targetModel and targetModel!="":
+                            dirpath = os.path.abspath(args.admintextmodelsdir)
+                            targetfilepath = os.path.join(dirpath, targetModel)
+                            opts = [f for f in os.listdir(dirpath) if f.endswith(".gguf") and os.path.isfile(os.path.join(dirpath, f))]
+                            if targetModel in opts and os.path.exists(targetfilepath):
+                                targetModel
+                                global_memory["restart_model"] = targetfile
+                                print(f"Admin: Received request to reload config to {targetfile} and {targetModel}")
 
-        elif self.path.startswith(("/api/admin/reload_config")):
-            resp = {"success": False}
-            if global_memory and args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
-                targetfile = ""
-                try:
-                    tempbody = json.loads(body)
-                    if isinstance(tempbody, dict):
-                        targetfile = tempbody.get('filename', "")
-                except Exception:
-                    targetfile = ""
-                if targetfile and targetfile!="":
-                    dirpath = os.path.abspath(args.admindir)
-                    targetfilepath = os.path.join(dirpath, targetfile)
-                    opts = [f for f in os.listdir(dirpath) if f.endswith(".kcpps") and os.path.isfile(os.path.join(dirpath, f))]
-                    if targetfile in opts and os.path.exists(targetfilepath):
-                        print(f"Admin: Received request to reload config to {targetfile}")
+                        if "restart_model" not in global_memory or global_memory["restart_target"] == "":   
+                            print(f"Admin: Received request to reload config to {targetfile}")
                         global_memory["restart_target"] = targetfile
                         resp = {"success": True}
             response_body = (json.dumps(resp).encode())
@@ -3574,6 +3497,7 @@ def show_gui():
     admin_var = ctk.IntVar(value=0)
     admin_dir_var = ctk.StringVar()
     admin_text_model_dir_var = ctk.StringVar()
+    admin_data_dir_var = ctk.StringVar()
     admin_password_var = ctk.StringVar()
 
     def tabbuttonaction(name):
@@ -4164,6 +4088,7 @@ def show_gui():
     makelabelentry(admin_tab, "Admin Password:" , admin_password_var, 3, 150,padx=120,singleline=True,tooltip="Require a password to access admin functions. You are strongly advised to use one for publically accessible instances!")
     makefileentry(admin_tab, "Config Directory:", "Select directory containing .kcpps files to relaunch from", admin_dir_var, 5, width=280, is_dir=True, tooltiptxt="Specify a directory to look for .kcpps configs in, which can be used to swap models.")
     makefileentry(admin_tab, "Model Directory:", "Select directory containing .gguf text model files to allow overriding configs with", admin_text_model_dir_var, 5, width=280, is_dir=True, tooltiptxt="Specify a directory to look for .gguf text model files in, which can be used to swap models within a config.")
+    makefileentry(admin_tab, "Data Directory:", "Select directory which will be used to store user data if desired", admin_data_dir_var, 5, width=280, is_dir=True, tooltiptxt="Specify a directory to store user data in.")
 
     def kcpp_export_template():
         nonlocal kcpp_exporting_template
@@ -4394,6 +4319,7 @@ def show_gui():
         args.admin = (admin_var.get()==1)
         args.admindir = admin_dir_var.get()
         args.admintextmodelsdir = admin_text_model_dir_var.get()
+        args.admindatadir = admin_data_dir_var.get()
         args.adminpassword = admin_password_var.get()
 
     def import_vars(dict):
@@ -4567,6 +4493,7 @@ def show_gui():
         admin_var.set(dict["admin"] if ("admin" in dict) else 0)
         admin_dir_var.set(dict["admindir"] if ("admindir" in dict and dict["admindir"]) else "")
         admin_text_model_dir_var.set(dict["admintextmodeldir"] if ("admintextmodeldir" in dict and dict["admintextmodeldir"]) else "")
+        admin_data_dir_var.set(dict["admindatadir"] if ("admindatadir" in dict and dict["admindatadir"]) else "")
         admin_password_var.set(dict["adminpassword"] if ("adminpassword" in dict and dict["adminpassword"]) else "")
 
         importvars_in_progress = False
@@ -5091,7 +5018,7 @@ def reload_new_config(filename): #for changing config after launch
         config = json.load(f)
         args.istemplate = False
         for key, value in config.items(): #do not overwrite certain values
-            if key not in ["remotetunnel","port","host","port_param","admin","adminpassword","admindir","ssl","nocertify","benchmark","prompt"]:
+            if key not in ["remotetunnel","port","host","port_param","admin","adminpassword","admindir","admintextmodelsdir","admindatadir","ssl","nocertify","benchmark","prompt"]:
                 setattr(args, key, value)
 
 def load_config_cli(filename):
@@ -5284,7 +5211,7 @@ def main(launch_args,start_server=True):
     # manager command queue
     multiprocessing.freeze_support()
     with multiprocessing.Manager() as mp_manager:
-        global_memory = mp_manager.dict({"tunnel_url": "", "restart_target":""})
+        global_memory = mp_manager.dict({"tunnel_url": "", "restart_target": "", "restart_model": ""})
 
         if start_server and args.remotetunnel:
             setuptunnel(global_memory, True if args.sdmodel else False)
@@ -5300,8 +5227,13 @@ def main(launch_args,start_server=True):
                 if not kcpp_instance or not kcpp_instance.is_alive():
                     break
                 restart_target = global_memory["restart_target"]
+                restart_model = global_memory["restart_model"]
                 if restart_target!="":
-                    print(f"Reloading new config: {restart_target}")
+                    if restart_model != "":
+                        global_memory["restart_model"] = ""
+                        print(f"Reloading new config: {restart_target} with model {restart_model}")
+                    else:
+                        print(f"Reloading new config: {restart_target}")
                     global_memory["restart_target"] = ""
                     time.sleep(0.5) #sleep for 0.5s then restart
                     if args.admin and args.admindir:
@@ -5314,10 +5246,20 @@ def main(launch_args,start_server=True):
                             kcpp_instance = None
                             print("Restarting KoboldCpp...")
                             reload_new_config(targetfilepath)
+                            
+                            args.modelOverride = None
+                            if (args.admin and args.admintextmodelsdir):
+                                dirpath = os.path.abspath(args.admintextmodelsdir)
+                                modelFilepath = os.path.join(dirpath, restart_model)
+                                if os.path.exists(modelFilepath):
+                                    print(f"Setting model to {restart_model}")
+                                    args.modelOverride = modelFilepath
+
                             kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "start_server": start_server, "g_memory": global_memory})
                             kcpp_instance.daemon = True
                             kcpp_instance.start()
                             global_memory["restart_target"] = ""
+                            global_memory["restart_model"] = ""
                             time.sleep(1)
                 else:
                     time.sleep(0.2)
@@ -6064,6 +6006,7 @@ if __name__ == '__main__':
     admingroup.add_argument("--adminpassword", metavar=('[password]'), help="Require a password to access admin functions. You are strongly advised to use one for publically accessible instances!", default=None)
     admingroup.add_argument("--admindir", metavar=('[directory]'), help="Specify a directory to look for .kcpps configs in, which can be used to swap models.", default="")
     admingroup.add_argument("--admintextmodelsdir", metavar=('[directory]'), help="Used with remote control config switching. By passing in this argument, models in the directory will by available for restarting operations.", default="")
+    admingroup.add_argument("--admindatadir", metavar=('[directory]'), help="Specify a directory to store user data in. By passing in this argument, users with the admin password will be able to save and load data from the server database.", default="")
 
     deprecatedgroup = parser.add_argument_group('Deprecated Commands, DO NOT USE!')
     deprecatedgroup.add_argument("--hordeconfig", help=argparse.SUPPRESS, nargs='+')
