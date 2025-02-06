@@ -9859,7 +9859,7 @@ Current version indicated by LITEVER below.
 			{
 				header['Authorization'] = 'Bearer ' + adminkey;
 			}
-			fetch(custom_kobold_endpoint + koboldcpp_admin_list_endpoint, {
+			return fetch(custom_kobold_endpoint + koboldcpp_admin_list_endpoint, {
 				method: 'GET',
 				headers: header,
 			})
@@ -9879,8 +9879,8 @@ Current version indicated by LITEVER below.
 						el.textContent = values[i];
 						el.value = values[i];
 						dropdown.appendChild(el);
-					}
-					document.getElementById("admincontainer").classList.remove("hidden");
+					} 
+					document.getElementById("admincontainer").classList.remove("hidden")
 				}
 				else
 				{
@@ -9892,23 +9892,82 @@ Current version indicated by LITEVER below.
 			});
 		};
 
+		let fetch_kcpps_otherFields = function(adminkey)
+		{
+			let header = {'Content-Type': 'application/json'};
+			last_admin_key = adminkey;
+			if(adminkey!="")
+			{
+				header['Authorization'] = 'Bearer ' + adminkey;
+			}
+			
+			let tasks = []
+			let adminmodeldropdown = document.getElementById("adminmodeldropdown"), adminconfigdropdownlabel = document.getElementById("adminconfigdropdownlabel"), adminmodeldropdownlabel = document.getElementById("adminmodeldropdownlabel");
+
+			tasks.push(fetch(`${custom_kobold_endpoint}/api/admin/list_models`, {
+				method: 'GET',
+				headers: header,
+			})
+			.then(x => x.json())
+			.then(values => {
+				if(values && values.length>0)
+				{
+					//on values received
+					adminmodeldropdown.innerHTML = ""
+					adminmodeldropdown.appendChild(new Option("Default for config", ""))
+					values.forEach(elem => {
+						adminmodeldropdown.appendChild(new Option(elem, elem))
+					})
+				}
+			}).catch((error) => {
+				console.log("Error: " + error);
+				msgbox(error,"Error");
+			}));
+
+			tasks.push(fetch(`${custom_kobold_endpoint}/api/admin/current_config`, {
+				method: 'GET',
+				headers: header,
+			})
+			.then(x => x.text())
+			.then(value => {
+				adminconfigdropdownlabel.innerText = `Current config: ${value}`
+			}).catch((error) => {
+				console.log("Error: " + error);
+				adminconfigdropdownlabel.innerText = `Current config: N/A`
+			}));
+
+			tasks.push(fetch(`${custom_kobold_endpoint}/api/admin/current_model`, {
+				method: 'GET',
+				headers: header,
+			})
+			.then(x => x.text())
+			.then(value => {
+				adminmodeldropdownlabel.innerText = `Current model override: ${value}`
+			}).catch((error) => {
+				console.log("Error: " + error);
+				adminmodeldropdownlabel.innerText = `Current model override: N/A`
+			}));
+
+			return Promise.all(tasks)
+		};
+
 		if (koboldcpp_admin_type == 2) {
 			inputBox("Please input admin password:", "Admin Password Required", "", "(Input Admin Password)", () => {
 				let userinput = getInputBoxValue();
 				userinput = userinput.trim();
 				if (userinput != null && userinput != "") {
-					fetch_kcpps_configs(userinput);
+					fetch_kcpps_otherFields(userinput).then(() => fetch_kcpps_configs(userinput))
 				}
 			}, false, false, true);
 		} else {
-			fetch_kcpps_configs("");
+			fetch_kcpps_otherFields("").then(() => fetch_kcpps_configs(""))
 		}
 	}
 
 	function trigger_admin_reload()
 	{
 		document.getElementById("admincontainer").classList.add("hidden");
-		let targetfile = document.getElementById("adminconfigdropdown").value;
+		let targetfile = document.getElementById("adminconfigdropdown").value, modelName = document.getElementById("adminmodeldropdown").value;
 		if(!targetfile)
 		{
 			msgbox("No config file was selected.");
@@ -9923,7 +9982,8 @@ Current version indicated by LITEVER below.
 			method: 'POST',
 			headers: header,
 			body: JSON.stringify({
-				"filename": targetfile
+				"filename": targetfile,
+				"modelName": modelName
 			})
 		})
 		.then(x => x.json())
@@ -20431,8 +20491,13 @@ Current version indicated by LITEVER below.
 			<div class="menutext">
 				<b></b>Warning: This will terminate the current KoboldCpp instance and relaunch it with a new config.</b><br><br>
 				If an invalid configuration is selected, the new server may fail to relaunch!<br><br>
+				
 				<div>
+					<label for="adminconfigdropdown" id="adminconfigdropdownlabel"></label>
 					<select title="Select New Config" style="padding:4px;" class="form-control" id="adminconfigdropdown">
+					</select>
+					<label for="adminmodeldropdown" id="adminmodeldropdownlabel"></label>
+					<select title="Select New Model" style="padding:4px;" class="form-control" id="adminmodeldropdown">
 					</select>
 				</div>
 				<br>

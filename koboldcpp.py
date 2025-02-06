@@ -54,7 +54,6 @@ lastgeneratedcomfyimg = b''
 fullsdmodelpath = ""  #if empty, it's not initialized
 mmprojpath = "" #if empty, it's not initialized
 password = "" #if empty, no auth key required
-controlPassword = ""
 fullwhispermodelpath = "" #if empty, it's not initialized
 ttsmodelpath = "" #if empty, not initialized
 maxctx = 4096
@@ -614,7 +613,6 @@ def exit_with_error(code, message, title="Error"):
     else:
         print(message, flush=True)
     time.sleep(2)
-    interProcessSend(["kill", code])
     sys.exit(code)
 
 def utfprint(str, importance = 2): #0 = only debugmode, 1 = except quiet, 2 = always print
@@ -2475,7 +2473,7 @@ Enter Prompt:<br>
             opts = []
             if args.admin and args.admintextmodelsdir and os.path.exists(args.admintextmodelsdir) and self.check_header_password(args.adminpassword):
                 dirpath = os.path.abspath(args.admintextmodelsdir)
-                opts = [f for f in os.listdir(dirpath) if f.endswith(".kcpps") and os.path.isfile(os.path.join(dirpath, f))]
+                opts = [f for f in os.listdir(dirpath) if f.endswith(".gguf") and os.path.isfile(os.path.join(dirpath, f))]
             response_body = (json.dumps(opts).encode())
         elif self.path=="/api/data/list":
             saveName = self.path[self.path.rindex("/") + 1:]
@@ -2632,10 +2630,10 @@ Enter Prompt:<br>
                 return
             else:
                 content_type = 'text/plain'
-                if modelFilename is None:
+                if global_memory["currentModel"] is None:
                     response_body = ("").encode()
                 else:
-                    response_body = (str(os.path.basename(args.modelOverride[0]))).encode()
+                    response_body = (str(os.path.basename(global_memory["currentModel"]))).encode()
             
         elif self.path=="/api/admin/current_config":
             if not args.admin:
@@ -2644,10 +2642,10 @@ Enter Prompt:<br>
                 return
             else:
                 content_type = 'text/plain'
-                if args.config is None:
+                if global_memory["currentConfig"] is None:
                     response_body = ("").encode()
                 else:
-                    response_body = (str(os.path.basename(args.config[0]))).encode()
+                    response_body = (str(os.path.basename(global_memory["currentConfig"]))).encode()
         elif self.path.endswith(('/api')) or self.path.endswith(('/api/v1')):
             self.path = "/api"
             self.send_response(302)
@@ -2949,8 +2947,7 @@ Enter Prompt:<br>
                             targetfilepath = os.path.join(dirpath, targetModel)
                             opts = [f for f in os.listdir(dirpath) if f.endswith(".gguf") and os.path.isfile(os.path.join(dirpath, f))]
                             if targetModel in opts and os.path.exists(targetfilepath):
-                                targetModel
-                                global_memory["restart_model"] = targetfile
+                                global_memory["restart_model"] = targetModel
                                 print(f"Admin: Received request to reload config to {targetfile} and {targetModel}")
 
                         if "restart_model" not in global_memory or global_memory["restart_target"] == "":   
@@ -3238,18 +3235,15 @@ def RunServerMultiThreaded(addr, port, server_handler):
                 except (KeyboardInterrupt,SystemExit):
                     exitcounter = 999
                     self.httpd.server_close()
-                    interProcessSend(["kill", 0])
                     sys.exit(0)
                 finally:
                     exitcounter = 999
                     self.httpd.server_close()
-                    interProcessSend(["kill", 0])
                     os._exit(0)
         def stop(self):
             global exitcounter
             exitcounter = 999
             self.httpd.server_close()
-            interProcessSend(["kill", 0])
 
     threadArr = []
     for i in range(numThreads):
@@ -3262,7 +3256,6 @@ def RunServerMultiThreaded(addr, port, server_handler):
             exitcounter = 999
             for i in range(numThreads):
                 threadArr[i].stop()
-            interProcessSend(["kill", 0])
             sys.exit(0)
 
 # note: customtkinter-5.2.0
@@ -4560,14 +4553,12 @@ def show_gui():
     except (KeyboardInterrupt,SystemExit):
         exitcounter = 999
         print("Exiting by user request.")
-        interProcessSend(["kill", 0])
         sys.exit(0)
 
 
     if nextstate==0:
         exitcounter = 999
         print("Exiting by user request.")
-        interProcessSend(["kill", 0])
         sys.exit(0)
     else:
         # processing vars
@@ -4585,7 +4576,6 @@ def show_gui():
             else:
                 print("No text or image model file was selected. Cannot continue.", flush=True)
             time.sleep(2)
-            interProcessSend(["kill", 2])
             sys.exit(2)
 
 def show_gui_msgbox(title,message):
@@ -4805,7 +4795,6 @@ def run_horde_worker(args, api_key, worker_name):
         print_with_time("Horde Worker Shutdown - Server Closing.")
     exitcounter = 999
     time.sleep(3)
-    interProcessSend(["kill", 2])
     sys.exit(2)
 
 def convert_outdated_args(args):
@@ -5211,12 +5200,14 @@ def main(launch_args,start_server=True):
     # manager command queue
     multiprocessing.freeze_support()
     with multiprocessing.Manager() as mp_manager:
-        global_memory = mp_manager.dict({"tunnel_url": "", "restart_target": "", "restart_model": ""})
+        global_memory = mp_manager.dict({"tunnel_url": "", "restart_target": "", "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None})
 
         if start_server and args.remotetunnel:
             setuptunnel(global_memory, True if args.sdmodel else False)
 
         # invoke the main koboldcpp process
+        
+        global_memory["currentConfig"] = args.config[0] if "config" in args else None
         kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "start_server": start_server, "g_memory": global_memory})
         kcpp_instance.daemon = True
         kcpp_instance.start()
@@ -5247,13 +5238,15 @@ def main(launch_args,start_server=True):
                             print("Restarting KoboldCpp...")
                             reload_new_config(targetfilepath)
                             
-                            args.modelOverride = None
-                            if (args.admin and args.admintextmodelsdir):
+                            args.currentConfig = targetfilepath
+                            global_memory["currentConfig"] = targetfilepath
+                            global_memory["modelOverride"] = None
+                            if (args.admin and args.admintextmodelsdir and restart_model != ""):
                                 dirpath = os.path.abspath(args.admintextmodelsdir)
                                 modelFilepath = os.path.join(dirpath, restart_model)
                                 if os.path.exists(modelFilepath):
                                     print(f"Setting model to {restart_model}")
-                                    args.modelOverride = modelFilepath
+                                    global_memory["modelOverride"] = modelFilepath
 
                             kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "start_server": start_server, "g_memory": global_memory})
                             kcpp_instance.daemon = True
@@ -5274,8 +5267,10 @@ def kcpp_main_process(launch_args, start_server=True, g_memory=None):
     global_memory = g_memory
     start_time = time.time()
 
-    if "modelOverride" in args and args.modelOverride is not None:
-        args.model_param = args.modelOverride[0]
+    if global_memory["modelOverride"] is not None:
+        args.model_param = global_memory["modelOverride"]
+    
+    global_memory["currentModel"] = None if args.nomodel else args.model_param
 
     #try to read story if provided
     if args.preloadstory:
@@ -5491,9 +5486,6 @@ def kcpp_main_process(launch_args, start_server=True, g_memory=None):
     if args.password and args.password!="":
         password = args.password.strip()
 
-    if args.controlPassword and args.controlPassword!="":
-        controlPassword = args.controlPassword.strip()
-
     #handle loading text model
     if args.model_param:
         if not os.path.exists(args.model_param):
@@ -5697,14 +5689,6 @@ def kcpp_main_process(launch_args, start_server=True, g_memory=None):
                 print("Embedded SDUI loaded.")
     except Exception:
         print("Could not find Embedded SDUI.")
-
-    try:
-        basepath = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
-        with open(os.path.join(basepath, "kcpp_control.html"), mode='rb') as f:
-            embedded_kcpp_control = f.read()
-            print("Embedded control API loaded.")
-    except Exception:
-        print("Could not find Embedded KoboldCpp control API.")
 
     # print enabled modules
     caps = get_capabilities()
