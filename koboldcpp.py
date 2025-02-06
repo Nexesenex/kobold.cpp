@@ -3003,7 +3003,7 @@ Enter Prompt:<br>
                 tempbody = json.loads(body)
                 configSelected = tempbody.get('config', "")
                 modelSelected = tempbody.get('model', "")
-                if configSelected != "" and configSelected in customConfigs and modelSelected in customModels:
+                if (configSelected != "" and configSelected in customConfigs) and (modelSelected != "" and customModels is not None and modelSelected in customModels):
                     resp = "Switch confirmed".encode()
                     self.send_response(200)
                     self.send_header('content-length', str(len(resp)))
@@ -5174,8 +5174,7 @@ def main(launch_args,start_server=True):
         customConfigs = args.customConfigs
     if ('config' in args):
         config = args.config
-    if ('customModels' in args):
-        customModels = args.customModels
+    customModels = args.customModels if ('customModels' in args) else None
 
     if (args.version) and len(sys.argv) <= 2:
         print(f"{KcppVersion}") # just print version and exit
