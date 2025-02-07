@@ -4099,8 +4099,8 @@ def show_gui():
     makecheckbox(admin_tab, "Enable Model Administration", admin_var, 1, 0,tooltiptxt="Enable a admin server, allowing you to remotely relaunch and swap models and configs.")
     makelabelentry(admin_tab, "Admin Password:" , admin_password_var, 3, 150,padx=120,singleline=True,tooltip="Require a password to access admin functions. You are strongly advised to use one for publically accessible instances!")
     makefileentry(admin_tab, "Config Directory:", "Select directory containing .kcpps files to relaunch from", admin_dir_var, 5, width=280, is_dir=True, tooltiptxt="Specify a directory to look for .kcpps configs in, which can be used to swap models.")
-    makefileentry(admin_tab, "Model Directory:", "Select directory containing .gguf text model files to allow overriding configs with", admin_text_model_dir_var, 5, width=280, is_dir=True, tooltiptxt="Specify a directory to look for .gguf text model files in, which can be used to swap models within a config.")
-    makefileentry(admin_tab, "Data Directory:", "Select directory which will be used to store user data if desired", admin_data_dir_var, 5, width=280, is_dir=True, tooltiptxt="Specify a directory to store user data in.")
+    makefileentry(admin_tab, "Model Directory:", "Select directory containing .gguf text model files to allow overriding configs with", admin_text_model_dir_var, 6, width=280, is_dir=True, tooltiptxt="Specify a directory to look for .gguf text model files in, which can be used to swap models within a config.")
+    makefileentry(admin_tab, "Data Directory:", "Select directory which will be used to store user data if desired", admin_data_dir_var, 7, width=280, is_dir=True, tooltiptxt="Specify a directory to store user data in.")
 
     def kcpp_export_template():
         nonlocal kcpp_exporting_template

@@ -9942,10 +9942,10 @@ Current version indicated by LITEVER below.
 			})
 			.then(x => x.text())
 			.then(value => {
-				adminmodeldropdownlabel.innerText = `Current model override: ${value}`
+				adminmodeldropdownlabel.innerText = `Current model: ${value}`
 			}).catch((error) => {
 				console.log("Error: " + error);
-				adminmodeldropdownlabel.innerText = `Current model override: N/A`
+				adminmodeldropdownlabel.innerText = `Current model: N/A`
 			}));
 
 			return Promise.all(tasks)
