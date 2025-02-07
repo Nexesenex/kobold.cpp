@@ -47,6 +47,13 @@ logit_bias_max = 512
 dry_seq_break_max = 128
 
 # global vars
+KcppVersion = "1.83"
+showdebug = True
+guimode = False
+kcpp_instance = None #global running instance
+global_memory = None
+using_gui_launcher = False
+
 handle = None
 friendlymodelname = "inactive"
 friendlysdmodelname = "inactive"
@@ -62,9 +69,6 @@ maxhordelen = 400
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.83"
-showdebug = True
-guimode = False
 showsamplerwarning = True
 showmaxctxwarning = True
 showusedmemwarning = True
@@ -100,10 +104,7 @@ start_time = time.time()
 last_req_time = time.time()
 last_non_horde_req_time = time.time()
 currfinishreason = "null"
-using_gui_launcher = False
-using_outdated_flags = False
-kcpp_instance = None #global running instance
-global_memory = None
+
 
 saved_stdout = None
 saved_stderr = None
@@ -4819,11 +4820,7 @@ def convert_outdated_args(args):
     dict = args
     if isinstance(args, argparse.Namespace):
         dict = vars(args)
-
-    global using_outdated_flags
-    using_outdated_flags = False
     if "sdconfig" in dict and dict["sdconfig"] and len(dict["sdconfig"])>0:
-        using_outdated_flags = True
         dict["sdmodel"] = dict["sdconfig"][0]
         if dict["sdconfig"] and len(dict["sdconfig"]) > 1:
             dict["sdclamped"] = 512
@@ -4832,7 +4829,6 @@ def convert_outdated_args(args):
         if dict["sdconfig"] and len(dict["sdconfig"]) > 3:
             dict["sdquant"] = (True if dict["sdconfig"][3]=="quant" else False)
     if "hordeconfig" in dict and dict["hordeconfig"] and dict["hordeconfig"][0]!="":
-        using_outdated_flags = True
         dict["hordemodelname"] = dict["hordeconfig"][0]
         if len(dict["hordeconfig"]) > 1:
             dict["hordegenlen"] = int(dict["hordeconfig"][1])
@@ -4843,32 +4839,11 @@ def convert_outdated_args(args):
             dict["hordeworkername"] = dict["hordeconfig"][4]
     if "noblas" in dict and dict["noblas"]:
         dict["usecpu"] = True
-
     if "failsafe" in dict and dict["failsafe"]: #failsafe implies noavx2
         dict["noavx2"] = True
-
     if ("model_param" not in dict or not dict["model_param"]) and ("model" in dict and dict["model"]):
         dict["model_param"] = dict["model"]
-
-    check_deprecation_warning()
     return args
-
-def check_deprecation_warning():
-    # slightly naggy warning to encourage people to switch to new flags
-    # if you want you can remove this at your own risk,
-    # but i am not going to troubleshoot or provide support for deprecated flags.
-    global using_outdated_flags
-    if using_outdated_flags:
-        print("\n=== !!! IMPORTANT WARNING !!! ===")
-        print("You are using one or more OUTDATED config files or launch flags!")
-        print("The flags --hordeconfig and --sdconfig have been DEPRECATED, and MAY be REMOVED in future!")
-        print("They will still work for now, but you SHOULD switch to the updated flags instead, to avoid future issues!")
-        print("New flags are: --hordemodelname --hordeworkername --hordekey --hordemaxctx --hordegenlen --sdmodel --sdthreads --sdquant --sdclamped")
-        print("For more information on these flags, please check --help")
-        print(">>> If you are using the GUI launcher, simply re-saving your config again will get rid of this warning.")
-        print("=== !!! IMPORTANT WARNING !!! ===\n")
-
-
 
 def setuptunnel(global_memory, has_sd):
     # This script will help setup a cloudflared tunnel for accessing KoboldCpp over the internet
@@ -5025,8 +5000,12 @@ def reload_new_config(filename): #for changing config after launch
         config = json.load(f)
         args.istemplate = False
         for key, value in config.items(): #do not overwrite certain values
-            if key not in ["remotetunnel","port","host","port_param","admin","adminpassword","admindir","admintextmodelsdir","admindatadir","ssl","nocertify","benchmark","prompt"]:
+            if key not in ["remotetunnel","showgui","port","host","port_param","admin","adminpassword","admindir","admintextmodelsdir","admindatadir","ssl","nocertify","benchmark","prompt","config"]:
                 setattr(args, key, value)
+        setattr(args,"showgui",False)
+        setattr(args,"benchmark",False)
+        setattr(args,"prompt","")
+        setattr(args,"config",None)
 
 def load_config_cli(filename):
     print("Loading .kcpps configuration file...")
@@ -5137,7 +5116,7 @@ def analyze_gguf_model_wrapper(filename=""):
     dumpthread = threading.Thread(target=analyze_gguf_model, args=(args,filename))
     dumpthread.start()
 
-def main(launch_args,start_server=True):
+def main(launch_args):
     global args, showdebug, kcpp_instance, exitcounter
     args = launch_args #note: these are NOT shared with the child processes!
 
@@ -5150,15 +5129,13 @@ def main(launch_args,start_server=True):
         exit_with_error(1, "Error: Using --quantkv requires --flashattention")
 
     args = convert_outdated_args(args)
+    if not ((args.model_param or args.model) and args.prompt and not args.benchmark and not (args.debugmode >= 1)):
+        print(f"***\nWelcome to KoboldCpp - Version {KcppVersion}")
+    if args.debugmode != 1:
+        showdebug = False #not shared with child process!
 
-    if (args.model_param or args.model) and args.prompt and not args.benchmark and not (args.debugmode >= 1):
-        suppress_stdout()
-
-    print(f"***\nWelcome to KoboldCpp - Version {KcppVersion}") # just update version manually
-
-    #perform some basic cleanup of old temporary directories
     try:
-        delete_old_pyinstaller()
+        delete_old_pyinstaller()  #perform some basic cleanup of old temporary directories
     except Exception as e:
         print(f"Error cleaning up orphaned pyinstaller dirs: {e}")
 
@@ -5170,10 +5147,7 @@ def main(launch_args,start_server=True):
         analyze_gguf_model_wrapper(args.analyze)
         return
 
-    if args.debugmode != 1:
-        showdebug = False #not shared with child process!
-
-    if args.config and len(args.config)==1: #handle config loading for launch
+    if args.config and len(args.config)==1: #handle initial config loading for launch
         cfgname = args.config[0]
         if isinstance(cfgname, str):
             dlfile = download_model_from_url(cfgname,[".kcpps",".kcppt"])
@@ -5195,38 +5169,16 @@ def main(launch_args,start_server=True):
             args.model_param = dlfile
         load_config_cli(args.model_param)
 
-    # lastly, show the GUI launcher if a model was not provided
-    if args.showgui or (not args.model_param and not args.sdmodel and not args.whispermodel and not args.ttsmodel and not args.nomodel):
-        #give them a chance to pick a file
-        print("For command line arguments, please refer to --help")
-        print("***")
-        try:
-            show_gui()
-        except Exception as ex:
-            exitcounter = 999
-            ermsg = "Reason: " + str(ex) + "\nFile selection GUI unsupported.\ncustomtkinter python module required!\n\nYou must use the command line instead, e.g. python ./koboldcpp.py --help"
-            show_gui_msgbox("Warning, GUI failed to start",ermsg)
-            if args.skiplauncher:
-                print("Note: In order to use --skiplauncher, you need to specify a model with --model")
-            time.sleep(3)
-            interProcessSend(["kill", 2])
-            sys.exit(2)
-
-    if args.model_param and (args.benchmark or args.prompt):
-        start_server = False
-
     # manager command queue
-    multiprocessing.freeze_support()
     with multiprocessing.Manager() as mp_manager:
-        global_memory = mp_manager.dict({"tunnel_url": "", "restart_target": "", "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None})
+        global_memory = mp_manager.dict({"tunnel_url": "", "restart_target": "", "input_to_exit":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None})
 
-        if start_server and args.remotetunnel:
+        if args.remotetunnel and not args.prompt and not args.benchmark:
             setuptunnel(global_memory, True if args.sdmodel else False)
 
         # invoke the main koboldcpp process
-        
         global_memory["currentConfig"] = args.config[0] if "config" in args and args.config is not None and len(args.config) > 0 else None
-        kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "start_server": start_server, "g_memory": global_memory})
+        kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "g_memory": global_memory})
         kcpp_instance.daemon = True
         kcpp_instance.start()
 
@@ -5266,7 +5218,7 @@ def main(launch_args,start_server=True):
                                     print(f"Setting model to {restart_model}")
                                     global_memory["modelOverride"] = modelFilepath
 
-                            kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "start_server": start_server, "g_memory": global_memory})
+                            kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "g_memory": global_memory})
                             kcpp_instance.daemon = True
                             kcpp_instance.start()
                             global_memory["restart_target"] = ""
@@ -5276,19 +5228,46 @@ def main(launch_args,start_server=True):
                     time.sleep(0.2)
             except (KeyboardInterrupt,SystemExit):
                 break
+        if global_memory["input_to_exit"]:
+            print("===")
+            print("Press ENTER key to exit.", flush=True)
+            input()
 
-def kcpp_main_process(launch_args, start_server=True, g_memory=None):
+def kcpp_main_process(launch_args, g_memory=None):
     global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui, start_time, exitcounter, global_memory
     global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath
+
+    start_server = True
 
     args = launch_args
     global_memory = g_memory
     start_time = time.time()
 
+    if (args.model_param or args.model) and args.prompt and not args.benchmark and not (args.debugmode >= 1):
+        suppress_stdout()
+
     if global_memory["modelOverride"] is not None:
         args.model_param = global_memory["modelOverride"]
-    
     global_memory["currentModel"] = None if args.nomodel else args.model_param
+
+    # show the GUI launcher if a model was not provided
+    if args.showgui or (not args.model_param and not args.sdmodel and not args.whispermodel and not args.ttsmodel and not args.nomodel):
+        #give them a chance to pick a file
+        print("For command line arguments, please refer to --help")
+        print("***")
+        try:
+            show_gui()
+        except Exception as ex:
+            exitcounter = 999
+            ermsg = "Reason: " + str(ex) + "\nFile selection GUI unsupported.\ncustomtkinter python module required!\n\nYou must use the command line instead, e.g. python ./koboldcpp.py --help"
+            show_gui_msgbox("Warning, GUI failed to start",ermsg)
+            if args.skiplauncher:
+                print("Note: In order to use --skiplauncher, you need to specify a model with --model")
+            time.sleep(3)
+            sys.exit(2)
+
+    if args.model_param and (args.benchmark or args.prompt):
+        start_server = False
 
     #try to read story if provided
     if args.preloadstory:
@@ -5866,11 +5845,9 @@ def kcpp_main_process(launch_args, start_server=True, g_memory=None):
                     print(f"Error writing benchmark to file: {e}")
             global using_gui_launcher
             if using_gui_launcher and not save_to_file:
-                print("===")
-                print("Press ENTER key to exit.", flush=True)
-                input()
+                global_memory["input_to_exit"] = True
+                time.sleep(1)
 
-    check_deprecation_warning()
     if start_server:
         if args.remotetunnel:
             if remote_url:
@@ -6016,4 +5993,4 @@ if __name__ == '__main__':
     compatgroup.add_argument("--noblas", help=argparse.SUPPRESS, action='store_true')
     compatgroup3.add_argument("--nommap", help=argparse.SUPPRESS, action='store_true')
 
-    main(parser.parse_args(),start_server=True)
+    main(parser.parse_args())
