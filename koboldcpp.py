@@ -189,6 +189,8 @@ class load_model_inputs(ctypes.Structure):
                 ("tensor_split", ctypes.c_float * tensor_split_max),
                 ("quant_k", ctypes.c_int),
                 ("quant_v", ctypes.c_int),
+                ("draft_quant_k", ctypes.c_int),
+                ("draft_quant_v", ctypes.c_int),
                 ("quiet", ctypes.c_bool),
                 ("debugmode", ctypes.c_int)]
 
@@ -1693,24 +1695,47 @@ def load_model(model_filename):
     # inputs.use_contextshift = (0 if args.noshift else 1)
     inputs.use_fastforward = (0 if args.nofastforward else 1)
     inputs.flash_attention = args.flashattention
+
     if args.quantkv==0:
         inputs.quant_k = inputs.quant_v = 0
     elif args.quantkv>0 and args.quantkv<15:
         inputs.quant_k = inputs.quant_v = args.quantkv
         inputs.flash_attention = True
-    elif args.quantkv>2 and args.quantkv<5:
+    elif args.quantkv>2 and args.quantkv<8:
         inputs.use_contextshift = 0
     elif args.quantkv>7 and args.quantkv<15:
         inputs.use_contextshift = 0
     elif args.quantkv==15:
         inputs.quant_k = inputs.quant_v = 15
-        # inputs.flash_attention = False
+        inputs.flash_attention = False
         # inputs.use_contextshift = 0
     elif args.quantkv>15 and args.quantkv<23:
         inputs.quant_k = inputs.quant_v = args.quantkv
         inputs.flash_attention = False
     else:
         inputs.quant_k = inputs.quant_v = 0
+
+    if args.draft_quantkv==-1:
+        inputs.draft_quant_k = inputs.draft_quant_v = args.quantkv
+    elif args.draft_quantkv==0:
+        inputs.draft_quant_k = inputs.draft_quant_v = 0
+    elif args.draft_quantkv>0 and args.draft_quantkv<15:
+        inputs.draft_quant_k = inputs.draft_quant_v = args.draft_quantkv
+        inputs.flash_attention = True
+    elif args.draft_quantkv>2 and args.draft_quantkv<8:
+        inputs.use_contextshift = 0
+    elif args.draft_quantkv>7 and args.draft_quantkv<15:
+        inputs.use_contextshift = 0
+    elif args.draft_quantkv==15:
+        inputs.draft_quant_k = inputs.draft_quant_v = 15
+        inputs.flash_attention = False
+        # inputs.use_contextshift = 0
+    elif args.draft_quantkv>15 and args.draft_quantkv<23:
+        inputs.draft_quant_k = inputs.draft_quant_v = args.draft_quantkv
+        inputs.flash_attention = False
+    else:
+        inputs.draft_quant_k == args.quantkv
+        inputs.draft_quant_v == args.quantkv
 
     inputs.blasbatchsize = args.blasbatchsize
     if args.blasubatchsize < 2:
@@ -3921,6 +3946,32 @@ def show_gui():
     neglayeroffset_values = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
     neglayeroffset_text = ["No negative layer offset", "Remove 1 layer", "Remove 2 layers", "Remove 3 layers", "Remove 4 layers", "Remove 5 layers", "Remove 6 layers", "Remove 7 layers", "Remove 8 layers", "Remove 9 layers", "Remove 10 layers"]
 
+    draft_quantkv_values = ["-1", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22"]
+    draft_quantkv_text = ["Draft -1 - same as main model Quant KV",
+    "Draft 0 - F16 (16BPW) - FA or not",
+    "Draft 1 - q8_0 - (8.5BPW) - FA",
+    "Draft 2 - q4_0 - (4.5BPW) - FA - possibly faulty on some models",
+    "Draft 3* - K F16 - V q8_0 (12.25BPW) - FA",
+    "Draft 4* - K F16 - V q6_0 (11.25BPW) - FA. Doesn't work on Gemma 2 FA.",   
+    "Draft 5 - K q8_0 - V q6_0 (7.5BPW) - FA. Doesn't work on Gemma 2 FA.",
+    "Draft 6* - K q8_0 - V q5_0 (7BPW) - FA",
+    "Draft 7 - K q8_0 - V iq4_nl (6.5BPW) - FA. Doesn't work on Gemma 2 FA.",
+    "Draft 8* - K q6_0 - V q6_0 (6.5BPW) - FA. Doesn't work on Gemma 2 FA.",
+    "Draft 9 - K q6_0 - V q5_0 (6BPW) - FA, best game in FA town. Doesn't work on Gemma 2 FA.",
+    "Draft 10* - K q6_0 - V iq4_nl (5.5BPW) - FA - faulty on some models (Gemma 2 FA. Qwen 2.5 1.5b?)",
+    "Draft 11 - K q5_1 - V q5_0 (5.75BPW) - FA - possibly faulty on some models (Qwen 2.5 1.5b?)",
+    "Draft 12* - K q5_1 - V iq4_nl (5.25BPW) - FA",
+    "Draft 13 - K q5_0 - V iq4_nl (5BPW) - FA - possibly faulty on some models (Qwen 2.5 1.5b?)",
+    "Draft 14 - K iq4_nl - V iq4_nl (4.5BPW) - FA",
+    "Draft 15 - BF16 (16BPW) - no FA, experimental for Cuda, not tested on other backends.",
+    "Draft 16 - K q8_0 - V F16 (12.25BPW) - NO FA, slower",
+    "Draft 17 - K q6_0 - V F16 (11.25BPW) - NO FA, slower, best game in non-FA town.",
+    "Draft 18 - K q5_1 - V F16 (11BPW) - NO FA, slower - possibly faulty on some models (Qwen 2.5 1.5b?)",
+    "Draft 19 - K q5_0 - V F16 (11.75BPW) - NO FA, slower - possibly faulty on some models (Qwen 2.5 1.5b?)",
+    "Draft 20 - K q4_1 - V F16 (10.5BPW) - NO FA, slower - possibly faulty on some models (Qwen 2.5 1.5b?)",
+    "Draft 21 - K q4-0 - V F16 (10.25BPW) - NO FA, slower - possibly faulty on some models (Qwen 2.5 1.5b?)",
+    "Draft 22 - K iq4_nl - V F16 (10.25BPW) - NO FA, slower"]
+
     if not any(runopts):
         exitcounter = 999
         exit_with_error(2,"KoboldCPP/Croco.Cpp couldn't locate any backends to use (i.e Default, Vulkan, CLBlast, CuBLAS).\n\nTo use the program, please run the 'make' command from the directory.","No Backends Available!")
@@ -3943,6 +3994,7 @@ def show_gui():
     lowvram_var = ctk.IntVar()
     mmq_var = ctk.IntVar(value=1)
     quantkv_var = ctk.IntVar(value=0)
+    draft_quantkv_var = ctk.IntVar(value=-1)
     blas_threads_var = ctk.StringVar()
     blas_size_var = ctk.IntVar()
 
@@ -4492,7 +4544,7 @@ def show_gui():
     makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28,  tooltiptxt="Enable flash attention for GGUF models.")
     # noqkvlabel = makelabel(tokens_tab,"Requirments Not Met",31,0,"Requires FlashAttention ENABLED and ContextShift DISABLED.")
     # noqkvlabel.configure(text_color="#ff5555")
-    qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 22, 30, set=0,tooltip="Enable quantization of KV cache (KVQ). Mode 0 (F16) is default. Modes 1-12 requires FlashAttention and disables ContextShift.\nModes 15-20 work without FA, for incompatible models. 0,13,14 can work with or without.")
+    qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 23, 30, set=0,tooltip="Enable quantization of KV cache (KVQ). Mode 0 (F16) is default. Modes 1-12 requires FlashAttention and disables ContextShift.\nModes 15-20 work without FA, for incompatible models. 0,13,14 can work with or without.")
 
     # load model
     makefileentry(tokens_tab, "Model:", "Select GGML or GGML Model File", model_var, 50, 576, onchoosefile=on_picked_model_file, filetypes=[("GGML bin or GGUF", ("*.bin","*.gguf"))] ,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
@@ -4517,6 +4569,7 @@ def show_gui():
     makelabelentry(model_tab, "Draft Amount: ", draftamount_var, 13, 50,padx=100,singleline=True,tooltip="How many tokens to draft per chunk before verifying results")
     makelabelentry(model_tab, "Splits: ", draftgpusplit_str_vars, 13, 50,padx=210,singleline=True,tooltip="Distribution of draft model layers. Leave blank to follow main model's gpu split. Only works if multi-gpu (All) selected in main model.", labelpadx=160)
     makelabelentry(model_tab, "Layers: ", draftgpulayers_var, 13, 50,padx=320,singleline=True,tooltip="How many layers to GPU offload for the draft model", labelpadx=270)
+    makeslider(model_tab, "Quantize Draft KV Cache:", draft_quantkv_text, draft_quantkv_var, 0, 23, 30, set=-1,tooltip="Enable quantization of Draft KV cache (D_KVQ). Mode 0 (F16) is default. Modes 1-12 requires FlashAttention and disables ContextShift.\nModes 15-20 work without FA, for incompatible models. 0,13,14 can work with or without.")
     makefileentry(model_tab, "Preloaded Story:", "Select Preloaded Story File", preloadstory_var, 15,width=280,singlerow=True,tooltiptxt="Select an optional KoboldAI JSON savefile \nto be served on launch to any client.")
     makefileentry(model_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 24, width=250, filetypes=[("JSON Adapter", "*.json")], tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
     def pickpremadetemplate():
@@ -4727,7 +4780,8 @@ def show_gui():
         args.quiet = quietmode.get()==1
         args.nocertify = nocertifymode.get()==1
         args.nomodel = nomodel.get()==1
-        # args.quantkv = int(quantkv_values[int(quantkv_var.get())])
+        args.quantkv = int(quantkv_values[int(quantkv_var.get())])
+        args.draft_quantkv = int(draft_quantkv_values[int(draft_quantkv_var.get())])
 
         args.poslayeroffset = int(poslayeroffset_values[int(poslayeroffset_var.get())])
         args.neglayeroffset = int(neglayeroffset_values[int(neglayeroffset_var.get())])
@@ -4737,7 +4791,8 @@ def show_gui():
         # else:
             # args.quantkv = 0
 
-        args.quantkv = quantkv_var.get() 
+        # args.quantkv = quantkv_var.get()
+        # args.draft_quantkv = draft_quantkv_var.get()
 
         gpuchoiceidx = 0
         args.usecpu = False
@@ -4920,6 +4975,8 @@ def show_gui():
         nomodel.set(1 if "nomodel" in dict and dict["nomodel"] else 0)
         if "quantkv" in dict:
             quantkv_var.set(dict["quantkv"])
+        if "draft_quantkv" in dict:
+            draft_quantkv_var.set(dict["draft_quantkv"])
         if "useclblast" in dict and dict["useclblast"]:
             if "noavx2" in dict and dict["noavx2"]:
                 if clblast_noavx2_option is not None:
@@ -6634,7 +6691,10 @@ if __name__ == '__main__':
     advparser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
     advparser.add_argument("--chatcompletionsadapter", metavar=('[filename]'), help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="AutoGuess")
     advparser.add_argument("--flashattention", help="Enables flash attention.", action='store_true')
-    advparser.add_argument("--quantkv", help="Sets the KV cache data quantization (KVQ) type to save VRAM in NVidia Video Cards, 0 - F16 (16BPW) - FA or not, 1 - q8_0 - (8.5BPW) - FA, 2 - q4_0 - (4.5BPW) - FA, 3 - K F16 - V q8_0 (12.25BPW) - FA, 4 - K F16 - V q6_0 (11.25BPW) - FA, 5 - K q8_0 - V q6_0 (7.5BPW) - FA, 6 - K q8_0 - V q5_0 (7BPW), slower, best FA game in town, 7 - K q8_0 - V iq4_nl (6.5BPW) - FA, 8 - K q6_0 - V q6_0 (6.5BPW) - FA, 9 - K q6_0 - V q5_0 (6BPW) - FA, 10 - K q6_0 - V iq4_nl (5.5BPW) - FA, 11 - K q5_1 - V q5_0 (5.75BPW) - FA, 12 - K q5_1 - V iq4_nl (5.25BPW) - FA, 13 - K q5_0 - V iq4_nl (5BPW) - FA, 14 - K iq4_nl - V iq4_nl (4.5BPW) - FA, 15 - BF16 (16BPW) - no FA, slower, 16 - K q8_0 - V F16 (12.25BPW) - NO FA, slower, 17 - K q6_0 - V F16 (11.25BPW) - NO FA, slower, best non-FA game in town, 18 - K q5_1 - V F16 (11BPW) - NO FA, slower, 19 - K q5_0 - V F16 (11.75BPW) - NO FA, slower, 20 - K q4_1 - V F16 (10.5BPW) - NO FA, slower, 21 - K q4-0 - V F16 (10.25BPW) - NO FA, slower, 22 - K iq4_nl - V F16 (10.25BPW) - NO FA, slower.", metavar=('[quantization level 0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22]'), type=check_range(int,0,22), default=0)
+    advparser.add_argument("--quantkv", help="Sets the KV cache data quantization (KVQ) type to save VRAM in NVidia Video Cards: 0 - F16 (16BPW) - FA or not, 1 - q8_0 - (8.5BPW) - FA, 2 - q4_0 - (4.5BPW) - FA, 3 - K F16 - V q8_0 (12.25BPW) - FA, 4 - K F16 - V q6_0 (11.25BPW) - FA, 5 - K q8_0 - V q6_0 (7.5BPW) - FA, 6 - K q8_0 - V q5_0 (7BPW), slower, best FA game in town, 7 - K q8_0 - V iq4_nl (6.5BPW) - FA, 8 - K q6_0 - V q6_0 (6.5BPW) - FA, 9 - K q6_0 - V q5_0 (6BPW) - FA, 10 - K q6_0 - V iq4_nl (5.5BPW) - FA, 11 - K q5_1 - V q5_0 (5.75BPW) - FA, 12 - K q5_1 - V iq4_nl (5.25BPW) - FA, 13 - K q5_0 - V iq4_nl (5BPW) - FA, 14 - K iq4_nl - V iq4_nl (4.5BPW) - FA, 15 - BF16 (16BPW) - no FA, slower, 16 - K q8_0 - V F16 (12.25BPW) - NO FA, slower, 17 - K q6_0 - V F16 (11.25BPW) - NO FA, slower, best non-FA game in town, 18 - K q5_1 - V F16 (11BPW) - NO FA, slower, 19 - K q5_0 - V F16 (11.75BPW) - NO FA, slower, 20 - K q4_1 - V F16 (10.5BPW) - NO FA, slower, 21 - K q4-0 - V F16 (10.25BPW) - NO FA, slower, 22 - K iq4_nl - V F16 (10.25BPW) - NO FA, slower.", metavar=('[quantization level 0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22]'), type=check_range(int,0,22), default=0)
+
+    advparser.add_argument("--draft_quantkv", help="Sets the KV cache data quantization (KVQ) type to save VRAM in NVidia Video Cards: -1 - same as main model Quant KV, 0 - F16 (16BPW) - FA or not, 1 - q8_0 - (8.5BPW) - FA, 2 - q4_0 - (4.5BPW) - FA, 3 - K F16 - V q8_0 (12.25BPW) - FA, 4 - K F16 - V q6_0 (11.25BPW) - FA, 5 - K q8_0 - V q6_0 (7.5BPW) - FA, 6 - K q8_0 - V q5_0 (7BPW), slower, best FA game in town, 7 - K q8_0 - V iq4_nl (6.5BPW) - FA, 8 - K q6_0 - V q6_0 (6.5BPW) - FA, 9 - K q6_0 - V q5_0 (6BPW) - FA, 10 - K q6_0 - V iq4_nl (5.5BPW) - FA, 11 - K q5_1 - V q5_0 (5.75BPW) - FA, 12 - K q5_1 - V iq4_nl (5.25BPW) - FA, 13 - K q5_0 - V iq4_nl (5BPW) - FA, 14 - K iq4_nl - V iq4_nl (4.5BPW) - FA, 15 - BF16 (16BPW) - no FA, slower, 16 - K q8_0 - V F16 (12.25BPW) - NO FA, slower, 17 - K q6_0 - V F16 (11.25BPW) - NO FA, slower, best non-FA game in town, 18 - K q5_1 - V F16 (11BPW) - NO FA, slower, 19 - K q5_0 - V F16 (11.75BPW) - NO FA, slower, 20 - K q4_1 - V F16 (10.5BPW) - NO FA, slower, 21 - K q4-0 - V F16 (10.25BPW) - NO FA, slower, 22 - K iq4_nl - V F16 (10.25BPW) - NO FA, slower.", metavar=('[draft quantization level 0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22/23]'), type=check_range(int,-1,22), default=-1)
+
     advparser.add_argument("--forceversion", help="If the model file format detection fails (e.g. rogue modified model) you can set this to override the detected format (enter desired version, e.g. 401 for GPTNeoX-Type2).",metavar=('[version]'), type=int, default=0)
     advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated. Not recommended.", action='store_true')
     advparser.add_argument("--unpack", help="Extracts the file contents of the KoboldCpp/Croco.Cpp binary into a target directory.", metavar=('destination'), type=str, default="")
