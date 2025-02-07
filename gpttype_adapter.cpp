@@ -2837,11 +2837,16 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             printf("\nNot Using MMQ\n");
         }
 
-        if(file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2 && !kcpp_data->flash_attn)
-        {
-            printf("CUBLAS: Warning, you are running Qwen2 without Flash Attention and may observe incoherent output.\n");
-        }
         #endif
+        if((file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2 || file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2VL) && !kcpp_data->flash_attn)
+        {
+            printf("Warning, you are running Qwen2 without Flash Attention. If you observe incoherent output, try enabling it.\n");
+        }
+        if(file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2VL)
+        {
+            printf("Qwen2VL detected! Mrope will be used, and context shift will be disabled!\n");
+            kcpp_data->use_contextshift = false;
+        }
         model_params.main_gpu = cu_parseinfo_maindevice;
 
         #if defined(GGML_USE_CUDA)
@@ -2865,7 +2870,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         }
         if(!ts_all_zero)
         {
-            printf("\nApplying Tensor Split...");
+            printf("\nApplying Tensor Split...\n");
             model_params.tensor_split = inputs.tensor_split;
         }
         #endif
@@ -2878,7 +2883,34 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             OldBPETokenizerMode = true;
         }
 
+        std::vector<llama_model_kv_override> kvos; //ensure it keeps in scope until model is created
+        if(inputs.moe_experts>0)
+        {
+            printf("\nOverriding number of experts to %d\n",inputs.moe_experts);
+            llama_model_kv_override kvo;
+            const char * moekey = "llama.expert_used_count";
+            std::strncpy(kvo.key, moekey, sizeof(kvo.key) - 1);
+            kvo.key[sizeof(kvo.key) - 1] = '\0'; // Ensure null termination
+            kvo.tag = LLAMA_KV_OVERRIDE_TYPE_INT;
+            kvo.val_i64 = inputs.moe_experts;
+            kvos.push_back(kvo);
+            model_params.kv_overrides = kvos.data();
+        }
+
+        if(inputs.norm_rms_eps>0)
+        {
+            printf("\nOverriding norm rms epsilon to %f\n",inputs.norm_rms_eps);
+            llama_model_kv_override kvo;
+            const char * rmskey = "llama.attention.layer_norm_rms_epsilon";
+            std::strncpy(kvo.key, rmskey, sizeof(kvo.key) - 1);
+            kvo.key[sizeof(kvo.key) - 1] = '\0'; // Ensure null termination
+            kvo.tag = LLAMA_KV_OVERRIDE_TYPE_FLOAT;
+            kvo.val_f64 = inputs.norm_rms_eps;
+            kvos.push_back(kvo);
+            model_params.kv_overrides = kvos.data();
+        }
         llama_model * llamamodel = llama_load_model_from_file(kcpp_data->model_filename.c_str(), model_params);
+
         if(overwriteRope)
         {
             llama_ctx_params.rope_freq_base = rope_freq_base;
@@ -2907,7 +2939,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         if(file_format_meta.model_architecture==GGUFArch::ARCH_RWKV)
         {
             printf("\nRWKV6 Overriding EOS and BOS IDs to 0\n");
-            llamamodel->vocab.set_eos_bos(0, 0);
+            llamamodel->vocab.set_eos_bos(0,0);
         }
 
         llama_ctx_params.flash_attn = kcpp_data->flash_attn;
@@ -2987,6 +3019,13 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         if(mmproj_filename != "" && file_format==FileFormat::GGUF_GENERIC)
         {
             printf("\nAttempting to apply Multimodal Projector: %s\n", mmproj_filename.c_str());
+            #if defined(GGML_USE_VULKAN) || defined(GGML_USE_METAL)
+            if(file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2VL)
+            {
+                set_clip_uses_gpu(false);
+                printf("Clip will use CPU for this model!\n");
+            }
+            #endif
             clp_ctx = clip_model_load(mmproj_filename.c_str(), /*verbosity=*/ 1);
             if(clp_ctx == nullptr) {
                 fprintf(stderr, "%s: error: failed to load mmproj model!\n", __func__);
@@ -3002,7 +3041,25 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         }
 
         const llama_vocab * tmpvocab = llama_model_get_vocab(llamamodel);
-        n_vocab                      = llama_vocab_n_tokens(tmpvocab);
+        n_vocab = llama_vocab_n_tokens(tmpvocab);
+
+        if(draftmodel_filename !="" && file_format==FileFormat::GGUF_GENERIC)
+        {
+            if(llama_model_is_recurrent(llamamodel))
+            {
+                printf("Error: Speculative decoding cannot be used with Recurrent models!\n");
+            }
+            else if(clp_ctx!=nullptr)
+            {
+                printf("Error: Speculative decoding cannot be used with multimodal vision projectors!\n");
+            }
+            else
+            {
+                printf("\nAttempting to load draft model for speculative decoding. It will be fully offloaded if possible. Vocab must match the main model.\n");
+                speculative_chunk_amt = inputs.draft_amount;
+                speculative_decoding_setup(draftmodel_filename, model_params, llama_ctx_params, n_vocab, inputs.draft_gpusplit, inputs.draft_gpulayers);
+            }
+        }
 
         //determine mem per token
         std::vector<int> tmp = {1, 2, 3, 4};
