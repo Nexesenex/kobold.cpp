@@ -2461,6 +2461,10 @@ Enter Prompt:<br>
             caps = get_capabilities()
             response_body = (json.dumps(caps).encode())
 
+        elif self.path=="/api/admin/health":
+            content_type = 'text/plain'
+            response_body = ("true").encode()
+
         elif self.path.endswith(('/api/admin/list_options')): #used by admin to get info about a kcpp instance
             opts = []
             if args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
@@ -2475,7 +2479,6 @@ Enter Prompt:<br>
                 opts = [f for f in os.listdir(dirpath) if f.endswith(".gguf") and os.path.isfile(os.path.join(dirpath, f))]
             response_body = (json.dumps(opts).encode())
         elif self.path=="/api/data/list":
-            saveName = self.path[self.path.rindex("/") + 1:]
             if not args.admin:
                 response_body = ("Data API disabled").encode()
             elif not self.check_header_password(args.adminpassword):

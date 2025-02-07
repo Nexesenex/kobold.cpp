@@ -9997,9 +9997,14 @@ Current version indicated by LITEVER below.
 		.then(values => {
 			let success = (values && values.success);
 			if (success) {
-				msgbox("KoboldCpp is now restarting!\n\nIt may take some time before the new instance is ready to use. Please wait a moment, then press OK to refresh the page.", "KoboldCpp Reload Started", false,false,()=>{
-					location.reload(true);
-				});
+				msgbox("KoboldCpp is now restarting!\n\nIt may take some time before the new instance is ready to use. A new popup will show once the new configuration has loaded.", "KoboldCpp Reload Started", false,false);
+				setTimeout(() => {
+					callbackAfterReload((reloadTime) => {
+						msgbox(`KoboldCpp has now restarted!\n\nConfig reload took ${reloadTime / 1000} seconds\n\nPress okay to reload the page with updated configuration details.`, "KoboldCpp Reload Completed", false, false, () => {
+							location.reload(true);
+						});
+					})
+				}, 3000) 
 			} else {
 				msgbox("The request to reload KoboldCpp with a new configuration failed!\n\nPlease check if the feature is enabled, the admin directory is set, and selected config and password are correct.", "KoboldCpp Reload Failed");
 			}
@@ -22380,5 +22385,16 @@ else
 			display_saveloadcontainer()
 		}
 	})
+
+	let callbackAfterReload = (callback) => {
+		let startTime = Date.now(), intervalId = setInterval(async () => {
+			if (await fetch("/api/admin/health").then(c => c.text()).catch(e => {/*Ignore error*/}) === "true") {
+				clearInterval(intervalId);
+				if (typeof callback === "function") {
+					callback(Date.now() - startTime)
+				}
+			} 
+		}, 1000);
+	}
 </script>
 </html>
