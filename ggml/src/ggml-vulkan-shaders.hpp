@@ -102,6 +102,9 @@ const uint64_t dequant_iq3_xxs_len = 16448;
 extern unsigned char dequant_iq4_nl_data[5988];
 const uint64_t dequant_iq4_nl_len = 5988;
 
+extern unsigned char dequant_iq4_xs_data[9892];
+const uint64_t dequant_iq4_xs_len = 9892;
+
 extern unsigned char dequant_q2_k_data[3960];
 const uint64_t dequant_q2_k_len = 3960;
 
@@ -191,6 +194,12 @@ const uint64_t get_rows_iq4_nl_len = 4572;
 
 extern unsigned char get_rows_iq4_nl_f32_data[4556];
 const uint64_t get_rows_iq4_nl_f32_len = 4556;
+
+extern unsigned char get_rows_iq4_xs_data[5552];
+const uint64_t get_rows_iq4_xs_len = 5552;
+
+extern unsigned char get_rows_iq4_xs_f32_data[5536];
+const uint64_t get_rows_iq4_xs_f32_len = 5536;
 
 extern unsigned char get_rows_q4_0_data[3764];
 const uint64_t get_rows_q4_0_len = 3764;
@@ -836,6 +845,66 @@ const uint64_t matmul_id_iq4_nl_f32_f16acc_coopmat_len = 17268;
 
 extern unsigned char matmul_id_iq4_nl_f32_fp32_data[11760];
 const uint64_t matmul_id_iq4_nl_f32_fp32_len = 11760;
+
+extern unsigned char matmul_id_iq4_xs_f16_data[12876];
+const uint64_t matmul_id_iq4_xs_f16_len = 12876;
+
+extern unsigned char matmul_id_iq4_xs_f16_aligned_data[13540];
+const uint64_t matmul_id_iq4_xs_f16_aligned_len = 13540;
+
+extern unsigned char matmul_id_iq4_xs_f16_aligned_coopmat_data[19648];
+const uint64_t matmul_id_iq4_xs_f16_aligned_coopmat_len = 19648;
+
+extern unsigned char matmul_id_iq4_xs_f16_aligned_f16acc_data[13508];
+const uint64_t matmul_id_iq4_xs_f16_aligned_f16acc_len = 13508;
+
+extern unsigned char matmul_id_iq4_xs_f16_aligned_f16acc_coopmat_data[19648];
+const uint64_t matmul_id_iq4_xs_f16_aligned_f16acc_coopmat_len = 19648;
+
+extern unsigned char matmul_id_iq4_xs_f16_aligned_fp32_data[12968];
+const uint64_t matmul_id_iq4_xs_f16_aligned_fp32_len = 12968;
+
+extern unsigned char matmul_id_iq4_xs_f16_coopmat_data[18716];
+const uint64_t matmul_id_iq4_xs_f16_coopmat_len = 18716;
+
+extern unsigned char matmul_id_iq4_xs_f16_f16acc_data[12828];
+const uint64_t matmul_id_iq4_xs_f16_f16acc_len = 12828;
+
+extern unsigned char matmul_id_iq4_xs_f16_f16acc_coopmat_data[18700];
+const uint64_t matmul_id_iq4_xs_f16_f16acc_coopmat_len = 18700;
+
+extern unsigned char matmul_id_iq4_xs_f16_fp32_data[12756];
+const uint64_t matmul_id_iq4_xs_f16_fp32_len = 12756;
+
+extern unsigned char matmul_id_iq4_xs_f32_data[12892];
+const uint64_t matmul_id_iq4_xs_f32_len = 12892;
+
+extern unsigned char matmul_id_iq4_xs_f32_aligned_data[13668];
+const uint64_t matmul_id_iq4_xs_f32_aligned_len = 13668;
+
+extern unsigned char matmul_id_iq4_xs_f32_aligned_coopmat_data[19776];
+const uint64_t matmul_id_iq4_xs_f32_aligned_coopmat_len = 19776;
+
+extern unsigned char matmul_id_iq4_xs_f32_aligned_f16acc_data[13636];
+const uint64_t matmul_id_iq4_xs_f32_aligned_f16acc_len = 13636;
+
+extern unsigned char matmul_id_iq4_xs_f32_aligned_f16acc_coopmat_data[19776];
+const uint64_t matmul_id_iq4_xs_f32_aligned_f16acc_coopmat_len = 19776;
+
+extern unsigned char matmul_id_iq4_xs_f32_aligned_fp32_data[12904];
+const uint64_t matmul_id_iq4_xs_f32_aligned_fp32_len = 12904;
+
+extern unsigned char matmul_id_iq4_xs_f32_coopmat_data[18732];
+const uint64_t matmul_id_iq4_xs_f32_coopmat_len = 18732;
+
+extern unsigned char matmul_id_iq4_xs_f32_f16acc_data[12844];
+const uint64_t matmul_id_iq4_xs_f32_f16acc_len = 12844;
+
+extern unsigned char matmul_id_iq4_xs_f32_f16acc_coopmat_data[18716];
+const uint64_t matmul_id_iq4_xs_f32_f16acc_coopmat_len = 18716;
+
+extern unsigned char matmul_id_iq4_xs_f32_fp32_data[12740];
+const uint64_t matmul_id_iq4_xs_f32_fp32_len = 12740;
 
 extern unsigned char matmul_id_q2_k_f16_data[11760];
 const uint64_t matmul_id_q2_k_f16_len = 11760;
@@ -1797,6 +1866,66 @@ const uint64_t matmul_iq4_nl_f32_f16acc_coopmat_len = 20308;
 extern unsigned char matmul_iq4_nl_f32_fp32_data[11276];
 const uint64_t matmul_iq4_nl_f32_fp32_len = 11276;
 
+extern unsigned char matmul_iq4_xs_f16_data[12416];
+const uint64_t matmul_iq4_xs_f16_len = 12416;
+
+extern unsigned char matmul_iq4_xs_f16_aligned_data[12864];
+const uint64_t matmul_iq4_xs_f16_aligned_len = 12864;
+
+extern unsigned char matmul_iq4_xs_f16_aligned_coopmat_data[22380];
+const uint64_t matmul_iq4_xs_f16_aligned_coopmat_len = 22380;
+
+extern unsigned char matmul_iq4_xs_f16_aligned_f16acc_data[12832];
+const uint64_t matmul_iq4_xs_f16_aligned_f16acc_len = 12832;
+
+extern unsigned char matmul_iq4_xs_f16_aligned_f16acc_coopmat_data[22456];
+const uint64_t matmul_iq4_xs_f16_aligned_f16acc_coopmat_len = 22456;
+
+extern unsigned char matmul_iq4_xs_f16_aligned_fp32_data[12292];
+const uint64_t matmul_iq4_xs_f16_aligned_fp32_len = 12292;
+
+extern unsigned char matmul_iq4_xs_f16_coopmat_data[21688];
+const uint64_t matmul_iq4_xs_f16_coopmat_len = 21688;
+
+extern unsigned char matmul_iq4_xs_f16_f16acc_data[12368];
+const uint64_t matmul_iq4_xs_f16_f16acc_len = 12368;
+
+extern unsigned char matmul_iq4_xs_f16_f16acc_coopmat_data[21748];
+const uint64_t matmul_iq4_xs_f16_f16acc_coopmat_len = 21748;
+
+extern unsigned char matmul_iq4_xs_f16_fp32_data[12296];
+const uint64_t matmul_iq4_xs_f16_fp32_len = 12296;
+
+extern unsigned char matmul_iq4_xs_f32_data[12432];
+const uint64_t matmul_iq4_xs_f32_len = 12432;
+
+extern unsigned char matmul_iq4_xs_f32_aligned_data[12992];
+const uint64_t matmul_iq4_xs_f32_aligned_len = 12992;
+
+extern unsigned char matmul_iq4_xs_f32_aligned_coopmat_data[22508];
+const uint64_t matmul_iq4_xs_f32_aligned_coopmat_len = 22508;
+
+extern unsigned char matmul_iq4_xs_f32_aligned_f16acc_data[12960];
+const uint64_t matmul_iq4_xs_f32_aligned_f16acc_len = 12960;
+
+extern unsigned char matmul_iq4_xs_f32_aligned_f16acc_coopmat_data[22584];
+const uint64_t matmul_iq4_xs_f32_aligned_f16acc_coopmat_len = 22584;
+
+extern unsigned char matmul_iq4_xs_f32_aligned_fp32_data[12228];
+const uint64_t matmul_iq4_xs_f32_aligned_fp32_len = 12228;
+
+extern unsigned char matmul_iq4_xs_f32_coopmat_data[21704];
+const uint64_t matmul_iq4_xs_f32_coopmat_len = 21704;
+
+extern unsigned char matmul_iq4_xs_f32_f16acc_data[12384];
+const uint64_t matmul_iq4_xs_f32_f16acc_len = 12384;
+
+extern unsigned char matmul_iq4_xs_f32_f16acc_coopmat_data[21764];
+const uint64_t matmul_iq4_xs_f32_f16acc_coopmat_len = 21764;
+
+extern unsigned char matmul_iq4_xs_f32_fp32_data[12280];
+const uint64_t matmul_iq4_xs_f32_fp32_len = 12280;
+
 extern unsigned char matmul_q2_k_f16_data[11276];
 const uint64_t matmul_q2_k_f16_len = 11276;
 
@@ -2436,6 +2565,9 @@ const uint64_t mul_mat_vec_id_iq3_xxs_f32_len = 36472;
 extern unsigned char mul_mat_vec_id_iq4_nl_f32_data[23272];
 const uint64_t mul_mat_vec_id_iq4_nl_f32_len = 23272;
 
+extern unsigned char mul_mat_vec_id_iq4_xs_f32_data[31212];
+const uint64_t mul_mat_vec_id_iq4_xs_f32_len = 31212;
+
 extern unsigned char mul_mat_vec_id_q2_k_f32_data[29556];
 const uint64_t mul_mat_vec_id_q2_k_f32_len = 29556;
 
@@ -2501,6 +2633,12 @@ const uint64_t mul_mat_vec_iq4_nl_f16_f32_len = 23624;
 
 extern unsigned char mul_mat_vec_iq4_nl_f32_f32_data[23416];
 const uint64_t mul_mat_vec_iq4_nl_f32_f32_len = 23416;
+
+extern unsigned char mul_mat_vec_iq4_xs_f16_f32_data[31580];
+const uint64_t mul_mat_vec_iq4_xs_f16_f32_len = 31580;
+
+extern unsigned char mul_mat_vec_iq4_xs_f32_f32_data[31372];
+const uint64_t mul_mat_vec_iq4_xs_f32_f32_len = 31372;
 
 extern unsigned char mul_mat_vec_nc_f16_f32_data[2860];
 const uint64_t mul_mat_vec_nc_f16_f32_len = 2860;

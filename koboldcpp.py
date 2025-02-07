@@ -9,6 +9,7 @@
 # scenarios and everything Kobold and KoboldAI Lite have to offer.
 
 import ctypes
+import multiprocessing
 import os
 import math
 import re
@@ -111,6 +112,8 @@ last_non_horde_req_time = time.time()
 currfinishreason = "null"
 using_gui_launcher = False
 using_outdated_flags = False
+kcpp_instance = None #global running instance
+global_memory = None
 
 saved_stdout = None
 saved_stderr = None
@@ -752,7 +755,8 @@ def get_capabilities():
     has_whisper = (fullwhispermodelpath!="")
     has_search = True if args.websearch else False
     has_tts = (ttsmodelpath!="")
-    return {"result":"KoboldCpp", "version":KcppVersion, "protected":has_password, "llm":has_llm, "txt2img":has_txt2img,"vision":has_vision,"transcribe":has_whisper,"multiplayer":has_multiplayer,"websearch":has_search,"tts":has_tts}
+    admin_type = (2 if args.admin and args.admindir and args.adminpassword else (1 if args.admin and args.admindir else 0))
+    return {"result":"KoboldCpp", "version":KcppVersion, "protected":has_password, "llm":has_llm, "txt2img":has_txt2img,"vision":has_vision,"transcribe":has_whisper,"multiplayer":has_multiplayer,"websearch":has_search,"tts":has_tts, "admin": admin_type}
 
 def dump_gguf_metadata(file_path): #if you're gonna copy this into your own project at least credit concedo
     chunk_size = 1024*1024*12  # read first 12mb of file
@@ -2640,7 +2644,7 @@ def LaunchWebbrowser(target_url, failedmsg):
 ### A hacky simple HTTP server simulating a kobold api by Concedo
 ### we are intentionally NOT using flask, because we want MINIMAL dependencies
 #################################################################
-class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
+class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
     sys_version = ""
     server_version = "ConcedoLlamaForKoboldServer"
 
@@ -2896,9 +2900,9 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 return False
         return True
 
-    def secure_endpoint(self): #returns false if auth fails. caller should exit
-        #handle password stuff
-        if password and password !="":
+    def check_header_password(self, target_password):
+        auth_ok = True
+        if target_password and target_password !="":
             auth_header = None
             auth_ok = False
             if 'Authorization' in self.headers:
@@ -2907,17 +2911,22 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 auth_header = self.headers['authorization']
             if auth_header is not None and auth_header.startswith('Bearer '):
                 token = auth_header[len('Bearer '):].strip()
-                if token==password:
+                if token==target_password:
                     auth_ok = True
-            if auth_ok is False:
-                self.send_response(401)
-                self.end_headers(content_type='application/json')
-                self.wfile.write(json.dumps({"detail": {
-                        "error": "Unauthorized",
-                        "msg": "Authentication key is missing or invalid.",
-                        "type": "unauthorized",
-                    }}).encode())
-                return False
+        return auth_ok
+
+    def secure_endpoint(self): #returns false if auth fails. caller should exit
+        #handle password stuff
+        auth_ok = self.check_header_password(password)
+        if auth_ok is False:
+            self.send_response(401)
+            self.end_headers(content_type='application/json')
+            self.wfile.write(json.dumps({"detail": {
+                    "error": "Unauthorized",
+                    "msg": "Authentication key is missing or invalid.",
+                    "type": "unauthorized",
+                }}).encode())
+            return False
         return True
 
     def noscript_webui(self):
@@ -3000,6 +3009,7 @@ Enter Prompt:<br>
 
     def do_GET(self):
         global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
+        global last_req_time, start_time
         global has_multiplayer, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat, multiplayer_lastactive, maxctx, maxhordelen, friendlymodelname, lastgeneratedcomfyimg, KcppVersion, totalgens, preloaded_story, exitcounter, currentusergenkey, friendlysdmodelname, fullsdmodelpath, mmprojpath, password
         self.path = self.path.rstrip('/')
         response_body = None
@@ -3020,18 +3030,7 @@ Enter Prompt:<br>
             response_body = (json.dumps({"name":"KoboldAI Lite","short_name":"KoboldAI Lite","description":"Progressive Web App for KoboldAI Lite","start_url":"./","scope":".","display":"standalone","background_color":"#303030","theme_color":"#337ab7","orientation":"portrait-primary","icons":[{"src":"data:image/png;base64,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","type":"image/png","sizes":"150x150"}]}).encode())
 
         elif self.path.endswith(('/api/v1/model', '/api/latest/model')):
-            auth_ok = True
-            if password and password !="":
-                auth_header = None
-                auth_ok = False
-                if 'Authorization' in self.headers:
-                    auth_header = self.headers['Authorization']
-                elif 'authorization' in self.headers:
-                    auth_header = self.headers['authorization']
-                if auth_header is not None and auth_header.startswith('Bearer '):
-                    token = auth_header[len('Bearer '):].strip()
-                    if token==password:
-                        auth_ok = True
+            auth_ok = self.check_header_password(password)
             response_body = (json.dumps({'result': (friendlymodelname if auth_ok else "koboldcpp/protected-model") }).encode())
 
         elif self.path.endswith(('/api/v1/config/max_length', '/api/latest/config/max_length')):
@@ -3065,8 +3064,14 @@ Enter Prompt:<br>
             caps = get_capabilities()
             response_body = (json.dumps(caps).encode())
 
+        elif self.path.endswith(('/api/admin/list_options')): #used by admin to get info about a kcpp instance
+            opts = []
+            if args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
+                dirpath = os.path.abspath(args.admindir)
+                opts = [f for f in os.listdir(dirpath) if f.endswith(".kcpps") and os.path.isfile(os.path.join(dirpath, f))]
+            response_body = (json.dumps(opts).encode())
+
         elif self.path.endswith(('/api/extra/perf')):
-            global last_req_time, start_time
             lastp = handle.get_last_process_time()
             laste = handle.get_last_eval_time()
             lastc = handle.get_last_token_count()
@@ -3191,7 +3196,7 @@ Enter Prompt:<br>
         if response_body is None:
             self.send_response(404)
             self.end_headers(content_type='text/html')
-            rp = 'Error: HTTP Server is running, but this endpoint does not exist. Please check the URL.'
+            rp = 'Error: KoboldCpp HTTP Server is running, but this endpoint does not exist. Please check the URL.'
             self.wfile.write(rp.encode())
         else:
             self.send_response(200)
@@ -3422,6 +3427,26 @@ Enter Prompt:<br>
             else:
                 response_body = (json.dumps([]).encode())
 
+        elif self.path.startswith(("/api/admin/reload_config")):
+            resp = {"success": False}
+            if global_memory and args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
+                targetfile = ""
+                try:
+                    tempbody = json.loads(body)
+                    if isinstance(tempbody, dict):
+                        targetfile = tempbody.get('filename', "")
+                except Exception:
+                    targetfile = ""
+                if targetfile and targetfile!="":
+                    dirpath = os.path.abspath(args.admindir)
+                    targetfilepath = os.path.join(dirpath, targetfile)
+                    opts = [f for f in os.listdir(dirpath) if f.endswith(".kcpps") and os.path.isfile(os.path.join(dirpath, f))]
+                    if targetfile in opts and os.path.exists(targetfilepath):
+                        print(f"Admin: Received request to reload config to {targetfile}")
+                        global_memory["restart_target"] = targetfile
+                        resp = {"success": True}
+            response_body = (json.dumps(resp).encode())
+
         elif self.path.endswith('/set_tts_settings'): #return dummy response
             response_body = (json.dumps({"message": "Settings successfully applied"}).encode())
 
@@ -3642,11 +3667,11 @@ Enter Prompt:<br>
         self.send_header("cache-control", "no-store")
         if content_type is not None:
             self.send_header('content-type', content_type)
-        return super(ServerRequestHandler, self).end_headers()
+        return super(KcppServerRequestHandler, self).end_headers()
 
-def RunServerMultiThreaded(addr, port):
+def RunServerMultiThreaded(addr, port, server_handler):
     global exitcounter, sslvalid
-    global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
+    global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui, global_memory
     if is_port_in_use(port):
         print(f"Warning: Port {port} already appears to be in use by another program.")
     ipv4_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -3688,7 +3713,7 @@ def RunServerMultiThreaded(addr, port):
 
         def run(self):
             global exitcounter
-            handler = ServerRequestHandler(addr, port)
+            handler = server_handler(addr, port)
             with http.server.HTTPServer((addr, port), handler, False) as self.httpd:
                 try:
                     if ipv6_sock:
@@ -3728,7 +3753,7 @@ def RunServerMultiThreaded(addr, port):
 def show_gui():
     global guimode
     guimode = True
-    from tkinter.filedialog import askopenfilename
+    from tkinter.filedialog import askopenfilename, askdirectory
     from tkinter.filedialog import asksaveasfile
 
     # if args received, launch
@@ -3848,7 +3873,7 @@ def show_gui():
 
     tabs = ctk.CTkFrame(root, corner_radius = 0, width=windowwidth, height=windowheight-50)
     tabs.grid(row=0, stick="nsew")
-    tabnames= ["Quick Launch", "Hardware", "Tokens", "GPU AutoLayers", "Model Files", "Network", "Horde Worker","Image Gen","Audio","Extra"]
+    tabnames= ["Quick Launch", "Hardware", "Tokens", "GPU AutoLayers", "Model Files", "Network", "Horde Worker","Image Gen","Audio","Admin","Extra"]
     navbuttons = {}
     navbuttonframe = ctk.CTkFrame(tabs, width=100, height=int(tabs.cget("height")))
     navbuttonframe.grid(row=0, column=0, padx=2,pady=2)
@@ -3991,6 +4016,10 @@ def show_gui():
     tts_threads_var = ctk.StringVar(value=str(default_threads))
     ttsmaxlen_var = ctk.StringVar(value=str(default_ttsmaxlen))
 
+    admin_var = ctk.IntVar(value=0)
+    admin_dir_var = ctk.StringVar()
+    admin_password_var = ctk.StringVar()
+
     def tabbuttonaction(name):
         for t in tabcontent:
             if name == t:
@@ -4053,12 +4082,16 @@ def show_gui():
         entry.grid(row=row, column=(0 if singleline else 1), padx=padx, sticky="nw")
         return entry, label
 
-    def makefileentry(parent, text, searchtext, var, row=0, width=200, filetypes=[], onchoosefile=None, singlerow=False, singlecol=True, tooltiptxt=""):
+    def makefileentry(parent, text, searchtext, var, row=0, width=200, filetypes=[], onchoosefile=None, singlerow=False, singlecol=True, is_dir=False, tooltiptxt=""):
         label = makelabel(parent, text, row,0,tooltiptxt,columnspan=3)
         def getfilename(var, text):
             initialDir = os.path.dirname(var.get())
             initialDir = initialDir if os.path.isdir(initialDir) else None
-            fnam = askopenfilename(title=text,filetypes=filetypes, initialdir=initialDir)
+            fnam = None
+            if is_dir:
+                fnam = askdirectory(title=text, mustexist=True, initialdir=initialDir)
+            else:
+                fnam = askopenfilename(title=text,filetypes=filetypes, initialdir=initialDir)
             if fnam:
                 var.set(fnam)
                 if onchoosefile:
@@ -4504,7 +4537,7 @@ def show_gui():
     network_tab = tabcontent["Network"]
 
     # interfaces
-    makelabelentry(network_tab, "Port: ", port_var, 1, 150,tooltip="Select the port to host the KoboldCPP/Croco.Cpp webserver.\n(Defaults to 5001)")
+    makelabelentry(network_tab, "Port: ", port_var, 1, 150,tooltip=f"Select the port to host the KoboldCPP/Croco.Cpp webserver.\n(Defaults to {defaultport})")
     makelabelentry(network_tab, "Host: ", host_var, 2, 150,tooltip="Select a specific host interface to bind to.\n(Defaults to all)")
 
     makecheckbox(network_tab, "Multiuser Mode", multiuser_var, 3,tooltiptxt="Allows requests by multiple different clients to be queued and handled in sequence.")
@@ -4603,6 +4636,11 @@ def show_gui():
     makecheckbox(audio_tab, "TTS Use GPU", ttsgpu_var, 9, 0,tooltiptxt="Uses the GPU for TTS.")
     makelabelentry(audio_tab, "OuteTTS Max Tokens:" , ttsmaxlen_var, 11, 50,padx=290,singleline=True,tooltip="Max allowed audiotokens to generate per TTS request.")
     ttsgpu_var.trace("w", gui_changed_modelfile)
+
+    admin_tab = tabcontent["Admin"]
+    makecheckbox(admin_tab, "Enable Model Administration", admin_var, 1, 0,tooltiptxt="Enable a admin server, allowing you to remotely relaunch and swap models and configs.")
+    makelabelentry(admin_tab, "Admin Password:" , admin_password_var, 3, 150,padx=120,singleline=True,tooltip="Require a password to access admin functions. You are strongly advised to use one for publically accessible instances!")
+    makefileentry(admin_tab, "Config Directory:", "Select directory containing .kcpps files to relaunch from", admin_dir_var, 5, width=280, is_dir=True, tooltiptxt="Specify a directory to look for .kcpps configs in, which can be used to swap models.")
 
     def kcpp_export_template():
         nonlocal kcpp_exporting_template
@@ -4853,6 +4891,10 @@ def show_gui():
             args.ttsgpu = (ttsgpu_var.get()==1)
             args.ttsmaxlen = int(ttsmaxlen_var.get())
 
+        args.admin = (admin_var.get()==1)
+        args.admindir = admin_dir_var.get()
+        args.adminpassword = admin_password_var.get()
+
     def import_vars(dict):
         global importvars_in_progress
         importvars_in_progress = True
@@ -5033,6 +5075,10 @@ def show_gui():
         ttsgpu_var.set(dict["ttsgpu"] if ("ttsgpu" in dict) else 0)
         ttsmaxlen_var.set(str(dict["ttsmaxlen"]) if ("ttsmaxlen" in dict and dict["ttsmaxlen"]) else str(default_ttsmaxlen))
 
+        admin_var.set(dict["admin"] if ("admin" in dict) else 0)
+        admin_dir_var.set(dict["admindir"] if ("admindir" in dict and dict["admindir"]) else "")
+        admin_password_var.set(dict["adminpassword"] if ("adminpassword" in dict and dict["adminpassword"]) else "")
+
         importvars_in_progress = False
         gui_changed_modelfile()
         if "istemplate" in dict and dict["istemplate"]:
@@ -5161,7 +5207,7 @@ def show_gui_yesnobox(title,message):
 def print_with_time(txt):
     print(f"{datetime.now().strftime('[%H:%M:%S]')} " + txt, flush=True)
 
-def make_url_request(url, data, method='POST', headers={}):
+def make_url_request(url, data, method='POST', headers={}, timeout=300):
     import urllib.request
     global nocertify
     try:
@@ -5176,7 +5222,7 @@ def make_url_request(url, data, method='POST', headers={}):
         else:
             request = urllib.request.Request(url, headers=headers, method=method)
         response_data = ""
-        with urllib.request.urlopen(request,timeout=300) as response:
+        with urllib.request.urlopen(request,timeout=timeout) as response:
             response_data = response.read().decode('utf-8',"ignore")
             json_response = json.loads(response_data)
             return json_response
@@ -5378,6 +5424,12 @@ def convert_outdated_args(args):
     if "noblas" in dict and dict["noblas"]:
         dict["usecpu"] = True
 
+    if "failsafe" in dict and dict["failsafe"]: #failsafe implies noavx2
+        dict["noavx2"] = True
+
+    if ("model_param" not in dict or not dict["model_param"]) and ("model" in dict and dict["model"]):
+        dict["model_param"] = dict["model"]
+
     check_deprecation_warning()
     return args
 
@@ -5398,7 +5450,7 @@ def check_deprecation_warning():
 
 
 
-def setuptunnel(has_sd):
+def setuptunnel(global_memory, has_sd):
     # This script will help setup a cloudflared tunnel for accessing KoboldCpp/Croco.Cpp over the internet
     # It should work out of the box on both linux and windows
     try:
@@ -5438,6 +5490,8 @@ def setuptunnel(has_sd):
                             print(f"StableUI is available at {tunneloutput}/sdui/")
                         print("======\n")
                         print(f"Your remote tunnel is ready, please connect to {tunneloutput}", flush=True)
+                        if global_memory:
+                            global_memory["tunnel_url"] = tunneloutput
                         return
 
             tunnel_reader_thread = threading.Thread(target=tunnel_reader)
@@ -5544,6 +5598,14 @@ def unload_libs():
         del handle.get_pending_output
         del handle
         handle = None
+
+def reload_new_config(filename): #for changing config after launch
+    with open(filename, 'r', encoding='utf-8', errors='ignore') as f:
+        config = json.load(f)
+        args.istemplate = False
+        for key, value in config.items(): #do not overwrite certain values
+            if key not in ["remotetunnel","port","host","port_param","admin","adminpassword","admindir","ssl","nocertify","benchmark","prompt"]:
+                setattr(args, key, value)
 
 def load_config_cli(filename):
     print("Loading .kcpps configuration file...")
@@ -5655,13 +5717,19 @@ def analyze_gguf_model_wrapper(filename=""):
     dumpthread.start()
 
 def main(launch_args,start_server=True):
-    global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
-    global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath
+    global args, showdebug, kcpp_instance, exitcounter
+    args = launch_args #note: these are NOT shared with the child processes!
 
-    args = launch_args
     if (args.version) and len(sys.argv) <= 2:
         print(f"{KcppVersion}") # just print version and exit
         return
+
+    #prevent quantkv from being used without flash attn
+    if args.quantkv and args.quantkv>0 and not args.flashattention:
+        exit_with_error(1, "Error: Using --quantkv requires --flashattention")
+
+    args = convert_outdated_args(args)
+
     if (args.model_param or args.model) and args.prompt and not args.benchmark and not (args.debugmode >= 1):
         suppress_stdout()
 
@@ -5686,7 +5754,10 @@ def main(launch_args,start_server=True):
         analyze_gguf_model_wrapper(args.analyze)
         return
 
-    if args.config and len(args.config)==1:
+    if args.debugmode != 1:
+        showdebug = False #not shared with child process!
+
+    if args.config and len(args.config)==1: #handle config loading for launch
         cfgname = args.config[0]
         if isinstance(cfgname, str):
             dlfile = download_model_from_url(cfgname,[".kcpps",".kcppt"])
@@ -5697,7 +5768,6 @@ def main(launch_args,start_server=True):
         elif args.ignoremissing:
             print("Ignoring missing kcpp config file...")
         else:
-            global exitcounter
             exitcounter = 999
             exit_with_error(2,"Specified kcpp config file invalid or not found.")
     args = convert_outdated_args(args)
@@ -5714,17 +5784,18 @@ def main(launch_args,start_server=True):
         print("KV f16 cache can work in both FA and no-FA mode.")
     if args.quantkv and args.quantkv >0 and args.quantkv <15 and not args.flashattention:
         exit_with_error(1, "Error: Using --quantkv 1 to 14, are FA modes and require --flashattention.")
-    if args.quantkv and args.quantkv ==15 and args.quantkv <23 and args.flashattention:
+    if args.quantkv and args.quantkv ==15 and args.flashattention:
         print("KV bf16 cache (experimental for Cuda, not tested on other backends) can work only in no-FA mode.")
     if args.quantkv and args.quantkv >15 and args.quantkv <23 and args.flashattention:
         exit_with_error(1, "Error: The --quantkv 16 <-> 22 (quantum cache K, and V F16) are non-FA modes.")
 
-    if args.failsafe: #failsafe implies noavx2
-        args.noavx2 = True
+    # if args.failsafe: #failsafe implies noavx2
+        # args.noavx2 = True
 
-    if not args.model_param:
-        args.model_param = args.model
+    # if not args.model_param:
+        # args.model_param = args.model
 
+    # lastly, show the GUI launcher if a model was not provided
     if args.showgui or (not args.model_param and not args.sdmodel and not args.whispermodel and not args.ttsmodel and not args.nomodel):
         #give them a chance to pick a file
         print("For command line arguments, please refer to --help")
@@ -5739,6 +5810,60 @@ def main(launch_args,start_server=True):
                 print("Note: In order to use --skiplauncher, you need to specify a model with --model")
             time.sleep(3)
             sys.exit(2)
+
+    if args.model_param and (args.benchmark or args.prompt):
+        start_server = False
+
+    # manager command queue
+    multiprocessing.freeze_support()
+    with multiprocessing.Manager() as mp_manager:
+        global_memory = mp_manager.dict({"tunnel_url": "", "restart_target":""})
+
+        if start_server and args.remotetunnel:
+            setuptunnel(global_memory, True if args.sdmodel else False)
+
+        # invoke the main koboldcpp process
+        kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "start_server": start_server, "g_memory": global_memory})
+        kcpp_instance.daemon = True
+        kcpp_instance.start()
+
+        while True: # keep the manager alive
+            try:
+                restart_target = ""
+                if not kcpp_instance or not kcpp_instance.is_alive():
+                    break
+                restart_target = global_memory["restart_target"]
+                if restart_target!="":
+                    print(f"Reloading new config: {restart_target}")
+                    global_memory["restart_target"] = ""
+                    time.sleep(0.5) #sleep for 0.5s then restart
+                    if args.admin and args.admindir:
+                        dirpath = os.path.abspath(args.admindir)
+                        targetfilepath = os.path.join(dirpath, restart_target)
+                        if os.path.exists(targetfilepath):
+                            print("Terminating old process...")
+                            kcpp_instance.terminate()
+                            kcpp_instance.join(timeout=10)  # Ensure process is stopped
+                            kcpp_instance = None
+                            print("Restarting KoboldCpp...")
+                            reload_new_config(targetfilepath)
+                            kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "start_server": start_server, "g_memory": global_memory})
+                            kcpp_instance.daemon = True
+                            kcpp_instance.start()
+                            global_memory["restart_target"] = ""
+                            time.sleep(1)
+                else:
+                    time.sleep(0.2)
+            except (KeyboardInterrupt,SystemExit):
+                break
+
+def kcpp_main_process(launch_args, start_server=True, g_memory=None):
+    global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui, start_time, exitcounter, global_memory
+    global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath
+
+    args = launch_args
+    global_memory = g_memory
+    start_time = time.time()
 
     #try to read story if provided
     if args.preloadstory:
@@ -6181,6 +6306,7 @@ def main(launch_args,start_server=True):
     enabledmlist.append("ApiKeyPassword") if "protected" in caps and caps["protected"] else disabledmlist.append("ApiKeyPassword")
     enabledmlist.append("WebSearchProxy") if "websearch" in caps and caps["websearch"] else disabledmlist.append("WebSearchProxy")
     enabledmlist.append("TextToSpeech") if "tts" in caps and caps["tts"] else disabledmlist.append("TextToSpeech")
+    enabledmlist.append("AdminControl") if "admin" in caps and caps["admin"]!=0 else disabledmlist.append("AdminControl")
 
     print(f"======\nActive Modules: {' '.join(enabledmlist)}")
     print(f"Inactive Modules: {' '.join(disabledmlist)}")
@@ -6196,20 +6322,30 @@ def main(launch_args,start_server=True):
             print("SSL configuration is valid and will be used.")
         else:
             print("Your SSL configuration is INVALID. SSL will not be used.")
-    epurl = ""
+    endpoint_url = ""
+    remote_url = ""
     httpsaffix = ("https" if sslvalid else "http")
     if args.host=="":
-        epurl = f"{httpsaffix}://localhost:{args.port}"
+        endpoint_url = f"{httpsaffix}://localhost:{args.port}"
     else:
-        epurl = f"{httpsaffix}://{args.host}:{args.port}"
+        endpoint_url = f"{httpsaffix}://{args.host}:{args.port}"
     if not args.remotetunnel:
-        print(f"Starting Kobold API on port {args.port} at {epurl}/api/")
-        print(f"Starting OpenAI Compatible API on port {args.port} at {epurl}/v1/")
+        print(f"Starting Kobold API on port {args.port} at {endpoint_url}/api/")
+        print(f"Starting OpenAI Compatible API on port {args.port} at {endpoint_url}/v1/")
         if args.sdmodel:
-            print(f"StableUI is available at {epurl}/sdui/")
+            print(f"StableUI is available at {endpoint_url}/sdui/")
+    elif global_memory:
+        val = global_memory["tunnel_url"]
+        if val:
+            endpoint_url = val
+            remote_url = val
+            print(f"Your remote Kobold API can be found at {endpoint_url}/api")
+            print(f"Your remote OpenAI Compatible API can be found at {endpoint_url}/v1")
+            if args.sdmodel:
+                print(f"StableUI is available at {endpoint_url}/sdui/")
 
     if args.launch:
-        LaunchWebbrowser(epurl,"--launch was set, but could not launch web browser automatically.")
+        LaunchWebbrowser(endpoint_url,"--launch was set, but could not launch web browser automatically.")
 
     if args.hordekey and args.hordekey!="":
         if args.hordeworkername and args.hordeworkername!="":
@@ -6228,8 +6364,7 @@ def main(launch_args,start_server=True):
         timer_thread = threading.Timer(1, onready_subprocess) #1 second delay
         timer_thread.start()
 
-    if args.model_param and (args.benchmark or args.prompt):
-        start_server = False
+    if not start_server:
         save_to_file = (args.benchmark and args.benchmark!="stdout" and args.benchmark!="")
         gpu0avram = int(MaxMemory[0]/1024/1024)
         gpu1avram = int(MaxMemory[1]/1024/1024)
@@ -6409,37 +6544,16 @@ def main(launch_args,start_server=True):
     check_deprecation_warning()
     if start_server:
         if args.remotetunnel:
-            setuptunnel(True if args.sdmodel else False)
+            if remote_url:
+                print(f"======\nYour remote tunnel is ready, please connect to {remote_url}", flush=True)
         else:
             # Flush stdout for previous win32 issue so the client can see output.
-            print(f"======\nPlease connect to custom endpoint at {epurl}", flush=True)
-        asyncio.run(RunServerMultiThreaded(args.host, args.port))
+            print(f"======\nPlease connect to custom endpoint at {endpoint_url}", flush=True)
+        asyncio.run(RunServerMultiThreaded(args.host, args.port, KcppServerRequestHandler))
     else:
         # Flush stdout for previous win32 issue so the client can see output.
         if not args.prompt or args.benchmark:
             print("Server was not started, main function complete. Idling.", flush=True)
-
-def run_in_queue(launch_args, input_queue, output_queue):
-    main(launch_args, start_server=False)
-    output_queue.put({'command': 'complete'})
-    while True:
-        if not input_queue.empty():
-            while not input_queue.empty():
-                data = input_queue.get()
-                if data['command'] == 'generate':
-                    pl = data['data']
-                    genout = generate(genparams=pl)
-                    result = genout['text']
-                    output_queue.put({'command': 'generated text', 'data': result})
-        time.sleep(0.2)
-
-def start_in_seperate_process(launch_args):
-    import multiprocessing
-    input_queue = multiprocessing.Queue()
-    output_queue = multiprocessing.Queue()
-    p = multiprocessing.Process(target=run_in_queue, args=(launch_args, input_queue, output_queue))
-    p.start()
-    return (output_queue, input_queue, p)
 
 if __name__ == '__main__':
 
@@ -6459,7 +6573,7 @@ if __name__ == '__main__':
     modelgroup.add_argument("--model", metavar=('[filename]'), help="Model file to load", type=str, default="")
     modelgroup.add_argument("model_param", help="Model file to load (positional)", nargs="?")
     portgroup = parser.add_mutually_exclusive_group() #we want to be backwards compatible with the unnamed positional args
-    portgroup.add_argument("--port", metavar=('[portnumber]'), help="Port to listen on", default=defaultport, type=int, action='store')
+    portgroup.add_argument("--port", metavar=('[portnumber]'), help=f"Port to listen on. (Defaults to {defaultport})", default=defaultport, type=int, action='store')
     portgroup.add_argument("port_param", help="Port to listen on (positional)", default=defaultport, nargs="?", type=int, action='store')
     parser.add_argument("--host", metavar=('[ipaddr]'), help="Host IP to listen on. If this flag is not set, all routable interfaces are accepted.", default="")
     parser.add_argument("--launch", help="Launches a web browser when load is completed.", action='store_true')
@@ -6566,6 +6680,11 @@ if __name__ == '__main__':
     ttsparsergroup.add_argument("--ttsgpu", help="Use the GPU for TTS.", action='store_true')
     ttsparsergroup.add_argument("--ttsmaxlen", help="Limit number of audio tokens generated with TTS.",  type=int, default=default_ttsmaxlen)
     ttsparsergroup.add_argument("--ttsthreads", metavar=('[threads]'), help="Use a different number of threads for TTS if specified. Otherwise, has the same value as --threads.", type=int, default=0)
+
+    admingroup = parser.add_argument_group('Administration Commands')
+    admingroup.add_argument("--admin", help="Enables admin mode, allowing you to unload and reload different configurations or models.", action='store_true')
+    admingroup.add_argument("--adminpassword", metavar=('[password]'), help="Require a password to access admin functions. You are strongly advised to use one for publically accessible instances!", default=None)
+    admingroup.add_argument("--admindir", metavar=('[directory]'), help="Specify a directory to look for .kcpps configs in, which can be used to swap models.", default="")
 
     deprecatedgroup = parser.add_argument_group('Deprecated Commands, DO NOT USE!')
     deprecatedgroup.add_argument("--hordeconfig", help=argparse.SUPPRESS, nargs='+')

@@ -1973,7 +1973,6 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         if(file_format==FileFormat::GGUF_GENERIC)
         {
             printf("Using automatic RoPE scaling for GGUF. If the model has custom RoPE settings, they'll be used directly instead!\n");
-            printf("It means that the RoPE values written above will be replaced by the RoPE values indicated after loading.\n");
         }
         else
         {
