@@ -22154,6 +22154,29 @@ Current version indicated by LITEVER below.
 		</div>
 	</div>
 
+	<div class="popupcontainer flex hidden" id="serverSaves">
+		<div class="popupbg flex"></div>
+		<div class="nspopup">
+			<div class="popuptitlebar">
+				<div class="popuptitletext">Save / Load from Server</div>
+			</div>
+			<div class="menutext">
+				<div>
+					<input type="hidden" id="serverSavesPassword">
+					<label for="saveOptions">List of server side saves</label>
+					<select title="List of server side saves" style="padding:4px;" class="form-control" id="saveOptions"></select>
+					</select>
+				</div>
+				<br>
+			</div>
+			<div class="popupfooter">
+				<button id="saveToDB" class="btn btn-primary" style="width: auto;">Save to DB</button>
+				<button id="loadFromDB" class="btn btn-primary" style="width: auto;">Load from DB</button>
+				<button id="deleteFromDB" class="btn btn-primary" style="width: auto;">Delete from DB</button>
+				<button type="button" class="btn btn-primary" style="width: auto;" onclick="hideServerSavesPopup()">Cancel</button>
+			</div>
+		</div>
+	</div>
 
 </body>
 
@@ -22185,5 +22208,141 @@ else
 {
 	console.log("service workers API not available");
 }
+</script>
+
+<script>
+	let serverSavesPopup = document.getElementById("serverSaves");
+	let saveOptions = document.getElementById("saveOptions"), loadSave = document.getElementById("loadFromDB"),
+        deleteFromDB = document.getElementById("deleteFromDB"), saveToDB = document.getElementById("saveToDB"),
+		saveContent = document.getElementById("saveContent");
+	getAuthHeaders = () => {
+		let header = {};
+		let adminKey = document.getElementById("serverSavesPassword").value;
+		if (adminKey != "") {
+			header['Authorization'] = 'Bearer ' + adminKey;
+		}
+		return header;
+	}
+	reloadSaves = () => {
+		saveOptions.innerHTML = ""
+		return fetch(`${custom_kobold_endpoint}/api/data/list`, {
+				headers: getAuthHeaders()	
+			})
+			.then(resp => resp.json())
+			.then(arr => {
+				arr.forEach(elem => {
+					elemAsText = decodeURIComponent(elem)
+					saveOptions.appendChild(new Option(elemAsText, elemAsText))
+				});
+			})
+			.catch(e => {
+				console.error(e)
+			})
+	}
+
+	loadSave.onclick = () => {
+		fetch(`${custom_kobold_endpoint}/api/data/get`, {
+				method: "POST",
+				headers: getAuthHeaders(),
+				body: JSON.stringify({filename: saveOptions.value })
+			})
+			.then(resp => resp.json())
+			.then(saveData => {
+				import_compressed_story(atob(saveData), false)
+				hideServerSavesPopup();
+			})
+			.catch(e => {
+				console.error(e)
+			})
+	}
+
+	saveToDB.onclick = () => {
+		let defaultsavename = (localsettings.opmode == 1 ? "Untitled Story" : (localsettings.opmode == 2 ? "Untitled Adventure" : (localsettings.opmode == 3 ? "Untitled Chat" : "Untitled Instruct")));
+		let savename = defaultsavename + " " + new Date().toLocaleString();
+		let newcompressedstory = generate_compressed_story(true, true, true);
+
+		hideServerSavesPopup();
+
+		warn_on_quit = false;
+		inputBox("Enter a label for this Browser Storage Slot data", "Enter a label", savename, defaultsavename, () => {
+			let userinput = getInputBoxValue();
+			if (userinput.trim() == "") {
+				userinput = defaultsavename;
+			}
+			fetch(`${custom_kobold_endpoint}/api/data/put`, {
+				method: "POST",
+				body: JSON.stringify({ filename: userinput, data: btoa(newcompressedstory) }),
+				headers: getAuthHeaders()
+			})
+			.then(resp => resp.text())
+			.then(message => {
+				alert(message)
+			})
+			.catch(e => {
+				console.error(e)
+			})
+		});
+	}
+
+	deleteFromDB.onclick = () => {
+		fetch(`${custom_kobold_endpoint}/api/data/delete`, { 
+				method: "POST",
+				headers: getAuthHeaders(),
+				body: JSON.stringify({ filename: saveOptions.value })
+			})
+			.then(resp => resp.text())
+			.then(message => {
+				alert(message)
+				reloadSaves()
+			})
+			.catch(e => {
+				console.error(e)
+			})
+	}
+
+	showServerSavesPopup = () => {
+		if (koboldcpp_admin_type == 2) {
+			inputBox("Please input admin password:", "Admin Password Required", "", "(Input Admin Password)", () => {
+				let userinput = getInputBoxValue();
+				userinput = userinput.trim();
+				if (userinput != null && userinput != "") {
+					document.getElementById("serverSavesPassword").value = userinput
+					reloadSaves().then(() => {
+						serverSavesPopup.classList.remove("hidden")
+					})
+				}
+			}, false, false, true);
+		}
+		else {
+			document.getElementById("serverSavesPassword").value = ""
+			reloadSaves().then(() => {
+				serverSavesPopup.classList.remove("hidden")
+			})
+		}
+	}
+
+	hideServerSavesPopup = () => {
+		serverSavesPopup.classList.add("hidden")
+	}
+
+	window.addEventListener('load', () => {
+		let hasAppended = false;
+		document.querySelector("#topbtn_save_load .nav-link").onclick = () => {
+			closeTopNav();
+			if (localflag && is_using_kcpp_with_admin() && !hasAppended) {
+				let serverSideButton = document.createElement("button");
+				serverSideButton.classList.add("btn", "btn-primary")
+				serverSideButton.innerText = "Show saves stored on server"
+				serverSideButton.style = "width: auto;"
+				serverSideButton.onclick = () => {
+					hide_popups()
+					showServerSavesPopup()
+				}
+				document.querySelector("#saveloadcontainer .popupfooter").append(serverSideButton);
+				hasAppended = true
+			}
+			display_saveloadcontainer()
+		}
+	})
 </script>
 </html>

@@ -2025,7 +2025,7 @@ def setSave(saveName, b64Data):
     with sqlite3.connect(getDBPath()) as con:
         try:
             cursor = con.cursor()
-            cursor.execute(f"INSERT INTO saveData(name, encodedSave) VALUES ('{saveName}', '{b64Data.decode('utf-8')}');")
+            cursor.execute(f"INSERT INTO saveData(name, encodedSave) VALUES ('{saveName}', '{b64Data}');")
             cursor.close()
             return True
         # Handle errors
@@ -2035,8 +2035,7 @@ def setSave(saveName, b64Data):
         
 def deleteSave(saveName):
     import sqlite3
-    dbPath = os.path.join(getDBPath(), "kcpp.db")
-    with sqlite3.connect(dbPath) as con:
+    with sqlite3.connect(getDBPath()) as con:
         try:
             cursor = con.cursor()
             cursor.execute(f"DELETE FROM saveData WHERE name = '{saveName}';")
@@ -2605,23 +2604,6 @@ Enter Prompt:<br>
                 response_body = (json.dumps({}).encode())
             else:
                 response_body = preloaded_story
-        
-        elif "/api/saves/get/" in self.path and self.path.index("/api/saves/get/") == 0:
-            saveToLoad = self.path[self.path.rindex("/") + 1:]
-            if not args.admin:
-                response_body = ("Data API disabled").encode()
-            elif not self.check_header_password(args.adminpassword):
-                return
-            else:
-                if args.admindatadir == "":
-                    response_body = ("No data directory provided").encode()
-                else:
-                    saves = getSaves()
-                    if saveToLoad in saves:
-                        jsonArray = json.dumps(saves[saveToLoad])
-                        response_body = (jsonArray).encode()
-                    else:
-                        response_body = ("\{\}").encode()
 
         elif self.path=="/api/admin/current_model":
             if not args.admin:
@@ -2886,9 +2868,8 @@ Enter Prompt:<br>
                     response_body = (json.dumps([]).encode())
             else:
                 response_body = (json.dumps([]).encode())
-        
-        elif "/api/data/put/" in self.path and self.path.index("/api/data/put/") == 0:
-            saveName = self.path[self.path.rindex("/") + 1:]
+
+        elif "/api/data/get" == self.path:
             if not args.admin:
                 response_body = ("Data API disabled").encode()
             elif not self.check_header_password(args.adminpassword):
@@ -2897,16 +2878,46 @@ Enter Prompt:<br>
                 if args.admindatadir == "":
                     response_body = ("No data directory provided").encode()
                 else:
+                    filename = ""
+                    try:
+                        tempbody = json.loads(body)
+                        if isinstance(tempbody, dict):
+                            filename = tempbody.get('filename', "")
+                    except Exception:
+                        filename = ""
                     saves = getSaves()
-                    if saveName is not None and saveName not in saves:
-                        if (setSave(saveName, body)):
+                    if filename != "" and filename in saves:
+                        jsonArray = json.dumps(saves[filename])
+                        response_body = (jsonArray).encode()
+                    else:
+                        response_body = ("\{\}").encode()
+        elif "/api/data/put" == self.path:
+            if not args.admin:
+                response_body = ("Data API disabled").encode()
+            elif not self.check_header_password(args.adminpassword):
+                return
+            else:
+                if args.admindatadir == "":
+                    response_body = ("No data directory provided").encode()
+                else:
+                    filename = ""
+                    bodyData = ""
+                    try:
+                        tempbody = json.loads(body)
+                        if isinstance(tempbody, dict):
+                            filename = tempbody.get('filename', "")
+                            bodyData = tempbody.get('data', "")
+                    except Exception:
+                        filename = ""
+                    saves = getSaves()
+                    if filename != "" and bodyData != "" and filename not in saves:
+                        if (setSave(filename, bodyData)):
                             response_body = ("Saved to DB").encode()
                         else:
                             response_body = ("Error when saving to DB").encode()
                     else:
                         response_body = ("Save already exists or no save name provided").encode()
-        elif "/api/data/delete/" in self.path and self.path.index("/api/data/delete/") == 0:
-            saveName = self.path[self.path.rindex("/") + 1:]
+        elif "/api/data/delete" == self.path:
             if not args.admin:
                 response_body = ("Data API disabled").encode()
             elif not self.check_header_password(args.adminpassword):
@@ -2915,9 +2926,16 @@ Enter Prompt:<br>
                 if args.admindatadir == "":
                     response_body = ("No data directory provided").encode()
                 else:
+                    filename = ""
+                    try:
+                        tempbody = json.loads(body)
+                        if isinstance(tempbody, dict):
+                            filename = tempbody.get('filename', "")
+                    except Exception:
+                        filename = ""
                     saves = getSaves()
-                    if saveName is not None and saveName in saves:
-                        if (deleteSave(saveName)):
+                    if filename is not None and filename in saves:
+                        if (deleteSave(filename)):
                             response_body = ("Deleted from DB").encode()
                         else:
                             response_body = ("Error when deleting to DB").encode()
