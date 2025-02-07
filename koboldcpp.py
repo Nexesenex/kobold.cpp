@@ -49,7 +49,6 @@ dry_seq_break_max = 128
 # global vars
 KcppVersion = "1.83"
 showdebug = True
-guimode = False
 kcpp_instance = None #global running instance
 global_memory = None
 using_gui_launcher = False
@@ -606,10 +605,10 @@ def unpack_to_dir(destpath = ""):
             messagebox.showwarning("Invalid Selection", "The target folder is not empty or invalid. Please select an empty folder.")
 
 def exit_with_error(code, message, title="Error"):
-    global guimode
+    global using_gui_launcher
     print("")
     time.sleep(1)
-    if guimode:
+    if using_gui_launcher:
         show_gui_msgbox(title, message)
     else:
         print(message, flush=True)
@@ -3279,8 +3278,8 @@ def RunServerMultiThreaded(addr, port, server_handler):
 
 # note: customtkinter-5.2.0
 def show_gui():
-    global guimode
-    guimode = True
+    global using_gui_launcher
+    using_gui_launcher = True
     from tkinter.filedialog import askopenfilename, askdirectory
     from tkinter.filedialog import asksaveasfile
 
@@ -3369,8 +3368,6 @@ def show_gui():
     else:
         root.resizable(True,True)
         root.bind("<Configure>", on_resize)
-    global using_gui_launcher
-    using_gui_launcher = True
     kcpp_exporting_template = False
 
     # trigger empty tooltip then remove it
@@ -4588,7 +4585,7 @@ def show_gui():
             exitcounter = 999
             print("")
             time.sleep(0.5)
-            if guimode:
+            if using_gui_launcher:
                 givehelp = show_gui_yesnobox("No Model Loaded","No text or image model file was selected. Cannot continue.\n\nDo you want help finding a GGUF model?")
                 if givehelp == 'yes':
                     display_help_models()
@@ -4865,6 +4862,9 @@ def setuptunnel(global_memory, has_sd):
             elif sys.platform=="darwin":
                 print("Starting Cloudflare Tunnel for MacOS, please wait...", flush=True)
                 tunnelproc = subprocess.Popen(f"./cloudflared tunnel --url {httpsaffix}://localhost:{args.port} --no-tls-verify", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+            elif sys.platform == "linux" and platform.machine().lower() == "aarch64":
+                print("Starting Cloudflare Tunnel for ARM64 Linux, please wait...", flush=True)
+                tunnelproc = subprocess.Popen(f"./cloudflared-linux-arm64 tunnel --url {httpsaffix}://localhost:{args.port} --no-tls-verify", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
             else:
                 print("Starting Cloudflare Tunnel for Linux, please wait...", flush=True)
                 tunnelproc = subprocess.Popen(f"./cloudflared-linux-amd64 tunnel --url {httpsaffix}://localhost:{args.port} --no-tls-verify", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
@@ -4912,6 +4912,13 @@ def setuptunnel(global_memory, has_sd):
                 subprocess.run("curl -fL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-amd64.tgz -o cloudflared-darwin-amd64.tgz", shell=True, capture_output=True, text=True, check=True, encoding='utf-8')
                 subprocess.run("tar -xzf cloudflared-darwin-amd64.tgz", shell=True)
                 subprocess.run("chmod +x 'cloudflared'", shell=True)
+        elif sys.platform == "linux" and platform.machine().lower() == "aarch64":
+            if os.path.exists("cloudflared-linux-arm64") and os.path.getsize("cloudflared-linux-arm64") > 1000000:
+                print("Cloudflared file exists, reusing it...")
+            else:
+                print("Downloading Cloudflare Tunnel for ARM64 Linux...")
+                subprocess.run("curl -fL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64 -o cloudflared-linux-arm64", shell=True, capture_output=True, text=True, check=True, encoding='utf-8')
+                subprocess.run("chmod +x 'cloudflared-linux-arm64'", shell=True)
         else:
             if os.path.exists("cloudflared-linux-amd64") and os.path.getsize("cloudflared-linux-amd64") > 1000000:
                 print("Cloudflared file exists, reusing it...")
@@ -5006,6 +5013,7 @@ def reload_new_config(filename): #for changing config after launch
         setattr(args,"benchmark",False)
         setattr(args,"prompt","")
         setattr(args,"config",None)
+        setattr(args,"launch",None)
 
 def load_config_cli(filename):
     print("Loading .kcpps configuration file...")
@@ -5117,7 +5125,7 @@ def analyze_gguf_model_wrapper(filename=""):
     dumpthread.start()
 
 def main(launch_args):
-    global args, showdebug, kcpp_instance, exitcounter
+    global args, showdebug, kcpp_instance, exitcounter, using_gui_launcher
     args = launch_args #note: these are NOT shared with the child processes!
 
     if (args.version) and len(sys.argv) <= 2:
@@ -5129,7 +5137,10 @@ def main(launch_args):
         exit_with_error(1, "Error: Using --quantkv requires --flashattention")
 
     args = convert_outdated_args(args)
-    if not ((args.model_param or args.model) and args.prompt and not args.benchmark and not (args.debugmode >= 1)):
+
+    temp_hide_print = ((args.model_param or args.model) and args.prompt and not args.benchmark and not (args.debugmode >= 1))
+
+    if not temp_hide_print:
         print(f"***\nWelcome to KoboldCpp - Version {KcppVersion}")
     if args.debugmode != 1:
         showdebug = False #not shared with child process!
@@ -5169,6 +5180,22 @@ def main(launch_args):
             args.model_param = dlfile
         load_config_cli(args.model_param)
 
+    # show the GUI launcher if a model was not provided
+    if args.showgui or (not args.model_param and not args.sdmodel and not args.whispermodel and not args.ttsmodel and not args.nomodel):
+        #give them a chance to pick a file
+        print("For command line arguments, please refer to --help")
+        print("***")
+        try:
+            show_gui()
+        except Exception as ex:
+            exitcounter = 999
+            ermsg = "Reason: " + str(ex) + "\nFile selection GUI unsupported.\ncustomtkinter python module required!\n\nYou must use the command line instead, e.g. python ./koboldcpp.py --help"
+            show_gui_msgbox("Warning, GUI failed to start",ermsg)
+            if args.skiplauncher:
+                print("Note: In order to use --skiplauncher, you need to specify a model with --model")
+            time.sleep(3)
+            sys.exit(2)
+
     # manager command queue
     with multiprocessing.Manager() as mp_manager:
         global_memory = mp_manager.dict({"tunnel_url": "", "restart_target": "", "input_to_exit":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None})
@@ -5178,7 +5205,7 @@ def main(launch_args):
 
         # invoke the main koboldcpp process
         global_memory["currentConfig"] = args.config[0] if "config" in args and args.config is not None and len(args.config) > 0 else None
-        kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "g_memory": global_memory})
+        kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "g_memory": global_memory, "gui_launcher": using_gui_launcher})
         kcpp_instance.daemon = True
         kcpp_instance.start()
 
@@ -5218,7 +5245,7 @@ def main(launch_args):
                                     print(f"Setting model to {restart_model}")
                                     global_memory["modelOverride"] = modelFilepath
 
-                            kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "g_memory": global_memory})
+                            kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "g_memory": global_memory, "gui_launcher": using_gui_launcher})
                             kcpp_instance.daemon = True
                             kcpp_instance.start()
                             global_memory["restart_target"] = ""
@@ -5233,14 +5260,15 @@ def main(launch_args):
             print("Press ENTER key to exit.", flush=True)
             input()
 
-def kcpp_main_process(launch_args, g_memory=None):
-    global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui, start_time, exitcounter, global_memory
+def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
+    global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui, start_time, exitcounter, global_memory, using_gui_launcher
     global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath
 
     start_server = True
 
     args = launch_args
     global_memory = g_memory
+    using_gui_launcher = gui_launcher
     start_time = time.time()
 
     if (args.model_param or args.model) and args.prompt and not args.benchmark and not (args.debugmode >= 1):
@@ -5249,22 +5277,6 @@ def kcpp_main_process(launch_args, g_memory=None):
     if global_memory["modelOverride"] is not None:
         args.model_param = global_memory["modelOverride"]
     global_memory["currentModel"] = None if args.nomodel else args.model_param
-
-    # show the GUI launcher if a model was not provided
-    if args.showgui or (not args.model_param and not args.sdmodel and not args.whispermodel and not args.ttsmodel and not args.nomodel):
-        #give them a chance to pick a file
-        print("For command line arguments, please refer to --help")
-        print("***")
-        try:
-            show_gui()
-        except Exception as ex:
-            exitcounter = 999
-            ermsg = "Reason: " + str(ex) + "\nFile selection GUI unsupported.\ncustomtkinter python module required!\n\nYou must use the command line instead, e.g. python ./koboldcpp.py --help"
-            show_gui_msgbox("Warning, GUI failed to start",ermsg)
-            if args.skiplauncher:
-                print("Note: In order to use --skiplauncher, you need to specify a model with --model")
-            time.sleep(3)
-            sys.exit(2)
 
     if args.model_param and (args.benchmark or args.prompt):
         start_server = False
@@ -5545,7 +5557,7 @@ def kcpp_main_process(launch_args, g_memory=None):
             exitcounter = 999
             exit_with_error(3,"Could not load text model: " + modelname)
 
-    if (chatcompl_adapter is not None and isinstance(chatcompl_adapter, list)):
+    if (chatcompl_adapter is not None and isinstance(chatcompl_adapter, list) and not args.nomodel):
         # The chat completions adapter is a list that needs derivation from chat templates
         # Try to derive chat completions adapter from chat template, now that we have the model loaded
         ctbytes = handle.get_chat_template()
@@ -5843,7 +5855,6 @@ def kcpp_main_process(launch_args, g_memory=None):
                         file.write(f"\n{datetimestamp},{libname},{args.gpulayers},{benchmodel},{benchmaxctx},{benchlen},{t_pp:.2f},{s_pp:.2f},{t_gen:.2f},{s_gen:.2f},{(t_pp+t_gen):.2f},{result},{benchflagstr}")
                 except Exception as e:
                     print(f"Error writing benchmark to file: {e}")
-            global using_gui_launcher
             if using_gui_launcher and not save_to_file:
                 global_memory["input_to_exit"] = True
                 time.sleep(1)
