@@ -22359,7 +22359,8 @@ else
 					hide_popups()
 					showServerSavesPopup()
 				}
-				document.querySelector("#saveloadcontainer .popupfooter").append(serverSideButton);
+				let footerButtons = document.querySelector("#saveloadcontainer .popupfooter")
+				footerButtons.insertBefore(serverSideButton, footerButtons.firstChild);
 				hasAppended = true
 			}
 			display_saveloadcontainer()
