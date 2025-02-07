@@ -2025,7 +2025,7 @@ def setSave(saveName, b64Data):
     with sqlite3.connect(getDBPath()) as con:
         try:
             cursor = con.cursor()
-            cursor.execute(f"INSERT INTO saveData(name, encodedSave) VALUES ('{saveName}', '{b64Data}');")
+            cursor.execute("INSERT INTO saveData(name, encodedSave) VALUES (?, ?);", [saveName, b64Data])
             cursor.close()
             return True
         # Handle errors
@@ -2038,7 +2038,7 @@ def deleteSave(saveName):
     with sqlite3.connect(getDBPath()) as con:
         try:
             cursor = con.cursor()
-            cursor.execute(f"DELETE FROM saveData WHERE name = '{saveName}';")
+            cursor.execute(f"DELETE FROM saveData WHERE name = ?;", [saveName])
             cursor.close()
             return True
         # Handle errors

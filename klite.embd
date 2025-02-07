@@ -22244,6 +22244,12 @@ else
 		}
 		return header;
 	}
+
+	handleError = (e) => {
+		console.error(e)
+		msgbox(!!e?.message ? e.message : e)
+	}
+
 	reloadSaves = () => {
 		saveOptions.innerHTML = ""
 		return fetch(`${custom_kobold_endpoint}/api/data/list`, {
@@ -22257,7 +22263,7 @@ else
 				});
 			})
 			.catch(e => {
-				console.error(e)
+				handleError(e)
 			})
 	}
 
@@ -22273,7 +22279,7 @@ else
 				hideServerSavesPopup();
 			})
 			.catch(e => {
-				console.error(e)
+				handleError(e)
 			})
 	}
 
@@ -22298,9 +22304,13 @@ else
 			.then(resp => resp.text())
 			.then(message => {
 				console.log(message)
+				if ("Saved to DB" !== message)
+				{
+					msgbox(message)
+				}
 			})
 			.catch(e => {
-				console.error(e)
+				handleError(e)
 			})
 		});
 	}
@@ -22314,10 +22324,14 @@ else
 			.then(resp => resp.text())
 			.then(message => {
 				console.log(message)
+				if ("Deleted from DB" !== message)
+				{
+					msgbox(message)
+				}
 				reloadSaves()
 			})
 			.catch(e => {
-				console.error(e)
+				handleError(e)
 			})
 	}
 
