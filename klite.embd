@@ -22177,7 +22177,7 @@ Current version indicated by LITEVER below.
 
 	<div class="popupcontainer flex hidden" id="serverSaves">
 		<div class="popupbg flex"></div>
-		<div class="nspopup">
+		<div class="nspopup flexsize">
 			<div class="popuptitlebar">
 				<div class="popuptitletext">Save / Load from Server</div>
 			</div>
@@ -22190,7 +22190,7 @@ Current version indicated by LITEVER below.
 				</div>
 				<br>
 			</div>
-			<div class="popupfooter">
+			<div class="popupfooter" style="display: inline-block;">
 				<button id="saveToDB" class="btn btn-primary" style="width: auto;">Save to DB</button>
 				<button id="loadFromDB" class="btn btn-primary" style="width: auto;">Load from DB</button>
 				<button id="deleteFromDB" class="btn btn-primary" style="width: auto;">Delete from DB</button>
@@ -22297,7 +22297,7 @@ else
 			})
 			.then(resp => resp.text())
 			.then(message => {
-				alert(message)
+				console.log(message)
 			})
 			.catch(e => {
 				console.error(e)
@@ -22313,7 +22313,7 @@ else
 			})
 			.then(resp => resp.text())
 			.then(message => {
-				alert(message)
+				console.log(message)
 				reloadSaves()
 			})
 			.catch(e => {
