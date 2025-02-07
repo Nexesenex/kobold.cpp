@@ -4501,7 +4501,7 @@ def show_gui():
 
         admin_var.set(dict["admin"] if ("admin" in dict) else 0)
         admin_dir_var.set(dict["admindir"] if ("admindir" in dict and dict["admindir"]) else "")
-        admin_text_model_dir_var.set(dict["admintextmodeldir"] if ("admintextmodeldir" in dict and dict["admintextmodeldir"]) else "")
+        admin_text_model_dir_var.set(dict["admintextmodelsdir"] if ("admintextmodelsdir" in dict and dict["admintextmodelsdir"]) else "")
         admin_data_dir_var.set(dict["admindatadir"] if ("admindatadir" in dict and dict["admindatadir"]) else "")
         admin_password_var.set(dict["adminpassword"] if ("adminpassword" in dict and dict["adminpassword"]) else "")
 
