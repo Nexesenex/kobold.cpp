@@ -5225,7 +5225,7 @@ def main(launch_args,start_server=True):
 
         # invoke the main koboldcpp process
         
-        global_memory["currentConfig"] = args.config[0] if "config" in args args.config is not None and len(args.config) > 0 else None
+        global_memory["currentConfig"] = args.config[0] if "config" in args and args.config is not None and len(args.config) > 0 else None
         kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "start_server": start_server, "g_memory": global_memory})
         kcpp_instance.daemon = True
         kcpp_instance.start()
