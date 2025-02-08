@@ -54,8 +54,8 @@ dry_seq_break_max = 512
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.83020"
-LcppVersion = "b4667"
+KcppVersion = "1.83021"
+LcppVersion = "b4672"
 CudaSpecifics = "Cu126_Ar75_SMC2_DmmvX32Y1"
 ReleaseDate = "2025/02/08"
 showdebug = True
