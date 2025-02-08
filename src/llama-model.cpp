@@ -1280,7 +1280,7 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
 
     bool use_mmap_buffer = true;
 
-    LLAMA_LOG_INFO("%s: loading model tensors, this can take a while... (mmap = %s)\n", __func__, use_mmap_buffer ? "true" : "false");
+    LLAMA_LOG_INFO("%s: loading model tensors, this can take a while... (mmap = %s)\n", __func__, ml.use_mmap ? "true" : "false");
 
     // build a list of buffer types for the CPU and GPU devices
     pimpl->cpu_buft_list = make_cpu_buft_list(devices);
@@ -1328,12 +1328,12 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
     const int act_gpu_layers = devices.empty() ? 0 : std::min(n_gpu_layers, (int)n_layer + 1);
     auto get_layer_buft_list = [&](int il) -> llama_model::impl::layer_dev {
         if (il < i_gpu_start || (il - i_gpu_start) >= act_gpu_layers) {
-            LLAMA_LOG_DEBUG("load_tensors: layer %3d assigned to device %s\n", il, ggml_backend_dev_name(cpu_dev));
+            // LLAMA_LOG_DEBUG("load_tensors: layer %3d assigned to device %s\n", il, ggml_backend_dev_name(cpu_dev));
             return {cpu_dev, &pimpl->cpu_buft_list};
         }
         const int layer_gpu = std::upper_bound(splits.begin(), splits.begin() + n_devices(), float(il - i_gpu_start)/act_gpu_layers) - splits.begin();
         auto * dev = devices.at(layer_gpu);
-        LLAMA_LOG_DEBUG("load_tensors: layer %3d assigned to device %s\n", il, ggml_backend_dev_name(dev));
+        // LLAMA_LOG_DEBUG("load_tensors: layer %3d assigned to device %s\n", il, ggml_backend_dev_name(dev));
         return {dev, &pimpl->gpu_buft_list.at(dev)};
     };
 
