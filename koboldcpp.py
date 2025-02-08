@@ -1715,22 +1715,22 @@ def load_model(model_filename):
     else:
         inputs.quant_k = inputs.quant_v = 0
 
-    if args.draft_quantkv==-1:
-        inputs.draft_quant_k = inputs.draft_quant_v = args.quantkv
-    elif args.draft_quantkv==0:
-        inputs.draft_quant_k = inputs.draft_quant_v = 0
-    elif args.draft_quantkv>0 and args.draft_quantkv<15:
+    # if args.draft_quantkv==-1:
+        # inputs.draft_quant_k = inputs.draft_quant_v = args.quantkv
+    # elif args.draft_quantkv==1:
+        # inputs.draft_quant_k = inputs.draft_quant_v = 1
+    if args.draft_quantkv>0 and args.draft_quantkv<16:
         inputs.draft_quant_k = inputs.draft_quant_v = args.draft_quantkv
         inputs.flash_attention = True
-    elif args.draft_quantkv>2 and args.draft_quantkv<8:
+    elif args.draft_quantkv>0 and args.draft_quantkv<9:
         inputs.use_contextshift = 0
-    elif args.draft_quantkv>7 and args.draft_quantkv<15:
+    elif args.draft_quantkv>8 and args.draft_quantkv<16:
         inputs.use_contextshift = 0
-    elif args.draft_quantkv==15:
-        inputs.draft_quant_k = inputs.draft_quant_v = 15
+    elif args.draft_quantkv==16:
+        inputs.draft_quant_k = inputs.draft_quant_v = 16
         inputs.flash_attention = False
         # inputs.use_contextshift = 0
-    elif args.draft_quantkv>15 and args.draft_quantkv<23:
+    elif args.draft_quantkv>16 and args.draft_quantkv<24:
         inputs.draft_quant_k = inputs.draft_quant_v = args.draft_quantkv
         inputs.flash_attention = False
     else:
@@ -3994,7 +3994,7 @@ def show_gui():
     lowvram_var = ctk.IntVar()
     mmq_var = ctk.IntVar(value=1)
     quantkv_var = ctk.IntVar(value=0)
-    draft_quantkv_var = ctk.IntVar(value=-1)
+    draft_quantkv_var = ctk.IntVar(value=0)
     blas_threads_var = ctk.StringVar()
     blas_size_var = ctk.IntVar()
 
@@ -4544,7 +4544,7 @@ def show_gui():
     makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28,  tooltiptxt="Enable flash attention for GGUF models.")
     # noqkvlabel = makelabel(tokens_tab,"Requirments Not Met",31,0,"Requires FlashAttention ENABLED and ContextShift DISABLED.")
     # noqkvlabel.configure(text_color="#ff5555")
-    qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 23, 30, set=0,tooltip="Enable quantization of KV cache (KVQ). Mode 0 (F16) is default. Modes 1-12 requires FlashAttention and disables ContextShift.\nModes 15-20 work without FA, for incompatible models. 0,13,14 can work with or without.")
+    qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 22, 30, set=0,tooltip="Enable quantization of KV cache (KVQ). Mode 0 (F16) is default. Modes 1-12 requires FlashAttention and disables ContextShift.\nModes 15-22 work without FA, for incompatible models.")
 
     # load model
     makefileentry(tokens_tab, "Model:", "Select GGML or GGML Model File", model_var, 50, 576, onchoosefile=on_picked_model_file, filetypes=[("GGML bin or GGUF", ("*.bin","*.gguf"))] ,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
@@ -4569,7 +4569,7 @@ def show_gui():
     makelabelentry(model_tab, "Draft Amount: ", draftamount_var, 13, 50,padx=100,singleline=True,tooltip="How many tokens to draft per chunk before verifying results")
     makelabelentry(model_tab, "Splits: ", draftgpusplit_str_vars, 13, 50,padx=210,singleline=True,tooltip="Distribution of draft model layers. Leave blank to follow main model's gpu split. Only works if multi-gpu (All) selected in main model.", labelpadx=160)
     makelabelentry(model_tab, "Layers: ", draftgpulayers_var, 13, 50,padx=320,singleline=True,tooltip="How many layers to GPU offload for the draft model", labelpadx=270)
-    makeslider(model_tab, "Quantize Draft KV Cache:", draft_quantkv_text, draft_quantkv_var, 0, 23, 30, set=-1,tooltip="Enable quantization of Draft KV cache (D_KVQ). Mode 0 (F16) is default. Modes 1-12 requires FlashAttention and disables ContextShift.\nModes 15-20 work without FA, for incompatible models. 0,13,14 can work with or without.")
+    makeslider(model_tab, "Quantize Draft KV Cache:", draft_quantkv_text, draft_quantkv_var, 0, 23, 30, set=-1,tooltip="Enable quantization of Draft KV cache (D_KVQ). Mode -1 (same as main) is default. Mode 0 (F16) is FA and non-FA both. Modes 1-12 requires FlashAttention and disables ContextShift.\nModes 15-22 work without FA, for incompatible models.")
     makefileentry(model_tab, "Preloaded Story:", "Select Preloaded Story File", preloadstory_var, 15,width=280,singlerow=True,tooltiptxt="Select an optional KoboldAI JSON savefile \nto be served on launch to any client.")
     makefileentry(model_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 24, width=250, filetypes=[("JSON Adapter", "*.json")], tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
     def pickpremadetemplate():
@@ -4781,7 +4781,7 @@ def show_gui():
         args.nocertify = nocertifymode.get()==1
         args.nomodel = nomodel.get()==1
         args.quantkv = int(quantkv_values[int(quantkv_var.get())])
-        args.draft_quantkv = int(draft_quantkv_values[int(draft_quantkv_var.get())])
+        args.draft_quantkv = int(draft_quantkv_values[int(draft_quantkv_var.get()+1)])
 
         args.poslayeroffset = int(poslayeroffset_values[int(poslayeroffset_var.get())])
         args.neglayeroffset = int(neglayeroffset_values[int(neglayeroffset_var.get())])

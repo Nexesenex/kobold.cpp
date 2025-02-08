@@ -599,6 +599,9 @@ static void speculative_decoding_setup(std::string spec_model_filename, const ll
     draft_ctx_params.n_threads_batch =  base_ctx_params.n_threads_batch;
     draft_ctx_params.flash_attn = base_ctx_params.flash_attn;
 
+    draft_quant_k=draft_quant_k-1;
+    draft_quant_v=draft_quant_v-1;
+
     if (draft_quant_k==-1)
     {
         draft_ctx_params.type_k = base_ctx_params.type_k;
