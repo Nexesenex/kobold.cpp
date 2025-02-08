@@ -5565,7 +5565,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
             exitcounter = 999
             exit_with_error(3,"Could not load text model: " + modelname)
 
-    if (chatcompl_adapter is not None and isinstance(chatcompl_adapter, list) and not args.nomodel):
+    if (chatcompl_adapter is not None and isinstance(chatcompl_adapter, list) and not args.nomodel and args.model_param):
         # The chat completions adapter is a list that needs derivation from chat templates
         # Try to derive chat completions adapter from chat template, now that we have the model loaded
         ctbytes = handle.get_chat_template()

@@ -2654,6 +2654,11 @@ bool gpttype_generate_abort()
 
 std::string gpttype_get_chat_template()
 {
+    if(kcpp_data==nullptr)
+    {
+        printf("\nWarning: KCPP text generation not initialized!\n");
+        return "";
+    }
     // copied from examples/server/utils.hpp::llama_get_chat_template
     std::string template_key = "tokenizer.chat_template";
     // call with NULL buffer to get the total size of the string
@@ -2690,6 +2695,12 @@ std::vector<int> gpttype_get_token_arr(const std::string & input, bool addbos)
 
 std::string gpttype_detokenize(const std::vector<int> & inputids, bool render_special)
 {
+    if(kcpp_data==nullptr)
+    {
+        printf("\nWarning: KCPP text generation not initialized!\n");
+        return "";
+    }
+
     std::string output = "";
     for (auto eid : inputids)
     {
