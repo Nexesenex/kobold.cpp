@@ -398,9 +398,9 @@ int32_t kcpp_quick_sample(float * logits, const int n_logits, const std::vector<
         if (rep_pen>1.0f && std::find(last_n_tokens.begin(), last_n_tokens.end(), i) != last_n_tokens.end()) {
             // if score < 0 then repetition penalty has to multiplied to reduce the previous token probability
             if (logits[i] < 0.0f) {
-                logits_id.push_back(std::make_pair(logits[i]*scale*rep_pen, i));
+                logits_id.push_back(std::make_pair((logits[i]*scale)*rep_pen, i));
             } else {
-                logits_id.push_back(std::make_pair(logits[i]*scale/rep_pen, i));
+                logits_id.push_back(std::make_pair((logits[i]*scale)/rep_pen, i));
             }
         } else {
             logits_id.push_back(std::make_pair(logits[i]*scale, i));

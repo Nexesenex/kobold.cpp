@@ -88,12 +88,12 @@ static gpt_neox_model neox_ctx_v3;
 
 static mpt_model mpt_ctx_v3;
 
-static rwkv_v2_context * rwkv_ctx_v2;
-static rwkv_context * rwkv_ctx_v3;
+static rwkv_v2_context * rwkv_ctx_v2 = nullptr;
+static rwkv_context * rwkv_ctx_v3 = nullptr;
 
-static llama_v2_context * llama_ctx_v2;
-static llama_v3_context * llama_ctx_v3;
-static llama_context * llama_ctx_v4;
+static llama_v2_context * llama_ctx_v2 = nullptr;
+static llama_v3_context * llama_ctx_v3 = nullptr;
+static llama_context * llama_ctx_v4 = nullptr;
 static llama_context * draft_ctx = nullptr; //will remain null if speculative is unused
 
 static clip_ctx * clp_ctx = nullptr; //for llava
@@ -2657,6 +2657,10 @@ std::string gpttype_get_chat_template()
     if(kcpp_data==nullptr)
     {
         printf("\nWarning: KCPP text generation not initialized!\n");
+        return "";
+    }
+    if(file_format!=FileFormat::GGUF_GENERIC || !llama_ctx_v4)
+    {
         return "";
     }
     // copied from examples/server/utils.hpp::llama_get_chat_template

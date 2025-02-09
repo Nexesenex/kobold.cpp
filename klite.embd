@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 212;
+	const LITEVER = 213;
 	const urlParams = new URLSearchParams(window.location.search);
 	var localflag = true;
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -9448,6 +9448,12 @@ Current version indicated by LITEVER below.
 									document.getElementById("max_context_length_slide").max = ep_maxctx;
 									document.getElementById("max_context_length_slide_label").innerText = ep_maxctx;
 								}
+								if(ep_maxctx && ep_maxctx>4096 && document.getElementById("max_length_slide").max<1024)
+								{
+									document.getElementById("max_length_slide").max = 1024;
+									document.getElementById("max_length_slide_label").innerText = 1024;
+								}
+
 							}).catch(error => {
 								console.log("Failed to get KAI max ctx: " + error);
 							});
@@ -9494,6 +9500,11 @@ Current version indicated by LITEVER below.
 										{
 											document.getElementById("max_context_length_slide").max = ep_maxctx;
 											document.getElementById("max_context_length_slide_label").innerText = ep_maxctx;
+										}
+										if(ep_maxctx && ep_maxctx>4096 && document.getElementById("max_length_slide").max<1024)
+										{
+											document.getElementById("max_length_slide").max = 1024;
+											document.getElementById("max_length_slide_label").innerText = 1024;
 										}
 										if(localflag && localsettings.max_context_length==4096 && ep_maxctx>4096)
 										{
@@ -19984,7 +19995,7 @@ Current version indicated by LITEVER below.
 				<button type="button" class="btn btn-primary mainnav" id="btn_actredo" onpointerdown="btn_redo_longpress_start()" onpointerleave="btn_redo_longpress_end()" onpointerup="btn_redo_longpress_end()" onclick="btn_redo()">Redo</button>
 				<button type="button" class="btn btn-primary mainnav" id="btn_actretry" onclick="btn_retry()">Retry</button>
 				<button type="button" class="btn btn-primary bg_green mainnav" id="btn_genimg" onclick="add_img_btn_menu()">Add Img</button>
-				<button type="button" class="btn btn-primary mainnav slim btnicon-websearch" id="btn_togglesearch" onclick="toggle_websearch()">&nbsp;</button>
+				<button type="button" class="btn btn-primary mainnav slim btnicon-websearch hidden" id="btn_togglesearch" onclick="toggle_websearch()">&nbsp;</button>
 			</div>
 			<div class="borderbox flex flex-push-right">
 				<input type="checkbox" id="entersubmit" class="mainnav" onclick="toggle_entersends()" checked>
@@ -20033,7 +20044,7 @@ Current version indicated by LITEVER below.
 						<button type="button" class="btn btn-primary mainnav" id="btn_actredo2" onpointerdown="btn_redo_longpress_start()" onpointerleave="btn_redo_longpress_end()" onpointerup="btn_redo_longpress_end()" onclick="btn_redo()">Redo</button>
 						<button type="button" class="btn btn-primary mainnav" id="btn_actretry2" onclick="btn_retry()">Retry</button>
 						<button type="button" class="btn btn-primary bg_green mainnav" id="btn_genimg2" onclick="add_img_btn_menu()">Add Img</button>
-						<button type="button" class="btn btn-primary mainnav slim btnicon-websearch" id="btn_togglesearch2" onclick="toggle_websearch()">&nbsp;</button>
+						<button type="button" class="btn btn-primary mainnav slim btnicon-websearch hidden" id="btn_togglesearch2" onclick="toggle_websearch()">&nbsp;</button>
 						<button type="button" class="btn btn-primary mainnav" id="btn_editmode" onclick="btn_editmode()">Edit</button>
 					</div>
 				</div>
@@ -20842,7 +20853,7 @@ Current version indicated by LITEVER below.
 						   document.getElementById('max_length').value = this.value;"></div>
 						<div class="settingminmax">
 							<div class="justifyleft">16</div>
-							<div class="justifyright">512</div>
+							<div class="justifyright" id="max_length_slide_label">512</div>
 						</div>
 						<div id="auto_genamt_panel" class="settinglabel">
 							<div class="justifyleft settingsmall" title="Automatically lowers settings if incompatible with existing workers">Auto-Adjust Limits </div>
