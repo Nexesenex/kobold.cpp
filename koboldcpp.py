@@ -54,14 +54,15 @@ dry_seq_break_max = 512
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.83021"
-LcppVersion = "b4672"
+KcppVersion = "1.83100"
+LcppVersion = "b4675"
 CudaSpecifics = "Cu126_Ar75_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/02/08"
+ReleaseDate = "2025/02/09"
+KcppVersion = "1.83.1"
 showdebug = True
 # guimode = False
 kcpp_instance = None #global running instance
-global_memory = None
+global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False}
 using_gui_launcher = False
 
 handle = None
@@ -3094,7 +3095,7 @@ Enter Prompt:<br>
             opts = []
             if args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
                 dirpath = os.path.abspath(args.admindir)
-                opts = [f for f in os.listdir(dirpath) if f.endswith(".kcpps") and os.path.isfile(os.path.join(dirpath, f))]
+                opts = [f for f in sorted(os.listdir(dirpath)) if f.endswith(".kcpps") and os.path.isfile(os.path.join(dirpath, f))]
             response_body = (json.dumps(opts).encode())
 
         elif self.path.endswith(('/api/extra/perf')):
@@ -5518,12 +5519,13 @@ def setuptunnel(global_memory, has_sd):
                     found = re.findall(pattern, line)
                     for x in found:
                         tunneloutput = x
-                        print(f"Your remote Kobold API can be found at {tunneloutput}/api")
-                        print(f"Your remote OpenAI Compatible API can be found at {tunneloutput}/v1")
-                        if has_sd:
-                            print(f"StableUI is available at {tunneloutput}/sdui/")
-                        print("======\n")
-                        print(f"Your remote tunnel is ready, please connect to {tunneloutput}", flush=True)
+                        if global_memory and global_memory["load_complete"]:
+                            print(f"Your remote Kobold API can be found at {tunneloutput}/api")
+                            print(f"Your remote OpenAI Compatible API can be found at {tunneloutput}/v1")
+                            if has_sd:
+                                print(f"StableUI is available at {tunneloutput}/sdui/")
+                            print("======\n")
+                            print(f"Your remote tunnel is ready, please connect to {tunneloutput}", flush=True)
                         if global_memory:
                             global_memory["tunnel_url"] = tunneloutput
                         return
@@ -5763,7 +5765,7 @@ def analyze_gguf_model_wrapper(filename=""):
     dumpthread.start()
 
 def main(launch_args):
-    global args, showdebug, kcpp_instance, exitcounter, using_gui_launcher, sslvalid
+    global args, showdebug, kcpp_instance, exitcounter, using_gui_launcher, sslvalid, global_memory
     args = launch_args #note: these are NOT shared with the child processes!
 
     if (args.version) and len(sys.argv) <= 2:
@@ -5860,51 +5862,64 @@ def main(launch_args):
         if len(args.ssl)==2 and isinstance(args.ssl[0], str) and os.path.exists(args.ssl[0]) and isinstance(args.ssl[1], str) and os.path.exists(args.ssl[1]):
             sslvalid = True
 
-    # manager command queue
-    with multiprocessing.Manager() as mp_manager:
-        global_memory = mp_manager.dict({"tunnel_url": "", "restart_target":"", "input_to_exit":False})
+    if args.admin and not args.admindir:
+        args.admin = False
+        print("\nWARNING: Admin was set without selecting an admin directory. Admin cannot be used.\n")
 
+    if not args.admin: #run in single process mode
         if args.remotetunnel and not args.prompt and not args.benchmark:
             setuptunnel(global_memory, True if args.sdmodel else False)
-
-        # invoke the main koboldcpp process
-        kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "g_memory": global_memory, "gui_launcher": using_gui_launcher})
-        kcpp_instance.daemon = True
-        kcpp_instance.start()
-
-        while True: # keep the manager alive
-            try:
-                restart_target = ""
-                if not kcpp_instance or not kcpp_instance.is_alive():
-                    break
-                restart_target = global_memory["restart_target"]
-                if restart_target!="":
-                    print(f"Reloading new config: {restart_target}")
-                    global_memory["restart_target"] = ""
-                    time.sleep(0.5) #sleep for 0.5s then restart
-                    if args.admin and args.admindir:
-                        dirpath = os.path.abspath(args.admindir)
-                        targetfilepath = os.path.join(dirpath, restart_target)
-                        if os.path.exists(targetfilepath):
-                            print("Terminating old process...")
-                            kcpp_instance.terminate()
-                            kcpp_instance.join(timeout=10)  # Ensure process is stopped
-                            kcpp_instance = None
-                            print("Restarting KoboldCpp...")
-                            reload_new_config(targetfilepath)
-                            kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "g_memory": global_memory, "gui_launcher": using_gui_launcher})
-                            kcpp_instance.daemon = True
-                            kcpp_instance.start()
-                            global_memory["restart_target"] = ""
-                            time.sleep(1)
-                else:
-                    time.sleep(0.2)
-            except (KeyboardInterrupt,SystemExit):
-                break
+        kcpp_main_process(args,global_memory,using_gui_launcher)
         if global_memory["input_to_exit"]:
             print("===")
             print("Press ENTER key to exit.", flush=True)
             input()
+    else:  # manager command queue for admin mode
+        with multiprocessing.Manager() as mp_manager:
+            global_memory = mp_manager.dict({"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False})
+
+            if args.remotetunnel and not args.prompt and not args.benchmark:
+                setuptunnel(global_memory, True if args.sdmodel else False)
+
+            # invoke the main koboldcpp process
+            kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "g_memory": global_memory, "gui_launcher": using_gui_launcher})
+            kcpp_instance.daemon = True
+            kcpp_instance.start()
+
+            while True: # keep the manager alive
+                try:
+                    restart_target = ""
+                    if not kcpp_instance or not kcpp_instance.is_alive():
+                        break
+                    restart_target = global_memory["restart_target"]
+                    if restart_target!="":
+                        print(f"Reloading new config: {restart_target}")
+                        global_memory["restart_target"] = ""
+                        time.sleep(0.5) #sleep for 0.5s then restart
+                        if args.admin and args.admindir:
+                            dirpath = os.path.abspath(args.admindir)
+                            targetfilepath = os.path.join(dirpath, restart_target)
+                            if os.path.exists(targetfilepath):
+                                print("Terminating old process...")
+                                global_memory["load_complete"] = False
+                                kcpp_instance.terminate()
+                                kcpp_instance.join(timeout=10)  # Ensure process is stopped
+                                kcpp_instance = None
+                                print("Restarting KoboldCpp...")
+                                reload_new_config(targetfilepath)
+                                kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "g_memory": global_memory, "gui_launcher": using_gui_launcher})
+                                kcpp_instance.daemon = True
+                                kcpp_instance.start()
+                                global_memory["restart_target"] = ""
+                                time.sleep(1)
+                    else:
+                        time.sleep(0.2)
+                except (KeyboardInterrupt,SystemExit):
+                    break
+            if global_memory["input_to_exit"]:
+                print("===")
+                print("Press ENTER key to exit.", flush=True)
+                input()
 
 def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
     global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui, start_time, exitcounter, global_memory, using_gui_launcher
@@ -6401,7 +6416,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
             print(f"Your remote OpenAI Compatible API can be found at {endpoint_url}/v1")
             if args.sdmodel:
                 print(f"StableUI is available at {endpoint_url}/sdui/")
-
+        global_memory["load_complete"] = True
     if args.launch:
         LaunchWebbrowser(endpoint_url,"--launch was set, but could not launch web browser automatically.")
 
@@ -6593,7 +6608,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
 
                 except Exception as e:
                     print(f"Error writing benchmark to file: {e}")
-            if using_gui_launcher and not save_to_file:
+            if global_memory and using_gui_launcher and not save_to_file:
                 global_memory["input_to_exit"] = True
                 time.sleep(1)
 
