@@ -22263,8 +22263,7 @@ else
 			.then(resp => resp.json())
 			.then(arr => {
 				arr.forEach(elem => {
-					elemAsText = decodeURIComponent(elem)
-					saveOptions.appendChild(new Option(elemAsText, elemAsText))
+					saveOptions.appendChild(new Option(elem, elem))
 				});
 			})
 			.catch(e => {
