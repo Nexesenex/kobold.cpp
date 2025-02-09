@@ -16,24 +16,26 @@ Important : New models sometimes integrated in my builds (like recently Mistral 
 
 Presentation :
 
-Croco.Cpp (CCPP) is a fork of the experimental branch of KoboldCPP (KCPP), mainly aimed at NVidia Cuda users (I'm myself using Ampere GPUs, it MIGHT support the other backends also, everything is compîled but Hipblas/ROCm, but it's not tested), with a few modifications accordingly to my own needs :
+Croco.Cpp (CCPP) is a fork of the experimental branch of KoboldCPP (KCPP), mainly aimed at NVidia Cuda users (I'm myself using Ampere GPUs, it doesn't support the other backends as of now, it might support Hipblas/ROCm, but it's not tested), with a few modifications accordingly to my own needs :
 - A more cluttered GUI that I had to enlarge to put all my mess.
 - More context steps in GUI, as well as more Blas Batch Size (supports MMVQ 1-8 for example).
 - Physical Blas Batch Size Exposed and configurable.
-- 22 or so different modes of quantization for the context cache (F16, around 15 KV modes with Flash Attention, 7 quantum legacy K cache modes without Flash Attention for models like Gemma).
-- KV cache supports IQ4_NL and Q6_0 (except for Gemma), thanks to Ikawrakow.
-- Supports inference for B16 models in Cuda (thanks Ikawrakow).
-- Supports inference for new quants made by Ikawrakow (Q6_0 legacy for irregularly shaped tensors ; IQ_2K, 3K, 4K, 5K, 6K (first gen)
-- Supported (up to v b4435) IQ2_KS, 4_KSS, 4_KS (second gen, working with IK's reworked MMVQ template) ; IQ2_KT, 3_KT, 4_KT (Trellis, working with a restored DMMV kernel). Not available in newer versions due to incompatibility with GGUF v14 format.
+- 22 or so different modes of quantization for the context cache (F16, around 15 KV modes with Flash Attention, BF16, 7 quantum legacy K cache modes without Flash Attention for models like Gemma).
+- KV cache supports IQ4_NL and Q6_0 (except for Gemma), thanks to Ikawrakow. IQ4_NL gives 2% perplexity gain over q4_0, and q6_0 0.1-0.2% over Q5_1.
+- Configurable KV cache for the draft model in case of speculative decoding.
+- Shrunk Blas Batch size on the draft model compared to the main model BBS, due to the draft's logically smaller size and thus higher PP.
+- Supports inference for B16 models in Cuda (thanks Justine Tuney, Ikawrakow, and Johannes Gaessler).
+- Supports inference for the IQ_K quants (first generation) made by Ikawrakow (Q6_0 legacy for irregularly shaped tensors ; IQ_2K, 3K, 4K, 5K, 6K).
+- Supported up to v b4435.. IQ2_KS, 4_KSS, 4_KS (second gen, working with IK's reworked MMVQ template) ; IQ2_KT, 3_KT, 4_KT (Trellis, working with a restored DMMV kernel). Not available in newer versions due to incompatibility with GGUF v14 format.
 - A dozen or so commits taken from Ikawrakow's IK_Llama.CPP for performances (notably on Gemma). That includes a few more GGML ops.
 - A slightly different benchmark (one flag per column instead of a single flag space).
 - 10 Stories slots instead of 6 in the web-interface (KLite).
 - Often some PRs unsupported/not yet supported in KCPP (I look especially at Cuda and KV cache related PRs).
 - More infos displayed in the CLI, without activating debug mode.
 - Smartcontext instead of contextshift by default in GUI for compatibility with Gemma.
-- Support the edition of NORM_EPS_RMS value.
+- Support the edition of NORM_EPS_RMS value to improve the inference of 1.5bpw to 2bpw quants.
 - More logging out of debug mode.
-- Support EmphasisFSM by Yoshku to handle the "" and ** formatting in KCPP and SillyTavern (mostly, if you have troubles of chat (thoughts, actions, dialogues) formatting, and anti-slop doesn't cut it for your needs somehow).
+- Supported (not anymore, sadly) EmphasisFSM by Yoshku to handle the "" and ** formatting in KCPP and SillyTavern (mostly, if you have troubles of chat (thoughts, actions, dialogues) formatting, and anti-slop doesn't cut it for your needs somehow).
 - Since 1.71010, an enhanced model layers autoloader on GPU (which is less and less cluttered and bugged lol), based on Concedo's code and Pyroserenus formulas, but different from Henky's subsequent commit on KCPP-official. It's compatible with KV_Quants, accounts for FA, MMQ, LowVram, works in single and multi-GPU (up to 16?), is accessible in CLI and GUI modes, and can be configured easily in tandem with tensor split for an entirely customized loading accordingly to one's rig and needs.
 
 
@@ -53,14 +55,14 @@ Check the help section (koboldcpp.exe --help or python koboldcpp.py --help) for 
 With Flash Attention :
 - F16 -> Fullproof (the usual KV quant since the beginning of LCPP/KCPP)
 - BF16 (experimental)
-- K F16 with : V Q8_0, Q6_0 (experimental), Q5_1, Q5_0, iq4_nl
-- K Q8_0 with : V Q8_0 (stable, part of the LCPP/KCPP main triplet), Q6_0 (experimental), Q5_1 (maybe unstable), Q5_0 (maybe unstable), iq4_nl (maybe stable), Q4_0 (maybe stable)
-- K Q6_0 with : V Q6_0, Q5_0, iq4_nl
-- K Q5_1 with : V Q5_0, iq4_nl
-- K Q5_0 with : V iq4_nl
+- K F16 with : V Q8_0, Q6_0 (experimental), Q5_0, iq4_nl.
+- K Q8_0 with : V Q8_0 (stable, part of the LCPP/KCPP main triplet), Q6_0 (experimental),  Q5_0 (maybe unstable), iq4_nl (maybe stable).
+- K Q6_0 with : V Q6_0, Q5_0, iq4_nl.
+- K Q5_1 with : V Q5_0, iq4_nl.
+- K Q5_0 with : V iq4_nl.
 - KV Q4_0 (quite stable, if we consider that it's part of the LCPP/KCPP main triplet)
 Works in command line, normally also via the GUI, and normally saves on .KCPPS config files.
-- KV iq4_nl (with -1% perplexity compared to Q4_0).
+- KV iq4_nl (with -2% perplexity compared to Q4_0).
 
 Without Flash Attention nor MMQ (for models like Gemma) :
 - V F16 with K Q8_0, Q5_1, Q5_0, Q4_1, and Q4_0.
