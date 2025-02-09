@@ -253,11 +253,11 @@ void ggml_cuda_op_soft_max(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
     const bool use_f16 = (src1 && src1->type == GGML_TYPE_F16);
 
     if (use_f16) {
-        const half * src1_dd = (const half *)src1_d;
+        // const half * src1_dd = (const half *)src1_d;
 
         soft_max_f32_cuda(src0_d, (const half  *) src1_d, dst_d, ne00, nrows_x, nrows_y, scale, max_bias, 0, 0, false, stream);
     } else {
-        const float * src1_dd = (const float *)src1_d;
+        // const float * src1_dd = (const float *)src1_d;
 
         soft_max_f32_cuda(src0_d, (const float *) src1_d, dst_d, ne00, nrows_x, nrows_y, scale, max_bias, 0, 0, false, stream);
     }
@@ -269,8 +269,8 @@ void ggml_cuda_op_soft_cap_max(ggml_backend_cuda_context & ctx, ggml_tensor * ds
 
     const float * src0_d = (const float *)src0->data;
     const void  * src1_d = src1 ? (const void *)src1->data : nullptr;
+    float       *  dst_d = (float *) dst->data;
 
-    float * dst_d = (float *)dst->data;
     cudaStream_t stream = ctx.stream();
 
     GGML_ASSERT(src0->type == GGML_TYPE_F32);
