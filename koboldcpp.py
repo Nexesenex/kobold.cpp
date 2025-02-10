@@ -16,6 +16,7 @@ import re
 import argparse
 import platform
 import base64
+from sqlite3 import Cursor
 import struct
 import json
 import sys
@@ -1994,20 +1995,111 @@ def LaunchWebbrowser(target_url, failedmsg):
 def getDBPath():
     return os.path.join(args.admindatadir, "kcpp.db")
 
+firstRun = True
+def prepDataDB(cursor: Cursor):
+    global firstRun
+    if not firstRun:
+        return
+    
+    result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='saveData';").fetchall()
+    if result == []:
+        sql = """CREATE TABLE IF NOT EXISTS saveData (
+            id INTEGER PRIMARY KEY,
+            name NVARCHAR NOT NULL,
+            encodedSave NVARCHAR NOT NULL
+        );"""
+        cursor.execute(sql)
+        
+    result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='saveType';").fetchall()
+    if result == []:
+        sql = """CREATE TABLE IF NOT EXISTS saveType (
+            id INTEGER PRIMARY KEY,
+            typeName NVARCHAR NOT NULL
+        );        
+        """
+        cursor.execute(sql)
+
+        sql = """INSERT INTO saveType(typeName)
+        VALUES ('General'), ('Save'), ('Character card'), ('Scenarios');
+        """
+        cursor.execute(sql)
+
+        sql = """ALTER TABLE saveData 
+        ADD COLUMN typeId INTEGER NOT NULL DEFAULT 0;
+        """
+        cursor.execute(sql)
+
+        sql = """UPDATE saveData SET typeId = 2;
+        """
+        cursor.execute(sql)
+
+    result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='savePreviews';").fetchall()
+    if result == []:
+        sql = """CREATE TABLE IF NOT EXISTS savePreviews (
+            id INTEGER PRIMARY KEY,
+            previewContent NVARCHAR NOT NULL
+        );
+        """
+        cursor.execute(sql)
+
+        sql = """ALTER TABLE saveData 
+        ADD COLUMN previewId INTEGER NULL DEFAULT NULL;
+        """
+        cursor.execute(sql)
+
+    result = cursor.execute("SELECT * FROM pragma_table_info('saveData') WHERE name='isEncrypted';").fetchall()
+    if result == []:
+        sql = """ALTER TABLE saveData 
+        ADD COLUMN isEncrypted INTEGER NOT NULL DEFAULT 0;
+        """
+        cursor.execute(sql)
+
+    result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='saveGroup';").fetchall()
+    if result == []:
+        sql = """CREATE TABLE IF NOT EXISTS saveGroup (
+            id INTEGER PRIMARY KEY,
+            groupName NVARCHAR NOT NULL,
+            isPublic INTEGER NOT NULL DEFAULT 0
+        );        
+        """
+        cursor.execute(sql)
+
+        sql = """ALTER TABLE saveData 
+        ADD COLUMN groupId INTEGER NULL DEFAULT NULL;
+        """
+        cursor.execute(sql)
+
+        sql = """INSERT INTO saveGroup(groupName, isPublic)
+        VALUES ('Public (can be accessed by anybody)', 1);
+        """
+        cursor.execute(sql)
+
+    # Remake views
+    sql = "drop view if exists saveOverview;"
+    cursor.execute(sql)
+
+    sql = """create view saveOverview
+    as
+    select name, encodedSave, isEncrypted, typeName, previewContent, groupName, isPublic
+    from saveData d
+    left join saveType t
+    on d.typeId = t.id
+    left join savePreviews p
+    on d.previewId = p.id
+    left join saveGroup g
+    on d.groupId = g.id;
+    """
+    cursor.execute(sql)
+
+    firstRun = False
+
 def getSaves():
     import sqlite3
     with sqlite3.connect(getDBPath()) as con:
         try:
             cursor = con.cursor()
 
-            result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='saveData';").fetchall()
-            if result == []:
-                saveDataCreate = """CREATE TABLE IF NOT EXISTS saveData (
-                    id INTEGER PRIMARY KEY,
-                    name NVARCHAR NOT NULL,
-                    encodedSave NVARCHAR NOT NULL
-                );"""
-                cursor.execute(saveDataCreate)
+            prepDataDB(cursor)
            
             result = cursor.execute("select name, encodedSave from saveData").fetchall()
             cursor.close()
