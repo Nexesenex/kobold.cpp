@@ -2152,7 +2152,14 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         {
             printf("\nOverriding number of experts to %d\n",inputs.moe_experts);
             llama_model_kv_override kvo;
-            const char * moekey = "llama.expert_used_count";
+            std::string moekeystr = "llama";
+            if(file_format_meta.model_architecture_str!="")
+            {
+                moekeystr = file_format_meta.model_architecture_str;
+            }
+            moekeystr += ".expert_used_count";
+
+            const char * moekey = moekeystr.c_str();
             std::strncpy(kvo.key, moekey, sizeof(kvo.key) - 1);
             kvo.key[sizeof(kvo.key) - 1] = '\0'; // Ensure null termination
             kvo.tag = LLAMA_KV_OVERRIDE_TYPE_INT;
