@@ -296,6 +296,7 @@ void print_tok_vec(std::vector<float> &embd)
 
             fileformatmeta->fileversion = filever;
             fileformatmeta->model_architecture = GGUFArch::ARCH_DEFAULT;
+            fileformatmeta->model_architecture_str = modelarch;
             if(modelarch=="phi2")
             {
                 fileformatmeta->model_architecture = GGUFArch::ARCH_PHI;
