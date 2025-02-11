@@ -1995,131 +1995,190 @@ def LaunchWebbrowser(target_url, failedmsg):
 def getDBPath():
     return os.path.join(args.admindatadir, "kcpp.db")
 
+dataMetadata = {}
+def refreshDataMetadata():
+    global dataMetadata
+    rows = fetchAllToDictArr(sql="select category, id, name, isPublic from saveMetadata", columnsInSelect=["category", "id", "name", "isPublic"])
+    dataMetadata = {}
+    for row in rows:
+        if not row["category"] in dataMetadata:
+            dataMetadata[row["category"]] = {}
+        dataMetadata[row["category"]][row["name"]] = row
+
+def getDataMetadata(category, name):
+    if category in dataMetadata:
+        if name in dataMetadata[category]:
+            return dataMetadata[category][name]
+    return None
+
 firstRun = True
-def prepDataDB(cursor: Cursor):
-    global firstRun
-    if not firstRun:
-        return
-    
-    result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='saveData';").fetchall()
-    if result == []:
-        sql = """CREATE TABLE IF NOT EXISTS saveData (
-            id INTEGER PRIMARY KEY,
-            name NVARCHAR NOT NULL,
-            encodedSave NVARCHAR NOT NULL
-        );"""
-        cursor.execute(sql)
-        
-    result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='saveType';").fetchall()
-    if result == []:
-        sql = """CREATE TABLE IF NOT EXISTS saveType (
-            id INTEGER PRIMARY KEY,
-            typeName NVARCHAR NOT NULL
-        );        
-        """
-        cursor.execute(sql)
-
-        sql = """INSERT INTO saveType(typeName)
-        VALUES ('General'), ('Save'), ('Character card'), ('Scenarios');
-        """
-        cursor.execute(sql)
-
-        sql = """ALTER TABLE saveData 
-        ADD COLUMN typeId INTEGER NOT NULL DEFAULT 0;
-        """
-        cursor.execute(sql)
-
-        sql = """UPDATE saveData SET typeId = 2;
-        """
-        cursor.execute(sql)
-
-    result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='savePreviews';").fetchall()
-    if result == []:
-        sql = """CREATE TABLE IF NOT EXISTS savePreviews (
-            id INTEGER PRIMARY KEY,
-            previewContent NVARCHAR NOT NULL
-        );
-        """
-        cursor.execute(sql)
-
-        sql = """ALTER TABLE saveData 
-        ADD COLUMN previewId INTEGER NULL DEFAULT NULL;
-        """
-        cursor.execute(sql)
-
-    result = cursor.execute("SELECT * FROM pragma_table_info('saveData') WHERE name='isEncrypted';").fetchall()
-    if result == []:
-        sql = """ALTER TABLE saveData 
-        ADD COLUMN isEncrypted INTEGER NOT NULL DEFAULT 0;
-        """
-        cursor.execute(sql)
-
-    result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='saveGroup';").fetchall()
-    if result == []:
-        sql = """CREATE TABLE IF NOT EXISTS saveGroup (
-            id INTEGER PRIMARY KEY,
-            groupName NVARCHAR NOT NULL,
-            isPublic INTEGER NOT NULL DEFAULT 0
-        );        
-        """
-        cursor.execute(sql)
-
-        sql = """ALTER TABLE saveData 
-        ADD COLUMN groupId INTEGER NULL DEFAULT NULL;
-        """
-        cursor.execute(sql)
-
-        sql = """INSERT INTO saveGroup(groupName, isPublic)
-        VALUES ('Public (can be accessed by anybody)', 1);
-        """
-        cursor.execute(sql)
-
-    # Remake views
-    sql = "drop view if exists saveOverview;"
-    cursor.execute(sql)
-
-    sql = """create view saveOverview
-    as
-    select name, encodedSave, isEncrypted, typeName, previewContent, groupName, isPublic
-    from saveData d
-    left join saveType t
-    on d.typeId = t.id
-    left join savePreviews p
-    on d.previewId = p.id
-    left join saveGroup g
-    on d.groupId = g.id;
-    """
-    cursor.execute(sql)
-
-    firstRun = False
-
-def getSaves():
+def prepDataDB():
     import sqlite3
     with sqlite3.connect(getDBPath()) as con:
         try:
+            global firstRun
+            if not firstRun:
+                return
+            
             cursor = con.cursor()
 
-            prepDataDB(cursor)
-           
-            result = cursor.execute("select name, encodedSave from saveData").fetchall()
-            cursor.close()
-            
-            saves = {}
-            for save in result: 
-                saves[save[0]] = save[1]
-            return saves
+            result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='saveData';").fetchall()
+            if result == []:
+                sql = """CREATE TABLE IF NOT EXISTS saveData (
+                    id INTEGER PRIMARY KEY,
+                    name NVARCHAR NOT NULL,
+                    encodedSave NVARCHAR NOT NULL
+                );"""
+                cursor.execute(sql)
+                
+            result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='saveType';").fetchall()
+            if result == []:
+                sql = """CREATE TABLE IF NOT EXISTS saveType (
+                    id INTEGER PRIMARY KEY,
+                    typeName NVARCHAR NOT NULL
+                );        
+                """
+                cursor.execute(sql)
+
+                sql = """INSERT INTO saveType(typeName)
+                VALUES ('General'), ('Save'), ('Character card'), ('Scenarios');
+                """
+                cursor.execute(sql)
+
+                sql = """ALTER TABLE saveData 
+                ADD COLUMN typeId INTEGER NOT NULL DEFAULT 0;
+                """
+                cursor.execute(sql)
+
+                sql = """UPDATE saveData SET typeId = 2;
+                """
+                cursor.execute(sql)
+
+            result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='savePreviews';").fetchall()
+            if result == []:
+                sql = """CREATE TABLE IF NOT EXISTS savePreviews (
+                    id INTEGER PRIMARY KEY,
+                    previewContent NVARCHAR NOT NULL
+                );
+                """
+                cursor.execute(sql)
+
+                sql = """ALTER TABLE saveData 
+                ADD COLUMN previewId INTEGER NULL DEFAULT NULL;
+                """
+                cursor.execute(sql)
+
+            result = cursor.execute("SELECT * FROM pragma_table_info('saveData') WHERE name='isEncrypted';").fetchall()
+            if result == []:
+                sql = """ALTER TABLE saveData 
+                ADD COLUMN isEncrypted INTEGER NOT NULL DEFAULT 0;
+                """
+                cursor.execute(sql)
+
+            result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='saveGroup';").fetchall()
+            if result == []:
+                sql = """CREATE TABLE IF NOT EXISTS saveGroup (
+                    id INTEGER PRIMARY KEY,
+                    groupName NVARCHAR NOT NULL,
+                    isPublic INTEGER NOT NULL DEFAULT 0
+                );        
+                """
+                cursor.execute(sql)
+
+                sql = """ALTER TABLE saveData 
+                ADD COLUMN groupId INTEGER NULL DEFAULT NULL;
+                """
+                cursor.execute(sql)
+
+                sql = """INSERT INTO saveGroup(groupName, isPublic)
+                VALUES ('Public (can be accessed by anybody)', 1);
+                """
+                cursor.execute(sql)
+
+            # Remake views
+            sql = "drop view if exists saveOverview;"
+            cursor.execute(sql)
+
+            sql = """create view saveOverview
+            as
+            select name, encodedSave, isEncrypted, typeName, previewContent, groupName, isPublic
+            from saveData d
+            left join saveType t
+            on d.typeId = t.id
+            left join savePreviews p
+            on d.previewId = p.id
+            left join saveGroup g
+            on d.groupId = g.id;
+            """
+            cursor.execute(sql)
+
+            sql = "drop view if exists saveMetadata;"
+            cursor.execute(sql)
+
+            sql = """create view saveMetadata
+            as
+            select 'type' as category, id, typeName as name, null as isPublic
+            from saveType t
+            union all
+            select 'group', id, groupName, isPublic
+            from saveGroup g;
+            """
+            cursor.execute(sql)
+
+            refreshDataMetadata()
+
+            firstRun = False
         # Handle errors
         except sqlite3.Error as error:
             print(f'Error occurred - {error}')
+
+def fetchAllToDictArr(sql, args = [], columnsInSelect = []):
+    import sqlite3
+    with sqlite3.connect(getDBPath()) as con:
+        try:
+            cursor = con.cursor()           
+            result = cursor.execute(sql, args).fetchall()
+            cursor.close()
+            
+            rows = []
+            for row in result:
+                rowOut = {}
+                for i in range(min(len(row), len(columnsInSelect))):
+                    rowOut[columnsInSelect[i]] = row[i]
+                rows.append(rowOut)
+            return rows
+        # Handle errors
+        except sqlite3.Error as error:
+            print(f'Error occurred - {error}')
+
+def getSaves(whereClause = "", whereArgs = []):
+    prepDataDB()
+    cols = ["name", "encodedSave", "isEncrypted", "typeName", "previewContent", "groupName", "isPublic"]
+    saves = fetchAllToDictArr(f"select name, encodedSave, isEncrypted, typeName, previewContent, groupName, isPublic from saveOverview {whereClause}", whereArgs, cols)
+    savesOut = {}
+    for save in saves:
+        savesOut[save["name"]] = save
+    return savesOut
         
-def setSave(saveName, b64Data):
+def executeInsertFromDict(tableName, rowData):
     import sqlite3
     with sqlite3.connect(getDBPath()) as con:
         try:
             cursor = con.cursor()
-            cursor.execute("INSERT INTO saveData(name, encodedSave) VALUES (?, ?);", [saveName, b64Data])
+            cols = []
+            placeholders = []
+            vals = []
+            for col in rowData:
+                if rowData[col] is not None:
+                    cols.append(col)
+                    placeholders.append("?")
+                    vals.append(rowData[col])
+                            
+            sql = f"INSERT INTO {tableName} ({','.join(cols)}) VALUES ({','.join(placeholders)});"
+            cursor.execute(sql, vals)
+            newId = cursor.lastrowid
             cursor.close()
-            return True
+            return newId
         # Handle errors
         except sqlite3.Error as error:
             print(f'Error occurred - {error}')
@@ -2130,6 +2189,9 @@ def deleteSave(saveName):
     with sqlite3.connect(getDBPath()) as con:
         try:
             cursor = con.cursor()
+            previewId = cursor.execute(f"select previewId from saveData where name = ?", [saveName]).fetchone()
+            if (previewId is not None and previewId[0] is not None):
+                cursor.execute(f"DELETE FROM savePreviews WHERE id = ?;", [previewId[0]])
             cursor.execute(f"DELETE FROM saveData WHERE name = ?;", [saveName])
             cursor.close()
             return True
@@ -2137,6 +2199,19 @@ def deleteSave(saveName):
         except sqlite3.Error as error:
             print(f'Error occurred - {error}')
             return False
+        
+def getArgumentsFromPath(path: str):
+    pathElems = path.split("?", 1)
+    if len(pathElems) == 2:
+        argsStr = pathElems[1]
+        args = argsStr.split(";")
+        argsDict = {}
+        for arg in args:
+            argSplit = arg.split("=", 1)
+            if len(argSplit) == 2 and argSplit[1] != "":
+                argsDict[argSplit[0]] = argSplit[1]
+        return argsDict
+    return {}
 
 #################################################################
 ### A hacky simple HTTP server simulating a kobold api by Concedo
@@ -2570,19 +2645,6 @@ Enter Prompt:<br>
                 dirpath = os.path.abspath(args.admintextmodelsdir)
                 opts = [f for f in os.listdir(dirpath) if f.endswith(".gguf") and os.path.isfile(os.path.join(dirpath, f))]
             response_body = (json.dumps(opts).encode())
-        elif self.path=="/api/data/list":
-            if not args.admin:
-                response_body = ("Data API disabled").encode()
-            elif not self.check_header_password(args.adminpassword):
-                return
-            else:
-                if args.admindatadir == "":
-                    response_body = ("No data directory provided").encode()
-                else:
-                    content_type = 'application/json'
-                    saves = getSaves()
-                    jsonArray = json.dumps(list(saves.keys()))
-                    response_body = (jsonArray).encode()
 
         elif self.path.endswith(('/api/extra/perf')):
             lastp = handle.get_last_process_time()
@@ -2964,28 +3026,45 @@ Enter Prompt:<br>
             else:
                 response_body = (json.dumps([]).encode())
 
+        elif self.path.startswith("/api/data/list"):
+            urlArgs = getArgumentsFromPath(self.path)
+            if not args.admin:
+                response_body = ("Data API disabled").encode()
+            elif args.admindatadir == "":
+                    response_body = ("No data directory provided").encode()
+            else:
+                saves = {}
+                if not self.check_header_password(args.adminpassword):
+                    saves = getSaves(whereClause="isPublic = 1 and isEncrypted = 0;")
+                else:
+                    saves = getSaves()
+                jsonArray = json.dumps(saves)
+                response_body = (jsonArray).encode()
+
         elif "/api/data/get" == self.path:
             if not args.admin:
                 response_body = ("Data API disabled").encode()
-            elif not self.check_header_password(args.adminpassword):
-                return
+            elif args.admindatadir == "":
+                response_body = ("No data directory provided").encode()
             else:
-                if args.admindatadir == "":
-                    response_body = ("No data directory provided").encode()
-                else:
+                filename = ""
+                try:
+                    tempbody = json.loads(body)
+                    if isinstance(tempbody, dict):
+                        filename = tempbody.get('filename', "")
+                except Exception:
                     filename = ""
-                    try:
-                        tempbody = json.loads(body)
-                        if isinstance(tempbody, dict):
-                            filename = tempbody.get('filename', "")
-                    except Exception:
-                        filename = ""
+                saves = {}
+                if not self.check_header_password(args.adminpassword):
+                    saves = getSaves(whereClause="isPublic = 1 and isEncrypted = 0;")
+                else:
                     saves = getSaves()
-                    if filename != "" and filename in saves:
-                        jsonArray = json.dumps(saves[filename])
-                        response_body = (jsonArray).encode()
-                    else:
-                        response_body = ("\{\}").encode()
+                if filename != "" and filename in saves:
+                    jsonArray = json.dumps(saves[filename]["encodedSave"])
+                    response_body = (jsonArray).encode()
+                else:
+                    response_body = ("\{\}").encode()
+        
         elif "/api/data/put" == self.path:
             if not args.admin:
                 response_body = ("Data API disabled").encode()
@@ -3002,14 +3081,45 @@ Enter Prompt:<br>
                         if isinstance(tempbody, dict):
                             filename = tempbody.get('filename', "")
                             bodyData = tempbody.get('data', "")
+                            isEncrypted = tempbody.get('isEncrypted', "0")
+                            group = tempbody.get('group', None)
+                            type = tempbody.get('type', None)
+                            thumbnail = tempbody.get('thumbnail', None)
                     except Exception:
                         filename = ""
                     saves = getSaves()
                     if filename != "" and bodyData != "" and filename not in saves:
-                        if (setSave(filename, bodyData)):
-                            response_body = ("Saved to DB").encode()
+                        groupMetadata = getDataMetadata("group", group)
+                        typeMetadata = getDataMetadata("type", type)
+                        if group is not None and groupMetadata is None:
+                            response_body = ("Data group does not exist").encode()
+                        elif type is not None and typeMetadata is None:
+                            response_body = ("Data type does not exist").encode()
+                        elif not (isEncrypted == "0" or isEncrypted == "1"):
+                            response_body = ("Encrypted value must be 0 or 1").encode()
+                        elif isEncrypted == "1" and groupMetadata["isPublic"] == "1":
+                            response_body = ("Encrypted saves are not allowed in public groups").encode()
                         else:
-                            response_body = ("Error when saving to DB").encode()
+                            previewId = None
+                            if (thumbnail is not None):
+                                previewId = executeInsertFromDict(tableName="saveData", rowData={
+                                    "previewContent": thumbnail
+                                })
+                            if previewId is False:
+                                response_body = ("Error when saving preview to DB").encode()
+                            else:
+                                saveId = executeInsertFromDict(tableName="saveData", rowData={
+                                    "name": filename,
+                                    "encodedSave": bodyData,
+                                    "isEncrypted": isEncrypted, 
+                                    "typeId": typeMetadata["id"] if typeMetadata is not None else None, 
+                                    "previewId": previewId,
+                                    "groupId": groupMetadata["id"] if groupMetadata is not None else None
+                                })
+                                if saveId is False:
+                                    response_body = ("Error when saving to DB").encode()
+                                else:
+                                    response_body = ("Saved to DB").encode()
                     else:
                         response_body = ("Save already exists or no save name provided").encode()
         elif "/api/data/delete" == self.path:
