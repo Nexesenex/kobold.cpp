@@ -22238,6 +22238,10 @@ Current version indicated by LITEVER below.
 			</div>
 			<div class="menutext">
 				<div>
+					<div id="serverSavesPreviewContainer">
+						<img id="serverSavesPreview" style="height: 30%;"/>
+						<hr/>
+					</div>
 					<label for="serverSavesLabel">Enter a label for this data</label>
 					<input type="text" id="serverSavesLabel" style="padding:4px;" class="form-control">
 					<label for="serverSavesType">Select the type of data being saved</label>
@@ -22353,7 +22357,8 @@ else
 	let serverSavesLabel = document.getElementById("serverSavesLabel"), serverSavesType = document.getElementById("serverSavesType"),
 		serverSavesGroup = document.getElementById("serverSavesGroup"), serverSavesPassword = document.getElementById("serverSavesPassword"),
 		saveToDBUpload = document.getElementById("saveToDBUpload"), saveToDBCurrent = document.getElementById("saveToDBCurrent"),
-		submitSaveToDB = document.getElementById("submitSaveToDB")
+		submitSaveToDB = document.getElementById("submitSaveToDB"), serverSavesPreview = document.getElementById("serverSavesPreview"),
+		serverSavesPreviewContainer = document.getElementById("serverSavesPreviewContainer");
 
 	let lastUsedAdminPassword = "", lastUsedSavePassword = "";
 
@@ -22375,7 +22380,7 @@ else
 	handleError = (e) => {
 		console.error(e)
 		hideAllServerSavingPopups()
-		msgbox(!!e?.message ? e.message : e)
+		msgbox(!!e?.message ? e.message : (!!e?.error ? e.error: e))
 	}
 
 	reloadSaves = () => {
@@ -22414,7 +22419,6 @@ else
 			})
 				.then(resp => resp.json())
 				.then(metadata => {
-					console.log(metadata)
 					let groups = metadata?.group, types = metadata?.type
 					if (!!groups) {
 						serverSavesGroup.innerHTML = ""
@@ -22480,14 +22484,9 @@ else
 				headers: getAuthHeaders(),
 				body: JSON.stringify({ filename: saveOptions.value })
 			})
-			.then(resp => resp.text())
+			.then(resp => resp.json())
 			.then(message => {
-				console.log(message)
-				if ("Deleted from DB" !== message)
-				{
-					msgbox(message)
-				}
-				reloadSaves()
+				handleResponse(message, () => reloadSaves())
 			})
 			.catch(e => {
 				handleError(e)
@@ -22632,6 +22631,7 @@ else
 		let defaultsavename = (localsettings.opmode == 1 ? "Untitled Story" : (localsettings.opmode == 2 ? "Untitled Adventure" : (localsettings.opmode == 3 ? "Untitled Chat" : "Untitled Instruct")));
 		let savename = defaultsavename + " " + new Date().toLocaleString();
 		let newcompressedstory = generate_compressed_story(true, true, true);
+		lastThumbnailData = null;
 		showServerSavingPopup(savename, btoa(newcompressedstory))
 	}
 
@@ -22645,6 +22645,15 @@ else
 		lastFileData = fileData
 		serverSavesLabel.value = fileLabel
 		serverSavesPassword.value = lastUsedSavePassword
+		if (!!lastThumbnailData)
+		{
+			serverSavesPreviewContainer.style.display = "unset"
+			serverSavesPreview.src = lastThumbnailData
+		}
+		else
+		{
+			serverSavesPreviewContainer.style.display = "none" 
+		}
 		reloadSaveMetadata().then(() => {
 			serverSavingPopup.classList.remove("hidden")
 		})
@@ -22687,16 +22696,28 @@ else
 				body: JSON.stringify(bodyData),
 				headers: getAuthHeaders()
 			})
-				.then(resp => resp.text())
+				.then(resp => resp.json())
 				.then(message => {
-					console.log(message)
-					if ("Saved to DB" !== message) {
-						msgbox(message)
-					}
+					handleResponse(message)
 				})
 				.catch(e => {
 					handleError(e)
 				})
+		}
+	}
+
+	
+	handleResponse = (message, successCallback = undefined) => {
+		if ((message?.success === undefined && message?.error === undefined) || message?.success === true)
+		{
+			if (!!successCallback)
+			{
+				successCallback(message)
+			}
+		}
+		else if (message?.success === false)
+		{
+			handleError(message)
 		}
 	}
 		

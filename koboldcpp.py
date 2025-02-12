@@ -3027,9 +3027,9 @@ Enter Prompt:<br>
         elif self.path.startswith("/api/data/list"):
             # urlArgs = getArgumentsFromPath(self.path)
             if not args.admin:
-                response_body = ("Data API disabled").encode()
+                response_body = (json.dumps({"success": False, "error": "Data API disabled"}).encode())
             elif args.admindatadir == "":
-                    response_body = ("No data directory provided").encode()
+                    response_body = (json.dumps({"success": False, "error": "No data directory provided"}).encode())
             else:
                 saves = {}
                 if not self.check_header_password(args.adminpassword):
@@ -3042,9 +3042,9 @@ Enter Prompt:<br>
         elif "/api/data/metadata" == self.path:
             # urlArgs = getArgumentsFromPath(self.path)
             if not args.admin:
-                response_body = ("Data API disabled").encode()
+                response_body = (json.dumps({"success": False, "error": "Data API disabled"}).encode())
             elif args.admindatadir == "":
-                    response_body = ("No data directory provided").encode()
+                    response_body = (json.dumps({"success": False, "error": "No data directory provided"}).encode())
             elif not self.check_header_password(args.adminpassword):
                 return
             else:
@@ -3053,9 +3053,9 @@ Enter Prompt:<br>
 
         elif "/api/data/get" == self.path:
             if not args.admin:
-                response_body = ("Data API disabled").encode()
+                response_body = (json.dumps({"success": False, "error": "Data API disabled"}).encode())
             elif args.admindatadir == "":
-                response_body = ("No data directory provided").encode()
+                response_body = (json.dumps({"success": False, "error": "No data directory provided"}).encode())
             else:
                 filename = ""
                 try:
@@ -3077,12 +3077,12 @@ Enter Prompt:<br>
         
         elif "/api/data/put" == self.path:
             if not args.admin:
-                response_body = ("Data API disabled").encode()
+                response_body = (json.dumps({"success": False, "error": "Data API disabled"}).encode())
             elif not self.check_header_password(args.adminpassword):
                 return
             else:
                 if args.admindatadir == "":
-                    response_body = ("No data directory provided").encode()
+                    response_body = (json.dumps({"success": False, "error": "No data directory provided"}).encode())
                 else:
                     filename = ""
                     bodyData = ""
@@ -3102,17 +3102,17 @@ Enter Prompt:<br>
                         groupMetadata = getDataMetadata("group", group)
                         typeMetadata = getDataMetadata("type", type)
                         if group is not None and groupMetadata is None:
-                            response_body = ("Data group does not exist").encode()
+                            response_body = (json.dumps({"success": False, "error": "Data group does not exist"}).encode())
                         elif type is not None and typeMetadata is None:
-                            response_body = ("Data type does not exist").encode()
+                            response_body = (json.dumps({"success": False, "error": "Data type does not exist"}).encode())
                         elif not (isEncrypted == "0" or isEncrypted == "1"):
-                            response_body = ("Encrypted value must be 0 or 1").encode()
+                            response_body = (json.dumps({"success": False, "error": "Encrypted value must be 0 or 1"}).encode())
                         elif isEncrypted == "1" and (groupMetadata is not None and groupMetadata["isPublic"] == 1):
-                            response_body = ("Encrypted saves are not allowed in public groups").encode()
+                            response_body = (json.dumps({"success": False, "error": "Encrypted saves are not allowed in public groups"}).encode())
                         else:
                             previewId = None
                             if (thumbnail is not None):
-                                previewId = executeInsertFromDict(tableName="saveData", rowData={
+                                previewId = executeInsertFromDict(tableName="savePreviews", rowData={
                                     "previewContent": thumbnail
                                 })
                             if previewId is False:
@@ -3127,19 +3127,19 @@ Enter Prompt:<br>
                                     "groupId": groupMetadata["id"] if groupMetadata is not None else None
                                 })
                                 if saveId is False:
-                                    response_body = ("Error when saving to DB").encode()
+                                    response_body = (json.dumps({"success": False, "error": "Error when saving to DB"}).encode())
                                 else:
-                                    response_body = ("Saved to DB").encode()
+                                    response_body = (json.dumps({"success": True}).encode())
                     else:
-                        response_body = ("Save already exists or no save name provided").encode()
+                        response_body = (json.dumps({"success": False, "error": "Save already exists or no save name provided"}).encode())
         elif "/api/data/delete" == self.path:
             if not args.admin:
-                response_body = ("Data API disabled").encode()
+                response_body = (json.dumps({"success": False, "error": "Data API disabled"}).encode())
             elif not self.check_header_password(args.adminpassword):
                 return
             else:
                 if args.admindatadir == "":
-                    response_body = ("No data directory provided").encode()
+                    response_body = (json.dumps({"success": False, "error": "No data directory provided"}).encode())
                 else:
                     filename = ""
                     try:
@@ -3151,11 +3151,11 @@ Enter Prompt:<br>
                     saves = getSaves()
                     if filename is not None and filename in saves:
                         if (deleteSave(filename)):
-                            response_body = ("Deleted from DB").encode()
+                            response_body = (json.dumps({"success": True}).encode())
                         else:
-                            response_body = ("Error when deleting to DB").encode()
+                            response_body = (json.dumps({"success": False, "error": "Error when deleting to DB"}).encode())
                     else:
-                        response_body = ("Save does not exists or no save name provided").encode()
+                        response_body = (json.dumps({"success": False, "error": "Save does not exists or no save name provided"}).encode())
 
         elif self.path.startswith(("/api/admin/reload_config")):
             resp = {"success": False}
