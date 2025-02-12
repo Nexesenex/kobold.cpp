@@ -22592,7 +22592,7 @@ else
 				extPos = fileNameWithExt.lastIndexOf(".");
 				fileName = fileNameWithExt.substring(0, extPos); 
 				ext = fileNameWithExt.substring(extPos); 
-				if (extPos === -1 || ![".png", ".json"].includes(ext))
+				if (extPos === -1 || ![".png", ".json", ".webp", ".kaistory"].includes(ext))
 				{
 					throw new Error("Please select one file of a JSON or PNG type")
 				}
@@ -22604,7 +22604,7 @@ else
 					let content = readerEvent.target.result;
 					
 					lastThumbnailData = null
-					if (ext === ".png")
+					if (ext === ".png" || ext === ".webp")
 					{
 						let dataUrl = await generateThumbnail(file, [300, 300])
 						lastThumbnailData = dataUrl
