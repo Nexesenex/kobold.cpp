@@ -22676,7 +22676,7 @@ else
 					type: "Save",
 					isEncrypted: isEncrypted ? "1" : "0",
 					group: (serverSavesGroup.value.trim() !== "" ? serverSavesGroup.value.trim() : null),
-					type: (serverSavesGroup.value.trim() !== "" ? serverSavesGroup.value.trim() : null),
+					type: (serverSavesType.value.trim() !== "" ? serverSavesType.value.trim() : null),
 					thumbnail: lastThumbnailData
 			}
 			lastFileData = ""

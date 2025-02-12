@@ -3109,7 +3109,7 @@ Enter Prompt:<br>
                             response_body = ("Data type does not exist").encode()
                         elif not (isEncrypted == "0" or isEncrypted == "1"):
                             response_body = ("Encrypted value must be 0 or 1").encode()
-                        elif isEncrypted == "1" and (groupMetadata is not None and groupMetadata["isPublic"] == "1"):
+                        elif isEncrypted == "1" and (groupMetadata is not None and groupMetadata["isPublic"] == 1):
                             response_body = ("Encrypted saves are not allowed in public groups").encode()
                         else:
                             previewId = None
