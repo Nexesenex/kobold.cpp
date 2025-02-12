@@ -2164,8 +2164,9 @@ def getSaveData(whereClause = "", whereArgs = []):
     cols = ["name", "encodedSave"]
     saves = fetchAllToDictArr(f"select name, encodedSave from saveOverview {whereClause}", whereArgs, cols)
     savesOut = {}
-    for save in saves:
-        savesOut[save["name"]] = save
+    if saves is not None:
+        for save in saves:
+            savesOut[save["name"]] = save
     return savesOut
         
 def executeInsertFromDict(tableName, rowData):
@@ -3065,7 +3066,7 @@ Enter Prompt:<br>
             elif args.admindatadir == "":
                     response_body = (json.dumps({"success": False, "error": "No data directory provided"}).encode())
             elif not self.check_header_password(args.adminpassword):
-                return
+                response_body = (json.dumps({"success": False, "error": "Admin password incorrect"}).encode())
             else:
                 jsonArray = json.dumps(dataMetadata)
                 response_body = (jsonArray).encode()
@@ -3085,7 +3086,7 @@ Enter Prompt:<br>
                     filename = ""
                 saves = {}
                 if not self.check_header_password(args.adminpassword):
-                    saves = getSaveData(whereClause="isPublic = 1 and isEncrypted = 0;")
+                    saves = getSaveData(whereClause="WHERE isPublic = 1 and isEncrypted = 0;")
                 else:
                     saves = getSaveData()
                 if filename != "" and filename in saves:
@@ -3098,7 +3099,7 @@ Enter Prompt:<br>
             if not args.admin:
                 response_body = (json.dumps({"success": False, "error": "Data API disabled"}).encode())
             elif not self.check_header_password(args.adminpassword):
-                return
+                response_body = (json.dumps({"success": False, "error": "Admin password incorrect"}).encode())
             else:
                 if args.admindatadir == "":
                     response_body = (json.dumps({"success": False, "error": "No data directory provided"}).encode())
@@ -3155,7 +3156,7 @@ Enter Prompt:<br>
             if not args.admin:
                 response_body = (json.dumps({"success": False, "error": "Data API disabled"}).encode())
             elif not self.check_header_password(args.adminpassword):
-                return
+                response_body = (json.dumps({"success": False, "error": "Admin password incorrect"}).encode())
             else:
                 if args.admindatadir == "":
                     response_body = (json.dumps({"success": False, "error": "No data directory provided"}).encode())

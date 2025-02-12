@@ -22445,9 +22445,6 @@ else
 						}
 					}
 				})
-				.catch(e => {
-					handleError(e)
-				})
 		}
 
 
@@ -22503,26 +22500,31 @@ else
 			})
 	}
 
-	showServerSavesPopup = () => {
-		hideAllServerSavingPopups()
+	promptForAdminPassword = (callback) => {
 		if (koboldcpp_admin_type == 2) {
-			inputBox("Please input admin password (or leave blank to view public saves):", "Admin Password Required", lastUsedAdminPassword, "(Input Admin Password)", () => {
+			inputBox("Please input admin password:", "Admin Password Required", lastUsedAdminPassword, "(Input Admin Password - leave blank for public)", () => {
 				let userinput = getInputBoxValue();
 				userinput = userinput.trim();
-				if (userinput != null && userinput != "") {
+				// This does not need to be not blank (blank is for public save access)
+				if (userinput != null) {
 					lastUsedAdminPassword = userinput
-					reloadSaves().then(() => {
-						serverSavesPopup.classList.remove("hidden")
-					})
+					callback()
 				}
 			}, false, false, true);
 		}
 		else {
 			lastUsedAdminPassword = ""
+			callback()
+		}
+	}
+
+	showServerSavesPopup = () => {
+		hideAllServerSavingPopups()
+		promptForAdminPassword(() => {
 			reloadSaves().then(() => {
 				serverSavesPopup.classList.remove("hidden")
 			})
-		}
+		})
 	}
 
 	hideServerSavesPopup = () => {
@@ -22531,20 +22533,9 @@ else
 
 	showServerSavingTypePopup = () => {
 		hideAllServerSavingPopups()
-		if (koboldcpp_admin_type == 2) {
-			inputBox("Please input admin password:", "Admin Password Required", lastUsedAdminPassword, "(Input Admin Password)", () => {
-				let userinput = getInputBoxValue();
-				userinput = userinput.trim();
-				if (userinput != null && userinput != "") {
-					lastUsedAdminPassword = userinput
-					serverSavingTypePopup.classList.remove("hidden")
-				}
-			}, false, false, true);
-		}
-		else {
-			lastUsedAdminPassword = ""
+		promptForAdminPassword(() => {
 			serverSavingTypePopup.classList.remove("hidden")
-		}
+		})
 	}
 
 	// Thumbnail code from: https://stackoverflow.com/a/61754764
@@ -22667,6 +22658,9 @@ else
 		reloadSaveMetadata().then(() => {
 			serverSavingPopup.classList.remove("hidden")
 		})
+			.catch(e => {
+				handleError(e)
+			})
 	}
 
 	hideServerSavingPopup = () => {
@@ -22803,31 +22797,33 @@ else
 	display_scenarios = () => {
 		if (localflag && is_using_kcpp_with_admin()) {
 			scenario_db = scenario_db.filter(scenario => !(scenario?.serverSave === true))
-			getServerSaves({ scenarios: true }).then(saves => {
-				for (save in saves) {
-					if (!!saves[save].name) {
-						let name = saves[save].name, isPublic = saves[save].isPublic, isEncrypted = saves[save].isEncrypted
-						let displayText = `${name} ${!!isPublic ? "(Public)" : "(Private)"} ${!!isEncrypted ? "🔒" : ""}`
+			promptForAdminPassword(() => {
+				getServerSaves({ scenarios: true }).then(saves => {
+					for (save in saves) {
+						if (!!saves[save].name) {
+							let name = saves[save].name, isPublic = saves[save].isPublic, isEncrypted = saves[save].isEncrypted
+							let displayText = `${name} ${!!isPublic ? "(Public)" : "(Private)"} ${!!isEncrypted ? "🔒" : ""}`
 
-						let scenario = {
-							title: displayText,
-							desc: displayText,
-							serverSave: true,
-							serverSaveData: saves[save]
-						}
+							let scenario = {
+								title: displayText,
+								desc: displayText,
+								serverSave: true,
+								serverSaveData: saves[save]
+							}
 
-						if (!!saves[save]?.previewContent) {
-							scenario.image = saves[save]?.previewContent,
-								scenario.image_aspect = 1
+							if (!!saves[save]?.previewContent) {
+								scenario.image = saves[save]?.previewContent,
+									scenario.image_aspect = 1
+							}
+							scenario_db.push(scenario)
 						}
-						scenario_db.push(scenario)
 					}
-				}
 
-				originalDisplayScenarios()
-			})
-			.catch(e => {
-				console.error(e)
+					originalDisplayScenarios()
+				})
+					.catch(e => {
+						console.error(e)
+					})
 			})
 		}
 		else {
