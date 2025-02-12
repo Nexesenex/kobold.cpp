@@ -307,8 +307,7 @@ class tts_load_model_inputs(ctypes.Structure):
 class tts_generation_inputs(ctypes.Structure):
     _fields_ = [("prompt", ctypes.c_char_p),
                 ("speaker_seed", ctypes.c_int),
-                ("audio_seed", ctypes.c_int),
-                ("nocache", ctypes.c_bool)]
+                ("audio_seed", ctypes.c_int)]
 
 class tts_generation_outputs(ctypes.Structure):
     _fields_ = [("status", ctypes.c_int),
@@ -1494,7 +1493,6 @@ def tts_generate(genparams):
     except Exception:
         aseed = -1
     inputs.audio_seed = aseed
-    inputs.nocache = genparams.get("nocache", False)
     ret = handle.tts_generate(inputs)
     outstr = ""
     if ret.status==1:

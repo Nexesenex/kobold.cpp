@@ -638,21 +638,6 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
     std::mt19937 tts_rng(audio_seed);
     std::mt19937 speaker_rng(speaker_seed);
 
-    //if we can reuse an old generation, do so
-    if(!inputs.nocache
-    && last_generation_settings_audio_seed == inputs.audio_seed
-    && last_generation_settings_speaker_seed == inputs.speaker_seed
-    && last_generated_audio!=""
-    && last_generation_settings_prompt == std::string(inputs.prompt))
-    {
-        if (ttsdebugmode == 1 && !tts_is_quiet) {
-            printf("\nReusing Cached Audio.\n");
-        }
-        output.data = last_generated_audio.c_str();
-        output.status = 1;
-        return output;
-    }
-
 
     int n_decode = 0;
     int n_predict = 2048; //will be updated later
