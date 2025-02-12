@@ -6424,7 +6424,6 @@ Current version indicated by LITEVER below.
 	//attempt to load a file from disk. could be any format, even images
 	function load_selected_file(selectedFile)
 	{
-		var selectedFilename = "";
 		if(selectedFile)
 		{
 			selectedFilename = selectedFile.name;
@@ -22459,13 +22458,14 @@ else
 						userinput = userinput.trim();
 						if (userinput != null && userinput != "") {
 							lastUsedSavePassword = userinput
-							import_compressed_story(atob(decrypt(lastUsedSavePassword, saveData)), false)
+							loadServerFile(saveOptions.value, decrypt(lastUsedSavePassword, saveData))
 						}
 					}, false, false, true);
 				}
 				else
 				{
-					import_compressed_story(atob(saveData), false)
+					// import_compressed_story(atob(saveData), false)
+					loadServerFile(saveOptions.value, saveData)
 				}
 				hideServerSavesPopup();
 			})
@@ -22721,6 +22721,22 @@ else
 		}
 	}
 		
+	loadServerFile = async (fileName, b64Data) => {
+			
+		// Handle compressed saves
+		if (!b64Data.startsWith("data:"))
+		{
+			import_compressed_story(atob(b64Data), false)
+		}
+		else
+		{
+			// And other files
+			let mimeType = b64Data.split(";base64,")[0].replace("data:", "");
+			let resp = await fetch(b64Data), blob = await resp.blob();
+			let file = new File([blob], fileName, { type: mimeType })
+			load_selected_file(file)
+		}
+	}
 
 	window.addEventListener('load', () => {
 		let hasAppended = false;
