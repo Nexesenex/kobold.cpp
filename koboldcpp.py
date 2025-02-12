@@ -2151,8 +2151,17 @@ def fetchAllToDictArr(sql, args = [], columnsInSelect = []):
 
 def getSaves(whereClause = "", whereArgs = []):
     prepDataDB()
-    cols = ["name", "encodedSave", "isEncrypted", "typeName", "previewContent", "groupName", "isPublic"]
-    saves = fetchAllToDictArr(f"select name, encodedSave, isEncrypted, typeName, previewContent, groupName, isPublic from saveOverview {whereClause}", whereArgs, cols)
+    cols = ["name", "isEncrypted", "typeName", "previewContent", "groupName", "isPublic"]
+    saves = fetchAllToDictArr(f"select name, isEncrypted, typeName, previewContent, groupName, isPublic from saveOverview {whereClause}", whereArgs, cols)
+    savesOut = {}
+    for save in saves:
+        savesOut[save["name"]] = save
+    return savesOut
+
+def getSaveData(whereClause = "", whereArgs = []):
+    prepDataDB()
+    cols = ["name", "encodedSave"]
+    saves = fetchAllToDictArr(f"select name, encodedSave from saveOverview {whereClause}", whereArgs, cols)
     savesOut = {}
     for save in saves:
         savesOut[save["name"]] = save
@@ -3066,9 +3075,9 @@ Enter Prompt:<br>
                     filename = ""
                 saves = {}
                 if not self.check_header_password(args.adminpassword):
-                    saves = getSaves(whereClause="isPublic = 1 and isEncrypted = 0;")
+                    saves = getSaveData(whereClause="isPublic = 1 and isEncrypted = 0;")
                 else:
-                    saves = getSaves()
+                    saves = getSaveData()
                 if filename != "" and filename in saves:
                     jsonArray = json.dumps(saves[filename]["encodedSave"])
                     response_body = (jsonArray).encode()
