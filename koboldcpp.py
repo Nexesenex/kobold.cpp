@@ -2154,8 +2154,9 @@ def getSaves(whereClause = "", whereArgs = []):
     cols = ["name", "isEncrypted", "typeName", "previewContent", "groupName", "isPublic"]
     saves = fetchAllToDictArr(f"select name, isEncrypted, typeName, previewContent, groupName, isPublic from saveOverview {whereClause}", whereArgs, cols)
     savesOut = {}
-    for save in saves:
-        savesOut[save["name"]] = save
+    if saves is not None:
+        for save in saves:
+            savesOut[save["name"]] = save
     return savesOut
 
 def getSaveData(whereClause = "", whereArgs = []):
@@ -3040,11 +3041,20 @@ Enter Prompt:<br>
             elif args.admindatadir == "":
                     response_body = (json.dumps({"success": False, "error": "No data directory provided"}).encode())
             else:
+                scenarios = False
+                try:
+                    tempbody = json.loads(body)
+                    if isinstance(tempbody, dict):
+                        scenarios = tempbody.get('scenarios', False)
+                except Exception:
+                    scenarios = ""
                 saves = {}
-                if not self.check_header_password(args.adminpassword):
-                    saves = getSaves(whereClause="isPublic = 1 and isEncrypted = 0;")
-                else:
-                    saves = getSaves()
+                dynamicWhereClauses = []
+                if scenarios:
+                    dynamicWhereClauses.append("typeName = 'Scenarios'")
+                if (not self.check_header_password(args.adminpassword)):
+                    dynamicWhereClauses.append("isPublic = 1 and isEncrypted = 0")
+                saves = getSaves(whereClause=f"{'WHERE' if len(dynamicWhereClauses) > 0 else ''} {' AND '.join(dynamicWhereClauses)};")
                 jsonArray = json.dumps(saves)
                 response_body = (jsonArray).encode()
 

@@ -2339,7 +2339,8 @@ Current version indicated by LITEVER below.
 	const instructsysplaceholder_end = "\n{{[SYSTEM_END]}}\n";
 
 	// list of all preinstalled quick start scenarios
-	const scenario_db = [
+	// Modified to allow tweaking with server side saves later
+	let scenario_db = [
 	{
 		"title":"New Story",
 		"desc":"Starts a new session in story mode, using your current settings.",
@@ -22382,14 +22383,21 @@ else
 		msgbox(!!e?.message ? e.message : (!!e?.error ? e.error: e))
 	}
 
-	reloadSaves = () => {
-		saveOptions.innerHTML = ""
+	getServerSaves = (filter = {}) => {
 		return fetch(`${custom_kobold_endpoint}/api/data/list`, {
 				method: "POST",
-				headers: getAuthHeaders()	
+				headers: getAuthHeaders(),
+				body: JSON.stringify(filter)
 			})
 			.then(resp => resp.json())
-			.then(saves => {
+			.catch(e => {
+				handleError(e)
+			})
+	}
+
+	reloadSaves = () => {
+		saveOptions.innerHTML = ""
+		return getServerSaves().then(saves => {
 				for (save in saves)
 				{
 					if (!!saves[save].name)
@@ -22442,36 +22450,38 @@ else
 				})
 		}
 
-	loadSave.onclick = () => {
+
+	loadServerSave = (saveName, isEncrypted) => {
 		fetch(`${custom_kobold_endpoint}/api/data/get`, {
-				method: "POST",
-				headers: getAuthHeaders(),
-				body: JSON.stringify({filename: saveOptions.value })
-			})
-			.then(resp => resp.json())
-			.then(saveData => {
-				isEncrypted = saveOptions.selectedOptions[0].text.endsWith("🔒")
-				if (isEncrypted)
-				{
-					inputBox("Please input save password:", "Save Password Required", lastUsedSavePassword, "(Input Save Password)", () => {
-						let userinput = getInputBoxValue();
-						userinput = userinput.trim();
-						if (userinput != null && userinput != "") {
-							lastUsedSavePassword = userinput
-							loadServerFile(saveOptions.value, decrypt(lastUsedSavePassword, saveData))
+					method: "POST",
+					headers: getAuthHeaders(),
+					body: JSON.stringify({ filename: saveName })
+				})
+					.then(resp => resp.json())
+					.then(saveData => {
+						if (isEncrypted) {
+							inputBox("Please input save password:", "Save Password Required", lastUsedSavePassword, "(Input Save Password)", () => {
+								let userinput = getInputBoxValue();
+								userinput = userinput.trim();
+								if (userinput != null && userinput != "") {
+									lastUsedSavePassword = userinput
+									loadServerFile(saveName, decrypt(lastUsedSavePassword, saveData))
+								}
+							}, false, false, true);
 						}
-					}, false, false, true);
-				}
-				else
-				{
-					// import_compressed_story(atob(saveData), false)
-					loadServerFile(saveOptions.value, saveData)
-				}
-				hideServerSavesPopup();
-			})
-			.catch(e => {
-				handleError(e)
-			})
+						else {
+							// import_compressed_story(atob(saveData), false)
+							loadServerFile(saveName, saveData)
+						}
+						hideServerSavesPopup();
+					})
+					.catch(e => {
+						handleError(e)
+					})
+	}
+	loadSave.onclick = () => {
+		isEncrypted = saveOptions.selectedOptions[0].text.endsWith("🔒")
+		loadServerSave(saveOptions.value, isEncrypted)
 	}
 
 	saveToDB.onclick = () => {
@@ -22722,19 +22732,25 @@ else
 	}
 		
 	loadServerFile = async (fileName, b64Data) => {
-			
 		// Handle compressed saves
-		if (!b64Data.startsWith("data:"))
+		try
 		{
-			import_compressed_story(atob(b64Data), false)
+			if (!b64Data.startsWith("data:"))
+			{
+				import_compressed_story(atob(b64Data), false)
+			}
+			else
+			{
+				// And other files
+				let mimeType = b64Data.split(";base64,")[0].replace("data:", "");
+				let resp = await fetch(b64Data), blob = await resp.blob();
+				let file = new File([blob], fileName, { type: mimeType })
+				load_selected_file(file)
+			}
 		}
-		else
+		catch (e)
 		{
-			// And other files
-			let mimeType = b64Data.split(";base64,")[0].replace("data:", "");
-			let resp = await fetch(b64Data), blob = await resp.blob();
-			let file = new File([blob], fileName, { type: mimeType })
-			load_selected_file(file)
+			handleError("Unable to load save data - either file is broken or password entered wrongly")
 		}
 	}
 
@@ -22770,4 +22786,79 @@ else
 		}, 1000);
 	}
 </script>
+<script>
+	let originalLoadScenario = complete_load_scenario, originalDisplayScenarios = display_scenarios;
+	
+	complete_load_scenario = () => {
+		if (temp_scenario?.serverSave === true)
+		{
+			loadServerSave(temp_scenario.serverSaveData.name, temp_scenario.serverSaveData.isEncrypted)
+		}
+		else
+		{
+			originalLoadScenario()
+		}
+	}
+
+	display_scenarios = () => {
+		if (localflag && is_using_kcpp_with_admin()) {
+			scenario_db = scenario_db.filter(scenario => !(scenario?.serverSave === true))
+			getServerSaves({ scenarios: true }).then(saves => {
+				for (save in saves) {
+					if (!!saves[save].name) {
+						let name = saves[save].name, isPublic = saves[save].isPublic, isEncrypted = saves[save].isEncrypted
+						let displayText = `${name} ${!!isPublic ? "(Public)" : "(Private)"} ${!!isEncrypted ? "🔒" : ""}`
+
+						let scenario = {
+							title: displayText,
+							desc: displayText,
+							serverSave: true,
+							serverSaveData: saves[save]
+						}
+
+						if (!!saves[save]?.previewContent) {
+							scenario.image = saves[save]?.previewContent,
+								scenario.image_aspect = 1
+						}
+						scenario_db.push(scenario)
+					}
+				}
+
+				originalDisplayScenarios()
+			})
+			.catch(e => {
+				console.error(e)
+			})
+		}
+		else {
+			originalDisplayScenarios()
+		}
+	}
+</script>
+<style>
+	/* Slightly odd but mostly fitting text formatting for server side scenarios */
+	.scenarioitem {
+		text-wrap: auto;
+		text-indent: 10px;
+	}
+
+	.scenariogrid {
+		grid-auto-rows: unset !important;
+	}
+
+	/* Central region expanded with menus */
+	.container {
+		width: 100%;
+	}
+	html, body, #maincontainer, #gamescreen, #maineditbody {
+		height: 100%
+	}
+	#normalinterface {
+		height: calc(100% - 220px);
+	}
+	#maincontainer {
+		width: 100%;
+	}
+    
+</style>
 </html>
