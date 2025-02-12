@@ -22200,7 +22200,6 @@ Current version indicated by LITEVER below.
 			</div>
 			<div class="menutext">
 				<div>
-					<input type="hidden" id="serverSavesPassword">
 					<label for="saveOptions">List of server side saves</label>
 					<select title="List of server side saves" style="padding:4px;" class="form-control" id="saveOptions"></select>
 					</select>
@@ -22208,10 +22207,52 @@ Current version indicated by LITEVER below.
 				<br>
 			</div>
 			<div class="popupfooter" style="display: inline-block;">
-				<button id="saveToDB" class="btn btn-primary" style="width: auto;">Save to DB</button>
+				<button id="saveToDB" class="btn btn-primary" style="width: auto;">Open save to DB popup</button>
 				<button id="loadFromDB" class="btn btn-primary" style="width: auto;">Load from DB</button>
 				<button id="deleteFromDB" class="btn btn-primary" style="width: auto;">Delete from DB</button>
-				<button type="button" class="btn btn-primary" style="width: auto;" onclick="hideServerSavesPopup()">Cancel</button>
+				<button type="button" class="btn btn-primary" style="width: auto;" onclick="hideAllServerSavingPopups()">Cancel</button>
+			</div>
+		</div>
+	</div>
+
+	<div class="popupcontainer flex hidden" id="serverSavingTypePopup">
+		<div class="popupbg flex"></div>
+		<div class="nspopup flexsize">
+			<div class="popuptitlebar">
+				<div class="popuptitletext">Save to Server</div>
+			</div>
+			<div class="popupfooter" style="display: inline-block;">
+				<button id="saveToDBUpload" class="btn btn-primary" style="width: auto;">Select file to upload to DB</button>
+				<button id="saveToDBCurrent" class="btn btn-primary" style="width: auto;">Upload current save to DB</button>
+				<button type="button" class="btn btn-primary" style="width: auto;" onclick="hideAllServerSavingPopups()">Cancel</button>
+			</div>
+		</div>
+	</div>
+
+	<div class="popupcontainer flex hidden" id="serverSavingPopup">
+		<div class="popupbg flex"></div>
+		<div class="nspopup flexsize">
+			<div class="popuptitlebar">
+				<div class="popuptitletext">Save to Server</div>
+			</div>
+			<div class="menutext">
+				<div>
+					<label for="serverSavesLabel">Enter a label for this data</label>
+					<input type="text" id="serverSavesLabel" style="padding:4px;" class="form-control">
+					<label for="serverSavesType">Select the type of data being saved</label>
+					<select title="Select the type of data being saved" style="padding:4px;" class="form-control" id="serverSavesType"></select>
+					</select>
+					<label for="serverSavesGroup">Select the group where the data should be saved</label>
+					<select title="Select the group where the data should be saved" style="padding:4px;" class="form-control" id="serverSavesGroup"></select>
+					</select>
+					<label for="serverSavesPassword">Enter a password for the save (or leave blank for no password)</label>
+					<input type="password" id="serverSavesPassword" style="padding:4px;" class="form-control">
+				</div>
+				<br>
+			</div>
+			<div class="popupfooter" style="display: inline-block;">
+				<button id="submitSaveToDB" class="btn btn-primary" style="width: auto;">Upload to server</button>
+				<button type="button" class="btn btn-primary" style="width: auto;" onclick="hideAllServerSavingPopups()">Cancel</button>
 			</div>
 		</div>
 	</div>
@@ -22302,20 +22343,37 @@ else
 </script>
 <script>
 	let serverSavesPopup = document.getElementById("serverSaves");
+	let serverSavingPopup = document.getElementById("serverSavingPopup");
+	let serverSavingTypePopup = document.getElementById("serverSavingTypePopup");
 	let saveOptions = document.getElementById("saveOptions"), loadSave = document.getElementById("loadFromDB"),
         deleteFromDB = document.getElementById("deleteFromDB"), saveToDB = document.getElementById("saveToDB"),
 		saveContent = document.getElementById("saveContent");
+
+	let serverSavesLabel = document.getElementById("serverSavesLabel"), serverSavesType = document.getElementById("serverSavesType"),
+		serverSavesGroup = document.getElementById("serverSavesGroup"), serverSavesPassword = document.getElementById("serverSavesPassword"),
+		saveToDBUpload = document.getElementById("saveToDBUpload"), saveToDBCurrent = document.getElementById("saveToDBCurrent"),
+		submitSaveToDB = document.getElementById("submitSaveToDB")
+
+	let lastUsedAdminPassword = "", lastUsedSavePassword = "";
+
 	getAuthHeaders = () => {
 		let header = {};
-		let adminKey = document.getElementById("serverSavesPassword").value;
+		let adminKey = lastUsedAdminPassword;
 		if (adminKey != "") {
 			header['Authorization'] = 'Bearer ' + adminKey;
 		}
 		return header;
 	}
 
+	hideAllServerSavingPopups = () => {
+		hideServerSavesPopup()
+		hideServerSavingTypePopup()
+		hideServerSavingPopup()
+	}
+
 	handleError = (e) => {
 		console.error(e)
+		hideAllServerSavingPopups()
 		msgbox(!!e?.message ? e.message : e)
 	}
 
@@ -22331,7 +22389,8 @@ else
 				{
 					if (!!saves[save].name)
 					{
-						saveOptions.appendChild(new Option(saves[save].name, saves[save].name))	
+						let opt = createStyledSaveOption(saves[save].name, saves[save].name, saves[save].isPublic, saves[save].isEncrypted)
+						saveOptions.appendChild(opt)	
 					}
 				}
 			})
@@ -22339,6 +22398,45 @@ else
 				handleError(e)
 			})
 	}
+
+	createStyledSaveOption = (name, value, isPublic, isEncrypted) => {
+		let displayText = `${name} ${!!isPublic ? "(Public)" : "(Private)"} ${!!isEncrypted ? "🔒" : ""}`
+		let optElem = new Option(displayText, value)
+		optElem.style.color = (!!isPublic ? "red" : "green")
+		return optElem
+	}
+
+	reloadSaveMetadata = () => {
+			return fetch(`${custom_kobold_endpoint}/api/data/metadata`, {
+				method: "POST",
+				headers: getAuthHeaders()
+			})
+				.then(resp => resp.json())
+				.then(metadata => {
+					console.log(metadata)
+					let groups = metadata?.group, types = metadata?.type
+					if (!!groups) {
+						serverSavesGroup.innerHTML = ""
+						let defaultOption = createStyledSaveOption("No group", "", false)
+						serverSavesGroup.appendChild(defaultOption)
+						for (groupName in groups)
+						{
+							let newOption = createStyledSaveOption(groupName, groupName, groups[groupName].isPublic)
+							serverSavesGroup.appendChild(newOption)
+						}
+					}
+					if (!!types) {
+						serverSavesType.innerHTML = ""
+						for (typeName in types) {
+							let newOption = new Option(typeName, typeName)
+							serverSavesType.appendChild(newOption)
+						}
+					}
+				})
+				.catch(e => {
+					handleError(e)
+				})
+		}
 
 	loadSave.onclick = () => {
 		fetch(`${custom_kobold_endpoint}/api/data/get`, {
@@ -22348,7 +22446,22 @@ else
 			})
 			.then(resp => resp.json())
 			.then(saveData => {
-				import_compressed_story(atob(saveData), false)
+				isEncrypted = saveOptions.selectedOptions[0].text.endsWith("🔒")
+				if (isEncrypted)
+				{
+					inputBox("Please input save password:", "Save Password Required", lastUsedSavePassword, "(Input Save Password)", () => {
+						let userinput = getInputBoxValue();
+						userinput = userinput.trim();
+						if (userinput != null && userinput != "") {
+							lastUsedSavePassword = userinput
+							import_compressed_story(atob(decrypt(lastUsedSavePassword, saveData)), false)
+						}
+					}, false, false, true);
+				}
+				else
+				{
+					import_compressed_story(atob(saveData), false)
+				}
 				hideServerSavesPopup();
 			})
 			.catch(e => {
@@ -22357,39 +22470,7 @@ else
 	}
 
 	saveToDB.onclick = () => {
-		let defaultsavename = (localsettings.opmode == 1 ? "Untitled Story" : (localsettings.opmode == 2 ? "Untitled Adventure" : (localsettings.opmode == 3 ? "Untitled Chat" : "Untitled Instruct")));
-		let savename = defaultsavename + " " + new Date().toLocaleString();
-		let newcompressedstory = generate_compressed_story(true, true, true);
-
-		hideServerSavesPopup();
-
-		warn_on_quit = false;
-		inputBox("Enter a label for this Browser Storage Slot data", "Enter a label", savename, defaultsavename, () => {
-			let userinput = getInputBoxValue();
-			if (userinput.trim() == "") {
-				userinput = defaultsavename;
-			}
-			fetch(`${custom_kobold_endpoint}/api/data/put`, {
-				method: "POST",
-				body: JSON.stringify({ 
-					filename: userinput, 
-					data: btoa(newcompressedstory),
-					type: "Save"
-				}),
-				headers: getAuthHeaders()
-			})
-			.then(resp => resp.text())
-			.then(message => {
-				console.log(message)
-				if ("Saved to DB" !== message)
-				{
-					msgbox(message)
-				}
-			})
-			.catch(e => {
-				handleError(e)
-			})
-		});
+		showServerSavingTypePopup()
 	}
 
 	deleteFromDB.onclick = () => {
@@ -22413,12 +22494,13 @@ else
 	}
 
 	showServerSavesPopup = () => {
+		hideAllServerSavingPopups()
 		if (koboldcpp_admin_type == 2) {
-			inputBox("Please input admin password:", "Admin Password Required", "", "(Input Admin Password)", () => {
+			inputBox("Please input admin password (or leave blank to view public saves):", "Admin Password Required", lastUsedAdminPassword, "(Input Admin Password)", () => {
 				let userinput = getInputBoxValue();
 				userinput = userinput.trim();
 				if (userinput != null && userinput != "") {
-					document.getElementById("serverSavesPassword").value = userinput
+					lastUsedAdminPassword = userinput
 					reloadSaves().then(() => {
 						serverSavesPopup.classList.remove("hidden")
 					})
@@ -22426,7 +22508,7 @@ else
 			}, false, false, true);
 		}
 		else {
-			document.getElementById("serverSavesPassword").value = ""
+			lastUsedAdminPassword = ""
 			reloadSaves().then(() => {
 				serverSavesPopup.classList.remove("hidden")
 			})
@@ -22436,6 +22518,187 @@ else
 	hideServerSavesPopup = () => {
 		serverSavesPopup.classList.add("hidden")
 	}
+
+	showServerSavingTypePopup = () => {
+		hideAllServerSavingPopups()
+		if (koboldcpp_admin_type == 2) {
+			inputBox("Please input admin password:", "Admin Password Required", lastUsedAdminPassword, "(Input Admin Password)", () => {
+				let userinput = getInputBoxValue();
+				userinput = userinput.trim();
+				if (userinput != null && userinput != "") {
+					lastUsedAdminPassword = userinput
+					serverSavingTypePopup.classList.remove("hidden")
+				}
+			}, false, false, true);
+		}
+		else {
+			lastUsedAdminPassword = ""
+			serverSavingTypePopup.classList.remove("hidden")
+		}
+	}
+
+	// Thumbnail code from: https://stackoverflow.com/a/61754764
+	// Creates a thumbnail fitted insize the boundBox (w x h)
+	generateThumbnail = (file, boundBox) => {
+		if (!boundBox || boundBox.length != 2){
+			throw "You need to give the boundBox"
+		}
+		const canvas = document.createElement("canvas")
+		const ctx = canvas.getContext('2d')
+		if (!ctx) {
+			throw new Error('Context not available')
+		}
+
+		return new Promise((resolve, reject) => {
+			const img = new Image();
+			try
+			{
+				img.onerror = reject
+				img.onload = function () {
+					const scaleRatio = Math.min(...boundBox) / Math.max(img.width, img.height)
+					const w = img.width * scaleRatio
+					const h = img.height * scaleRatio
+					canvas.width = w
+					canvas.height = h
+					ctx.drawImage(img, 0, 0, w, h)
+					return resolve(canvas.toDataURL(file.type))
+				}
+				img.src = URL.createObjectURL(file)
+			}
+			finally {
+				URL.revokeObjectURL(img.src)
+			}
+		})
+	}
+
+	let lastThumbnailData = null
+	saveToDBUpload.onclick = () => {
+		let input = document.createElement('input');
+		input.type = 'file';
+
+		input.onchange = e => {
+			try
+			{
+				if (!e?.target?.files || e.target.files.length !== 1)
+				{
+					throw new Error("Please select one file")
+				}
+				/**
+				 * @type File
+				 */
+				let file = e.target.files[0];
+
+				fileNameWithExt = file.name; 
+				extPos = fileNameWithExt.lastIndexOf(".");
+				fileName = fileNameWithExt.substring(0, extPos); 
+				ext = fileNameWithExt.substring(extPos); 
+				if (extPos === -1 || ![".png", ".json"].includes(ext))
+				{
+					throw new Error("Please select one file of a JSON or PNG type")
+				}
+
+				let reader = new FileReader();
+				reader.readAsDataURL(file)
+				
+				reader.onload = async readerEvent => {
+					let content = readerEvent.target.result;
+					
+					lastThumbnailData = null
+					if (ext === ".png")
+					{
+						let dataUrl = await generateThumbnail(file, [300, 300])
+						lastThumbnailData = dataUrl
+					}
+					
+					showServerSavingPopup(fileName, content)
+					
+				}}
+			catch (e)
+			{
+				handleError(e)
+			}
+			finally 
+			{	
+				delete input;
+			}
+		}
+
+		input.click();
+		
+	}
+
+	saveToDBCurrent.onclick = () => {
+		let defaultsavename = (localsettings.opmode == 1 ? "Untitled Story" : (localsettings.opmode == 2 ? "Untitled Adventure" : (localsettings.opmode == 3 ? "Untitled Chat" : "Untitled Instruct")));
+		let savename = defaultsavename + " " + new Date().toLocaleString();
+		let newcompressedstory = generate_compressed_story(true, true, true);
+		showServerSavingPopup(savename, btoa(newcompressedstory))
+	}
+
+	hideServerSavingTypePopup = () => {
+		serverSavingTypePopup.classList.add("hidden")
+	}
+
+	let lastFileData = ""
+	showServerSavingPopup = (fileLabel, fileData) => {
+		hideAllServerSavingPopups()
+		lastFileData = fileData
+		serverSavesLabel.value = fileLabel
+		serverSavesPassword.value = lastUsedSavePassword
+		reloadSaveMetadata().then(() => {
+			serverSavingPopup.classList.remove("hidden")
+		})
+	}
+
+	hideServerSavingPopup = () => {
+		serverSavingPopup.classList.add("hidden")
+	}
+
+	submitSaveToDB.onclick = () => {
+			// /api/data/metadata
+			// serverSavesLabel, serverSavesType, serverSavesGroup, serverSavesPassword
+
+		if (serverSavesLabel.value.trim() == "") {
+			handleError("When saving you must enter a file label")
+		}
+		else {
+			hideAllServerSavingPopups()
+			let isEncrypted = false
+			if (serverSavesPassword.value.trim() !== "")
+			{
+				lastUsedSavePassword = serverSavesPassword.value.trim()
+				lastFileData = encrypt(lastUsedSavePassword, lastFileData)
+				isEncrypted = true
+			}
+
+			let bodyData = {
+					filename: serverSavesLabel.value.trim(),
+					data: lastFileData,
+					type: "Save",
+					isEncrypted: isEncrypted ? "1" : "0",
+					group: (serverSavesGroup.value.trim() !== "" ? serverSavesGroup.value.trim() : null),
+					type: (serverSavesGroup.value.trim() !== "" ? serverSavesGroup.value.trim() : null),
+					thumbnail: lastThumbnailData
+			}
+			lastFileData = ""
+			lastThumbnailData = null
+			fetch(`${custom_kobold_endpoint}/api/data/put`, {
+				method: "POST",
+				body: JSON.stringify(bodyData),
+				headers: getAuthHeaders()
+			})
+				.then(resp => resp.text())
+				.then(message => {
+					console.log(message)
+					if ("Saved to DB" !== message) {
+						msgbox(message)
+					}
+				})
+				.catch(e => {
+					handleError(e)
+				})
+		}
+	}
+		
 
 	window.addEventListener('load', () => {
 		let hasAppended = false;

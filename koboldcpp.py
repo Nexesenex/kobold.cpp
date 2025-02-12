@@ -3027,7 +3027,7 @@ Enter Prompt:<br>
                 response_body = (json.dumps([]).encode())
 
         elif self.path.startswith("/api/data/list"):
-            urlArgs = getArgumentsFromPath(self.path)
+            # urlArgs = getArgumentsFromPath(self.path)
             if not args.admin:
                 response_body = ("Data API disabled").encode()
             elif args.admindatadir == "":
@@ -3039,6 +3039,18 @@ Enter Prompt:<br>
                 else:
                     saves = getSaves()
                 jsonArray = json.dumps(saves)
+                response_body = (jsonArray).encode()
+
+        elif "/api/data/metadata" == self.path:
+            # urlArgs = getArgumentsFromPath(self.path)
+            if not args.admin:
+                response_body = ("Data API disabled").encode()
+            elif args.admindatadir == "":
+                    response_body = ("No data directory provided").encode()
+            elif not self.check_header_password(args.adminpassword):
+                return
+            else:
+                jsonArray = json.dumps(dataMetadata)
                 response_body = (jsonArray).encode()
 
         elif "/api/data/get" == self.path:
@@ -3097,7 +3109,7 @@ Enter Prompt:<br>
                             response_body = ("Data type does not exist").encode()
                         elif not (isEncrypted == "0" or isEncrypted == "1"):
                             response_body = ("Encrypted value must be 0 or 1").encode()
-                        elif isEncrypted == "1" and groupMetadata["isPublic"] == "1":
+                        elif isEncrypted == "1" and (groupMetadata is not None and groupMetadata["isPublic"] == "1"):
                             response_body = ("Encrypted saves are not allowed in public groups").encode()
                         else:
                             previewId = None
