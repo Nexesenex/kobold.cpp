@@ -51,7 +51,7 @@ dry_seq_break_max = 128
 KcppVersion = "1.83.1"
 showdebug = True
 kcpp_instance = None #global running instance
-global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False}
+global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None}
 using_gui_launcher = False
 
 handle = None
