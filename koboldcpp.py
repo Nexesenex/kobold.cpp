@@ -9,12 +9,14 @@
 # scenarios and everything Kobold and KoboldAI Lite have to offer.
 
 import ctypes
+import multiprocessing
 import os
 import math
 import re
 import argparse
 import platform
 import base64
+from sqlite3 import Cursor
 import struct
 import json
 import sys
@@ -46,6 +48,12 @@ logit_bias_max = 512
 dry_seq_break_max = 128
 
 # global vars
+KcppVersion = "1.83.1"
+showdebug = True
+kcpp_instance = None #global running instance
+global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None}
+using_gui_launcher = False
+
 handle = None
 friendlymodelname = "inactive"
 friendlysdmodelname = "inactive"
@@ -53,7 +61,6 @@ lastgeneratedcomfyimg = b''
 fullsdmodelpath = ""  #if empty, it's not initialized
 mmprojpath = "" #if empty, it's not initialized
 password = "" #if empty, no auth key required
-controlPassword = ""
 fullwhispermodelpath = "" #if empty, it's not initialized
 ttsmodelpath = "" #if empty, not initialized
 maxctx = 4096
@@ -62,9 +69,6 @@ maxhordelen = 400
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
-KcppVersion = "1.83"
-showdebug = True
-guimode = False
 showsamplerwarning = True
 showmaxctxwarning = True
 showusedmemwarning = True
@@ -100,8 +104,7 @@ start_time = time.time()
 last_req_time = time.time()
 last_non_horde_req_time = time.time()
 currfinishreason = "null"
-using_gui_launcher = False
-using_outdated_flags = False
+
 
 saved_stdout = None
 saved_stderr = None
@@ -304,8 +307,7 @@ class tts_load_model_inputs(ctypes.Structure):
 class tts_generation_inputs(ctypes.Structure):
     _fields_ = [("prompt", ctypes.c_char_p),
                 ("speaker_seed", ctypes.c_int),
-                ("audio_seed", ctypes.c_int),
-                ("nocache", ctypes.c_bool)]
+                ("audio_seed", ctypes.c_int)]
 
 class tts_generation_outputs(ctypes.Structure):
     _fields_ = [("status", ctypes.c_int),
@@ -603,15 +605,14 @@ def unpack_to_dir(destpath = ""):
             messagebox.showwarning("Invalid Selection", "The target folder is not empty or invalid. Please select an empty folder.")
 
 def exit_with_error(code, message, title="Error"):
-    global guimode
+    global using_gui_launcher
     print("")
     time.sleep(1)
-    if guimode:
+    if using_gui_launcher:
         show_gui_msgbox(title, message)
     else:
         print(message, flush=True)
     time.sleep(2)
-    interProcessSend(["kill", code])
     sys.exit(code)
 
 def utfprint(str, importance = 2): #0 = only debugmode, 1 = except quiet, 2 = always print
@@ -683,7 +684,8 @@ def get_capabilities():
     has_whisper = (fullwhispermodelpath!="")
     has_search = True if args.websearch else False
     has_tts = (ttsmodelpath!="")
-    return {"result":"KoboldCpp", "version":KcppVersion, "protected":has_password, "llm":has_llm, "txt2img":has_txt2img,"vision":has_vision,"transcribe":has_whisper,"multiplayer":has_multiplayer,"websearch":has_search,"tts":has_tts}
+    admin_type = (2 if args.admin and args.admindir and args.adminpassword else (1 if args.admin and args.admindir else 0))
+    return {"result":"KoboldCpp", "version":KcppVersion, "protected":has_password, "llm":has_llm, "txt2img":has_txt2img,"vision":has_vision,"transcribe":has_whisper,"multiplayer":has_multiplayer,"websearch":has_search,"tts":has_tts, "admin": admin_type}
 
 def dump_gguf_metadata(file_path): #if you're gonna copy this into your own project at least credit concedo
     chunk_size = 1024*1024*12  # read first 12mb of file
@@ -1491,7 +1493,6 @@ def tts_generate(genparams):
     except Exception:
         aseed = -1
     inputs.audio_seed = aseed
-    inputs.nocache = genparams.get("nocache", False)
     ret = handle.tts_generate(inputs)
     outstr = ""
     if ret.status==1:
@@ -1989,42 +1990,204 @@ def LaunchWebbrowser(target_url, failedmsg):
             print(failedmsg)
             print(f"Please manually open your browser to {target_url}")
 
-def getSaves():
+def getDBPath():
+    return os.path.join(args.admindatadir, "kcpp.db")
+
+dataMetadata = {}
+def refreshDataMetadata():
+    global dataMetadata
+    rows = fetchAllToDictArr(sql="select category, id, name, isPublic from saveMetadata", columnsInSelect=["category", "id", "name", "isPublic"])
+    dataMetadata = {}
+    for row in rows:
+        if not row["category"] in dataMetadata:
+            dataMetadata[row["category"]] = {}
+        dataMetadata[row["category"]][row["name"]] = row
+
+def getDataMetadata(category, name):
+    if category in dataMetadata:
+        if name in dataMetadata[category]:
+            return dataMetadata[category][name]
+    return None
+
+firstRun = True
+def prepDataDB():
     import sqlite3
-    dbPath = os.path.join(configsDir, "kcpp.db")
-    with sqlite3.connect(dbPath) as con:
+    with sqlite3.connect(getDBPath()) as con:
         try:
+            global firstRun
+            if not firstRun:
+                return
+            
             cursor = con.cursor()
 
             result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='saveData';").fetchall()
             if result == []:
-                saveDataCreate = """CREATE TABLE IF NOT EXISTS saveData (
+                sql = """CREATE TABLE IF NOT EXISTS saveData (
                     id INTEGER PRIMARY KEY,
                     name NVARCHAR NOT NULL,
                     encodedSave NVARCHAR NOT NULL
                 );"""
-                cursor.execute(saveDataCreate)
-           
-            result = cursor.execute("select name, encodedSave from saveData").fetchall()
-            cursor.close()
-            
-            saves = {}
-            for save in result: 
-                saves[save[0]] = save[1]
-            return saves
+                cursor.execute(sql)
+                
+            result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='saveType';").fetchall()
+            if result == []:
+                sql = """CREATE TABLE IF NOT EXISTS saveType (
+                    id INTEGER PRIMARY KEY,
+                    typeName NVARCHAR NOT NULL
+                );        
+                """
+                cursor.execute(sql)
+
+                sql = """INSERT INTO saveType(typeName)
+                VALUES ('General'), ('Save'), ('Character card'), ('Scenarios');
+                """
+                cursor.execute(sql)
+
+                sql = """ALTER TABLE saveData 
+                ADD COLUMN typeId INTEGER NOT NULL DEFAULT 0;
+                """
+                cursor.execute(sql)
+
+                sql = """UPDATE saveData SET typeId = 2;
+                """
+                cursor.execute(sql)
+
+            result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='savePreviews';").fetchall()
+            if result == []:
+                sql = """CREATE TABLE IF NOT EXISTS savePreviews (
+                    id INTEGER PRIMARY KEY,
+                    previewContent NVARCHAR NOT NULL
+                );
+                """
+                cursor.execute(sql)
+
+                sql = """ALTER TABLE saveData 
+                ADD COLUMN previewId INTEGER NULL DEFAULT NULL;
+                """
+                cursor.execute(sql)
+
+            result = cursor.execute("SELECT * FROM pragma_table_info('saveData') WHERE name='isEncrypted';").fetchall()
+            if result == []:
+                sql = """ALTER TABLE saveData 
+                ADD COLUMN isEncrypted INTEGER NOT NULL DEFAULT 0;
+                """
+                cursor.execute(sql)
+
+            result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='saveGroup';").fetchall()
+            if result == []:
+                sql = """CREATE TABLE IF NOT EXISTS saveGroup (
+                    id INTEGER PRIMARY KEY,
+                    groupName NVARCHAR NOT NULL,
+                    isPublic INTEGER NOT NULL DEFAULT 0
+                );        
+                """
+                cursor.execute(sql)
+
+                sql = """ALTER TABLE saveData 
+                ADD COLUMN groupId INTEGER NULL DEFAULT NULL;
+                """
+                cursor.execute(sql)
+
+                sql = """INSERT INTO saveGroup(groupName, isPublic)
+                VALUES ('Public (can be accessed by anybody)', 1);
+                """
+                cursor.execute(sql)
+
+            # Remake views
+            sql = "drop view if exists saveOverview;"
+            cursor.execute(sql)
+
+            sql = """create view saveOverview
+            as
+            select name, encodedSave, isEncrypted, typeName, previewContent, groupName, isPublic
+            from saveData d
+            left join saveType t
+            on d.typeId = t.id
+            left join savePreviews p
+            on d.previewId = p.id
+            left join saveGroup g
+            on d.groupId = g.id;
+            """
+            cursor.execute(sql)
+
+            sql = "drop view if exists saveMetadata;"
+            cursor.execute(sql)
+
+            sql = """create view saveMetadata
+            as
+            select 'type' as category, id, typeName as name, null as isPublic
+            from saveType t
+            union all
+            select 'group', id, groupName, isPublic
+            from saveGroup g;
+            """
+            cursor.execute(sql)
+
+            refreshDataMetadata()
+
+            firstRun = False
         # Handle errors
         except sqlite3.Error as error:
             print(f'Error occurred - {error}')
-        
-def setSave(saveName, b64Data):
+
+def fetchAllToDictArr(sql, args = [], columnsInSelect = []):
     import sqlite3
-    dbPath = os.path.join(configsDir, "kcpp.db")
-    with sqlite3.connect(dbPath) as con:
+    with sqlite3.connect(getDBPath()) as con:
+        try:
+            cursor = con.cursor()           
+            result = cursor.execute(sql, args).fetchall()
+            cursor.close()
+            
+            rows = []
+            for row in result:
+                rowOut = {}
+                for i in range(min(len(row), len(columnsInSelect))):
+                    rowOut[columnsInSelect[i]] = row[i]
+                rows.append(rowOut)
+            return rows
+        # Handle errors
+        except sqlite3.Error as error:
+            print(f'Error occurred - {error}')
+
+def getSaves(whereClause = "", whereArgs = []):
+    prepDataDB()
+    cols = ["name", "isEncrypted", "typeName", "previewContent", "groupName", "isPublic"]
+    saves = fetchAllToDictArr(f"select name, isEncrypted, typeName, previewContent, groupName, isPublic from saveOverview {whereClause}", whereArgs, cols)
+    savesOut = {}
+    if saves is not None:
+        for save in saves:
+            savesOut[save["name"]] = save
+    return savesOut
+
+def getSaveData(whereClause = "", whereArgs = []):
+    prepDataDB()
+    cols = ["name", "encodedSave"]
+    saves = fetchAllToDictArr(f"select name, encodedSave from saveOverview {whereClause}", whereArgs, cols)
+    savesOut = {}
+    if saves is not None:
+        for save in saves:
+            savesOut[save["name"]] = save
+    return savesOut
+        
+def executeInsertFromDict(tableName, rowData):
+    import sqlite3
+    with sqlite3.connect(getDBPath()) as con:
         try:
             cursor = con.cursor()
-            cursor.execute(f"INSERT INTO saveData(name, encodedSave) VALUES ('{saveName}', '{b64Data.decode('utf-8')}');")
+            cols = []
+            placeholders = []
+            vals = []
+            for col in rowData:
+                if rowData[col] is not None:
+                    cols.append(col)
+                    placeholders.append("?")
+                    vals.append(rowData[col])
+                            
+            sql = f"INSERT INTO {tableName} ({','.join(cols)}) VALUES ({','.join(placeholders)});"
+            cursor.execute(sql, vals)
+            newId = cursor.lastrowid
             cursor.close()
-            return True
+            return newId
         # Handle errors
         except sqlite3.Error as error:
             print(f'Error occurred - {error}')
@@ -2032,23 +2195,38 @@ def setSave(saveName, b64Data):
         
 def deleteSave(saveName):
     import sqlite3
-    dbPath = os.path.join(configsDir, "kcpp.db")
-    with sqlite3.connect(dbPath) as con:
+    with sqlite3.connect(getDBPath()) as con:
         try:
             cursor = con.cursor()
-            cursor.execute(f"DELETE FROM saveData WHERE name = '{saveName}';")
+            previewId = cursor.execute(f"select previewId from saveData where name = ?", [saveName]).fetchone()
+            if (previewId is not None and previewId[0] is not None):
+                cursor.execute(f"DELETE FROM savePreviews WHERE id = ?;", [previewId[0]])
+            cursor.execute(f"DELETE FROM saveData WHERE name = ?;", [saveName])
             cursor.close()
             return True
         # Handle errors
         except sqlite3.Error as error:
             print(f'Error occurred - {error}')
             return False
+        
+def getArgumentsFromPath(path: str):
+    pathElems = path.split("?", 1)
+    if len(pathElems) == 2:
+        argsStr = pathElems[1]
+        args = argsStr.split(";")
+        argsDict = {}
+        for arg in args:
+            argSplit = arg.split("=", 1)
+            if len(argSplit) == 2 and argSplit[1] != "":
+                argsDict[argSplit[0]] = argSplit[1]
+        return argsDict
+    return {}
 
 #################################################################
 ### A hacky simple HTTP server simulating a kobold api by Concedo
 ### we are intentionally NOT using flask, because we want MINIMAL dependencies
 #################################################################
-class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
+class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
     sys_version = ""
     server_version = "ConcedoLlamaForKoboldServer"
 
@@ -2304,62 +2482,33 @@ class ServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 return False
         return True
 
+    def check_header_password(self, target_password):
+        auth_ok = True
+        if target_password and target_password !="":
+            auth_header = None
+            auth_ok = False
+            if 'Authorization' in self.headers:
+                auth_header = self.headers['Authorization']
+            elif 'authorization' in self.headers:
+                auth_header = self.headers['authorization']
+            if auth_header is not None and auth_header.startswith('Bearer '):
+                token = auth_header[len('Bearer '):].strip()
+                if token==target_password:
+                    auth_ok = True
+        return auth_ok
+
     def secure_endpoint(self): #returns false if auth fails. caller should exit
         #handle password stuff
-        if password and password !="":
-            auth_header = None
-            auth_ok = False
-            if 'Authorization' in self.headers:
-                auth_header = self.headers['Authorization']
-            elif 'authorization' in self.headers:
-                auth_header = self.headers['authorization']
-            if auth_header is not None and auth_header.startswith('Bearer '):
-                token = auth_header[len('Bearer '):].strip()
-                if token==password:
-                    auth_ok = True
-            if auth_ok is False:
-                self.send_response(401)
-                self.end_headers(content_type='application/json')
-                self.wfile.write(json.dumps({"detail": {
-                        "error": "Unauthorized",
-                        "msg": "Authentication key is missing or invalid.",
-                        "type": "unauthorized",
-                    }}).encode())
-                return False
-        return True
-    
-    def secure_control_endpoint(self): #returns false if auth fails. caller should exit
-        #handle password stuff
-        if controlPassword and controlPassword !="":
-            auth_header = None
-            auth_ok = False
-            if 'Authorization' in self.headers:
-                auth_header = self.headers['Authorization']
-            elif 'authorization' in self.headers:
-                auth_header = self.headers['authorization']
-            if auth_header is not None and auth_header.startswith('Bearer '):
-                token = auth_header[len('Bearer '):].strip()
-                if token==controlPassword:
-                    auth_ok = True
-            elif auth_header is not None and auth_header.startswith('Basic '):
-                try:
-                    token = auth_header[len('Basic '):]
-                    token = base64.b64decode(token).decode('utf-8').strip()
-                    token = token.split(":")[1]
-                    if token==controlPassword:
-                        auth_ok = True
-                except:
-                    auth_ok = False
-            if auth_ok is False:
-                self.send_response(401)
-                self.send_header("WWW-Authenticate", "Basic realm=\"control\"")
-                self.end_headers(content_type='application/json')
-                self.wfile.write(json.dumps({"detail": {
-                        "error": "Unauthorized",
-                        "msg": "Authentication key is missing or invalid.",
-                        "type": "unauthorized",
-                    }}).encode())
-                return False
+        auth_ok = self.check_header_password(password)
+        if auth_ok is False:
+            self.send_response(401)
+            self.end_headers(content_type='application/json')
+            self.wfile.write(json.dumps({"detail": {
+                    "error": "Unauthorized",
+                    "msg": "Authentication key is missing or invalid.",
+                    "type": "unauthorized",
+                }}).encode())
+            return False
         return True
 
     def noscript_webui(self):
@@ -2442,6 +2591,7 @@ Enter Prompt:<br>
 
     def do_GET(self):
         global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
+        global last_req_time, start_time
         global has_multiplayer, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat, multiplayer_lastactive, maxctx, maxhordelen, friendlymodelname, lastgeneratedcomfyimg, KcppVersion, totalgens, preloaded_story, exitcounter, currentusergenkey, friendlysdmodelname, fullsdmodelpath, mmprojpath, password
         self.path = self.path.rstrip('/')
         response_body = None
@@ -2462,18 +2612,7 @@ Enter Prompt:<br>
             response_body = (json.dumps({"name":"KoboldAI Lite","short_name":"KoboldAI Lite","description":"Progressive Web App for KoboldAI Lite","start_url":"./","scope":".","display":"standalone","background_color":"#303030","theme_color":"#337ab7","orientation":"portrait-primary","icons":[{"src":"data:image/png;base64,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","type":"image/png","sizes":"150x150"}]}).encode())
 
         elif self.path.endswith(('/api/v1/model', '/api/latest/model')):
-            auth_ok = True
-            if password and password !="":
-                auth_header = None
-                auth_ok = False
-                if 'Authorization' in self.headers:
-                    auth_header = self.headers['Authorization']
-                elif 'authorization' in self.headers:
-                    auth_header = self.headers['authorization']
-                if auth_header is not None and auth_header.startswith('Bearer '):
-                    token = auth_header[len('Bearer '):].strip()
-                    if token==password:
-                        auth_ok = True
+            auth_ok = self.check_header_password(password)
             response_body = (json.dumps({'result': (friendlymodelname if auth_ok else "koboldcpp/protected-model") }).encode())
 
         elif self.path.endswith(('/api/v1/config/max_length', '/api/latest/config/max_length')):
@@ -2498,8 +2637,25 @@ Enter Prompt:<br>
             caps = get_capabilities()
             response_body = (json.dumps(caps).encode())
 
+        elif self.path=="/api/admin/health":
+            content_type = 'text/plain'
+            response_body = ("true").encode()
+
+        elif self.path.endswith(('/api/admin/list_options')): #used by admin to get info about a kcpp instance
+            opts = []
+            if args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
+                dirpath = os.path.abspath(args.admindir)
+                opts = [f for f in sorted(os.listdir(dirpath)) if f.endswith(".kcpps") and os.path.isfile(os.path.join(dirpath, f))]
+            response_body = (json.dumps(opts).encode())
+
+        elif self.path.endswith(('/api/admin/list_models')): #used by admin to get info about model reload options
+            opts = []
+            if args.admin and args.admintextmodelsdir and os.path.exists(args.admintextmodelsdir) and self.check_header_password(args.adminpassword):
+                dirpath = os.path.abspath(args.admintextmodelsdir)
+                opts = [f for f in os.listdir(dirpath) if f.endswith(".gguf") and os.path.isfile(os.path.join(dirpath, f))]
+            response_body = (json.dumps(opts).encode())
+
         elif self.path.endswith(('/api/extra/perf')):
-            global last_req_time, start_time
             lastp = handle.get_last_process_time()
             laste = handle.get_last_eval_time()
             lastc = handle.get_last_token_count()
@@ -2614,109 +2770,30 @@ Enter Prompt:<br>
                 response_body = (json.dumps({}).encode())
             else:
                 response_body = preloaded_story
-        elif self.path=="/control/live":
-            if not controlEnabled:
-                content_type = 'text/html'
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
+
+        elif self.path=="/api/admin/current_model":
+            if not args.admin:
+                response_body = ("Admin API disabled").encode()
+            elif not self.check_header_password(args.adminpassword):
                 return
             else:
                 content_type = 'text/plain'
-                response_body = ("Online").encode()
-        elif "/control/saves/get/" in self.path and self.path.index("/control/saves/get/") == 0:
-            saveToLoad = self.path[self.path.rindex("/") + 1:]
-            if not controlEnabled:
-                content_type = 'text/html'
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
-                return
-            else:
-                content_type = 'application/json'
-                if configsDir is None:
-                    response_body = ("\{\}").encode()
-                else:
-                    saves = getSaves()
-                    if saveToLoad in saves:
-                        jsonArray = json.dumps(saves[saveToLoad])
-                        response_body = (jsonArray).encode()
-                    else:
-                        response_body = ("\{\}").encode()
-        elif self.path=="/control/saves":
-            if not controlEnabled:
-                content_type = 'text/html'
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
-                return
-            else:
-                content_type = 'application/json'
-                if configsDir is None:
-                    response_body = ("\{\}").encode()
-                else:
-                    saves = getSaves()
-                    jsonArray = json.dumps(list(saves.keys()))
-                    response_body = (jsonArray).encode()
-        elif self.path=="/control/models":
-            if not controlEnabled:
-                content_type = 'text/html'
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
-                return
-            else:
-                content_type = 'application/json'
-                if customModels is None:
-                    response_body = ("[]").encode()
-                else:
-                    jsonArray = json.dumps(customModels)
-                    response_body = (jsonArray).encode()
-        elif self.path=="/control/models/current":
-            if not controlEnabled:
-                content_type = 'text/html'
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
-                return
-            else:
-                content_type = 'text/plain'
-                if config is None:
+                if global_memory["currentModel"] is None:
                     response_body = ("").encode()
                 else:
-                    response_body = (str(modelFilename)).encode()
-        elif self.path=="/control/configs":
-            if not controlEnabled:
-                content_type = 'text/html'
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
-                return
-            else:
-                content_type = 'application/json'
-                if customConfigs is None:
-                    response_body = ("[]").encode()
-                else:
-                    jsonArray = json.dumps(customConfigs)
-                    response_body = (jsonArray).encode()
-        elif self.path=="/control/configs/current":
-            if not controlEnabled:
-                content_type = 'text/html'
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
+                    response_body = (str(os.path.basename(global_memory["currentModel"]))).encode()
+            
+        elif self.path=="/api/admin/current_config":
+            if not args.admin:
+                response_body = ("Admin API disabled").encode()
+            elif not self.check_header_password(args.adminpassword):
                 return
             else:
                 content_type = 'text/plain'
-                if config is None:
+                if global_memory["currentConfig"] is None:
                     response_body = ("").encode()
                 else:
-                    response_body = (str(os.path.basename(config[0]))).encode()
-        elif self.path=="/control":
-            if not controlEnabled:
-                content_type = 'text/html'
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
-                return
-            else:
-                content_type = 'text/html'
-                if embedded_kcpp_docs is None:
-                    response_body = ("Control API disabled").encode()
-                else:
-                    response_body = embedded_kcpp_control
+                    response_body = (str(os.path.basename(global_memory["currentConfig"]))).encode()
         elif self.path.endswith(('/api')) or self.path.endswith(('/api/v1')):
             self.path = "/api"
             self.send_response(302)
@@ -2727,7 +2804,7 @@ Enter Prompt:<br>
         if response_body is None:
             self.send_response(404)
             self.end_headers(content_type='text/html')
-            rp = 'Error: HTTP Server is running, but this endpoint does not exist. Please check the URL.'
+            rp = 'Error: KoboldCpp HTTP Server is running, but this endpoint does not exist. Please check the URL.'
             self.wfile.write(rp.encode())
         else:
             self.send_response(200)
@@ -2957,73 +3034,180 @@ Enter Prompt:<br>
                     response_body = (json.dumps([]).encode())
             else:
                 response_body = (json.dumps([]).encode())
+
+        elif self.path.startswith("/api/data/list"):
+            # urlArgs = getArgumentsFromPath(self.path)
+            if not args.admin:
+                response_body = (json.dumps({"success": False, "error": "Data API disabled"}).encode())
+            elif args.admindatadir == "":
+                    response_body = (json.dumps({"success": False, "error": "No data directory provided"}).encode())
+            else:
+                scenarios = False
+                try:
+                    tempbody = json.loads(body)
+                    if isinstance(tempbody, dict):
+                        scenarios = tempbody.get('scenarios', False)
+                except Exception:
+                    scenarios = ""
+                saves = {}
+                dynamicWhereClauses = []
+                if scenarios:
+                    dynamicWhereClauses.append("typeName = 'Scenarios'")
+                if (not self.check_header_password(args.adminpassword)):
+                    dynamicWhereClauses.append("isPublic = 1 and isEncrypted = 0")
+                saves = getSaves(whereClause=f"{'WHERE' if len(dynamicWhereClauses) > 0 else ''} {' AND '.join(dynamicWhereClauses)};")
+                jsonArray = json.dumps(saves)
+                response_body = (jsonArray).encode()
+
+        elif "/api/data/metadata" == self.path:
+            # urlArgs = getArgumentsFromPath(self.path)
+            if not args.admin:
+                response_body = (json.dumps({"success": False, "error": "Data API disabled"}).encode())
+            elif args.admindatadir == "":
+                    response_body = (json.dumps({"success": False, "error": "No data directory provided"}).encode())
+            elif not self.check_header_password(args.adminpassword):
+                response_body = (json.dumps({"success": False, "error": "Admin password incorrect"}).encode())
+            else:
+                jsonArray = json.dumps(dataMetadata)
+                response_body = (jsonArray).encode()
+
+        elif "/api/data/get" == self.path:
+            if not args.admin:
+                response_body = (json.dumps({"success": False, "error": "Data API disabled"}).encode())
+            elif args.admindatadir == "":
+                response_body = (json.dumps({"success": False, "error": "No data directory provided"}).encode())
+            else:
+                filename = ""
+                try:
+                    tempbody = json.loads(body)
+                    if isinstance(tempbody, dict):
+                        filename = tempbody.get('filename', "")
+                except Exception:
+                    filename = ""
+                saves = {}
+                if not self.check_header_password(args.adminpassword):
+                    saves = getSaveData(whereClause="WHERE isPublic = 1 and isEncrypted = 0;")
+                else:
+                    saves = getSaveData()
+                if filename != "" and filename in saves:
+                    jsonArray = json.dumps(saves[filename]["encodedSave"])
+                    response_body = (jsonArray).encode()
+                else:
+                    response_body = ("\{\}").encode()
         
-        elif "/control/saves/put/" in self.path and self.path.index("/control/saves/put/") == 0:
-            saveName = self.path[self.path.rindex("/") + 1:]
-            if not controlEnabled:
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
-                return
+        elif "/api/data/put" == self.path:
+            if not args.admin:
+                response_body = (json.dumps({"success": False, "error": "Data API disabled"}).encode())
+            elif not self.check_header_password(args.adminpassword):
+                response_body = (json.dumps({"success": False, "error": "Admin password incorrect"}).encode())
             else:
-                if configsDir is None:
-                    response_body = ("No config directory provided").encode()
+                if args.admindatadir == "":
+                    response_body = (json.dumps({"success": False, "error": "No data directory provided"}).encode())
                 else:
+                    filename = ""
+                    bodyData = ""
+                    try:
+                        tempbody = json.loads(body)
+                        if isinstance(tempbody, dict):
+                            filename = tempbody.get('filename', "")
+                            bodyData = tempbody.get('data', "")
+                            isEncrypted = tempbody.get('isEncrypted', "0")
+                            group = tempbody.get('group', None)
+                            type = tempbody.get('type', None)
+                            thumbnail = tempbody.get('thumbnail', None)
+                    except Exception:
+                        filename = ""
                     saves = getSaves()
-                    if saveName is not None and saveName not in saves:
-                        if (setSave(saveName, body)):
-                            response_body = ("Saved to DB").encode()
+                    if filename != "" and bodyData != "" and filename not in saves:
+                        groupMetadata = getDataMetadata("group", group)
+                        typeMetadata = getDataMetadata("type", type)
+                        if group is not None and groupMetadata is None:
+                            response_body = (json.dumps({"success": False, "error": "Data group does not exist"}).encode())
+                        elif type is not None and typeMetadata is None:
+                            response_body = (json.dumps({"success": False, "error": "Data type does not exist"}).encode())
+                        elif not (isEncrypted == "0" or isEncrypted == "1"):
+                            response_body = (json.dumps({"success": False, "error": "Encrypted value must be 0 or 1"}).encode())
+                        elif isEncrypted == "1" and (groupMetadata is not None and groupMetadata["isPublic"] == 1):
+                            response_body = (json.dumps({"success": False, "error": "Encrypted saves are not allowed in public groups"}).encode())
                         else:
-                            response_body = ("Error when saving to DB").encode()
+                            previewId = None
+                            if (thumbnail is not None):
+                                previewId = executeInsertFromDict(tableName="savePreviews", rowData={
+                                    "previewContent": thumbnail
+                                })
+                            if previewId is False:
+                                response_body = ("Error when saving preview to DB").encode()
+                            else:
+                                saveId = executeInsertFromDict(tableName="saveData", rowData={
+                                    "name": filename,
+                                    "encodedSave": bodyData,
+                                    "isEncrypted": isEncrypted, 
+                                    "typeId": typeMetadata["id"] if typeMetadata is not None else None, 
+                                    "previewId": previewId,
+                                    "groupId": groupMetadata["id"] if groupMetadata is not None else None
+                                })
+                                if saveId is False:
+                                    response_body = (json.dumps({"success": False, "error": "Error when saving to DB"}).encode())
+                                else:
+                                    response_body = (json.dumps({"success": True}).encode())
                     else:
-                        response_body = ("Save already exists or no save name provided").encode()
-        elif "/control/saves/delete/" in self.path and self.path.index("/control/saves/delete/") == 0:
-            saveName = self.path[self.path.rindex("/") + 1:]
-            if not controlEnabled:
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
-                return
+                        response_body = (json.dumps({"success": False, "error": "Save already exists or no save name provided"}).encode())
+        elif "/api/data/delete" == self.path:
+            if not args.admin:
+                response_body = (json.dumps({"success": False, "error": "Data API disabled"}).encode())
+            elif not self.check_header_password(args.adminpassword):
+                response_body = (json.dumps({"success": False, "error": "Admin password incorrect"}).encode())
             else:
-                if configsDir is None:
-                    response_body = ("No config directory provided").encode()
+                if args.admindatadir == "":
+                    response_body = (json.dumps({"success": False, "error": "No data directory provided"}).encode())
                 else:
+                    filename = ""
+                    try:
+                        tempbody = json.loads(body)
+                        if isinstance(tempbody, dict):
+                            filename = tempbody.get('filename', "")
+                    except Exception:
+                        filename = ""
                     saves = getSaves()
-                    if saveName is not None and saveName in saves:
-                        if (deleteSave(saveName)):
-                            response_body = ("Deleted from DB").encode()
+                    if filename is not None and filename in saves:
+                        if (deleteSave(filename)):
+                            response_body = (json.dumps({"success": True}).encode())
                         else:
-                            response_body = ("Error when deleting to DB").encode()
+                            response_body = (json.dumps({"success": False, "error": "Error when deleting to DB"}).encode())
                     else:
-                        response_body = ("Save does not exists or no save name provided").encode()
-        elif self.path=="/control/restart":
-            if not controlEnabled:
-                response_body = ("Control API disabled").encode()
-            elif not self.secure_control_endpoint():
-                return
-            else:
-                tempbody = json.loads(body)
-                configSelected = tempbody.get('config', "")
-                modelSelected = tempbody.get('model', "")
-                if (configSelected != "" and configSelected in customConfigs) and (modelSelected != "" and customModels is not None and modelSelected in customModels):
-                    resp = "Switch confirmed".encode()
-                    self.send_response(200)
-                    self.send_header('content-length', str(len(resp)))
-                    self.end_headers(content_type='text/plain')
-                    self.wfile.write(resp)
+                        response_body = (json.dumps({"success": False, "error": "Save does not exists or no save name provided"}).encode())
 
-                    interProcessSend(["switch", configSelected, modelSelected])
-                    exit(0)
-                elif configSelected != "" and configSelected in customConfigs:
-                    resp = "Switch confirmed".encode()
-                    self.send_response(200)
-                    self.send_header('content-length', str(len(resp)))
-                    self.end_headers(content_type='text/plain')
-                    self.wfile.write(resp)
+        elif self.path.startswith(("/api/admin/reload_config")):
+            resp = {"success": False}
+            if global_memory and args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
+                targetfile = ""
+                targetModel = ""
+                try:
+                    tempbody = json.loads(body)
+                    if isinstance(tempbody, dict):
+                        targetfile = tempbody.get('filename', "")
+                        targetModel = tempbody.get('modelName', "")
+                except Exception:
+                    targetfile = ""
+                if targetfile and targetfile!="":
+                    dirpath = os.path.abspath(args.admindir)
+                    targetfilepath = os.path.join(dirpath, targetfile)
+                    opts = [f for f in os.listdir(dirpath) if f.endswith(".kcpps") and os.path.isfile(os.path.join(dirpath, f))]
+                    if targetfile in opts and os.path.exists(targetfilepath):
+                        # Now check targetModel
+                        if targetModel and targetModel!="":
+                            dirpath = os.path.abspath(args.admintextmodelsdir)
+                            targetfilepath = os.path.join(dirpath, targetModel)
+                            opts = [f for f in os.listdir(dirpath) if f.endswith(".gguf") and os.path.isfile(os.path.join(dirpath, f))]
+                            if targetModel in opts and os.path.exists(targetfilepath):
+                                global_memory["restart_model"] = targetModel
+                                print(f"Admin: Received request to reload config to {targetfile} and {targetModel}")
 
-                    interProcessSend(["switch", configSelected])
-                    exit(0)
-                else:
-                    response_body = ("Provided config / model are not valid").encode()
-
+                        if "restart_model" not in global_memory or global_memory["restart_target"] == "":   
+                            print(f"Admin: Received request to reload config to {targetfile}")
+                        global_memory["restart_target"] = targetfile
+                        resp = {"success": True}
+            response_body = (json.dumps(resp).encode())
 
         elif self.path.endswith('/set_tts_settings'): #return dummy response
             response_body = (json.dumps({"message": "Settings successfully applied"}).encode())
@@ -3245,11 +3429,11 @@ Enter Prompt:<br>
         self.send_header("cache-control", "no-store")
         if content_type is not None:
             self.send_header('content-type', content_type)
-        return super(ServerRequestHandler, self).end_headers()
+        return super(KcppServerRequestHandler, self).end_headers()
 
-def RunServerMultiThreaded(addr, port):
+def RunServerMultiThreaded(addr, port, server_handler):
     global exitcounter, sslvalid
-    global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
+    global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui, global_memory
     if is_port_in_use(port):
         print(f"Warning: Port {port} already appears to be in use by another program.")
     ipv4_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -3291,7 +3475,7 @@ def RunServerMultiThreaded(addr, port):
 
         def run(self):
             global exitcounter
-            handler = ServerRequestHandler(addr, port)
+            handler = server_handler(addr, port)
             with http.server.HTTPServer((addr, port), handler, False) as self.httpd:
                 try:
                     if ipv6_sock:
@@ -3304,18 +3488,15 @@ def RunServerMultiThreaded(addr, port):
                 except (KeyboardInterrupt,SystemExit):
                     exitcounter = 999
                     self.httpd.server_close()
-                    interProcessSend(["kill", 0])
                     sys.exit(0)
                 finally:
                     exitcounter = 999
                     self.httpd.server_close()
-                    interProcessSend(["kill", 0])
                     os._exit(0)
         def stop(self):
             global exitcounter
             exitcounter = 999
             self.httpd.server_close()
-            interProcessSend(["kill", 0])
 
     threadArr = []
     for i in range(numThreads):
@@ -3328,14 +3509,13 @@ def RunServerMultiThreaded(addr, port):
             exitcounter = 999
             for i in range(numThreads):
                 threadArr[i].stop()
-            interProcessSend(["kill", 0])
             sys.exit(0)
 
 # note: customtkinter-5.2.0
 def show_gui():
-    global guimode
-    guimode = True
-    from tkinter.filedialog import askopenfilename
+    global using_gui_launcher
+    using_gui_launcher = True
+    from tkinter.filedialog import askopenfilename, askdirectory
     from tkinter.filedialog import asksaveasfile
 
     # if args received, launch
@@ -3423,8 +3603,6 @@ def show_gui():
     else:
         root.resizable(True,True)
         root.bind("<Configure>", on_resize)
-    global using_gui_launcher
-    using_gui_launcher = True
     kcpp_exporting_template = False
 
     # trigger empty tooltip then remove it
@@ -3455,7 +3633,7 @@ def show_gui():
 
     tabs = ctk.CTkFrame(root, corner_radius = 0, width=windowwidth, height=windowheight-50)
     tabs.grid(row=0, stick="nsew")
-    tabnames= ["Quick Launch", "Hardware", "Tokens", "Model Files", "Network", "Horde Worker","Image Gen","Audio","Extra"]
+    tabnames= ["Quick Launch", "Hardware", "Tokens", "Model Files", "Network", "Horde Worker","Image Gen","Audio","Admin","Extra"]
     navbuttons = {}
     navbuttonframe = ctk.CTkFrame(tabs, width=100, height=int(tabs.cget("height")))
     navbuttonframe.grid(row=0, column=0, padx=2,pady=2)
@@ -3560,6 +3738,12 @@ def show_gui():
     tts_threads_var = ctk.StringVar(value=str(default_threads))
     ttsmaxlen_var = ctk.StringVar(value=str(default_ttsmaxlen))
 
+    admin_var = ctk.IntVar(value=0)
+    admin_dir_var = ctk.StringVar()
+    admin_text_model_dir_var = ctk.StringVar()
+    admin_data_dir_var = ctk.StringVar()
+    admin_password_var = ctk.StringVar()
+
     def tabbuttonaction(name):
         for t in tabcontent:
             if name == t:
@@ -3622,12 +3806,16 @@ def show_gui():
         entry.grid(row=row, column=(0 if singleline else 1), padx=padx, sticky="nw")
         return entry, label
 
-    def makefileentry(parent, text, searchtext, var, row=0, width=200, filetypes=[], onchoosefile=None, singlerow=False, singlecol=True, tooltiptxt=""):
+    def makefileentry(parent, text, searchtext, var, row=0, width=200, filetypes=[], onchoosefile=None, singlerow=False, singlecol=True, is_dir=False, tooltiptxt=""):
         label = makelabel(parent, text, row,0,tooltiptxt,columnspan=3)
         def getfilename(var, text):
             initialDir = os.path.dirname(var.get())
             initialDir = initialDir if os.path.isdir(initialDir) else None
-            fnam = askopenfilename(title=text,filetypes=filetypes, initialdir=initialDir)
+            fnam = None
+            if is_dir:
+                fnam = askdirectory(title=text, mustexist=True, initialdir=initialDir)
+            else:
+                fnam = askopenfilename(title=text,filetypes=filetypes, initialdir=initialDir)
             if fnam:
                 var.set(fnam)
                 if onchoosefile:
@@ -4039,7 +4227,7 @@ def show_gui():
     network_tab = tabcontent["Network"]
 
     # interfaces
-    makelabelentry(network_tab, "Port: ", port_var, 1, 150,tooltip="Select the port to host the KoboldCPP webserver.\n(Defaults to 5001)")
+    makelabelentry(network_tab, "Port: ", port_var, 1, 150,tooltip=f"Select the port to host the KoboldCPP webserver.\n(Defaults to {defaultport})")
     makelabelentry(network_tab, "Host: ", host_var, 2, 150,tooltip="Select a specific host interface to bind to.\n(Defaults to all)")
 
     makecheckbox(network_tab, "Multiuser Mode", multiuser_var, 3,tooltiptxt="Allows requests by multiple different clients to be queued and handled in sequence.")
@@ -4138,6 +4326,13 @@ def show_gui():
     makecheckbox(audio_tab, "TTS Use GPU", ttsgpu_var, 9, 0,tooltiptxt="Uses the GPU for TTS.")
     makelabelentry(audio_tab, "OuteTTS Max Tokens:" , ttsmaxlen_var, 11, 50,padx=290,singleline=True,tooltip="Max allowed audiotokens to generate per TTS request.")
     ttsgpu_var.trace("w", gui_changed_modelfile)
+
+    admin_tab = tabcontent["Admin"]
+    makecheckbox(admin_tab, "Enable Model Administration", admin_var, 1, 0,tooltiptxt="Enable a admin server, allowing you to remotely relaunch and swap models and configs.")
+    makelabelentry(admin_tab, "Admin Password:" , admin_password_var, 3, 150,padx=120,singleline=True,tooltip="Require a password to access admin functions. You are strongly advised to use one for publically accessible instances!")
+    makefileentry(admin_tab, "Config Directory:", "Select directory containing .kcpps files to relaunch from", admin_dir_var, 5, width=280, is_dir=True, tooltiptxt="Specify a directory to look for .kcpps configs in, which can be used to swap models.")
+    makefileentry(admin_tab, "Model Directory:", "Select directory containing .gguf text model files to allow overriding configs with", admin_text_model_dir_var, 7, width=280, is_dir=True, tooltiptxt="Specify a directory to look for .gguf text model files in, which can be used to swap models within a config.")
+    makefileentry(admin_tab, "Data Directory:", "Select directory which will be used to store user data if desired", admin_data_dir_var, 9, width=280, is_dir=True, tooltiptxt="Specify a directory to store user data in.")
 
     def kcpp_export_template():
         nonlocal kcpp_exporting_template
@@ -4365,6 +4560,12 @@ def show_gui():
             args.ttsgpu = (ttsgpu_var.get()==1)
             args.ttsmaxlen = int(ttsmaxlen_var.get())
 
+        args.admin = (admin_var.get()==1)
+        args.admindir = admin_dir_var.get()
+        args.admintextmodelsdir = admin_text_model_dir_var.get()
+        args.admindatadir = admin_data_dir_var.get()
+        args.adminpassword = admin_password_var.get()
+
     def import_vars(dict):
         global importvars_in_progress
         importvars_in_progress = True
@@ -4533,6 +4734,12 @@ def show_gui():
         ttsgpu_var.set(dict["ttsgpu"] if ("ttsgpu" in dict) else 0)
         ttsmaxlen_var.set(str(dict["ttsmaxlen"]) if ("ttsmaxlen" in dict and dict["ttsmaxlen"]) else str(default_ttsmaxlen))
 
+        admin_var.set(dict["admin"] if ("admin" in dict) else 0)
+        admin_dir_var.set(dict["admindir"] if ("admindir" in dict and dict["admindir"]) else "")
+        admin_text_model_dir_var.set(dict["admintextmodelsdir"] if ("admintextmodelsdir" in dict and dict["admintextmodelsdir"]) else "")
+        admin_data_dir_var.set(dict["admindatadir"] if ("admindatadir" in dict and dict["admindatadir"]) else "")
+        admin_password_var.set(dict["adminpassword"] if ("adminpassword" in dict and dict["adminpassword"]) else "")
+
         importvars_in_progress = False
         gui_changed_modelfile()
         if "istemplate" in dict and dict["istemplate"]:
@@ -4597,14 +4804,12 @@ def show_gui():
     except (KeyboardInterrupt,SystemExit):
         exitcounter = 999
         print("Exiting by user request.")
-        interProcessSend(["kill", 0])
         sys.exit(0)
 
 
     if nextstate==0:
         exitcounter = 999
         print("Exiting by user request.")
-        interProcessSend(["kill", 0])
         sys.exit(0)
     else:
         # processing vars
@@ -4615,14 +4820,13 @@ def show_gui():
             exitcounter = 999
             print("")
             time.sleep(0.5)
-            if guimode:
+            if using_gui_launcher:
                 givehelp = show_gui_yesnobox("No Model Loaded","No text or image model file was selected. Cannot continue.\n\nDo you want help finding a GGUF model?")
                 if givehelp == 'yes':
                     display_help_models()
             else:
                 print("No text or image model file was selected. Cannot continue.", flush=True)
             time.sleep(2)
-            interProcessSend(["kill", 2])
             sys.exit(2)
 
 def show_gui_msgbox(title,message):
@@ -4656,7 +4860,7 @@ def show_gui_yesnobox(title,message):
 def print_with_time(txt):
     print(f"{datetime.now().strftime('[%H:%M:%S]')} " + txt, flush=True)
 
-def make_url_request(url, data, method='POST', headers={}):
+def make_url_request(url, data, method='POST', headers={}, timeout=300):
     import urllib.request
     global nocertify
     try:
@@ -4671,7 +4875,7 @@ def make_url_request(url, data, method='POST', headers={}):
         else:
             request = urllib.request.Request(url, headers=headers, method=method)
         response_data = ""
-        with urllib.request.urlopen(request,timeout=300) as response:
+        with urllib.request.urlopen(request,timeout=timeout) as response:
             response_data = response.read().decode('utf-8',"ignore")
             json_response = json.loads(response_data)
             return json_response
@@ -4842,18 +5046,13 @@ def run_horde_worker(args, api_key, worker_name):
         print_with_time("Horde Worker Shutdown - Server Closing.")
     exitcounter = 999
     time.sleep(3)
-    interProcessSend(["kill", 2])
     sys.exit(2)
 
 def convert_outdated_args(args):
     dict = args
     if isinstance(args, argparse.Namespace):
         dict = vars(args)
-
-    global using_outdated_flags
-    using_outdated_flags = False
     if "sdconfig" in dict and dict["sdconfig"] and len(dict["sdconfig"])>0:
-        using_outdated_flags = True
         dict["sdmodel"] = dict["sdconfig"][0]
         if dict["sdconfig"] and len(dict["sdconfig"]) > 1:
             dict["sdclamped"] = 512
@@ -4862,7 +5061,6 @@ def convert_outdated_args(args):
         if dict["sdconfig"] and len(dict["sdconfig"]) > 3:
             dict["sdquant"] = (True if dict["sdconfig"][3]=="quant" else False)
     if "hordeconfig" in dict and dict["hordeconfig"] and dict["hordeconfig"][0]!="":
-        using_outdated_flags = True
         dict["hordemodelname"] = dict["hordeconfig"][0]
         if len(dict["hordeconfig"]) > 1:
             dict["hordegenlen"] = int(dict["hordeconfig"][1])
@@ -4873,36 +5071,22 @@ def convert_outdated_args(args):
             dict["hordeworkername"] = dict["hordeconfig"][4]
     if "noblas" in dict and dict["noblas"]:
         dict["usecpu"] = True
-
-    check_deprecation_warning()
+    if "failsafe" in dict and dict["failsafe"]: #failsafe implies noavx2
+        dict["noavx2"] = True
+    if ("model_param" not in dict or not dict["model_param"]) and ("model" in dict and dict["model"]):
+        dict["model_param"] = dict["model"]
     return args
 
-def check_deprecation_warning():
-    # slightly naggy warning to encourage people to switch to new flags
-    # if you want you can remove this at your own risk,
-    # but i am not going to troubleshoot or provide support for deprecated flags.
-    global using_outdated_flags
-    if using_outdated_flags:
-        print("\n=== !!! IMPORTANT WARNING !!! ===")
-        print("You are using one or more OUTDATED config files or launch flags!")
-        print("The flags --hordeconfig and --sdconfig have been DEPRECATED, and MAY be REMOVED in future!")
-        print("They will still work for now, but you SHOULD switch to the updated flags instead, to avoid future issues!")
-        print("New flags are: --hordemodelname --hordeworkername --hordekey --hordemaxctx --hordegenlen --sdmodel --sdthreads --sdquant --sdclamped")
-        print("For more information on these flags, please check --help")
-        print(">>> If you are using the GUI launcher, simply re-saving your config again will get rid of this warning.")
-        print("=== !!! IMPORTANT WARNING !!! ===\n")
-
-
-
-def setuptunnel(argsObj, has_sd):
+def setuptunnel(global_memory, has_sd):
     # This script will help setup a cloudflared tunnel for accessing KoboldCpp over the internet
     # It should work out of the box on both linux and windows
     try:
         import subprocess
         import re
         
-        sslvalid = argsObj.ssl and len(argsObj.ssl)==2 and isinstance(argsObj.ssl[0], str) and os.path.exists(argsObj.ssl[0]) and isinstance(argsObj.ssl[1], str) and os.path.exists(argsObj.ssl[1])
+        global sslvalid
         httpsaffix = ("https" if sslvalid else "http")
+        ssladd = (" --no-tls-verify" if sslvalid else "")
         def run_tunnel():
             tunnelproc = None
             tunneloutput = ""
@@ -4910,13 +5094,16 @@ def setuptunnel(argsObj, has_sd):
             time.sleep(0.2)
             if os.name == 'nt':
                 print("Starting Cloudflare Tunnel for Windows, please wait...", flush=True)
-                tunnelproc = subprocess.Popen(f"cloudflared.exe tunnel --url {httpsaffix}://localhost:{argsObj.port} --no-tls-verify", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                tunnelproc = subprocess.Popen(f"cloudflared.exe tunnel --url {httpsaffix}://localhost:{args.port}{ssladd}", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
             elif sys.platform=="darwin":
                 print("Starting Cloudflare Tunnel for MacOS, please wait...", flush=True)
-                tunnelproc = subprocess.Popen(f"./cloudflared tunnel --url {httpsaffix}://localhost:{argsObj.port} --no-tls-verify", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                tunnelproc = subprocess.Popen(f"./cloudflared tunnel --url {httpsaffix}://localhost:{args.port}{ssladd}", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+            elif sys.platform == "linux" and platform.machine().lower() == "aarch64":
+                print("Starting Cloudflare Tunnel for ARM64 Linux, please wait...", flush=True)
+                tunnelproc = subprocess.Popen(f"./cloudflared-linux-arm64 tunnel --url {httpsaffix}://localhost:{args.port}{ssladd}", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
             else:
                 print("Starting Cloudflare Tunnel for Linux, please wait...", flush=True)
-                tunnelproc = subprocess.Popen(f"./cloudflared-linux-amd64 tunnel --url {httpsaffix}://localhost:{argsObj.port} --no-tls-verify", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                tunnelproc = subprocess.Popen(f"./cloudflared-linux-amd64 tunnel --url {httpsaffix}://localhost:{args.port}{ssladd}", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
             time.sleep(10)
             def tunnel_reader():
                 nonlocal tunnelproc,tunneloutput,tunnelrawlog
@@ -4929,12 +5116,15 @@ def setuptunnel(argsObj, has_sd):
                     found = re.findall(pattern, line)
                     for x in found:
                         tunneloutput = x
-                        print(f"Your remote Kobold API can be found at {tunneloutput}/api")
-                        print(f"Your remote OpenAI Compatible API can be found at {tunneloutput}/v1")
-                        if has_sd:
-                            print(f"StableUI is available at {tunneloutput}/sdui/")
-                        print("======\n")
-                        print(f"Your remote tunnel is ready, please connect to {tunneloutput}", flush=True)
+                        if global_memory and global_memory["load_complete"]:
+                            print(f"Your remote Kobold API can be found at {tunneloutput}/api")
+                            print(f"Your remote OpenAI Compatible API can be found at {tunneloutput}/v1")
+                            if has_sd:
+                                print(f"StableUI is available at {tunneloutput}/sdui/")
+                            print("======\n")
+                            print(f"Your remote tunnel is ready, please connect to {tunneloutput}", flush=True)
+                        if global_memory:
+                            global_memory["tunnel_url"] = tunneloutput
                         return
 
             tunnel_reader_thread = threading.Thread(target=tunnel_reader)
@@ -4959,6 +5149,13 @@ def setuptunnel(argsObj, has_sd):
                 subprocess.run("curl -fL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-amd64.tgz -o cloudflared-darwin-amd64.tgz", shell=True, capture_output=True, text=True, check=True, encoding='utf-8')
                 subprocess.run("tar -xzf cloudflared-darwin-amd64.tgz", shell=True)
                 subprocess.run("chmod +x 'cloudflared'", shell=True)
+        elif sys.platform == "linux" and platform.machine().lower() == "aarch64":
+            if os.path.exists("cloudflared-linux-arm64") and os.path.getsize("cloudflared-linux-arm64") > 1000000:
+                print("Cloudflared file exists, reusing it...")
+            else:
+                print("Downloading Cloudflare Tunnel for ARM64 Linux...")
+                subprocess.run("curl -fL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64 -o cloudflared-linux-arm64", shell=True, capture_output=True, text=True, check=True, encoding='utf-8')
+                subprocess.run("chmod +x 'cloudflared-linux-arm64'", shell=True)
         else:
             if os.path.exists("cloudflared-linux-amd64") and os.path.getsize("cloudflared-linux-amd64") > 1000000:
                 print("Cloudflared file exists, reusing it...")
@@ -5041,6 +5238,19 @@ def unload_libs():
         del handle.get_pending_output
         del handle
         handle = None
+
+def reload_new_config(filename): #for changing config after launch
+    with open(filename, 'r', encoding='utf-8', errors='ignore') as f:
+        config = json.load(f)
+        args.istemplate = False
+        for key, value in config.items(): #do not overwrite certain values
+            if key not in ["remotetunnel","showgui","port","host","port_param","admin","adminpassword","admindir","admintextmodelsdir","admindatadir","ssl","nocertify","benchmark","prompt","config"]:
+                setattr(args, key, value)
+        setattr(args,"showgui",False)
+        setattr(args,"benchmark",False)
+        setattr(args,"prompt","")
+        setattr(args,"config",None)
+        setattr(args,"launch",None)
 
 def load_config_cli(filename):
     print("Loading .kcpps configuration file...")
@@ -5151,43 +5361,29 @@ def analyze_gguf_model_wrapper(filename=""):
     dumpthread = threading.Thread(target=analyze_gguf_model, args=(args,filename))
     dumpthread.start()
 
-def interProcessSend(obj):
-    from multiprocessing.connection import Client
-    address = ('localhost', comPort)
-    conn = Client(address) # comPassword
-    conn.send(obj)
-    time.sleep(2)
-    conn.close()
-
-def main(launch_args,start_server=True):
-    global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui, embedded_kcpp_control
-    global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath
-    global configsDir, customConfigs, customModels, comPort, comPassword, controlEnabled, controlPassword, config, modelFilename
-
-    args = launch_args
-
-    comPort = args.comPort
-    controlEnabled = args.controlEnabled
-    # comPassword = args.comPassword
-    if ('customConfigs' in args):
-        configsDir = args.configsDir
-        customConfigs = args.customConfigs
-    if ('config' in args):
-        config = args.config
-    customModels = args.customModels if ('customModels' in args) else None
+def main(launch_args):
+    global args, showdebug, kcpp_instance, exitcounter, using_gui_launcher, sslvalid, global_memory
+    args = launch_args #note: these are NOT shared with the child processes!
 
     if (args.version) and len(sys.argv) <= 2:
         print(f"{KcppVersion}") # just print version and exit
         return
-    if (args.model_param or args.model) and args.prompt and not args.benchmark and not (args.debugmode >= 1):
-        suppress_stdout()
 
-    print(f"***\nWelcome to KoboldCpp - Version {KcppVersion}") # just update version manually
-    # print("Python version: " + sys.version)
+    #prevent quantkv from being used without flash attn
+    if args.quantkv and args.quantkv>0 and not args.flashattention:
+        exit_with_error(1, "Error: Using --quantkv requires --flashattention")
 
-    #perform some basic cleanup of old temporary directories
+    args = convert_outdated_args(args)
+
+    temp_hide_print = ((args.model_param or args.model) and args.prompt and not args.benchmark and not (args.debugmode >= 1))
+
+    if not temp_hide_print:
+        print(f"***\nWelcome to KoboldCpp - Version {KcppVersion}")
+    if args.debugmode != 1:
+        showdebug = False #not shared with child process!
+
     try:
-        delete_old_pyinstaller()
+        delete_old_pyinstaller()  #perform some basic cleanup of old temporary directories
     except Exception as e:
         print(f"Error cleaning up orphaned pyinstaller dirs: {e}")
 
@@ -5199,7 +5395,7 @@ def main(launch_args,start_server=True):
         analyze_gguf_model_wrapper(args.analyze)
         return
 
-    if args.config and len(args.config)==1:
+    if args.config and len(args.config)==1: #handle initial config loading for launch
         cfgname = args.config[0]
         if isinstance(cfgname, str):
             dlfile = download_model_from_url(cfgname,[".kcpps",".kcppt"])
@@ -5210,7 +5406,6 @@ def main(launch_args,start_server=True):
         elif args.ignoremissing:
             print("Ignoring missing kcpp config file...")
         else:
-            global exitcounter
             exitcounter = 999
             exit_with_error(2,"Specified kcpp config file invalid or not found.")
     args = convert_outdated_args(args)
@@ -5221,20 +5416,8 @@ def main(launch_args,start_server=True):
         if dlfile:
             args.model_param = dlfile
         load_config_cli(args.model_param)
-    
-    if "modelOverride" in args and args.modelOverride is not None:
-        args.model_param = args.modelOverride[0]
 
-    #prevent quantkv from being used without flash attn
-    if args.quantkv and args.quantkv>0 and not args.flashattention:
-        exit_with_error(1, "Error: Using --quantkv requires --flashattention")
-
-    if args.failsafe: #failsafe implies noavx2
-        args.noavx2 = True
-
-    if not args.model_param:
-        args.model_param = args.model
-
+    # show the GUI launcher if a model was not provided
     if args.showgui or (not args.model_param and not args.sdmodel and not args.whispermodel and not args.ttsmodel and not args.nomodel):
         #give them a chance to pick a file
         print("For command line arguments, please refer to --help")
@@ -5248,8 +5431,109 @@ def main(launch_args,start_server=True):
             if args.skiplauncher:
                 print("Note: In order to use --skiplauncher, you need to specify a model with --model")
             time.sleep(3)
-            interProcessSend(["kill", 2])
             sys.exit(2)
+
+    if args.ssl: #need to duplicate here for the tunnel
+        if len(args.ssl)==2 and isinstance(args.ssl[0], str) and os.path.exists(args.ssl[0]) and isinstance(args.ssl[1], str) and os.path.exists(args.ssl[1]):
+            sslvalid = True
+
+    if args.admin and not args.admindir:
+        args.admin = False
+        print("\nWARNING: Admin was set without selecting an admin directory. Admin cannot be used.\n")
+
+    if not args.admin: #run in single process mode
+        if args.remotetunnel and not args.prompt and not args.benchmark:
+            setuptunnel(global_memory, True if args.sdmodel else False)
+        kcpp_main_process(args,global_memory,using_gui_launcher)
+        if global_memory["input_to_exit"]:
+            print("===")
+            print("Press ENTER key to exit.", flush=True)
+            input()
+    else:  # manager command queue for admin mode
+        with multiprocessing.Manager() as mp_manager:
+            global_memory = mp_manager.dict({"tunnel_url": "", "restart_target": "", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None})
+
+            if args.remotetunnel and not args.prompt and not args.benchmark:
+                setuptunnel(global_memory, True if args.sdmodel else False)
+
+            # invoke the main koboldcpp process
+            global_memory["currentConfig"] = args.config[0] if "config" in args and args.config is not None and len(args.config) > 0 else None
+            kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "g_memory": global_memory, "gui_launcher": using_gui_launcher})
+            kcpp_instance.daemon = True
+            kcpp_instance.start()
+
+            while True: # keep the manager alive
+                try:
+                    restart_target = ""
+                    if not kcpp_instance or not kcpp_instance.is_alive():
+                        break
+                    restart_target = global_memory["restart_target"]
+                    restart_model = global_memory["restart_model"]
+                    if restart_target!="":
+                        if restart_model != "":
+                            global_memory["restart_model"] = ""
+                            print(f"Reloading new config: {restart_target} with model {restart_model}")
+                        else:
+                            print(f"Reloading new config: {restart_target}")
+                        global_memory["restart_target"] = ""
+                        time.sleep(0.5) #sleep for 0.5s then restart
+                        if args.admin and args.admindir:
+                            dirpath = os.path.abspath(args.admindir)
+                            targetfilepath = os.path.join(dirpath, restart_target)
+                            if os.path.exists(targetfilepath):
+                                print("Terminating old process...")
+                                global_memory["load_complete"] = False
+                                kcpp_instance.terminate()
+                                kcpp_instance.join(timeout=10)  # Ensure process is stopped
+                                kcpp_instance = None
+                                print("Restarting KoboldCpp...")
+                                reload_new_config(targetfilepath)
+
+                                args.currentConfig = targetfilepath
+                                global_memory["currentConfig"] = targetfilepath
+                                global_memory["modelOverride"] = None
+                                if (args.admin and args.admintextmodelsdir and restart_model != ""):
+                                    dirpath = os.path.abspath(args.admintextmodelsdir)
+                                    modelFilepath = os.path.join(dirpath, restart_model)
+                                    if os.path.exists(modelFilepath):
+                                        print(f"Setting model to {restart_model}")
+                                        global_memory["modelOverride"] = modelFilepath
+
+                                kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "g_memory": global_memory, "gui_launcher": using_gui_launcher})
+                                kcpp_instance.daemon = True
+                                kcpp_instance.start()
+                                global_memory["restart_target"] = ""
+                                global_memory["restart_model"] = ""
+                                time.sleep(1)
+                    else:
+                        time.sleep(0.2)
+                except (KeyboardInterrupt,SystemExit):
+                    break
+            if global_memory["input_to_exit"]:
+                print("===")
+                print("Press ENTER key to exit.", flush=True)
+                input()
+
+def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
+    global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui, start_time, exitcounter, global_memory, using_gui_launcher
+    global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath
+
+    start_server = True
+
+    args = launch_args
+    global_memory = g_memory
+    using_gui_launcher = gui_launcher
+    start_time = time.time()
+
+    if (args.model_param or args.model) and args.prompt and not args.benchmark and not (args.debugmode >= 1):
+        suppress_stdout()
+
+    if global_memory["modelOverride"] is not None:
+        args.model_param = global_memory["modelOverride"]
+    global_memory["currentModel"] = None if args.nomodel else args.model_param
+
+    if args.model_param and (args.benchmark or args.prompt):
+        start_server = False
 
     #try to read story if provided
     if args.preloadstory:
@@ -5465,9 +5749,6 @@ def main(launch_args,start_server=True):
     if args.password and args.password!="":
         password = args.password.strip()
 
-    if args.controlPassword and args.controlPassword!="":
-        controlPassword = args.controlPassword.strip()
-
     #handle loading text model
     if args.model_param:
         if not os.path.exists(args.model_param):
@@ -5530,7 +5811,7 @@ def main(launch_args,start_server=True):
             exitcounter = 999
             exit_with_error(3,"Could not load text model: " + modelname)
 
-    if (chatcompl_adapter is not None and isinstance(chatcompl_adapter, list)):
+    if (chatcompl_adapter is not None and isinstance(chatcompl_adapter, list) and not args.nomodel and args.model_param):
         # The chat completions adapter is a list that needs derivation from chat templates
         # Try to derive chat completions adapter from chat template, now that we have the model loaded
         ctbytes = handle.get_chat_template()
@@ -5672,14 +5953,6 @@ def main(launch_args,start_server=True):
     except Exception:
         print("Could not find Embedded SDUI.")
 
-    try:
-        basepath = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
-        with open(os.path.join(basepath, "kcpp_control.html"), mode='rb') as f:
-            embedded_kcpp_control = f.read()
-            print("Embedded control API loaded.")
-    except Exception:
-        print("Could not find Embedded KoboldCpp control API.")
-
     # print enabled modules
     caps = get_capabilities()
     enabledmlist = []
@@ -5704,6 +5977,7 @@ def main(launch_args,start_server=True):
     enabledmlist.append("ApiKeyPassword") if "protected" in caps and caps["protected"] else disabledmlist.append("ApiKeyPassword")
     enabledmlist.append("WebSearchProxy") if "websearch" in caps and caps["websearch"] else disabledmlist.append("WebSearchProxy")
     enabledmlist.append("TextToSpeech") if "tts" in caps and caps["tts"] else disabledmlist.append("TextToSpeech")
+    enabledmlist.append("AdminControl") if "admin" in caps and caps["admin"]!=0 else disabledmlist.append("AdminControl")
 
     print(f"======\nActive Modules: {' '.join(enabledmlist)}")
     print(f"Inactive Modules: {' '.join(disabledmlist)}")
@@ -5719,20 +5993,30 @@ def main(launch_args,start_server=True):
             print("SSL configuration is valid and will be used.")
         else:
             print("Your SSL configuration is INVALID. SSL will not be used.")
-    epurl = ""
+    endpoint_url = ""
+    remote_url = ""
     httpsaffix = ("https" if sslvalid else "http")
     if args.host=="":
-        epurl = f"{httpsaffix}://localhost:{args.port}"
+        endpoint_url = f"{httpsaffix}://localhost:{args.port}"
     else:
-        epurl = f"{httpsaffix}://{args.host}:{args.port}"
+        endpoint_url = f"{httpsaffix}://{args.host}:{args.port}"
     if not args.remotetunnel:
-        print(f"Starting Kobold API on port {args.port} at {epurl}/api/")
-        print(f"Starting OpenAI Compatible API on port {args.port} at {epurl}/v1/")
+        print(f"Starting Kobold API on port {args.port} at {endpoint_url}/api/")
+        print(f"Starting OpenAI Compatible API on port {args.port} at {endpoint_url}/v1/")
         if args.sdmodel:
-            print(f"StableUI is available at {epurl}/sdui/")
-
+            print(f"StableUI is available at {endpoint_url}/sdui/")
+    elif global_memory:
+        val = global_memory["tunnel_url"]
+        if val:
+            endpoint_url = val
+            remote_url = val
+            print(f"Your remote Kobold API can be found at {endpoint_url}/api")
+            print(f"Your remote OpenAI Compatible API can be found at {endpoint_url}/v1")
+            if args.sdmodel:
+                print(f"StableUI is available at {endpoint_url}/sdui/")
+        global_memory["load_complete"] = True
     if args.launch:
-        LaunchWebbrowser(epurl,"--launch was set, but could not launch web browser automatically.")
+        LaunchWebbrowser(endpoint_url,"--launch was set, but could not launch web browser automatically.")
 
     if args.hordekey and args.hordekey!="":
         if args.hordeworkername and args.hordeworkername!="":
@@ -5751,8 +6035,7 @@ def main(launch_args,start_server=True):
         timer_thread = threading.Timer(1, onready_subprocess) #1 second delay
         timer_thread.start()
 
-    if args.model_param and (args.benchmark or args.prompt):
-        start_server = False
+    if not start_server:
         save_to_file = (args.benchmark and args.benchmark!="stdout" and args.benchmark!="")
         benchmaxctx = maxctx
         benchlen = args.promptlimit
@@ -5826,47 +6109,22 @@ def main(launch_args,start_server=True):
                         file.write(f"\n{datetimestamp},{libname},{args.gpulayers},{benchmodel},{benchmaxctx},{benchlen},{t_pp:.2f},{s_pp:.2f},{t_gen:.2f},{s_gen:.2f},{(t_pp+t_gen):.2f},{result},{benchflagstr}")
                 except Exception as e:
                     print(f"Error writing benchmark to file: {e}")
-            global using_gui_launcher
-            if using_gui_launcher and not save_to_file:
-                print("===")
-                print("Press ENTER key to exit.", flush=True)
-                input()
+            if global_memory and using_gui_launcher and not save_to_file:
+                global_memory["input_to_exit"] = True
+                time.sleep(1)
 
-    check_deprecation_warning()
     if start_server:
-        if not controlEnabled and args.remotetunnel:
-            setuptunnel(launch_args, True if args.sdmodel else False)
+        if args.remotetunnel:
+            if remote_url:
+                print(f"======\nYour remote tunnel is ready, please connect to {remote_url}", flush=True)
         else:
             # Flush stdout for previous win32 issue so the client can see output.
-            print(f"======\nPlease connect to custom endpoint at {epurl}", flush=True)
-        asyncio.run(RunServerMultiThreaded(args.host, args.port))
+            print(f"======\nPlease connect to custom endpoint at {endpoint_url}", flush=True)
+        asyncio.run(RunServerMultiThreaded(args.host, args.port, KcppServerRequestHandler))
     else:
         # Flush stdout for previous win32 issue so the client can see output.
         if not args.prompt or args.benchmark:
             print("Server was not started, main function complete. Idling.", flush=True)
-            interProcessSend(["kill", 0])
-
-def run_in_queue(launch_args, input_queue, output_queue):
-    main(launch_args, start_server=False)
-    output_queue.put({'command': 'complete'})
-    while True:
-        if not input_queue.empty():
-            while not input_queue.empty():
-                data = input_queue.get()
-                if data['command'] == 'generate':
-                    pl = data['data']
-                    genout = generate(genparams=pl)
-                    result = genout['text']
-                    output_queue.put({'command': 'generated text', 'data': result})
-        time.sleep(0.2)
-
-def start_in_seperate_process(launch_args):
-    import multiprocessing
-    input_queue = multiprocessing.Queue()
-    output_queue = multiprocessing.Queue()
-    p = multiprocessing.Process(target=run_in_queue, args=(launch_args, input_queue, output_queue))
-    p.start()
-    return (output_queue, input_queue, p)
 
 if __name__ == '__main__':
     import multiprocessing
@@ -5888,7 +6146,7 @@ if __name__ == '__main__':
     modelgroup.add_argument("--model", metavar=('[filename]'), help="Model file to load", type=str, default="")
     modelgroup.add_argument("model_param", help="Model file to load (positional)", nargs="?")
     portgroup = parser.add_mutually_exclusive_group() #we want to be backwards compatible with the unnamed positional args
-    portgroup.add_argument("--port", metavar=('[portnumber]'), help="Port to listen on", default=defaultport, type=int, action='store')
+    portgroup.add_argument("--port", metavar=('[portnumber]'), help=f"Port to listen on. (Defaults to {defaultport})", default=defaultport, type=int, action='store')
     portgroup.add_argument("port_param", help="Port to listen on (positional)", default=defaultport, nargs="?", type=int, action='store')
     parser.add_argument("--host", metavar=('[ipaddr]'), help="Host IP to listen on. If this flag is not set, all routable interfaces are accepted.", default="")
     parser.add_argument("--launch", help="Launches a web browser when load is completed.", action='store_true')
@@ -5987,95 +6245,17 @@ if __name__ == '__main__':
     ttsparsergroup.add_argument("--ttsmaxlen", help="Limit number of audio tokens generated with TTS.",  type=int, default=default_ttsmaxlen)
     ttsparsergroup.add_argument("--ttsthreads", metavar=('[threads]'), help="Use a different number of threads for TTS if specified. Otherwise, has the same value as --threads.", type=int, default=0)
 
+    admingroup = parser.add_argument_group('Administration Commands')
+    admingroup.add_argument("--admin", help="Enables admin mode, allowing you to unload and reload different configurations or models.", action='store_true')
+    admingroup.add_argument("--adminpassword", metavar=('[password]'), help="Require a password to access admin functions. You are strongly advised to use one for publically accessible instances!", default=None)
+    admingroup.add_argument("--admindir", metavar=('[directory]'), help="Specify a directory to look for .kcpps configs in, which can be used to swap models.", default="")
+    admingroup.add_argument("--admintextmodelsdir", metavar=('[directory]'), help="Used with remote control config switching. By passing in this argument, models in the directory will by available for restarting operations.", default="")
+    admingroup.add_argument("--admindatadir", metavar=('[directory]'), help="Specify a directory to store user data in. By passing in this argument, users with the admin password will be able to save and load data from the server database.", default="")
+
     deprecatedgroup = parser.add_argument_group('Deprecated Commands, DO NOT USE!')
     deprecatedgroup.add_argument("--hordeconfig", help=argparse.SUPPRESS, nargs='+')
     deprecatedgroup.add_argument("--sdconfig", help=argparse.SUPPRESS, nargs='+')
     compatgroup.add_argument("--noblas", help=argparse.SUPPRESS, action='store_true')
     compatgroup3.add_argument("--nommap", help=argparse.SUPPRESS, action='store_true')
 
-    advparser.add_argument("--controlPassword", help="Used to enable remote control. By passing in this argument, control endpoint will use the provided password.  Both the configs directory and password must be provided to enable the functionality.", default=None)
-    advparser.add_argument("--configsDir", help="Used to enable remote control. By passing in this argument, configs in the directory will by available for restarting operations.", default=None)
-    advparser.add_argument("--textModelsDir", help="Used with remote control config switching. By passing in this argument, models in the directory will by available for restarting operations.", default=None)
-    argsIn = parser.parse_args()
-
-    print("Attempting to run KCPP in daemon thread")
-    if argsIn.configsDir is not None:
-        try:
-            argsIn.customConfigs = [each for each in os.listdir(argsIn.configsDir) if (each.endswith('.kcpps') or each.endswith('.kcppt'))]
-            print(f"Custom configs found: {', '.join(argsIn.customConfigs)}")
-        except Exception:
-            print("Could not load custom config dir.")
-    
-    if argsIn.textModelsDir is not None:
-        try:
-            argsIn.customModels = [each for each in os.listdir(argsIn.textModelsDir) if (each.endswith('.gguf'))]
-            print(f"Custom models found: {', '.join(argsIn.customModels)}")
-        except Exception:
-            print("Could not load custom model dir.")
-    
-    configAfterRestart = argsIn.config
-    
-    argsIn.controlEnabled = argsIn.controlPassword is not None and (len(argsIn.customConfigs) > 0)
-    print(f"Control endpoint: {argsIn.controlEnabled}")
-    runFlag = True
-    exitCode = 0
-
-    if argsIn.controlEnabled and argsIn.remotetunnel:
-        setuptunnel(argsIn, True) # Always show the SDUI URL just in case
-    
-    while runFlag:
-        import multiprocessing
-        try:
-            from multiprocessing.connection import Listener
-            address = ('localhost', 0)
-            listener = Listener(address) # , authkey=argsIn.comPassword
-            argsIn.comPort = listener.address[1]
-
-            kcppThread = multiprocessing.Process(target=main,kwargs={"launch_args": argsIn, "start_server": True})
-            kcppThread.start()
-
-            conn = listener.accept()
-            print(f'Connection accepted from {listener.last_accepted}')
-            while True:
-                try:
-                    msg = conn.recv()
-                    print(f"Server received internal message: {msg}")
-                    configAfterRestart = None
-                    modelAfterRestart = None
-                    if type(msg) is list:
-                        msgAsList = list(msg)
-                        if msgAsList[0] == "switch":
-                            if len(msgAsList) == 3 and msgAsList[1] in argsIn.customConfigs and msgAsList[2] in argsIn.customModels:
-                                configAfterRestart = msgAsList[1]
-                                modelAfterRestart = msgAsList[2]
-                                conn.close()
-                                break
-                            elif len(msgAsList) == 2 and msgAsList[1] in argsIn.customConfigs:
-                                configAfterRestart = msgAsList[1]
-                                conn.close()
-                                break
-                        elif msgAsList[0] == "kill":
-                            killCode = str(msgAsList[1]) if len(msgAsList) == 2 else "0"
-                            if killCode.isdigit:
-                                print(f"Kill code {killCode} received")
-                                exitCode = int(killCode)
-                                runFlag = False
-                                break
-                except:
-                    runFlag = False
-                    break
-            listener.close()
-
-            if runFlag:
-                print(f'Server restarting with new config: {configAfterRestart}')
-            kcppThread.terminate()
-            if configAfterRestart is None:
-                break
-            argsIn.config = [os.path.join(argsIn.configsDir, configAfterRestart)]
-            argsIn.modelOverride = [os.path.join(argsIn.textModelsDir, modelAfterRestart)] if modelAfterRestart is not None else None
-
-        except:
-            break        
-    
-    print("Server exiting")
-    sys.exit(exitCode)
+    main(parser.parse_args())

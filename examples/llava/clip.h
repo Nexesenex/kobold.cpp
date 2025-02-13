@@ -93,7 +93,10 @@ CLIP_API bool clip_is_qwen2vl(const struct clip_ctx * ctx);
 
 CLIP_API bool clip_encode_float_image (struct clip_ctx * ctx, int n_threads, float * img, int h, int w, float * vec);
 
+CLIP_API bool clip_is_glm(const struct clip_ctx * ctx);
+
 CLIP_API void set_clip_uses_gpu(bool usegpu);
+
 #ifdef __cplusplus
 }
 #endif

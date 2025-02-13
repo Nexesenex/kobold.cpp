@@ -88,12 +88,12 @@ static gpt_neox_model neox_ctx_v3;
 
 static mpt_model mpt_ctx_v3;
 
-static rwkv_v2_context * rwkv_ctx_v2;
-static rwkv_context * rwkv_ctx_v3;
+static rwkv_v2_context * rwkv_ctx_v2 = nullptr;
+static rwkv_context * rwkv_ctx_v3 = nullptr;
 
-static llama_v2_context * llama_ctx_v2;
-static llama_v3_context * llama_ctx_v3;
-static llama_context * llama_ctx_v4;
+static llama_v2_context * llama_ctx_v2 = nullptr;
+static llama_v3_context * llama_ctx_v3 = nullptr;
+static llama_context * llama_ctx_v4 = nullptr;
 static llama_context * draft_ctx = nullptr; //will remain null if speculative is unused
 
 static clip_ctx * clp_ctx = nullptr; //for llava
@@ -1842,28 +1842,10 @@ static float CalcGradientAIRopeFreqBase(float original_rope_base, int n_ctx_trai
         float chi_ctx_value = (n_ctx_desired * ctx_multiplier) / 6.28318;
         float gradient_ai_rope_freq_base_value = powf(original_rope_base, log10f(chi_ctx_value) / log10f(chi_ctx_train_value));
 
-        if(debugmode==1 && !is_quiet)
-        {
-            printf("Trained max context length (value:%.d).\n", n_ctx_train);
-            printf("Desired context length (value:%.d).\n", n_ctx_desired);
-            // printf("Solar context multiplier (value:%.3f).\n", ctx_multiplier);
-            // printf("Chi context train (value:%.3f).\n", chi_ctx_train_value);
-            // printf("Chi chosen context (value:%.3f).\n", chi_ctx_value);
-            // printf("Log Chi context train (value:%.3f).\n", log10f(chi_ctx_train_value));
-            // printf("Log Chi chosen context (value:%.3f).\n", log10f(chi_ctx_value));
-            printf("RoPE Frequency Base value (value:%.3f).\n", original_rope_base);
-            printf("RoPE base calculated via Gradient AI formula. (value:%.1f).\n", gradient_ai_rope_freq_base_value);
-        }
-
 	    if(model_arch==GGUFArch::ARCH_SOLAR)
         {
             float extended_rope_positive_offset_value = 1 + ((log10f(chi_ctx_value) - log10f(chi_ctx_train_value)) / ((log10f(chi_ctx_value) * log10f(chi_ctx_train_value)) - (log10f(chi_ctx_value) + log10f(chi_ctx_train_value))));
             float rope_freq_base_with_positive_offset = gradient_ai_rope_freq_base_value * extended_rope_positive_offset_value;
-            if(debugmode==1 && !is_quiet)
-            {
-                printf("Extended RoPE Positive Offset (multiplicator) for Solar based models. (value:%.3f).\n", extended_rope_positive_offset_value);
-                printf("RoPE base calculated via Gradient AI formula for Solar based models. (value:%.1f).\n", rope_freq_base_with_positive_offset);
-            }
             return rope_freq_base_with_positive_offset;
         }
         else
@@ -1931,7 +1913,6 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         if(file_format==FileFormat::GGUF_GENERIC)
         {
             printf("Using automatic RoPE scaling for GGUF. If the model has custom RoPE settings, they'll be used directly instead!\n");
-            printf("It means that the RoPE values written above will be replaced by the RoPE values indicated after loading.\n");
         }
         else
         {
@@ -2171,7 +2152,14 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         {
             printf("\nOverriding number of experts to %d\n",inputs.moe_experts);
             llama_model_kv_override kvo;
-            const char * moekey = "llama.expert_used_count";
+            std::string moekeystr = "llama";
+            if(file_format_meta.model_architecture_str!="")
+            {
+                moekeystr = file_format_meta.model_architecture_str;
+            }
+            moekeystr += ".expert_used_count";
+
+            const char * moekey = moekeystr.c_str();
             std::strncpy(kvo.key, moekey, sizeof(kvo.key) - 1);
             kvo.key[sizeof(kvo.key) - 1] = '\0'; // Ensure null termination
             kvo.tag = LLAMA_KV_OVERRIDE_TYPE_INT;
@@ -2673,6 +2661,15 @@ bool gpttype_generate_abort()
 
 std::string gpttype_get_chat_template()
 {
+    if(kcpp_data==nullptr)
+    {
+        printf("\nWarning: KCPP text generation not initialized!\n");
+        return "";
+    }
+    if(file_format!=FileFormat::GGUF_GENERIC || !llama_ctx_v4)
+    {
+        return "";
+    }
     // copied from examples/server/utils.hpp::llama_get_chat_template
     std::string template_key = "tokenizer.chat_template";
     // call with NULL buffer to get the total size of the string
@@ -2709,6 +2706,12 @@ std::vector<int> gpttype_get_token_arr(const std::string & input, bool addbos)
 
 std::string gpttype_detokenize(const std::vector<int> & inputids, bool render_special)
 {
+    if(kcpp_data==nullptr)
+    {
+        printf("\nWarning: KCPP text generation not initialized!\n");
+        return "";
+    }
+
     std::string output = "";
     for (auto eid : inputids)
     {
