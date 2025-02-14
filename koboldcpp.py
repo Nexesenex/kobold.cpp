@@ -3528,7 +3528,7 @@ def show_gui():
         args.model_param = askopenfilename(title="Select ggml model .bin or .gguf file or .kcpps config")
         root.withdraw()
         root.quit()
-        if args.model_param and args.model_param!="" and (args.model_param.lower().endswith('.kcpps') or args.model_param.lower().endswith('.kcppt')):
+        if args.model_param and args.model_param!="" and (args.model_param.lower().endswith('.kcpps') or args.model_param.lower().endswith('.kcppt') or args.model_param.lower().endswith('.kcpps?download=true') or args.model_param.lower().endswith('.kcppt?download=true')):
             dlfile = download_model_from_url(args.model_param,[".kcpps",".kcppt"]) # maybe download from url
             if dlfile:
                 args.model_param = dlfile
@@ -5075,8 +5075,12 @@ def convert_outdated_args(args):
         dict["usecpu"] = True
     if "failsafe" in dict and dict["failsafe"]: #failsafe implies noavx2
         dict["noavx2"] = True
-    if ("model_param" not in dict or not dict["model_param"]) and ("model" in dict and dict["model"]):
-        dict["model_param"] = dict["model"]
+    if ("model_param" not in dict or not dict["model_param"]) and ("model" in dict):
+        model_value = dict["model"] #may be null, empty/non-empty string, empty/non empty array
+        if isinstance(model_value, str) and model_value:  # Non-empty string
+            dict["model_param"] = model_value
+        elif isinstance(model_value, list) and model_value:  # Non-empty list
+            dict["model_param"] = model_value[0]  # Take the first file in the list
     return args
 
 def setuptunnel(global_memory, has_sd):
@@ -5138,33 +5142,17 @@ def setuptunnel(global_memory, has_sd):
             tunnelproc.wait()
 
         if os.name == 'nt':
-            if os.path.exists("cloudflared.exe") and os.path.getsize("cloudflared.exe") > 1000000:
-                print("Cloudflared file exists, reusing it...")
-            else:
-                print("Downloading Cloudflare Tunnel for Windows...")
-                subprocess.run("curl -fL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe -o cloudflared.exe", shell=True, capture_output=True, text=True, check=True, encoding='utf-8')
+            downloader_internal("https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe", "cloudflared.exe", True, 500000)
         elif sys.platform=="darwin":
-            if os.path.exists("cloudflared") and os.path.getsize("cloudflared") > 1000000:
-                print("Cloudflared file exists, reusing it...")
-            else:
-                print("Downloading Cloudflare Tunnel for MacOS...")
-                subprocess.run("curl -fL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-amd64.tgz -o cloudflared-darwin-amd64.tgz", shell=True, capture_output=True, text=True, check=True, encoding='utf-8')
-                subprocess.run("tar -xzf cloudflared-darwin-amd64.tgz", shell=True)
-                subprocess.run("chmod +x 'cloudflared'", shell=True)
+            downloader_internal("https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-amd64.tgz", "cloudflared-darwin-amd64.tgz", True, 500000)
+            subprocess.run("tar -xzf cloudflared-darwin-amd64.tgz", shell=True)
+            subprocess.run("chmod +x 'cloudflared'", shell=True)
         elif sys.platform == "linux" and platform.machine().lower() == "aarch64":
-            if os.path.exists("cloudflared-linux-arm64") and os.path.getsize("cloudflared-linux-arm64") > 1000000:
-                print("Cloudflared file exists, reusing it...")
-            else:
-                print("Downloading Cloudflare Tunnel for ARM64 Linux...")
-                subprocess.run("curl -fL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64 -o cloudflared-linux-arm64", shell=True, capture_output=True, text=True, check=True, encoding='utf-8')
-                subprocess.run("chmod +x 'cloudflared-linux-arm64'", shell=True)
+            downloader_internal("https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64", "cloudflared-linux-arm64", True, 500000)
+            subprocess.run("chmod +x 'cloudflared-linux-arm64'", shell=True)
         else:
-            if os.path.exists("cloudflared-linux-amd64") and os.path.getsize("cloudflared-linux-amd64") > 1000000:
-                print("Cloudflared file exists, reusing it...")
-            else:
-                print("Downloading Cloudflare Tunnel for Linux...")
-                subprocess.run("curl -fL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared-linux-amd64", shell=True, capture_output=True, text=True, check=True, encoding='utf-8')
-                subprocess.run("chmod +x 'cloudflared-linux-amd64'", shell=True)
+            downloader_internal("https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64", "cloudflared-linux-amd64", True, 500000)
+            subprocess.run("chmod +x 'cloudflared-linux-amd64'", shell=True)
         print("Attempting to start tunnel thread...", flush=True)
         tunnel_thread = threading.Thread(target=run_tunnel)
         tunnel_thread.start()
@@ -5307,24 +5295,35 @@ def sanitize_string(input_string):
     sanitized_string = re.sub( r'[^\w\d\.\-_]', '', input_string)
     return sanitized_string
 
-def download_model_from_url_internal(url): #returns path to downloaded model when done
+def downloader_internal(input_url, output_filename, capture_output, min_file_size=64): #64 bytes required by default
+    import shutil
     import subprocess
-    mdlfilename = os.path.basename(url)
-    #check if file already exists
-    if mdlfilename:
-        if os.path.exists(mdlfilename) and os.path.getsize(mdlfilename) > 10000000: #10MB trigger
-            print(f"File {mdlfilename} already exists, not redownloading.")
-            return mdlfilename
-        else:
-            dl_url = url
-            if "https://huggingface.co/" in dl_url and "/blob/main/" in dl_url:
-                dl_url = dl_url.replace("/blob/main/", "/resolve/main/")
-            print(f"Downloading file from external URL at {dl_url} now...")
-            subprocess.run(f"curl -fL {dl_url} -o {mdlfilename}", shell=True, capture_output=True, text=True, check=True, encoding='utf-8')
-            print(f"Download {mdlfilename} completed.", flush=True)
-            return mdlfilename
-    return None
-def download_model_from_url(url,permitted_types=[".gguf",".safetensors"]):
+    import os
+
+    if "https://huggingface.co/" in input_url and "/blob/main/" in input_url:
+        input_url = input_url.replace("/blob/main/", "/resolve/main/")
+    if output_filename == "auto":
+        output_filename = os.path.basename(input_url).split('?')[0].split('#')[0]
+    if os.path.exists(output_filename) and os.path.getsize(output_filename) > min_file_size:
+        print(f"{output_filename} already exists, using existing file.")
+        return output_filename
+    print(f"Downloading {input_url}", flush=True)
+    dl_success = False
+    if shutil.which("aria2c") is not None:
+        rc = subprocess.run(f"aria2c -x 16 -s 16 --summary-interval=30 --console-log-level=error --log-level=error --download-result=default --allow-overwrite=true --file-allocation=none -o {output_filename} {input_url}", shell=True, capture_output=capture_output, text=True, check=True, encoding='utf-8')
+        dl_success = (rc.returncode==0 and os.path.exists(output_filename) and os.path.getsize(output_filename) > min_file_size)
+    if not dl_success and shutil.which("curl") is not None:
+        rc = subprocess.run(f"curl -fLo {output_filename} {input_url}", shell=True, capture_output=capture_output, text=True, check=True, encoding='utf-8')
+        dl_success = (rc.returncode==0 and os.path.exists(output_filename) and os.path.getsize(output_filename) > min_file_size)
+    if not dl_success and shutil.which("wget") is None:
+        rc = subprocess.run(f"wget -O {output_filename} {input_url}", shell=True, capture_output=capture_output, text=True, check=True, encoding='utf-8')
+        dl_success = (rc.returncode==0 and os.path.exists(output_filename) and os.path.getsize(output_filename) > min_file_size)
+    if not dl_success:
+        print("Could not find suitable download software, please install aria2 or curl.")
+        return None
+    return output_filename
+
+def download_model_from_url(url, permitted_types=[".gguf",".safetensors", ".ggml", ".bin"], min_file_size=64):
     if url and url!="":
         if url.endswith("?download=true"):
             url = url.replace("?download=true","")
@@ -5334,7 +5333,7 @@ def download_model_from_url(url,permitted_types=[".gguf",".safetensors"]):
                 end_ext_ok = True
                 break
         if ((url.startswith("http://") or url.startswith("https://")) and end_ext_ok):
-            dlfile = download_model_from_url_internal(url)
+            dlfile = downloader_internal(url, "auto", False, min_file_size)
             return dlfile
     return None
 
@@ -5377,7 +5376,7 @@ def main(launch_args):
 
     args = convert_outdated_args(args)
 
-    temp_hide_print = ((args.model_param or args.model) and args.prompt and not args.benchmark and not (args.debugmode >= 1))
+    temp_hide_print = (args.model_param and args.prompt and not args.benchmark and not (args.debugmode >= 1))
 
     if not temp_hide_print:
         print(f"***\nWelcome to KoboldCpp - Version {KcppVersion}")
@@ -5413,7 +5412,7 @@ def main(launch_args):
     args = convert_outdated_args(args)
 
     #positional handling for kcpps files (drag and drop)
-    if args.model_param and args.model_param!="" and (args.model_param.lower().endswith('.kcpps') or args.model_param.lower().endswith('.kcppt')):
+    if args.model_param and args.model_param!="" and (args.model_param.lower().endswith('.kcpps') or args.model_param.lower().endswith('.kcppt') or args.model_param.lower().endswith('.kcpps?download=true') or args.model_param.lower().endswith('.kcppt?download=true')):
         dlfile = download_model_from_url(args.model_param,[".kcpps",".kcppt"]) # maybe download from url
         if dlfile:
             args.model_param = dlfile
@@ -5527,7 +5526,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
     using_gui_launcher = gui_launcher
     start_time = time.time()
 
-    if (args.model_param or args.model) and args.prompt and not args.benchmark and not (args.debugmode >= 1):
+    if args.model_param and args.prompt and not args.benchmark and not (args.debugmode >= 1):
         suppress_stdout()
 
     if global_memory["modelOverride"] is not None:
@@ -5611,47 +5610,50 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
 
     # handle model downloads if needed
     if args.model_param and args.model_param!="":
-        dlfile = download_model_from_url(args.model_param,[".gguf",".bin"])
+        dlfile = download_model_from_url(args.model_param,[".gguf",".bin", ".ggml"],min_file_size=500000)
         if dlfile:
             args.model_param = dlfile
+        if args.model and isinstance(args.model, list) and len(args.model)>1: #handle multi file downloading
+            for extramodel in args.model[1:]:
+                download_model_from_url(extramodel,[".gguf",".bin", ".ggml"],min_file_size=500000)
     if args.sdmodel and args.sdmodel!="":
-        dlfile = download_model_from_url(args.sdmodel,[".gguf",".safetensors"])
+        dlfile = download_model_from_url(args.sdmodel,[".gguf",".safetensors"],min_file_size=500000)
         if dlfile:
             args.sdmodel = dlfile
     if args.sdt5xxl and args.sdt5xxl!="":
-        dlfile = download_model_from_url(args.sdt5xxl,[".gguf",".safetensors"])
+        dlfile = download_model_from_url(args.sdt5xxl,[".gguf",".safetensors"],min_file_size=500000)
         if dlfile:
             args.sdt5xxl = dlfile
     if args.sdclipl and args.sdclipl!="":
-        dlfile = download_model_from_url(args.sdclipl,[".gguf",".safetensors"])
+        dlfile = download_model_from_url(args.sdclipl,[".gguf",".safetensors"],min_file_size=500000)
         if dlfile:
             args.sdclipl = dlfile
     if args.sdclipg and args.sdclipg!="":
-        dlfile = download_model_from_url(args.sdclipg,[".gguf",".safetensors"])
+        dlfile = download_model_from_url(args.sdclipg,[".gguf",".safetensors"],min_file_size=500000)
         if dlfile:
             args.sdclipg = dlfile
     if args.sdvae and args.sdvae!="":
-        dlfile = download_model_from_url(args.sdvae,[".gguf",".safetensors"])
+        dlfile = download_model_from_url(args.sdvae,[".gguf",".safetensors"],min_file_size=500000)
         if dlfile:
             args.sdvae = dlfile
     if args.mmproj and args.mmproj!="":
-        dlfile = download_model_from_url(args.mmproj,[".gguf"])
+        dlfile = download_model_from_url(args.mmproj,[".gguf"],min_file_size=500000)
         if dlfile:
             args.mmproj = dlfile
     if args.whispermodel and args.whispermodel!="":
-        dlfile = download_model_from_url(args.whispermodel,[".gguf",".bin"])
+        dlfile = download_model_from_url(args.whispermodel,[".gguf",".bin"],min_file_size=500000)
         if dlfile:
             args.whispermodel = dlfile
     if args.draftmodel and args.draftmodel!="":
-        dlfile = download_model_from_url(args.draftmodel,[".gguf"])
+        dlfile = download_model_from_url(args.draftmodel,[".gguf"],min_file_size=500000)
         if dlfile:
             args.draftmodel = dlfile
     if args.ttsmodel and args.ttsmodel!="":
-        dlfile = download_model_from_url(args.ttsmodel,[".gguf"])
+        dlfile = download_model_from_url(args.ttsmodel,[".gguf"],min_file_size=500000)
         if dlfile:
             args.ttsmodel = dlfile
     if args.ttswavtokenizer and args.ttswavtokenizer!="":
-        dlfile = download_model_from_url(args.ttswavtokenizer,[".gguf"])
+        dlfile = download_model_from_url(args.ttswavtokenizer,[".gguf"],min_file_size=500000)
         if dlfile:
             args.ttswavtokenizer = dlfile
 
@@ -5813,21 +5815,22 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
             exitcounter = 999
             exit_with_error(3,"Could not load text model: " + modelname)
 
-    if (chatcompl_adapter is not None and isinstance(chatcompl_adapter, list) and not args.nomodel and args.model_param):
+    if (chatcompl_adapter is not None and isinstance(chatcompl_adapter, list)):
         # The chat completions adapter is a list that needs derivation from chat templates
         # Try to derive chat completions adapter from chat template, now that we have the model loaded
-        ctbytes = handle.get_chat_template()
-        chat_template = ctypes.string_at(ctbytes).decode("UTF-8","ignore")
-        candidates = chatcompl_adapter
-        chatcompl_adapter = None
-        if chat_template != "":
-            for entry in candidates:
-                if all(s in chat_template for s in entry['search']):
-                    print(f"Chat completion heuristic: {entry['name']}")
-                    chatcompl_adapter = entry['adapter']
-                    break
-        if chatcompl_adapter is None:
-            print("Chat template heuristics failed to identify chat completions format. Alpaca will be used.")
+        chatcompl_adapter = None #if no text model loaded, erase the list.
+        if not args.nomodel and args.model_param:
+            ctbytes = handle.get_chat_template()
+            chat_template = ctypes.string_at(ctbytes).decode("UTF-8","ignore")
+            candidates = chatcompl_adapter
+            if chat_template != "":
+                for entry in candidates:
+                    if all(s in chat_template for s in entry['search']):
+                        print(f"Chat completion heuristic: {entry['name']}")
+                        chatcompl_adapter = entry['adapter']
+                        break
+            if chatcompl_adapter is None:
+                print("Chat template heuristics failed to identify chat completions format. Alpaca will be used.")
 
     #handle loading image model
     if args.sdmodel and args.sdmodel!="":
@@ -6145,7 +6148,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description=f'KoboldCpp Server - Version {KcppVersion}')
     modelgroup = parser.add_mutually_exclusive_group() #we want to be backwards compatible with the unnamed positional args
-    modelgroup.add_argument("--model", metavar=('[filename]'), help="Model file to load", type=str, default="")
+    modelgroup.add_argument("--model", metavar=('[filenames]'), help="Model file to load. Accepts multiple values if they are URLs.", type=str, nargs='+', default=[])
     modelgroup.add_argument("model_param", help="Model file to load (positional)", nargs="?")
     portgroup = parser.add_mutually_exclusive_group() #we want to be backwards compatible with the unnamed positional args
     portgroup.add_argument("--port", metavar=('[portnumber]'), help=f"Port to listen on. (Defaults to {defaultport})", default=defaultport, type=int, action='store')
