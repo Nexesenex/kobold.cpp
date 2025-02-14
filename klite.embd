@@ -22841,20 +22841,6 @@ else
 	.scenariogrid {
 		grid-auto-rows: unset !important;
 	}
-
-	/* Central region expanded with menus */
-	.container {
-		width: 100%;
-	}
-	html, body, #maincontainer, #gamescreen, #maineditbody {
-		height: 100%
-	}
-	#normalinterface {
-		height: calc(100% - 220px);
-	}
-	#maincontainer {
-		width: 100%;
-	}
     
 </style>
 </html>
