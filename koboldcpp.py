@@ -2010,6 +2010,7 @@ def getDataMetadata(category, name):
     return None
 
 firstRun = True
+# Prepares the DB used to store server side data for first use based on the DB path
 def prepDataDB():
     import sqlite3
     with sqlite3.connect(getDBPath()) as con:
@@ -2020,6 +2021,7 @@ def prepDataDB():
             
             cursor = con.cursor()
 
+            # Adds missing tables
             result = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='saveData';").fetchall()
             if result == []:
                 sql = """CREATE TABLE IF NOT EXISTS saveData (
@@ -2066,6 +2068,7 @@ def prepDataDB():
                 """
                 cursor.execute(sql)
 
+            # And adds new columns
             result = cursor.execute("SELECT * FROM pragma_table_info('saveData') WHERE name='isEncrypted';").fetchall()
             if result == []:
                 sql = """ALTER TABLE saveData 
@@ -2128,6 +2131,7 @@ def prepDataDB():
         except sqlite3.Error as error:
             print(f'Error occurred - {error}')
 
+# Fetches data from the DB and remaps the row to the provided columns (supports prepared statements)
 def fetchAllToDictArr(sql, args = [], columnsInSelect = []):
     import sqlite3
     prepDataDB()
@@ -2148,6 +2152,7 @@ def fetchAllToDictArr(sql, args = [], columnsInSelect = []):
         except sqlite3.Error as error:
             print(f'Error occurred - {error}')
 
+# Gets saves and metadata from the DB, based on the where clause provided
 def getSaves(whereClause = "", whereArgs = []):
     prepDataDB()
     cols = ["name", "isEncrypted", "typeName", "previewContent", "groupName", "isPublic"]
@@ -2158,6 +2163,7 @@ def getSaves(whereClause = "", whereArgs = []):
             savesOut[save["name"]] = save
     return savesOut
 
+# Gets the save data itself along with the names from the DB
 def getSaveData(whereClause = "", whereArgs = []):
     prepDataDB()
     cols = ["name", "encodedSave"]
@@ -2168,6 +2174,7 @@ def getSaveData(whereClause = "", whereArgs = []):
             savesOut[save["name"]] = save
     return savesOut
         
+# Executes an insert on the data DB (based on the table name and a dict which sets the keys and values)
 def executeInsertFromDict(tableName, rowData):
     import sqlite3
     prepDataDB()
@@ -2193,6 +2200,7 @@ def executeInsertFromDict(tableName, rowData):
             print(f'Error occurred - {error}')
             return False
         
+# Deletes a save from the relevant DB tables
 def deleteSave(saveName):
     import sqlite3
     prepDataDB()
@@ -2209,19 +2217,6 @@ def deleteSave(saveName):
         except sqlite3.Error as error:
             print(f'Error occurred - {error}')
             return False
-        
-def getArgumentsFromPath(path: str):
-    pathElems = path.split("?", 1)
-    if len(pathElems) == 2:
-        argsStr = pathElems[1]
-        args = argsStr.split(";")
-        argsDict = {}
-        for arg in args:
-            argSplit = arg.split("=", 1)
-            if len(argSplit) == 2 and argSplit[1] != "":
-                argsDict[argSplit[0]] = argSplit[1]
-        return argsDict
-    return {}
 
 #################################################################
 ### A hacky simple HTTP server simulating a kobold api by Concedo
@@ -2638,18 +2633,18 @@ Enter Prompt:<br>
             caps = get_capabilities()
             response_body = (json.dumps(caps).encode())
 
-        elif self.path=="/api/admin/health":
+        elif self.path=="/api/admin/health": # Endpoint to allow pings to check if the server is up and opterational
             content_type = 'text/plain'
             response_body = ("true").encode()
 
-        elif self.path.endswith(('/api/admin/list_options')): #used by admin to get info about a kcpp instance
+        elif self.path.endswith(('/api/admin/list_options')): #used by admin to get configs supported by a kcpp instance
             opts = []
             if args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
                 dirpath = os.path.abspath(args.admindir)
                 opts = [f for f in sorted(os.listdir(dirpath)) if f.endswith(".kcpps") and os.path.isfile(os.path.join(dirpath, f))]
             response_body = (json.dumps(opts).encode())
 
-        elif self.path.endswith(('/api/admin/list_models')): #used by admin to get info about model reload options
+        elif self.path.endswith(('/api/admin/list_models')): #used by admin to get models which can be reloaded with
             opts = []
             if args.admin and args.admintextmodelsdir and os.path.exists(args.admintextmodelsdir) and self.check_header_password(args.adminpassword):
                 dirpath = os.path.abspath(args.admintextmodelsdir)
@@ -2772,7 +2767,7 @@ Enter Prompt:<br>
             else:
                 response_body = preloaded_story
 
-        elif self.path=="/api/admin/current_model":
+        elif self.path=="/api/admin/current_model": # Returns the current model loaded
             if not args.admin:
                 response_body = ("Admin API disabled").encode()
             elif not self.check_header_password(args.adminpassword):
@@ -2784,7 +2779,7 @@ Enter Prompt:<br>
                 else:
                     response_body = (str(os.path.basename(global_memory["currentModel"]))).encode()
             
-        elif self.path=="/api/admin/current_config":
+        elif self.path=="/api/admin/current_config": # Returns the current config loaded
             if not args.admin:
                 response_body = ("Admin API disabled").encode()
             elif not self.check_header_password(args.adminpassword):
@@ -3036,8 +3031,7 @@ Enter Prompt:<br>
             else:
                 response_body = (json.dumps([]).encode())
 
-        elif self.path.startswith("/api/data/list"):
-            # urlArgs = getArgumentsFromPath(self.path)
+        elif self.path.startswith("/api/data/list"): # Lists all saved data on the server - TODO support more advanced searches in the future if needed
             if not args.admin:
                 response_body = (json.dumps({"success": False, "error": "Data API disabled"}).encode())
             elif args.admindatadir == "":
@@ -3060,8 +3054,7 @@ Enter Prompt:<br>
                 jsonArray = json.dumps(saves)
                 response_body = (jsonArray).encode()
 
-        elif "/api/data/metadata" == self.path:
-            # urlArgs = getArgumentsFromPath(self.path)
+        elif "/api/data/metadata" == self.path: # Gets metadata about the save types and groups
             if not args.admin:
                 response_body = (json.dumps({"success": False, "error": "Data API disabled"}).encode())
             elif args.admindatadir == "":
@@ -3073,7 +3066,7 @@ Enter Prompt:<br>
                 jsonArray = json.dumps(dataMetadata)
                 response_body = (jsonArray).encode()
 
-        elif "/api/data/get" == self.path:
+        elif "/api/data/get" == self.path: # Gets saved data from the server
             if not args.admin:
                 response_body = (json.dumps({"success": False, "error": "Data API disabled"}).encode())
             elif args.admindatadir == "":
@@ -3097,7 +3090,7 @@ Enter Prompt:<br>
                 else:
                     response_body = ("\{\}").encode()
         
-        elif "/api/data/put" == self.path:
+        elif "/api/data/put" == self.path: # Saves data to the server (validating it as well)
             if not args.admin:
                 response_body = (json.dumps({"success": False, "error": "Data API disabled"}).encode())
             elif not self.check_header_password(args.adminpassword):
@@ -3154,7 +3147,7 @@ Enter Prompt:<br>
                                     response_body = (json.dumps({"success": True}).encode())
                     else:
                         response_body = (json.dumps({"success": False, "error": "Save already exists or no save name provided"}).encode())
-        elif "/api/data/delete" == self.path:
+        elif "/api/data/delete" == self.path: # Delete data saved on the server
             if not args.admin:
                 response_body = (json.dumps({"success": False, "error": "Data API disabled"}).encode())
             elif not self.check_header_password(args.adminpassword):
@@ -3179,7 +3172,7 @@ Enter Prompt:<br>
                     else:
                         response_body = (json.dumps({"success": False, "error": "Save does not exists or no save name provided"}).encode())
 
-        elif self.path.startswith(("/api/admin/reload_config")):
+        elif self.path.startswith(("/api/admin/reload_config")): # Reload the config (and optionally provide a model override)
             resp = {"success": False}
             if global_memory and args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
                 targetfile = ""
