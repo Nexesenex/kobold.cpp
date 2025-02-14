@@ -2123,8 +2123,6 @@ def prepDataDB():
             """
             cursor.execute(sql)
 
-            refreshDataMetadata()
-
             firstRun = False
         # Handle errors
         except sqlite3.Error as error:
@@ -2132,6 +2130,7 @@ def prepDataDB():
 
 def fetchAllToDictArr(sql, args = [], columnsInSelect = []):
     import sqlite3
+    prepDataDB()
     with sqlite3.connect(getDBPath()) as con:
         try:
             cursor = con.cursor()           
@@ -2171,6 +2170,7 @@ def getSaveData(whereClause = "", whereArgs = []):
         
 def executeInsertFromDict(tableName, rowData):
     import sqlite3
+    prepDataDB()
     with sqlite3.connect(getDBPath()) as con:
         try:
             cursor = con.cursor()
@@ -2195,6 +2195,7 @@ def executeInsertFromDict(tableName, rowData):
         
 def deleteSave(saveName):
     import sqlite3
+    prepDataDB()
     with sqlite3.connect(getDBPath()) as con:
         try:
             cursor = con.cursor()
@@ -3068,6 +3069,7 @@ Enter Prompt:<br>
             elif not self.check_header_password(args.adminpassword):
                 response_body = (json.dumps({"success": False, "error": "Admin password incorrect"}).encode())
             else:
+                refreshDataMetadata()
                 jsonArray = json.dumps(dataMetadata)
                 response_body = (jsonArray).encode()
 
