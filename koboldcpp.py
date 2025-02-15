@@ -8,6 +8,7 @@
 # editing tools, save formats, memory, world info, author's note, characters,
 # scenarios and everything Kobold and KoboldAI Lite have to offer.
 
+import copy
 import ctypes
 import multiprocessing
 import os
@@ -54,10 +55,10 @@ dry_seq_break_max = 512
 # dry_seq_break_max = 128
 
 # global vars
-LcppVersion = "b4717"
+KcppVersion = "1.84000"
+LcppVersion = "b4722"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/02/14"
-KcppVersion = "1.83110"
+ReleaseDate = "2025/02/15"
 showdebug = True
 # guimode = False
 kcpp_instance = None #global running instance
@@ -5629,16 +5630,19 @@ def unload_libs():
 
 def reload_new_config(filename): #for changing config after launch
     with open(filename, 'r', encoding='utf-8', errors='ignore') as f:
-        config = json.load(f)
-        args.istemplate = False
-        for key, value in config.items(): #do not overwrite certain values
-            if key not in ["remotetunnel","showgui","port","host","port_param","admin","adminpassword","admindir","ssl","nocertify","benchmark","prompt","config"]:
-                setattr(args, key, value)
-        setattr(args,"showgui",False)
-        setattr(args,"benchmark",False)
-        setattr(args,"prompt","")
-        setattr(args,"config",None)
-        setattr(args,"launch",None)
+        try:
+            config = json.load(f)
+            args.istemplate = False
+            for key, value in config.items(): #do not overwrite certain values
+                if key not in ["remotetunnel","showgui","port","host","port_param","admin","adminpassword","admindir","ssl","nocertify","benchmark","prompt","config"]:
+                    setattr(args, key, value)
+            setattr(args,"showgui",False)
+            setattr(args,"benchmark",False)
+            setattr(args,"prompt","")
+            setattr(args,"config",None)
+            setattr(args,"launch",None)
+        except Exception as e:
+            print(f"Reload New Config Failed: {e}")
 
 def load_config_cli(filename):
     print("Loading .kcpps configuration file...")
@@ -5878,15 +5882,36 @@ def main(launch_args):
                 setuptunnel(global_memory, True if args.sdmodel else False)
 
             # invoke the main koboldcpp process
+            original_args = copy.deepcopy(args)
+
             kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "g_memory": global_memory, "gui_launcher": using_gui_launcher})
             kcpp_instance.daemon = True
             kcpp_instance.start()
+
+            fault_recovery_mode = False #if a config reload fails, recover back to old settings
 
             while True: # keep the manager alive
                 try:
                     restart_target = ""
                     if not kcpp_instance or not kcpp_instance.is_alive():
-                        break
+                        if fault_recovery_mode:
+                            #attempt to recover
+                            print("Attempting to recover to safe mode, launching known-good config...")
+                            fault_recovery_mode = False
+                            args = copy.deepcopy(original_args) #restore known good original launcher args
+                            if kcpp_instance:
+                                kcpp_instance.terminate()
+                                kcpp_instance.join(timeout=10)  # Ensure process is stopped
+                                kcpp_instance = None
+                            kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "g_memory": global_memory, "gui_launcher": False})
+                            kcpp_instance.daemon = True
+                            kcpp_instance.start()
+                            global_memory["restart_target"] = ""
+                            time.sleep(3)
+                        else:
+                            break # kill the program
+                    if fault_recovery_mode and global_memory["load_complete"]:
+                        fault_recovery_mode = False
                     restart_target = global_memory["restart_target"]
                     if restart_target!="":
                         print(f"Reloading new config: {restart_target}")
@@ -5902,12 +5927,13 @@ def main(launch_args):
                                 kcpp_instance.join(timeout=10)  # Ensure process is stopped
                                 kcpp_instance = None
                                 print("Restarting KoboldCpp...")
+                                fault_recovery_mode = True
                                 reload_new_config(targetfilepath)
-                                kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "g_memory": global_memory, "gui_launcher": using_gui_launcher})
+                                kcpp_instance = multiprocessing.Process(target=kcpp_main_process,kwargs={"launch_args": args, "g_memory": global_memory, "gui_launcher": False})
                                 kcpp_instance.daemon = True
                                 kcpp_instance.start()
                                 global_memory["restart_target"] = ""
-                                time.sleep(1)
+                                time.sleep(3)
                     else:
                         time.sleep(0.2)
                 except (KeyboardInterrupt,SystemExit):
@@ -6215,7 +6241,6 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
     if (chatcompl_adapter is not None and isinstance(chatcompl_adapter, list)):
         # The chat completions adapter is a list that needs derivation from chat templates
         # Try to derive chat completions adapter from chat template, now that we have the model loaded
-        chatcompl_adapter = None #if no text model loaded, erase the list.
         if not args.nomodel and args.model_param:
             ctbytes = handle.get_chat_template()
             chat_template = ctypes.string_at(ctbytes).decode("UTF-8","ignore")
@@ -6228,6 +6253,8 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
                         break
             if chatcompl_adapter is None:
                 print("Chat template heuristics failed to identify chat completions format. Alpaca will be used.")
+        else:
+            chatcompl_adapter = None #if no text model loaded, erase the list.
 
     #handle loading image model
     if args.sdmodel and args.sdmodel!="":
@@ -6677,7 +6704,7 @@ if __name__ == '__main__':
     # advparser.add_argument("--noshift", help="If set, do not attempt to Trim and Shift the GGUF context.", action='store_true')
     advparser.add_argument("--nofastforward", help="If set, do not attempt to fast forward GGUF context (always reprocess). Will also enable noshift", action='store_true')
     compatgroup3 = advparser.add_mutually_exclusive_group()
-    compatgroup3.add_argument("--usemmap", help="If set, uses mmap to load model. This model will not be unloadable.", action='store_true')
+    compatgroup3.add_argument("--usemmap", help="If set, uses mmap to load model.", action='store_true')
     advparser.add_argument("--usemlock", help="Enables mlock, preventing the RAM used to load the model from being paged out. Not usually recommended.", action='store_true')
     advparser.add_argument("--noavx2", help="Do not use AVX2 instructions, a slower compatibility mode for older devices.", action='store_true')
     advparser.add_argument("--failsafe", help="Use failsafe mode, extremely slow CPU only compatibility mode that should work on all devices. Can be combined with useclblast if your device supports OpenCL.", action='store_true')
