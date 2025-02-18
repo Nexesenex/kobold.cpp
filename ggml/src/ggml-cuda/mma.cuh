@@ -7,7 +7,7 @@
 // A is a row-major matrix with shape M x K.
 // B is a column-major matrix with shape K x N.
 // C is a column-major matrix with shape M x N.
-// A, B, and C are represented using the same fundametal data type: a row-major matrix with I rows and J columns.
+// A, B, and C are represented using the same fundamental data type: a row-major matrix with I rows and J columns.
 // Note that J is measured in physical 32 bit elements instead of logical elements.
 // The methods get_i and get_j can be used to get the physical 32 bit index of the lth element of a thread within a tile.
 // All matrix tiles have ne physical 32 bit elements per warp.
@@ -208,163 +208,6 @@ namespace ggml_cuda_mma {
 #endif // NEW_MMA_AVAILABLE
     }
 
-/*     __device__ __forceinline__ void load_ldmatrix_trans(const T * __restrict__ xs0, const int & stride) {
-#ifdef NEW_MMA_AVAILABLE
-        int * xi = (int * ) x;
-        const int * xs = (const int *) xs0 + (threadIdx.x%I)*stride + (threadIdx.x/I)*(K/2);
-        asm("ldmatrix.sync.aligned.m8n8.x4.trans.b16 {%0, %1, %2, %3}, [%4];"
-            : "+r"(xi[0]), "+r"(xi[2]), "+r"(xi[1]), "+r"(xi[3])
-            : "l"(xs));
-#else
-        GGML_UNUSED(xs0);
-        GGML_UNUSED(stride);
-        NO_DEVICE_CODE;
-#endif // NEW_MMA_AVAILABLE
-    }
-
-    __device__ __forceinline__ void transpose() { */
-
-/* #ifdef NEW_MMA_AVAILABLE
-        int * xi  = (int *) x;
-        asm("movmatrix.sync.aligned.m8n8.trans.b16 %0, %1;"
-            : "+r"(xi[0]) : "r"(xi[0]));
-        int tmp = 0;
-        asm("movmatrix.sync.aligned.m8n8.trans.b16 %0, %1;"
-            : "+r"(tmp)   : "r"(xi[1]));
-        asm("movmatrix.sync.aligned.m8n8.trans.b16 %0, %1;"
-            : "+r"(xi[1]) : "r"(xi[2]));
-        xi[2] = tmp;
-        asm("movmatrix.sync.aligned.m8n8.trans.b16 %0, %1;"
-            : "+r"(xi[3]) : "r"(xi[3]));
-#else
-        NO_DEVICE_CODE;
-#endif // NEW_MMA_AVAILABLE */
-
-/*         int * xi  = (int *) x;
-        xi[0] = ggml_cuda_movmatrix(xi[0]);
-
-        const int tmp = ggml_cuda_movmatrix(xi[1]);
-        xi[1] = ggml_cuda_movmatrix(xi[2]);
-        xi[2] = tmp;
-
-        xi[3] = ggml_cuda_movmatrix(xi[3]);
-    }
-};
-
-template <typename T>
-struct mma_B_J8K4 {
-    static_assert(sizeof(T) == 4, "bad type size");
-
-    static constexpr int J  = 8;
-    static constexpr int K  = 4;
-    static constexpr int ne = 1;
-
-    T x[ne]; */
-
-    // static __device__ __forceinline__ int get_j(const int /* l */) {
-        // const int ret = threadIdx.x / K;
-        // GGML_CUDA_ASSUME(ret >= 0);
-        // GGML_CUDA_ASSUME(ret <  J);
-        // return ret;
-    // }
-
-    // static __device__ __forceinline__ int get_k(const int /* l */) {
-        // const int ret = threadIdx.x % K;
-        // GGML_CUDA_ASSUME(ret >= 0);
-        // GGML_CUDA_ASSUME(ret <  K);
-        // return ret;
-    // }
-
-/*     __device__ __forceinline__ void load_generic(const T * __restrict__ xs0, const int & stride) {
-#pragma unroll
-        for (int l = 0; l < ne; ++l) {
-            x[l] = xs0[get_j(l)*stride + get_k(l)];
-        }
-    }
-
-    __device__ __forceinline__ void load_ldmatrix(const T * __restrict__ xs0, const int & stride) {
-#ifdef NEW_MMA_AVAILABLE
-        int * xi = (int *) x;
-        const int * xs = (const int *) xs0 + (threadIdx.x%J)*stride;
-        asm("ldmatrix.sync.aligned.m8n8.x1.b16 {%0}, [%1];"
-            : "+r"(xi[0]) : "l"(xs));
-#else
-        load_generic(xs0, stride);
-#endif // NEW_MMA_AVAILABLE
-    }
-};
-
-template <typename T>
-struct mma_B_J8K8 {
-    static_assert(sizeof(T) == 4, "bad type size");
-
-    static constexpr int J  = 8;
-    static constexpr int K  = 8;
-    static constexpr int ne = 2;
-
-    T x[ne]; */
-
-    // static __device__ __forceinline__ int get_j(const int /* l */) {
-        // const int ret = threadIdx.x / (K/2);
-        // GGML_CUDA_ASSUME(ret >= 0);
-        // GGML_CUDA_ASSUME(ret <  J);
-        // return ret;
-    // }
-
-    // static __device__ __forceinline__ int get_k(const int l) {
-        // const int ret = l * (K/2) + threadIdx.x % (K/2);
-        // GGML_CUDA_ASSUME(ret >= 0);
-        // GGML_CUDA_ASSUME(ret <  K);
-        // return ret;
-    // }
-
-/*     __device__ __forceinline__ void load_generic(const T * __restrict__ xs0, const int & stride) {
-#pragma unroll
-        for (int l = 0; l < ne; ++l) {
-            x[l] = xs0[get_j(l)*stride + get_k(l)];
-        }
-    }
-
-    __device__ __forceinline__ void load_ldmatrix(const T * __restrict__ xs0, const int & stride) {
-#ifdef NEW_MMA_AVAILABLE
-        int * xi = (int *) x;
-        const int * xs = (const int *) xs0 + (threadIdx.x%J)*stride + ((threadIdx.x/J)*(K/2)) % K;
-        asm("ldmatrix.sync.aligned.m8n8.x2.b16 {%0, %1}, [%2];"
-            : "+r"(xi[0]), "+r"(xi[1])
-            : "l"(xs));
-#else
-        load_generic(xs0, stride);
-#endif // NEW_MMA_AVAILABLE
-    }
-};
-
-template <typename T>
-struct mma_C_I16J8 {};
-
-template <>
-struct mma_C_I16J8<int> {
-    static constexpr int I  = 16;
-    static constexpr int J  = 8;
-    static constexpr int ne = 4;
-
-    int x[ne] = {0};
-
-    static __device__ __forceinline__ int get_i(const int l) {
-        const int ret = (l/2) * (I/2) + threadIdx.x / (J/2);
-        GGML_CUDA_ASSUME(ret >= 0);
-        GGML_CUDA_ASSUME(ret <  I);
-        return ret;
-    }
-
-    static __device__ __forceinline__ int get_j(const int l) {
-        const int ret = 2 * (threadIdx.x % (J/2)) + l%2;
-        GGML_CUDA_ASSUME(ret >= 0);
-        GGML_CUDA_ASSUME(ret <  J);
-        return ret;
-    }
-
-    __device__ __forceinline__ void mma(const mma_A_I16K4<int> & mma_A, const mma_B_J8K4<int> & mma_B) { */
-
     static __device__ __forceinline__ void mma(
             tile<16, 8, int> & D, const tile<16, 4, int> & A, const tile<8, 4, int> & B) {
 
@@ -447,53 +290,6 @@ struct mma_C_I16J8<int> {
 #endif // NEW_MMA_AVAILABLE
     }
 
-    // __device__ __forceinline__ mma_B_J8K8<half2> to_mma_B() {
-        // mma_B_J8K8<half2> mma_B;
-
-/* #ifdef NEW_MMA_AVAILABLE
-        int * xi   = (int *) x;
-        int * Bxi  = (int *) mma_B.x;
-        asm("movmatrix.sync.aligned.m8n8.trans.b16 %0, %1;"
-            : "+r"(Bxi[0]) : "r"(xi[0]));
-        asm("movmatrix.sync.aligned.m8n8.trans.b16 %0, %1;"
-            : "+r"(Bxi[1]) : "r"(xi[1]));
-#else
-        NO_DEVICE_CODE;
-#endif // NEW_MMA_AVAILABLE */
-
-/*         int * xi   = (int *) x;
-        int * Bxi  = (int *) mma_B.x;
-        Bxi[0] = ggml_cuda_movmatrix(xi[0]);
-        Bxi[1] = ggml_cuda_movmatrix(xi[1]);
-
-        return mma_B;
-    }
-};
-
-template <>
-struct mma_C_I16J8<float> {
-    static constexpr int I  = 16;
-    static constexpr int J  = 8;
-    static constexpr int ne = 4;
-
-    float x[ne] = {0.0f, 0.0f, 0.0f, 0.0f};
-
-    static __device__ __forceinline__ int get_i(const int l) {
-        const int ret = (l/2) * (I/2) + threadIdx.x / (J/2);
-        GGML_CUDA_ASSUME(ret >= 0);
-        GGML_CUDA_ASSUME(ret <  I);
-        return ret;
-    }
-
-    static __device__ __forceinline__ int get_j(const int l) {
-        const int ret = 2 * (threadIdx.x % (J/2)) + l%2;
-        GGML_CUDA_ASSUME(ret >= 0);
-        GGML_CUDA_ASSUME(ret <  J);
-        return ret;
-    }
-
-    __device__ __forceinline__ void mma(const mma_A_I16K8<half2> & mma_A, const mma_B_J8K8<half2> & mma_B) { */
-
     static __device__ __forceinline__ void mma(
             tile<16, 8, float> & D, const tile<16, 8, half2> & A, const tile<8, 8, half2> & B) {
 
@@ -521,35 +317,4 @@ struct mma_C_I16J8<float> {
         NO_DEVICE_CODE;
 #endif // NEW_MMA_AVAILABLE
     }
-
-/*     __device__ __forceinline__ mma_B_J8K8<half2> to_mma_B() {
-        mma_B_J8K8<half2> mma_B;
-        mma_B.x[0] = make_half2(x[0], x[1]);
-        mma_B.x[1] = make_half2(x[2], x[3]); */
-
-/* #ifdef NEW_MMA_AVAILABLE
-        int * Bxi  = (int *) mma_B.x;
-        asm("movmatrix.sync.aligned.m8n8.trans.b16 %0, %0;"
-            : "+r"(Bxi[0]) : );
-        asm("movmatrix.sync.aligned.m8n8.trans.b16 %0, %0;"
-            : "+r"(Bxi[1]) : );
-#else
-        NO_DEVICE_CODE;
-#endif // NEW_MMA_AVAILABLE */
-
-/*         int * Bxi  = (int *) mma_B.x;
-        Bxi[0] = ggml_cuda_movmatrix(Bxi[0]);
-        Bxi[1] = ggml_cuda_movmatrix(Bxi[1]);
-
-        return mma_B;
-    }
-
-    __device__ __forceinline__ void load_generic(const float * __restrict__ xs0, const int & stride) {
-#pragma unroll
-        for (int l = 0; l < ne; ++l) {
-            x[l] = xs0[get_j(l)*stride + get_i(l)];
-        }
-    }
-}; */
 }
-
