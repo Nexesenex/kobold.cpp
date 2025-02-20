@@ -2781,15 +2781,15 @@ void ggml_numa_init(enum ggml_numa_strategy numa_flag) {
     // figure out which node we're on
     uint current_cpu;
     int getcpu_ret = 0;
-//#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 33) || defined(__COSMOPOLITAN__)
-//    getcpu_ret = getcpu(&current_cpu, &g_state.numa.current_node);
-//#else
-//    // old glibc doesn't have a wrapper for this call. Fall back on direct syscall
-//#   if !defined(SYS_getcpu) && defined(SYS_get_cpu)
-//#       define SYS_getcpu SYS_get_cpu // some older glibc versions use this name
-//#   endif
-//    getcpu_ret = syscall(SYS_getcpu, &current_cpu, &g_state.numa.current_node);
-//#endif
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 33) || defined(__COSMOPOLITAN__)
+    getcpu_ret = getcpu(&current_cpu, &g_state.numa.current_node);
+#else
+   // old glibc doesn't have a wrapper for this call. Fall back on direct syscall
+#   if !defined(SYS_getcpu) && defined(SYS_get_cpu)
+#       define SYS_getcpu SYS_get_cpu // some older glibc versions use this name
+#   endif
+    getcpu_ret = syscall(SYS_getcpu, &current_cpu, &g_state.numa.current_node);
+#endif
 // koboldcpp fix: we don't use numa and this thing breaks runpod
 
     if (g_state.numa.n_nodes < 1 || g_state.numa.total_cpus < 1 || getcpu_ret != 0) {
@@ -3349,7 +3349,7 @@ static void ggml_compute_forward_dup_same_cont(
     }
 }
 
-static void ggml_compute_forward_dup_q4(
+/* static void ggml_compute_forward_dup_q4(
     const struct ggml_compute_params * params,
     struct ggml_tensor * dst) {
     const struct ggml_tensor * src0 = dst->src[0];
@@ -3501,8 +3501,8 @@ static void ggml_compute_forward_dup_q4(
         }
     }
     return;
-}
-static void ggml_compute_forward_dup_q8(
+} */
+/* static void ggml_compute_forward_dup_q8(
     const struct ggml_compute_params * params,
     struct ggml_tensor * dst) {
     const struct ggml_tensor * src0 = dst->src[0];
@@ -3649,7 +3649,7 @@ static void ggml_compute_forward_dup_q8(
         }
     }
     return;
-}
+} */
 
 static void ggml_compute_forward_dup_f16(
         const struct ggml_compute_params * params,
@@ -4801,14 +4801,14 @@ static void ggml_compute_forward_dup(
             {
                 ggml_compute_forward_dup_f32(params, dst);
             } break;
-        case GGML_TYPE_Q4_0:
-            {
-                ggml_compute_forward_dup_q4(params, dst);
-            } break;
-        case GGML_TYPE_Q8_0:
-            {
-                ggml_compute_forward_dup_q8(params, dst);
-            } break;   
+        // case GGML_TYPE_Q4_0:
+            // {
+                // ggml_compute_forward_dup_q4(params, dst);
+            // } break;
+        // case GGML_TYPE_Q8_0:
+            // {
+                // ggml_compute_forward_dup_q8(params, dst);
+            // } break;   
         default:
             {
                 if (ggml_is_quantized(src0->type) && dst->type == GGML_TYPE_F32) {
@@ -10447,6 +10447,7 @@ static void ggml_compute_forward_clamp(
         case GGML_TYPE_IQ3_S:
         case GGML_TYPE_IQ2_S:
         case GGML_TYPE_Q8_K:
+        case GGML_TYPE_Q8_K64:
         case GGML_TYPE_I8:
         case GGML_TYPE_I16:
         case GGML_TYPE_I32:

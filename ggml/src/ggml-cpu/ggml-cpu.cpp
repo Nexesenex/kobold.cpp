@@ -548,9 +548,9 @@ static ggml_backend_feature * ggml_backend_cpu_get_features(ggml_backend_reg_t r
             static std::string sve_cnt = std::to_string(ggml_cpu_get_sve_cnt());
             features.push_back({ "SVE_CNT", sve_cnt.c_str() });
         }
-        if (ggml_cpu_has_sme()) {
-            features.push_back({ "SME", "1" });
-        }
+        // if (ggml_cpu_has_sme()) {
+            // features.push_back({ "SME", "1" });
+        // }
         if (ggml_cpu_has_riscv_v()) {
             features.push_back({ "RISCV_V", "1" });
         }

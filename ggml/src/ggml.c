@@ -903,8 +903,8 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .from_float_ref           = (ggml_from_float_t) ggml_fp32_to_bf16_row_ref,
         .row_meta_size = 0,
     },
-    [GGML_TYPE_Q4_0_4_4] = { // deprecated upstream
-        .type_name                = "q4_0_4x4",
+    [31] = { // GGML_TYPE_Q4_0_4_4
+        .type_name                = "TYPE_Q4_0_4_4 REMOVED, use Q4_0 with runtime repacking",
         .blck_size                = QK4_0,
         .blck_size_interleave     = 4,
         .type_size                = sizeof(block_q4_0),
@@ -913,8 +913,8 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .from_float_ref           = NULL,
         .row_meta_size = 0,
     },
-    [GGML_TYPE_Q4_0_4_8] = { // deprecated upstream
-        .type_name                = "q4_0_4x8",
+    [32] = { // GGML_TYPE_Q4_0_4_8
+        .type_name                = "TYPE_Q4_0_4_8 REMOVED, use Q4_0 with runtime repacking",
         .blck_size                = QK4_0,
         .blck_size_interleave     = 8,
         .type_size                = sizeof(block_q4_0),
@@ -923,8 +923,8 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .from_float_ref           = NULL,
         .row_meta_size = 0,
     },
-    [GGML_TYPE_Q4_0_8_8] = { // deprecated upstream
-        .type_name                = "q4_0_8x8",
+    [33] = { // GGML_TYPE_Q4_0_8_8
+        .type_name                = "TYPE_Q4_0_8_8 REMOVED, use Q4_0 with runtime repacking",
         .blck_size                = QK4_0,
         .blck_size_interleave     = 8,
         .type_size                = sizeof(block_q4_0),
@@ -1068,8 +1068,8 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .nrows                    = 1,
         // .row_meta_size            = 0,
     },
-    [GGML_TYPE_IQ4_NL_4_4] = { // deprecated upstream
-        .type_name                = "iq4_nl_4x4",
+    [36] = { // GGML_TYPE_IQ4_NL_4_4
+        .type_name                = "TYPE_IQ4_NL_4_4 REMOVED, use IQ4_NL with runtime repacking",
         .blck_size                = QK4_NL,
         .blck_size_interleave     = 4,
         .type_size                = sizeof(block_iq4_nl),
@@ -3294,7 +3294,7 @@ struct ggml_tensor * ggml_softcap_max(
             float                 max_bias,
             float                 s_before,
             float                 s_after) {
-    ggml_softcap_max_impl(ctx, a, mask, scale, max_bias, s_before, s_after, false);
+    return ggml_softcap_max_impl(ctx, a, mask, scale, max_bias, s_before, s_after, false);
 }
 
 struct ggml_tensor * ggml_softcap_max_inplace(
@@ -3305,7 +3305,7 @@ struct ggml_tensor * ggml_softcap_max_inplace(
             float                 max_bias,
             float                 s_before,
             float                 s_after) {
-    ggml_softcap_max_impl(ctx, a, mask, scale, max_bias, s_before, s_after, true);
+    return ggml_softcap_max_impl(ctx, a, mask, scale, max_bias, s_before, s_after, true);
 }
 
 // ggml_set
@@ -6949,9 +6949,9 @@ size_t ggml_quantize_chunk(
         case GGML_TYPE_IQ4_KSS: result = quantize_iq4_kss(src + start, (char *) dst + start_row * row_size, nrows, n_per_row, imatrix); break;
         case GGML_TYPE_IQ2_K:   result = quantize_iq2_k  (src + start, (char *) dst + start_row * row_size, nrows, n_per_row, imatrix); break;
         case GGML_TYPE_IQ2_KS:  result = quantize_iq2_ks (src + start, (char *) dst + start_row * row_size, nrows, n_per_row, imatrix); break;
-        case GGML_TYPE_IQ2_KT:  result = quantize_iq2_kt (src + start, (char *) dst + start_row * row_size, nrows, n_per_row, imatrix); break;
-        case GGML_TYPE_IQ3_KT:  result = quantize_iq3_kt (src + start, (char *) dst + start_row * row_size, nrows, n_per_row, imatrix); break;
-        case GGML_TYPE_IQ4_KT:  result = quantize_iq4_kt (src + start, (char *) dst + start_row * row_size, nrows, n_per_row, imatrix); break;
+        // case GGML_TYPE_IQ2_KT:  result = quantize_iq2_kt (src + start, (char *) dst + start_row * row_size, nrows, n_per_row, imatrix); break;
+        // case GGML_TYPE_IQ3_KT:  result = quantize_iq3_kt (src + start, (char *) dst + start_row * row_size, nrows, n_per_row, imatrix); break;
+        // case GGML_TYPE_IQ4_KT:  result = quantize_iq4_kt (src + start, (char *) dst + start_row * row_size, nrows, n_per_row, imatrix); break;
         case GGML_TYPE_IQ3_K:   result = quantize_iq3_k  (src + start, (char *) dst + start_row * row_size, nrows, n_per_row, imatrix); break;
         case GGML_TYPE_IQ4_K:   result = quantize_iq4_k  (src + start, (char *) dst + start_row * row_size, nrows, n_per_row, imatrix); break;
         case GGML_TYPE_IQ5_K:   result = quantize_iq5_k  (src + start, (char *) dst + start_row * row_size, nrows, n_per_row, imatrix); break;
