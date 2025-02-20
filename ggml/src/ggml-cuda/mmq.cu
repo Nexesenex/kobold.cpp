@@ -44,6 +44,9 @@ void ggml_cuda_op_mul_mat_q(
         case GGML_TYPE_Q5_1:
             mul_mat_q_case<GGML_TYPE_Q5_1>(ctx, args, stream);
             break;
+        case GGML_TYPE_Q6_0:
+            mul_mat_q_case<GGML_TYPE_Q6_0>(ctx, args, stream);
+            break;
         case GGML_TYPE_Q8_0:
             mul_mat_q_case<GGML_TYPE_Q8_0>(ctx, args, stream);
             break;
@@ -61,6 +64,9 @@ void ggml_cuda_op_mul_mat_q(
             break;
         case GGML_TYPE_Q6_K:
             mul_mat_q_case<GGML_TYPE_Q6_K>(ctx, args, stream);
+            break;
+        case GGML_TYPE_TQ2_0:
+            mul_mat_q_case<GGML_TYPE_TQ2_0>(ctx, args, stream);
             break;
         case GGML_TYPE_IQ2_XXS:
             mul_mat_q_case<GGML_TYPE_IQ2_XXS>(ctx, args, stream);
@@ -97,9 +103,11 @@ void ggml_cuda_op_mul_mat_q(
 }
 
 bool ggml_cuda_should_use_mmq(enum ggml_type type, int cc, int64_t ne11) {
-#ifdef GGML_CUDA_FORCE_CUBLAS
-    return false;
-#endif // GGML_CUDA_FORCE_CUBLAS
+
+    if(!g_mul_mat_q)
+    {
+        return false;
+    }
 
     bool mmq_supported;
 
@@ -108,12 +116,14 @@ bool ggml_cuda_should_use_mmq(enum ggml_type type, int cc, int64_t ne11) {
         case GGML_TYPE_Q4_1:
         case GGML_TYPE_Q5_0:
         case GGML_TYPE_Q5_1:
+        case GGML_TYPE_Q6_0:
         case GGML_TYPE_Q8_0:
         case GGML_TYPE_Q2_K:
         case GGML_TYPE_Q3_K:
         case GGML_TYPE_Q4_K:
         case GGML_TYPE_Q5_K:
         case GGML_TYPE_Q6_K:
+        case GGML_TYPE_TQ2_0:
         case GGML_TYPE_IQ2_XXS:
         case GGML_TYPE_IQ2_XS:
         case GGML_TYPE_IQ2_S:
