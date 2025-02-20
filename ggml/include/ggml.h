@@ -222,7 +222,7 @@
 #define GGML_MAX_OP_PARAMS      64
 
 #ifndef GGML_MAX_NAME
-#   define GGML_MAX_NAME        64
+#   define GGML_MAX_NAME        128
 #endif
 
 #define GGML_DEFAULT_N_THREADS  4
@@ -245,6 +245,12 @@
 
 #define GGML_PAD(x, n) (((x) + (n) - 1) & ~((n) - 1))
 
+#define GGML_ASSERT_CONTINUE(x) \
+    do { \
+        if (!(x)) { \
+            fprintf(stderr, "GGML_ASSERT_CONTINUE: %s:%d: %s\n", __FILE__, __LINE__, #x); \
+        } \
+    } while (0)
 #ifndef NDEBUG
 #   define GGML_UNREACHABLE() do { fprintf(stderr, "statement should be unreachable\n"); abort(); } while(0)
 #elif defined(__GNUC__)
@@ -380,15 +386,34 @@ extern "C" {
         GGML_TYPE_F64     = 28,
         GGML_TYPE_IQ1_M   = 29,
         GGML_TYPE_BF16    = 30,
-        // GGML_TYPE_Q4_0_4_4 = 31, support has been removed from gguf files
-        // GGML_TYPE_Q4_0_4_8 = 32,
-        // GGML_TYPE_Q4_0_8_8 = 33,
+        GGML_TYPE_Q4_0_4_4 = 31, //deprecated upstream
+        GGML_TYPE_Q4_0_4_8 = 32, //deprecated upstream
+        GGML_TYPE_Q4_0_8_8 = 33, //deprecated upstream
         GGML_TYPE_TQ1_0   = 34,
         GGML_TYPE_TQ2_0   = 35,
-        // GGML_TYPE_IQ4_NL_4_4 = 36,
+        GGML_TYPE_IQ4_NL_4_4 = 36, //deprecated upstream
         // GGML_TYPE_IQ4_NL_4_8 = 37,
         // GGML_TYPE_IQ4_NL_8_8 = 38,
-        GGML_TYPE_COUNT   = 39,
+        // GGML_TYPE_COUNT   = 39,
+        //
+        GGML_TYPE_Q6_0    = 133,
+        GGML_TYPE_IQ1_BN  = 134,
+        GGML_TYPE_IQ2_BN  = 135,
+        GGML_TYPE_Q8_K64  = 136,
+        GGML_TYPE_IQ2_K   = 137,
+        GGML_TYPE_IQ3_K   = 138,
+        GGML_TYPE_IQ4_K   = 139,
+        GGML_TYPE_IQ5_K   = 140,
+        GGML_TYPE_IQ6_K   = 141,
+        // depricated: GGML_TYPE_IQ2_TN  = 142,
+        // depricated: GGML_TYPE_IQ1_TN  = 143,
+        GGML_TYPE_IQ4_KS  = 144,
+        GGML_TYPE_IQ2_KS  = 145,
+        GGML_TYPE_IQ4_KSS = 146,
+        GGML_TYPE_IQ2_KT  = 147,
+        GGML_TYPE_IQ3_KT  = 148,
+        GGML_TYPE_IQ4_KT  = 149,
+        GGML_TYPE_COUNT,
     };
 
     // precision
@@ -423,6 +448,26 @@ extern "C" {
         GGML_FTYPE_MOSTLY_IQ4_XS  = 22, // except 1d tensors
         GGML_FTYPE_MOSTLY_IQ1_M   = 23, // except 1d tensors
         GGML_FTYPE_MOSTLY_BF16    = 24, // except 1d tensors
+        // GGML_FTYPE_MOSTLY_Q4_0_4_4 = 25, // except 1d tensors
+        // GGML_FTYPE_MOSTLY_Q4_0_4_8 = 26, // except 1d tensors
+        // GGML_FTYPE_MOSTLY_Q4_0_8_8 = 27, // except 1d tensors
+        //
+        GGML_FTYPE_MOSTLY_Q6_0    = 127, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ1_BN  = 128, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_BN  = 129, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_K   = 130, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ3_K   = 131, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ4_K   = 132, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ5_K   = 133, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ6_K   = 134, // except 1d tensors
+        // depricated: GGML_FTYPE_MOSTLY_IQ2_TN  = 135, // except 1d tensors
+        // depricated: GGML_FTYPE_MOSTLY_IQ1_TN  = 136, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ4_KS  = 137, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_KS  = 138, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ4_KSS = 139, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_KT  = 140, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ3_KT  = 141, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ4_KT  = 142, // except 1d tensors
     };
 
     // available tensor operations:
@@ -454,6 +499,8 @@ extern "C" {
         GGML_OP_RMS_NORM,
         GGML_OP_RMS_NORM_BACK,
         GGML_OP_GROUP_NORM,
+        GGML_OP_FUSED_RMS_NORM,
+        GGML_OP_FUSED_MUL_UNARY,
 
         GGML_OP_MUL_MAT,
         GGML_OP_MUL_MAT_ID,
@@ -491,6 +538,8 @@ extern "C" {
         GGML_OP_TIMESTEP_EMBEDDING,
         GGML_OP_ARGSORT,
         GGML_OP_LEAKY_RELU,
+        GGML_OP_SOFTCAP,
+        GGML_OP_SOFT_CAP_MAX,
 
         GGML_OP_FLASH_ATTN_EXT,
         GGML_OP_FLASH_ATTN_BACK,
@@ -604,7 +653,14 @@ extern "C" {
 
         void * extra; // extra things e.g. for ggml-cuda.cu
 
+        union {
         char padding[8];
+        union {
+        char trimmed_pad_1[3];
+        char clblast_offload_gpu; //we sneak the flag for gpu offloading for clblast into the padding
+        char trimmed_pad_2[4];
+        };
+        };
     };
 
     static const size_t GGML_TENSOR_SIZE = sizeof(struct ggml_tensor);
@@ -655,6 +711,12 @@ extern "C" {
     GGML_API const char * ggml_type_name(enum ggml_type type);
     GGML_API const char * ggml_op_name  (enum ggml_op   op);
     GGML_API const char * ggml_op_symbol(enum ggml_op   op);
+
+
+    GGML_API const char * ggml_unary_op_name(enum ggml_unary_op op);
+    GGML_API const char * ggml_op_desc(const struct ggml_tensor * t); // unary or op name
+
+    GGML_API bool ggml_is_noop(const struct ggml_tensor * tensor);
 
     GGML_API const char * ggml_unary_op_name(enum ggml_unary_op op);
     GGML_API const char * ggml_op_desc(const struct ggml_tensor * t); // unary or op name
@@ -845,6 +907,18 @@ extern "C" {
             struct ggml_context * ctx,
             struct ggml_tensor  * a,
             struct ggml_tensor  * b);
+
+    GGML_API struct ggml_tensor * ggml_fused_mul_unary(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * a,
+            struct ggml_tensor  * b,
+            enum ggml_unary_op    op);
+
+    GGML_API struct ggml_tensor * ggml_fused_mul_unary_inplace(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * a,
+            struct ggml_tensor  * b,
+            enum ggml_unary_op    op);
 
     GGML_API struct ggml_tensor * ggml_div(
             struct ggml_context * ctx,
@@ -1081,6 +1155,18 @@ extern "C" {
             struct ggml_tensor  * a,
             float                 eps);
 
+    GGML_API struct ggml_tensor * ggml_fused_rms_norm(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * a,
+            struct ggml_tensor  * b,
+            float                 eps);
+
+    GGML_API struct ggml_tensor * ggml_fused_rms_norm_inplace(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * a,
+            struct ggml_tensor  * b,
+            float                 eps);
+
     // group normalize along ne0*ne1*n_groups
     // used in stable-diffusion
     GGML_API struct ggml_tensor * ggml_group_norm(
@@ -1146,6 +1232,38 @@ extern "C" {
             struct ggml_context * ctx,
             struct ggml_tensor  * a,
             float                 s);
+
+    GGML_API struct ggml_tensor * ggml_softcap(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * a,
+            float                 s_before,
+            float                 s_after);
+
+    // in-place, returns view(a)
+    GGML_API struct ggml_tensor * ggml_softcap_inplace(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * a,
+            float                 s_before,
+            float                 s_after);
+
+    GGML_API struct ggml_tensor * ggml_softcap_max(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * a,
+            struct ggml_tensor  * mask,
+            float                 scale,
+            float                 max_bias,
+            float                 s_before,
+            float                 s_after);
+
+    // in-place, returns view(a)
+    GGML_API struct ggml_tensor * ggml_softcap_max_inplace(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * a,
+            struct ggml_tensor  * mask,
+            float                 scale,
+            float                 max_bias,
+            float                 s_before,
+            float                 s_after);
 
     // b -> view(a,offset,nb1,nb2,3), return modified a
     GGML_API struct ggml_tensor * ggml_set(
@@ -2153,6 +2271,9 @@ extern "C" {
         bool                     is_quantized;
         ggml_to_float_t          to_float;
         ggml_from_float_t        from_float_ref;
+        // int64_t                  nrows; // number of rows to process simultaneously
+        // int64_t                  ncols; // number of columns to process simultaneously
+        int64_t                  row_meta_size;
     };
 
     GGML_API const struct ggml_type_traits * ggml_get_type_traits(enum ggml_type type);
