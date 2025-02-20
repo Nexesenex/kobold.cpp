@@ -1,0 +1,21 @@
+name: KCPP Multi-build
+
+on:
+  workflow_dispatch:
+    inputs:
+      kcppBuildVer:
+        description: Version
+        required: true
+  workflow_run:
+    workflows: ["kcpp-build-release-osx"]
+    types:
+      - completed
+jobs: 
+  update-readme-with-blog: 
+    runs-on: ubuntu-latest
+
+    steps: 
+      - name: Completion step
+        id: depends
+        run: |
+          echo "${{ github.event.inputs.kcppBuildVer }} has been built."
