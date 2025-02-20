@@ -77,13 +77,6 @@ struct llama_kv_cache {
     }
 };
 
-// block of KV slots to move when defragging
-struct llama_kv_defrag_move {
-    uint32_t src;
-    uint32_t dst;
-    uint32_t len;
-};
-
 // a structure holds information about the slot found in llama_kv_cache_find_slot
 struct llama_kv_cache_slot_info {
     std::pair<uint32_t, uint32_t> boundaries; // slot boundaries [begin, end)

@@ -379,7 +379,6 @@ struct llama_mmap::impl {
             throw std::runtime_error(format("MapViewOfFile failed: %s", llama_format_win_err(error).c_str()));
         }
 
-#ifndef USE_FAILSAFE
         if (prefetch > 0) {
 #if _WIN32_WINNT >= 0x602
             BOOL (WINAPI *pPrefetchVirtualMemory) (HANDLE, ULONG_PTR, PWIN32_MEMORY_RANGE_ENTRY, ULONG);
@@ -400,9 +399,6 @@ struct llama_mmap::impl {
             throw std::runtime_error("PrefetchVirtualMemory unavailable");
 #endif
         }
-#else
-printf("\nPrefetchVirtualMemory skipped in compatibility mode.\n");
-#endif
     }
 
     void unmap_fragment(size_t first, size_t last) {

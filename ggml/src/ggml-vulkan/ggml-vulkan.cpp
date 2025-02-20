@@ -1,7 +1,3 @@
-#ifndef GGML_VULKAN_COOPMAT_GLSLC_SUPPORT
-#define GGML_VULKAN_COOPMAT_GLSLC_SUPPORT
-#endif
-
 #include "ggml-vulkan.h"
 #include <vulkan/vulkan_core.h>
 #if defined(GGML_VULKAN_RUN_TESTS) || defined(GGML_VULKAN_PERF) || defined(GGML_VULKAN_CHECK_RESULTS)
@@ -31,7 +27,7 @@
 #include "ggml-impl.h"
 #include "ggml-backend-impl.h"
 
-#include "ggml-vulkan-shaders.cpp"
+#include "ggml-vulkan-shaders.hpp"
 
 #define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 
@@ -1215,7 +1211,7 @@ static uint32_t find_properties(const vk::PhysicalDeviceMemoryProperties* mem_pr
 static vk_buffer ggml_vk_create_buffer(vk_device& device, size_t size, vk::MemoryPropertyFlags req_flags, vk::MemoryPropertyFlags fallback_flags = vk::MemoryPropertyFlags(0)) {
     VK_LOG_DEBUG("ggml_vk_create_buffer(" << device->name << ", " << size << ", " << to_string(req_flags) << ", " << to_string(fallback_flags) << ")");
     if (size > device->max_memory_allocation_size) {
-        printf("\nWARNING: Requested buffer size (%zu) exceeds device memory allocation limit (%zu)!\n",size,device->max_memory_allocation_size);
+        throw vk::OutOfDeviceMemoryError("Requested buffer size exceeds device memory allocation limit");
     }
 
     std::lock_guard<std::mutex> guard(device->mutex);
@@ -2398,10 +2394,6 @@ static vk_device ggml_vk_get_device(size_t idx) {
         if (!ggml_vk_khr_cooperative_matrix_support(device->properties, driver_props)) {
             device->coopmat_support = false;
         }
-
-        #if !defined(GGML_VULKAN_COOPMAT_GLSLC_SUPPORT) //prevent crash if we do a non-coopmat build
-                device->coopmat_support = false;
-        #endif
 
         std::vector<vk::QueueFamilyProperties> queue_family_props = device->physical_device.getQueueFamilyProperties();
 
@@ -4137,7 +4129,7 @@ static void ggml_vk_mul_mat_q_f16(ggml_backend_vk_context * ctx, vk_context& sub
                 (qx_needs_dequant && x_sz_upd > ctx->device->max_memory_allocation_size) ||
                 (qy_needs_dequant && y_sz_upd > ctx->device->max_memory_allocation_size) ||
                 (split_k > 1 && split_k_size > ctx->device->max_memory_allocation_size)) {
-            printf("\nWarning: Requested preallocation size is too large");
+            GGML_ABORT("Requested preallocation size is too large");
         }
         if (qx_needs_dequant && ctx->prealloc_size_x < x_sz_upd) {
             ctx->prealloc_size_x = x_sz_upd;
@@ -4323,7 +4315,7 @@ static void ggml_vk_mul_mat_vec_q_f16(ggml_backend_vk_context * ctx, vk_context&
         if (
                 (qx_needs_dequant && x_sz_upd > ctx->device->max_memory_allocation_size) ||
                 (qy_needs_dequant && y_sz_upd > ctx->device->max_memory_allocation_size)) {
-            printf("\nWarning: Requested preallocation size is too large");
+            GGML_ABORT("Requested preallocation size is too large");
         }
         if (qx_needs_dequant && ctx->prealloc_size_x < x_sz_upd) {
             ctx->prealloc_size_x = x_sz_upd;
@@ -4716,7 +4708,7 @@ static void ggml_vk_mul_mat_id_q_f16(ggml_backend_vk_context * ctx, vk_context& 
         if (
                 (qx_needs_dequant && x_sz_upd > ctx->device->max_memory_allocation_size) ||
                 (qy_needs_dequant && y_sz_upd > ctx->device->max_memory_allocation_size)) {
-            printf("\nWarning: Requested preallocation size is too large");
+            GGML_ABORT("Requested preallocation size is too large");
         }
         if (qx_needs_dequant && ctx->prealloc_size_x < x_sz_upd) {
             ctx->prealloc_size_x = x_sz_upd;
@@ -4909,7 +4901,7 @@ static void ggml_vk_mul_mat_vec_id_q_f16(ggml_backend_vk_context * ctx, vk_conte
         if (
                 (qx_needs_dequant && x_sz_upd > ctx->device->max_memory_allocation_size) ||
                 (qy_needs_dequant && y_sz_upd > ctx->device->max_memory_allocation_size)) {
-            printf("\nWarning: Requested preallocation size is too large");
+            GGML_ABORT("Requested preallocation size is too large");
         }
         if (qx_needs_dequant && ctx->prealloc_size_x < x_sz_upd) {
             ctx->prealloc_size_x = x_sz_upd;

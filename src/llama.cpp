@@ -1,21 +1,13 @@
-static bool old_mixtral_warning_showed = false;
+#include "llama-impl.h"
 
-// we do what we must because we can
-#include "llama-impl.cpp"
-#include "llama-chat.cpp"
-#include "llama-mmap.cpp"
-#include "llama-context.cpp"
-#include "llama-adapter.cpp"
-#include "llama-arch.cpp"
-#include "llama-batch.cpp"
-#include "llama-vocab.cpp"
-#include "llama-grammar.cpp"
-#include "llama-sampling.cpp"
-#include "llama-kv-cache.cpp"
-#include "llama-model-loader.cpp"
-#include "llama-model.cpp"
-#include "llama-quant.cpp"
-#include "llama-hparams.cpp"
+#include "llama-chat.h"
+#include "llama-mmap.h"
+#include "llama-context.h"
+#include "llama-vocab.h"
+#include "llama-sampling.h"
+#include "llama-kv-cache.h"
+#include "llama-model-loader.h"
+#include "llama-model.h"
 
 #include "ggml.h"
 #include "ggml-alloc.h"
@@ -33,16 +25,6 @@ static bool old_mixtral_warning_showed = false;
 #include <cstring>
 #include <ctime>
 #include <functional>
-#include <numeric>
-#include <type_traits>
-#include <iostream>
-
-#ifdef GGML_USE_CUDA
-#  include "ggml-cuda.h"
-#elif defined(GGML_USE_CLBLAST)
-#  include "ggml_v3b-opencl.h"
-#endif
-
 
 #if defined(_MSC_VER)
 #pragma warning(disable: 4244 4267) // possible loss of data
@@ -275,17 +257,7 @@ static struct ggml_tensor * llm_build_norm(
          struct ggml_tensor * mb,
               llm_norm_type   type,
          const llm_build_cb & cb,
-                        int   il, float scale_eps = 1) {
-
-    if (type == LLM_NORM_RMS && mw) {
-        cur = ggml_fused_rms_norm(ctx, cur, mw, scale_eps * hparams.f_norm_rms_eps);
-        if (mb) {
-            cb(cur, "fused_norm", il);
-            cur = ggml_add(ctx, cur, mb);
-        }
-        return cur;
-    }
-
+                        int   il) {
     switch (type) {
         case LLM_NORM:       cur = ggml_norm      (ctx, cur, hparams.f_norm_eps);     break;
         case LLM_NORM_RMS:   cur = ggml_rms_norm  (ctx, cur, hparams.f_norm_rms_eps); break;
@@ -374,60 +346,52 @@ static struct ggml_tensor * llm_build_ffn(
         cur = tmp;
     }
 
-    if (type_gate == LLM_FFN_PAR &&
-       (type_op == LLM_FFN_SILU || type_op == LLM_FFN_RELU || (type_op == LLM_FFN_GELU && !act_scales))) {
-        cur = ggml_fused_mul_unary(ctx, cur, tmp, type_op == LLM_FFN_SILU ? GGML_UNARY_OP_SILU :
-                                                  type_op == LLM_FFN_RELU ? GGML_UNARY_OP_RELU : GGML_UNARY_OP_GELU);
+    switch (type_op) {
+        case LLM_FFN_SILU:
+            {
+                cur = ggml_silu(ctx, cur);
+                cb(cur, "ffn_silu", il);
+            } break;
+        case LLM_FFN_GELU:
+            {
+                cur = ggml_gelu(ctx, cur);
+                cb(cur, "ffn_gelu", il);
+                if (act_scales != NULL) {
+                    cur = ggml_div(ctx, cur, act_scales);
+                    cb(cur, "ffn_act", il);
+                }
+            } break;
+        case LLM_FFN_RELU:
+            {
+                cur = ggml_relu(ctx, cur);
+                cb(cur, "ffn_relu", il);
+            } break;
+        case LLM_FFN_RELU_SQR:
+            {
+                cur = ggml_relu(ctx, cur);
+                cb(cur, "ffn_relu", il);
+
+                cur = ggml_sqr(ctx, cur);
+                cb(cur, "ffn_sqr(relu)", il);
+            } break;
+        case LLM_FFN_SWIGLU:
+            {
+                // Project to 4h. If using swiglu double the output width, see https://arxiv.org/pdf/2002.05202.pdf
+                int64_t split_point = cur->ne[0] / 2;
+                struct ggml_tensor * x0 = ggml_cont(ctx, ggml_view_2d(ctx, cur, split_point, cur->ne[1], cur->nb[1], 0));
+                struct ggml_tensor * x1 = ggml_cont(ctx, ggml_view_2d(ctx, cur, split_point, cur->ne[1], cur->nb[1], split_point * ggml_element_size(cur)));
+
+                x0 = ggml_silu(ctx, x0);
+                cb(cur, "ffn_silu", il);
+
+                cur = ggml_mul(ctx, x0, x1);
+                cb(cur, "ffn_mul", il);
+            } break;
     }
-    else {
 
-		switch (type_op) {
-			case LLM_FFN_SILU:
-				{
-					cur = ggml_silu(ctx, cur);
-					cb(cur, "ffn_silu", il);
-				} break;
-			case LLM_FFN_GELU:
-				{
-					cur = ggml_gelu(ctx, cur);
-					cb(cur, "ffn_gelu", il);
-					if (act_scales != NULL) {
-						cur = ggml_div(ctx, cur, act_scales);
-						cb(cur, "ffn_act", il);
-					}
-				} break;
-			case LLM_FFN_RELU:
-				{
-					cur = ggml_relu(ctx, cur);
-					cb(cur, "ffn_relu", il);
-				} break;
-			case LLM_FFN_RELU_SQR:
-				{
-					cur = ggml_relu(ctx, cur);
-					cb(cur, "ffn_relu", il);
-
-					cur = ggml_sqr(ctx, cur);
-					cb(cur, "ffn_sqr(relu)", il);
-				} break;
-			case LLM_FFN_SWIGLU:
-				{
-					// Project to 4h. If using swiglu double the output width, see https://arxiv.org/pdf/2002.05202.pdf
-					int64_t split_point = cur->ne[0] / 2;
-					struct ggml_tensor * x0 = ggml_cont(ctx, ggml_view_2d(ctx, cur, split_point, cur->ne[1], cur->nb[1], 0));
-					struct ggml_tensor * x1 = ggml_cont(ctx, ggml_view_2d(ctx, cur, split_point, cur->ne[1], cur->nb[1], split_point * ggml_element_size(cur)));
-
-					x0 = ggml_silu(ctx, x0);
-					cb(cur, "ffn_silu", il);
-
-					cur = ggml_mul(ctx, x0, x1);
-					cb(cur, "ffn_mul", il);
-				} break;
-		}
-
-		if (type_gate == LLM_FFN_PAR) {
-			cur = ggml_mul(ctx, cur, tmp);
-			cb(cur, "ffn_gate_par", il);
-		}
+    if (type_gate == LLM_FFN_PAR) {
+        cur = ggml_mul(ctx, cur, tmp);
+        cb(cur, "ffn_gate_par", il);
     }
 
     if (down) {
@@ -628,30 +592,16 @@ static struct ggml_tensor * llm_build_kqv(
         cur = ggml_flash_attn_ext(ctx, q, k, v, kq_mask, kq_scale, hparams.f_max_alibi_bias,
                                   hparams.attn_soft_cap ? hparams.f_attn_logit_softcapping : 0.0f);
 
-#if defined(GGML_USE_HIP) //workaround for speed regression on rocm
-        if (model.arch == LLM_ARCH_PHI2 || model.arch == LLM_ARCH_PHI3 || model.arch == LLM_ARCH_GPTNEOX || model.arch == LLM_ARCH_GEMMA2 || model.arch == LLM_ARCH_GRANITE || model.arch == LLM_ARCH_GRANITE_MOE) {
-            ggml_flash_attn_ext_set_prec(cur, GGML_PREC_F32);
-        }
-#else
         ggml_flash_attn_ext_set_prec(cur, GGML_PREC_F32);
-#endif
 
         cur = ggml_reshape_2d(ctx, cur, n_embd_head_v*n_head, n_tokens);
     } else {
         struct ggml_tensor * kq = ggml_mul_mat(ctx, k, q);
         cb(kq, "kq", il);
 
-#if defined(GGML_USE_HIP) //workaround for speed regression on rocm
-        if (model.arch == LLM_ARCH_PHI2 || model.arch == LLM_ARCH_PHI3 || model.arch == LLM_ARCH_GPTNEOX || model.arch == LLM_ARCH_QWEN2 || model.arch == LLM_ARCH_NEMOTRON || model.arch == LLM_ARCH_CHATGLM  || model.arch == LLM_ARCH_GRANITE || model.arch == LLM_ARCH_GRANITE_MOE) {
-            // for this arch, we need to perform the KQ multiplication with F32 precision, otherwise we get NaNs
-            // ref: https://github.com/ggerganov/llama.cpp/pull/4490#issuecomment-1859055847
-            ggml_mul_mat_set_prec(kq, GGML_PREC_F32);
-        }
-#else
         // note: this op tends to require high floating point range
         //       while for some models F16 is enough, for others it is not, so we default to F32 here
         ggml_mul_mat_set_prec(kq, GGML_PREC_F32);
-#endif
 
         if (model.arch == LLM_ARCH_GROK) {
             // need to do the following:
@@ -660,22 +610,17 @@ static struct ggml_tensor * llm_build_kqv(
             // kq = 30 * tanh(kq / 30)
             // before the softmax below
 
-            //kq = ggml_tanh(ctx, ggml_scale(ctx, kq, 0.08838834764831845f/30.0f));
-            //kq = ggml_scale(ctx, kq, 30);
-
-            kq = ggml_softcap(ctx, kq, 0.08838834764831845f/30.0f, 30.f);
+            kq = ggml_tanh(ctx, ggml_scale(ctx, kq, 0.08838834764831845f/30.0f));
+            kq = ggml_scale(ctx, kq, 30);
         }
 
         if (hparams.attn_soft_cap) {
-            //kq = ggml_softcap(ctx, kq, 1.0f / hparams.f_attn_logit_softcapping, hparams.f_attn_logit_softcapping);
-            //kq = ggml_scale(ctx, kq, 1.0f / hparams.f_attn_logit_softcapping);
-            //kq = ggml_tanh(ctx, kq);
-            //kq = ggml_scale(ctx, kq, hparams.f_attn_logit_softcapping);
-            kq = ggml_softcap_max(ctx, kq, kq_mask, kq_scale, hparams.f_max_alibi_bias,
-                    1.0f / hparams.f_attn_logit_softcapping, hparams.f_attn_logit_softcapping);
-        } else {
-            kq = ggml_soft_max_ext(ctx, kq, kq_mask, kq_scale, hparams.f_max_alibi_bias);
+            kq = ggml_scale(ctx, kq, 1.0f / hparams.f_attn_logit_softcapping);
+            kq = ggml_tanh(ctx, kq);
+            kq = ggml_scale(ctx, kq, hparams.f_attn_logit_softcapping);
         }
+
+        kq = ggml_soft_max_ext(ctx, kq, kq_mask, kq_scale, hparams.f_max_alibi_bias);
         cb(kq, "kq_soft_max_ext", il);
 
         GGML_ASSERT(kv.size == n_ctx);
@@ -1269,23 +1214,35 @@ struct llm_build_context {
         return gf;
     }
 
-    struct ggml_cgraph * build_defrag(const std::vector<struct llama_kv_defrag_move> & moves) {
+    struct ggml_cgraph * build_defrag(const std::vector<uint32_t> & ids) {
         struct ggml_cgraph * gf = ggml_new_graph_custom(ctx0, model.max_nodes(), false);
 
-        for (const auto & move : moves) {
+        for (uint32_t i = 0; i < ids.size(); ++i) {
+            const uint32_t id = ids[i];
+
+            if (i == id || id == ids.size()) {
+                continue;
+            }
+
+            uint32_t nm = 1;
+
+            while (i + nm < ids.size() && ids[i + nm] == id + nm) {
+                nm++;
+            }
+
             for (int il = 0; il < n_layer; ++il) {
                 const int64_t n_embd_k_gqa = hparams.n_embd_k_gqa(il);
                 const int64_t n_embd_v_gqa = hparams.n_embd_v_gqa(il);
 
                 ggml_tensor * view_k_src = ggml_view_2d(ctx0, kv_self.k_l[il],
-                        n_embd_k_gqa, move.len,
+                        n_embd_k_gqa, nm,
                         ggml_row_size(kv_self.k_l[il]->type, n_embd_k_gqa),
-                        ggml_row_size(kv_self.k_l[il]->type, n_embd_k_gqa*move.src));
+                        ggml_row_size(kv_self.k_l[il]->type, n_embd_k_gqa*i));
 
                 ggml_tensor * view_k_dst = ggml_view_2d(ctx0, kv_self.k_l[il],
-                        n_embd_k_gqa, move.len,
+                        n_embd_k_gqa, nm,
                         ggml_row_size(kv_self.k_l[il]->type, n_embd_k_gqa),
-                        ggml_row_size(kv_self.k_l[il]->type, n_embd_k_gqa*move.dst));
+                        ggml_row_size(kv_self.k_l[il]->type, n_embd_k_gqa*id));
 
                 ggml_tensor * view_v_src;
                 ggml_tensor * view_v_dst;
@@ -1293,29 +1250,31 @@ struct llm_build_context {
                 if (flash_attn) {
                     // NOTE: the V cache is not transposed when using flash attention
                     view_v_src = ggml_view_2d(ctx0, kv_self.v_l[il],
-                            n_embd_v_gqa, move.len,
+                            n_embd_v_gqa, nm,
                             ggml_row_size(kv_self.v_l[il]->type, n_embd_v_gqa),
-                            ggml_row_size(kv_self.v_l[il]->type, n_embd_v_gqa*move.src));
+                            ggml_row_size(kv_self.v_l[il]->type, n_embd_v_gqa*i));
 
                     view_v_dst = ggml_view_2d(ctx0, kv_self.v_l[il],
-                            n_embd_v_gqa, move.len,
+                            n_embd_v_gqa, nm,
                             ggml_row_size(kv_self.v_l[il]->type, n_embd_v_gqa),
-                            ggml_row_size(kv_self.v_l[il]->type, n_embd_v_gqa*move.dst));
+                            ggml_row_size(kv_self.v_l[il]->type, n_embd_v_gqa*id));
                 } else {
                     view_v_src = ggml_view_2d(ctx0, kv_self.v_l[il],
-                            move.len, n_embd_v_gqa,
+                            nm, n_embd_v_gqa,
                             ggml_row_size(kv_self.v_l[il]->type, kv_self.size),
-                            ggml_row_size(kv_self.v_l[il]->type, move.src));
+                            ggml_row_size(kv_self.v_l[il]->type, i));
 
                     view_v_dst = ggml_view_2d(ctx0, kv_self.v_l[il],
-                            move.len, n_embd_v_gqa,
+                            nm, n_embd_v_gqa,
                             ggml_row_size(kv_self.v_l[il]->type, kv_self.size),
-                            ggml_row_size(kv_self.v_l[il]->type, move.dst));
+                            ggml_row_size(kv_self.v_l[il]->type, id));
                 }
 
                 ggml_build_forward_expand(gf, ggml_cpy(ctx0, view_k_src, view_k_dst));
                 ggml_build_forward_expand(gf, ggml_cpy(ctx0, view_v_src, view_v_dst));
             }
+
+            i += nm - 1;
         }
 
         //LLAMA_LOG_INFO("gf->n_nodes = %d\n", gf->n_nodes);
@@ -1548,11 +1507,7 @@ struct llm_build_context {
             // self-attention
             {
                 // rope freq factors for llama3; may return nullptr for llama2 and other models
-                #if defined(GGML_USE_CLBLAST)
-                struct ggml_tensor * rope_factors = nullptr; //clblast does not work with rope_factors
-                #else
                 struct ggml_tensor * rope_factors = build_rope_factors(il);
-                #endif
 
                 // compute Q and K and RoPE them
                 struct ggml_tensor * Qcur = llm_build_lora_mm(lctx, ctx0, model.layers[il].wq, cur);
@@ -5012,10 +4967,9 @@ struct llm_build_context {
         cur = llm_build_lora_mm(lctx, ctx0, model.output, cur);
 
         // final logit soft-capping
-        cur = ggml_softcap(ctx0, cur, 1.0f / hparams.f_final_logit_softcapping, hparams.f_final_logit_softcapping);
-        //cur = ggml_scale(ctx0, cur, 1.0f / hparams.f_final_logit_softcapping);
-        //cur = ggml_tanh(ctx0, cur);
-        //cur = ggml_scale(ctx0, cur, hparams.f_final_logit_softcapping);
+        cur = ggml_scale(ctx0, cur, 1.0f / hparams.f_final_logit_softcapping);
+        cur = ggml_tanh(ctx0, cur);
+        cur = ggml_scale(ctx0, cur, hparams.f_final_logit_softcapping);
 
         cb(cur, "result_output", -1);
 
@@ -8158,7 +8112,7 @@ struct llm_build_context {
     }
 };
 
-static struct ggml_cgraph * llama_build_graph_defrag(llama_context & lctx, const std::vector<struct llama_kv_defrag_move> & moves) {
+static struct ggml_cgraph * llama_build_graph_defrag(llama_context & lctx, const std::vector<uint32_t> & ids) {
     llama_ubatch dummy = {};
     dummy.equal_seqs = true;
 
@@ -8168,7 +8122,7 @@ static struct ggml_cgraph * llama_build_graph_defrag(llama_context & lctx, const
 
     llm.init();
 
-    struct ggml_cgraph * result = llm.build_defrag(moves);
+    struct ggml_cgraph * result = llm.build_defrag(ids);
 
     llm.free();
 
@@ -8512,8 +8466,8 @@ static int llama_prepare_sbatch(
             }
         }
     }
-    GGML_ASSERT_CONTINUE(n_tokens_all <= cparams.n_batch);
-    //GGML_ASSERT_CONTINUE((cparams.causal_attn || cparams.n_ubatch >= n_tokens_all) && "non-causal attention requires n_ubatch >= n_tokens");
+    GGML_ASSERT(n_tokens_all <= cparams.n_batch);
+    GGML_ASSERT((cparams.causal_attn || cparams.n_ubatch >= n_tokens_all) && "non-causal attention requires n_ubatch >= n_tokens");
 
     lctx.n_queued_tokens += n_tokens_all;
     lctx.embd_seq.clear();
@@ -8677,41 +8631,10 @@ static int llama_decode_impl(
             }
         }
 
-        const int         n_threads  = ubatch.n_tokens < 32 ? cparams.n_threads : cparams.n_threads_batch;
-        ggml_threadpool_t threadpool = ubatch.n_tokens < 32 ? lctx.threadpool   : lctx.threadpool_batch;
+        const int         n_threads  = ubatch.n_tokens == 1 ? cparams.n_threads : cparams.n_threads_batch;
+        ggml_threadpool_t threadpool = ubatch.n_tokens == 1 ? lctx.threadpool   : lctx.threadpool_batch;
 
         GGML_ASSERT(n_threads > 0);
-
-/*         // non-causal masks do not use the KV cache
-        if (hparams.causal_attn) {
-            llama_kv_cache_update(&lctx);
-
-            // if we have enough unused cells before the current head ->
-            //   better to start searching from the beginning of the cache, hoping to fill it
-            if (kv_self.head > kv_self.used + 2*n_tokens) {
-                kv_self.head = 0;
-            }
-
-            auto slot = llama_kv_cache_find_slot(kv_self, ubatch);
-            if (!slot) {
-                llama_kv_cache_defrag(kv_self);
-                llama_kv_cache_update(&lctx);
-                slot = llama_kv_cache_find_slot(kv_self, ubatch);
-            }
-            if (!slot) {
-                return 1;
-            }
-            kv_slot_restorer.save(slot);
-
-            if (!kv_self.recurrent) {
-                // a heuristic, to avoid attending the full cache if it is not yet utilized
-                // after enough generations, the benefit from this heuristic disappears
-                // if we start defragmenting the cache, the benefit from this will be more important
-                const uint32_t pad = llama_kv_cache_get_padding(cparams);
-                kv_self.n = std::min(kv_self.size, std::max(pad, GGML_PAD(llama_kv_cache_cell_max(kv_self), pad)));
-                //kv_self.n = llama_kv_cache_cell_max(kv_self);
-            }
-        } */
 
         //printf("kv_self.n = %5d, kv_self.used = %5d, kv_self.head = %5d\n", kv_self.n, kv_self.used, kv_self.head);
 
@@ -8967,7 +8890,7 @@ static int llama_encode_impl(
     lctx.inp_embd_enc = NULL;
     lctx.n_outputs = n_tokens;
 
-    int n_threads = (n_tokens < 32) ? cparams.n_threads : cparams.n_threads_batch;
+    int n_threads = n_tokens == 1 ? cparams.n_threads : cparams.n_threads_batch;
     ggml_threadpool_t threadpool = n_tokens == 1 ? lctx.threadpool : lctx.threadpool_batch;
 
     GGML_ASSERT(n_threads > 0);
@@ -9103,8 +9026,8 @@ static void llama_kv_cache_defrag_impl(struct llama_context & lctx) {
 
     //const int64_t t_start = ggml_time_us();
 
-    // groups of cells moved
-    std::vector<struct llama_kv_defrag_move> moves;
+    // number of cells moved
+    uint32_t n_moves = 0;
 
     // each move requires 6*n_layer tensors (see build_defrag)
     //   - source view, destination view, copy operation
@@ -9168,11 +9091,19 @@ static void llama_kv_cache_defrag_impl(struct llama_context & lctx) {
         // are we moving a continuous block of memory?
         bool cont = false;
 
+        // should we stop searching for the next move?
+        bool stop = false;
+
         // go back and move the nf cells to the hole
         for (; i1 < n_kv; ++i1) {
             auto & cell1 = kv_self.cells[i1];
 
             if (cell1.is_empty() || ids[i1] != n_kv) {
+                if (n_moves == max_moves) {
+                    stop = true;
+                    break;
+                }
+
                 cont = false;
                 continue;
             }
@@ -9188,10 +9119,8 @@ static void llama_kv_cache_defrag_impl(struct llama_context & lctx) {
             kv_self.head = n_used;
 
             if (!cont) {
-                moves.push_back({i1, i0 + nf, 1});
+                n_moves++;
                 cont = true;
-            } else {
-                moves.back().len++;
             }
 
             nf++;
@@ -9201,16 +9130,22 @@ static void llama_kv_cache_defrag_impl(struct llama_context & lctx) {
             }
         }
 
+        if (stop || n_moves == max_moves) {
+            break;
+        }
+
         //LLAMA_LOG_INFO("(tmp log) KV defrag: move [%u, %u) to [%u, %u)\n", is, i1 + 1, i0, i0 + nh);
 
         i0 += nh - 1;
     }
 
-    if (moves.size() == 0) {
+    if (n_moves == 0) {
         return;
     }
 
-    //LLAMA_LOG_INFO("(tmp log) KV defrag cell moves: %u\n",  moves.size());
+    //LLAMA_LOG_INFO("(tmp log) KV defrag cell moves: %u\n", n_moves);
+
+    //LLAMA_LOG_INFO("expected gf nodes: %u\n", 6*n_moves*n_layer);
 
 #if 0
     // CPU defrag
@@ -9285,18 +9220,11 @@ static void llama_kv_cache_defrag_impl(struct llama_context & lctx) {
 #else
     // ggml_graph defrag
 
-    for (std::size_t i = 0; i < moves.size(); i += max_moves) {
-        std::vector<struct llama_kv_defrag_move> chunk;
-        auto end = std::min(i + max_moves, moves.size());
-        chunk.assign(moves.begin() + i, moves.begin() + end);
+    ggml_backend_sched_reset(lctx.sched.get());
 
-        ggml_backend_sched_reset(lctx.sched.get());
+    ggml_cgraph * gf = llama_build_graph_defrag(lctx, ids);
 
-        //LLAMA_LOG_INFO("expected gf nodes: %u\n", 6*chunk.size()*n_layer);
-        ggml_cgraph * gf = llama_build_graph_defrag(lctx, chunk);
-
-        llama_graph_compute(lctx, gf, lctx.cparams.n_threads, lctx.threadpool);
-    }
+    llama_graph_compute(lctx, gf, lctx.cparams.n_threads, lctx.threadpool);
 #endif
 
     //const int64_t t_end = ggml_time_us();
@@ -9309,8 +9237,8 @@ static void llama_kv_cache_update_impl(struct llama_context & lctx) {
 
     if (lctx.kv_self.has_shift) {
         if (!llama_kv_cache_can_shift(&lctx)) {
-            printf("\nWARNING: The current context does not support K-shift!\n");
-        } else {
+            GGML_ABORT("The current context does not support K-shift");
+        }
 
         // apply K-shift if needed
         if (lctx.model.hparams.rope_type != LLAMA_ROPE_TYPE_NONE) {
@@ -9335,7 +9263,6 @@ static void llama_kv_cache_update_impl(struct llama_context & lctx) {
             for (uint32_t i = 0; i < kv_self.size; ++i) {
                 kv_self.cells[i].delta = 0;
             }
-        }
         }
     }
 
@@ -9460,12 +9387,8 @@ bool llama_supports_mlock(void) {
 }
 
 bool llama_supports_gpu_offload(void) {
-    #if defined(GGML_USE_CLBLAST)
-        return true;
-    #else
     return ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_GPU) != nullptr ||
            llama_supports_rpc();
-    #endif
 }
 
 bool llama_supports_rpc(void) {

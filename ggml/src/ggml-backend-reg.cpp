@@ -459,7 +459,6 @@ static std::wstring get_executable_path() {
 #else
     return {};
 #endif
-    return L""; //fix for freebsd compile
 }
 
 static std::wstring backend_filename_prefix() {
