@@ -154,7 +154,7 @@ config = {
     "architectures": [
         "WavTokenizerDec"
     ],
-    "hidden_size": 1282,
+    "hidden_size": 1282, # or 2402 for 40t/s
     "n_embd_features": 512,
     "n_ff": 2304,
     "vocab_size": 4096,

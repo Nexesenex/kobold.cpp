@@ -9,28 +9,31 @@
 #include "ggml-backend.h"
 #include "gguf.h"
 
-//#ifdef GGML_USE_CUDA
-//#include "ggml-cuda.h"
-//#endif
-//
-//#ifdef GGML_USE_SYCL
-//#include "ggml-sycl.h"
-//#endif
-//
-//#ifdef GGML_USE_METAL
-//#include "ggml-metal.h"
-//#endif
-//
-//#ifdef GGML_USE_CANN
-//#include "ggml-cann.h"
-//#endif
-//
-//#ifdef GGML_USE_VULKAN
-//#include "ggml-vulkan.h"
-//#endif
+#ifdef GGML_USE_CUDA
+#include "ggml-cuda.h"
+#endif
+
+#ifdef GGML_USE_SYCL
+#include "ggml-sycl.h"
+#endif
+
+#ifdef GGML_USE_METAL
+#include "ggml-metal.h"
+#endif
+
+#ifdef GGML_USE_CANN
+#include "ggml-cann.h"
+#endif
+
+#ifdef GGML_USE_VULKAN
+#include "ggml-vulkan.h"
+#endif
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include "stb_image_resize.h"
 
 #include <cassert>
 #include <cmath>
@@ -1161,6 +1164,12 @@ static ggml_cgraph * clip_image_build_graph(clip_ctx * ctx, const clip_image_f32
     return gf;
 }
 
+bool enable_gpu_clip = true;
+void set_clip_uses_gpu(bool usegpu)
+{
+    enable_gpu_clip = usegpu;
+}
+
 // read and create ggml_context containing the tensors and their data
 struct clip_ctx * clip_model_load(const char * fname, const int verbosity = 1) {
     struct ggml_context * meta = NULL;
@@ -1275,30 +1284,33 @@ struct clip_ctx * clip_model_load(const char * fname, const int verbosity = 1) {
         }
     }
 
-//#ifdef GGML_USE_CUDA
-//    new_clip->backend = ggml_backend_cuda_init(0);
-//    LOG_INF("%s: CLIP using CUDA backend\n", __func__);
-//#endif
-//
-//#ifdef GGML_USE_METAL
-//    new_clip->backend = ggml_backend_metal_init();
-//    LOG_INF("%s: CLIP using Metal backend\n", __func__);
-//#endif
-//
-//#ifdef GGML_USE_CANN
-//    new_clip->backend = ggml_backend_cann_init(0);
-//    LOG_INF("%s: CLIP using CANN backend\n", __func__);
-//#endif
-//
-//#ifdef GGML_USE_VULKAN
-//    new_clip->backend = ggml_backend_vk_init(0);
-//    LOG_INF("%s: CLIP using Vulkan backend\n", __func__);
-//#endif
-//
-//#ifdef GGML_USE_SYCL
-//    new_clip->backend = ggml_backend_sycl_init(0);
-//    LOG_INF("%s: CLIP using SYCL backend\n", __func__);
-//#endif
+if(enable_gpu_clip)
+{
+#ifdef GGML_USE_CUDA
+    new_clip->backend = ggml_backend_cuda_init(0);
+    LOG_INF("%s: CLIP using CUDA backend\n", __func__);
+#endif
+
+#ifdef GGML_USE_METAL
+    new_clip->backend = ggml_backend_metal_init();
+    LOG_INF("%s: CLIP using Metal backend\n", __func__);
+#endif
+
+#ifdef GGML_USE_CANN
+    new_clip->backend = ggml_backend_cann_init(0);
+    LOG_INF("%s: CLIP using CANN backend\n", __func__);
+#endif
+
+#ifdef GGML_USE_VULKAN
+    new_clip->backend = ggml_backend_vk_init(0);
+    LOG_INF("%s: CLIP using Vulkan backend\n", __func__);
+#endif
+
+#ifdef GGML_USE_SYCL
+    new_clip->backend = ggml_backend_sycl_init(0);
+    LOG_INF("%s: CLIP using SYCL backend\n", __func__);
+#endif
+}
 
     if (!new_clip->backend) {
         new_clip->backend = ggml_backend_cpu_init();
@@ -1357,6 +1369,7 @@ struct clip_ctx * clip_model_load(const char * fname, const int verbosity = 1) {
             LOG_INF("%s: vision_encoder: %d\n", __func__, new_clip->has_vision_encoder);
             LOG_INF("%s: llava_projector:  %d\n", __func__, new_clip->has_llava_projector);
             LOG_INF("%s: minicpmv_projector:  %d\n", __func__, new_clip->has_minicpmv_projector);
+            LOG_INF("%s: minicpmv_version:  %d\n", __func__, new_clip->minicpmv_version);
             LOG_INF("%s: glm_projector:  %d\n", __func__, new_clip->has_glm_projector);
             LOG_INF("%s: model size:     %.2f MB\n", __func__, model_size / 1024.0 / 1024.0);
             LOG_INF("%s: metadata size:  %.2f MB\n", __func__, ggml_get_mem_size(meta) / 1024.0 / 1024.0);
@@ -1748,14 +1761,101 @@ bool clip_image_load_from_file(const char * fname, clip_image_u8 * img) {
     return true;
 }
 
-bool clip_image_load_from_bytes(const unsigned char * bytes, size_t bytes_length, struct clip_image_u8 * img) {
+//note that the memory here must be subsequently freed!
+uint8_t* make_new_letterbox_img(uint8_t* input_image, int nx, int ny, int nc, int target_width, int target_height) {
+    int new_image_size = target_width * target_height * nc;
+    uint8_t* letterboxed_image = (uint8_t*)malloc(new_image_size);
+    if(letterboxed_image==nullptr)
+    {
+        printf("\nWARNING: make_new_letterbox_img MALLOC FAILED\n");
+        return nullptr;
+    }
+    memset(letterboxed_image, 0, new_image_size);  // fill with black (0) or any color you prefer
+    int offset_x = (target_width - nx) / 2;
+    int offset_y = (target_height - ny) / 2;
+    for (int y = 0; y < ny; ++y) {
+        memcpy(
+            letterboxed_image + ((y + offset_y) * target_width + offset_x) * nc,
+            input_image + (y * nx * nc),
+            nx * nc
+        );
+    }
+    return letterboxed_image;
+}
+uint8_t* scale_down_image(uint8_t* input_image, int& nx, int& ny, int nc, int max_width, int max_height) {
+    float aspect_ratio = static_cast<float>(nx) / ny;
+    int new_width = nx;
+    int new_height = ny;
+    if (nx > max_width || ny > max_height) {
+        if (aspect_ratio > 1.0f) { // wider than tall
+            new_width = max_width;
+            new_height = static_cast<int>(max_width / aspect_ratio);
+        } else { // taller than wide
+            new_height = max_height;
+            new_width = static_cast<int>(max_height * aspect_ratio);
+        }
+    }
+    uint8_t* resized_image = (uint8_t*)malloc(new_width * new_height * nc);
+    int resok = stbir_resize_uint8(input_image, nx, ny, 0, resized_image, new_width, new_height, 0, nc);
+    if (!resok) {
+        printf("\nKCPP SD: clip resize image failed!\n");
+        free(resized_image);
+        return nullptr;
+    }
+    nx = new_width;
+    ny = new_height;
+    return resized_image;
+}
+
+bool clip_image_load_from_bytes(const unsigned char * bytes, size_t bytes_length, struct clip_image_u8 * img, const int maxdims) {
     int nx, ny, nc;
     auto * data = stbi_load_from_memory(bytes, bytes_length, &nx, &ny, &nc, 3);
     if (!data) {
         LOG_ERR("%s: failed to decode image bytes\n", __func__);
         return false;
     }
-    build_clip_img_from_data(data, nx, ny, img);
+
+    float maxaspect = 4.0f;
+
+    //check if image needs downscaling
+    if (nx > maxdims || ny > maxdims) {
+        printf("\nImage requires resizing: original size %d x %d scaling to max %d px\n",nx,ny,maxdims);
+        uint8_t* resized_image = scale_down_image(data, nx, ny, nc, maxdims, maxdims);
+        if(resized_image!=nullptr)
+        {
+            stbi_image_free(data); // Free the original image buffer and assign the new one
+            data = resized_image;
+            printf("Resized to clamped to %d x %d\n",nx,ny);
+        }
+    }
+
+    float aspect_ratio = static_cast<float>(nx) / ny;
+    int new_width = nx;
+    int new_height = ny;
+    bool need_letterbox = false;
+    // Check if the image exceeds the aspect ratio limits
+    if (aspect_ratio > maxaspect) {
+        new_height = (int)(nx / maxaspect);
+        need_letterbox = true;
+    } else if (aspect_ratio < 1.0f / maxaspect) {
+        new_width = (int)(ny / maxaspect);
+        need_letterbox = true;
+    }
+
+    if (need_letterbox) {
+        printf("\nImage requires letterboxing: %d x %d changed to %d x %d\n",nx,ny,new_width, new_height);
+        uint8_t* letterboxed_image = make_new_letterbox_img(data, nx, ny, nc, new_width, new_height);
+        if(letterboxed_image!=nullptr)
+        {
+            build_clip_img_from_data(letterboxed_image, new_width, new_height, img);
+            free(letterboxed_image);
+            letterboxed_image = nullptr;
+        }
+    }
+    else
+    {
+        build_clip_img_from_data(data, nx, ny, img);
+    }
     stbi_image_free(data);
     return true;
 }
@@ -2744,6 +2844,7 @@ bool clip_image_batch_encode(clip_ctx * ctx, const int n_threads, const clip_ima
     return true;
 }
 
+static bool avoid_problematic_indivisible = true;
 bool clip_model_quantize(const char * fname_inp, const char * fname_out, const int itype) {
     assert(itype < GGML_TYPE_COUNT);
     ggml_type type = static_cast<ggml_type>(itype);
@@ -2801,6 +2902,15 @@ bool clip_model_quantize(const char * fname_inp, const char * fname_out, const i
 
         // quantize only 2D tensors and bigger than block size
         quantize &= (ggml_n_dims(cur) == 2) && cur->ne[0] > ggml_blck_size(type);
+
+        //kcpp fix: do not quantize certain tensors if they are indivisible!
+        if(avoid_problematic_indivisible)
+        {
+            if(name=="v.position_embd.weight")
+            {
+                quantize = false;
+            }
+        }
 
         if (quantize) {
             new_type = type;

@@ -216,6 +216,7 @@ struct gguf_context {
     void * data = nullptr;
 };
 
+static bool isggufv1 = false;
 struct gguf_reader {
     FILE * file;
 
@@ -274,8 +275,17 @@ struct gguf_reader {
 
     bool read(std::string & dst) const {
         uint64_t size = -1;
+        if(isggufv1)
+        {
+            uint32_t size_32 = -1;
+            if (!read(size_32)) {
+                return false;
+            }
+            size = size_32;
+        } else {
         if (!read(size)) {
             return false;
+        }
         }
         dst.resize(size);
         return fread(dst.data(), 1, dst.length(), file) == dst.length();
@@ -345,21 +355,41 @@ struct gguf_context * gguf_init_from_file_impl(FILE * file, struct gguf_init_par
     // header
     int64_t n_kv      = 0;
     int64_t n_tensors = 0;
+    isggufv1 = false;
 
     if (ok && gr.read(ctx->version)) {
         if (ctx->version == 1) {
-            fprintf(stderr, "%s: GGUFv1 is no longer supported, please use a more up-to-date version\n", __func__);
-            ok = false;
+            fprintf(stderr, "%s: GGUFv1 is deprecated, please use a more up-to-date version!\n", __func__);
+            // ok = false;
+            isggufv1 = true;
         }
         if (ctx->version > GGUF_VERSION) {
-            fprintf(stderr, "%s: this GGUF file is version %" PRIu32 " but this software only supports up to version %d\n",
+            fprintf(stderr, "%s: this GGUF file is version %" PRIu32 " but this software is designed for version %d, things may break.\n",
                 __func__, ctx->version, GGUF_VERSION);
-            ok = false;
+           // ok = false;
         }
     } else {
         ok = false;
     }
 
+    //compatibility with ggufv1 for kcpp
+    if (isggufv1) {
+        uint32_t n_tensors_32 = 0;
+        uint32_t n_kv_32      = 0;
+        if (ok && gr.read(n_tensors_32)) {
+            n_tensors = n_tensors_32;
+        } else {
+            ok = false;
+        }
+
+        if (ok && gr.read(n_kv_32)) {
+            n_kv = n_kv_32;
+        } else {
+            ok = false;
+        }
+    }
+    else
+    {
     if (ok && gr.read(n_tensors)) {
         static_assert(sizeof(size_t) <= 8 && sizeof(gguf_tensor_info) >= 2, "int64_t insufficient for indexing");
         if (n_tensors < 0 || n_tensors > int64_t(SIZE_MAX/sizeof(gguf_tensor_info))) {
@@ -380,6 +410,7 @@ struct gguf_context * gguf_init_from_file_impl(FILE * file, struct gguf_init_par
         }
     } else {
         ok = false;
+    }
     }
 
     if (!ok) {
@@ -419,7 +450,14 @@ struct gguf_context * gguf_init_from_file_impl(FILE * file, struct gguf_init_par
             if (type == GGUF_TYPE_ARRAY) {
                 is_array = true;
                 ok = ok && gr.read(type);
-                ok = ok && gr.read(n);
+                if(isggufv1)
+                {
+                    uint32_t n_32 = 0;
+                    ok = ok && gr.read(n_32);
+                    n = n_32;
+                }else{
+                    ok = ok && gr.read(n);
+                }
             }
             if (!ok) {
                 break;
@@ -513,7 +551,14 @@ struct gguf_context * gguf_init_from_file_impl(FILE * file, struct gguf_init_par
             for (uint32_t j = 0; ok && j < GGML_MAX_DIMS; ++j) {
                 info.t.ne[j] = 1;
                 if (j < n_dims) {
+                    if(isggufv1)
+                    {
+                        uint32_t ne_32 = 0;
+                        ok = ok && gr.read(ne_32);
+                        info.t.ne[j] = ne_32;
+                    } else {
                     ok = ok && gr.read(info.t.ne[j]);
+                    }
                 }
 
                 // check that all ne are non-negative

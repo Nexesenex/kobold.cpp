@@ -2,7 +2,7 @@
 
 #include "log.h"
 #include "sampling.h"
-#include "chat.h"
+#include "build-info.h"
 
 #include <algorithm>
 #include <climits>
@@ -179,6 +179,7 @@ const std::vector<ggml_type> kv_cache_types = {
     GGML_TYPE_IQ4_NL,
     GGML_TYPE_Q5_0,
     GGML_TYPE_Q5_1,
+    GGML_TYPE_Q6_0,
 };
 
 static ggml_type kv_cache_type_from_str(const std::string & s) {
@@ -2501,54 +2502,6 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
             params.embedding = true;
         }
     ).set_examples({LLAMA_EXAMPLE_EMBEDDING, LLAMA_EXAMPLE_SERVER}));
-
-    add_opt(common_arg(
-        {"--fim-qwen-1.5b-default"},
-        string_format("use default Qwen 2.5 Coder 1.5B (note: can download weights from the internet)"),
-        [](common_params & params) {
-            params.hf_repo = "ggml-org/Qwen2.5-Coder-1.5B-Q8_0-GGUF";
-            params.hf_file = "qwen2.5-coder-1.5b-q8_0.gguf";
-            params.port = 8012;
-            params.n_gpu_layers = 99;
-            params.flash_attn = true;
-            params.n_ubatch = 1024;
-            params.n_batch = 1024;
-            params.n_ctx = 0;
-            params.n_cache_reuse = 256;
-        }
-    ).set_examples({LLAMA_EXAMPLE_SERVER}));
-
-    add_opt(common_arg(
-        {"--fim-qwen-3b-default"},
-        string_format("use default Qwen 2.5 Coder 3B (note: can download weights from the internet)"),
-        [](common_params & params) {
-            params.hf_repo = "ggml-org/Qwen2.5-Coder-3B-Q8_0-GGUF";
-            params.hf_file = "qwen2.5-coder-3b-q8_0.gguf";
-            params.port = 8012;
-            params.n_gpu_layers = 99;
-            params.flash_attn = true;
-            params.n_ubatch = 1024;
-            params.n_batch = 1024;
-            params.n_ctx = 0;
-            params.n_cache_reuse = 256;
-        }
-    ).set_examples({LLAMA_EXAMPLE_SERVER}));
-
-    add_opt(common_arg(
-        {"--fim-qwen-7b-default"},
-        string_format("use default Qwen 2.5 Coder 7B (note: can download weights from the internet)"),
-        [](common_params & params) {
-            params.hf_repo = "ggml-org/Qwen2.5-Coder-7B-Q8_0-GGUF";
-            params.hf_file = "qwen2.5-coder-7b-q8_0.gguf";
-            params.port = 8012;
-            params.n_gpu_layers = 99;
-            params.flash_attn = true;
-            params.n_ubatch = 1024;
-            params.n_batch = 1024;
-            params.n_ctx = 0;
-            params.n_cache_reuse = 256;
-        }
-    ).set_examples({LLAMA_EXAMPLE_SERVER}));
 
     return ctx_arg;
 }

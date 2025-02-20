@@ -615,7 +615,7 @@ static bool ggml_is_view_op(enum ggml_op op) {
 #endif
 
 #ifndef GGML_SCHED_MAX_COPIES
-#define GGML_SCHED_MAX_COPIES 4
+#define GGML_SCHED_MAX_COPIES 1
 #endif
 
 struct ggml_backend_sched_split {
@@ -722,6 +722,8 @@ static char causes[GGML_DEFAULT_GRAPH_SIZE*16 + GGML_SCHED_MAX_SPLITS_DEBUG*GGML
 #define GET_CAUSE(node) ""
 #endif
 
+static bool backend_prealloc_warn = false;
+
 // returns the backend that should be used for the node based on the current locations
 static int ggml_backend_sched_backend_id_from_cur(ggml_backend_sched_t sched, struct ggml_tensor * tensor) {
     // assign pre-allocated nodes to their backend
@@ -743,7 +745,11 @@ static int ggml_backend_sched_backend_id_from_cur(ggml_backend_sched_t sched, st
     if (tensor->buffer || (tensor->view_src && tensor->view_src->buffer)) {
         // since the tensor is pre-allocated, it cannot be moved to another backend
         ggml_backend_buffer_t buffer = tensor->view_src ? tensor->view_src->buffer : tensor->buffer;
-        GGML_ABORT("pre-allocated tensor (%s) in a buffer (%s) that cannot run the operation (%s)", tensor->name, ggml_backend_buffer_name(buffer), ggml_op_name(tensor->op));
+        if (!backend_prealloc_warn) {
+            backend_prealloc_warn = true;
+            printf("\nCaution: pre-allocated tensor (%s) in a buffer (%s) that cannot run the operation (%s)\n", tensor->name, ggml_backend_buffer_name(buffer), ggml_op_name(tensor->op));
+            printf("\nNote that if you are using Quantized KV, not all backends support it!\n");
+        }
     }
 
     // graph input

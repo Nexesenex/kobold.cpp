@@ -25,7 +25,6 @@ interface AppContextValue {
     convId: string | null,
     leafNodeId: Message['id'] | null,
     content: string,
-    extra: Message['extra'],
     onChunk: CallbackGeneratedChunk
   ) => Promise<boolean>;
   stopGenerating: (convId: string) => void;
@@ -33,7 +32,6 @@ interface AppContextValue {
     convId: string,
     parentNodeId: Message['id'], // the parent node of the message to be replaced
     content: string | null,
-    extra: Message['extra'],
     onChunk: CallbackGeneratedChunk
   ) => Promise<void>;
 
@@ -276,7 +274,6 @@ export const AppContextProvider = ({
     convId: string | null,
     leafNodeId: Message['id'] | null,
     content: string,
-    extra: Message['extra'],
     onChunk: CallbackGeneratedChunk
   ): Promise<boolean> => {
     if (isGenerating(convId ?? '') || content.trim().length === 0) return false;
@@ -301,7 +298,6 @@ export const AppContextProvider = ({
         convId,
         role: 'user',
         content,
-        extra,
         parent: leafNodeId,
         children: [],
       },
@@ -328,7 +324,6 @@ export const AppContextProvider = ({
     convId: string,
     parentNodeId: Message['id'], // the parent node of the message to be replaced
     content: string | null,
-    extra: Message['extra'],
     onChunk: CallbackGeneratedChunk
   ) => {
     if (isGenerating(convId)) return;
@@ -344,7 +339,6 @@ export const AppContextProvider = ({
           convId,
           role: 'user',
           content,
-          extra,
           parent: parentNodeId,
           children: [],
         },

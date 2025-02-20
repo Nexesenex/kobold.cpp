@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CallbackGeneratedChunk, useAppContext } from '../utils/app.context';
 import ChatMessage from './ChatMessage';
 import { CanvasType, Message, PendingMessage } from '../utils/types';
 import { classNames, throttle } from '../utils/misc';
 import CanvasPyInterpreter from './CanvasPyInterpreter';
 import StorageUtils from '../utils/storage';
-import { useVSCodeContext } from '../utils/llama-vscode';
 
 /**
  * A message display is a message node with additional information for rendering.
@@ -82,14 +81,6 @@ export default function ChatScreen() {
     replaceMessageAndGenerate,
   } = useAppContext();
   const [inputMsg, setInputMsg] = useState('');
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  const { extraContext, clearExtraContext } = useVSCodeContext(
-    inputRef,
-    setInputMsg
-  );
-  // TODO: improve this when we have "upload file" feature
-  const currExtra: Message['extra'] = extraContext ? [extraContext] : undefined;
 
   // keep track of leaf node for rendering
   const [currNodeId, setCurrNodeId] = useState<number>(-1);
@@ -124,20 +115,10 @@ export default function ChatScreen() {
     setCurrNodeId(-1);
     // get the last message node
     const lastMsgNodeId = messages.at(-1)?.msg.id ?? null;
-    if (
-      !(await sendMessage(
-        currConvId,
-        lastMsgNodeId,
-        inputMsg,
-        currExtra,
-        onChunk
-      ))
-    ) {
+    if (!(await sendMessage(currConvId, lastMsgNodeId, inputMsg, onChunk))) {
       // restore the input message if failed
       setInputMsg(lastInpMsg);
     }
-    // OK
-    clearExtraContext();
   };
 
   const handleEditMessage = async (msg: Message, content: string) => {
@@ -148,7 +129,6 @@ export default function ChatScreen() {
       viewingChat.conv.id,
       msg.parent,
       content,
-      msg.extra,
       onChunk
     );
     setCurrNodeId(-1);
@@ -163,7 +143,6 @@ export default function ChatScreen() {
       viewingChat.conv.id,
       msg.parent,
       null,
-      msg.extra,
       onChunk
     );
     setCurrNodeId(-1);
@@ -224,7 +203,6 @@ export default function ChatScreen() {
           <textarea
             className="textarea textarea-bordered w-full"
             placeholder="Type a message (Shift+Enter to add a new line)"
-            ref={inputRef}
             value={inputMsg}
             onChange={(e) => setInputMsg(e.target.value)}
             onKeyDown={(e) => {
