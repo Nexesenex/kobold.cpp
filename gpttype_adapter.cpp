@@ -2231,7 +2231,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         if(mmproj_filename != "" && file_format==FileFormat::GGUF_GENERIC)
         {
             printf("\nAttempting to apply Multimodal Projector: %s\n", mmproj_filename.c_str());
-            #if defined(GGML_USE_VULKAN) || defined(GGML_USE_METAL)
+            #if defined(GGML_USE_METAL)
             if(file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2VL)
             {
                 set_clip_uses_gpu(false);

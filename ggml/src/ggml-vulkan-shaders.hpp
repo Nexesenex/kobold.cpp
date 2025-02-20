@@ -9,6 +9,9 @@ const uint64_t add_f16_f32_f16_len = 5984;
 extern unsigned char add_f32_data[5916];
 const uint64_t add_f32_len = 5916;
 
+extern unsigned char argmax_f32_data[2976];
+const uint64_t argmax_f32_len = 2976;
+
 extern unsigned char argsort_f32_data[4200];
 const uint64_t argsort_f32_len = 4200;
 
@@ -35,6 +38,9 @@ const uint64_t contig_cpy_f32_f32_len = 3164;
 
 extern unsigned char cos_f32_data[4708];
 const uint64_t cos_f32_len = 4708;
+
+extern unsigned char count_equal_i32_data[1788];
+const uint64_t count_equal_i32_len = 1788;
 
 extern unsigned char cpy_f16_f16_data[4704];
 const uint64_t cpy_f16_f16_len = 4704;
@@ -2985,6 +2991,9 @@ const uint64_t mul_mat_vec_q8_0_f32_f32_len = 22300;
 extern unsigned char norm_f32_data[2816];
 const uint64_t norm_f32_len = 2816;
 
+extern unsigned char opt_step_adamw_f32_data[2712];
+const uint64_t opt_step_adamw_f32_len = 2712;
+
 extern unsigned char pad_f32_data[3988];
 const uint64_t pad_f32_len = 3988;
 
@@ -2994,29 +3003,50 @@ const uint64_t pool2d_f32_len = 3504;
 extern unsigned char relu_f32_data[1420];
 const uint64_t relu_f32_len = 1420;
 
+extern unsigned char repeat_back_f32_data[4772];
+const uint64_t repeat_back_f32_len = 4772;
+
 extern unsigned char repeat_f32_data[4384];
 const uint64_t repeat_f32_len = 4384;
 
 extern unsigned char rms_norm_f32_data[2544];
 const uint64_t rms_norm_f32_len = 2544;
 
-extern unsigned char rope_neox_f16_data[3984];
-const uint64_t rope_neox_f16_len = 3984;
+extern unsigned char rope_multi_f16_data[6124];
+const uint64_t rope_multi_f16_len = 6124;
 
-extern unsigned char rope_neox_f16_rte_data[4008];
-const uint64_t rope_neox_f16_rte_len = 4008;
+extern unsigned char rope_multi_f16_rte_data[6148];
+const uint64_t rope_multi_f16_rte_len = 6148;
 
-extern unsigned char rope_neox_f32_data[3884];
-const uint64_t rope_neox_f32_len = 3884;
+extern unsigned char rope_multi_f32_data[6024];
+const uint64_t rope_multi_f32_len = 6024;
 
-extern unsigned char rope_norm_f16_data[3984];
-const uint64_t rope_norm_f16_len = 3984;
+extern unsigned char rope_neox_f16_data[4352];
+const uint64_t rope_neox_f16_len = 4352;
 
-extern unsigned char rope_norm_f16_rte_data[4008];
-const uint64_t rope_norm_f16_rte_len = 4008;
+extern unsigned char rope_neox_f16_rte_data[4376];
+const uint64_t rope_neox_f16_rte_len = 4376;
 
-extern unsigned char rope_norm_f32_data[3884];
-const uint64_t rope_norm_f32_len = 3884;
+extern unsigned char rope_neox_f32_data[4252];
+const uint64_t rope_neox_f32_len = 4252;
+
+extern unsigned char rope_norm_f16_data[4352];
+const uint64_t rope_norm_f16_len = 4352;
+
+extern unsigned char rope_norm_f16_rte_data[4376];
+const uint64_t rope_norm_f16_rte_len = 4376;
+
+extern unsigned char rope_norm_f32_data[4252];
+const uint64_t rope_norm_f32_len = 4252;
+
+extern unsigned char rope_vision_f16_data[4796];
+const uint64_t rope_vision_f16_len = 4796;
+
+extern unsigned char rope_vision_f16_rte_data[4820];
+const uint64_t rope_vision_f16_rte_len = 4820;
+
+extern unsigned char rope_vision_f32_data[4696];
+const uint64_t rope_vision_f32_len = 4696;
 
 extern unsigned char rwkv_wkv6_f32_data[32112];
 const uint64_t rwkv_wkv6_f32_len = 32112;
@@ -3041,6 +3071,9 @@ const uint64_t split_k_reduce_len = 2764;
 
 extern unsigned char sqr_f32_data[4704];
 const uint64_t sqr_f32_len = 4704;
+
+extern unsigned char sub_f32_data[5916];
+const uint64_t sub_f32_len = 5916;
 
 extern unsigned char sum_rows_f32_data[2320];
 const uint64_t sum_rows_f32_len = 2320;
