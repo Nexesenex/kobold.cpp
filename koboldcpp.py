@@ -5256,6 +5256,17 @@ def load_config_cli(filename):
             print("\nA .kcppt template was selected from CLI - automatically selecting your backend...")
             auto_set_backend_cli()
 
+def save_config_cli(filename):
+    savdict = json.loads(json.dumps(args.__dict__))
+    if filename is None:
+        return
+    filenamestr = str(filename).strip()
+    filenamestr = f"{filenamestr}.kcpps" if ".kcpps" not in filenamestr.lower() else filenamestr
+    file = open(filenamestr, 'a')
+    file.write(json.dumps(savdict))
+    file.close()
+    print(f"\nSaved .kcpps configuration file as {filename}\nIt can be loaded with --config [filename] in future.")
+    pass
 
 def delete_old_pyinstaller():
     try:
@@ -5419,6 +5430,10 @@ def main(launch_args):
 
     if args.analyze:
         analyze_gguf_model_wrapper(args.analyze)
+        return
+
+    if args.exportconfig and args.exportconfig!="":
+        save_config_cli(args.exportconfig)
         return
 
     if args.config and len(args.config)==1: #handle initial config loading for launch
@@ -6265,6 +6280,7 @@ if __name__ == '__main__':
     advparser.add_argument("--forceversion", help="If the model file format detection fails (e.g. rogue modified model) you can set this to override the detected format (enter desired version, e.g. 401 for GPTNeoX-Type2).",metavar=('[version]'), type=int, default=0)
     advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated. Not recommended.", action='store_true')
     advparser.add_argument("--unpack", help="Extracts the file contents of the KoboldCpp binary into a target directory.", metavar=('destination'), type=str, default="")
+    advparser.add_argument("--exportconfig", help="Exports the current selected arguments as a .kcpps settings file", metavar=('[filename]'), type=str, default="")
     advparser.add_argument("--nomodel", help="Allows you to launch the GUI alone, without selecting any model.", action='store_true')
     advparser.add_argument("--moeexperts", metavar=('[num of experts]'), help="How many experts to use for MoE models (default=follow gguf)", type=int, default=-1)
     compatgroup2 = parser.add_mutually_exclusive_group()
