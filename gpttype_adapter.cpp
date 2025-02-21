@@ -1512,6 +1512,38 @@ void sampler_typical(llama_token_data_array * cur_p, float p, size_t min_keep) {
     cur_p->sorted = false;
 }
 
+void sample_top_n_sigma(llama_token_data_array * cur_p, float nsigma) {
+
+    if (nsigma <= 0.0f || cur_p->size <= 1) {
+        return;
+    }
+    // find max logit and calculate mean
+    float nsigmax = cur_p->data[0].logit;
+    float logits_sum = 0;
+    for (size_t i = 0; i < cur_p->size; ++i) {
+        if (cur_p->data[i].logit > nsigmax) {
+            nsigmax = cur_p->data[i].logit;
+        }
+        logits_sum += cur_p->data[i].logit;
+    }
+    float nsigmean = logits_sum / cur_p->size;
+
+    // calculate standard deviation
+    float nsigacc = 0;
+    for (size_t i = 0; i < cur_p->size; ++i) {
+        nsigacc += pow(cur_p->data[i].logit - nsigmean, 2);
+    }
+    float nsigstd = sqrt(nsigacc / cur_p->size);
+
+    //apply mask
+    for (size_t i = 0; i < cur_p->size; ++i) {
+        if (cur_p->data[i].logit < nsigmax - (nsigma * nsigstd)) {
+            cur_p->data[i].logit -= 999.0f;
+        }
+    }
+    sample_softmax(cur_p);
+}
+
 void sample_entropy(llama_token_data_array * cur_p, float min_temp, float max_temp, float exponent_val, float smoothing_factor) {
     // no need to do anything if there is only one (or zero) candidates
     if (cur_p->size <= 1) {
@@ -1645,7 +1677,7 @@ void sample_grammar(FileFormat file_format, int32_t n_vocab, llama_token_data_ar
 
 }
 
-int SampleLogits(const float * logits, int n_ctx, int n_vocab, int rep_pen_range, float rep_pen, float rep_pen_slope, float presence_penalty, float top_k, float top_a, float top_p, float min_p, float typical_p, float tfs, float temp, std::mt19937 & rng,
+int SampleLogits(const float * logits, int n_ctx, int n_vocab, int rep_pen_range, float rep_pen, float rep_pen_slope, float presence_penalty, float top_k, float top_a, float top_p, float min_p, float typical_p, float tfs, float nsigma, float temp, std::mt19937 & rng,
 int mirostat, float mirostat_tau, float mirostat_eta, float dry_multiplier, float dry_base, int dry_allowed_length, int dry_penalty_last_n, float xtc_threshold, float xtc_probability,
 const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dynatemp_range, float dynatemp_exponent, float smoothing_factor)
 {
@@ -1688,6 +1720,24 @@ const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dyna
         {
             id = sample_token_mirostat_v2(&candidates_p, rng, mirostat_tau, mirostat_eta, &mirostat_mu);
         }
+    }
+    else if (nsigma > 0.0f)
+    {
+        sample_top_k(&candidates_p, top_k);
+        if (dynatemp_range > 0) {
+            float dynatemp_min = temp - dynatemp_range;
+            float dynatemp_max = temp + dynatemp_range;
+            //do not allow negative values
+            dynatemp_min       = dynatemp_min < 0 ? 0 : dynatemp_min;
+            dynatemp_max       = dynatemp_max < 0 ? 0 : dynatemp_max;
+            dynatemp_exponent  = dynatemp_exponent < 0 ? 0 : dynatemp_exponent;
+            sample_entropy(&candidates_p, dynatemp_min, dynatemp_max, dynatemp_exponent, smoothing_factor);
+        } else {
+            sample_temperature(&candidates_p, temp, smoothing_factor);
+        }
+        sample_top_n_sigma(&candidates_p, nsigma);
+        sample_xtc(&candidates_p, xtc_threshold, xtc_probability, rng);
+        id = sample_token(&candidates_p, rng);
     }
     else
     {
@@ -2463,7 +2513,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         if(mmproj_filename != "" && file_format==FileFormat::GGUF_GENERIC)
         {
             printf("\nAttempting to apply Multimodal Projector: %s\n", mmproj_filename.c_str());
-            #if defined(GGML_USE_VULKAN) || defined(GGML_USE_METAL)
+            #if defined(GGML_USE_METAL)
             if(file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2VL)
             {
                 set_clip_uses_gpu(false);
@@ -3514,6 +3564,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     kcpp_data->min_p = inputs.min_p;
     kcpp_data->typical_p = inputs.typical_p;
     kcpp_data->tfs_z = inputs.tfs;
+    kcpp_data->nsigma = inputs.nsigma;
     kcpp_data->temp = inputs.temperature;
     kcpp_data->repeat_last_n = inputs.rep_pen_range;
     kcpp_data->rep_pen_slope = inputs.rep_pen_slope;
@@ -4049,6 +4100,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
             const float presence_penalty = kcpp_data->presence_penalty;
             const float typical_p = kcpp_data->typical_p;
             const float tfs_z = kcpp_data->tfs_z;
+            const float nsigma = kcpp_data->nsigma;
             const float dynatemp_range = kcpp_data->dynatemp_range;
             const float dynatemp_exponent = kcpp_data->dynatemp_exponent;
             const float smoothing_factor = kcpp_data->smoothing_factor;
@@ -4232,7 +4284,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 // }
 
                 id = SampleLogits(logitsPtr, nctx, n_vocab, last_n_size, repeat_penalty, kcpp_data->rep_pen_slope, presence_penalty,
-                top_k, top_a, top_p, min_p, typical_p, tfs_z, temp, rng,
+                top_k, top_a, top_p, min_p, typical_p, tfs_z, nsigma, temp, rng,
                 kcpp_data->mirostat, kcpp_data->mirostat_tau, kcpp_data->mirostat_eta,
                 kcpp_data->dry_multiplier, kcpp_data->dry_base,
                 kcpp_data->dry_allowed_length, kcpp_data->dry_penalty_last_n, kcpp_data->xtc_threshold, kcpp_data->xtc_probability,

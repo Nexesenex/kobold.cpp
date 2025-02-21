@@ -55,10 +55,10 @@ dry_seq_break_max = 512
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.84200"
+KcppVersion = "1.84202"
 LcppVersion = "b4722"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/02/15"
+ReleaseDate = "2025/02/21"
 showdebug = True
 # guimode = False
 kcpp_instance = None #global running instance
@@ -210,6 +210,7 @@ class generation_inputs(ctypes.Structure):
                 ("min_p", ctypes.c_float),
                 ("typical_p", ctypes.c_float),
                 ("tfs", ctypes.c_float),
+                ("nsigma", ctypes.c_float),
                 ("rep_pen", ctypes.c_float),
                 ("rep_pen_range", ctypes.c_int),
                 ("rep_pen_slope", ctypes.c_float),
@@ -1784,6 +1785,7 @@ def generate(genparams, stream_flag=False):
     min_p = float(genparams.get('min_p', 0.0))
     typical_p = float(genparams.get('typical', 1.0))
     tfs = float(genparams.get('tfs', 1.0))
+    nsigma = float(genparams.get('nsigma', 0.0))
     rep_pen = float(genparams.get('rep_pen', 1.0))
     rep_pen_range = int(genparams.get('rep_pen_range', 320))
     rep_pen_slope = float(genparams.get('rep_pen_slope', 1.0))
@@ -1850,6 +1852,7 @@ def generate(genparams, stream_flag=False):
     inputs.min_p = min_p
     inputs.typical_p = typical_p
     inputs.tfs = tfs
+    inputs.nsigma = nsigma
     inputs.rep_pen = rep_pen
     inputs.rep_pen_range = rep_pen_range
     inputs.rep_pen_slope = rep_pen_slope
@@ -5661,6 +5664,17 @@ def load_config_cli(filename):
             print("\nA .kcppt template was selected from CLI - automatically selecting your backend...")
             auto_set_backend_cli()
 
+def save_config_cli(filename):
+    savdict = json.loads(json.dumps(args.__dict__))
+    if filename is None:
+        return
+    filenamestr = str(filename).strip()
+    filenamestr = f"{filenamestr}.kcpps" if ".kcpps" not in filenamestr.lower() else filenamestr
+    file = open(filenamestr, 'a')
+    file.write(json.dumps(savdict))
+    file.close()
+    print(f"\nSaved .kcpps configuration file as {filename}\nIt can be loaded with --config [filename] in future.")
+    pass
 
 def delete_old_pyinstaller():
     try:
@@ -5829,6 +5843,10 @@ def main(launch_args):
 
     if args.analyze:
         analyze_gguf_model_wrapper(args.analyze)
+        return
+
+    if args.exportconfig and args.exportconfig!="":
+        save_config_cli(args.exportconfig)
         return
 
     if args.config and len(args.config)==1: #handle initial config loading for launch
@@ -6771,6 +6789,7 @@ if __name__ == '__main__':
     advparser.add_argument("--forceversion", help="If the model file format detection fails (e.g. rogue modified model) you can set this to override the detected format (enter desired version, e.g. 401 for GPTNeoX-Type2).",metavar=('[version]'), type=int, default=0)
     advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated. Not recommended.", action='store_true')
     advparser.add_argument("--unpack", help="Extracts the file contents of the KoboldCpp/Croco.Cpp binary into a target directory.", metavar=('destination'), type=str, default="")
+    advparser.add_argument("--exportconfig", help="Exports the current selected arguments as a .kcpps settings file", metavar=('[filename]'), type=str, default="")
     advparser.add_argument("--nomodel", help="Allows you to launch the GUI alone, without selecting any model.", action='store_true')
     advparser.add_argument("--moeexperts", metavar=('[num of experts]'), help="How many experts to use for MoE models (default=follow gguf)", type=int, default=-1)
     advparser.add_argument("--normrmseps", metavar=('[norm rms eps]'), help="Override Norm RMS Epsilon value to use for the model. Useful for <2bpw quants mainly. Example of format: 1.95e-05 (default=follow gguf)", type=float, default=-1.0)
