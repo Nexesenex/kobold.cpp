@@ -288,8 +288,8 @@ void IMatrixCollector::save_imatrix(int ncall) const {
         out.write(m_params.prompt_file.c_str(), len);
     }
 
-    LOGV(1, "\n");
-    LOG_DBGV(1, "%s: stored collected data after %d chunks in %s\n", __func__, m_last_call, fname.c_str());
+    // LOGV(1, "\n");
+    LOGV(1, "%s: stored collected data after %d chunks in %s\n", __func__, m_last_call, fname.c_str());
 }
 
 bool IMatrixCollector::load_imatrix(const char * fname) {
