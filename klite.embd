@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 216;
+	const LITEVER = 219;
 	const urlParams = new URLSearchParams(window.location.search);
 	var localflag = true;
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -462,13 +462,13 @@ Current version indicated by LITEVER below.
 	.saveloadpopup {
 		width: 660px;
 		background-color: #262626;
-		margin-top: 80px;
+		margin-top: 120px;
 	}
 	@media (max-width: 768px) {
 		.saveloadpopup {
 			width: 100%;
 			background-color: #262626;
-			margin-top: 80px;
+			margin-top: 120px;
 		}
 	}
 	.saveloadgrid
@@ -478,7 +478,7 @@ Current version indicated by LITEVER below.
 		margin-top: 4px;
 		padding: 4px;
 		display: grid;
-		gap: 4px;
+		gap: 2px;
 		font-size: 12px;
 	}
 	@media (max-width: 340px) {
@@ -2212,6 +2212,24 @@ Current version indicated by LITEVER below.
 	.bg_teal:disabled:hover {
 		background-color: #8a8a8a;
 	}
+	.bg_primary {
+		background-color: #337ab7;
+	}
+	.bg_primary:hover {
+		background-color: #286090;
+	}
+	.bg_primary:active:focus {
+		background-color: #23527c;
+	}
+	.bg_primary:focus {
+		background-color: #23527c;
+	}
+	.bg_primary:disabled {
+		background-color: #8a8a8a;
+	}
+	.bg_primary:disabled:hover {
+		background-color: #8a8a8a;
+	}
 
 	.bluebtn {
 		color: #fff;
@@ -2833,6 +2851,9 @@ Current version indicated by LITEVER below.
 	const koboldcpp_tts_endpoint = "/api/extra/tts";
 	const koboldcpp_admin_list_endpoint = "/api/admin/list_options";
 	const koboldcpp_admin_reload_endpoint = "/api/admin/reload_config";
+	const koboldcpp_savedata_list_endpoint = "/api/extra/data/list";
+	const koboldcpp_savedata_save_endpoint = "/api/extra/data/save";
+	const koboldcpp_savedata_load_endpoint = "/api/extra/data/load";
 
 	const oai_models_endpoint = "/models";
 	const oai_submit_endpoint = "/completions";
@@ -2896,7 +2917,7 @@ Current version indicated by LITEVER below.
 	const HD_RES_PX = 768;
 	const NO_HD_RES_PX = 512;
 	const AVATAR_PX = 384;
-	const SAVE_SLOTS = 6;
+	const SAVE_SLOTS = 8;
 	const num_regex_rows = 4;
 	const default_websearch_template = `### New Task:\nFrom above text, rephrase the search engine query "{{QUERY}}" as a single short phrase (for search engines) using proper nouns, references and names to avoid ambiguity.\n\n### Rephrased Search Query Created:\n`;
 
@@ -2984,6 +3005,7 @@ Current version indicated by LITEVER below.
 	var koboldcpp_has_vision = false;
 	var koboldcpp_has_multiplayer = false;
 	var koboldcpp_has_websearch = false;
+	var koboldcpp_has_savedatafile = false;
 	var koboldcpp_admin_type = 0; //0 = no admin, 1=has admin, 2=protected admin
 	var lastSearchQuery = "";
 	var lastSearchResults = [];
@@ -3153,6 +3175,7 @@ Current version indicated by LITEVER below.
 		dynatemp_range: 0.0,
 		dynatemp_exponent: 1.0,
 		smoothing_factor: 0.0,
+		nsigma: 0.0,
 		top_p: 0.92,
 		min_p: 0.00,
 		presence_penalty: 0.00,
@@ -3184,6 +3207,7 @@ Current version indicated by LITEVER below.
 			dynatemp_range: defaultsettings.dynatemp_range,
 			dynatemp_exponent: defaultsettings.dynatemp_exponent,
 			smoothing_factor: defaultsettings.smoothing_factor,
+			nsigma: defaultsettings.nsigma,
 			top_k: defaultsettings.top_k,
 			top_p: defaultsettings.top_p,
 			min_p: defaultsettings.min_p,
@@ -3196,7 +3220,7 @@ Current version indicated by LITEVER below.
 			rep_pen_slope: defaultsettings.rep_pen_slope,
 			sampler_order: defaultsettings.sampler_order
 		},
-		{"preset":"Simple Logical","description":"A very predictable preset with low randomness.","temp":0.3,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":100,"top_p":0.6,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.02,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Simple Balanced","description":"A good balanced preset with medium randomness.","temp":0.75,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":100,"top_p":0.92,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.07,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Simple Creative","description":"A wild and unpredictable preset with higher randomness.","temp":1.0,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":100,"top_p":0.98,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.15,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Basic Min-P","description":"A good default for Min-P, only works on backends with min-p.","temp":1.25,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":0,"top_p":1,"min_p":0.1,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]},{"preset":"Basic DynaTemp","description":"A good default for DynaTemp, only works on backends with it.","temp":1.25,"dynatemp_range":0.75,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":0,"top_p":1,"min_p":0.05,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]},{"preset":"Basic SmoothSample","description":"A good default for Smooth Sampling, only works on backends with it.","temp":1.0,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.25,"top_k":0,"top_p":1,"min_p":0.05,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]},{"preset":"Basic SillyTavern","description":"Similar to default preset used in SillyTavern.","temp":0.75,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":40,"top_p":0.6,"min_p":0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1.0,"rep_pen":1.18,"rep_pen_range":1024,"rep_pen_slope":0.8,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Neutral (Disabled)","description":"Sets all samplers neutralized, allowing you to customize your own.","temp":1.0,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":200,"top_p":1.0,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.0,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"CoherentCreativity (Legacy)","description":"Legacy preset. A good balance between coherence, creativity, and quality of prose.","rep_pen":1.2,"rep_pen_range":360,"rep_pen_slope":0,"sampler_order":[6,5,0,2,3,1,4],"temp":0.5,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"tfs":0.99,"top_a":0,"top_k":0,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"typical":1},{"preset":"Godlike (Legacy)","description":"Legacy preset. Makes AI give a descriptive and sensual output.","temp":0.7,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":0,"top_p":0.5,"min_p":0.0,"presence_penalty":0.0,"top_a":0.75,"typical":0.19,"tfs":0.97,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,5,4,3,2,1,0]},{"preset":"LiminalDrift (Legacy)","description":"Legacy preset. Sometimes surreal situations arise based on information already present in the story.","temp":0.66,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"top_k":0,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"top_a":0.96,"typical":0.6,"tfs":1,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,4,5,1,0,2,3]}
+		{"preset":"Simple Logical","description":"A very predictable preset with low randomness.","temp":0.3,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"nsigma":0.0,"top_k":100,"top_p":0.6,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.02,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Simple Balanced","description":"A good balanced preset with medium randomness.","temp":0.75,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"nsigma":0.0,"top_k":100,"top_p":0.92,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.07,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Simple Creative","description":"A wild and unpredictable preset with higher randomness.","temp":1.0,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"nsigma":0.0,"top_k":100,"top_p":0.98,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.15,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Basic Min-P","description":"A good default for Min-P, only works on backends with min-p.","temp":1.25,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"nsigma":0.0,"top_k":0,"top_p":1,"min_p":0.1,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]},{"preset":"Basic DynaTemp","description":"A good default for DynaTemp, only works on backends with it.","temp":1.25,"dynatemp_range":0.75,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"nsigma":0.0,"top_k":0,"top_p":1,"min_p":0.05,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]},{"preset":"Basic SmoothSample","description":"A good default for Smooth Sampling, only works on backends with it.","temp":1.0,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.25,"top_k":0,"top_p":1,"min_p":0.05,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.03,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,5,0,1,3,4,2]},{"preset":"Basic SillyTavern","description":"Similar to default preset used in SillyTavern.","temp":0.75,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"nsigma":0.0,"top_k":40,"top_p":0.6,"min_p":0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1.0,"rep_pen":1.18,"rep_pen_range":1024,"rep_pen_slope":0.8,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"Neutral (Disabled)","description":"Sets all samplers neutralized, allowing you to customize your own.","temp":1.0,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"nsigma":0.0,"top_k":200,"top_p":1.0,"min_p":0.0,"presence_penalty":0.0,"top_a":0,"typical":1,"tfs":1,"rep_pen":1.0,"rep_pen_range":360,"rep_pen_slope":0.7,"sampler_order":[6,0,1,3,4,2,5]},{"preset":"CoherentCreativity (Legacy)","description":"Legacy preset. A good balance between coherence, creativity, and quality of prose.","rep_pen":1.2,"rep_pen_range":360,"rep_pen_slope":0,"sampler_order":[6,5,0,2,3,1,4],"temp":0.5,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"nsigma":0.0,"tfs":0.99,"top_a":0,"top_k":0,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"typical":1},{"preset":"Godlike (Legacy)","description":"Legacy preset. Makes AI give a descriptive and sensual output.","temp":0.7,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"nsigma":0.0,"top_k":0,"top_p":0.5,"min_p":0.0,"presence_penalty":0.0,"top_a":0.75,"typical":0.19,"tfs":0.97,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,5,4,3,2,1,0]},{"preset":"LiminalDrift (Legacy)","description":"Legacy preset. Sometimes surreal situations arise based on information already present in the story.","temp":0.66,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"smoothing_factor":0.0,"nsigma":0.0,"top_k":0,"top_p":1,"min_p":0.0,"presence_penalty":0.0,"top_a":0.96,"typical":0.6,"tfs":1,"rep_pen":1.1,"rep_pen_range":1024,"rep_pen_slope":0.7,"sampler_order":[6,4,5,1,0,2,3]}
 	];
 
 	const instructpresets = [
@@ -6064,6 +6088,10 @@ Current version indicated by LITEVER below.
 	function is_using_kcpp_with_multiplayer()
 	{
 		return (custom_kobold_endpoint!="" && koboldcpp_version && koboldcpp_version!="" && compare_version_str(koboldcpp_version, "1.78") >= 0 && koboldcpp_has_multiplayer);
+	}
+	function is_using_kcpp_with_savedatafile()
+	{
+		return (custom_kobold_endpoint!="" && koboldcpp_version && koboldcpp_version!="" && compare_version_str(koboldcpp_version, "1.84") >= 0 && koboldcpp_has_savedatafile);
 	}
 	function is_using_kcpp_with_websearch()
 	{
@@ -9511,6 +9539,7 @@ Current version indicated by LITEVER below.
 									koboldcpp_has_websearch = (data.websearch?true:false);
 									koboldcpp_has_tts = (data.tts?true:false);
 									koboldcpp_admin_type = (data.admin?data.admin:0);
+									koboldcpp_has_savedatafile = (data.savedata?true:false)
 									let has_password = (data.protected?true:false);
 									let has_txt2img = (data.txt2img?true:false);
 									let no_txt_model = (mdlname=="inactive");
@@ -10055,10 +10084,67 @@ Current version indicated by LITEVER below.
 		});
 	}
 
+	var cachedsaveslotlabels = [];
+	var netsaveslotlabels = [];
+	function saveloadchangeslot(updatelist=false)
+	{
+		let selectedslot = document.getElementById("saveslotselecteddropdown").value;
+		let selectedlocation = document.getElementById("saveslotlocationdropdown").value;
+		let selectedslotlabel = null;
+		let choices = "";
+		let foundoption = false;
+		if(selectedlocation=="1") //local
+		{
+			for(let i=0;i<cachedsaveslotlabels.length;++i)
+			{
+				let testslot = cachedsaveslotlabels[i];
+				if(selectedslot==i)
+				{
+					selectedslotlabel = testslot;
+					foundoption = true;
+				}
+				let lbl = (i+1);
+				let tsdesc = (testslot.length>50)?testslot.substring(0,50)+"...":testslot;
+				let slotname = (testslot?`Local Slot `+(lbl)+` - `+tsdesc+``:`Local Slot `+(lbl)+` - [ Empty ]`);
+				choices += `<option value=${i}${(selectedslot==i)?" selected":""}>${slotname}</option>`;
+			}
+		} else if(selectedlocation=="2") { //remote saves
+			for(let i=0;i<netsaveslotlabels.length;++i)
+			{
+				let testslot = netsaveslotlabels[i];
+				if(selectedslot==i)
+				{
+					selectedslotlabel = testslot;
+					foundoption = true;
+				}
+				let lbl = (i+1);
+				let tsdesc = (testslot.length>50)?testslot.substring(0,50)+"...":testslot;
+				let slotname = (testslot?`Server Slot `+(lbl)+` - `+tsdesc+``:`Server Slot `+(lbl)+` - [ Empty ]`);
+				choices += `<option value=${i}${(selectedslot==i)?" selected":""}>${slotname}</option>`;
+			}
+		}
+		document.getElementById("loadfromslot").disabled = (selectedslotlabel?false:true);
+		document.getElementById("downloadslot").disabled = (selectedslotlabel?false:true);
+		document.getElementById("deleteslot").disabled = (selectedslotlabel?false:true);
+		if(!foundoption)
+		{
+			document.getElementById("saveslotselecteddropdown").selectedIndex = 0;
+		}
+		if(updatelist)
+		{
+			document.getElementById("saveslotselecteddropdown").innerHTML = choices;
+		}
+	}
 	function display_saveloadcontainer()
 	{
 		mainmenu_untab(true);
 		document.getElementById("saveloadcontainer").classList.remove("hidden");
+
+		if (is_using_kcpp_with_savedatafile()) {
+			document.getElementById("kcppsaveavailable").classList.remove("hidden");
+		} else {
+			document.getElementById("kcppsaveavailable").classList.add("hidden");
+		}
 
 		let slotpromises = [];
 		for(let i=0;i<SAVE_SLOTS;++i)
@@ -10067,111 +10153,277 @@ Current version indicated by LITEVER below.
 		}
 		Promise.all(slotpromises).then(slotlabels=>
 		{
-			let filetable = ``;
-			let entry = `<div style="display:flex">
-					<button type="button" style="font-size:12px; margin:2px;width:33%" name="localsave" class="btn btn-primary" onclick="hide_popups();save_file_button()">`+"💾<br>Download File"+`</button>
-					<button type="button" style="font-size:12px; margin:2px;width:33%" name="localload" class="btn btn-primary" onclick="hide_popups();load_file_button()">`+"📁<br>Open File"+`</button>
-					<button type="button" style="font-size:12px; margin:2px;width:34%" name="shareurl" class="btn btn-primary" onclick="hide_popups();share_story_button()">`+"🌐<br>Share"+`</button>
-					</div>
-					<div style="margin-top:3px; text-align: center; align-self: center; width: calc(100% - 184px);">
-					<span style="font-weight:bold;text-decoration: underline;">Temporary Browser Storage</span>
-					</div>`;
-			filetable += entry;
-
-			for(let i=0;i<slotlabels.length;++i)
-			{
-				let testslot = slotlabels[i];
-				let lbl = (i+1);
-				entry = `<div style="display:flex; height:42px;">
-					<div style="margin:3px; text-align: center; align-self: center; width: calc(100% - 184px);">
-					`+(testslot?`[ Slot `+(lbl)+` - `+testslot+` ]`:`[ Slot `+(lbl)+` - Empty ]`)+`
-					</div>
-					<div style="text-align: right; align-self: center; width: 184px;">
-					<button type="button" title="Save To Slot ${lbl}" class="btn btn-primary" onclick="save_to_slot(${i})"><img class="btnicon-save"/></button>
-					<button type="button" title="Load From Slot ${lbl}" class="btn btn-primary" onclick="load_from_slot(${i})" `+(testslot?"":"disabled")+`><img class="btnicon-load"/></button>
-					<button type="button" title="Download Slot ${lbl}" class="btn btn-primary bg_green" onclick="download_from_slot(${i})" `+(testslot?"":"disabled")+`><img class="btnicon-download"/></button>
-					<button type="button" title="Delete Slot ${lbl}" class="btn btn-primary bg_red" onclick="delete_from_slot(${i})" `+(testslot?"":"disabled")+`><img class="btnicon-delete"/></button>
-					</div></div>`;
-				filetable += entry;
-			}
+			cachedsaveslotlabels = slotlabels;
+			saveloadchangeslot(true);
 			populate_corpo_leftpanel();
-			document.getElementById("saveloadentries").innerHTML = filetable;
 		});
+		if(is_using_kcpp_with_savedatafile())
+		{
+			//grab saves
+			fetch(custom_kobold_endpoint + koboldcpp_savedata_list_endpoint, {
+			method: 'POST', // or 'PUT'
+			headers: get_kobold_header(),
+			})
+			.then((response) => response.json())
+			.then((data) => {
+				netsaveslotlabels = data;
+				saveloadchangeslot(true);
+				populate_corpo_leftpanel();
+			})
+			.catch((error) => {
+				console.error('Error:', error);
+			});
+		}
 	}
-	function save_to_slot(slot)
+	function save_to_slot(slot,islocal)
 	{
 		let defaultsavename = (localsettings.opmode==1?"Untitled Story":(localsettings.opmode==2?"Untitled Adventure":(localsettings.opmode==3?"Untitled Chat":"Untitled Instruct")));
 		let savename = defaultsavename + " " + new Date().toLocaleString();
-		let slotnumshown = (slot+1);
-		indexeddb_load("slot_"+slot+"_meta","").then(testslot=>{
+		let slotnumshown = (parseInt(slot)+1);
+		let newcompressedstory = generate_compressed_story(true, true, true);
+		if(islocal)
+		{
+			indexeddb_load("slot_"+slot+"_meta","").then(testslot=>{
+				if (testslot) {
+					savename = testslot;
+				}
+				const slotwrite = function () {
+					warn_on_quit = false;
+					inputBox("Enter a label for this Browser Storage Slot data", "Enter a label", savename, defaultsavename, () => {
+						let userinput = getInputBoxValue();
+						if (userinput.trim() == "") {
+							userinput = defaultsavename;
+						}
+						indexeddb_save("slot_" + slot + "_data", newcompressedstory)
+						indexeddb_save("slot_" + slot + "_meta", userinput).then(()=>{display_saveloadcontainer()});
+					});
+				}
+
+				if (testslot) {
+					msgboxYesNo("Overwrite existing story in Browser Storage Slot " + slotnumshown + "?", "Overwrite Browser Storage Slot " + slotnumshown, () => {
+						slotwrite();
+					}, null);
+				}
+				else {
+					slotwrite();
+				}
+			});
+		} else { //remote save
+			let testslot = (slot<netsaveslotlabels.length?netsaveslotlabels[slot]:"");
 			if (testslot) {
 				savename = testslot;
 			}
-			let newcompressedstory = generate_compressed_story(true, true, true);
-
 			const slotwrite = function () {
 				warn_on_quit = false;
-				inputBox("Enter a label for this Browser Storage Slot data", "Enter a label", savename, defaultsavename, () => {
+				inputBox("Enter a label for this Server Storage Slot data", "Enter a label", savename, defaultsavename, () => {
 					let userinput = getInputBoxValue();
 					if (userinput.trim() == "") {
 						userinput = defaultsavename;
 					}
-					indexeddb_save("slot_" + slot + "_data", newcompressedstory)
-					indexeddb_save("slot_" + slot + "_meta", userinput).then(()=>{display_saveloadcontainer()});
+					//complete remote save
+					fetch(custom_kobold_endpoint + koboldcpp_savedata_save_endpoint, {
+					method: 'POST', // or 'PUT'
+					headers: get_kobold_header(),
+					body: JSON.stringify({
+						"slot": slot,
+						"format": "kcpp_lzma_b64",
+						"title": userinput,
+						"data": newcompressedstory,
+					}),
+					})
+					.then((response) => response.json())
+					.then((data) => {
+						if(!data.success)
+						{
+							msgbox(`Save Error: ${data.error}`,"Save Failed",false,false,()=>{
+								display_saveloadcontainer();
+							});
+						}
+						else
+						{
+							display_saveloadcontainer();
+						}
+					})
+					.catch((error) => {
+						console.error('Error:', error);
+						msgbox(`Save Error: ${error}`,"Save Failed",false,false,()=>{
+							display_saveloadcontainer();
+						});
+					});
 				});
 			}
-
 			if (testslot) {
-				msgboxYesNo("Overwrite existing story in Browser Storage Slot " + slotnumshown + "?", "Overwrite Storage Slot " + slotnumshown, () => {
+				msgboxYesNo("Overwrite existing story in Server Storage Slot " + slotnumshown + "?", "Overwrite Server Storage Slot " + slotnumshown, () => {
 					slotwrite();
 				}, null);
 			}
 			else {
 				slotwrite();
 			}
-		});
+		}
 	}
-	function load_from_slot(slot)
+	function load_from_slot(slot,islocal)
 	{
-		indexeddb_load("slot_"+slot+"_data","").then(loadedstorycompressed=>{
-			if(loadedstorycompressed)
-			{
-				hide_popups();
-				import_compressed_story(loadedstorycompressed,false);
-			}else{
-				msgbox("Unable to load story from browser storage","Browser Storage Load Failed");
-			}
-		});
-	}
-	function download_from_slot(slot)
-	{
-		indexeddb_load("slot_"+slot+"_data","").then(loadedstorycompressed=>{
-			if(loadedstorycompressed)
-			{
-				tempfileobj = decompress_story(loadedstorycompressed);
-				if(tempfileobj)
+		if(islocal)
+		{
+			indexeddb_load("slot_"+slot+"_data","").then(loadedstorycompressed=>{
+				if(loadedstorycompressed)
 				{
-					save_file_button(true);
+					hide_popups();
+					import_compressed_story(loadedstorycompressed,false);
+				}else{
+					msgbox("Unable to load story from browser storage","Browser Storage Load Failed");
+				}
+			});
+		} else {
+			fetch(custom_kobold_endpoint + koboldcpp_savedata_load_endpoint, {
+			method: 'POST', // or 'PUT'
+			headers: get_kobold_header(),
+			body: JSON.stringify({
+				"slot": slot,
+			}),
+			})
+			.then((response) => response.json())
+			.then((resp) => {
+				if(!resp.success || !resp.data)
+				{
+					msgbox("Error: Unable to load story from server storage","Server Storage Load Failed");
 				}
 				else
 				{
-					tempfileobj = generate_base_storyobj();
-					msgbox("Story could not be downloaded. Try loading it first.","Browser Storage Load Failed");
+					hide_popups();
+					import_compressed_story(resp.data.data,false);
 				}
-			}else{
-				msgbox("Unable to load story from browser storage","Browser Storage Load Failed");
-			}
-		});
+			})
+			.catch((error) => {
+				console.error('Error:', error);
+				msgbox("Error: Unable to load story from server storage","Server Storage Load Failed");
+			});
+		}
 	}
-	function delete_from_slot(slot)
+	function download_from_slot(slot,islocal)
 	{
-		let slotnumshown = (slot+1);
-		msgboxYesNo("Delete story in Browser Storage Slot "+slotnumshown+"?","Delete Storage Slot "+slotnumshown,()=>{
-			indexeddb_save("slot_"+slot+"_data", "");
-			indexeddb_save("slot_"+slot+"_meta", "").then(()=>{display_saveloadcontainer()});
-		},()=>{
-			display_saveloadcontainer();
-		});
+		let ondl = function (loadedstorycompressed) {
+			if (loadedstorycompressed) {
+				tempfileobj = decompress_story(loadedstorycompressed);
+				if (tempfileobj) {
+					save_file_button(true);
+				}
+				else {
+					tempfileobj = generate_base_storyobj();
+					msgbox("Story could not be downloaded. Try loading it first.", "Download Failed");
+				}
+			} else {
+				msgbox("Unable to download story.", "Download Load Failed");
+			}
+		};
+
+		if(islocal)
+		{
+			indexeddb_load("slot_"+slot+"_data","").then(loadedstorycompressed=>{
+				ondl(loadedstorycompressed);
+			});
+		}
+		else
+		{
+			fetch(custom_kobold_endpoint + koboldcpp_savedata_load_endpoint, {
+			method: 'POST', // or 'PUT'
+			headers: get_kobold_header(),
+			body: JSON.stringify({
+				"slot": slot,
+			}),
+			})
+			.then((response) => response.json())
+			.then((resp) => {
+				if(!resp.success || !resp.data)
+				{
+					msgbox("Error: Unable to load story from server storage","Server Storage Load Failed");
+				}
+				else
+				{
+					ondl(resp.data.data);
+				}
+			})
+			.catch((error) => {
+				console.error('Error:', error);
+				msgbox("Error: Unable to load story from server storage","Server Storage Load Failed");
+			});
+		}
+	}
+	function delete_from_slot(slot,islocal)
+	{
+		let slotnumshown = (parseInt(slot)+1);
+		if (islocal) {
+			msgboxYesNo("Delete story in Browser Storage Slot " + slotnumshown + "?", "Delete Browser Storage Slot " + slotnumshown, () => {
+				indexeddb_save("slot_" + slot + "_data", "");
+				indexeddb_save("slot_" + slot + "_meta", "").then(() => { display_saveloadcontainer() });
+			}, () => {
+				display_saveloadcontainer();
+			});
+		} else {
+			msgboxYesNo("Delete story in Server Storage Slot " + slotnumshown + "?", "Delete Server Storage Slot " + slotnumshown, () => {
+				fetch(custom_kobold_endpoint + koboldcpp_savedata_save_endpoint, {
+				method: 'POST', // or 'PUT'
+				headers: get_kobold_header(),
+				body: JSON.stringify({
+					"slot": slot,
+					"format": "",
+					"title": "",
+					"data": "",
+				}),
+				})
+				.then((response) => response.json())
+				.then((data) => {
+					if(!data.success)
+					{
+						msgbox(`Delete Error: ${data.error}`,"Delete Failed",false,false,()=>{
+							display_saveloadcontainer();
+						});
+					}
+					else
+					{
+						display_saveloadcontainer();
+					}
+				})
+				.catch((error) => {
+					console.error('Error:', error);
+					msgbox(`Delete Error: ${error}`,"Delete Failed",false,false,()=>{
+						display_saveloadcontainer();
+					});
+				});
+			}, () => {
+				display_saveloadcontainer();
+			});
+		}
+	}
+
+	function save_to_curr_slot()
+	{
+		let selectedslot = document.getElementById("saveslotselecteddropdown").value;
+		let selectedlocation = document.getElementById("saveslotlocationdropdown").value;
+		let islocal = (selectedlocation=="1");
+		save_to_slot(selectedslot,islocal);
+	}
+	function load_from_curr_slot()
+	{
+		let selectedslot = document.getElementById("saveslotselecteddropdown").value;
+		let selectedlocation = document.getElementById("saveslotlocationdropdown").value;
+		let islocal = (selectedlocation=="1");
+		load_from_slot(selectedslot,islocal);
+	}
+	function download_from_curr_slot()
+	{
+		let selectedslot = document.getElementById("saveslotselecteddropdown").value;
+		let selectedlocation = document.getElementById("saveslotlocationdropdown").value;
+		let islocal = (selectedlocation=="1");
+		download_from_slot(selectedslot,islocal);
+	}
+	function delete_from_curr_slot()
+	{
+		let selectedslot = document.getElementById("saveslotselecteddropdown").value;
+		let selectedlocation = document.getElementById("saveslotlocationdropdown").value;
+		let islocal = (selectedlocation=="1");
+		delete_from_slot(selectedslot,islocal);
 	}
 
 	var cached_model_list = null;
@@ -10679,6 +10931,7 @@ Current version indicated by LITEVER below.
 		document.getElementById("dynatemp_range").value = localsettings.dynatemp_range;
 		document.getElementById("dynatemp_exponent").value = localsettings.dynatemp_exponent;
 		document.getElementById("smoothing_factor").value = localsettings.smoothing_factor;
+		document.getElementById("nsigma").value = localsettings.nsigma;
 		document.getElementById("dynatemp_overview").innerText = (localsettings.dynatemp_range>0?"ON":"OFF");
 		document.getElementById("presence_penalty").value = localsettings.presence_penalty;
 		document.getElementById("sampler_seed").value = localsettings.sampler_seed;
@@ -10869,6 +11122,7 @@ Current version indicated by LITEVER below.
 			document.getElementById("dynatemp_range").value = found.dynatemp_range;
 			document.getElementById("dynatemp_exponent").value = found.dynatemp_exponent;
 			document.getElementById("smoothing_factor").value = found.smoothing_factor;
+			document.getElementById("nsigma").value = found.nsigma;
 			document.getElementById("top_k").value = document.getElementById("top_k_slide").value = found.top_k;
 			document.getElementById("top_p").value = document.getElementById("top_p_slide").value = found.top_p;
 			document.getElementById("top_a").value = found.top_a;
@@ -10948,6 +11202,7 @@ Current version indicated by LITEVER below.
 			document.getElementById("dynatemp_range").value != found.dynatemp_range ||
 			document.getElementById("dynatemp_exponent").value != found.dynatemp_exponent ||
 			document.getElementById("smoothing_factor").value != found.smoothing_factor ||
+			document.getElementById("nsigma").value != found.nsigma ||
 			document.getElementById("top_k").value != found.top_k ||
 			document.getElementById("top_p").value != found.top_p ||
 			document.getElementById("top_a").value != found.top_a ||
@@ -11117,6 +11372,7 @@ Current version indicated by LITEVER below.
 		localsettings.dynatemp_range = parseFloat(document.getElementById("dynatemp_range").value);
 		localsettings.dynatemp_exponent = parseFloat(document.getElementById("dynatemp_exponent").value);
 		localsettings.smoothing_factor = parseFloat(document.getElementById("smoothing_factor").value);
+		localsettings.nsigma = parseFloat(document.getElementById("nsigma").value);
 		localsettings.presence_penalty = parseFloat(document.getElementById("presence_penalty").value);
 		localsettings.top_k = parseInt(document.getElementById("top_k").value);
 		localsettings.top_a = parseFloat(document.getElementById("top_a").value);
@@ -11231,6 +11487,7 @@ Current version indicated by LITEVER below.
 		localsettings.dynatemp_range = (localsettings.dynatemp_range>localsettings.temperature?localsettings.temperature:localsettings.dynatemp_range);
 		localsettings.dynatemp_exponent = cleannum(localsettings.dynatemp_exponent, 0.0, 10.0);
 		localsettings.smoothing_factor = cleannum(localsettings.smoothing_factor, 0.0, 10.0);
+		localsettings.nsigma = cleannum(localsettings.nsigma, 0.0, 5.0);
 		localsettings.presence_penalty = cleannum(localsettings.presence_penalty, -2, 2);
 		localsettings.top_k = cleannum(Math.floor(localsettings.top_k), 0, 300);
 		localsettings.top_a = cleannum(localsettings.top_a, 0, 1);
@@ -14067,6 +14324,7 @@ Current version indicated by LITEVER below.
 			submit_payload.params.dynatemp_range = localsettings.dynatemp_range;
 			submit_payload.params.dynatemp_exponent = localsettings.dynatemp_exponent;
 			submit_payload.params.smoothing_factor = localsettings.smoothing_factor;
+			submit_payload.params.nsigma = localsettings.nsigma;
 			submit_payload.params.banned_tokens = get_token_bans();
 			submit_payload.params.render_special = localsettings.render_special_tags;
 			submit_payload.params.logprobs = localsettings.request_logprobs;
@@ -14712,6 +14970,7 @@ Current version indicated by LITEVER below.
 				submit_payload.params.dynatemp_range = localsettings.dynatemp_range;
 				submit_payload.params.dynatemp_exponent = localsettings.dynatemp_exponent;
 				submit_payload.params.smoothing_factor = localsettings.smoothing_factor;
+				submit_payload.params.nsigma = localsettings.nsigma;
 			}
 
 			last_request_str = JSON.stringify(submit_payload);
@@ -20269,8 +20528,38 @@ Current version indicated by LITEVER below.
 
 			<div style="overflow: auto;">
 				<div id="saveloadentries" class="menutext saveloadgrid">
+					<div style="display:flex">
+						<button type="button" style="font-size:12px; margin:2px;width:33%" name="localsave" class="btn btn-primary" onclick="hide_popups();save_file_button()">💾<br>Download File</button>
+						<button type="button" style="font-size:12px; margin:2px;width:33%" name="localload" class="btn btn-primary" onclick="hide_popups();load_file_button()">📁<br>Open File</button>
+						<button type="button" style="font-size:12px; margin:2px;width:34%" name="shareurl" class="btn btn-primary" onclick="hide_popups();share_story_button()">🌐<br>Share</button>
+					</div>
+					<div style="margin-top:3px; text-align: center; align-self: center; width: 100%">
+						<span style="font-weight:bold;text-decoration: underline;">Slot Storage Option</span>
+					</div>
+					<div style="display:flex;">
+						<div style="width: 92px; margin:8px; margin-left: 4px; margin-right: 4px; font-size: 14px;">Data Location</div>
+						<div style="margin:3px; text-align: center; align-self: center; width: calc(100% - 94px);">
+						<select title="Select Slot Location" style="padding:4px;" class="form-control" id="saveslotlocationdropdown" onchange="saveloadchangeslot(true)">
+						<option value="1">Local Browser Cache</option>
+						<option value="2" id="kcppsaveavailable" class="hidden">KoboldCpp Server Storage</option>
+						</select>
+						</div>
+					</div>
+					<div style="display:flex;">
+						<div style="width: 92px; margin:8px; margin-left: 4px; margin-right: 4px; font-size: 14px;">Selected Slot</div>
+						<div style="margin:3px; text-align: center; align-self: center; width: calc(100% - 94px);">
+						<select title="Select Save Slot" style="padding:4px;" class="form-control" id="saveslotselecteddropdown" onchange="saveloadchangeslot(false)">
+						</select>
+						</div>
+					</div>
+					<div style="width:100%;align-self: center;">
+						<button type="button" id="savetoslot" title="Save To Slot" class="btn btn-primary bg_primary" onclick="save_to_curr_slot()"><img class="btnicon-save"/> Save Slot</button>
+						<button type="button" id="loadfromslot" title="Load From Slot" class="btn btn-primary bg_primary" onclick="load_from_curr_slot()"><img class="btnicon-load"/> Load Slot</button>
+						<button type="button" id="downloadslot" title="Download Slot" class="btn btn-primary bg_green" onclick="download_from_curr_slot()"><img class="btnicon-download"/> Download</button>
+						<button type="button" id="deleteslot" title="Delete Slot" class="btn btn-primary bg_red" onclick="delete_from_curr_slot()"><img class="btnicon-delete"/> Delete Slot</button>
+					</div>
 				</div>
-				<div class="menutext"><p style="padding:6px;font-size: 10px;" class="color_red">Caution: Storage Slots are saved to a temporary cache and can be deleted by your browser. To avoid losing data, use the download file button.</p></div>
+				<div class="menutext"><p style="padding:6px;font-size: 10px;" class="color_red">Caution: Local Storage Slots are saved to a temporary cache and can be deleted by your browser. KoboldCpp remote storage will save data to a file in your KoboldCpp server. To avoid losing data, use the download file button.</p></div>
 				<div class="popupfooter">
 					<button type="button" class="btn btn-primary" id=""
 						onclick="hide_popups()">Back</button>
@@ -21190,6 +21479,11 @@ Current version indicated by LITEVER below.
 									<input title="Retain Grammar State" type="checkbox" id="grammar_retain_state" style="padding:2px 3px;margin-top:8px;height: max-content;">
 									</div>
 								</div>
+							</div>
+							<div class="settinglabel settingcell">
+								<div title="Top N Sigma. 0 to deactivate." class="justifyleft settingsmall" style="width:100%">T.NSigma</div>
+								<div class="justifyleft settingsmall" style="width:100%">
+								<input title="Top N Sigma. 0 to deactivate." class="settinglabel miniinput" type="text" inputmode="decimal" placeholder="0" value="0" id="nsigma"></div>
 							</div>
 						</div>
 					</div>
