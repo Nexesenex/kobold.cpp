@@ -281,7 +281,7 @@ if (LLAMA_CUBLAS)
 
         # 35 == Lowest CUDA 11 standard for Kepler
         # 37 == Highest CUDA 11 standard for Kepler
-        # 52 == lowest CUDA 12 standard
+        # 50 == lowest CUDA 12 standard
         # 60 == f16 CUDA intrinsics
         # 61 == integer CUDA intrinsics
         # 70 == (assumed) compute capability at which unrolling a loop in mul_mat_q kernels is faster
