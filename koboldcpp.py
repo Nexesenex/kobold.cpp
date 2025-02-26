@@ -5692,7 +5692,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
     if global_memory["modelOverride"] is not None:
         args.model_param = global_memory["modelOverride"]
     
-    noModelLoaded = args.nomodel and not ("model_param" in args and len(args.model_param) > 0 and len(args.model_param[0]) > 0)
+    noModelLoaded = args.nomodel and not ("model_param" in args and args.model_param is not None and len(args.model_param) > 0 and len(args.model_param[0]) > 0)
     global_memory["currentModel"] = None if noModelLoaded else args.model_param
 
     if args.model_param and (args.benchmark or args.prompt):
