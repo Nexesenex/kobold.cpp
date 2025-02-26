@@ -3535,8 +3535,11 @@ def RunServerMultiThreaded(addr, port, server_handler):
             ipv6_sock = context.wrap_socket(ipv6_sock, server_side=True)
 
     numThreads = 24
-    ipv4_sock.bind((addr, port))
-    ipv4_sock.listen(numThreads)
+    try:
+        ipv4_sock.bind((addr, port))
+        ipv4_sock.listen(numThreads)
+    except Exception:
+         print("IPv4 Socket Failed to Bind.")
 
     if ipv6_sock:
         try:
@@ -4455,7 +4458,7 @@ def show_gui():
             return
         filenamestr = str(filename).strip()
         filenamestr = f"{filenamestr}.kcppt" if ".kcppt" not in filenamestr.lower() else filenamestr
-        file = open(filenamestr, 'a')
+        file = open(filenamestr, 'w')
         file.write(json.dumps(savdict))
         file.close()
         pass
@@ -4848,7 +4851,7 @@ def show_gui():
             return
         filenamestr = str(filename).strip()
         filenamestr = f"{filenamestr}.kcpps" if ".kcpps" not in filenamestr.lower() else filenamestr
-        file = open(filenamestr, 'a')
+        file = open(filenamestr, 'w')
         file.write(json.dumps(savdict))
         file.close()
         pass
@@ -5357,7 +5360,7 @@ def save_config_cli(filename):
         return
     filenamestr = str(filename).strip()
     filenamestr = f"{filenamestr}.kcpps" if ".kcpps" not in filenamestr.lower() else filenamestr
-    file = open(filenamestr, 'a')
+    file = open(filenamestr, 'w')
     file.write(json.dumps(savdict))
     file.close()
     print(f"\nSaved .kcpps configuration file as {filename}\nIt can be loaded with --config [filename] in future.")
