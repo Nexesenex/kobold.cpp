@@ -22667,6 +22667,7 @@ Current version indicated by LITEVER below.
 			<div class="menutext">
 				<div>
 					<div id="serverSavesPreviewContainer">
+						<span id="serverSavesPreviewClear" style="display: none;">x</span>
 						<img id="serverSavesPreview" style="height: 30%;" title="Click on the image to select a thumbnail"/>
 					<hr/>
 					</div>
@@ -22786,6 +22787,7 @@ else
 		serverSavesGroup = document.getElementById("serverSavesGroup"), serverSavesPassword = document.getElementById("serverSavesPassword"),
 		saveToDBUpload = document.getElementById("saveToDBUpload"), saveToDBCurrent = document.getElementById("saveToDBCurrent"),
 		submitSaveToDB = document.getElementById("submitSaveToDB"), serverSavesPreview = document.getElementById("serverSavesPreview"),
+		serverSavesPreviewClear = document.getElementById("serverSavesPreviewClear"),
 		serverSavesPreviewContainer = document.getElementById("serverSavesPreviewContainer");
 
 	let lastUsedAdminPassword = "", lastUsedSavePassword = "";
@@ -23075,22 +23077,27 @@ else
 		if (!!lastThumbnailData)
 		{
 			serverSavesPreview.src = lastThumbnailData
+			serverSavesPreviewClear.style.display = "unset"
 		}
 		else
 		{
 			serverSavesPreview.src = loadImgData
+			serverSavesPreviewClear.style.display = "none"
 		}
 	}
 
 	serverSavesPreview.onclick = () => {
 		promptUserForLocalFile(async (result) => {
 			lastThumbnailData = null
-			if (result.ext === ".png" || result.ext === ".webp") {
-				let dataUrl = await generateThumbnail(result.file, [300, 300])
-				lastThumbnailData = dataUrl
-			}
+			let dataUrl = await generateThumbnail(result.file, [300, 300])
+			lastThumbnailData = dataUrl
 			setSaveUploadPreviewThumbnail()
 		}, [".png", ".jpg", ".jpeg", ".webp", ".gif"])
+	}
+
+	serverSavesPreviewClear.onclick = () => {
+		lastThumbnailData = null
+		setSaveUploadPreviewThumbnail()
 	}
 
 	showServerSavingPopup = (fileLabel, fileData) => {
@@ -23389,6 +23396,16 @@ else
 		opacity: 0.9;
 		width: 80%;
 		float: right;
+	}
+
+	#serverSavesPreviewClear {
+		height: 20px;
+		width: 20px;
+		float: right;
+		background: grey;
+		border-radius: 100%;
+		font-size: 10pt;
+		margin-right: 10px;
 	}
 
 	.scenariosearchbox1 {
