@@ -22667,8 +22667,8 @@ Current version indicated by LITEVER below.
 			<div class="menutext">
 				<div>
 					<div id="serverSavesPreviewContainer">
-						<img id="serverSavesPreview" style="height: 30%;"/>
-						<hr/>
+						<img id="serverSavesPreview" style="height: 30%;" title="Click on the image to select a thumbnail"/>
+					<hr/>
 					</div>
 					<label for="serverSavesLabel">Enter a label for this data</label>
 					<input type="text" id="serverSavesLabel" style="padding:4px;" class="form-control">
@@ -23000,16 +23000,17 @@ else
 		})
 	}
 
-	let lastThumbnailData = null
-	saveToDBUpload.onclick = () => {
+	let promptUserForLocalFile = (fileCallback, allowedExtensions=[]) => {
 		let input = document.createElement('input');
 		input.type = 'file';
+		if (allowedExtensions.length > 0)
+		{
+			input.accept=allowedExtensions.join(",")
+		}
 
 		input.onchange = e => {
-			try
-			{
-				if (!e?.target?.files || e.target.files.length !== 1)
-				{
+			try {
+				if (!e?.target?.files || e.target.files.length !== 1) {
 					throw new Error("Please select one file")
 				}
 				/**
@@ -23017,43 +23018,43 @@ else
 				 */
 				let file = e.target.files[0];
 
-				fileNameWithExt = file.name; 
+				fileNameWithExt = file.name;
 				extPos = fileNameWithExt.lastIndexOf(".");
-				fileName = fileNameWithExt.substring(0, extPos); 
-				ext = fileNameWithExt.substring(extPos); 
-				if (extPos === -1 || ![".png", ".json", ".webp", ".kaistory"].includes(ext))
-				{
-					throw new Error("Please select one file of a JSON or PNG type")
-				}
+				fileName = fileNameWithExt.substring(0, extPos);
+				ext = fileNameWithExt.substring(extPos);
 
 				let reader = new FileReader();
 				reader.readAsDataURL(file)
-				
+
 				reader.onload = async readerEvent => {
 					let content = readerEvent.target.result;
-					
-					lastThumbnailData = null
-					if (ext === ".png" || ext === ".webp")
-					{
-						let dataUrl = await generateThumbnail(file, [300, 300])
-						lastThumbnailData = dataUrl
-					}
-					
-					showServerSavingPopup(fileName, content)
-					
-				}}
-			catch (e)
-			{
+					fileCallback({
+						file, fileName, ext, content
+					})
+				}
+			}
+			catch (e) {
 				handleError(e)
 			}
-			finally 
-			{	
+			finally {
 				delete input;
 			}
 		}
 
 		input.click();
-		
+	}
+
+	let lastThumbnailData = null
+	saveToDBUpload.onclick = () => {
+		promptUserForLocalFile(async (result) => {
+			lastThumbnailData = null
+			if (result.ext === ".png" || result.ext === ".webp") {
+				let dataUrl = await generateThumbnail(result.file, [300, 300])
+				lastThumbnailData = dataUrl
+			}
+
+			showServerSavingPopup(result.fileName, result.content)
+		}, [".png", ".json", ".webp", ".kaistory"])
 	}
 
 	saveToDBCurrent.onclick = () => {
@@ -23069,20 +23070,35 @@ else
 	}
 
 	let lastFileData = ""
+
+	let setSaveUploadPreviewThumbnail = () => {
+		if (!!lastThumbnailData)
+		{
+			serverSavesPreview.src = lastThumbnailData
+		}
+		else
+		{
+			serverSavesPreview.src = loadImgData
+		}
+	}
+
+	serverSavesPreview.onclick = () => {
+		promptUserForLocalFile(async (result) => {
+			lastThumbnailData = null
+			if (result.ext === ".png" || result.ext === ".webp") {
+				let dataUrl = await generateThumbnail(result.file, [300, 300])
+				lastThumbnailData = dataUrl
+			}
+			setSaveUploadPreviewThumbnail()
+		}, [".png", ".jpg", ".jpeg", ".webp", ".gif"])
+	}
+
 	showServerSavingPopup = (fileLabel, fileData) => {
 		hideAllServerSavingPopups()
 		lastFileData = fileData
 		serverSavesLabel.value = fileLabel
 		serverSavesPassword.value = lastUsedSavePassword
-		if (!!lastThumbnailData)
-		{
-			serverSavesPreviewContainer.style.display = "unset"
-			serverSavesPreview.src = lastThumbnailData
-		}
-		else
-		{
-			serverSavesPreviewContainer.style.display = "none" 
-		}
+		setSaveUploadPreviewThumbnail()
 		reloadSaveMetadata().then(() => {
 			serverSavingPopup.classList.remove("hidden")
 		})
@@ -23209,6 +23225,11 @@ else
 	}
 </script>
 <script>
+	/**
+	 * Same as the load img, but just copied here to allow JS reuse
+	 */
+	let loadImgData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAAnQAAAJ0Bj3LnbgAAADxQTFRF8MQZKbmZ8p0fAAAA8bIc8MIa8MQZq7NIKrmY7cQa0sIs8d2BebRn87wcLL+aJrmZ//8AdbhpAP//c69phZ/jMwAAABR0Uk5T//3/AP+y8v6kbP///xcZUAGrAUn40tQBAAAAp0lEQVR4nHWSiw6DIAwAy1peojLd///rKm3ZZOOiCXLpBRIhB2CCf+JeXUr1RAECATGQ+WN3TFUBKsJmJu0ijOCZo5m7EJzVRrE2c3ZBhoiXCXoYsYm4qejbUSbWo94HXCfZALXF0kVWQVAKP6Xo/hK0RHZcmVnAa+lzketYESBb6dvwPmxDqdX49TiWlIw/JeG6+ViCVsJZCWclnJVwVkLwfwau/+INBncEwpxiohQAAAAASUVORK5CYII="
+
 	let originalLoadScenario = complete_load_scenario, originalDisplayScenarios = display_scenarios, originalScenarioSearch = scenario_search, originalPreviewTempScenario = preview_temp_scenario;
 	
 	complete_load_scenario = () => {
@@ -23267,6 +23288,12 @@ else
 					let sgrid = document.getElementById("scenariogrid");
 					Array.from(document.querySelectorAll("#scenariogrid > button")).filter(schild => schild.name != "").forEach(schild => {
 						let elem = scenario_db[schild.name];
+						scenarioTitle = document.createElement("div")
+						scenarioTitle.innerText = schild.innerText
+						scenarioTitle.classList.add("scenarioTitle")
+						schild.innerText = ""
+						schild.appendChild(scenarioTitle)
+
 						if (!!elem?.serverSave) {
 							let hasImageAssigned = !!elem?.image
 							if (hasImageAssigned) 
@@ -23352,6 +23379,16 @@ else
 		text-indent: 10px;
 		max-height: 80px;
 		max-width: 300px;
+	}
+
+	.scenarioTitle {
+		background-color: grey;
+		color: white;
+		border-radius: 50px;
+		padding: 0 5px 0 5px;
+		opacity: 0.9;
+		width: 80%;
+		float: right;
 	}
 
 	.scenariosearchbox1 {
