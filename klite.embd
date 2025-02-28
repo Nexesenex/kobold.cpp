@@ -23160,7 +23160,7 @@ else
 	}
 </script>
 <script>
-	let originalLoadScenario = complete_load_scenario, originalDisplayScenarios = display_scenarios;
+	let originalLoadScenario = complete_load_scenario, originalDisplayScenarios = display_scenarios, originalScenarioSearch = scenario_search;
 	
 	complete_load_scenario = () => {
 		if (temp_scenario?.serverSave === true)
@@ -23173,11 +23173,15 @@ else
 		}
 	}
 
+	let scenarioDropdown = document.getElementById("scenariosearchdropdown");
+
 	display_scenarios = () => {
 		if (localflag && is_using_kcpp_with_admin()) {
 			scenario_db = scenario_db.filter(scenario => !(scenario?.serverSave === true))
 			promptForAdminPassword(() => {
-				getServerSaves({ scenarios: true }).then(saves => {
+				getServerSaves({ 
+					typeName: "Scenarios"
+				}).then(saves => {
 					for (save in saves) {
 						if (!!saves[save].name) {
 							let name = saves[save].name, isPublic = saves[save].isPublic, isEncrypted = saves[save].isEncrypted
@@ -23199,6 +23203,23 @@ else
 					}
 
 					originalDisplayScenarios()
+
+					let sgrid = document.getElementById("scenariogrid");
+					Array.from(document.querySelectorAll("#scenariogrid > button")).filter(schild => schild.name != "").forEach(schild => {
+						let elem = scenario_db[schild.name];
+						if (!!elem?.serverSave) {
+							let hasImageAssigned = !!elem?.image
+							if (hasImageAssigned) 
+							{
+								schild.style.backgroundImage = `url(${elem?.image})`
+								schild.style.backgroundSize = "contain"
+							}
+							else
+							{
+								schild.style.backgroundImage = `var(--img_load),linear-gradient(to right, #daae5d, #ad8823)`
+							}
+						}
+					})
 				})
 					.catch(e => {
 						console.error(e)
@@ -23209,12 +23230,58 @@ else
 			originalDisplayScenarios()
 		}
 	}
+
+	scenarioDropdown.appendChild(new Option("Server scenarios", 50))
+	scenarioDropdown.appendChild(new Option("Character cards", 51))
+
+	scenario_search = () => {
+		originalScenarioSearch()
+
+		let sgrid = document.getElementById("scenariogrid");
+		let searchstr = document.getElementById("scenariosearch").value.trim().toLowerCase();
+		let sdrop = scenarioDropdown.value;
+		let sgrid_nodes = sgrid.children;
+		if (sdrop == 50 || sdrop == 51)
+		{
+			for(let i=0; i<sgrid_nodes.length; i++){
+				let schild = sgrid_nodes[i];
+				let elem = null;
+				if(schild.name!="")
+				{
+					elem = scenario_db[schild.name];
+				}
+				if (!!elem?.serverSave)
+				{
+					let hasImageAssigned = (sdrop == 51 && !!elem?.image)
+					let matchesServerSideFilter = sdrop == 50 || hasImageAssigned
+					let doesSearchTermMatch = searchstr=="" || schild.innerText.trim().toLowerCase().includes(searchstr)
+					if(matchesServerSideFilter && doesSearchTermMatch)
+					{
+						schild.style.display = "block";
+					}
+					else
+					{
+						schild.style.display = "none";
+					}
+				}
+			}
+		}
+	}
 </script>
 <style>
 	/* Slightly odd but mostly fitting text formatting for server side scenarios */
 	.scenarioitem {
 		text-wrap: auto;
 		text-indent: 10px;
+		max-height: 80px;
+		max-width: 300px;
+	}
+
+	.scenariosearchbox1 {
+		width: calc(100% - 140px);
+	}
+	.scenariosearchbox2 {
+		width: 134px;
 	}
 
 	.scenariogrid {

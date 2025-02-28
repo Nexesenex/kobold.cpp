@@ -2605,6 +2605,8 @@ Enter Prompt:<br>
             if embedded_kailite is None:
                 response_body = (f"Embedded KoboldAI Lite is not found.<br>You will have to connect via the main KoboldAI client, or <a href='https://lite.koboldai.net?local=1&port={self.port}'>use this URL</a> to connect.").encode()
             else:
+                if args.developerMode:
+                    loadKailite()
                 response_body = embedded_kailite
 
         elif self.path in ["/noscript", "/noscript?"] or self.path.startswith(('/noscript?','noscript?')): #it's possible for the root url to have ?params without /
@@ -3122,20 +3124,33 @@ Enter Prompt:<br>
             elif args.admindatadir == "":
                     response_body = (json.dumps({"success": False, "error": "No data directory provided"}).encode())
             else:
-                scenarios = False
+                typeName = None
+                groupName = None
+                hasThumbnail = False
                 try:
                     tempbody = json.loads(body)
                     if isinstance(tempbody, dict):
-                        scenarios = tempbody.get('scenarios', False)
+                        typeName = tempbody.get('typeName', None)
+                        groupName = tempbody.get('groupName', None)
+                        hasThumbnail = tempbody.get('hasThumbnail', False)
                 except Exception:
-                    scenarios = ""
+                    typeName = None
+                    groupName = None
+                    hasThumbnail = False
                 saves = {}
                 dynamicWhereClauses = []
-                if scenarios:
-                    dynamicWhereClauses.append("typeName = 'Scenarios'")
+                dynamicWhereArguments = []
+                if typeName is not None:
+                    dynamicWhereClauses.append("typeName = ?")
+                    dynamicWhereArguments.append(typeName)
+                if groupName is not None:
+                    dynamicWhereClauses.append("groupName = ?")
+                    dynamicWhereArguments.append(groupName)
+                if hasThumbnail:
+                    dynamicWhereClauses.append("previewContent is not null")
                 if (not self.check_header_password(args.adminpassword)):
                     dynamicWhereClauses.append("isPublic = 1 and isEncrypted = 0")
-                saves = getSaves(whereClause=f"{'WHERE' if len(dynamicWhereClauses) > 0 else ''} {' AND '.join(dynamicWhereClauses)};")
+                saves = getSaves(whereClause=f"{'WHERE' if len(dynamicWhereClauses) > 0 else ''} {' AND '.join(dynamicWhereClauses)};", whereArgs=dynamicWhereArguments)
                 jsonArray = json.dumps(saves)
                 response_body = (jsonArray).encode()
 
@@ -6113,16 +6128,10 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
 
     #load embedded lite
     try:
-        basepath = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
-        with open(os.path.join(basepath, "klite.embd"), mode='rb') as f:
-            embedded_kailite = f.read()
-            # patch it with extra stuff
-            origStr = "Sorry, KoboldAI Lite requires Javascript to function."
-            patchedStr = "Sorry, KoboldAI Lite requires Javascript to function.<br>You can use <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp NoScript mode</a> instead."
-            embedded_kailite = embedded_kailite.decode("UTF-8","ignore")
-            embedded_kailite = embedded_kailite.replace(origStr, patchedStr)
-            embedded_kailite = embedded_kailite.encode()
-            print("Embedded KoboldAI Lite loaded.")
+        loadKailite()
+        print("Embedded KoboldAI Lite loaded.")
+        if args.developerMode:
+            print("Embedded KoboldAI Lite will be reloaded with each request to allow changes to be viewed.")
     except Exception:
         print("Could not find KoboldAI Lite. Embedded KoboldAI Lite will not be available.")
 
@@ -6403,6 +6412,7 @@ if __name__ == '__main__':
     advparser.add_argument("--exportconfig", help="Exports the current selected arguments as a .kcpps settings file", metavar=('[filename]'), type=str, default="")
     advparser.add_argument("--nomodel", help="Allows you to launch the GUI alone, without selecting any model.", action='store_true')
     advparser.add_argument("--moeexperts", metavar=('[num of experts]'), help="How many experts to use for MoE models (default=follow gguf)", type=int, default=-1)
+    advparser.add_argument("--developerMode", help="Enables developer utilities, such as hot reloading of Kobold Lite.", default=False, type=bool)
     compatgroup2 = parser.add_mutually_exclusive_group()
     compatgroup2.add_argument("--showgui", help="Always show the GUI instead of launching the model right away when loading settings from a .kcpps file.", action='store_true')
     compatgroup2.add_argument("--skiplauncher", help="Doesn't display or use the GUI launcher.", action='store_true')
@@ -6454,3 +6464,15 @@ if __name__ == '__main__':
     compatgroup3.add_argument("--nommap", help=argparse.SUPPRESS, action='store_true')
 
     main(parser.parse_args())
+
+def loadKailite():
+    global embedded_kailite
+    basepath = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
+    with open(os.path.join(basepath, "klite.embd"), mode='rb') as f:
+        embedded_kailite = f.read()
+        # patch it with extra stuff
+        origStr = "Sorry, KoboldAI Lite requires Javascript to function."
+        patchedStr = "Sorry, KoboldAI Lite requires Javascript to function.<br>You can use <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp NoScript mode</a> instead."
+        embedded_kailite = embedded_kailite.decode("UTF-8","ignore")
+        embedded_kailite = embedded_kailite.replace(origStr, patchedStr)
+        embedded_kailite = embedded_kailite.encode()
