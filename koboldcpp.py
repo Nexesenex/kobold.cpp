@@ -5366,8 +5366,10 @@ def load_config_cli(filename):
             else:
                 setattr(args, key, value)
         if args.istemplate:
-            print("\nA .kcppt template was selected from CLI - automatically selecting your backend...")
-            auto_set_backend_cli()
+            print("\nA .kcppt template was selected from CLI...")
+            if (args.usecublas is None) and (args.usevulkan is None) and (args.useclblast is None):
+                print("Automatically selecting your backend...")
+                auto_set_backend_cli()
 
 def save_config_cli(filename):
     savdict = json.loads(json.dumps(args.__dict__))
