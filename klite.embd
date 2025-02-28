@@ -23281,6 +23281,8 @@ else
 							schild.style.backgroundImage += ",linear-gradient(to right, rgb(40, 160, 140), rgb(35, 150, 175))"
 						}
 					})
+
+					scenario_search()
 				})
 					.catch(e => {
 						console.error(e)
