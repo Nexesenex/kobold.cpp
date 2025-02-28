@@ -23409,11 +23409,11 @@ else
 	}
 
 	.scenariosearchbox1 {
-		width: calc(100% - 150px);
+		width: calc(100% - 180px);
 	}
 
 	.scenariosearchbox2 {
-		width: 144px;
+		width: 174px;
 	}
 
 	.scenariogrid {
