@@ -23209,7 +23209,7 @@ else
 	}
 </script>
 <script>
-	let originalLoadScenario = complete_load_scenario, originalDisplayScenarios = display_scenarios, originalScenarioSearch = scenario_search;
+	let originalLoadScenario = complete_load_scenario, originalDisplayScenarios = display_scenarios, originalScenarioSearch = scenario_search, originalPreviewTempScenario = preview_temp_scenario;
 	
 	complete_load_scenario = () => {
 		if (temp_scenario?.serverSave === true)
@@ -23223,24 +23223,35 @@ else
 	}
 
 	let scenarioDropdown = document.getElementById("scenariosearchdropdown");
-
+	scenarioDropdown.appendChild(new Option("Server", 50))
 	display_scenarios = () => {
 		if (localflag && is_using_kcpp_with_admin()) {
+			// Clean up scenario DB and the scenario dropdown options
 			scenario_db = scenario_db.filter(scenario => !(scenario?.serverSave === true))
+			Array.from(scenarioDropdown.children).filter(elem => !/^\d+$/.test(elem.value)).forEach(elem => elem.remove())
+			serverSideTypes = []
+
 			promptForAdminPassword(() => {
-				getServerSaves({ 
+				/* For scenarios only add: { 
 					typeName: "Scenarios"
-				}).then(saves => {
+				}*/
+				getServerSaves().then(saves => {
 					for (save in saves) {
 						if (!!saves[save].name) {
 							let name = saves[save].name, isPublic = saves[save].isPublic, isEncrypted = saves[save].isEncrypted
 							let displayText = `${name} ${!!isPublic ? "(Public)" : "(Private)"} ${!!isEncrypted ? "🔒" : ""}`
+							let typeName = saves[save].typeName
+							if (!Array.from(scenarioDropdown.children).find(elem => elem.value === typeName))
+							{
+								scenarioDropdown.appendChild(new Option(`${typeName} (Server)`, typeName))
+							}
 
 							let scenario = {
 								title: displayText,
 								desc: displayText,
 								serverSave: true,
-								serverSaveData: saves[save]
+								serverSaveData: saves[save],
+								serverSaveTypeName: typeName
 							}
 
 							if (!!saves[save]?.previewContent) {
@@ -23265,8 +23276,9 @@ else
 							}
 							else
 							{
-								schild.style.backgroundImage = `var(--img_load),linear-gradient(to right, #daae5d, #ad8823)`
+								schild.style.backgroundImage = `var(--img_load)`
 							}
+							schild.style.backgroundImage += ",linear-gradient(to right, rgb(40, 160, 140), rgb(35, 150, 175))"
 						}
 					})
 				})
@@ -23280,9 +23292,6 @@ else
 		}
 	}
 
-	scenarioDropdown.appendChild(new Option("Server scenarios", 50))
-	scenarioDropdown.appendChild(new Option("Character cards", 51))
-
 	scenario_search = () => {
 		originalScenarioSearch()
 
@@ -23290,31 +23299,48 @@ else
 		let searchstr = document.getElementById("scenariosearch").value.trim().toLowerCase();
 		let sdrop = scenarioDropdown.value;
 		let sgrid_nodes = sgrid.children;
-		if (sdrop == 50 || sdrop == 51)
-		{
-			for(let i=0; i<sgrid_nodes.length; i++){
-				let schild = sgrid_nodes[i];
-				let elem = null;
-				if(schild.name!="")
+		for(let i=0; i<sgrid_nodes.length; i++){
+			let schild = sgrid_nodes[i];
+			let elem = null;
+			if(schild.name!="")
+			{
+				elem = scenario_db[schild.name];
+			}
+			if (!!elem?.serverSave)
+			{
+				// If the selector is everything, all server data, or the specific type
+				let matchesServerSideFilter = sdrop == 0 || sdrop == 50 || (sdrop === elem.serverSaveTypeName)
+				let doesSearchTermMatch = searchstr=="" || schild.innerText.trim().toLowerCase().includes(searchstr)
+				if(matchesServerSideFilter && doesSearchTermMatch)
 				{
-					elem = scenario_db[schild.name];
+					schild.style.display = "block";
 				}
-				if (!!elem?.serverSave)
+				else
 				{
-					let hasImageAssigned = (sdrop == 51 && !!elem?.image)
-					let matchesServerSideFilter = sdrop == 50 || hasImageAssigned
-					let doesSearchTermMatch = searchstr=="" || schild.innerText.trim().toLowerCase().includes(searchstr)
-					if(matchesServerSideFilter && doesSearchTermMatch)
-					{
-						schild.style.display = "block";
-					}
-					else
-					{
-						schild.style.display = "none";
-					}
+					schild.style.display = "none";
 				}
 			}
 		}
+	}
+
+	preview_temp_scenario = () => {
+		let author = "";
+		let image = "";
+		if (temp_scenario.author && temp_scenario.author != "") {
+			author = "<br><b>Author:</b> " + temp_scenario.author;
+		}
+		if (temp_scenario.image) {
+			temp_scenario.gui_type = 2; //upgrade to aesthetic if we have image
+			image = `<img id="tempscenarioimg" style="float:right; width:100px; height:${100 / (temp_scenario.image_aspect ? temp_scenario.image_aspect : 1)}px; padding: 8px;" src="${encodeURI(temp_scenario.image)}"></img>`;
+		}
+		let modeSelection = temp_scenario?.serverSaveTypeName
+		if (!modeSelection)
+		{
+			modeSelection = temp_scenario.opmode == 1 ? "Story" : (temp_scenario.opmode == 2 ? "Adventure" : (temp_scenario.opmode == 3 ? "Chat" : "Instruct"))
+		}
+		document.getElementById("scenariodesc").innerHTML = image + `<p><b><u>` + escape_html(temp_scenario.title) + `</u></b></p>` +
+			`<p><b>Mode:</b> ` + modeSelection + author + `</p>`
+			+ `<p>` + (temp_scenario.desc != "" ? escape_html(temp_scenario.desc).replace(/\n/g, '<br>') : "[No Description Given]") + `</p>`;
 	}
 </script>
 <style>
@@ -23327,10 +23353,11 @@ else
 	}
 
 	.scenariosearchbox1 {
-		width: calc(100% - 140px);
+		width: calc(100% - 150px);
 	}
+
 	.scenariosearchbox2 {
-		width: 134px;
+		width: 144px;
 	}
 
 	.scenariogrid {

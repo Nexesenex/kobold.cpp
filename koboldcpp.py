@@ -2103,6 +2103,13 @@ def prepDataDB():
                 """
                 cursor.execute(sql)
 
+            result = cursor.execute("SELECT typeName FROM saveType WHERE typeName='Lorebook';").fetchall()
+            if result == []:
+                sql = """INSERT INTO saveType(typeName)
+                VALUES ('Lorebook');
+                """
+                cursor.execute(sql)
+
             # Remake views
             sql = "drop view if exists saveOverview;"
             cursor.execute(sql)
