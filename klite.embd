@@ -462,13 +462,13 @@ Current version indicated by LITEVER below.
 	.saveloadpopup {
 		width: 660px;
 		background-color: #262626;
-		margin-top: 120px;
+		margin-top: 60px;
 	}
 	@media (max-width: 768px) {
 		.saveloadpopup {
 			width: 100%;
 			background-color: #262626;
-			margin-top: 120px;
+			margin-top: 60px;
 		}
 	}
 	.saveloadgrid
@@ -2917,7 +2917,7 @@ Current version indicated by LITEVER below.
 
 	const AVATAR_PX = 384;
 
-	const SAVE_SLOTS = 10;
+	const SAVE_SLOTS = 16;
 
 	const num_regex_rows = 4;
 	const default_websearch_template = `### New Task:\nFrom above text, rephrase the search engine query "{{QUERY}}" as a single short phrase (for search engines) using proper nouns, references and names to avoid ambiguity.\n\n### Rephrased Search Query Created:\n`;
