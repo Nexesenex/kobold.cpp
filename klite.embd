@@ -3010,6 +3010,7 @@ Current version indicated by LITEVER below.
 	var koboldcpp_has_multiplayer = false;
 	var koboldcpp_has_websearch = false;
 	var koboldcpp_has_savedatafile = false;
+	var koboldcpp_has_server_saving = false;
 	var koboldcpp_admin_type = 0; //0 = no admin, 1=has admin, 2=protected admin
 	var lastSearchQuery = "";
 	var lastSearchResults = [];
@@ -9539,6 +9540,7 @@ Current version indicated by LITEVER below.
 									koboldcpp_has_tts = (data.tts?true:false);
 									koboldcpp_admin_type = (data.admin?data.admin:0);
 									koboldcpp_has_savedatafile = (data.savedata?true:false)
+									koboldcpp_has_server_saving = (data.hasServerSaving ? true:false)
 									let has_password = (data.protected?true:false);
 									let has_txt2img = (data.txt2img?true:false);
 									let no_txt_model = (mdlname=="inactive");
@@ -22776,6 +22778,10 @@ else
 	// password = "SaveOurSouls"; e = encrypt(password, "Hello world"); decrypt(password, e)
 </script>
 <script>
+	function is_using_kcpp_with_server_saving() {
+		return (custom_kobold_endpoint != "" && koboldcpp_version && koboldcpp_version != "" && compare_version_str(koboldcpp_version, "1.84") >= 0 && koboldcpp_has_server_saving);
+	}
+
 	let serverSavesPopup = document.getElementById("serverSaves");
 	let serverSavingPopup = document.getElementById("serverSavingPopup");
 	let serverSavingTypePopup = document.getElementById("serverSavingTypePopup");
@@ -23203,7 +23209,7 @@ else
 		let hasAppended = false;
 		document.querySelector("#topbtn_save_load .nav-link").onclick = () => {
 			closeTopNav();
-			if (localflag && is_using_kcpp_with_admin() && !hasAppended) {
+			if (is_using_kcpp_with_server_saving() && !hasAppended) {
 				let serverSideButton = document.createElement("button");
 				serverSideButton.classList.add("btn", "btn-primary")
 				serverSideButton.innerText = "Show saves stored on server"
@@ -23253,7 +23259,7 @@ else
 	let scenarioDropdown = document.getElementById("scenariosearchdropdown");
 	scenarioDropdown.appendChild(new Option("Server", 50))
 	display_scenarios = () => {
-		if (localflag && is_using_kcpp_with_admin()) {
+		if (is_using_kcpp_with_server_saving()) {
 			// Clean up scenario DB and the scenario dropdown options
 			scenario_db = scenario_db.filter(scenario => !(scenario?.serverSave === true))
 			Array.from(scenarioDropdown.children).filter(elem => !/^\d+$/.test(elem.value)).forEach(elem => elem.remove())
