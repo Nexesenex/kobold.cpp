@@ -2613,7 +2613,8 @@ Enter Prompt:<br>
                 response_body = (f"Embedded KoboldAI Lite is not found.<br>You will have to connect via the main KoboldAI client, or <a href='https://lite.koboldai.net?local=1&port={self.port}'>use this URL</a> to connect.").encode()
             else:
                 if args.developerMode:
-                    loadKailite()
+                    basepath = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
+                    loadKailite(basepath=basepath)
                 response_body = embedded_kailite
 
         elif self.path in ["/noscript", "/noscript?"] or self.path.startswith(('/noscript?','noscript?')): #it's possible for the root url to have ?params without /
@@ -6137,7 +6138,8 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
 
     #load embedded lite
     try:
-        loadKailite()
+        basepath = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
+        loadKailite(basepath=basepath)
         print("Embedded KoboldAI Lite loaded.")
         if args.developerMode:
             print("Embedded KoboldAI Lite will be reloaded with each request to allow changes to be viewed.")
@@ -6474,9 +6476,8 @@ if __name__ == '__main__':
 
     main(parser.parse_args())
 
-def loadKailite():
+def loadKailite(basepath):
     global embedded_kailite
-    basepath = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
     with open(os.path.join(basepath, "klite.embd"), mode='rb') as f:
         embedded_kailite = f.read()
         # patch it with extra stuff
