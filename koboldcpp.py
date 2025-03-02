@@ -49,7 +49,7 @@ logit_bias_max = 512
 dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.85"
+KcppVersion = "1.85.1"
 showdebug = True
 kcpp_instance = None #global running instance
 global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False}
@@ -3198,7 +3198,7 @@ def show_gui():
         if not args.model_param and not args.sdmodel and not args.whispermodel and not args.ttsmodel and not args.nomodel:
             global exitcounter
             exitcounter = 999
-            exit_with_error(2,"No ggml model or kcpps file was selected. Exiting.")
+            exit_with_error(2,"No gguf model or kcpps file was selected. Exiting.")
         return
 
     #dummy line to get darkdetect imported in pyinstaller
@@ -4012,24 +4012,7 @@ def show_gui():
         savdict = json.loads(json.dumps(args.__dict__))
         file_type = [("KoboldCpp LaunchTemplate", "*.kcppt")]
         #remove blacklisted fields
-        savdict["istemplate"] = True
-        savdict["gpulayers"] = -1
-        savdict["threads"] = -1
-        savdict["hordekey"] = ""
-        savdict["hordeworkername"] = ""
-        savdict["sdthreads"] = 0
-        savdict["password"] = None
-        savdict["usemmap"] = False
-        savdict["usemlock"] = False
-        savdict["debugmode"] = 0
-        savdict["ssl"] = None
-        savdict["useclblast"] = None
-        savdict["usecublas"] = None
-        savdict["usevulkan"] = None
-        savdict["tensor_split"] = None
-        savdict["draftgpusplit"] = None
-        savdict["config"] = None
-        savdict["ttsthreads"] = 0
+        savdict = convert_args_to_template(savdict)
         filename = asksaveasfilename(filetypes=file_type, defaultextension=file_type)
         if not filename:
             return
@@ -4928,8 +4911,31 @@ def load_config_cli(filename):
                 print("Automatically selecting your backend...")
                 auto_set_backend_cli()
 
-def save_config_cli(filename):
+def convert_args_to_template(savdict):
+    savdict["istemplate"] = True
+    savdict["gpulayers"] = -1
+    savdict["threads"] = -1
+    savdict["hordekey"] = ""
+    savdict["hordeworkername"] = ""
+    savdict["sdthreads"] = 0
+    savdict["password"] = None
+    savdict["usemmap"] = False
+    savdict["usemlock"] = False
+    savdict["debugmode"] = 0
+    savdict["ssl"] = None
+    savdict["useclblast"] = None
+    savdict["usecublas"] = None
+    savdict["usevulkan"] = None
+    savdict["tensor_split"] = None
+    savdict["draftgpusplit"] = None
+    savdict["config"] = None
+    savdict["ttsthreads"] = 0
+    return savdict
+
+def save_config_cli(filename, template):
     savdict = json.loads(json.dumps(args.__dict__))
+    if template:
+        savdict = convert_args_to_template(savdict)
     if filename is None:
         return
     filenamestr = str(filename).strip()
@@ -5105,7 +5111,10 @@ def main(launch_args):
         return
 
     if args.exportconfig and args.exportconfig!="":
-        save_config_cli(args.exportconfig)
+        save_config_cli(args.exportconfig,False)
+        return
+    if args.exporttemplate and args.exporttemplate!="":
+        save_config_cli(args.exporttemplate,True)
         return
 
     if args.config and len(args.config)==1: #handle initial config loading for launch
@@ -5401,7 +5410,9 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
         has_multiplayer = True
 
     if args.savedatafile and isinstance(args.savedatafile, str):
-        filepath = args.savedatafile
+        filepath = os.path.abspath(args.savedatafile)  # Ensure it's an absolute path
+        if not filepath.endswith(".jsondb"):
+            filepath += ".jsondb"
         try:
             with open(filepath, 'r+', encoding='utf-8', errors='ignore') as f:
                 loaded = json.load(f)
@@ -5947,6 +5958,7 @@ if __name__ == '__main__':
     advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated. Not recommended.", action='store_true')
     advparser.add_argument("--unpack", help="Extracts the file contents of the KoboldCpp binary into a target directory.", metavar=('destination'), type=str, default="")
     advparser.add_argument("--exportconfig", help="Exports the current selected arguments as a .kcpps settings file", metavar=('[filename]'), type=str, default="")
+    advparser.add_argument("--exporttemplate", help="Exports the current selected arguments as a .kcppt template file", metavar=('[filename]'), type=str, default="")
     advparser.add_argument("--nomodel", help="Allows you to launch the GUI alone, without selecting any model.", action='store_true')
     advparser.add_argument("--moeexperts", metavar=('[num of experts]'), help="How many experts to use for MoE models (default=follow gguf)", type=int, default=-1)
     compatgroup2 = parser.add_mutually_exclusive_group()

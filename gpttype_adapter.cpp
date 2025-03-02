@@ -1191,7 +1191,7 @@ void sample_rep_pen(int n_ctx, int rep_pen_range, float rep_pen, float rep_pen_s
     // Create a frequency map to count occurrences of each token in last_tokens
     std::unordered_set<llama_token> tokens_near(last_tokens + last_n_repeat / 2, last_tokens + last_n_repeat);
     std::unordered_set<llama_token> tokens_far(last_tokens, last_tokens + last_n_repeat / 2);
-    
+
     float rep_pen_reduced = rep_pen;
     if(rep_pen_reduced>1.0f)
     {
@@ -1616,24 +1616,6 @@ const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dyna
             id = sample_token_mirostat_v2(&candidates_p, rng, mirostat_tau, mirostat_eta, &mirostat_mu);
         }
     }
-    else if (nsigma > 0.0f)
-    {
-        sample_top_k(&candidates_p, top_k);
-        if (dynatemp_range != 0) {
-            float dynatemp_min = temp - dynatemp_range;
-            float dynatemp_max = temp + dynatemp_range;
-            //do not allow negative values
-            dynatemp_min       = dynatemp_min < 0 ? 0 : dynatemp_min;
-            dynatemp_max       = dynatemp_max < 0 ? 0 : dynatemp_max;
-            dynatemp_exponent  = dynatemp_exponent < 0 ? 0 : dynatemp_exponent;
-            sample_entropy(&candidates_p, dynatemp_min, dynatemp_max, dynatemp_exponent, smoothing_factor);
-        } else {
-            sample_temperature(&candidates_p, temp, smoothing_factor);
-        }
-        sample_top_n_sigma(&candidates_p, nsigma);
-        sample_xtc(&candidates_p, xtc_threshold, xtc_probability, rng);
-        id = sample_token(&candidates_p, rng);
-    }
     else
     {
         for (int i = 0; i < sampler_order.size(); i++)
@@ -1670,6 +1652,10 @@ const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dyna
                     else
                     {
                         sample_temperature(&candidates_p, temp, smoothing_factor);
+                    }
+                    if (nsigma > 0.0f)
+                    {
+                        sample_top_n_sigma(&candidates_p, nsigma);
                     }
                     break;
                 case KCPP_SAMPLER_REP_PEN:
@@ -3534,7 +3520,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
             if (!evalres)
             {
-                fprintf(stderr, "\nFailed to predict at %d! Check your context buffer sizes!\n",n_past);
+                fprintf(stderr, "\nFailed to predict at token position %d! Check your context buffer sizes!\n",n_past);
                 output.text = nullptr;
                 output.status = 0;
                 output.prompt_tokens = output.completion_tokens = 0;
