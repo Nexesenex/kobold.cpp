@@ -813,13 +813,18 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
     ).set_env("LLAMA_ARG_FLASH_ATTN"));
     add_opt(common_arg(
         {"-p", "--prompt"}, "PROMPT",
-        ex == LLAMA_EXAMPLE_MAIN
-            ? "prompt to start generation with\nif -cnv is set, this will be used as system prompt"
-            : "prompt to start generation with",
+        "prompt to start generation with; for system message, use -sys",
         [](common_params & params, const std::string & value) {
             params.prompt = value;
         }
     ).set_excludes({LLAMA_EXAMPLE_SERVER}));
+    add_opt(common_arg(
+        {"-sys", "--system-prompt"}, "PROMPT",
+        "system prompt to use with model (if applicable, depending on chat template)",
+        [](common_params & params, const std::string & value) {
+            params.system_prompt = value;
+        }
+    ).set_examples({LLAMA_EXAMPLE_MAIN}));
     add_opt(common_arg(
         {"--no-perf"},
         string_format("disable internal libllama performance timings (default: %s)", params.no_perf ? "true" : "false"),
