@@ -1,3 +1,40 @@
+# Esolithe's fork of KoboldCPP
+
+Welcome all, this fork focuses on enhanced remote management, server saving and integration in KoboldCPP and Kobold Lite.
+
+It offers the following functionalities:
+- Config reloading (Cedo's implementation) enhanced with an option to select a text model to override the config (useful to switch between models using a generic "8B" or "12B" config without needing one for each model).  There is also helper text in Lite to show you the current config and model in use, along with a waiting mechanism to only reload when it's ready.
+
+![411112504-e4d6936f-234f-40d8-8bfe-578c4332089d](https://github.com/user-attachments/assets/de7d4105-ffdd-40c3-bc0e-26041b6ded36)
+- Save / load from server - with or without admin password: It is possible to store saves, scenarios, character cards, lorebooks etc.  The difference with the main KCPP is this option integrates with the scenerio search, offers the ability to upload multiple types of content and does not limit the amount of save uploaded.  Both options can be used together if desired.
+
+![413011334-de6d3101-5621-4c47-a45b-d71f1b436cce](https://github.com/user-attachments/assets/098f64c6-9f6e-4951-b4a9-b4b458ddb7d8)
+- Data on the server can be assigned a thumbnail
+
+![418191433-72b95f51-7868-4a4b-bb50-e92605e1a13c](https://github.com/user-attachments/assets/8618d216-42d8-4c34-a859-5c4a1e809136)
+![413011254-30449652-2292-406c-8d27-bc04d2389a38](https://github.com/user-attachments/assets/63c3f6af-8695-4d4f-92b1-654ccf006fb4)
+- Server save data can be accessed in the scenarios tab (allowing searching by types and names)
+
+![418191036-d773e536-6c09-4b76-828e-6e542e075f0e](https://github.com/user-attachments/assets/81dfea9f-9862-4b52-ba3d-92472a1b758c)
+![418190669-f839ed18-0fb9-4319-82d8-03952c5d3f20](https://github.com/user-attachments/assets/2ee0c202-8f68-44d6-aa6f-18ae35f33857)
+
+## Running the fork
+
+Most of the settings are identical to KoboldCPP, but there's a couple of additional options to note in the launcher (admin tab) - admin must be enabled for these to work:
+- Model directory: A folder with text model GGUFs you wish to allow switching between - this is an override on top of using a config, so please ensure a config directory is set as well.
+- Data directory: A folder server side data is stored (for example saves, character cards etc).
+
+![411112726-0ae7fed6-3baf-43fd-a1d6-bab52319a6ee](https://github.com/user-attachments/assets/8e80b8a3-11fc-4aa0-b4c8-5a9feacf02cb)
+
+If you prefer the arguments:
+- To turn on remote management: --admin
+- To set a management password: --adminpassword "..."
+- To set the reloadable configs directory --admindir "..."
+- To set the reloadable models directory (overriding the config model): --admintextmodelsdir "..."
+- To sets the data storage directory (where the database storing server side saves are stored): --admindatadir "..."
+
+---
+
 # koboldcpp
 
 KoboldCpp is an easy-to-use AI text-generation software for GGML and GGUF models, inspired by the original **KoboldAI**. It's a single self-contained distributable from Concedo, that builds off llama.cpp and adds many additional powerful features.
