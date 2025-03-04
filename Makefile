@@ -315,21 +315,22 @@ ggml_v3-cuda.o: otherarch/ggml_v3-cuda.cu otherarch/ggml_v3-cuda.h
 endif # LLAMA_CUBLAS
 
 ifdef LLAMA_HIPBLAS
-	ifeq ($(wildcard /opt/rocm),)
-		ROCM_PATH	?= /usr
-		GPU_TARGETS ?= $(shell $(shell which amdgpu-arch))
-		HCC         := $(ROCM_PATH)/bin/hipcc
-		HCXX        := $(ROCM_PATH)/bin/hipcc
-	else
-		ROCM_PATH	?= /opt/rocm
-		GPU_TARGETS ?= gfx803 gfx900 gfx906 gfx908 gfx90a gfx1030 gfx1100 $(shell $(ROCM_PATH)/llvm/bin/amdgpu-arch)
-		HCC         := $(ROCM_PATH)/llvm/bin/clang
-		HCXX        := $(ROCM_PATH)/llvm/bin/clang++
-	endif
+ifeq ($(wildcard /opt/rocm),)
+	ROCM_PATH	?= /usr
+	GPU_TARGETS ?= $(shell $(shell which amdgpu-arch))
+	HCC         := $(ROCM_PATH)/bin/hipcc
+	HCXX        := $(ROCM_PATH)/bin/hipcc
+else
+	ROCM_PATH	?= /opt/rocm
+	GPU_TARGETS ?= gfx803 gfx900 gfx906 gfx908 gfx90a gfx1030 gfx1100 $(shell $(ROCM_PATH)/llvm/bin/amdgpu-arch)
+	HCC         := $(ROCM_PATH)/llvm/bin/clang
+	HCXX        := $(ROCM_PATH)/llvm/bin/clang++
+endif
 	LLAMA_CUDA_DMMV_X       ?= 32
 	LLAMA_CUDA_MMV_Y        ?= 1
 	LLAMA_CUDA_KQUANTS_ITER ?= 2
 	HIPFLAGS   += -DGGML_USE_HIP -DGGML_USE_CUDA -DSD_USE_CUBLAS $(shell $(ROCM_PATH)/bin/hipconfig -C)
+	# HIPFLAGS   += -DGGML_USE_HIP -DGGML_HIP_NO_VMM -DGGML_USE_CUDA -DSD_USE_CUBLAS $(shell $(ROCM_PATH)/bin/hipconfig -C)
 	HIPLDFLAGS    += -L$(ROCM_PATH)/lib -Wl,-rpath=$(ROCM_PATH)/lib
 	HIPLDFLAGS    += -L$(ROCM_PATH)/lib64 -Wl,-rpath=$(ROCM_PATH)/lib64
 	HIPLDFLAGS    += -lhipblas -lamdhip64 -lrocblas

@@ -3,8 +3,8 @@
 Download the model and point your `GRANITE_MODEL` environment variable to the path.
 
 ```bash
-$ git clone https://huggingface.co/ibm-granite/granite-vision-3.1-2b-preview
-$ export GRANITE_MODEL=./granite-vision-3.1-2b-preview
+$ git clone https://huggingface.co/ibm-granite/granite-vision-3.2-2b
+$ export GRANITE_MODEL=./granite-vision-3.2-2b
 ```
 
 
@@ -41,10 +41,18 @@ If you actually inspect the `.keys()` of the loaded tensors, you should see a lo
 
 
 ### 2. Creating the Visual Component GGUF
-To create the GGUF for the visual components, we need to write a config for the visual encoder; make sure the config contains the correct `image_grid_pinpoints`
+Next, create a new directory to hold the visual components, and copy the llava.clip/projector files, as shown below.
 
+```bash
+$ ENCODER_PATH=$PWD/visual_encoder
+$ mkdir $ENCODER_PATH
 
-Note: we refer to this file as `$VISION_CONFIG` later on.
+$ cp $GRANITE_MODEL/llava.clip $ENCODER_PATH/pytorch_model.bin
+$ cp $GRANITE_MODEL/llava.projector $ENCODER_PATH/
+```
+
+Now, we need to write a config for the visual encoder. In order to convert the model, be sure to use the correct `image_grid_pinpoints`, as these may vary based on the model. You can find the `image_grid_pinpoints` in `$GRANITE_MODEL/config.json`.
+
 ```json
 {
     "_name_or_path": "siglip-model",
@@ -52,6 +60,7 @@ Note: we refer to this file as `$VISION_CONFIG` later on.
       "SiglipVisionModel"
     ],
     "image_grid_pinpoints": [
+        [384,384],
         [384,768],
         [384,1152],
         [384,1536],
@@ -94,24 +103,13 @@ Note: we refer to this file as `$VISION_CONFIG` later on.
 }
 ```
 
-Create a new directory to hold the visual components, and copy the llava.clip/projector files, as well as the vision config into it.
-
-```bash
-$ ENCODER_PATH=$PWD/visual_encoder
-$ mkdir $ENCODER_PATH
-
-$ cp $GRANITE_MODEL/llava.clip $ENCODER_PATH/pytorch_model.bin
-$ cp $GRANITE_MODEL/llava.projector $ENCODER_PATH/
-$ cp $VISION_CONFIG $ENCODER_PATH/config.json
-```
-
-At which point you should have something like this:
+At this point you should have something like this:
 ```bash
 $ ls $ENCODER_PATH
 config.json             llava.projector         pytorch_model.bin
 ```
 
-Now convert the components to GGUF; Note that we also override the image mean/std dev to `[.5,.5,.5]` since we use the siglip visual encoder - in the transformers model, you can find these numbers in the [preprocessor_config.json](https://huggingface.co/ibm-granite/granite-vision-3.1-2b-preview/blob/main/preprocessor_config.json).
+Now convert the components to GGUF; Note that we also override the image mean/std dev to `[.5,.5,.5]` since we use the SigLIP visual encoder - in the transformers model, you can find these numbers in the `preprocessor_config.json`.
 ```bash
 $ python convert_image_encoder_to_gguf.py \
     -m $ENCODER_PATH \
@@ -119,17 +117,18 @@ $ python convert_image_encoder_to_gguf.py \
     --output-dir $ENCODER_PATH \
     --clip-model-is-vision \
     --clip-model-is-siglip \
-    --image-mean 0.5 0.5 0.5 --image-std 0.5 0.5 0.5
+    --image-mean 0.5 0.5 0.5 \
+    --image-std 0.5 0.5 0.5
 ```
 
-this will create the first GGUF file at `$ENCODER_PATH/mmproj-model-f16.gguf`; we will refer to the abs path of this file as the `$VISUAL_GGUF_PATH.`
+This will create the first GGUF file at `$ENCODER_PATH/mmproj-model-f16.gguf`; we will refer to the absolute path of this file as the `$VISUAL_GGUF_PATH.`
 
 
 ### 3. Creating the LLM GGUF.
 The granite vision model contains a granite LLM as its language model. For now, the easiest way to get the GGUF for LLM is by loading the composite model in `transformers` and exporting the LLM so that it can be directly converted with the normal conversion path.
 
 First, set the `LLM_EXPORT_PATH` to the path to export the `transformers` LLM to.
-```
+```bash
 $ export LLM_EXPORT_PATH=$PWD/granite_vision_llm
 ```
 
@@ -142,7 +141,7 @@ if not MODEL_PATH:
     raise ValueError("env var GRANITE_MODEL is unset!")
 
 LLM_EXPORT_PATH = os.getenv("LLM_EXPORT_PATH")
-if not MODEL_PATH:
+if not LLM_EXPORT_PATH:
     raise ValueError("env var LLM_EXPORT_PATH is unset!")
 
 tokenizer = transformers.AutoTokenizer.from_pretrained(MODEL_PATH)
@@ -166,18 +165,26 @@ $ python convert_hf_to_gguf.py --outfile $LLM_GGUF_PATH $LLM_EXPORT_PATH
 ```
 
 
-### 4. Running the Model in Llama cpp
-Build llama cpp normally; you should have a target binary named `llama-llava-cli`, which you can pass two binaries to. Sample usage:
+### 4. Quantization
+If you want to quantize the LLM, you can do so with `llama-quantize` as you would any other LLM. For example:
+```bash
+$ ./build/bin/llama-quantize $LLM_EXPORT_PATH/granite_llm.gguf $LLM_EXPORT_PATH/granite_llm_q4_k_m.gguf Q4_K_M
+$ LLM_GGUF_PATH=$LLM_EXPORT_PATH/granite_llm_q4_k_m.gguf
+```
 
-Note - the test image shown below can be found [here](https://github-production-user-asset-6210df.s3.amazonaws.com/10740300/415512792-d90d5562-8844-4f34-a0a5-77f62d5a58b5.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20250221%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250221T054145Z&X-Amz-Expires=300&X-Amz-Signature=86c60be490aa49ef7d53f25d6c973580a8273904fed11ed2453d0a38240ee40a&X-Amz-SignedHeaders=host).
+Note that currently you cannot quantize the visual encoder because granite vision models use SigLIP as the visual encoder, which has tensor dimensions that are not divisible by 32.
+
+
+### 5. Running the Model in Llama cpp
+Build llama cpp normally; you should have a target binary named `llama-llava-cli`, which you can pass two binaries to. As an example, we pass the the llama.cpp banner.
 
 ```bash
 $ ./build/bin/llama-llava-cli -m $LLM_GGUF_PATH \
     --mmproj $VISUAL_GGUF_PATH \
-    --image cherry_blossom.jpg \
+    --image ./media/llama0-banner.png \
     -c 16384 \
-    -p "<|system|>\nA chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions.\n<|user|>\n\<image>\nWhat type of flowers are in this picture?\n<|assistant|>\n" \
+    -p "<|system|>\nA chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions.\n<|user|>\n\<image>\nWhat does the text in this image say?\n<|assistant|>\n" \
     --temp 0
 ```
 
-Sample response: `The flowers in the picture are cherry blossoms, which are known for their delicate pink petals and are often associated with the beauty of spring.`
+Sample output: `The text in the image reads "LLAMA C++ Can it run DOOM Llama?"`

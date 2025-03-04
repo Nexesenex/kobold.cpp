@@ -11,6 +11,7 @@
 #include <time.h>
 #include <mutex>
 #include <unordered_map>
+#include <unordered_set>
 #include "model_adapter.h"
 #include "otherarch.h"
 #include "llama.h"
@@ -1272,18 +1273,8 @@ void sample_rep_pen(int n_ctx, int rep_pen_range, float rep_pen, float rep_pen_s
     const int64_t t_start_sample_us = ggml_time_us();
 
     // Create a frequency map to count occurrences of each token in last_tokens
-    std::unordered_map<llama_token, int> token_count_near;
-    std::unordered_map<llama_token, int> token_count_far;
-    for (size_t i = 0; i < last_n_repeat; ++i) {
-        if((i*2) >= last_n_repeat)
-        {
-            token_count_near[last_tokens[i]]++;
-        }
-        else
-        {
-            token_count_far[last_tokens[i]]++;
-        }
-    }
+    std::unordered_set<llama_token> tokens_near(last_tokens + last_n_repeat / 2, last_tokens + last_n_repeat);
+    std::unordered_set<llama_token> tokens_far(last_tokens, last_tokens + last_n_repeat / 2);
 
     float rep_pen_reduced = rep_pen;
     if(rep_pen_reduced>1.0f)
@@ -1291,15 +1282,13 @@ void sample_rep_pen(int n_ctx, int rep_pen_range, float rep_pen, float rep_pen_s
        rep_pen_reduced = 1.0f + ((rep_pen-1.0f)*rep_pen_slope);
     }
     for (size_t i = 0; i < candidates->size; ++i) {
-        const auto token_in_near = token_count_near.find(candidates->data[i].id);
-        const auto token_in_far = token_count_far.find(candidates->data[i].id);
-        bool in_near = (token_in_near != token_count_near.end());
-        bool in_far = (token_in_far != token_count_far.end());
-        if (!in_near && !in_far) {
+        const bool token_in_near = tokens_near.find(candidates->data[i].id) != tokens_near.end();
+        const bool token_in_far = tokens_far.find(candidates->data[i].id) != tokens_far.end();
+        if (!token_in_near && !token_in_far) {
             continue;
         }
 
-        float penalty = (in_near?rep_pen:rep_pen_reduced);
+        float penalty = (token_in_near?rep_pen:rep_pen_reduced);
 
         // The academic publication that described this technique actually just only divided, but that would cause tokens with negative logits to become more likely, which is obviously wrong.
         // This is common fix for this problem, which is to multiply by the penalty instead of dividing.
@@ -1313,7 +1302,6 @@ void sample_rep_pen(int n_ctx, int rep_pen_range, float rep_pen, float rep_pen_s
     }
 
     candidates->sorted = false;
-
 }
 
 void sample_top_p(llama_token_data_array * cur_p, float p, size_t min_keep) {
@@ -1712,24 +1700,6 @@ const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dyna
             id = sample_token_mirostat_v2(&candidates_p, rng, mirostat_tau, mirostat_eta, &mirostat_mu);
         }
     }
-    else if (nsigma > 0.0f)
-    {
-        sample_top_k(&candidates_p, top_k);
-        if (dynatemp_range != 0) {
-            float dynatemp_min = temp - dynatemp_range;
-            float dynatemp_max = temp + dynatemp_range;
-            //do not allow negative values
-            dynatemp_min       = dynatemp_min < 0 ? 0 : dynatemp_min;
-            dynatemp_max       = dynatemp_max < 0 ? 0 : dynatemp_max;
-            dynatemp_exponent  = dynatemp_exponent < 0 ? 0 : dynatemp_exponent;
-            sample_entropy(&candidates_p, dynatemp_min, dynatemp_max, dynatemp_exponent, smoothing_factor);
-        } else {
-            sample_temperature(&candidates_p, temp, smoothing_factor);
-        }
-        sample_top_n_sigma(&candidates_p, nsigma);
-        sample_xtc(&candidates_p, xtc_threshold, xtc_probability, rng);
-        id = sample_token(&candidates_p, rng);
-    }
     else
     {
         for (int i = 0; i < sampler_order.size(); i++)
@@ -1766,6 +1736,10 @@ const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dyna
                     else
                     {
                         sample_temperature(&candidates_p, temp, smoothing_factor);
+                    }
+                    if (nsigma > 0.0f)
+                    {
+                        sample_top_n_sigma(&candidates_p, nsigma);
                     }
                     break;
                 case KCPP_SAMPLER_REP_PEN:
@@ -4066,7 +4040,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
             if (!evalres)
             {
-                fprintf(stderr, "\nFailed to predict at %d! Check your context buffer sizes!\n",n_past);
+                fprintf(stderr, "\nFailed to predict at token position %d! Check your context buffer sizes!\n",n_past);
                 output.text = nullptr;
                 output.status = 0;
                 output.prompt_tokens = output.completion_tokens = 0;
