@@ -2944,7 +2944,7 @@ Current version indicated by LITEVER below.
 
 	const AVATAR_PX = 384;
 
-	const SAVE_SLOTS = 32;
+	const SAVE_SLOTS = 64;
 
 	const num_regex_rows = 4;
 	const default_websearch_template = `### New Task:\nFrom above text, rephrase the search engine query "{{QUERY}}" as a single short phrase (for search engines) using proper nouns, references and names to avoid ambiguity.\n\n### Rephrased Search Query Created:\n`;
@@ -20679,6 +20679,10 @@ Current version indicated by LITEVER below.
 						class="helptext">Controls how far back in the text to search for World Info Keys</span></span></div>
 				<select title="World Info Search Depth" style="height:16px;padding:0px;margin:0px 4px 0; width:90px;font-size:10px;" class="form-control" id="wi_searchdepth">
 					<option value="0">Full Context</option>
+					<option value="65536">Last 65536</option>
+					<option value="49152">Last 49152</option>
+					<option value="32768">Last 32768</option>
+					<option value="16384">Last 16384</option>
 					<option value="8192">Last 8192</option>
 					<option value="4096">Last 4096</option>
 					<option value="2048">Last 2048</option>
@@ -21077,7 +21081,7 @@ Current version indicated by LITEVER below.
 						   document.getElementById('max_context_length').value = this.value;"></div>
 						<div class="settingminmax">
 							<div class="justifyleft">128</div>
-							<div class="justifyright" id="max_context_length_slide_label">4096</div>
+							<div class="justifyright" id="max_context_length_slide_label">8192</div>
 						</div>
 						<div id="auto_ctxlen_panel" class="settinglabel">
 							<div class="justifyleft settingsmall" title="Automatically lowers settings if incompatible with existing workers">Auto-Adjust Limits </div>
@@ -21092,11 +21096,11 @@ Current version indicated by LITEVER below.
 							<input title="Max Output" inputmode="numeric" class="justifyright flex-push-right settingsmall" id="max_length" oninput="
 						   document.getElementById('max_length_slide').value = this.value;">
 						</div>
-						<div><input title="Max Output Slider" type="range" min="16" max="4096" step="16"	id="max_length_slide" oninput="
+						<div><input title="Max Output Slider" type="range" min="16" max="8192" step="16"	id="max_length_slide" oninput="
 						   document.getElementById('max_length').value = this.value;"></div>
 						<div class="settingminmax">
 							<div class="justifyleft">16</div>
-							<div class="justifyright" id="max_length_slide_label">4096</div>
+							<div class="justifyright" id="max_length_slide_label">8192</div>
 						</div>
 						<div id="auto_genamt_panel" class="settinglabel">
 							<div class="justifyleft settingsmall" title="Automatically lowers settings if incompatible with existing workers">Auto-Adjust Limits </div>
