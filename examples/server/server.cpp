@@ -1900,6 +1900,7 @@ struct server_context {
         try {
             common_chat_format_example(chat_templates.get(), params.use_jinja);
         } catch (const std::exception & e) {
+            SRV_WRN("%s: Chat template parsing error: %s\n", __func__, e.what());
             SRV_WRN("%s: The chat template that comes with this model is not yet supported, falling back to chatml. This may cause the model to output suboptimal responses\n", __func__);
             chat_templates = common_chat_templates_init(model, "chatml");
         }
