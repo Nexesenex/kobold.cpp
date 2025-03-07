@@ -315,21 +315,20 @@ ggml_v3-cuda.o: otherarch/ggml_v3-cuda.cu otherarch/ggml_v3-cuda.h
 endif # LLAMA_CUBLAS
 
 ifdef LLAMA_HIPBLAS
-	ifeq ($(wildcard /opt/rocm),)
-		ROCM_PATH	?= /usr
-		GPU_TARGETS ?= $(shell $(shell which amdgpu-arch))
-		HCC         := $(ROCM_PATH)/bin/hipcc
-		HCXX        := $(ROCM_PATH)/bin/hipcc
-	else
-		ROCM_PATH	?= /opt/rocm
-		GPU_TARGETS ?= gfx803 gfx900 gfx906 gfx908 gfx90a gfx1030 gfx1100 $(shell $(ROCM_PATH)/llvm/bin/amdgpu-arch)
-		HCC         := $(ROCM_PATH)/llvm/bin/clang
-		HCXX        := $(ROCM_PATH)/llvm/bin/clang++
-	endif
-	LLAMA_CUDA_DMMV_X       ?= 32
-	LLAMA_CUDA_MMV_Y        ?= 1
-	LLAMA_CUDA_KQUANTS_ITER ?= 2
-	HIPFLAGS   += -DGGML_USE_HIP -DGGML_USE_CUDA -DSD_USE_CUBLAS $(shell $(ROCM_PATH)/bin/hipconfig -C)
+
+ifeq ($(wildcard /opt/rocm),)
+	ROCM_PATH	?= /usr
+	GPU_TARGETS ?= $(shell $(shell which amdgpu-arch))
+	HCC         := $(ROCM_PATH)/bin/hipcc
+	HCXX        := $(ROCM_PATH)/bin/hipcc
+else
+	ROCM_PATH	?= /opt/rocm
+	GPU_TARGETS ?= gfx803 gfx900 gfx906 gfx908 gfx90a gfx1030 gfx1100 $(shell $(ROCM_PATH)/llvm/bin/amdgpu-arch)
+	HCC         := $(ROCM_PATH)/llvm/bin/clang
+	HCXX        := $(ROCM_PATH)/llvm/bin/clang++
+endif
+	HIPFLAGS   += -DGGML_USE_HIP -DGGML_HIP_NO_VMM -DGGML_USE_CUDA -DSD_USE_CUBLAS $(shell $(ROCM_PATH)/bin/hipconfig -C)
+
 	HIPLDFLAGS    += -L$(ROCM_PATH)/lib -Wl,-rpath=$(ROCM_PATH)/lib
 	HIPLDFLAGS    += -L$(ROCM_PATH)/lib64 -Wl,-rpath=$(ROCM_PATH)/lib64
 	HIPLDFLAGS    += -lhipblas -lamdhip64 -lrocblas
@@ -454,23 +453,25 @@ else
 	endif
 	endif
 
-	ifdef LLAMA_CLBLAST
-		ifeq ($(UNAME_S),Darwin)
-			CLBLAST_BUILD = $(CXX) $(CXXFLAGS) $^ -lclblast -framework OpenCL $(ARCH_ADD) -shared -o $@.so $(LDFLAGS)
-		else
-			CLBLAST_BUILD = $(CXX) $(CXXFLAGS) $^ -lclblast -lOpenCL $(ARCH_ADD) -shared -o $@.so $(LDFLAGS)
-		endif
-	endif
-	ifdef LLAMA_CUBLAS
-		CUBLAS_BUILD = $(CXX) $(CXXFLAGS) $(CUBLAS_FLAGS) $^ -shared -o $@.so $(CUBLASLD_FLAGS) $(LDFLAGS)
-	endif
-	ifdef LLAMA_HIPBLAS
-		HIPBLAS_BUILD = $(HCXX) $(CXXFLAGS) $(HIPFLAGS) $^ -shared -o $@.so $(HIPLDFLAGS) $(LDFLAGS)
-	endif
-	ifdef LLAMA_VULKAN
-		VULKAN_BUILD = $(CXX) $(CXXFLAGS) $^ -lvulkan -shared -o $@.so $(LDFLAGS)
-	endif
+
+ifdef LLAMA_CLBLAST
+ifeq ($(UNAME_S),Darwin)
+	CLBLAST_BUILD = $(CXX) $(CXXFLAGS) $^ -lclblast -framework OpenCL $(ARCH_ADD) -shared -o $@.so $(LDFLAGS)
+else
+	CLBLAST_BUILD = $(CXX) $(CXXFLAGS) $^ -lclblast -lOpenCL $(ARCH_ADD) -shared -o $@.so $(LDFLAGS)
 endif
+endif
+ifdef LLAMA_CUBLAS
+	CUBLAS_BUILD = $(CXX) $(CXXFLAGS) $(CUBLAS_FLAGS) $^ -shared -o $@.so $(CUBLASLD_FLAGS) $(LDFLAGS)
+endif
+ifdef LLAMA_HIPBLAS
+	HIPBLAS_BUILD = $(HCXX) $(CXXFLAGS) $(HIPFLAGS) $^ -shared -o $@.so $(HIPLDFLAGS) $(LDFLAGS)
+endif
+ifdef LLAMA_VULKAN
+	VULKAN_BUILD = $(CXX) $(CXXFLAGS) $^ -lvulkan -shared -o $@.so $(LDFLAGS)
+endif
+endif
+
 
 ifndef LLAMA_CLBLAST
 ifndef LLAMA_CUBLAS

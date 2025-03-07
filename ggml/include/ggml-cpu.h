@@ -80,6 +80,7 @@ extern "C" {
     GGML_BACKEND_API int ggml_cpu_has_avx        (void);
     GGML_BACKEND_API int ggml_cpu_has_avx_vnni   (void);
     GGML_BACKEND_API int ggml_cpu_has_avx2       (void);
+    GGML_BACKEND_API int ggml_cpu_has_bmi2       (void);
     GGML_BACKEND_API int ggml_cpu_has_f16c       (void);
     GGML_BACKEND_API int ggml_cpu_has_fma        (void);
     GGML_BACKEND_API int ggml_cpu_has_avx512     (void);
@@ -99,6 +100,7 @@ extern "C" {
     // other
     GGML_BACKEND_API int ggml_cpu_has_riscv_v    (void);
     GGML_BACKEND_API int ggml_cpu_has_vsx        (void);
+    GGML_BACKEND_API int ggml_cpu_has_vxe        (void);
     GGML_BACKEND_API int ggml_cpu_has_wasm_simd  (void);
     GGML_BACKEND_API int ggml_cpu_has_llamafile  (void);
 

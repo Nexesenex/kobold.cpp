@@ -56,10 +56,10 @@ dry_seq_break_max = 512
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.85000"
-LcppVersion = "b4756"
+KcppVersion = "1.86000"
+LcppVersion = "b4839"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/02/24"
+ReleaseDate = "2025/03/07"
 showdebug = True
 # guimode = False
 kcpp_instance = None #global running instance
@@ -117,7 +117,7 @@ nocertify = False
 start_time = time.time()
 last_req_time = time.time()
 last_non_horde_req_time = time.time()
-currfinishreason = "null"
+currfinishreason = None
 
 
 saved_stdout = None
@@ -2730,7 +2730,7 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     async def generate_text(self, genparams, api_format, stream_flag):
         global friendlymodelname, chatcompl_adapter, currfinishreason
-        currfinishreason = "null"
+        currfinishreason = None
 
         def run_blocking():  # api format 1=basic,2=kai,3=oai,4=oai-chat
             # flag instance as non-idle for a while
@@ -3802,8 +3802,11 @@ def RunServerMultiThreaded(addr, port, server_handler):
             ipv6_sock = context.wrap_socket(ipv6_sock, server_side=True)
 
     numThreads = 24
-    ipv4_sock.bind((addr, port))
-    ipv4_sock.listen(numThreads)
+    try:
+        ipv4_sock.bind((addr, port))
+        ipv4_sock.listen(numThreads)
+    except Exception:
+         print("IPv4 Socket Failed to Bind.")
 
     if ipv6_sock:
         try:
@@ -3881,7 +3884,7 @@ def show_gui():
         if not args.model_param and not args.sdmodel and not args.whispermodel and not args.ttsmodel and not args.nomodel:
             global exitcounter
             exitcounter = 999
-            exit_with_error(2,"No ggml model or kcpps file was selected. Exiting.")
+            exit_with_error(2,"No gguf model or kcpps file was selected. Exiting.")
         return
 
     #dummy line to get darkdetect imported in pyinstaller
@@ -4795,24 +4798,7 @@ def show_gui():
         savdict = json.loads(json.dumps(args.__dict__))
         file_type = [("KoboldCpp/Croco.Cpp LaunchTemplate", "*.kcppt")]
         #remove blacklisted fields
-        savdict["istemplate"] = True
-        savdict["gpulayers"] = -1
-        savdict["threads"] = -1
-        savdict["hordekey"] = ""
-        savdict["hordeworkername"] = ""
-        savdict["sdthreads"] = 0
-        savdict["password"] = None
-        savdict["usemmap"] = False
-        savdict["usemlock"] = False
-        savdict["debugmode"] = 0
-        savdict["ssl"] = None
-        savdict["useclblast"] = None
-        savdict["usecublas"] = None
-        savdict["usevulkan"] = None
-        savdict["tensor_split"] = None
-        savdict["draftgpusplit"] = None
-        savdict["config"] = None
-        savdict["ttsthreads"] = 0
+        savdict = convert_args_to_template(savdict)
         filename = asksaveasfilename(filetypes=file_type, defaultextension=file_type)
         if not filename:
             return
@@ -5753,11 +5739,36 @@ def load_config_cli(filename):
             else:
                 setattr(args, key, value)
         if args.istemplate:
-            print("\nA .kcppt template was selected from CLI - automatically selecting your backend...")
-            auto_set_backend_cli()
+            print("\nA .kcppt template was selected from CLI...")
+            if (args.usecublas is None) and (args.usevulkan is None) and (args.useclblast is None):
+                print("Automatically selecting your backend...")
+                auto_set_backend_cli()
 
-def save_config_cli(filename):
+def convert_args_to_template(savdict):
+    savdict["istemplate"] = True
+    savdict["gpulayers"] = -1
+    savdict["threads"] = -1
+    savdict["hordekey"] = ""
+    savdict["hordeworkername"] = ""
+    savdict["sdthreads"] = 0
+    savdict["password"] = None
+    savdict["usemmap"] = False
+    savdict["usemlock"] = False
+    savdict["debugmode"] = 0
+    savdict["ssl"] = None
+    savdict["useclblast"] = None
+    savdict["usecublas"] = None
+    savdict["usevulkan"] = None
+    savdict["tensor_split"] = None
+    savdict["draftgpusplit"] = None
+    savdict["config"] = None
+    savdict["ttsthreads"] = 0
+    return savdict
+
+def save_config_cli(filename, template):
     savdict = json.loads(json.dumps(args.__dict__))
+    if template:
+        savdict = convert_args_to_template(savdict)
     if filename is None:
         return
     filenamestr = str(filename).strip()
@@ -5938,7 +5949,10 @@ def main(launch_args):
         return
 
     if args.exportconfig and args.exportconfig!="":
-        save_config_cli(args.exportconfig)
+        save_config_cli(args.exportconfig,False)
+        return
+    if args.exporttemplate and args.exporttemplate!="":
+        save_config_cli(args.exporttemplate,True)
         return
 
     if args.config and len(args.config)==1: #handle initial config loading for launch
@@ -6251,7 +6265,9 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
         has_multiplayer = True
 
     if args.savedatafile and isinstance(args.savedatafile, str):
-        filepath = args.savedatafile
+        filepath = os.path.abspath(args.savedatafile)  # Ensure it's an absolute path
+        if not filepath.endswith(".jsondb"):
+            filepath += ".jsondb"
         try:
             with open(filepath, 'r+', encoding='utf-8', errors='ignore') as f:
                 loaded = json.load(f)
@@ -6880,7 +6896,7 @@ if __name__ == '__main__':
     advparser.add_argument("--highpriority", help="Experimental flag. If set, increases the process CPU priority, potentially speeding up generation. Use caution.", action='store_true')
     advparser.add_argument("--foreground", help="Windows only. Sends the terminal to the foreground every time a new prompt is generated. This helps avoid some idle slowdown issues.", action='store_true')
     advparser.add_argument("--preloadstory", metavar=('[savefile]'), help="Configures a prepared story json save file to be hosted on the server, which frontends (such as KoboldAI Lite) can access over the API.", default="")
-    advparser.add_argument("--savedatafile", metavar=('[savefile]'), help="If enabled, creates or opens a persistent database file on the server, that allows users to save and load their data remotely.", default="")
+    advparser.add_argument("--savedatafile", metavar=('[savefile]'), help="If enabled, creates or opens a persistent database file on the server, that allows users to save and load their data remotely. A new file is created if it does not exist.", default="")
     advparser.add_argument("--quiet", help="Enable quiet mode, which hides generation inputs and outputs in the terminal. Quiet mode is automatically enabled when running a horde worker.", action='store_true')
     advparser.add_argument("--ssl", help="Allows all content to be served over SSL instead. A valid UNENCRYPTED SSL cert and key .pem files must be provided", metavar=('[cert_pem]', '[key_pem]'), nargs='+')
     advparser.add_argument("--nocertify", help="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.", action='store_true')
@@ -6902,6 +6918,7 @@ if __name__ == '__main__':
     advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated. Not recommended.", action='store_true')
     advparser.add_argument("--unpack", help="Extracts the file contents of the KoboldCpp/Croco.Cpp binary into a target directory.", metavar=('destination'), type=str, default="")
     advparser.add_argument("--exportconfig", help="Exports the current selected arguments as a .kcpps settings file", metavar=('[filename]'), type=str, default="")
+    advparser.add_argument("--exporttemplate", help="Exports the current selected arguments as a .kcppt template file", metavar=('[filename]'), type=str, default="")
     advparser.add_argument("--nomodel", help="Allows you to launch the GUI alone, without selecting any model.", action='store_true')
     advparser.add_argument("--moeexperts", metavar=('[num of experts]'), help="How many experts to use for MoE models (default=follow gguf)", type=int, default=-1)
     advparser.add_argument("--normrmseps", metavar=('[norm rms eps]'), help="Override Norm RMS Epsilon value to use for the model. Useful for <2bpw quants mainly. Example of format: 1.95e-05 (default=follow gguf)", type=float, default=-1.0)

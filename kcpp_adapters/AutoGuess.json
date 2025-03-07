@@ -99,6 +99,17 @@
         "assistant_end": "<|end|>\n"
     }
 }, {
+    "search": ["'<|' + message['role'] + '|>'"],
+    "name": "Phi 4 (mini)",
+    "adapter": {
+        "system_start": "<|system|>\n",
+        "system_end": "<|end|>\n",
+        "user_start": "<|user|>\n",
+        "user_end": "<|end|>\n",
+        "assistant_start": "<|assistant|>\n",
+        "assistant_end": "<|end|>\n"
+    }
+}, {
     "search": ["<|START_OF_TURN_TOKEN|>"],
     "name": "Cohere (Aya Expanse 32B based)",
     "adapter": {
