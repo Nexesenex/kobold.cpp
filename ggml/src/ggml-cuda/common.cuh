@@ -218,7 +218,7 @@ static bool fp16_available(const int cc) {
 }
 
 static bool fast_fp16_available(const int cc) {
-    return fp16_available(cc) && cc != 610;
+    return fp16_available(cc) && cc > 610;
 }
 
 // To be used for feature selection of external libraries, e.g. cuBLAS.

@@ -46,8 +46,8 @@ static void print_usage(int argc, char ** argv) {
     (void) argc;
 
     LOG("\nexample usage:\n");
-    LOG("\n  text generation:     %s -m your_model.gguf -p \"I believe the meaning of life is\" -n 128\n", argv[0]);
-    LOG("\n  chat (conversation): %s -m your_model.gguf -p \"You are a helpful assistant\" -cnv\n", argv[0]);
+    LOG("\n  text generation:     %s -m your_model.gguf -p \"I believe the meaning of life is\" -n 128 -no-cnv\n", argv[0]);
+    LOG("\n  chat (conversation): %s -m your_model.gguf -sys \"You are a helpful assistant\"\n", argv[0]);
     LOG("\n");
 }
 
@@ -218,8 +218,8 @@ int main(int argc, char ** argv) {
     // print chat template example in conversation mode
     if (params.conversation_mode) {
         if (params.enable_chat_template) {
-            if (!params.prompt.empty()) {
-                LOG_WRN("*** User-specified prompt in conversation mode will be ignored, did you mean to set --system-prompt (-sys) instead?\n");
+            if (!params.prompt.empty() && params.system_prompt.empty()) {
+                LOG_WRN("*** User-specified prompt will pre-start conversation, did you mean to set --system-prompt (-sys) instead?\n");
             }
 
             LOG_INF("%s: chat template example:\n%s\n", __func__, common_chat_format_example(chat_templates.get(), params.use_jinja).c_str());
@@ -266,7 +266,7 @@ int main(int argc, char ** argv) {
 
     std::vector<llama_token> embd_inp;
 
-    bool waiting_for_first_input = params.conversation_mode && params.enable_chat_template && params.system_prompt.empty();
+    bool waiting_for_first_input = false;
     auto chat_add_and_format = [&chat_msgs, &chat_templates](const std::string & role, const std::string & content) {
         common_chat_msg new_msg;
         new_msg.role = role;
@@ -277,22 +277,34 @@ int main(int argc, char ** argv) {
         return formatted;
     };
 
+    std::string prompt;
     {
-        std::string prompt;
-
         if (params.conversation_mode && params.enable_chat_template) {
-            // format the system prompt in conversation mode (will use template default if empty)
-            prompt = params.system_prompt;
+            if (!params.system_prompt.empty()) {
+                // format the system prompt (will use template default if empty)
+                chat_add_and_format("system", params.system_prompt);
+            }
 
-            if (!prompt.empty()) {
-                prompt = chat_add_and_format("system", prompt);
+            if (!params.prompt.empty()) {
+                // format and append the user prompt
+                chat_add_and_format("user", params.prompt);
+            } else {
+                waiting_for_first_input = true;
+            }
+
+            if (!params.system_prompt.empty() || !params.prompt.empty()) {
+                common_chat_templates_inputs inputs;
+                inputs.messages = chat_msgs;
+                inputs.add_generation_prompt = !params.prompt.empty();
+
+                prompt = common_chat_templates_apply(chat_templates.get(), inputs).prompt;
             }
         } else {
             // otherwise use the prompt as is
             prompt = params.prompt;
         }
 
-        if (params.interactive_first || !params.prompt.empty() || session_tokens.empty()) {
+        if (params.interactive_first || !prompt.empty() || session_tokens.empty()) {
             LOG_DBG("tokenize the prompt\n");
             embd_inp = common_tokenize(ctx, prompt, true, true);
         } else {
@@ -305,7 +317,7 @@ int main(int argc, char ** argv) {
     }
 
     // Should not run without any tokens
-    if (!params.conversation_mode && embd_inp.empty()) {
+    if (!waiting_for_first_input && embd_inp.empty()) {
         if (add_bos) {
             embd_inp.push_back(llama_vocab_bos(vocab));
             LOG_WRN("embd_inp was considered empty and bos was added: %s\n", string_from(ctx, embd_inp).c_str());
@@ -365,7 +377,12 @@ int main(int argc, char ** argv) {
     }
 
     if (params.conversation_mode) {
-        params.interactive_first = true;
+        if (params.single_turn && !params.prompt.empty()) {
+            params.interactive = false;
+            params.interactive_first = false;
+        } else {
+            params.interactive_first = true;
+        }
     }
 
     // enable interactive mode if interactive start is specified
@@ -809,6 +826,11 @@ int main(int argc, char ** argv) {
             if (params.conversation_mode && !waiting_for_first_input) {
                 const auto id = common_sampler_last(smpl);
                 assistant_ss << common_token_to_piece(ctx, id, false);
+
+                if (!prompt.empty()) {
+                    prompt.clear();
+                    is_interacting = false;
+                }
             }
 
             if ((n_past > 0 || waiting_for_first_input) && is_interacting) {
@@ -906,6 +928,11 @@ int main(int argc, char ** argv) {
                     common_sampler_reset(smpl);
                 }
                 is_interacting = false;
+
+                if (waiting_for_first_input && params.single_turn) {
+                    params.interactive = false;
+                    params.interactive_first = false;
+                }
                 waiting_for_first_input = false;
             }
         }

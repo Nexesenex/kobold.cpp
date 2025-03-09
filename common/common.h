@@ -106,9 +106,21 @@ enum common_conversation_mode {
     COMMON_CONVERSATION_MODE_AUTO     = 2,
 };
 
+enum common_grammar_trigger_type {
+    COMMON_GRAMMAR_TRIGGER_TYPE_TOKEN,
+    COMMON_GRAMMAR_TRIGGER_TYPE_WORD,
+    COMMON_GRAMMAR_TRIGGER_TYPE_PATTERN,
+    COMMON_GRAMMAR_TRIGGER_TYPE_PATTERN_START,
+};
+
 struct common_grammar_trigger {
-    std::string word;
-    bool at_start;
+    common_grammar_trigger_type type;
+    std::string value;
+    llama_token token = LLAMA_TOKEN_NULL;
+
+    // T can only be nlohmann::ordered_json
+    template <class T> T to_json() const;
+    template <class T> static common_grammar_trigger from_json(const T & in);
 };
 
 // sampling parameters
@@ -159,8 +171,7 @@ struct common_params_sampling {
 
     std::string                         grammar; // optional BNF-like grammar to constrain sampling
     bool                                grammar_lazy = false;
-    std::vector<common_grammar_trigger> grammar_trigger_words;  // optional trigger words to trigger lazy grammar
-    std::vector<llama_token>            grammar_trigger_tokens; // optional trigger tokens to trigger lazy grammar and print trigger special tokens.
+    std::vector<common_grammar_trigger> grammar_triggers; // optional triggers (for lazy grammars)
     std::set<llama_token>               preserved_tokens;
 
     std::vector<llama_logit_bias> logit_bias; // logit biases to apply
@@ -324,6 +335,8 @@ struct common_params {
     bool warmup            = true;  // warmup run
     bool check_tensors     = false; // validate tensor data
 
+    bool single_turn       = false; // single turn chat conversation
+
     ggml_type cache_type_k = GGML_TYPE_F16; // KV cache data type for the K
     ggml_type cache_type_v = GGML_TYPE_F16; // KV cache data type for the V
 
@@ -451,6 +464,8 @@ std::vector<std::string> string_split(const std::string & str, const std::string
 std::string string_repeat(const std::string & str, size_t n);
 
 void string_replace_all(std::string & s, const std::string & search, const std::string & replace);
+
+std::string regex_escape(const std::string & s);
 
 template<class T>
 static std::vector<T> string_split(const std::string & str, char delim) {

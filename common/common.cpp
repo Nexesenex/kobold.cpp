@@ -486,6 +486,11 @@ void string_replace_all(std::string & s, const std::string & search, const std::
     s = std::move(builder);
 }
 
+std::string regex_escape(const std::string & s) {
+    static const std::regex special_chars("[.^$|()*+?\\[\\]{}\\\\]");
+    return std::regex_replace(s, special_chars, "\\$0");
+}
+
 std::string string_join(const std::vector<std::string> & values, const std::string & separator) {
     std::ostringstream result;
     for (size_t i = 0; i < values.size(); ++i) {
@@ -2029,3 +2034,25 @@ common_control_vector_data common_control_vector_load(const std::vector<common_c
     return result;
 }
 
+template <>
+json common_grammar_trigger::to_json() const {
+    json out {
+        {"type", (int) type},
+        {"value", value},
+    };
+    if (type == COMMON_GRAMMAR_TRIGGER_TYPE_TOKEN) {
+        out["token"] = (int) token;
+    }
+    return out;
+}
+
+template <>
+common_grammar_trigger common_grammar_trigger::from_json(const json & in) {
+    common_grammar_trigger out;
+    out.type = (common_grammar_trigger_type) in.at("type").get<int>();
+    out.value = in.at("value").get<std::string>();
+    if (out.type == COMMON_GRAMMAR_TRIGGER_TYPE_TOKEN) {
+        out.token = (llama_token) in.at("token").get<int>();
+    }
+    return out;
+}

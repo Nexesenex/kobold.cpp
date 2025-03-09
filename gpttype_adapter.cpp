@@ -193,7 +193,7 @@ static std::string FileFormatTokenizeID(int id, FileFormat file_format, bool ret
     }
 }
 
-static void TokenizeString(const std::string & str_to_tokenize, std::vector<int> & output_tokens, FileFormat file_format, bool add_bos=true)
+static void TokenizeString(const std::string & str_to_tokenize, std::vector<int> & output_tokens, FileFormat file_format, bool add_bos)
 {
     if (file_format == FileFormat::GGML || file_format == FileFormat::GGHF || file_format == FileFormat::GGJT || file_format == FileFormat::GGJT_2  || file_format == FileFormat::GGJT_3 || file_format == FileFormat::GGUF_GENERIC)
     {
@@ -2874,6 +2874,13 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
     bool llava_images_changed = false;
 
+    bool add_bos_token = true;
+    if(file_format == FileFormat::GGUF_GENERIC)
+    {
+        const llama_vocab * tmpvocab = llama_model_get_vocab(&(llama_ctx_v4->model));
+        add_bos_token = llama_vocab_get_add_bos(tmpvocab);
+    }
+
     for(int x=0;x<inputs.stop_sequence_len;++x)
     {
         std::string stopper = inputs.stop_sequence[x];
@@ -3136,8 +3143,8 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
     int32_t nctx = kcpp_data->n_ctx;
 
-    TokenizeString(kcpp_data->prompt, embd_inp, file_format);
-    TokenizeString("\n\n", llava_sep, file_format,false);
+    TokenizeString(kcpp_data->prompt, embd_inp, file_format, add_bos_token);
+    TokenizeString("\n\n", llava_sep, file_format, false);
 
     if(llava_composite_image_signature=="")
     {
@@ -3151,7 +3158,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
     if(addedmemory!="")
     {
-        TokenizeString(addedmemory, embd_inp_mem, file_format);
+        TokenizeString(addedmemory, embd_inp_mem, file_format, add_bos_token);
     }
 
     //truncate to front of the prompt if its too long
@@ -3159,7 +3166,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     {
         //get bos token
         std::vector<int> bos;
-        TokenizeString("", bos, file_format);
+        TokenizeString("", bos, file_format, add_bos_token);
         int offset = embd_inp.size() - nctx + kcpp_data->n_predict;
         embd_inp = std::vector<int>(embd_inp.begin() + offset, embd_inp.end());
         //replace bos into front if exists
@@ -3178,7 +3185,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         else
         {
             std::vector<int> bos;
-            TokenizeString("", bos, file_format);
+            TokenizeString("", bos, file_format, add_bos_token);
             if(embd_inp_mem.size()>0) //remove existing bos if exists
             {
                 if (bos.size()>0 && !embd_inp_mem.empty() && bos[0]==embd_inp_mem[0]) {
@@ -3209,7 +3216,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     {
         //remove bos token from prompt, it'll be taken from memory
         std::vector<int> bos;
-        TokenizeString("", bos, file_format);
+        TokenizeString("", bos, file_format, add_bos_token);
         if (bos.size()>0 && !embd_inp.empty() && bos[0]==embd_inp[0]) {
             embd_inp.erase(embd_inp.begin());
         }

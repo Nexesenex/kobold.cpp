@@ -18,6 +18,7 @@
 #include <regex>
 #include <set>
 #include <unordered_map>
+#include <cctype>
 
 //
 // helpers
