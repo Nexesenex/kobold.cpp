@@ -1312,7 +1312,7 @@ struct server_slot {
         return task_type == SERVER_TASK_TYPE_EMBEDDING || task_type == SERVER_TASK_TYPE_RERANK;
     }
 
-    bool can_batch_with(server_slot & other_slot) {
+    bool can_batch_with(server_slot & other_slot) const {
         return is_non_causal() == other_slot.is_non_causal()
             && are_lora_equal(lora, other_slot.lora);
     }
@@ -2157,14 +2157,6 @@ struct server_context {
         }
 
         if (slot.has_new_line) {
-            // if we have already seen a new line, we stop after a certain time limit
-            if (slot.params.t_max_predict_ms > 0 && (ggml_time_us() - slot.t_start_generation > 1000.0f*slot.params.t_max_predict_ms)) {
-                slot.stop           = STOP_TYPE_LIMIT;
-                slot.has_next_token = false;
-
-                SLT_DBG(slot, "stopped by time limit, n_decoded = %d, t_max_predict_ms = %d ms\n", slot.n_decoded, (int) slot.params.t_max_predict_ms);
-            }
-
             // require that each new line has a whitespace prefix (i.e. indentation) of at least slot.params.n_indent
             if (slot.params.n_indent > 0) {
                 // check the current indentation
@@ -2203,6 +2195,14 @@ struct server_context {
         // check if there is a new line in the generated text
         if (result.text_to_send.find('\n') != std::string::npos) {
             slot.has_new_line = true;
+
+            // if we have seen a new line, we stop after a certain time limit, but only upon another new line
+            if (slot.params.t_max_predict_ms > 0 && (ggml_time_us() - slot.t_start_generation > 1000.0f*slot.params.t_max_predict_ms)) {
+                slot.stop           = STOP_TYPE_LIMIT;
+                slot.has_next_token = false;
+
+                SLT_DBG(slot, "stopped by time limit, n_decoded = %d, t_max_predict_ms = %d ms\n", slot.n_decoded, (int) slot.params.t_max_predict_ms);
+            }
         }
 
         // if context shift is disabled, we stop when it reaches the context limit
