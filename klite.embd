@@ -23596,60 +23596,61 @@ else
 	}
 } `
 
-	let commands = [
-			{
-				"name": "ask_user",
-				"description": "Ask the user for input or tell them something and wait for their response.",
-				"args": { "message": "<message that awaits user input>" },
-				"enabled": true,
-			},
-			{
-				"name": "conversation_history",
-				"description": "gets the full conversation history",
-				"args": null,
-				"enabled": false,
-			},
-			{
-				"name": "web_search",
-				"description": "search the web for keyword",
-				"args": { "query": "<query to research>" },
-				"enabled": true,
-			},
-			{
-				"name": "roll_dice",
-				"description": "Rolls a number of dice with the same amount of sides.",
-				"args": { "numDice": "<number of dice>", "numSides": "<number of sides on the dice>" },
-				"enabled": true,
-			},
-			{
-				"name": "evaluate_formula",
-				"description": "Evaluates a mathematical formula and returns the result.",
-				"args": { "formula": "<mathematical formula to evaluate>" },
-				"enabled": true,
-			},
-			{
-				"name": "thought",
-				"description": "Records a thought for the next action to use. Not visible to the user.",
-				"args": { "message": "<thoughts to record>" },
-				"enabled": true,
-			},
-			{
-				"name": "send_message",
-				"description": "Send a message to the user without waiting for their response. Does not return anything.",
-				"args": { "message": "<message to send>" },
-				"enabled": true,
-			},
-			{
-				"name": "stop_thinking",
-				"description": "Ends the current chain of thought. Can only be used after a \"send_message\" action.",
-				"args": null,
-				"enabled": true,
-			}
-		]
-
+let getCommands = () => {
+	return [
+		{
+			"name": "ask_user",
+			"description": "Ask the user for input.", // If asking a question, the question must be sent with \"send_message\".
+			"args": { "message": "<message that awaits user input>" }, // null,
+			"enabled": true,
+		},
+		{
+			"name": "conversation_history",
+			"description": "gets the full conversation history",
+			"args": null,
+			"enabled": false,
+		},
+		{
+			"name": "web_search",
+			"description": "search the web for keyword",
+			"args": { "query": "<query to research>" },
+			"enabled": websearch_enabled,
+		},
+		{
+			"name": "roll_dice",
+			"description": "Rolls a number of dice with the same amount of sides.",
+			"args": { "numDice": "<number of dice>", "numSides": "<number of sides on the dice>" },
+			"enabled": true,
+		},
+		{
+			"name": "evaluate_formula",
+			"description": "Evaluates a mathematical formula and returns the result.",
+			"args": { "formula": "<mathematical formula to evaluate>" },
+			"enabled": true,
+		},
+		{
+			"name": "thought",
+			"description": "Records a thought for the next action to use. Not visible to the user.",
+			"args": { "message": "<thoughts to record>" },
+			"enabled": true,
+		},
+		{
+			"name": "send_message",
+			"description": "Send a message to the user without waiting for their response. Does not return anything.",
+			"args": { "message": "<message to send>" },
+			"enabled": true,
+		},
+		{
+			"name": "stop_thinking",
+			"description": "Ends the current chain of thought. Can only be used after a \"send_message\" action.",
+			"args": null,
+			"enabled": true,
+		}
+	]
+}
 
 let getCommandsAsText = () => {
-	return commands.filter(command => !!command.enabled).map(command => {
+	return getCommands().filter(command => !!command?.enabled).map(command => {
 		let baseCommand = `Command: ${command.name}
 Description: ${command.description}`
 		if (!!command.args)
@@ -23703,33 +23704,7 @@ Conversations should be direct and purposeful.Each response should either:
 When thinking, focus on "What's the next useful step?" rather than analysis.
 `
 
-let actionPrompt = () => {
-	return `You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user.
-
-Constraints:
-1. Only use commands defined below - no other actions are available.
-2. No user assistance unless absolutely necessary.
-3. Keep thoughts concise and action - focused.
-4. Don't over-analyze simple decisions.
-5. Start with simple questions / actions before complex ones.
-6. Never repeat recent questions or actions.
-7. Check recent history before asking questions.
-
-${getCommandsAsText()}
-
-Resources:
-1. Use "ask_user" to tell them to implement new commands if you need one.
-2. Use "evaluate_formula" to determine the results of mathermatical questions.
-2. When responding with None, use null, as otherwise the JSON cannot be parsed.
-
-Performance Evaluation:
-1. Continuously assess your actions.
-2. Constructively self - criticize your big - picture behavior.
-3. Every command has a cost, so be smart and efficient. Aim to complete tasks in the least number of steps, but never sacrifice quality.
-
-${json_schema}
-
-Example one:
+let additionalExamples = `Example one:
 
 User: Figure out the square root of -4
 Action: {"command":{"name":"evaluate_formula","args":{"formula":"sqrt(-4)"}}}
@@ -23750,9 +23725,43 @@ Formula evaluation result: false
 Action: {"command":{"name":"send_message","args":{"message":"The dice roll was 16. You passed your persuasion check."}}}
 AI: The dice roll was 16. You passed your persuasion check.
 Action: {"command":{"name":"stop_thinking","args":null}}
+System: Chain of thought complete`
+
+let actionPrompt = () => {
+	return `You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user.
+
+Constraints:
+1. Only use commands defined below - no other actions are available.
+2. No user assistance unless absolutely necessary.
+3. Keep thoughts concise and action - focused.
+4. Don't over-analyze simple decisions.
+5. Start with simple questions / actions before complex ones.
+6. Never repeat recent questions or actions.
+7. Check recent history before asking questions.
+
+${getCommandsAsText()}
+
+Resources:
+1. Use "ask_user" to tell them to implement new commands if you need one.
+2. Use "evaluate_formula" to determine the results of mathematical questions.
+2. When responding with None, use null, as otherwise the JSON cannot be parsed.
+
+Performance Evaluation:
+1. Continuously assess your actions.
+2. Constructively self - criticize your big - picture behavior.
+3. Every command has a cost, so be smart and efficient. Aim to complete tasks in the least number of steps, but never sacrifice quality.
+
+Example one:
+
+User: Figure out the square root of -4
+Action: {"command":{"name":"evaluate_formula","args":{"formula":"sqrt(-4)"}}}
+System: Formula evaluation result: 2i
+Action: {"command":{"name":"send_message","args":{"message":"The square root of -4 equals 2i"}}}
+AI: The square root of -4 equals 2i
+Action: {"command":{"name":"stop_thinking","args":null}}
 System: Chain of thought complete
 
-`
+${json_schema}`
 }
 
 
@@ -23780,6 +23789,7 @@ Performance Evaluation:
 ${json_schema}`
 }
 
+let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"message":"I must make sure that I respond to the user with \"send_message\""}}}`
 </script>
 <script>
 	let createGeneratePayload = (prompt) => {
@@ -23808,6 +23818,7 @@ ${json_schema}`
 		{
 			payload.grammar = grammar
 			payload["grammar_retain_state"] = false
+			payload["banned_tokens"] = ["{}"]
 		}
 		let reqOpt = {
 			method: 'POST', // or 'PUT'
@@ -23859,13 +23870,14 @@ ${json_schema}`
 			let splitPositions = delimiters.map(delimiter => currentString.indexOf(delimiter)).filter(pos => pos > -1).sort()
 			if (splitPositions.length > 0)
 			{
-				let newDel = delimiters.map(delimiter => {let pos = (currentString.substring(delimiter.length, currentString.length)).indexOf(delimiter); return pos > 0 ? pos + delimiter.length : -1}).filter(pos => pos > 0).sort()
+				let newDel = delimiters.map(delimiter => {let pos = (currentString.substring(delimiter.length, currentString.length)).indexOf(delimiter); return pos > 0 ? pos + delimiter.length : -1})
+				combinedPos = splitPositions.concat(newDel).filter(pos => pos > 0).sort((a, b) => a > b)
 				let splitPos;
-				if (newDel.length === 0) {
+				if (combinedPos.length === 0) {
 					splitPos = currentString.length
 				}
 				else {
-					splitPos = newDel[0]
+					splitPos = combinedPos[0]
 				}
 				output.push(currentString.substring(0, splitPos))
 				currentString = currentString.substring(splitPos)
@@ -23882,7 +23894,7 @@ ${json_schema}`
 	let originalRepackInstructTurns = repack_instruct_turns, cotOverrideRepack = false;
 
 	repack_instruct_turns = (input, usertag, aitag, systag, allow_blank) => {
-		if (true)
+		if (localsettings.opmode == 4 && !!localsettings?.agentBehaviour)
 		{
 			let turns = split(input, usertag, aitag, systag)
 			let combined_chunks = turns.map(elem => {
@@ -23921,50 +23933,66 @@ ${json_schema}`
 		{
 			return originalRepackInstructTurns(input, usertag, aitag, allow_blank)
 		}
-		
 	}
 
-	let testMethod = async () => {
-		gametext_arr = []
-		render_gametext()
+	let currentChainOfThought = [], recentActions = [], lastMessage = "", maxActionsInHistory = 20, maxThoughtsWithoutUserInput = 20
+	let runAgentCycle = async (initialPrompt = undefined) => {
+		// gametext_arr = []
+		// render_gametext()
 
-		let currentChainOfThought = [], recentActions = [], lastMessage = ""
-
-		let addThought = (wrapperHandler, prompt) => {
+		let addThought = (wrapperHandler, prompt, onlyDisplay = false) => {
 			thought = wrapperHandler(prompt)
-			currentChainOfThought.push(thought)
-			gametext_arr.push(thought)
+			if (!onlyDisplay)
+			{
+				currentChainOfThought.push(thought)
+			}
+			gametext_arr.push(thought.replace(/\\\\/g, ""))
 			render_gametext()
 		}
 
-		currentChainOfThought.push(createSysPrompt(actionPrompt()))
-		let input = prompt(`Request for initial user input`)
+		let input = !!initialPrompt ? initialPrompt : prompt(`Request for initial user input`)
 		addThought(createInstructPrompt, input)
 
-		let validCommands = commands.filter(command => !!command.enabled).map(command => command.name)
+		let validCommands = getCommands().filter(command => !!command.enabled).map(command => command.name)
 		let jsonGrammar = "root   ::= object\nvalue  ::= object | array | string | number | (\"true\" | \"false\" | \"null\") ws\n\nobject ::=\n  \"{\" ws (\n            string \":\" ws value\n    (\",\" ws string \":\" ws value)*\n  )? \"}\" ws\n\narray  ::=\n  \"[\" ws (\n            value\n    (\",\" ws value)*\n  )? \"]\" ws\n\nstring ::=\n  \"\\\"\" (\n    [^\"\\\\\\x7F\\x00-\\x1F] |\n    \"\\\\\" ([\"\\\\bfnrt] | \"u\" [0-9a-fA-F]{4}) # escapes\n  )* \"\\\"\" ws\n\nnumber ::= (\"-\"? ([0-9] | [1-9] [0-9]{0,15})) (\".\" [0-9]+)? ([eE] [-+]? [0-9] [1-9]{0,15})? ws\n\n# Optional space: by convention, applied in this grammar after literal chars when allowed\nws ::= | \" \" | \"\\n\" [ \\t]{0,20}"
 
-		for (let i = 0; i < 20; i++)
+		let hasAttemptedToCompleteOnce = false
+		for (let i = 0; i < maxThoughtsWithoutUserInput; i++)
 		{
-			let history = currentChainOfThought.join()
+			currentChainOfThought = currentChainOfThought.splice(-maxActionsInHistory)
+			recentActions = recentActions.splice(-maxActionsInHistory)
+			
+			let history = createSysPrompt(actionPrompt()) + currentChainOfThought.join()
 			if (recentActions.length > 0)
 			{
 				history += createSysPrompt(`Note: Avoid repeating recent thoughts or suggestions.\nRecent actions suggested: ${recentActions.map(action => `${action.name}(${JSON.stringify(action?.args)})`).join(", ")}`)
 			}
 
 			let resp = await generateAndGetTextFromPrompt(replace_instruct_placeholders(history), jsonGrammar)
+
 			console.debug(resp)
+			// if (resp == "{}")
+			// {
+			// 	addThought(createSysPrompt, "Empty prompt returned - continuing", true)
+			// 	continue
+			// }
 			try
 			{
-				if (lastMessage == resp && resp != {})
+				if (resp.trim() == "")
 				{
-					addThought(createSysPrompt, "Chain of thought repetition detected - ending")
-					break
+					addThought(createSysPrompt, "Error - Empty response instead of action. Ensure all responses are valid JSON.")
+					continue
 				}
-				lastMessage = resp
 				let json = JSON.parse(resp)
 				if (!!json?.command && !!json.command?.name && validCommands.includes(json.command.name))
 				{
+					if (lastMessage == resp)
+					{
+						addThought(createSysPrompt, "Chain of thought repetition detected - ending", true)
+						break
+					}
+					lastMessage = resp
+
 					let action = json.command
 					recentActions.push(action)
 					addThought(createAIPrompt, `Action: ${JSON.stringify(action)}`)
@@ -23972,12 +24000,15 @@ ${json_schema}`
 					switch (action.name)
 					{
 						case "ask_user":
+							addThought(createSysPrompt, `Request for user input: ` + action?.args?.message)
+							isCompleted = true
+							hasAttemptedToCompleteOnce = true
 							if (!!action?.args?.message) {
-								let userResp = prompt(`Request for user input: ${action?.args?.message}`)
-								if (userResp === null || userResp === "") {
-									isCompleted = true
-								}
-								addThought(createInstructPrompt, `${userResp}`)
+								// let userResp = prompt(`Request for user input: ${action?.args?.message}`)
+								// if (userResp === null || userResp === "") {
+								// 	isCompleted = true
+								// }
+								// addThought(createInstructPrompt, `${userResp}`)
 							}
 							else
 							{
@@ -23985,8 +24016,10 @@ ${json_schema}`
 							}
 							break
 						case "web_search":
-							let webResp = prompt(`Web search: ${action?.args?.query}`)
-							addThought(createSysPrompt, `Web search results: ${webResp}`)
+							await (new Promise((resolve, reject) => {PerformWebsearch(`${action?.args?.query}`, resolve)}));
+							// let webResp = prompt(`Web search: ${action?.args?.query}`)
+							let webResp = JSON.stringify(lastSearchResults);
+							addThought(createSysPrompt, "Web search results: " + webResp)
 							break
 						case "send_message":
 							addThought(createAIPrompt, action?.args?.message)
@@ -24022,29 +24055,40 @@ ${json_schema}`
 						case "thought":
 							break
 						case "stop_thinking":
-							// if (recentActions.slice(-1) !== "send_message") 
-							// {
-							// 	addThought(createSysPrompt, `Stop thinking action denied because the last action was not "send_message"`)
-							// }
-							// else
-							// {
 							addThought(createSysPrompt, `Stop thinking action confirmed`)
 							isCompleted = true
+							hasAttemptedToCompleteOnce = true
 							// }
 							break
 					}
 					if (isCompleted)
 					{
-						addThought(createSysPrompt, "Chain of thought complete")
-						break
+						if (!hasAttemptedToCompleteOnce)
+						{
+							addThought(createAIPrompt, checkFinalThoughtsPrompt)
+							hasAttemptedToCompleteOnce = true
+						}
+						else
+						{
+							addThought(createSysPrompt, "Chain of thought complete", true)
+							break
+						}
 					}
 				}
 				else
 				{
 					if (Object.keys(json).length === 0 || json?.command?.name === "None" || json?.command?.name === "null")
 					{
-						addThought(createSysPrompt, "Chain of thought complete")
-						break;
+						if (!hasAttemptedToCompleteOnce)
+						{
+							addThought(createAIPrompt, checkFinalThoughtsPrompt)
+							hasAttemptedToCompleteOnce = true
+						}
+						else
+						{
+							addThought(createSysPrompt, "Chain of thought complete", true)
+							break
+						}
 					}
 					else
 					{
@@ -24055,12 +24099,65 @@ ${json_schema}`
 			}
 			catch (e)
 			{
-				addThought(createSysPrompt, `Chain of thought had an exception: ${JSON.stringify(e)}`)
-				break
+				addThought(createSysPrompt, `Chain of thought had an exception: ${e}`)
 			}
 		}
 	}
 
+	let originalDisplaySettingsTab = display_settings_tab, originalConfirmSettings = confirm_settings, originalPrepareSubmitGeneration = prepare_submit_generation, originalRestartNewGame = restart_new_game
+	display_settings_tab = (tabIndex) => {
+		originalDisplaySettingsTab(tabIndex);
+		document.getElementById("agentBehaviour").checked = localsettings.agentBehaviour;
+	}
+
+	confirm_settings = () => {
+		localsettings.agentBehaviour = (document.getElementById("agentBehaviour").checked ? true : false);
+		originalConfirmSettings()
+	}
+
+	prepare_submit_generation = () => {
+		if (localsettings.opmode == 4 && !!localsettings?.agentBehaviour)
+		{
+			let inputText = document.getElementById("input_text").value;
+			document.getElementById("input_text").value = "";
+			runAgentCycle(inputText)
+		}
+		else
+		{
+			originalPrepareSubmitGeneration()
+		}
+	}
+
+	restart_new_game = () => {
+		currentChainOfThought = []
+		recentActions = []
+		lastMessage = ""
+		originalRestartNewGame()
+	}
+	
+
+	window.addEventListener('load', () => {
+		if (localsettings?.agentBehaviour == undefined)
+		{
+			localsettings.agentBehaviour = false
+		}
+
+		let lastSettingContainer = document.querySelector("#settingsmenuformat > .settingitem:last-child")
+		let settingLabelElem = document.createElement("div")
+		settingLabelElem.classList.add("settinglabel")
+		let settingDiv = document.createElement("div")
+		settingDiv.classList.add("justifyleft", "settingsmall")
+		settingDiv.innerHTML = `Agent behaviour (experimental) <span class="helpicon">?<span class="helptext">Allows the AI to use multiple generations and certain tools to see if it can improve results.  This can include web search (if enabled), dice rolling, and formula evaluation.  Please note when this is enabled each user instruction is executed in isolation - i.e. the chat history is cleared before the new instruction is executed (to be improved in future).</span></span>`
+		let settingInput = document.createElement("input")
+		settingInput.type = "checkbox"
+		settingInput.title = "Agent behaviour"
+		settingInput.id = "agentBehaviour"
+		settingInput.style = "margin:0px 0px 0px auto;"
+
+		settingLabelElem.append(settingDiv)
+		settingLabelElem.append(settingInput)
+		lastSettingContainer.append(settingLabelElem)
+	})
 
 </script>
 </html>
