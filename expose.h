@@ -250,4 +250,8 @@ extern int last_token_count;
 extern int last_seed;
 extern int total_gens;
 extern int total_img_gens;
+extern int total_tts_gens;
+extern int total_transcribe_gens;
+extern int last_draft_success;
+extern int last_draft_failed;
 extern stop_reason last_stop_reason;

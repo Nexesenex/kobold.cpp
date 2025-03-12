@@ -1869,16 +1869,9 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
     ).set_examples({LLAMA_EXAMPLE_PASSKEY}));
     add_opt(common_arg(
         {"-o", "--output", "--output-file"}, "FNAME",
-        string_format("output file (default: '%s')",
-            ex == LLAMA_EXAMPLE_EXPORT_LORA
-                ? params.lora_outfile.c_str()
-                : ex == LLAMA_EXAMPLE_CVECTOR_GENERATOR
-                    ? params.cvector_outfile.c_str()
-                    : params.out_file.c_str()),
+        string_format("output file (default: '%s')", params.out_file.c_str()),
         [](common_params & params, const std::string & value) {
             params.out_file = value;
-            params.cvector_outfile = value;
-            params.lora_outfile = value;
         }
     ).set_examples({LLAMA_EXAMPLE_IMATRIX, LLAMA_EXAMPLE_CVECTOR_GENERATOR, LLAMA_EXAMPLE_EXPORT_LORA}));
     add_opt(common_arg(

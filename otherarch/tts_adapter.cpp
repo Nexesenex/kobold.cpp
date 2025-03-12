@@ -482,6 +482,8 @@ static int code_terminate_id = 151670;
 static int nthreads = 4;
 static int tts_max_len = 4096;
 
+int total_tts_gens = 0;
+
 bool ttstype_load_model(const tts_load_model_inputs inputs)
 {
     tts_is_quiet = inputs.quiet;
@@ -988,6 +990,7 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
         last_generation_settings_audio_seed = inputs.audio_seed;
         last_generation_settings_speaker_seed = inputs.speaker_seed;
         last_generation_settings_prompt = std::string(inputs.prompt);
+        total_tts_gens += 1;
 
         return output;
     }

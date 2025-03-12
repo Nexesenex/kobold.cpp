@@ -64,6 +64,8 @@ float last_eval_time = 0;
 int last_token_count = 0;
 int last_seed = -1;
 int total_gens = 0;
+int last_draft_success = 0;
+int last_draft_failed = 0;
 stop_reason last_stop_reason = stop_reason::INVALID;
 std::vector<std::string> generated_tokens;
 
@@ -3386,11 +3388,15 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
     bool llava_images_changed = false;
 
-    bool add_bos_token = true;
-    if(file_format == FileFormat::GGUF_GENERIC)
+    bool add_bos_token = true; //if set to false, mmproj handling breaks
+    if(file_format == FileFormat::GGUF_GENERIC && mmproj_filename == "")
     {
         const llama_vocab * tmpvocab = llama_model_get_vocab(&(llama_ctx_v4->model));
         add_bos_token = llama_vocab_get_add_bos(tmpvocab);
+        if(!add_bos_token)
+        {
+             printf("\nBOS token prefix was disabled for this model.");
+        }
     }
 
     for(int x=0;x<inputs.stop_sequence_len;++x)
@@ -4627,6 +4633,8 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     last_process_time = pt1;
     last_token_count = realnpredict;
     last_seed = kcpp_data->seed;
+    last_draft_failed = draft_failures;
+    last_draft_success = draft_successes;
     total_gens += 1;
     concat_output_mtx.lock();
     concat_output_reader_copy_res = concat_output;

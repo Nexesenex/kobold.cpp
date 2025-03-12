@@ -37,13 +37,6 @@ python ./convert_hf_to_gguf.py ../MiniCPM-o-2_6/model
 ./build/bin/llama-quantize ../MiniCPM-o-2_6/model/ggml-model-f16.gguf ../MiniCPM-o-2_6/model/ggml-model-Q4_K_M.gguf Q4_K_M
 ```
 
-Build llama.cpp using `CMake`:
-https://github.com/ggml-org/llama.cpp/blob/master/docs/build.md
-
-```bash
-cmake -B build
-cmake --build build --config Release
-```
 
 Inference on Linux or Mac
 ```bash

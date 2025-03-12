@@ -86,7 +86,11 @@ static struct clip_ctx * clip_init_context(common_params * params) {
     if (prompt.empty()) {
         prompt = "describe the image in detail.";
     }
-    auto * ctx_clip = clip_model_load(clip_path, /*verbosity=*/ 1);
+    struct clip_context_params clip_params = {
+        /* use_gpu */   params->n_gpu_layers != 0,
+        /* verbosity */ params->verbosity,
+    };
+    auto * ctx_clip = clip_init(clip_path, clip_params);
     return ctx_clip;
 }
 

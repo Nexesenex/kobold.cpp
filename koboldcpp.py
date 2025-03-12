@@ -481,6 +481,11 @@ def init_library():
     handle.get_last_process_time.restype = ctypes.c_float
     handle.get_last_token_count.restype = ctypes.c_int
     handle.get_last_seed.restype = ctypes.c_int
+    handle.get_last_draft_success.restype = ctypes.c_int
+    handle.get_last_draft_failed.restype = ctypes.c_int
+    handle.get_total_img_gens.restype = ctypes.c_int
+    handle.get_total_tts_gens.restype = ctypes.c_int
+    handle.get_total_transcribe_gens.restype = ctypes.c_int
     handle.get_total_gens.restype = ctypes.c_int
     handle.get_last_stop_reason.restype = ctypes.c_int
     handle.abort_generate.restype = ctypes.c_bool
@@ -3108,12 +3113,16 @@ Enter Prompt:<br>
             lastc = handle.get_last_token_count()
             totalgens = handle.get_total_gens()
             totalimggens = handle.get_total_img_gens()
+            totalttsgens = handle.get_total_tts_gens()
+            totaltranscribegens = handle.get_total_transcribe_gens()
             stopreason = handle.get_last_stop_reason()
             lastseed = handle.get_last_seed()
+            lastdraftsuccess = handle.get_last_draft_success()
+            lastdraftfailed = handle.get_last_draft_failed()
             uptime = time.time() - start_time
             idletime = time.time() - last_req_time
             is_quiet = True if (args.quiet and args.debugmode != 1) else False
-            response_body = (json.dumps({"last_process":lastp,"last_eval":laste,"last_token_count":lastc, "last_seed":lastseed, "total_gens":totalgens, "stop_reason":stopreason, "total_img_gens":totalimggens, "queue":requestsinqueue, "idle":(0 if modelbusy.locked() else 1), "hordeexitcounter":exitcounter, "uptime":uptime, "idletime":idletime, "quiet":is_quiet}).encode())
+            response_body = (json.dumps({"last_process":lastp,"last_eval":laste,"last_token_count":lastc, "last_seed":lastseed, "last_draft_success":lastdraftsuccess, "last_draft_failed":lastdraftfailed, "total_gens":totalgens, "stop_reason":stopreason, "total_img_gens":totalimggens, "total_tts_gens":totalttsgens, "total_transcribe_gens":totaltranscribegens, "queue":requestsinqueue, "idle":(0 if modelbusy.locked() else 1), "hordeexitcounter":exitcounter, "uptime":uptime, "idletime":idletime, "quiet":is_quiet}).encode())
 
         elif self.path.endswith('/api/extra/generate/check'):
             if not self.secure_endpoint():
@@ -5693,20 +5702,6 @@ def unload_libs():
     if handle and dll_close:
         print("Unloading Libraries...")
         dll_close(handle._handle)
-        del handle.load_model
-        del handle.generate
-        del handle.new_token
-        del handle.get_stream_count
-        del handle.has_finished
-        del handle.get_last_eval_time
-        del handle.get_last_process_time
-        del handle.get_last_token_count
-        del handle.get_last_seed
-        del handle.get_total_gens
-        del handle.get_last_stop_reason
-        del handle.abort_generate
-        del handle.token_count
-        del handle.get_pending_output
         del handle
         handle = None
 
