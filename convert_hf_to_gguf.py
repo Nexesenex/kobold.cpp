@@ -321,14 +321,27 @@ class ModelBase:
                     for key in (
                         gguf.MODEL_TENSOR.TOKEN_EMBD,
                         gguf.MODEL_TENSOR.OUTPUT,
+                        gguf.MODEL_TENSOR.ATTN_V,
+                        # gguf.MODEL_TENSOR.ATTN_K,
                     )
                 ):
                     if self.ftype in (
                         gguf.LlamaFileType.MOSTLY_TQ1_0,
                         gguf.LlamaFileType.MOSTLY_TQ2_0,
+                        gguf.LlamaFileType.MOSTLY_Q4_0,
+                        gguf.LlamaFileType.MOSTLY_Q4_1,
+                        gguf.LlamaFileType.MOSTLY_Q5_0,
+                        gguf.LlamaFileType.MOSTLY_Q5_1,
                     ):
-                        # TODO: use Q4_K and Q6_K
-                        data_qtype = gguf.GGMLQuantizationType.F16
+                        data_qtype = gguf.GGMLQuantizationType.Q8_0
+                    # if self.ftype in (
+                        # gguf.LlamaFileType.MOSTLY_Q2_K,
+                        # gguf.LlamaFileType.MOSTLY_Q3_K,
+                        # gguf.LlamaFileType.MOSTLY_Q4_K,
+                        # gguf.LlamaFileType.MOSTLY_Q5_K,
+                        # gguf.LlamaFileType.MOSTLY_Q6_K,
+                    # ):
+                        # data_qtype = gguf.GGMLQuantizationType.Q6_K
 
                 # No override (data_qtype is False), or wants to be quantized (data_qtype is True)
                 if isinstance(data_qtype, bool):
@@ -338,14 +351,41 @@ class ModelBase:
                         data_qtype = gguf.GGMLQuantizationType.F16
                     elif self.ftype == gguf.LlamaFileType.MOSTLY_BF16:
                         data_qtype = gguf.GGMLQuantizationType.BF16
+                    elif self.ftype == gguf.LlamaFileType.MOSTLY_Q4_0:
+                        data_qtype = gguf.GGMLQuantizationType.Q4_0
+                    elif self.ftype == gguf.LlamaFileType.MOSTLY_Q4_1:
+                        data_qtype = gguf.GGMLQuantizationType.Q4_1
+                    elif self.ftype == gguf.LlamaFileType.MOSTLY_Q5_0:
+                        data_qtype = gguf.GGMLQuantizationType.Q5_0
+                    elif self.ftype == gguf.LlamaFileType.MOSTLY_Q5_1:
+                        data_qtype = gguf.GGMLQuantizationType.Q5_1
                     elif self.ftype == gguf.LlamaFileType.MOSTLY_Q8_0:
                         data_qtype = gguf.GGMLQuantizationType.Q8_0
                     elif self.ftype == gguf.LlamaFileType.MOSTLY_TQ1_0:
                         data_qtype = gguf.GGMLQuantizationType.TQ1_0
                     elif self.ftype == gguf.LlamaFileType.MOSTLY_TQ2_0:
                         data_qtype = gguf.GGMLQuantizationType.TQ2_0
+                    # elif self.ftype == gguf.LlamaFileType.MOSTLY_Q2_K:
+                        # data_qtype = gguf.GGMLQuantizationType.Q2_K
+                    # elif self.ftype == gguf.LlamaFileType.MOSTLY_Q3_K:
+                        # data_qtype = gguf.GGMLQuantizationType.Q3_K
+                    # elif self.ftype == gguf.LlamaFileType.MOSTLY_Q4_K:
+                        # data_qtype = gguf.GGMLQuantizationType.Q4_K
+                    # elif self.ftype == gguf.LlamaFileType.MOSTLY_Q5_K:
+                        # data_qtype = gguf.GGMLQuantizationType.Q5_K
+                    # elif self.ftype == gguf.LlamaFileType.MOSTLY_Q6_K:
+                        # data_qtype = gguf.GGMLQuantizationType.Q6_K
                     else:
                         raise ValueError(f"Unknown file type: {self.ftype.name}")
+
+                # if data_qtype in [
+                    # gguf.GGMLQuantizationType.Q5_1, gguf.LlamaFileType.MOSTLY_Q5_0,
+                    # gguf.GGMLQuantizationType.Q4_1, gguf.LlamaFileType.MOSTLY_Q4_0,
+                    # ]:
+                    # logger.warning("**************************************************************************************")
+                    # logger.warning("** quantizing to `Q4_0`,`Q4_1`,`Q5_0`, or `Q5_1`is not equiv to using `llama-quantize`")
+                    # logger.warning("** `llama-quantize` uses `Q4_K` and `Q6_K` for the token embeddings but this code not")
+                    # logger.warning("**************************************************************************************")
 
                 try:
                     data = gguf.quants.quantize(data, data_qtype)
@@ -5617,7 +5657,10 @@ class ChatGLMModel(TextModel):
         special_vocab = gguf.SpecialVocab(self.dir_model, load_merges=True)
         # only add special tokens when they were not already loaded from config.json
         special_vocab._set_special_token("eos", tokenizer.get_added_vocab()["<|endoftext|>"])
-        special_vocab._set_special_token("eot", tokenizer.get_added_vocab()["<|user|>"])
+        # special_vocab._set_special_token("eot", tokenizer.get_added_vocab()["<|user|>"]) # not_fixed glm4
+        token_id = tokenizer.get_command("<|user|>") # fix glm4
+        print(token_id) # fix glm4
+        special_vocab._set_special_token("eot", token_id) # fix glm4
         # this one is usually not in config.json anyway
         special_vocab._set_special_token("unk", tokenizer.get_added_vocab()["<|endoftext|>"])
         special_vocab.add_to_gguf(self.gguf_writer)
@@ -6136,8 +6179,11 @@ def parse_args() -> argparse.Namespace:
         help="path to write to; default: based on input. {ftype} will be replaced by the outtype.",
     )
     parser.add_argument(
-        "--outtype", type=str, choices=["f32", "f16", "bf16", "q8_0", "tq1_0", "tq2_0", "auto"], default="f16",
-        help="output format - use f32 for float32, f16 for float16, bf16 for bfloat16, q8_0 for Q8_0, tq1_0 or tq2_0 for ternary, and auto for the highest-fidelity 16-bit float type depending on the first loaded tensor type",
+        "--outtype", type=str, choices=["f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "q5_0", "q5_1", "tq1_0", "tq2_0",  "auto"], default="f16",
+        # "--outtype", type=str, choices=["f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "q5_0", "q5_1", "q2_K", "q3_K", "q4_K", "q5_K", "q6_K", "auto"], default="f16",
+        help="output format - use f32 for float32, f16 for float16, bf16 for bfloat16, "
+                "q8_0 for Q8_0, limited: q4_0 for Q4_0, q4_1 for Q4_1, q5_0 for Q5_0, q5_1 for Q5_1, etc"
+                " auto for the highest-fidelity 16-bit float type depending on the first loaded tensor type",
     )
     parser.add_argument(
         "--bigendian", action="store_true",
@@ -6266,7 +6312,16 @@ def main() -> None:
         "f32": gguf.LlamaFileType.ALL_F32,
         "f16": gguf.LlamaFileType.MOSTLY_F16,
         "bf16": gguf.LlamaFileType.MOSTLY_BF16,
+        "q4_0": gguf.LlamaFileType.MOSTLY_Q4_0,
+        "q4_1": gguf.LlamaFileType.MOSTLY_Q4_1,
+        "q5_0": gguf.LlamaFileType.MOSTLY_Q5_0,
+        "q5_1": gguf.LlamaFileType.MOSTLY_Q5_1,
         "q8_0": gguf.LlamaFileType.MOSTLY_Q8_0,
+        # "q2_K": gguf.LlamaFileType.MOSTLY_Q2_K,
+        # "q3_K": gguf.LlamaFileType.MOSTLY_Q3_K,
+        # "q4_K": gguf.LlamaFileType.MOSTLY_Q4_K,
+        # "q5_K": gguf.LlamaFileType.MOSTLY_Q5_K,
+        # "q6_K": gguf.LlamaFileType.MOSTLY_Q6_K,
         "tq1_0": gguf.LlamaFileType.MOSTLY_TQ1_0,
         "tq2_0": gguf.LlamaFileType.MOSTLY_TQ2_0,
         "auto": gguf.LlamaFileType.GUESSED,
