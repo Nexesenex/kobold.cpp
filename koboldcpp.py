@@ -6210,6 +6210,10 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
         dlfile = download_model_from_url(args.sdvae,[".gguf",".safetensors"],min_file_size=500000)
         if dlfile:
             args.sdvae = dlfile
+    if args.sdlora and args.sdlora!="":
+        dlfile = download_model_from_url(args.sdlora,[".gguf",".safetensors"],min_file_size=500000)
+        if dlfile:
+            args.sdlora = dlfile
     if args.mmproj and args.mmproj!="":
         dlfile = download_model_from_url(args.mmproj,[".gguf"],min_file_size=500000)
         if dlfile:

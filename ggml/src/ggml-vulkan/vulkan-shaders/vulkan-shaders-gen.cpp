@@ -580,9 +580,6 @@ void write_output_files() {
         }
         fprintf(src, "\n};\n\n");
 
-        if (!no_clean) {
-            std::remove(path.c_str());
-        }
     }
 
     fclose(hdr);

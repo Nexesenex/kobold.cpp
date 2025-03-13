@@ -2763,6 +2763,10 @@ int clip_n_patches_by_img(const struct clip_ctx * ctx, struct clip_image_f32 * i
     const auto & params = ctx->vision_model.hparams;
 
     int n_patches = (params.image_size / params.patch_size) * (params.image_size / params.patch_size);
+    if (ctx->proj_type == PROJECTOR_TYPE_GEMMA3)
+    {
+        n_patches = 256; //kcpp hardcode gemma3 vision to 256 size
+    }
 
     if (ctx->proj_type == PROJECTOR_TYPE_LDP || ctx->proj_type == PROJECTOR_TYPE_LDPV2 || ctx->proj_type == PROJECTOR_TYPE_GLM_EDGE) {
         n_patches /= 4;
@@ -3167,6 +3171,11 @@ bool clip_model_quantize(const char * fname_inp, const char * fname_out, const i
             {
                 quantize = false;
             }
+            // //temp fix for gemma3
+            // if(name.find("ffn_up.weight") != std::string::npos)
+            // {
+            //     quantize = false;
+            // }
         }
 
         if (quantize) {
