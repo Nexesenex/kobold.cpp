@@ -2463,30 +2463,6 @@ inline static void ggml_vec_silu_f16(const int n, ggml_fp16_t * y, const ggml_fp
     }
 }
 
-static void ggml_vec_mul_silu_f32(const int n, float * z, const float * x, const float * y) {
-    int i = 0;
-#if defined(__AVX512F__) && defined(__AVX512DQ__)
-    for (; i + 15 < n; i += 16) {
-        _mm512_storeu_ps(z + i, _mm512_mul_ps(ggml_v_silu(_mm512_loadu_ps(x + i)), _mm512_loadu_ps(y + i)));
-    }
-#elif defined(__AVX2__) && defined(__FMA__)
-    for (; i + 7 < n; i += 8) {
-        _mm256_storeu_ps(z + i, _mm256_mul_ps(ggml_v_silu(_mm256_loadu_ps(x + i)), _mm256_loadu_ps(y + i)));
-    }
-#elif defined(__SSE2__)
-    for (; i + 3 < n; i += 4) {
-        _mm_storeu_ps(z + i, _mm_mul_ps(ggml_v_silu(_mm_loadu_ps(x + i)), _mm_loadu_ps(y + i)));
-    }
-#elif defined(__ARM_NEON) && defined(__aarch64__)
-    for (; i + 3 < n; i += 4) {
-        vst1q_f32(z + i, vmulq_f32(ggml_v_silu(vld1q_f32(x + i)), vld1q_f32(y + i)));
-    }
-#endif
-    for (; i < n; ++i) {
-        z[i] = ggml_silu_f32(x[i]) * y[i];
-    }
-}
-
 static void ggml_vec_tanh_f32(const int n, float * y, const float * x) {
     int i = 0;
 #if defined(__AVX512F__) && defined(__AVX512DQ__)
@@ -2672,48 +2648,6 @@ inline static void ggml_vec_gelu_f32(const int n, float * y, const float * x) {
 #endif
     for (; i < n; ++i) {
         y[i] = ggml_gelu_f32(x[i]);
-    }
-#endif
-}
-
-inline static void ggml_vec_mul_gelu_f32(const int n, float * z, const float * x, const float * y) {
-    int i = 0;
-#if defined(__AVX512F__) && defined(__AVX512DQ__)
-    __m512 c1 = _mm512_set1_ps(GELU_COEF_A);
-    __m512 c2 = _mm512_set1_ps(2.f*SQRT_2_OVER_PI);
-    for (; i + 15 < n; i += 16) {
-        _mm512_storeu_ps(z + i, _mm512_mul_ps(ggml_v_gelu(_mm512_loadu_ps(x + i), c1, c2), _mm512_loadu_ps(y + i)));
-    }
-#elif defined __AVX2__ && defined __FMA__
-    __m256 c1 = _mm256_set1_ps(GELU_COEF_A);
-    __m256 c2 = _mm256_set1_ps(2.f*SQRT_2_OVER_PI);
-    for (; i + 7 < n; i += 8) {
-        _mm256_storeu_ps(z + i, _mm256_mul_ps(ggml_v_gelu(_mm256_loadu_ps(x + i), c1, c2), _mm256_loadu_ps(y + i)));
-    }
-#endif
-#ifdef GGML_GELU_FP16
-    uint16_t t;
-    for (; i < n; ++i) {
-        if (x[i] <= -10.0f) {
-            z[i] = 0.0f;
-        } else if (x[i] >= 10.0f) {
-            z[i] = x[i]*y[i];
-        } else {
-            ggml_fp16_t fp16 = GGML_FP32_TO_FP16(x[i]);
-            memcpy(&t, &fp16, sizeof(uint16_t));
-            z[i] = GGML_FP16_TO_FP32(ggml_table_gelu_f16[t])*y[i];
-        }
-    }
-#else
-#if defined __ARM_NEON
-    float32x4_t c1 = vdupq_n_f32(GELU_COEF_A);
-    float32x4_t c2 = vdupq_n_f32(2.f*SQRT_2_OVER_PI);
-    for (; i + 3 < n; i += 4) {
-        vst1q_f32(z + i, vmulq_f32(ggml_v_gelu(vld1q_f32(x + i), c1, c2), vld1q_f32(y + i)));
-    }
-#endif
-    for (; i < n; ++i) {
-        z[i] = ggml_gelu_f32(x[i])*y[i];
     }
 #endif
 }
@@ -8581,67 +8515,6 @@ static void ggml_compute_forward_silu(
             }
     }
 }
-
-// ggml_compute_forward_fused_mul_unary
-
-static void ggml_compute_forward_fused_mul_unary_f32(
-        const struct ggml_compute_params * params,
-        struct ggml_tensor * dst) {
-
-    const struct ggml_tensor * src0 = dst->src[0];
-    const struct ggml_tensor * src1 = dst->src[1];
-    enum ggml_unary_op op = (enum ggml_unary_op)dst->op_params[0];
-
-    assert(ggml_is_contiguous_1(src0));
-    assert(ggml_are_same_shape(src0, dst));
-    assert(ggml_are_same_shape(src0, src1));
-    assert(op == GGML_UNARY_OP_GELU || op == GGML_UNARY_OP_RELU || op == GGML_UNARY_OP_SILU);
-
-    const int ith = params->ith;
-    const int nth = params->nth;
-
-    const int nc = dst->ne[0];
-    const int nr = ggml_nrows(src0);
-
-
-    // rows per thread
-    const int dr = (nr + nth - 1)/nth;
-
-    // row range for this thread
-    const int ir0 = dr*ith;
-    const int ir1 = MIN(ir0 + dr, nr);
-
-    for (int i1 = ir0; i1 < ir1; i1++) {
-        float * z = (float *) ((char *) dst->data  + i1*( dst->nb[1]));
-        const float * x = (const float *) ((char *) src0->data + i1*(src0->nb[1]));
-        const float * y = (const float *) ((char *) src1->data + i1*(src1->nb[1]));
-        switch (op) {
-            case GGML_UNARY_OP_GELU: ggml_vec_gelu_f32(nc, z, x); ggml_vec_mul_f32(nc, z, z, y); break;
-            case GGML_UNARY_OP_RELU: ggml_vec_relu_f32(nc, z, x); ggml_vec_mul_f32(nc, z, z, y); break;
-            case GGML_UNARY_OP_SILU: ggml_vec_mul_silu_f32(nc, z, x, y); break;
-            default: GGML_ABORT("fatal error");
-        }
-    }
-}
-
-static void ggml_compute_forward_fused_mul_unary(
-        const struct ggml_compute_params * params,
-        struct ggml_tensor * dst) {
-
-    const struct ggml_tensor * src0 = dst->src[0];
-
-    switch (src0->type) {
-        case GGML_TYPE_F32:
-            {
-                ggml_compute_forward_fused_mul_unary_f32(params, dst);
-            } break;
-        default:
-            {
-                GGML_ABORT("fatal error");
-            }
-    }
-}
-
 // ggml_compute_forward_leaky_relu
 
 static void ggml_compute_forward_leaky_relu_f32(
@@ -15349,10 +15222,6 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
             {
                 ggml_compute_forward_mul(params, tensor);
             } break;
-        case GGML_OP_FUSED_MUL_UNARY:
-            {
-                ggml_compute_forward_fused_mul_unary(params, tensor);
-            } break;
         case GGML_OP_DIV:
             {
                 ggml_compute_forward_div(params, tensor);
@@ -15856,7 +15725,6 @@ static int ggml_get_n_tasks(struct ggml_tensor * node, int n_threads) {
             break;
         case GGML_OP_SILU_BACK:
         case GGML_OP_MUL:
-        case GGML_OP_FUSED_MUL_UNARY:
         case GGML_OP_DIV:
         case GGML_OP_NORM:
         case GGML_OP_RMS_NORM:

@@ -374,60 +374,52 @@ static struct ggml_tensor * llm_build_ffn(
         cur = tmp;
     }
 
-    if (type_gate == LLM_FFN_PAR &&
-       (type_op == LLM_FFN_SILU || type_op == LLM_FFN_RELU || (type_op == LLM_FFN_GELU && !act_scales))) {
-        cur = ggml_fused_mul_unary(ctx, cur, tmp, type_op == LLM_FFN_SILU ? GGML_UNARY_OP_SILU :
-                                                  type_op == LLM_FFN_RELU ? GGML_UNARY_OP_RELU : GGML_UNARY_OP_GELU);
+    switch (type_op) {
+        case LLM_FFN_SILU:
+            {
+                cur = ggml_silu(ctx, cur);
+                cb(cur, "ffn_silu", il);
+            } break;
+        case LLM_FFN_GELU:
+            {
+                cur = ggml_gelu(ctx, cur);
+                cb(cur, "ffn_gelu", il);
+                if (act_scales != NULL) {
+                    cur = ggml_div(ctx, cur, act_scales);
+                    cb(cur, "ffn_act", il);
+                }
+            } break;
+        case LLM_FFN_RELU:
+            {
+                cur = ggml_relu(ctx, cur);
+                cb(cur, "ffn_relu", il);
+            } break;
+        case LLM_FFN_RELU_SQR:
+            {
+                cur = ggml_relu(ctx, cur);
+                cb(cur, "ffn_relu", il);
+
+                cur = ggml_sqr(ctx, cur);
+                cb(cur, "ffn_sqr(relu)", il);
+            } break;
+        case LLM_FFN_SWIGLU:
+            {
+                // Project to 4h. If using swiglu double the output width, see https://arxiv.org/pdf/2002.05202.pdf
+                int64_t split_point = cur->ne[0] / 2;
+                struct ggml_tensor * x0 = ggml_cont(ctx, ggml_view_2d(ctx, cur, split_point, cur->ne[1], cur->nb[1], 0));
+                struct ggml_tensor * x1 = ggml_cont(ctx, ggml_view_2d(ctx, cur, split_point, cur->ne[1], cur->nb[1], split_point * ggml_element_size(cur)));
+
+                x0 = ggml_silu(ctx, x0);
+                cb(cur, "ffn_silu", il);
+
+                cur = ggml_mul(ctx, x0, x1);
+                cb(cur, "ffn_mul", il);
+            } break;
     }
-    else {
 
-		switch (type_op) {
-			case LLM_FFN_SILU:
-				{
-					cur = ggml_silu(ctx, cur);
-					cb(cur, "ffn_silu", il);
-				} break;
-			case LLM_FFN_GELU:
-				{
-					cur = ggml_gelu(ctx, cur);
-					cb(cur, "ffn_gelu", il);
-					if (act_scales != NULL) {
-						cur = ggml_div(ctx, cur, act_scales);
-						cb(cur, "ffn_act", il);
-					}
-				} break;
-			case LLM_FFN_RELU:
-				{
-					cur = ggml_relu(ctx, cur);
-					cb(cur, "ffn_relu", il);
-				} break;
-			case LLM_FFN_RELU_SQR:
-				{
-					cur = ggml_relu(ctx, cur);
-					cb(cur, "ffn_relu", il);
-
-					cur = ggml_sqr(ctx, cur);
-					cb(cur, "ffn_sqr(relu)", il);
-				} break;
-			case LLM_FFN_SWIGLU:
-				{
-					// Project to 4h. If using swiglu double the output width, see https://arxiv.org/pdf/2002.05202.pdf
-					int64_t split_point = cur->ne[0] / 2;
-					struct ggml_tensor * x0 = ggml_cont(ctx, ggml_view_2d(ctx, cur, split_point, cur->ne[1], cur->nb[1], 0));
-					struct ggml_tensor * x1 = ggml_cont(ctx, ggml_view_2d(ctx, cur, split_point, cur->ne[1], cur->nb[1], split_point * ggml_element_size(cur)));
-
-					x0 = ggml_silu(ctx, x0);
-					cb(cur, "ffn_silu", il);
-
-					cur = ggml_mul(ctx, x0, x1);
-					cb(cur, "ffn_mul", il);
-				} break;
-		}
-
-		if (type_gate == LLM_FFN_PAR) {
-			cur = ggml_mul(ctx, cur, tmp);
-			cb(cur, "ffn_gate_par", il);
-		}
+    if (type_gate == LLM_FFN_PAR) {
+        cur = ggml_mul(ctx, cur, tmp);
+        cb(cur, "ffn_gate_par", il);
     }
 
     if (down) {
