@@ -766,7 +766,11 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
     ).set_env("LLAMA_ARG_CTX_SIZE"));
     add_opt(common_arg(
         {"-n", "--predict", "--n-predict"}, "N",
-        string_format("number of tokens to predict (default: %d, -1 = infinity, -2 = until context filled)", params.n_predict),
+        string_format(
+            ex == LLAMA_EXAMPLE_MAIN || ex == LLAMA_EXAMPLE_INFILL
+                ? "number of tokens to predict (default: %d, -1 = infinity, -2 = until context filled)"
+                : "number of tokens to predict (default: %d, -1 = infinity)",
+            params.n_predict),
         [](common_params & params, int value) {
             params.n_predict = value;
         }

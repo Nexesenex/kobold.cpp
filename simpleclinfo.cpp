@@ -1,18 +1,15 @@
 //a simple program that obtains the CL platform and devices, prints them out and exits
 
 #include <array>
-#include <atomic>
-#include <sstream>
 #include <vector>
-#include <limits>
 
 #define CL_TARGET_OPENCL_VERSION 110
 #include <clblast.h>
 #include <clblast_c.h>
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 
 #if defined(_MSC_VER)
 #pragma warning(disable: 4244 4267) // possible loss of data
@@ -31,20 +28,20 @@
 
 static cl_platform_id platform;
 static cl_device_id device;
-static cl_context context;
-static cl_command_queue queue;
-static cl_program program;
-static cl_kernel convert_row_f16_cl;
-static cl_kernel dequantize_row_q4_0_cl, dequantize_row_q4_1_cl, dequantize_row_q5_0_cl, dequantize_row_q5_1_cl, dequantize_row_q6_0_cl, dequantize_row_q8_0_cl;
-static cl_kernel dequantize_mul_mat_vec_q4_0_cl, dequantize_mul_mat_vec_q4_1_cl, dequantize_mul_mat_vec_q5_0_cl, dequantize_mul_mat_vec_q5_1_cl, dequantize_mul_mat_vec_q8_0_cl, convert_mul_mat_vec_f16_cl;
-// static cl_kernel dequantize_mul_mat_vec_q6_0_cl,
-static cl_kernel dequantize_mul_mat_vec_q2_K_cl, dequantize_mul_mat_vec_q3_K_cl, dequantize_mul_mat_vec_q4_K_cl, dequantize_mul_mat_vec_q5_K_cl, dequantize_mul_mat_vec_q6_K_cl, convert_mul_mat_vec_bf16_cl;
-static cl_kernel dequantize_mul_mat_vec_q2_kt_cl, dequantize_mul_mat_vec_q3_kt_cl, dequantize_mul_mat_vec_q4_kt_cl;
-static cl_kernel dequantize_block_q2_k_cl, dequantize_block_q3_k_cl, dequantize_block_q4_k_cl, dequantize_block_q5_k_cl, dequantize_block_q6_k_cl;
-static cl_kernel dequantize_mul_mat_vec_q2_K_cl, dequantize_mul_mat_vec_q3_K_cl, dequantize_mul_mat_vec_q4_K_cl, dequantize_mul_mat_vec_q5_K_cl, dequantize_mul_mat_vec_q6_K_cl;
-static cl_kernel mul_f32_cl;
-static bool fp16_support;
 
+// static cl_context context;
+// static cl_command_queue queue;
+// static cl_program program;
+// static cl_kernel convert_row_f16_cl;
+// static cl_kernel dequantize_row_q4_0_cl, dequantize_row_q4_1_cl, dequantize_row_q5_0_cl, dequantize_row_q5_1_cl, dequantize_row_q6_0_cl, dequantize_row_q8_0_cl;
+// static cl_kernel dequantize_mul_mat_vec_q4_0_cl, dequantize_mul_mat_vec_q4_1_cl, dequantize_mul_mat_vec_q5_0_cl, dequantize_mul_mat_vec_q5_1_cl, dequantize_mul_mat_vec_q8_0_cl, convert_mul_mat_vec_f16_cl;
+// // static cl_kernel dequantize_mul_mat_vec_q6_0_cl,
+// static cl_kernel dequantize_mul_mat_vec_q2_K_cl, dequantize_mul_mat_vec_q3_K_cl, dequantize_mul_mat_vec_q4_K_cl, dequantize_mul_mat_vec_q5_K_cl, dequantize_mul_mat_vec_q6_K_cl, convert_mul_mat_vec_bf16_cl;
+// static cl_kernel dequantize_mul_mat_vec_q2_kt_cl, dequantize_mul_mat_vec_q3_kt_cl, dequantize_mul_mat_vec_q4_kt_cl;
+// static cl_kernel dequantize_block_q2_k_cl, dequantize_block_q3_k_cl, dequantize_block_q4_k_cl, dequantize_block_q5_k_cl, dequantize_block_q6_k_cl;
+// static cl_kernel dequantize_mul_mat_vec_q2_K_cl, dequantize_mul_mat_vec_q3_K_cl, dequantize_mul_mat_vec_q4_K_cl, dequantize_mul_mat_vec_q5_K_cl, dequantize_mul_mat_vec_q6_K_cl;
+// static cl_kernel mul_f32_cl;
+// static bool fp16_support;
 
 int main(void) {
 
@@ -83,6 +80,8 @@ int main(void) {
     cl_platform_id platform_ids[NPLAT];
     CL_CHECK(clGetPlatformIDs(NPLAT, platform_ids, &n_platforms));
 
+    std::string output = "{\"devices\":[";
+
     for (unsigned i = 0; i < n_platforms; i++) {
         struct cl_platform * p = &platforms[i];
         p->number = i;
@@ -100,6 +99,8 @@ int main(void) {
         p->devices = p->n_devices > 0 ? &devices[n_devices] : NULL;
         p->default_device = NULL;
 
+        std::string platformtemplate = "{\"online\":[";
+
         for (unsigned j = 0; j < p->n_devices; j++) {
             struct cl_device * d = &devices[n_devices];
             d->number = n_devices++;
@@ -107,8 +108,23 @@ int main(void) {
             d->platform = p;
             CL_CHECK(clGetDeviceInfo(d->id, CL_DEVICE_NAME, sizeof(d->name), &d->name, NULL));
             CL_CHECK(clGetDeviceInfo(d->id, CL_DEVICE_TYPE, sizeof(d->type), &d->type, NULL));
-            printf("%d %d = %s\n",i,j,d->name);
+            std::string devicetemplate = "{\"CL_DEVICE_NAME\":\"" + std::string(d->name) + "\"}";
+            if(j>0)
+            {
+                devicetemplate = ","+devicetemplate;
+            }
+            platformtemplate += devicetemplate;
         }
+
+        platformtemplate += "]}";
+        if(i>0)
+        {
+            platformtemplate = ","+platformtemplate;
+        }
+        output += platformtemplate;
     }
+    output += "]}";
+    printf("%s",output.c_str());
+    fflush(stdout);
     return 0;
 }
