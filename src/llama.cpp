@@ -642,22 +642,17 @@ static struct ggml_tensor * llm_build_kqv(
             // kq = 30 * tanh(kq / 30)
             // before the softmax below
 
-            //kq = ggml_tanh(ctx, ggml_scale(ctx, kq, 0.08838834764831845f/30.0f));
-            //kq = ggml_scale(ctx, kq, 30);
-
-            kq = ggml_softcap(ctx, kq, 0.08838834764831845f/30.0f, 30.f);
+            kq = ggml_tanh(ctx, ggml_scale(ctx, kq, 0.08838834764831845f/30.0f));
+            kq = ggml_scale(ctx, kq, 30);
         }
 
         if (hparams.attn_soft_cap) {
-            //kq = ggml_softcap(ctx, kq, 1.0f / hparams.f_attn_logit_softcapping, hparams.f_attn_logit_softcapping);
-            //kq = ggml_scale(ctx, kq, 1.0f / hparams.f_attn_logit_softcapping);
-            //kq = ggml_tanh(ctx, kq);
-            //kq = ggml_scale(ctx, kq, hparams.f_attn_logit_softcapping);
-            kq = ggml_softcap_max(ctx, kq, kq_mask, kq_scale, hparams.f_max_alibi_bias,
-                    1.0f / hparams.f_attn_logit_softcapping, hparams.f_attn_logit_softcapping);
-        } else {
-            kq = ggml_soft_max_ext(ctx, kq, kq_mask, kq_scale, hparams.f_max_alibi_bias);
+            kq = ggml_scale(ctx, kq, 1.0f / hparams.f_attn_logit_softcapping);
+            kq = ggml_tanh(ctx, kq);
+            kq = ggml_scale(ctx, kq, hparams.f_attn_logit_softcapping);
         }
+
+        kq = ggml_soft_max_ext(ctx, kq, kq_mask, kq_scale, hparams.f_max_alibi_bias);
         cb(kq, "kq_soft_max_ext", il);
 
         GGML_ASSERT(kv.size == n_ctx);
@@ -8824,32 +8819,6 @@ static int llama_decode_impl(
         ggml_threadpool_t threadpool = ubatch.n_tokens < 32 ? lctx.threadpool   : lctx.threadpool_batch;
 
         GGML_ASSERT(n_threads > 0);
-
-/*         // non-causal masks do not use the KV cache
-        if (hparams.causal_attn) {
-            llama_kv_cache_update(&lctx);
-
-            // if we have enough unused cells before the current head ->
-            //   better to start searching from the beginning of the cache, hoping to fill it
-            if (kv_self.head > kv_self.used + 2*n_tokens) {
-                kv_self.head = 0;
-            }
-
-            const auto slot = llama_kv_cache_find_slot(kv_self, ubatch);
-            if (!slot) {
-                return 1;
-            }
-            kv_slot_restorer.save(slot);
-
-            if (!kv_self.recurrent) {
-                // a heuristic, to avoid attending the full cache if it is not yet utilized
-                // after enough generations, the benefit from this heuristic disappears
-                // if we start defragmenting the cache, the benefit from this will be more important
-                const uint32_t pad = llama_kv_cache_get_padding(cparams);
-                kv_self.n = std::min(kv_self.size, std::max(pad, GGML_PAD(llama_kv_cache_cell_max(kv_self), pad)));
-                //kv_self.n = llama_kv_cache_cell_max(kv_self);
-            }
-        } */
 
         //printf("kv_self.n = %5d, kv_self.used = %5d, kv_self.head = %5d\n", kv_self.n, kv_self.used, kv_self.head);
 
