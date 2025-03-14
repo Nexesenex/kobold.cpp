@@ -74,6 +74,10 @@ option(GGML_USE_LLAMA_CPP_MAINLINE          "ggml: use Llama CPP mainline MatMul
 
 option(GGML_CCACHE                          "ggml: use ccache if available"                     OFF)
 
+set   (GGML_CUDA_COMPRESSION_MODE "size" CACHE STRING
+                                            "ggml: cuda link binary compression mode; requires cuda 12.8+")
+set_property(CACHE GGML_CUDA_COMPRESSION_MODE PROPERTY STRINGS "none;speed;balance;size")
+
 #
 # Compile flags
 #
@@ -137,6 +141,7 @@ if (GGML_IQK_MUL_MAT)
 endif()
 
 if (LLAMA_CUBLAS)
+
     cmake_minimum_required(VERSION 3.17)
 
     find_package(CUDAToolkit)
@@ -148,6 +153,15 @@ if (LLAMA_CUBLAS)
         add_compile_definitions(GGML_USE_LLAMAFILE)
         add_compile_definitions(GGML_USE_CUDA)
         add_compile_definitions(SD_USE_CUBLAS)
+		
+		if (CUDAToolkit_VERSION VERSION_GREATER_EQUAL "12.8")
+			# Options are:
+			# - none (not recommended)
+			# - speed (nvcc's default)
+			# - balance
+			# - size
+			list(APPEND CUDA_FLAGS -compress-mode=${GGML_CUDA_COMPRESSION_MODE})
+		endif()
 
         add_compile_definitions(GGML_CUDA_DMMV_X=${LLAMA_CUDA_DMMV_X})
         add_compile_definitions(GGML_CUDA_DMMV_Y=${LLAMA_CUDA_DMMV_Y})
