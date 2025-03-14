@@ -187,7 +187,6 @@ enum ggml_metal_kernel_type {
     GGML_METAL_KERNEL_TYPE_GET_ROWS_IQ4_XS,
     GGML_METAL_KERNEL_TYPE_GET_ROWS_I32,
     GGML_METAL_KERNEL_TYPE_RMS_NORM,
-    GGML_METAL_KERNEL_TYPE_FUSED_RMS_NORM,
     GGML_METAL_KERNEL_TYPE_GROUP_NORM,
     GGML_METAL_KERNEL_TYPE_NORM,
     GGML_METAL_KERNEL_TYPE_SSM_CONV_F32,
@@ -1280,8 +1279,6 @@ static bool ggml_metal_supports_op(const struct ggml_backend_metal_device_contex
         case GGML_OP_SOFTCAP:
             return true; //ggml_is_contiguous(op->src[0]) && ggml_is_contiguous(op);
         case GGML_OP_SOFT_MAX:
-        case GGML_OP_RMS_NORM:
-        case GGML_OP_FUSED_RMS_NORM:
         case GGML_OP_GROUP_NORM:
             return has_simdgroup_reduction && ggml_is_contiguous(op->src[0]);
         case GGML_OP_RMS_NORM:
@@ -3194,38 +3191,6 @@ static void ggml_metal_encode_node(
 
 				[encoder dispatchThreadgroups:MTLSizeMake(nrows, 1, 1) threadsPerThreadgroup:MTLSizeMake(nth, 1, 1)];
 			} break;
-		case GGML_OP_FUSED_RMS_NORM:
-			{
-				GGML_ASSERT(ne00 % 4 == 0);
-				GGML_ASSERT(ggml_is_contiguous_1(src0));
-				GGML_ASSERT(src1->ne[0] == src0->ne[0]);
-				GGML_ASSERT(src1->type  == GGML_TYPE_F32);
-				GGML_ASSERT(ggml_nrows(src1) == 1);
-
-				float eps;
-				memcpy(&eps, dst->op_params, sizeof(float));
-
-				int nth = 32; // SIMD width
-
-				while (nth < ne00/4 && nth < 1024) {
-					nth *= 2;
-				}
-
-				id<MTLComputePipelineState> pipeline = ctx->kernels[GGML_METAL_KERNEL_TYPE_FUSED_RMS_NORM].pipeline;
-
-				[encoder setComputePipelineState:pipeline];
-				[encoder setBuffer:id_src0 offset:offs_src0        atIndex:0];
-				[encoder setBuffer:id_src1 offset:offs_src1        atIndex:1];
-				[encoder setBuffer:id_dst  offset:offs_dst         atIndex:2];
-				[encoder setBytes:&ne00    length:sizeof( int64_t) atIndex:3];
-				[encoder setBytes:&nb01    length:sizeof(uint64_t) atIndex:4];
-				[encoder setBytes:&eps     length:sizeof(   float) atIndex:5];
-				[encoder setThreadgroupMemoryLength:32*sizeof(float) atIndex:0];
-
-				const int64_t nrows = ggml_nrows(src0);
-
-                [encoder dispatchThreadgroups:MTLSizeMake(nrows, 1, 1) threadsPerThreadgroup:MTLSizeMake(nth, 1, 1)];
-            } break;
         case GGML_OP_GROUP_NORM:
             {
                 GGML_ASSERT(ggml_is_contiguous(src0));
