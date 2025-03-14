@@ -1270,7 +1270,7 @@ struct llm_build_context {
     }
 
     struct ggml_cgraph * build_defrag(const std::vector<uint32_t> & ids) {
-        struct ggml_cgraph * gf = ggml_new_graph_custom(ctx0, llama_model_max_nodes(model), false);
+        struct ggml_cgraph * gf = ggml_new_graph_custom(ctx0, model.max_nodes(), false);
 
         for (uint32_t i = 0; i < ids.size(); ++i) {
             const uint32_t id = ids[i];
