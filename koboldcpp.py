@@ -50,7 +50,7 @@ logit_bias_max = 512
 dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.86"
+KcppVersion = "1.86.1"
 showdebug = True
 kcpp_instance = None #global running instance
 global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None}
@@ -178,6 +178,7 @@ class load_model_inputs(ctypes.Structure):
                 ("rope_freq_scale", ctypes.c_float),
                 ("rope_freq_base", ctypes.c_float),
                 ("moe_experts", ctypes.c_int),
+                ("no_bos_token", ctypes.c_bool),
                 ("flash_attention", ctypes.c_bool),
                 ("tensor_split", ctypes.c_float * tensor_split_max),
                 ("quant_k", ctypes.c_int),
@@ -468,6 +469,11 @@ def init_library():
     handle.get_last_process_time.restype = ctypes.c_float
     handle.get_last_token_count.restype = ctypes.c_int
     handle.get_last_seed.restype = ctypes.c_int
+    handle.get_last_draft_success.restype = ctypes.c_int
+    handle.get_last_draft_failed.restype = ctypes.c_int
+    handle.get_total_img_gens.restype = ctypes.c_int
+    handle.get_total_tts_gens.restype = ctypes.c_int
+    handle.get_total_transcribe_gens.restype = ctypes.c_int
     handle.get_total_gens.restype = ctypes.c_int
     handle.get_last_stop_reason.restype = ctypes.c_int
     handle.abort_generate.restype = ctypes.c_bool
@@ -1008,7 +1014,7 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                 output = subprocess.run(["clinfo","--json"], capture_output=True, text=True, check=True, encoding='utf-8').stdout
                 data = json.loads(output)
             except Exception:
-                output = subprocess.run([((os.path.join(basepath, "winclinfo.exe")) if os.name == 'nt' else "clinfo"),"--json"], capture_output=True, text=True, check=True, creationflags=subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS, encoding='utf-8').stdout
+                output = subprocess.run([((os.path.join(basepath, "simpleclinfo.exe")) if os.name == 'nt' else "clinfo"),"--json"], capture_output=True, text=True, check=True, creationflags=subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS, encoding='utf-8').stdout
                 data = json.loads(output)
             plat = 0
             dev = 0
@@ -1104,6 +1110,7 @@ def load_model(model_filename):
             inputs.tensor_split[n] = 0
 
     inputs.moe_experts = args.moeexperts
+    inputs.no_bos_token = args.nobostoken
     inputs = set_backend_props(inputs)
     ret = handle.load_model(inputs)
     return ret
@@ -1115,7 +1122,7 @@ def generate(genparams, stream_flag=False):
     memory = genparams.get('memory', "")
     images = genparams.get('images', [])
     max_context_length = int(genparams.get('max_context_length', maxctx))
-    max_length = int(genparams.get('max_length', 200))
+    max_length = int(genparams.get('max_length', args.defaultgenamt))
     temperature = float(genparams.get('temperature', 0.75))
     top_k = int(genparams.get('top_k', 100))
     top_a = float(genparams.get('top_a', 0.0))
@@ -1156,6 +1163,20 @@ def generate(genparams, stream_flag=False):
     banned_tokens = genparams.get('banned_tokens', banned_strings)
     bypass_eos_token = genparams.get('bypass_eos', False)
     custom_token_bans = genparams.get('custom_token_bans', '')
+    replace_instruct_placeholders = genparams.get('replace_instruct_placeholders', False)
+    if replace_instruct_placeholders:
+        adapter_obj = {} if chatcompl_adapter is None else chatcompl_adapter
+        system_message_start = adapter_obj.get("system_start", "\n### Instruction:\n")
+        user_message_start = adapter_obj.get("user_start", "\n### Instruction:\n")
+        user_message_end = adapter_obj.get("user_end", "")
+        assistant_message_start = adapter_obj.get("assistant_start", "\n### Response:\n")
+        assistant_message_end = adapter_obj.get("assistant_end", "")
+        prompt = prompt.replace("{{[INPUT]}}", assistant_message_end + user_message_start)
+        prompt = prompt.replace("{{[OUTPUT]}}", user_message_end + assistant_message_start)
+        prompt = prompt.replace("{{[SYSTEM]}}", system_message_start)
+        memory = memory.replace("{{[INPUT]}}", assistant_message_end + user_message_start)
+        memory = memory.replace("{{[OUTPUT]}}", user_message_end + assistant_message_start)
+        memory = memory.replace("{{[SYSTEM]}}", system_message_start)
 
     for tok in custom_token_bans.split(','):
         tok = tok.strip()  # Remove leading/trailing whitespace
@@ -1800,8 +1821,8 @@ def transform_genparams(genparams, api_format):
 
     if api_format==1:
         genparams["prompt"] = genparams.get('text', "")
-        genparams["top_k"] = int(genparams.get('top_k', 120))
-        genparams["max_length"] = int(genparams.get('max', 200))
+        genparams["top_k"] = int(genparams.get('top_k', 100))
+        genparams["max_length"] = int(genparams.get('max', args.defaultgenamt))
 
     elif api_format==2:
         pass
@@ -1809,7 +1830,7 @@ def transform_genparams(genparams, api_format):
     elif api_format==3 or api_format==4 or api_format==7:
         default_adapter = {} if chatcompl_adapter is None else chatcompl_adapter
         adapter_obj = genparams.get('adapter', default_adapter)
-        default_max_tok = (adapter_obj.get("max_length", 512) if (api_format==4 or api_format==7) else 200)
+        default_max_tok = (adapter_obj.get("max_length", args.defaultgenamt) if (api_format==4 or api_format==7) else args.defaultgenamt)
         genparams["max_length"] = int(genparams.get('max_tokens', genparams.get('max_completion_tokens', default_max_tok)))
         presence_penalty = genparams.get('presence_penalty', genparams.get('frequency_penalty', 0.0))
         genparams["presence_penalty"] = float(presence_penalty)
@@ -1956,7 +1977,7 @@ ws ::= | " " | "\n" [ \t]{0,20}
         ollamaopts = genparams.get('options', {})
         genparams["stop_sequence"] = genparams.get('stop', [])
         if "num_predict" in ollamaopts:
-            genparams["max_length"] = ollamaopts.get('num_predict', 200)
+            genparams["max_length"] = ollamaopts.get('num_predict', args.defaultgenamt)
         if "num_ctx" in ollamaopts:
             genparams["max_context_length"] = ollamaopts.get('num_ctx', maxctx)
         if "temperature" in ollamaopts:
@@ -2667,7 +2688,14 @@ Enter Prompt:<br>
             opts = []
             if args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
                 dirpath = os.path.abspath(args.admindir)
-                opts = [f for f in sorted(os.listdir(dirpath)) if (f.endswith(".kcpps") or f.endswith(".kcppt")) and os.path.isfile(os.path.join(dirpath, f))]
+                opts = [f for f in sorted(os.listdir(dirpath)) if (f.endswith(".kcpps") or f.endswith(".kcppt") or f.endswith(".gguf")) and os.path.isfile(os.path.join(dirpath, f))]
+            response_body = (json.dumps(opts).encode())
+
+        elif self.path.endswith(('/api/admin/list_models')): #used by admin to get models which can be reloaded with
+            opts = []
+            if args.admin and args.admintextmodelsdir and os.path.exists(args.admintextmodelsdir) and self.check_header_password(args.adminpassword):
+                dirpath = os.path.abspath(args.admintextmodelsdir)
+                opts = [f for f in os.listdir(dirpath) if f.endswith(".gguf") and os.path.isfile(os.path.join(dirpath, f))]
             response_body = (json.dumps(opts).encode())
 
         elif self.path.endswith(('/api/admin/list_models')): #used by admin to get models which can be reloaded with
@@ -2683,12 +2711,16 @@ Enter Prompt:<br>
             lastc = handle.get_last_token_count()
             totalgens = handle.get_total_gens()
             totalimggens = handle.get_total_img_gens()
+            totalttsgens = handle.get_total_tts_gens()
+            totaltranscribegens = handle.get_total_transcribe_gens()
             stopreason = handle.get_last_stop_reason()
             lastseed = handle.get_last_seed()
+            lastdraftsuccess = handle.get_last_draft_success()
+            lastdraftfailed = handle.get_last_draft_failed()
             uptime = time.time() - start_time
             idletime = time.time() - last_req_time
             is_quiet = True if (args.quiet and args.debugmode != 1) else False
-            response_body = (json.dumps({"last_process":lastp,"last_eval":laste,"last_token_count":lastc, "last_seed":lastseed, "total_gens":totalgens, "stop_reason":stopreason, "total_img_gens":totalimggens, "queue":requestsinqueue, "idle":(0 if modelbusy.locked() else 1), "hordeexitcounter":exitcounter, "uptime":uptime, "idletime":idletime, "quiet":is_quiet}).encode())
+            response_body = (json.dumps({"last_process":lastp,"last_eval":laste,"last_token_count":lastc, "last_seed":lastseed, "last_draft_success":lastdraftsuccess, "last_draft_failed":lastdraftfailed, "total_gens":totalgens, "stop_reason":stopreason, "total_img_gens":totalimggens, "total_tts_gens":totalttsgens, "total_transcribe_gens":totaltranscribegens, "queue":requestsinqueue, "idle":(0 if modelbusy.locked() else 1), "hordeexitcounter":exitcounter, "uptime":uptime, "idletime":idletime, "quiet":is_quiet}).encode())
 
         elif self.path.endswith('/api/extra/generate/check'):
             if not self.secure_endpoint():
@@ -3304,7 +3336,7 @@ Enter Prompt:<br>
                 if targetfile and targetfile!="":
                     dirpath = os.path.abspath(args.admindir)
                     targetfilepath = os.path.join(dirpath, targetfile)
-                    opts = [f for f in os.listdir(dirpath) if (f.endswith(".kcpps") or f.endswith(".kcppt")) and os.path.isfile(os.path.join(dirpath, f))]
+                    opts = [f for f in os.listdir(dirpath) if (f.endswith(".kcpps") or f.endswith(".kcppt") or f.endswith(".gguf")) and os.path.isfile(os.path.join(dirpath, f))]
                     if targetfile in opts and os.path.exists(targetfilepath):
                         # Now check targetModel
                         if targetModel and targetModel!="":
@@ -3458,7 +3490,7 @@ Enter Prompt:<br>
                             self.end_headers(content_type='application/json')
                             self.wfile.write(genresp)
                     except Exception as ex:
-                        utfprint(ex,0)
+                        utfprint(ex,1)
                         print("Generate: The response could not be sent, maybe connection was terminated?")
                         handle.abort_generate()
                         time.sleep(0.2) #short delay
@@ -3484,7 +3516,7 @@ Enter Prompt:<br>
                         self.end_headers(content_type='application/json')
                         self.wfile.write(genresp)
                     except Exception as ex:
-                        utfprint(ex,0)
+                        utfprint(ex,1)
                         print("Generate Image: The response could not be sent, maybe connection was terminated?")
                         time.sleep(0.2) #short delay
                     return
@@ -3497,7 +3529,7 @@ Enter Prompt:<br>
                         self.end_headers(content_type='application/json')
                         self.wfile.write(genresp)
                     except Exception as ex:
-                        utfprint(ex,0)
+                        utfprint(ex,1)
                         print("Transcribe: The response could not be sent, maybe connection was terminated?")
                         time.sleep(0.2) #short delay
                     return
@@ -3513,7 +3545,7 @@ Enter Prompt:<br>
                         self.end_headers(content_type='audio/wav')
                         self.wfile.write(wav_data) # Write the binary WAV data to the response
                     except Exception as ex:
-                        utfprint(ex,0)
+                        utfprint(ex,1)
                         print("TTS: The response could not be sent, maybe connection was terminated?")
                         time.sleep(0.2) #short delay
                     return
@@ -3805,6 +3837,8 @@ def show_gui():
     customrope_base = ctk.StringVar(value="10000")
     chatcompletionsadapter_var = ctk.StringVar(value="AutoGuess")
     moeexperts_var = ctk.StringVar(value=str(-1))
+    defaultgenamt_var = ctk.StringVar(value=str(512))
+    nobostoken_var = ctk.IntVar(value=0)
 
     model_var = ctk.StringVar()
     lora_var = ctk.StringVar()
@@ -4298,8 +4332,9 @@ def show_gui():
     makecheckbox(tokens_tab, "Use FastForwarding", fastforward, 3,tooltiptxt="Use fast forwarding to recycle previous context (always reprocess if disabled).\nRecommended.", command=togglefastforward)
 
     # context size
-    makeslider(tokens_tab, "Context Size:",contextsize_text, context_var, 0, len(contextsize_text)-1, 20, width=280, set=5,tooltip="What is the maximum context size to support. Model specific. You cannot exceed it.\nLarger contexts require more memory, and not all models support it.")
+    makeslider(tokens_tab, "Context Size:",contextsize_text, context_var, 0, len(contextsize_text)-1, 18, width=280, set=5,tooltip="What is the maximum context size to support. Model specific. You cannot exceed it.\nLarger contexts require more memory, and not all models support it.")
     context_var.trace("w", changed_gpulayers_estimate)
+    makelabelentry(tokens_tab, "Default Gen Amt:", defaultgenamt_var, row=20, padx=120, singleline=True, tooltip="How many tokens to generate by default, if not specified. Must be smaller than context size. Usually, your frontend GUI will override this.")
 
     customrope_scale_entry, customrope_scale_label = makelabelentry(tokens_tab, "RoPE Scale:", customrope_scale, row=23, padx=100, singleline=True, tooltip="For Linear RoPE scaling. RoPE frequency scale.")
     customrope_base_entry, customrope_base_label = makelabelentry(tokens_tab, "RoPE Base:", customrope_base, row=24, padx=100, singleline=True, tooltip="For NTK Aware Scaling. RoPE frequency base.")
@@ -4315,6 +4350,7 @@ def show_gui():
     noqkvlabel = makelabel(tokens_tab,"Requirments Not Met",31,0,"Requires FlashAttention ENABLED and ContextShift DISABLED.")
     noqkvlabel.configure(text_color="#ff5555")
     qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 2, 30, set=0,tooltip="Enable quantization of KV cache.\nRequires FlashAttention and disables ContextShift.")
+    makecheckbox(tokens_tab, "No BOS Token", nobostoken_var, 33, tooltiptxt="Prevents BOS token from being added at the start of any prompt. Usually NOT recommended for most models.")
     makelabelentry(tokens_tab, "MoE Experts:", moeexperts_var, row=35, padx=100, singleline=True, tooltip="Override number of MoE experts.")
 
     togglerope(1,1,1)
@@ -4586,6 +4622,8 @@ def show_gui():
         if customrope_var.get()==1:
             args.ropeconfig = [float(customrope_scale.get()),float(customrope_base.get())]
         args.moeexperts = int(moeexperts_var.get()) if moeexperts_var.get()!="" else -1
+        args.defaultgenamt = int(defaultgenamt_var.get()) if defaultgenamt_var.get()!="" else 512
+        args.nobostoken = (nobostoken_var.get()==1)
         args.chatcompletionsadapter = None if chatcompletionsadapter_var.get() == "" else chatcompletionsadapter_var.get()
         try:
             if kcpp_exporting_template and isinstance(args.chatcompletionsadapter, str) and args.chatcompletionsadapter!="" and os.path.exists(args.chatcompletionsadapter):
@@ -4774,6 +4812,9 @@ def show_gui():
                 customrope_var.set(0)
         if "moeexperts" in dict and dict["moeexperts"]:
             moeexperts_var.set(dict["moeexperts"])
+        if "defaultgenamt" in dict and dict["defaultgenamt"]:
+            defaultgenamt_var.set(dict["defaultgenamt"])
+        nobostoken_var.set(dict["nobostoken"] if ("nobostoken" in dict) else 0)
 
         if "blasbatchsize" in dict and dict["blasbatchsize"]:
             blas_size_var.set(blasbatchsize_values.index(str(dict["blasbatchsize"])))
@@ -5115,7 +5156,7 @@ def run_horde_worker(args, api_key, worker_name):
         current_id = pop['id']
         current_payload = pop['payload']
         print("") #empty newline
-        print_with_time(f"Job {current_id} received from {cluster} for {current_payload.get('max_length',80)} tokens and {current_payload.get('max_context_length',1024)} max context. Starting generation...")
+        print_with_time(f"Job {current_id} received from {cluster} for {current_payload.get('max_length',0)} tokens and {current_payload.get('max_context_length',0)} max context. Starting generation...")
 
         #do gen
         while exitcounter < 10:
@@ -5320,36 +5361,28 @@ def unload_libs():
     if handle and dll_close:
         print("Unloading Libraries...")
         dll_close(handle._handle)
-        del handle.load_model
-        del handle.generate
-        del handle.new_token
-        del handle.get_stream_count
-        del handle.has_finished
-        del handle.get_last_eval_time
-        del handle.get_last_process_time
-        del handle.get_last_token_count
-        del handle.get_last_seed
-        del handle.get_total_gens
-        del handle.get_last_stop_reason
-        del handle.abort_generate
-        del handle.token_count
-        del handle.get_pending_output
         del handle
         handle = None
+
+def reload_from_new_args(newargs):
+    try:
+        args.istemplate = False
+        for key, value in newargs.items(): #do not overwrite certain values
+            if key not in ["remotetunnel","showgui","port","host","port_param","admin","adminpassword","admindir","admintextmodelsdir","admindatadir","ssl","nocertify","benchmark","prompt","config"]:
+                setattr(args, key, value)
+        setattr(args,"showgui",False)
+        setattr(args,"benchmark",False)
+        setattr(args,"prompt","")
+        setattr(args,"config",None)
+        setattr(args,"launch",None)
+    except Exception as e:
+        print(f"Reload New Config Failed: {e}")
 
 def reload_new_config(filename): #for changing config after launch
     with open(filename, 'r', encoding='utf-8', errors='ignore') as f:
         try:
             config = json.load(f)
-            args.istemplate = False
-            for key, value in config.items(): #do not overwrite certain values
-                if key not in ["remotetunnel","showgui","port","host","port_param","admin","adminpassword","admindir","admintextmodelsdir","admindatadir","ssl","nocertify","benchmark","prompt","config"]:
-                    setattr(args, key, value)
-            setattr(args,"showgui",False)
-            setattr(args,"benchmark",False)
-            setattr(args,"prompt","")
-            setattr(args,"config",None)
-            setattr(args,"launch",None)
+            reload_from_new_args(config)
         except Exception as e:
             print(f"Reload New Config Failed: {e}")
 
@@ -5533,7 +5566,7 @@ def analyze_gguf_model_wrapper(filename=""):
     dumpthread = threading.Thread(target=analyze_gguf_model, args=(args,filename))
     dumpthread.start()
 
-def main(launch_args):
+def main(launch_args, default_args):
     global args, showdebug, kcpp_instance, exitcounter, using_gui_launcher, sslvalid, global_memory
     args = launch_args #note: these are NOT shared with the child processes!
 
@@ -5680,7 +5713,7 @@ def main(launch_args):
                             global_memory["restart_model"] = ""
                             print(f"Reloading new config: {restart_target} with model {restart_model}")
                         else:
-                            print(f"Reloading new config: {restart_target}")
+                            print(f"Reloading new model/config: {restart_target}")
                         global_memory["restart_target"] = ""
                         time.sleep(0.5) #sleep for 0.5s then restart
                         if args.admin and args.admindir:
@@ -5694,7 +5727,11 @@ def main(launch_args):
                                 kcpp_instance = None
                                 print("Restarting KoboldCpp...")
                                 fault_recovery_mode = True
-                                reload_new_config(targetfilepath)
+                                if targetfilepath.endswith(".gguf"):
+                                    reload_from_new_args(vars(default_args))
+                                    args.model_param = targetfilepath
+                                else:
+                                    reload_new_config(targetfilepath)
 
                                 args.currentConfig = targetfilepath
                                 global_memory["currentConfig"] = targetfilepath
@@ -5847,6 +5884,10 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
         dlfile = download_model_from_url(args.sdvae,[".gguf",".safetensors"],min_file_size=500000)
         if dlfile:
             args.sdvae = dlfile
+    if args.sdlora and args.sdlora!="":
+        dlfile = download_model_from_url(args.sdlora,[".gguf",".safetensors"],min_file_size=500000)
+        if dlfile:
+            args.sdlora = dlfile
     if args.mmproj and args.mmproj!="":
         dlfile = download_model_from_url(args.mmproj,[".gguf"],min_file_size=500000)
         if dlfile:
@@ -5940,6 +5981,9 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
     if args.contextsize:
         global maxctx
         maxctx = args.contextsize
+
+    args.defaultgenamt = max(128, min(args.defaultgenamt, 2048))
+    args.defaultgenamt = min(args.defaultgenamt, maxctx / 2)
 
     if args.nocertify:
         import ssl
@@ -6449,6 +6493,8 @@ if __name__ == '__main__':
     advparser.add_argument("--exporttemplate", help="Exports the current selected arguments as a .kcppt template file", metavar=('[filename]'), type=str, default="")
     advparser.add_argument("--nomodel", help="Allows you to launch the GUI alone, without selecting any model.", action='store_true')
     advparser.add_argument("--moeexperts", metavar=('[num of experts]'), help="How many experts to use for MoE models (default=follow gguf)", type=int, default=-1)
+    advparser.add_argument("--defaultgenamt", help="How many tokens to generate by default, if not specified. Must be smaller than context size. Usually, your frontend GUI will override this.", type=check_range(int,128,2048), default=512)
+    advparser.add_argument("--nobostoken", help="Prevents BOS token from being added at the start of any prompt. Usually NOT recommended for most models.", action='store_true')
     advparser.add_argument("--developerMode", help="Enables developer utilities, such as hot reloading of Kobold Lite.", default=False, type=bool)
     compatgroup2 = parser.add_mutually_exclusive_group()
     compatgroup2.add_argument("--showgui", help="Always show the GUI instead of launching the model right away when loading settings from a .kcpps file.", action='store_true')
@@ -6500,4 +6546,4 @@ if __name__ == '__main__':
     compatgroup.add_argument("--noblas", help=argparse.SUPPRESS, action='store_true')
     compatgroup3.add_argument("--nommap", help=argparse.SUPPRESS, action='store_true')
 
-    main(parser.parse_args())
+    main(launch_args=parser.parse_args(),default_args=parser.parse_args([]))

@@ -28,6 +28,7 @@ static bool whisper_is_quiet = false;
 static whisper_context * whisper_ctx = nullptr;
 static std::string whisper_output_text = "";
 
+int total_transcribe_gens = 0;
 
 static bool is_wav_buffer(const std::string buf) {
     // RIFF ref: https://en.wikipedia.org/wiki/Resource_Interchange_File_Format
@@ -279,5 +280,6 @@ whisper_generation_outputs whispertype_generate(const whisper_generation_inputs 
     }
     output.text = whisper_output_text.c_str();
     output.status = 1;
+    total_transcribe_gens += 1;
     return output;
 }

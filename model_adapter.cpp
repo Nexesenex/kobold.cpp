@@ -321,6 +321,10 @@ void print_tok_vec(std::vector<float> &embd)
             {
                 fileformatmeta->model_architecture = GGUFArch::ARCH_QWEN2VL;
             }
+            else if(modelarch=="gemma3")
+            {
+                fileformatmeta->model_architecture = GGUFArch::ARCH_GEMMA3;
+            }
             else if(modelarch=="rwkv6")
             {
                 fileformatmeta->model_architecture = GGUFArch::ARCH_RWKV;

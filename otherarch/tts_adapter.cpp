@@ -480,6 +480,8 @@ static int code_terminate_id = 151670;
 static int nthreads = 4;
 static int tts_max_len = 4096;
 
+int total_tts_gens = 0;
+
 bool ttstype_load_model(const tts_load_model_inputs inputs)
 {
     tts_is_quiet = inputs.quiet;
@@ -605,9 +607,9 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
 
     std::vector<llama_token> codes;
     std::vector<llama_token> guide_tokens;
-    const llama_model * model_ttc = &(ttc_ctx->model);
+    const llama_model * model_ttc = llama_get_model(ttc_ctx);
     const llama_vocab * ttcvocab = llama_model_get_vocab(model_ttc);
-    const llama_model * model_cts = &(cts_ctx->model);
+    const llama_model * model_cts = llama_get_model(cts_ctx);
     const llama_vocab * ctsvocab = llama_model_get_vocab(model_cts);
     const int ttc_n_vocab = llama_vocab_n_tokens(ttcvocab);
     std::string prompt = inputs.prompt;
@@ -986,6 +988,7 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
         last_generation_settings_audio_seed = inputs.audio_seed;
         last_generation_settings_speaker_seed = inputs.speaker_seed;
         last_generation_settings_prompt = std::string(inputs.prompt);
+        total_tts_gens += 1;
 
         return output;
     }

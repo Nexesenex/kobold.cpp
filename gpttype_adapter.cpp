@@ -62,6 +62,8 @@ float last_eval_time = 0;
 int last_token_count = 0;
 int last_seed = -1;
 int total_gens = 0;
+int last_draft_success = 0;
+int last_draft_failed = 0;
 stop_reason last_stop_reason = stop_reason::INVALID;
 std::vector<std::string> generated_tokens;
 
@@ -131,6 +133,7 @@ static std::string concat_output = "";
 static std::string concat_output_reader_copy_poll = ""; //for streaming
 static std::string concat_output_reader_copy_res = ""; //for gen response
 static std::vector<logit_bias> logit_biases;
+static bool add_bos_token = true; // if set to false, mmproj handling breaks. dont disable unless you know what you're doing
 
 static int delayed_generated_tokens_limit = 0;
 std::deque<std::string> delayed_generated_tokens; //for use with antislop sampling
@@ -214,7 +217,7 @@ static void TokenizeString(const std::string & str_to_tokenize, std::vector<int>
             output_tokens = ::common_tokenize(llama_ctx_v4, str_to_tokenize, add_bos, true);
             if(add_bos)
             {
-                const llama_vocab * tmpvocab = llama_model_get_vocab(&(llama_ctx_v4->model));
+                const llama_vocab * tmpvocab = llama_model_get_vocab(llama_get_model(llama_ctx_v4));
                 llama_token bostoadd = llama_vocab_bos(tmpvocab);
                 if(bostoadd != LLAMA_TOKEN_NULL) //if bos does not exist, do not add it
                 {
@@ -247,7 +250,7 @@ static int GetEosID(FileFormat file_format, int32_t n_vocab)
     {
         if(file_format == FileFormat::GGUF_GENERIC)
         {
-            const llama_vocab * tmpvocab = llama_model_get_vocab(&(llama_ctx_v4->model));
+            const llama_vocab * tmpvocab = llama_model_get_vocab(llama_get_model(llama_ctx_v4));
             eosID = llama_vocab_eos(tmpvocab);
         }
         else if(file_format == FileFormat::GGJT_3)
@@ -299,7 +302,7 @@ static int GetEotID(FileFormat file_format)
 {
     if(file_format == FileFormat::GGUF_GENERIC)
     {
-        const llama_vocab * tmpvocab = llama_model_get_vocab(&(llama_ctx_v4->model));
+        const llama_vocab * tmpvocab = llama_model_get_vocab(llama_get_model(llama_ctx_v4));
         return llama_vocab_eot(tmpvocab);
     }
     return -1;
@@ -498,10 +501,10 @@ void ContextRewind(std::vector<int> &embd, std::vector<int> &current_context_tok
 
     if (file_format == FileFormat::GGUF_GENERIC)
     {
-        llama_kv_cache_seq_rm(llama_ctx_v4, 0, n_past, -1);
+        llama_kv_self_seq_rm(llama_ctx_v4, 0, n_past, -1);
         if(draft_ctx)
         {
-            llama_kv_cache_seq_rm(draft_ctx, 0, n_past, -1);
+            llama_kv_self_seq_rm(draft_ctx, 0, n_past, -1);
         }
     }
 
@@ -1790,6 +1793,7 @@ void PurgeMissingTokens(llama_context * ctx, llama_context * draft_ctx, std::vec
 
     auto shared = LongestCommonSubseq(curr_ctx_without_memory, new_ctx_without_memory);
 
+    // printf("\nSharedSize: %d, LCSTokThreshold: %d, ArrPass: %d\n",shared.size(),LCSTokThreshold,ArrStartWith(new_ctx_without_memory, shared));
     if (shared.size() > LCSTokThreshold && ArrStartWith(new_ctx_without_memory, shared)) // enough tokens in common
     {
         int found = ArrFindIndexOf(current_context_tokens,shared);
@@ -1798,12 +1802,12 @@ void PurgeMissingTokens(llama_context * ctx, llama_context * draft_ctx, std::vec
 
             //extract the unwanted tokens out from context and KV
             int diff = found - trimstart;
-            llama_kv_cache_seq_rm(ctx, 0, trimstart, trimstart + diff);
-            llama_kv_cache_seq_add(ctx, 0, trimstart + diff, -1, -diff);
+            llama_kv_self_seq_rm(ctx, 0, trimstart, trimstart + diff);
+            llama_kv_self_seq_add(ctx, 0, trimstart + diff, -1, -diff);
             if(draft_ctx)
             {
-                llama_kv_cache_seq_rm(draft_ctx, 0, trimstart, trimstart + diff);
-                llama_kv_cache_seq_add(draft_ctx, 0, trimstart + diff, -1, -diff);
+                llama_kv_self_seq_rm(draft_ctx, 0, trimstart, trimstart + diff);
+                llama_kv_self_seq_add(draft_ctx, 0, trimstart + diff, -1, -diff);
             }
 
             for (size_t i = trimstart + diff; i < current_context_tokens.size() - 1; i++)
@@ -1902,6 +1906,11 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
 
     kcpp_data->n_ctx = clamped_max_context_length;
     max_context_limit_at_load = clamped_max_context_length;
+    add_bos_token = !inputs.no_bos_token;
+    if(!add_bos_token)
+    {
+        printf("\n======\nBOS token prefix was disabled! Your output may be degraded!\n======\n");
+    }
 
     neox_ctx_v2.hparams.n_ctx  = neox_ctx_v3.hparams.n_ctx
     = gptj_ctx_v1.hparams.n_ctx = gptj_ctx_v2.hparams.n_ctx = gptj_ctx_v3.hparams.n_ctx
@@ -2247,7 +2256,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         {
             printf("\nAttempting to apply Multimodal Projector: %s\n", mmproj_filename.c_str());
             #if defined(GGML_USE_METAL)
-            if(file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2VL)
+            if(file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2VL || file_format_meta.model_architecture == GGUFArch::ARCH_GEMMA3)
             {
                 set_clip_uses_gpu(false);
                 printf("Clip will use CPU for this model!\n");
@@ -2290,7 +2299,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
 
         //determine mem per token
         std::vector<int> tmp = {1, 2, 3, 4};
-        llama_kv_cache_clear(llama_ctx_v4);
+        llama_kv_self_clear(llama_ctx_v4);
         auto er = llama_decode(llama_ctx_v4, llama_batch_get_one(tmp.data(), tmp.size()));
         if(er!=0)
         {
@@ -2688,13 +2697,13 @@ std::string gpttype_get_chat_template()
     // copied from examples/server/utils.hpp::llama_get_chat_template
     std::string template_key = "tokenizer.chat_template";
     // call with NULL buffer to get the total size of the string
-    int32_t res = llama_model_meta_val_str(&llama_ctx_v4->model, template_key.c_str(), NULL, 0);
+    int32_t res = llama_model_meta_val_str(llama_get_model(llama_ctx_v4), template_key.c_str(), NULL, 0);
     if (res < 0) {
         return "";
     }
 
     std::vector<char> model_template(res + 1, 0);
-    llama_model_meta_val_str(&llama_ctx_v4->model, template_key.c_str(), model_template.data(), model_template.size());
+    llama_model_meta_val_str(llama_get_model(llama_ctx_v4), template_key.c_str(), model_template.data(), model_template.size());
     return std::string(model_template.data(), model_template.size() - 1);
 }
 
@@ -2873,13 +2882,6 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     timer_start();
 
     bool llava_images_changed = false;
-
-    bool add_bos_token = true;
-    if(file_format == FileFormat::GGUF_GENERIC)
-    {
-        const llama_vocab * tmpvocab = llama_model_get_vocab(&(llama_ctx_v4->model));
-        add_bos_token = llama_vocab_get_add_bos(tmpvocab);
-    }
 
     for(int x=0;x<inputs.stop_sequence_len;++x)
     {
@@ -3284,10 +3286,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         {
             if(n_past==0)
             {
-                llama_kv_cache_clear(llama_ctx_v4);
+                llama_kv_self_clear(llama_ctx_v4);
                 if(draft_ctx)
                 {
-                    llama_kv_cache_clear(draft_ctx);
+                    llama_kv_self_clear(draft_ctx);
                 }
             }
             else if(embd_inp.size()==0)
@@ -3314,10 +3316,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         }
         if(file_format == FileFormat::GGUF_GENERIC)
         {
-            llama_kv_cache_seq_rm(llama_ctx_v4, 0, n_past, -1);
+            llama_kv_self_seq_rm(llama_ctx_v4, 0, n_past, -1);
             if(draft_ctx)
             {
-                llama_kv_cache_seq_rm(draft_ctx, 0, n_past, -1);
+                llama_kv_self_seq_rm(draft_ctx, 0, n_past, -1);
             }
         }
     }
@@ -3849,9 +3851,9 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
             //if we have somehow skipped ahead (e.g drafting), ensure that all tokens after npast are purged
             if (file_format == FileFormat::GGUF_GENERIC && draft_used)
             {
-                llama_kv_cache_seq_rm(llama_ctx_v4, 0, n_past, -1);
+                llama_kv_self_seq_rm(llama_ctx_v4, 0, n_past, -1);
                 if (draft_ctx) {
-                    llama_kv_cache_seq_rm(draft_ctx, 0, n_past, -1);
+                    llama_kv_self_seq_rm(draft_ctx, 0, n_past, -1);
                 }
             }
 
@@ -3987,7 +3989,14 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     float pt2 = (time2*1000.0/(realnpredict<=0?1:realnpredict));
     float ts2 = (1000.0/pt2);
     float tokens_per_second = (realnpredict <= 0 ? 0 : realnpredict / (time1 + time2));
-    printf("\n[%s] CtxLimit:%d/%d, Amt:%d/%d, Init:%.2fs, Process:%.2fs (%.1fms/T = %.2fT/s), Generate:%.2fs (%.1fms/T = %.2fT/s), Total:%.2fs (%.2fT/s)",get_timestamp_str().c_str(),(int)current_context_tokens.size(),(int)nctx, realnpredict, kcpp_data->n_predict, time0, time1, pt1, ts1, time2, pt2, ts2, (time1 + time2), tokens_per_second);
+    if(debugmode==1)
+    {
+        printf("\n[%s] CtxLimit:%d/%d, Amt:%d/%d, Init:%.2fs, Process:%.2fs (%.1fms/T = %.2fT/s), Generate:%.2fs (%.1fms/T = %.2fT/s), Total:%.2fs (%.2fT/s)",get_timestamp_str().c_str(),(int)current_context_tokens.size(),(int)nctx, realnpredict, kcpp_data->n_predict, time0, time1, pt1, ts1, time2, pt2, ts2, (time1 + time2), tokens_per_second);
+    }
+    else
+    {
+         printf("\n[%s] CtxLimit:%d/%d, Amt:%d/%d, Init:%.2fs, Process:%.2fs (%.2fT/s), Generate:%.2fs (%.2fT/s), Total:%.2fs",get_timestamp_str().c_str(),(int)current_context_tokens.size(),(int)nctx, realnpredict, kcpp_data->n_predict, time0, time1, ts1, time2, ts2, (time1 + time2));
+    }
     if(debugmode==1 && !is_quiet && (draft_successes+draft_failures)>0)
     {
         printf("\n(Draft Results - Success:%d, Failure:%d)",draft_successes,draft_failures);
@@ -4002,6 +4011,8 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     last_process_time = pt1;
     last_token_count = realnpredict;
     last_seed = kcpp_data->seed;
+    last_draft_failed = draft_failures;
+    last_draft_success = draft_successes;
     total_gens += 1;
     concat_output_mtx.lock();
     concat_output_reader_copy_res = concat_output;

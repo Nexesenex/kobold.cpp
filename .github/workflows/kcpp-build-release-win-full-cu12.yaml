@@ -42,10 +42,17 @@ jobs:
           wmic cpu get name
           wmic os get TotalVisibleMemorySize, FreePhysicalMemory
 
+      - name: Rebuild Vulkan Shaders
+        id: make_vk_shaders
+        run: |
+          make vulkan-shaders-gen -j ${env:NUMBER_OF_PROCESSORS}
+          echo "Vulkan Shaders Rebuilt"
+
       - name: Build Non-CUDA
         id: make_build
         run: |
           make LLAMA_CLBLAST=1 LLAMA_VULKAN=1 LLAMA_PORTABLE=1 -j ${env:NUMBER_OF_PROCESSORS}
+          echo "Vulkan Shaders Rebuilt"
 
       - uses: Jimver/cuda-toolkit@v0.2.15
         id: cuda-toolkit

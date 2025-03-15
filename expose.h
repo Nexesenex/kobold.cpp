@@ -60,6 +60,7 @@ struct load_model_inputs
     const float rope_freq_scale = 1.0f;
     const float rope_freq_base = 10000.0f;
     const int moe_experts = -1;
+    const bool no_bos_token = false;
     const bool flash_attention = false;
     const float tensor_split[tensor_split_max] = {};
     const int quant_k = 0;
@@ -245,4 +246,8 @@ extern int last_token_count;
 extern int last_seed;
 extern int total_gens;
 extern int total_img_gens;
+extern int total_tts_gens;
+extern int total_transcribe_gens;
+extern int last_draft_success;
+extern int last_draft_failed;
 extern stop_reason last_stop_reason;

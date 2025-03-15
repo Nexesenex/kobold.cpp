@@ -111,6 +111,7 @@ static SDParams * sd_params = nullptr;
 static sd_ctx_t * sd_ctx = nullptr;
 static int sddebugmode = 0;
 static std::string recent_data = "";
+static uint8_t * input_image_buffer = NULL;
 
 static std::string sdplatformenv, sddeviceenv, sdvulkandeviceenv;
 static bool notiling = false;
@@ -277,6 +278,18 @@ std::string clean_input_prompt(const std::string& input) {
     return result;
 }
 
+static std::string get_image_params(const SDParams& params) {
+    std::string parameter_string = "Prompt: " + params.prompt + ", ";
+    parameter_string += "NegativePrompt: " + params.negative_prompt + ", ";
+    parameter_string += "Steps: " + std::to_string(params.sample_steps) + ", ";
+    parameter_string += "CFGScale: " + std::to_string(params.cfg_scale) + ", ";
+    parameter_string += "Guidance: " + std::to_string(params.guidance) + ", ";
+    parameter_string += "Seed: " + std::to_string(params.seed) + ", ";
+    parameter_string += "Size: " + std::to_string(params.width) + "x" + std::to_string(params.height) + ", ";
+    parameter_string += "Sampler: " + std::to_string((int)sd_params->sample_method) + ", ";
+    parameter_string += "Version: KoboldCpp";
+    return parameter_string;
+}
 
 sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
 {
@@ -289,7 +302,6 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
         output.status = 0;
         return output;
     }
-    uint8_t * input_image_buffer = NULL;
     sd_image_t * results;
     sd_image_t* control_image = NULL;
 
@@ -528,7 +540,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
         }
 
         int out_data_len;
-        unsigned char * png = stbi_write_png_to_mem(results[i].data, 0, results[i].width, results[i].height, results[i].channel, &out_data_len, "");
+        unsigned char * png = stbi_write_png_to_mem(results[i].data, 0, results[i].width, results[i].height, results[i].channel, &out_data_len, get_image_params(*sd_params).c_str());
         if (png != NULL)
         {
             recent_data = kcpp_base64_encode(png,out_data_len);
