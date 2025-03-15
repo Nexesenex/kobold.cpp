@@ -2064,7 +2064,7 @@ bool clip_image_load_from_bytes(const unsigned char * bytes, size_t bytes_length
     //check if image needs downscaling
     if (nx > maxdims || ny > maxdims) {
         printf("\nImage requires resizing: original size %d x %d scaling to max %d px\n",nx,ny,maxdims);
-        uint8_t* resized_image = scale_down_image(data, nx, ny, nc, maxdims, maxdims);
+        uint8_t* resized_image = scale_down_image(data, nx, ny, 3, maxdims, maxdims);
         if(resized_image!=nullptr)
         {
             stbi_image_free(data); // Free the original image buffer and assign the new one

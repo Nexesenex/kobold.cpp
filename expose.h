@@ -62,7 +62,10 @@ struct load_model_inputs
     const float rope_freq_scale = 1.0f;
     const float rope_freq_base = 10000.0f;
     const int moe_experts = -1;
+
     const float norm_rms_eps = -1.0f;
+
+    const bool no_bos_token = false;
     const bool flash_attention = false;
     const float tensor_split[tensor_split_max] = {};
     const int quant_k = 0;

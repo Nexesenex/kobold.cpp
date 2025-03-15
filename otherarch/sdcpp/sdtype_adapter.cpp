@@ -111,6 +111,7 @@ static SDParams * sd_params = nullptr;
 static sd_ctx_t * sd_ctx = nullptr;
 static int sddebugmode = 0;
 static std::string recent_data = "";
+static uint8_t * input_image_buffer = NULL;
 
 static std::string sdplatformenv, sddeviceenv, sdvulkandeviceenv;
 static bool notiling = false;
@@ -301,7 +302,6 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
         output.status = 0;
         return output;
     }
-    uint8_t * input_image_buffer = NULL;
     sd_image_t * results;
     sd_image_t* control_image = NULL;
 

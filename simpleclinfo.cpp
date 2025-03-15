@@ -64,6 +64,7 @@ int main(void) {
         unsigned number;
         cl_device_type type;
         char name[128];
+        cl_ulong global_mem_size;
     };
 
     enum { NPLAT = 16, NDEV = 16 };
@@ -108,7 +109,8 @@ int main(void) {
             d->platform = p;
             CL_CHECK(clGetDeviceInfo(d->id, CL_DEVICE_NAME, sizeof(d->name), &d->name, NULL));
             CL_CHECK(clGetDeviceInfo(d->id, CL_DEVICE_TYPE, sizeof(d->type), &d->type, NULL));
-            std::string devicetemplate = "{\"CL_DEVICE_NAME\":\"" + std::string(d->name) + "\"}";
+            CL_CHECK(clGetDeviceInfo(d->id, CL_DEVICE_GLOBAL_MEM_SIZE, sizeof(d->global_mem_size), &d->global_mem_size, NULL));
+            std::string devicetemplate = "{\"CL_DEVICE_NAME\":\"" + std::string(d->name) + "\", \"CL_DEVICE_GLOBAL_MEM_SIZE\":"+std::to_string(d->global_mem_size)+"}";
             if(j>0)
             {
                 devicetemplate = ","+devicetemplate;

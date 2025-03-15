@@ -135,6 +135,7 @@ static std::string concat_output = "";
 static std::string concat_output_reader_copy_poll = ""; //for streaming
 static std::string concat_output_reader_copy_res = ""; //for gen response
 static std::vector<logit_bias> logit_biases;
+static bool add_bos_token = true; // if set to false, mmproj handling breaks. dont disable unless you know what you're doing
 
 static int delayed_generated_tokens_limit = 0;
 std::deque<std::string> delayed_generated_tokens; //for use with antislop sampling
@@ -2044,6 +2045,11 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
 
     kcpp_data->n_ctx = clamped_max_context_length;
     max_context_limit_at_load = clamped_max_context_length;
+    add_bos_token = !inputs.no_bos_token;
+    if(!add_bos_token)
+    {
+        printf("\n======\nBOS token prefix was disabled! Your output may be degraded!\n======\n");
+    }
 
     neox_ctx_v2.hparams.n_ctx  = neox_ctx_v3.hparams.n_ctx
     = gptj_ctx_v1.hparams.n_ctx = gptj_ctx_v2.hparams.n_ctx = gptj_ctx_v3.hparams.n_ctx
@@ -2482,7 +2488,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         {
             printf("\nAttempting to apply Multimodal Projector: %s\n", mmproj_filename.c_str());
             #if defined(GGML_USE_METAL)
-            if(file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2VL)
+            if(file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2VL || file_format_meta.model_architecture == GGUFArch::ARCH_GEMMA3)
             {
                 set_clip_uses_gpu(false);
                 printf("Clip will use CPU for this model!\n");
@@ -3388,17 +3394,6 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     timer_start();
 
     bool llava_images_changed = false;
-
-    bool add_bos_token = true; //if set to false, mmproj handling breaks
-    // if(file_format == FileFormat::GGUF_GENERIC && mmproj_filename == "")
-    // {
-    //     const llama_vocab * tmpvocab = llama_model_get_vocab(llama_get_model(llama_ctx_v4));
-    //     add_bos_token = llama_vocab_get_add_bos(tmpvocab);
-    //     if(!add_bos_token && debugmode==1)
-    //     {
-    //          printf("\nBOS token prefix was disabled for this model.");
-    //     }
-    // }
 
     for(int x=0;x<inputs.stop_sequence_len;++x)
     {
