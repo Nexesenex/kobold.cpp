@@ -56,10 +56,10 @@ dry_seq_break_max = 512
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.86100"
-LcppVersion = "b4889"
+KcppVersion = "1.86200"
+LcppVersion = "b4893"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/03/15"
+ReleaseDate = "2025/03/16"
 showdebug = True
 # guimode = False
 kcpp_instance = None #global running instance
@@ -635,6 +635,11 @@ def end_trim_to_sentence(input_text):
 def tryparseint(value):
     try:
         return int(value)
+    except ValueError:
+        return value
+def tryparsefloat(value):
+    try:
+        return float(value)
     except ValueError:
         return value
 
@@ -1270,11 +1275,11 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
                 print(f"GPUs total VRAM available after SD normal tax: {int(mem/1024/1024)} MiB")
                 print("***")
             if modelfile_extracted_meta[3] > 1024*1024*10: #whisper tax
-                mem -= 350*1024*1024
+                max(350*1024*1024,modelfile_extracted_meta[3]*1.5)
                 print(f"GPUs total VRAM available after Whisper tax: {int(mem/1024/1024)} MiB")
                 print("***")
             if modelfile_extracted_meta[4] > 1024*1024*10: #mmproj tax
-                mem -= 350*1024*1024
+                max(350*1024*1024,modelfile_extracted_meta[3]*1.5)
                 print(f"GPUs total VRAM available after Mmproj tax: {int(mem/1024/1024)} MiB")
                 print("***")
             if modelfile_extracted_meta[5] > 1024*1024*10: #draft model tax
@@ -2073,8 +2078,8 @@ def sd_generate(genparams):
             prompt = forced_posprompt
     init_images_arr = genparams.get("init_images", [])
     init_images = ("" if (not init_images_arr or len(init_images_arr)==0 or not init_images_arr[0]) else init_images_arr[0])
-    denoising_strength = genparams.get("denoising_strength", 0.6)
-    cfg_scale = genparams.get("cfg_scale", 5)
+    denoising_strength = tryparsefloat(genparams.get("denoising_strength", 0.6))
+    cfg_scale = tryparsefloat(genparams.get("cfg_scale", 5))
     sample_steps = tryparseint(genparams.get("steps", 20))
     width = tryparseint(genparams.get("width", 512))
     height = tryparseint(genparams.get("height", 512))
@@ -2534,6 +2539,31 @@ def transform_genparams(genparams, api_format):
             tools_message_end = adapter_obj.get("tools_end", "")
             images_added = []
 
+            # tools handling
+            tools_array = genparams.get('tools', [])
+            chosen_tool = genparams.get('tool_choice', None)
+            tool_json_formatting_instruction = " Use this style of JSON object formatting to give your answer if you think the user is asking you to perform an action: " + json.dumps([{"id": "insert an id for the response", "type": "function", "function": {"name": "insert the name of the function you want to call", "arguments": {"first property key": "first property value", "second property key": "second property value"}}}], indent=0)
+            if tools_array and len(tools_array) > 0 and chosen_tool is not None:
+                try:
+                    specified_function = ""
+                    if isinstance(chosen_tool, str):
+                        specified_function = chosen_tool
+                    elif isinstance(chosen_tool, dict): #if we can match the tool name, we must use that tool, remove all other tools
+                        specified_function = chosen_tool.get('function').get('name')
+                    located_tooljson = None
+                    #if we find the function in tools, remove all other tools except the one matching the function name
+                    for tool in tools_array:
+                        if specified_function and tool.get('type') == "function" and tool.get('function').get('name') == specified_function:
+                            located_tooljson = tool
+                            break
+                    if located_tooljson:
+                        tools_array = []
+                        tools_array.append(located_tooljson)
+                        tool_json_formatting_instruction = f"The user is asking you to use the style of this JSON object formatting to complete the parameters for the specific function named {specified_function} in the following format: " + json.dumps([{"id": "insert an id for the response", "type": "function", "function": {"name": f"{specified_function}", "arguments": {"first property key": "first property value", "second property key": "second property value"}}}], indent=0)
+                except Exception:
+                    # In case of any issues, just revert back to no specified function
+                    pass
+
             message_index = 0
             for message in messages_array:
                 message_index += 1
@@ -2562,21 +2592,10 @@ def transform_genparams(genparams, api_format):
                 # If last message, add any tools calls after message content and before message end token if any
                 if message['role'] == "user" and message_index == len(messages_array):
                     # Check if user is passing a openai tools array, if so add to end of prompt before assistant prompt unless tool_choice has been set to None
-                    tools_array = genparams.get('tools', [])
-                    if tools_array and len(tools_array) > 0 :
-                        response_array = [{"id": "insert an id for the response", "type": "function", "function": {"name": "insert the name of the function you want to call", "arguments": {"first property key": "first property value", "second property key": "second property value"}}}]
-                        json_formatting_instruction = " Use this style of JSON object formatting to give your answer if you think the user is asking you to perform an action: " + json.dumps(response_array, indent=0)
+                    if tools_array and len(tools_array) > 0 and chosen_tool is not None and chosen_tool!="none":
                         tools_string = json.dumps(tools_array, indent=0)
                         messages_string += tools_string
-                        specified_function = None
-                        if isinstance(genparams.get('tool_choice'), dict):
-                             try:
-                                specified_function = genparams.get('tool_choice').get('function').get('name')
-                                json_formatting_instruction = f"The user is asking you to use the style of this JSON object formatting to complete the parameters for the specific function named {specified_function} in the following format: " + json.dumps([{"id": "insert an id for the response", "type": "function", "function": {"name": f"{specified_function}", "arguments": {"first property key": "first property value", "second property key": "second property value"}}}], indent=0)
-                             except Exception:
-                                # In case of any issues, just revert back to no specified function
-                                pass
-                        messages_string += json_formatting_instruction
+                        messages_string += tool_json_formatting_instruction
 
                         # Set temperature low automatically if function calling
                         genparams["temperature"] = 0.2
