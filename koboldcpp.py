@@ -2698,13 +2698,6 @@ Enter Prompt:<br>
                 opts = [f for f in os.listdir(dirpath) if f.endswith(".gguf") and os.path.isfile(os.path.join(dirpath, f))]
             response_body = (json.dumps(opts).encode())
 
-        elif self.path.endswith(('/api/admin/list_models')): #used by admin to get models which can be reloaded with
-            opts = []
-            if args.admin and args.admintextmodelsdir and os.path.exists(args.admintextmodelsdir) and self.check_header_password(args.adminpassword):
-                dirpath = os.path.abspath(args.admintextmodelsdir)
-                opts = [f for f in os.listdir(dirpath) if f.endswith(".gguf") and os.path.isfile(os.path.join(dirpath, f))]
-            response_body = (json.dumps(opts).encode())
-
         elif self.path.endswith(('/api/extra/perf')):
             lastp = handle.get_last_process_time()
             laste = handle.get_last_eval_time()
