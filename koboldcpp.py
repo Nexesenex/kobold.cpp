@@ -1706,7 +1706,7 @@ def load_model(model_filename):
             inputs.draft_gpusplit[n] = 0
     inputs.mmproj_filename = args.mmproj.encode("UTF-8") if args.mmproj else "".encode("UTF-8")
     inputs.visionmaxres = (512 if args.visionmaxres < 512 else (2048 if args.visionmaxres > 2048 else args.visionmaxres))
-    inputs.use_smartcontext = args.smartcontext
+    inputs.use_smartcontext = (1 if args.smartcontext else 0)
     inputs.use_contextshift = (1 if args.contextshift else 0)
 
     # inputs.use_contextshift = (0 if args.noshift else 1)
@@ -1715,44 +1715,47 @@ def load_model(model_filename):
 
     if args.quantkv==0:
         inputs.quant_k = inputs.quant_v = 0
-    elif args.quantkv>0 and args.quantkv<15:
+    if args.quantkv>=1 and args.quantkv<=15:
         inputs.quant_k = inputs.quant_v = args.quantkv
         inputs.flash_attention = True
-    elif args.quantkv>2 and args.quantkv<8:
+    if args.quantkv>=8 and args.quantkv<=10:
         inputs.use_contextshift = 0
-    elif args.quantkv>7 and args.quantkv<15:
-        inputs.use_contextshift = 0
-    elif args.quantkv==15:
+    if args.quantkv==14 or args.quantkv==17 or args.quantkv==22:
+        inputs.use_contextshift = 0  
+    if args.quantkv==15:
         inputs.quant_k = inputs.quant_v = 15
         inputs.flash_attention = False
         # inputs.use_contextshift = 0
-    elif args.quantkv>15 and args.quantkv<23:
+    if args.quantkv>=16 and args.quantkv<=22:
         inputs.quant_k = inputs.quant_v = args.quantkv
         inputs.flash_attention = False
-    else:
+    if args.quantkv<0 or args.quantkv>22:
         inputs.quant_k = inputs.quant_v = 0
 
     # if args.draft_quantkv==-1:
         # inputs.draft_quant_k = inputs.draft_quant_v = args.quantkv
     # elif args.draft_quantkv==1:
         # inputs.draft_quant_k = inputs.draft_quant_v = 1
-    if args.draft_quantkv>0 and args.draft_quantkv<16:
+    if args.draft_quantkv==0:
+        inputs.draft_quant_k = inputs.draft_quant_v = 0
+    if args.draft_quantkv>=1 and args.draft_quantkv<=15:
         inputs.draft_quant_k = inputs.draft_quant_v = args.draft_quantkv
         inputs.flash_attention = True
-    elif args.draft_quantkv>0 and args.draft_quantkv<9:
+    # elif args.draft_quantkv>0 and args.draft_quantkv<9:
+        # inputs.use_contextshift = 0
+    if args.draft_quantkv>=8 and args.draft_quantkv<=10:
         inputs.use_contextshift = 0
-    elif args.draft_quantkv>8 and args.draft_quantkv<16:
-        inputs.use_contextshift = 0
-    elif args.draft_quantkv==16:
-        inputs.draft_quant_k = inputs.draft_quant_v = 16
+    if args.draft_quantkv==14 or args.draft_quantkv==17 or args.draft_quantkv==22:
+        inputs.use_contextshift = 0  
+    if args.draft_quantkv==15:
+        inputs.draft_quant_k = inputs.draft_quant_v = 15
         inputs.flash_attention = False
         # inputs.use_contextshift = 0
-    elif args.draft_quantkv>16 and args.draft_quantkv<24:
+    if args.draft_quantkv>=16 and args.draft_quantkv<=22:
         inputs.draft_quant_k = inputs.draft_quant_v = args.draft_quantkv
         inputs.flash_attention = False
-    else:
-        inputs.draft_quant_k == args.quantkv
-        inputs.draft_quant_v == args.quantkv
+    if args.quantkv<0 or args.quantkv>22:
+        inputs.draft_quant_k = inputs.draft_quant_v = 0
 
     inputs.blasbatchsize = args.blasbatchsize
     if args.blasubatchsize < 2:
