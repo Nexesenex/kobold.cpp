@@ -56,7 +56,7 @@ dry_seq_break_max = 512
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.86200"
+KcppVersion = "1.86201"
 LcppVersion = "b4893"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
 ReleaseDate = "2025/03/16"
@@ -3506,8 +3506,8 @@ Enter Prompt:<br>
                                 savedata_obj.pop(str(slotid))
                                 saveneeded = True
                         if saveneeded:
-                            if args.savedatafile and os.path.exists(args.savedatafile):
-                                with open(args.savedatafile, 'w+', encoding='utf-8', errors='ignore') as f:
+                            if args.savedatafile and os.path.exists(os.path.abspath(args.savedatafile)):
+                                with open(os.path.abspath(args.savedatafile), 'w+', encoding='utf-8', errors='ignore') as f:
                                     json.dump(savedata_obj, f)
                                     print(f"Data was saved to slot {slotid}")
                                 response_body = (json.dumps({"success":True, "error":""}).encode())
@@ -4442,7 +4442,8 @@ def show_gui():
             fastforward.set(1)
             smartcontextbox.grid_remove()
 
-        # if contextshift.get()==0 and flashattention.get()==1:
+
+        # if flashattention.get()==1:
             # qkvslider.grid()
             # qkvlabel.grid()
             # noqkvlabel.grid_remove()
@@ -4452,7 +4453,7 @@ def show_gui():
             # noqkvlabel.grid()
 
     # def toggleflashattn(a,b,c):
-        # if contextshift.get()==0 and flashattention.get()==1:
+        # if flashattention.get()==1:
             # qkvslider.grid()
             # qkvlabel.grid()
             # noqkvlabel.grid_remove()
@@ -4692,11 +4693,11 @@ def show_gui():
                 item.grid_remove()
     makecheckbox(tokens_tab,  "Custom RoPE Config", variable=customrope_var, row=22, command=togglerope,tooltiptxt="Override the default RoPE configuration with custom RoPE scaling.")
 
-    # makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, command=toggleflashattn,  tooltiptxt="Enable flash attention for GGUF models.")
+    # makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, command=toggleflashattn, tooltiptxt="Enable flash attention for GGUF models.")
     makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28,  tooltiptxt="Enable flash attention for GGUF models.")
-    # noqkvlabel = makelabel(tokens_tab,"Requirments Not Met",31,0,"Requires FlashAttention ENABLED and ContextShift DISABLED.")
+    # noqkvlabel = makelabel(tokens_tab,"Requirments Not Met",31,0,"Requires FlashAttention ENABLED.")
     # noqkvlabel.configure(text_color="#ff5555")
-    qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 22, 30, set=0,tooltip="Enable quantization of KV cache (KVQ). Mode 0 (F16) is default. Modes 1-12 requires FlashAttention and disables ContextShift.\nModes 15-22 work without FA, for incompatible models.")
+    qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 22, 30, set=0,tooltip="Enable quantization of KV cache (KVQ). Mode 0 (F16) is default. Modes 1-12 requires FlashAttention.\nMode 8-10, 14, 17, 22 disable ContextShift.\nModes 15-22 work without FA, for incompatible models.")
 
     makecheckbox(tokens_tab, "No BOS Token", nobostoken_var, 33, tooltiptxt="Prevents BOS token from being added at the start of any prompt. Usually NOT recommended for most models.")
 
@@ -4924,7 +4925,7 @@ def show_gui():
         args.poslayeroffset = int(poslayeroffset_values[int(poslayeroffset_var.get())])
         args.neglayeroffset = int(neglayeroffset_values[int(neglayeroffset_var.get())])
 
-        # if contextshift.get()==0 and flashattention.get()==1:
+        # if flashattention.get()==1:
             # args.quantkv = quantkv_var.get()
         # else:
             # args.quantkv = 0
@@ -6928,7 +6929,7 @@ if __name__ == '__main__':
 
     parser.add_argument("--threads", metavar=('[threads]'), help="Use a custom number of threads if specified. Otherwise, uses an amount based on CPU cores", type=int, default=get_default_threads())
     compatgroup = parser.add_mutually_exclusive_group()
-    compatgroup.add_argument("--usecublas", help="Use CuBLAS for GPU Acceleration. Requires CUDA. Select lowvram to not allocate VRAM scratch buffer. Enter a number afterwards to select and use 1 GPU. Leaving no number will use all GPUs. For hipBLAS binaries, please check YellowRoseCx rocm fork.", nargs='*',metavar=('[lowvram|normal] [main GPU ID] [mmq|nommq] [rowsplit]'), choices=['normal', 'lowvram', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', 'mmq', 'nommq', 'rowsplit'])
+    compatgroup.add_argument("--usecublas","--usehipblas", help="Use CuBLAS for GPU Acceleration. Requires CUDA. Select lowvram to not allocate VRAM scratch buffer. Enter a number afterwards to select and use 1 GPU. Leaving no number will use all GPUs. For hipBLAS binaries, please check YellowRoseCx rocm fork.", nargs='*',metavar=('[lowvram|normal] [main GPU ID] [mmq|nommq] [rowsplit]'), choices=['normal', 'lowvram', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', 'all', 'mmq', 'nommq', 'rowsplit'])
     compatgroup.add_argument("--usevulkan", help="Use Vulkan for GPU Acceleration. Can optionally specify one or more GPU Device ID (e.g. --usevulkan 0), leave blank to autodetect.", metavar=('[Device IDs]'), nargs='*', type=int, default=None)
     compatgroup.add_argument("--useclblast", help="Use CLBlast for GPU Acceleration. Must specify exactly 2 arguments, platform ID and device ID (e.g. --useclblast 1 0).", type=int, choices=range(0,9), nargs=2)
     compatgroup.add_argument("--usecpu", help="Do not use any GPU acceleration (CPU Only)", action='store_true')

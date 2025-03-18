@@ -720,7 +720,7 @@ void llama_context::kv_self_update() {
             printf("\nWARNING: The current context does not support K-shift!\n");
         } else {
 
-        LLAMA_LOG_DEBUG("%s: applying K-shift\n", __func__);
+        // LLAMA_LOG_DEBUG("%s: applying K-shift\n", __func__);
 
         // apply K-shift if needed
         if (model.hparams.rope_type != LLAMA_ROPE_TYPE_NONE) {
@@ -774,7 +774,7 @@ void llama_context::kv_self_update() {
 
     // reserve a worst case graph if needed
     if (need_reserve) {
-        LLAMA_LOG_DEBUG("%s: reserving a worst case graph\n", __func__);
+        // LLAMA_LOG_DEBUG("%s: reserving a worst case graph\n", __func__);
 
         // build worst-case graph
         uint32_t n_seqs = 1; // TODO: worst-case number of sequences
