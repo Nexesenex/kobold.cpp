@@ -700,10 +700,10 @@ if (LLAMA_USE_SYSTEM_GGML)
     add_library(ggml ALIAS ggml::ggml)
 endif()
 
-if (NOT TARGET ggml AND NOT LLAMA_USE_SYSTEM_GGML)
-    add_subdirectory(ggml)
+# if (NOT TARGET ggml AND NOT LLAMA_USE_SYSTEM_GGML)
+    # add_subdirectory(ggml)
     # ... otherwise assume ggml is added by a parent CMakeLists.txt
-endif()
+# endif()
 
 #
 # Build libraries
