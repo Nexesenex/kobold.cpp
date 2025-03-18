@@ -23696,54 +23696,83 @@ let getCommands = () => {
 			"description": "Ask the user for input.", // If asking a question, the question must be sent with \"send_message\".
 			"args": { "message": "<message that awaits user input>" }, // null,
 			"enabled": true,
-		},
-		{
-			"name": "conversation_history",
-			"description": "gets the full conversation history",
-			"args": null,
-			"enabled": false,
-		},
-		{
-			"name": "web_search",
-			"description": "search the web for keyword",
-			"args": { "query": "<query to research>" },
-			"enabled": websearch_enabled,
-		},
-		{
-			"name": "roll_dice",
-			"description": "Rolls a number of dice with the same amount of sides.",
-			"args": { "numDice": "<number of dice>", "numSides": "<number of sides on the dice>" },
-			"enabled": true,
-		},
-		{
-			"name": "evaluate_formula",
-			"description": "Evaluates a mathematical formula and returns the result.",
-			"args": { "formula": "<mathematical formula to evaluate>" },
-			"enabled": true,
+			"isExtended": false
 		},
 		{
 			"name": "thought",
 			"description": "Records a thought for the next action to use. Not visible to the user.",
 			"args": { "message": "<thoughts to record>" },
-			"enabled": true,
+			"enabled": false,
+			"isExtended": false
 		},
 		{
 			"name": "send_message",
 			"description": "Send a message to the user without waiting for their response. Does not return anything.",
 			"args": { "message": "<message to send>" },
 			"enabled": true,
+			"isExtended": false
 		},
 		{
 			"name": "stop_thinking",
 			"description": "Ends the current chain of thought. Can only be used after a \"send_message\" action.",
 			"args": null,
 			"enabled": true,
+			"isExtended": false
+		},
+		{
+			"name": "list_extended_commands",
+			"description": "Gets the full list of additional commands which can be used.",
+			"args": null,
+			"enabled": false,
+			"isExtended": false
+		},
+		{
+			"name": "conversation_history",
+			"description": "gets the full conversation history",
+			"args": null,
+			"enabled": false,
+			"isExtended": true
+		},
+		{
+			"name": "web_search",
+			"description": "search the web for keyword",
+			"args": { "query": "<query to research>" },
+			"enabled": websearch_enabled,
+			"isExtended": true
+		},
+		{
+			"name": "roll_dice",
+			"description": "Rolls a number of dice with the same amount of sides.",
+			"args": { "numDice": "<number of dice>", "numSides": "<number of sides on the dice>" },
+			"enabled": true,
+			"isExtended": true
+		},
+		{
+			"name": "evaluate_formula",
+			"description": "Evaluates a mathematical formula and returns the result.",
+			"args": { "formula": "<mathematical formula to evaluate>" },
+			"enabled": true,
+			"isExtended": true
+		},
+		{
+			"name": "add_to_memory",
+			"description": "Adds a block of text to memory. It should include any necessary keywords for searching within the text.",
+			"args": { "text": "<text to add>" },
+			"enabled": true,
+			"isExtended": true
+		},
+		{
+			"name": "search_memory",
+			"description": "Searches memory for a series of keywords.",
+			"args": { "searchString": "<string to search for>" },
+			"enabled": true,
+			"isExtended": true
 		}
 	]
 }
 
-let getCommandsAsText = () => {
-	return getCommands().filter(command => !!command?.enabled).map(command => {
+let getCommandsAsText = (showExtended = false) => {
+	return getCommands().filter(command => !!command?.enabled).filter(command => !!showExtended || command?.isExtended === false).map(command => {
 		let baseCommand = `Command: ${command.name}
 Description: ${command.description}`
 		if (!!command.args)
@@ -23832,27 +23861,17 @@ Constraints:
 6. Never repeat recent questions or actions.
 7. Check recent history before asking questions.
 
-${getCommandsAsText()}
+${getCommandsAsText(true)}
 
 Resources:
-1. Use "ask_user" to tell them to implement new commands if you need one.
-2. Use "evaluate_formula" to determine the results of mathematical questions.
+1. Use "ask_user" to tell them to implement new commands if you need one. Do not use ask_user unless absolutely necessary.
 2. When responding with None, use null, as otherwise the JSON cannot be parsed.
+3. Use "search_memory" if the user has an instruction which requires more information.
 
 Performance Evaluation:
 1. Continuously assess your actions.
 2. Constructively self - criticize your big - picture behavior.
 3. Every command has a cost, so be smart and efficient. Aim to complete tasks in the least number of steps, but never sacrifice quality.
-
-Example one:
-
-User: Figure out the square root of -4
-Action: {"command":{"name":"evaluate_formula","args":{"formula":"sqrt(-4)"}}}
-System: Formula evaluation result: 2i
-Action: {"command":{"name":"send_message","args":{"message":"The square root of -4 equals 2i"}}}
-AI: The square root of -4 equals 2i
-Action: {"command":{"name":"stop_thinking","args":null}}
-System: Chain of thought complete
 
 ${json_schema}`
 }
@@ -23986,8 +24005,16 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 	let originalRepackInstructTurns = repack_instruct_turns, cotOverrideRepack = false;
 
+	let allTagsValid = () => {
+		return !!instructstartplaceholder && !!instructstartplaceholder_end && !!instructsysplaceholder && !!instructsysplaceholder_end && !!instructendplaceholder && !!instructendplaceholder_end
+	}
+
+	let isAgentModeEnabledAndSetCorrectly = () => {
+		return localsettings.opmode == 4 && !!localsettings?.agentBehaviour && allTagsValid()
+	}
+
 	repack_instruct_turns = (input, usertag, aitag, systag, allow_blank) => {
-		if (localsettings.opmode == 4 && !!localsettings?.agentBehaviour)
+		if (isAgentModeEnabledAndSetCorrectly())
 		{
 			let turns = split(input, usertag, aitag, systag)
 			let combined_chunks = turns.map(elem => {
@@ -24050,6 +24077,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		let jsonGrammar = "root   ::= object\nvalue  ::= object | array | string | number | (\"true\" | \"false\" | \"null\") ws\n\nobject ::=\n  \"{\" ws (\n            string \":\" ws value\n    (\",\" ws string \":\" ws value)*\n  )? \"}\" ws\n\narray  ::=\n  \"[\" ws (\n            value\n    (\",\" ws value)*\n  )? \"]\" ws\n\nstring ::=\n  \"\\\"\" (\n    [^\"\\\\\\x7F\\x00-\\x1F] |\n    \"\\\\\" ([\"\\\\bfnrt] | \"u\" [0-9a-fA-F]{4}) # escapes\n  )* \"\\\"\" ws\n\nnumber ::= (\"-\"? ([0-9] | [1-9] [0-9]{0,15})) (\".\" [0-9]+)? ([eE] [-+]? [0-9] [1-9]{0,15})? ws\n\n# Optional space: by convention, applied in this grammar after literal chars when allowed\nws ::= | \" \" | \"\\n\" [ \\t]{0,20}"
 
 		let hasAttemptedToCompleteOnce = false
+		let lastThoughtWasBlank = false
 		for (let i = 0; i < maxThoughtsWithoutUserInput; i++)
 		{
 			currentChainOfThought = currentChainOfThought.splice(-maxActionsInHistory)
@@ -24073,9 +24101,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			{
 				if (resp.trim() == "")
 				{
-					addThought(createSysPrompt, "Error - Empty response instead of action. Ensure all responses are valid JSON.")
+					addThought(createSysPrompt, "Error - Empty response instead of action. Ensure all responses are valid JSON.", lastThoughtWasBlank)
 					continue
 				}
+				lastThoughtWasBlank = false
 				let json = JSON.parse(resp)
 				if (!!json?.command && !!json.command?.name && validCommands.includes(json.command.name))
 				{
@@ -24153,6 +24182,46 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							hasAttemptedToCompleteOnce = true
 							// }
 							break
+						case "list_extended_commands":
+							addThought(createSysPrompt, `List of possible actions: ${getCommandsAsText(true)}`)
+							break
+						case "add_to_memory":
+							let textToAdd = action?.args?.text
+							if (!!textToAdd)
+							{
+								documentdb_data = `${documentdb_data}\n\n${textToAdd}`
+								addThought(createSysPrompt, `Text has been added to memory`)
+							}
+							else
+							{
+								addThought(createSysPrompt, `Text was empty - nothing added to memory`)
+							}
+							break
+						case "search_memory":
+							let searchString = action?.args?.searchString
+							if (!!searchString) 
+							{
+								let ltmSnippets = DatabaseMinisearch(documentdb_data, searchString, searchString);
+								if (ltmSnippets.length === 0)
+								{
+									addThought(createSysPrompt, `Memory search performed: Nothing found`)
+								}
+								else
+								{
+									let ltmContent = "Memory search performed:";
+									for(let i=0;i<ltmSnippets.length;++i)
+									{
+										ltmContent += `\n[Info Snippet: ${ltmSnippets[i].snippet}]\n`;
+									}
+									addThought(createSysPrompt, ltmContent)
+								}
+							}
+							else
+							{
+								addThought(createSysPrompt, `Search string was empty, no search performed`)
+							}
+							break
+						
 					}
 					if (isCompleted)
 					{
@@ -24209,7 +24278,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	prepare_submit_generation = () => {
-		if (localsettings.opmode == 4 && !!localsettings?.agentBehaviour)
+		if (isAgentModeEnabledAndSetCorrectly())
 		{
 			let inputText = document.getElementById("input_text").value;
 			document.getElementById("input_text").value = "";
@@ -24240,7 +24309,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		settingLabelElem.classList.add("settinglabel")
 		let settingDiv = document.createElement("div")
 		settingDiv.classList.add("justifyleft", "settingsmall")
-		settingDiv.innerHTML = `Agent behaviour (experimental) <span class="helpicon">?<span class="helptext">Allows the AI to use multiple generations and certain tools to see if it can improve results.  This can include web search (if enabled), dice rolling, and formula evaluation.  Please note when this is enabled each user instruction is executed in isolation - i.e. the chat history is cleared before the new instruction is executed (to be improved in future).</span></span>`
+		settingDiv.innerHTML = `Agent behaviour (experimental) <span class="helpicon">?<span class="helptext">Allows the AI to use multiple generations and certain tools to see if it can improve results.  This can include web search (if enabled), dice rolling, and formula evaluation.  Please note when this is enabled each user instruction is executed in isolation - i.e. the chat history is cleared before the new instruction is executed (to be improved in future). This mode requires instruct start and end tags for all roles.</span></span>`
 		let settingInput = document.createElement("input")
 		settingInput.type = "checkbox"
 		settingInput.title = "Agent behaviour"
