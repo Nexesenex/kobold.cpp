@@ -20325,13 +20325,12 @@ Current version indicated by LITEVER below.
 
 	//LTM TextDB Memsnipper searching
 	//searches dbText for searchStr and recentTextStr, returns up to 3 results
-	function DatabaseMinisearch(dbText, searchStr, recentTextStr)
+	function DatabaseMinisearch(dbText, searchStr, recentTextStr, minSimilarity = 0.2)
 	{	//predefined minisearch constants
 		const chunkSize = documentdb_chunksize;
 		const chunkSizeOverlap = chunkSize*0.5;
 		const maxResultsPerSection = 5; //returns up to 5 matches per section
 		const valuesToReturn = documentdb_numresults;
-		const minSimilarity = 0.2;
 
 		if(dbText=="" || searchStr=="")
 		{
@@ -24105,7 +24104,20 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					continue
 				}
 				lastThoughtWasBlank = false
-				let json = JSON.parse(resp)
+				let json;
+				if (resp.indexOf("stop_thinking") !== -1)
+				{
+					json = {
+						command: {
+							name: "stop_thinking",
+							args: null
+						}
+					}
+				}
+				else
+				{
+					json = JSON.parse(resp)
+				}
 				if (!!json?.command && !!json.command?.name && validCommands.includes(json.command.name))
 				{
 					if (lastMessage == resp)
@@ -24201,7 +24213,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							let searchString = action?.args?.searchString
 							if (!!searchString) 
 							{
-								let ltmSnippets = DatabaseMinisearch(documentdb_data, searchString, searchString);
+								let ltmSnippets = DatabaseMinisearch(documentdb_data, searchString, searchString, 0);
 								if (ltmSnippets.length === 0)
 								{
 									addThought(createSysPrompt, `Memory search performed: Nothing found`)
