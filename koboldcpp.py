@@ -50,7 +50,7 @@ logit_bias_max = 512
 dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.86.1"
+KcppVersion = "1.86.2"
 showdebug = True
 kcpp_instance = None #global running instance
 global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None}
@@ -562,6 +562,11 @@ def tryparseint(value):
         return int(value)
     except ValueError:
         return value
+def tryparsefloat(value):
+    try:
+        return float(value)
+    except ValueError:
+        return value
 
 def is_incomplete_utf8_sequence(byte_seq): #note, this will only flag INCOMPLETE sequences, corrupted ones will be ignored.
     try:
@@ -888,9 +893,9 @@ def autoset_gpu_layers(ctxsize,sdquanted,bbs): #shitty algo to determine how man
             elif modelfile_extracted_meta[2] > 1024*1024*512: #normal sd tax
                 mem -= 1024*1024*1024*(3.25 if sdquanted else 4.25)
             if modelfile_extracted_meta[3] > 1024*1024*10: #whisper tax
-                mem -= 350*1024*1024
+                mem -= max(350*1024*1024,modelfile_extracted_meta[3]*1.5)
             if modelfile_extracted_meta[4] > 1024*1024*10: #mmproj tax
-                mem -= 350*1024*1024
+                mem -= max(350*1024*1024,modelfile_extracted_meta[4]*1.5)
             if modelfile_extracted_meta[5] > 1024*1024*10: #draft model tax
                 mem -= (modelfile_extracted_meta[5] * 1.5)
             if modelfile_extracted_meta[6] > 1024*1024*10: #tts model tax
@@ -1091,7 +1096,6 @@ def load_model(model_filename):
     if args.quantkv>0:
         inputs.quant_k = inputs.quant_v = args.quantkv
         inputs.flash_attention = True
-        inputs.use_contextshift = 0
     else:
         inputs.quant_k = inputs.quant_v = 0
     inputs.blasbatchsize = args.blasbatchsize
@@ -1405,8 +1409,8 @@ def sd_generate(genparams):
             prompt = forced_posprompt
     init_images_arr = genparams.get("init_images", [])
     init_images = ("" if (not init_images_arr or len(init_images_arr)==0 or not init_images_arr[0]) else init_images_arr[0])
-    denoising_strength = genparams.get("denoising_strength", 0.6)
-    cfg_scale = genparams.get("cfg_scale", 5)
+    denoising_strength = tryparsefloat(genparams.get("denoising_strength", 0.6))
+    cfg_scale = tryparsefloat(genparams.get("cfg_scale", 5))
     sample_steps = tryparseint(genparams.get("steps", 20))
     width = tryparseint(genparams.get("width", 512))
     height = tryparseint(genparams.get("height", 512))
@@ -1857,6 +1861,31 @@ def transform_genparams(genparams, api_format):
             tools_message_end = adapter_obj.get("tools_end", "")
             images_added = []
 
+            # tools handling
+            tools_array = genparams.get('tools', [])
+            chosen_tool = genparams.get('tool_choice', None)
+            tool_json_formatting_instruction = " Use this style of JSON object formatting to give your answer if you think the user is asking you to perform an action: " + json.dumps([{"id": "insert an id for the response", "type": "function", "function": {"name": "insert the name of the function you want to call", "arguments": {"first property key": "first property value", "second property key": "second property value"}}}], indent=0)
+            if tools_array and len(tools_array) > 0 and chosen_tool is not None:
+                try:
+                    specified_function = ""
+                    if isinstance(chosen_tool, str):
+                        specified_function = chosen_tool
+                    elif isinstance(chosen_tool, dict): #if we can match the tool name, we must use that tool, remove all other tools
+                        specified_function = chosen_tool.get('function').get('name')
+                    located_tooljson = None
+                    #if we find the function in tools, remove all other tools except the one matching the function name
+                    for tool in tools_array:
+                        if specified_function and tool.get('type') == "function" and tool.get('function').get('name') == specified_function:
+                            located_tooljson = tool
+                            break
+                    if located_tooljson:
+                        tools_array = []
+                        tools_array.append(located_tooljson)
+                        tool_json_formatting_instruction = f"The user is asking you to use the style of this JSON object formatting to complete the parameters for the specific function named {specified_function} in the following format: " + json.dumps([{"id": "insert an id for the response", "type": "function", "function": {"name": f"{specified_function}", "arguments": {"first property key": "first property value", "second property key": "second property value"}}}], indent=0)
+                except Exception:
+                    # In case of any issues, just revert back to no specified function
+                    pass
+
             message_index = 0
             for message in messages_array:
                 message_index += 1
@@ -1885,21 +1914,10 @@ def transform_genparams(genparams, api_format):
                 # If last message, add any tools calls after message content and before message end token if any
                 if message['role'] == "user" and message_index == len(messages_array):
                     # Check if user is passing a openai tools array, if so add to end of prompt before assistant prompt unless tool_choice has been set to None
-                    tools_array = genparams.get('tools', [])
-                    if tools_array and len(tools_array) > 0 and genparams.get('tool_choice',None) is not None:
-                        response_array = [{"id": "insert an id for the response", "type": "function", "function": {"name": "insert the name of the function you want to call", "arguments": {"first property key": "first property value", "second property key": "second property value"}}}]
-                        json_formatting_instruction = " Use this style of JSON object formatting to give your answer if you think the user is asking you to perform an action: " + json.dumps(response_array, indent=0)
+                    if tools_array and len(tools_array) > 0 and chosen_tool is not None and chosen_tool!="none":
                         tools_string = json.dumps(tools_array, indent=0)
                         messages_string += tools_string
-                        specified_function = None
-                        if isinstance(genparams.get('tool_choice'), dict):
-                             try:
-                                specified_function = genparams.get('tool_choice').get('function').get('name')
-                                json_formatting_instruction = f"The user is asking you to use the style of this JSON object formatting to complete the parameters for the specific function named {specified_function} in the following format: " + json.dumps([{"id": "insert an id for the response", "type": "function", "function": {"name": f"{specified_function}", "arguments": {"first property key": "first property value", "second property key": "second property value"}}}], indent=0)
-                             except Exception:
-                                # In case of any issues, just revert back to no specified function
-                                pass
-                        messages_string += json_formatting_instruction
+                        messages_string += tool_json_formatting_instruction
 
                         # Set temperature low automatically if function calling
                         genparams["temperature"] = 0.2
@@ -3079,8 +3097,8 @@ Enter Prompt:<br>
                                 savedata_obj.pop(str(slotid))
                                 saveneeded = True
                         if saveneeded:
-                            if args.savedatafile and os.path.exists(args.savedatafile):
-                                with open(args.savedatafile, 'w+', encoding='utf-8', errors='ignore') as f:
+                            if args.savedatafile and os.path.exists(os.path.abspath(args.savedatafile)):
+                                with open(os.path.abspath(args.savedatafile), 'w+', encoding='utf-8', errors='ignore') as f:
                                     json.dump(savedata_obj, f)
                                     print(f"Data was saved to slot {slotid}")
                                 response_body = (json.dumps({"success":True, "error":""}).encode())
@@ -4116,7 +4134,7 @@ def show_gui():
             fastforward.set(1)
             smartcontextbox.grid_remove()
 
-        if contextshift.get()==0 and flashattention.get()==1:
+        if flashattention.get()==1:
             qkvslider.grid()
             qkvlabel.grid()
             noqkvlabel.grid_remove()
@@ -4126,7 +4144,7 @@ def show_gui():
             noqkvlabel.grid()
 
     def toggleflashattn(a,b,c):
-        if contextshift.get()==0 and flashattention.get()==1:
+        if flashattention.get()==1:
             qkvslider.grid()
             qkvlabel.grid()
             noqkvlabel.grid_remove()
@@ -4340,7 +4358,7 @@ def show_gui():
                 item.grid_remove()
     makecheckbox(tokens_tab,  "Custom RoPE Config", variable=customrope_var, row=22, command=togglerope,tooltiptxt="Override the default RoPE configuration with custom RoPE scaling.")
     makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, command=toggleflashattn,  tooltiptxt="Enable flash attention for GGUF models.")
-    noqkvlabel = makelabel(tokens_tab,"Requirments Not Met",31,0,"Requires FlashAttention ENABLED and ContextShift DISABLED.")
+    noqkvlabel = makelabel(tokens_tab,"Requirments Not Met",31,0,"Requires FlashAttention ENABLED.")
     noqkvlabel.configure(text_color="#ff5555")
     qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 2, 30, set=0,tooltip="Enable quantization of KV cache.\nRequires FlashAttention and disables ContextShift.")
     makecheckbox(tokens_tab, "No BOS Token", nobostoken_var, 33, tooltiptxt="Prevents BOS token from being added at the start of any prompt. Usually NOT recommended for most models.")
@@ -4545,7 +4563,7 @@ def show_gui():
         args.quiet = quietmode.get()==1
         args.nocertify = nocertifymode.get()==1
         args.nomodel = nomodel.get()==1
-        if contextshift.get()==0 and flashattention.get()==1:
+        if flashattention.get()==1:
             args.quantkv = quantkv_var.get()
         else:
             args.quantkv = 0
@@ -6429,7 +6447,7 @@ if __name__ == '__main__':
 
     parser.add_argument("--threads", metavar=('[threads]'), help="Use a custom number of threads if specified. Otherwise, uses an amount based on CPU cores", type=int, default=get_default_threads())
     compatgroup = parser.add_mutually_exclusive_group()
-    compatgroup.add_argument("--usecublas", help="Use CuBLAS for GPU Acceleration. Requires CUDA. Select lowvram to not allocate VRAM scratch buffer. Enter a number afterwards to select and use 1 GPU. Leaving no number will use all GPUs. For hipBLAS binaries, please check YellowRoseCx rocm fork.", nargs='*',metavar=('[lowvram|normal] [main GPU ID] [mmq|nommq] [rowsplit]'), choices=['normal', 'lowvram', '0', '1', '2', '3', 'all', 'mmq', 'nommq', 'rowsplit'])
+    compatgroup.add_argument("--usecublas", "--usehipblas", help="Use CuBLAS for GPU Acceleration. Requires CUDA. Select lowvram to not allocate VRAM scratch buffer. Enter a number afterwards to select and use 1 GPU. Leaving no number will use all GPUs. For hipBLAS binaries, please check YellowRoseCx rocm fork.", nargs='*',metavar=('[lowvram|normal] [main GPU ID] [mmq|nommq] [rowsplit]'), choices=['normal', 'lowvram', '0', '1', '2', '3', 'all', 'mmq', 'nommq', 'rowsplit'])
     compatgroup.add_argument("--usevulkan", help="Use Vulkan for GPU Acceleration. Can optionally specify one or more GPU Device ID (e.g. --usevulkan 0), leave blank to autodetect.", metavar=('[Device IDs]'), nargs='*', type=int, default=None)
     compatgroup.add_argument("--useclblast", help="Use CLBlast for GPU Acceleration. Must specify exactly 2 arguments, platform ID and device ID (e.g. --useclblast 1 0).", type=int, choices=range(0,9), nargs=2)
     compatgroup.add_argument("--usecpu", help="Do not use any GPU acceleration (CPU Only)", action='store_true')
