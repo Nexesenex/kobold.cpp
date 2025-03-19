@@ -23766,6 +23766,20 @@ let getCommands = () => {
 			"args": { "searchString": "<string to search for>" },
 			"enabled": true,
 			"isExtended": true
+		},
+		{
+			"name": "generate_image",
+			"description": "Generates an image using AI based on a prompt. Using Booru tags is advised.",
+			"args": { "prompt": "<prompt to generate image with>" },
+			"enabled": localsettings.generate_images_mode == 2, // Only enabled if local endpoint exists / is in use
+			"isExtended": true
+		},
+		{
+			"name": "speak",
+			"description": "Say something to the user using text to speech.",
+			"args": { "textToSay": "<text to say>" },
+			"enabled": localsettings.speech_synth == KCPP_TTS_ID, // Only enabled if local endpoint exists / is in use
+			"isExtended": true
 		}
 	]
 }
@@ -24233,6 +24247,28 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 								addThought(createSysPrompt, `Search string was empty, no search performed`)
 							}
 							break
+						case "generate_image":
+							let prompt = action?.args?.prompt
+							if (!!prompt) {
+								generate_new_image(prompt)
+								addThought(createSysPrompt, `Image generated`)
+							}
+							else
+							{
+								addThought(createSysPrompt, `No prompt provided, image not generated`)
+							}
+							break
+						case "speak":
+							let textToSay = action?.args?.textToSay
+							if (!!textToSay) {
+								tts_speak(textToSay)
+								addThought(createSysPrompt, `Text has been spoken`)
+							}
+							else
+							{
+								addThought(createSysPrompt, `No text provided, nothing has been said`)
+							}
+							break
 						
 					}
 					if (isCompleted)
@@ -24321,7 +24357,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		settingLabelElem.classList.add("settinglabel")
 		let settingDiv = document.createElement("div")
 		settingDiv.classList.add("justifyleft", "settingsmall")
-		settingDiv.innerHTML = `Agent behaviour (experimental) <span class="helpicon">?<span class="helptext">Allows the AI to use multiple generations and certain tools to see if it can improve results.  This can include web search (if enabled), dice rolling, and formula evaluation.  Please note when this is enabled each user instruction is executed in isolation - i.e. the chat history is cleared before the new instruction is executed (to be improved in future). This mode requires instruct start and end tags for all roles.</span></span>`
+		settingDiv.innerHTML = `Agent behaviour (experimental) <span class="helpicon">?<span class="helptext">Allows the AI to use multiple generations and certain tools to see if it can improve results.  This can include web search (if enabled), dice rolling, and formula evaluation.  Please note when this is enabled each user instruction is executed in isolation - i.e. the chat history is cleared before the new instruction is executed (to be improved in future). This mode requires instruct start and end tags for all roles. Image and TTS only is enabled for local KCPP users.</span></span>`
 		let settingInput = document.createElement("input")
 		settingInput.type = "checkbox"
 		settingInput.title = "Agent behaviour"
