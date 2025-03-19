@@ -18,7 +18,7 @@ It offers the following functionalities:
 ![418191036-d773e536-6c09-4b76-828e-6e542e075f0e](https://github.com/user-attachments/assets/81dfea9f-9862-4b52-ba3d-92472a1b758c)
 ![418190669-f839ed18-0fb9-4319-82d8-03952c5d3f20](https://github.com/user-attachments/assets/2ee0c202-8f68-44d6-aa6f-18ae35f33857)
 
-- Agent thinking
+- Agent thinking (based on prompts from this cool project [here](https://github.com/Wladastic/mini_autogpt))
 
 ## Agent thinking mode (experimental)
 
