@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 223;
+	const LITEVER = 224;
 	const urlParams = new URLSearchParams(window.location.search);
 	var localflag = true;
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -9649,20 +9649,18 @@ Current version indicated by LITEVER below.
 									.then(response => response.json())
 									.then(values5 => {
 										let tmpstory = values5;
-										if(is_kai_json(tmpstory))
-										{
+										if (is_kai_json(tmpstory)) {
 											if (localsettings.persist_session && !safe_to_overwrite()) {
 												console.log("Preload story: Unsafe to overwrite");
 											} else {
 												close_welcome_panel(false);
 												kai_json_load(tmpstory, false);
 											}
-										}else{
-											if(koboldcpp_has_multiplayer || koboldcpp_admin_type>0)
-											{
-												//force refresh
-												render_gametext(false);
-											}
+										}
+										if(koboldcpp_has_multiplayer || koboldcpp_admin_type>0)
+										{
+											//force refresh
+											render_gametext(false);
 										}
 									}).catch(error => {
 										console.log("Failed to get preloaded story: " + error);
@@ -9721,7 +9719,7 @@ Current version indicated by LITEVER below.
 										},()=>{
 										});
 									}
-									else if(localflag && no_txt_model && !has_txt2img && !koboldcpp_has_vision && !koboldcpp_has_whisper && !koboldcpp_has_tts)
+									else if(localflag && no_txt_model && !has_txt2img && !koboldcpp_has_vision && !koboldcpp_has_whisper && !koboldcpp_has_tts && !is_using_kcpp_with_admin())
 									{
 										msgboxYesNo("This KoboldCpp instance has no models loaded. You can still use the WebUI to edit or view existing stories.<br><br>Would you like to connect to an external API service?","No Models Loaded",
 										()=>{

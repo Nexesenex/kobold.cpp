@@ -225,17 +225,22 @@ endif # LLAMA_CUBLAS
 
 ifdef LLAMA_HIPBLAS
 ifeq ($(wildcard /opt/rocm),)
-	ROCM_PATH	?= /usr
+	ROCM_PATH   ?= /usr
 	GPU_TARGETS ?= $(shell $(shell which amdgpu-arch))
 	HCC         := $(ROCM_PATH)/bin/hipcc
 	HCXX        := $(ROCM_PATH)/bin/hipcc
 else
-	ROCM_PATH	?= /opt/rocm
+	ROCM_PATH   ?= /opt/rocm
 	GPU_TARGETS ?= gfx803 gfx900 gfx906 gfx908 gfx90a gfx1030 gfx1100 $(shell $(ROCM_PATH)/llvm/bin/amdgpu-arch)
 	HCC         := $(ROCM_PATH)/llvm/bin/clang
 	HCXX        := $(ROCM_PATH)/llvm/bin/clang++
 endif
-	HIPFLAGS   += -DGGML_USE_HIP -DGGML_HIP_NO_VMM -DGGML_HIP_ROCWMMA_FATTN -DGGML_USE_CUDA -DSD_USE_CUBLAS -I$(ROCM_PATH)/include/rocwmma -I$(ROCM_PATH)/include $(shell $(ROCM_PATH)/bin/hipconfig -C)
+	DETECT_ROCWMMA := $(shell find -L /opt/rocm/include /usr/include -type f -name rocwmma.hpp 2>/dev/null | head -n 1)
+ifdef DETECT_ROCWMMA
+	HIPFLAGS   += -DGGML_HIP_ROCWMMA_FATTN -I$(dir $(DETECT_ROCWMMA))
+endif
+
+	HIPFLAGS   += -DGGML_USE_HIP -DGGML_HIP_NO_VMM -DGGML_USE_CUDA -DSD_USE_CUBLAS $(shell $(ROCM_PATH)/bin/hipconfig -C)
 	HIPLDFLAGS    += -L$(ROCM_PATH)/lib -Wl,-rpath=$(ROCM_PATH)/lib
 	HIPLDFLAGS    += -L$(ROCM_PATH)/lib64 -Wl,-rpath=$(ROCM_PATH)/lib64
 	HIPLDFLAGS    += -lhipblas -lamdhip64 -lrocblas
