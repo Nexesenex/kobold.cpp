@@ -14,6 +14,10 @@
 .vscode/
 
 ggml-metal-embed.metal
+ggml/src/ggml-vulkan-shaders.cpp
+ggml/src/ggml-vulkan-shaders.hpp
+vulkan-shaders-gen.exe
+vulkan-shaders-gen
 
 lcov-report/
 gcovr-report/
