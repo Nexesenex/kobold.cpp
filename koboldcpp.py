@@ -310,7 +310,9 @@ class tts_load_model_inputs(ctypes.Structure):
 class tts_generation_inputs(ctypes.Structure):
     _fields_ = [("prompt", ctypes.c_char_p),
                 ("speaker_seed", ctypes.c_int),
-                ("audio_seed", ctypes.c_int)]
+                ("audio_seed", ctypes.c_int),
+                ("custom_speaker_text", ctypes.c_char_p),
+                ("custom_speaker_data", ctypes.c_char_p)]
 
 class tts_generation_outputs(ctypes.Structure):
     _fields_ = [("status", ctypes.c_int),
@@ -1501,11 +1503,34 @@ def tts_load_model(ttc_model_filename,cts_model_filename):
     ret = handle.tts_load_model(inputs)
     return ret
 
+def tts_prepare_voice_json(jsonstr):
+    try:
+        if not jsonstr:
+            return None
+        parsed_json = json.loads(jsonstr)
+        txt = parsed_json.get("text","")
+        items = parsed_json.get("words",[])
+        processed = ""
+        if txt=="" or not items or len(items)<1:
+            return None
+        for item in items:
+            word = item.get("word","")
+            duration = item.get("duration","")
+            codes = item.get("codes",[])
+            codestr = ""
+            for c in codes:
+                codestr += f"<|{c}|>"
+            processed += f"{word}<t_{duration:.2f}><|code_start|>{codestr}<|code_end|>\n"
+        return {"phrase":txt,"voice":processed}
+    except Exception:
+        return None
+
 def tts_generate(genparams):
     global args
     prompt = genparams.get("input", genparams.get("text", ""))
     prompt = prompt.strip()
     voice = 1
+    speaker_json = tts_prepare_voice_json(genparams.get("speaker_json","")) #handle custom cloned voices
     voicestr = genparams.get("voice", genparams.get("speaker_wav", ""))
     voice_mapping = ["kobo","cheery","sleepy","shouty","chatty"]
     normalized_voice = voicestr.strip().lower() if voicestr else ""
@@ -1522,6 +1547,13 @@ def tts_generate(genparams):
     except Exception:
         aseed = -1
     inputs.audio_seed = aseed
+    if speaker_json:
+        inputs.custom_speaker_text = speaker_json.get("phrase","").encode("UTF-8")
+        inputs.custom_speaker_data = speaker_json.get("voice","").encode("UTF-8")
+        inputs.speaker_seed = 100
+    else:
+        inputs.custom_speaker_text = "".encode("UTF-8")
+        inputs.custom_speaker_data = "".encode("UTF-8")
     ret = handle.tts_generate(inputs)
     outstr = ""
     if ret.status==1:
