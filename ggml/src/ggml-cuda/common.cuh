@@ -822,7 +822,7 @@ struct ggml_cuda_graph {
     bool disable_due_to_failed_graph_capture = false;
     int number_consecutive_updates = 0;
     std::vector<ggml_graph_node_properties> ggml_graph_properties;
-    std::vector<char *> cpy_dest_ptrs;
+    std::vector<char **> updated_kernel_arg;
 #endif
 };
 
