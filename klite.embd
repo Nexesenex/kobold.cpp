@@ -23826,6 +23826,20 @@ let getCommands = () => {
 			"isExtended": true
 		},
 		{
+			"name": "search_chatlog",
+			"description": "Searches the conversation between the user and AI for a series of keywords.",
+			"args": { "searchString": "<string to search for>" },
+			"enabled": true,
+			"isExtended": true
+		},
+		{
+			"name": "wordcount",
+			"description": "Enables or disables a word count for each 'ask_user', 'thought' or 'send_message'.",
+			"args": { "state": "<true or false>" },
+			"enabled": true,
+			"isExtended": true
+		},
+		{
 			"name": "generate_image",
 			"description": "Generates an image using AI based on a prompt. Using Booru tags is advised.",
 			"args": { "prompt": "<prompt to generate image with>" },
@@ -23938,6 +23952,7 @@ Resources:
 1. Use "ask_user" to tell them to implement new commands if you need one. Do not use ask_user unless absolutely necessary.
 2. When responding with None, use null, as otherwise the JSON cannot be parsed.
 3. Use "search_memory" if the user has an instruction which requires more information.
+4. The current date is: ${new Date().toUTCString()}
 
 Performance Evaluation:
 1. Continuously assess your actions.
@@ -24149,6 +24164,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 		let hasAttemptedToCompleteOnce = false
 		let lastThoughtWasBlank = false
+		let wordCountEnabled = false
 		for (let i = 0; i < maxThoughtsWithoutUserInput; i++)
 		{
 			currentChainOfThought = currentChainOfThought.splice(-maxActionsInHistory)
@@ -24201,7 +24217,15 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 					let action = json.command
 					recentActions.push(action)
-					addThought(createAIPrompt, `Action: ${JSON.stringify(action)}`)
+					if (wordCountEnabled && !!action?.args?.message && typeof action?.args?.message === "string")
+					{
+						
+						addThought(createAIPrompt, `Action (words = ${action?.args?.message.split(/\s/g).filter(s => s.length > 0).length}): ${JSON.stringify(action)}`)
+					}
+					else
+					{
+						addThought(createAIPrompt, `Action: ${JSON.stringify(action)}`)
+					}
 					let isCompleted = false
 					switch (action.name)
 					{
@@ -24304,6 +24328,35 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							{
 								addThought(createSysPrompt, `Search string was empty, no search performed`)
 							}
+							break
+						case "search_chatlog":
+							let searchChatlogString = action?.args?.searchString
+							if (!!searchChatlogString) 
+							{
+								let ltmSnippets = DatabaseMinisearch(concat_gametext(true) , searchChatlogString, searchChatlogString, 0);
+								if (ltmSnippets.length === 0)
+								{
+									addThought(createSysPrompt, `Chatlog search performed: Nothing found`)
+								}
+								else
+								{
+									let ltmContent = "Chatlog search performed:";
+									for(let i=0;i<ltmSnippets.length;++i)
+									{
+										ltmContent += `\n[Info Snippet: ${ltmSnippets[i].snippet}]\n`;
+									}
+									addThought(createSysPrompt, ltmContent)
+								}
+							}
+							else
+							{
+								addThought(createSysPrompt, `Search string was empty, no search performed`)
+							}
+							break
+						case "wordcount":
+							let wordCountState = action?.args?.state
+							wordCountEnabled = !!wordCountState
+							addThought(createSysPrompt, `Word count is ${wordCountEnabled ? "enabled" : "disabled"}`)
 							break
 						case "generate_image":
 							let prompt = action?.args?.prompt
