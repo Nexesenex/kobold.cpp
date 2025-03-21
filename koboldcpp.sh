@@ -25,12 +25,6 @@ if [ -n "$NOAVX2" ]; then
 	LLAMA_NOAVX2_FLAG="LLAMA_NOAVX2=1"
 fi
 
-if [ -n "$REBUILD_VK_SHADERS" ]; then
-	echo "Rebuilding Vulkan Shaders..."
-	bin/micromamba run -r conda -p conda/envs/linux make vulkan-shaders-gen -j$(nproc) LLAMA_ADD_CONDA_PATHS=1
-	echo "Vulkan Shaders Rebuilt."
-fi
-
 bin/micromamba run -r conda -p conda/envs/linux make -j$(nproc) LLAMA_VULKAN=1 LLAMA_CLBLAST=1 LLAMA_CUBLAS=1 LLAMA_PORTABLE=1 LLAMA_ADD_CONDA_PATHS=1 $LLAMA_NOAVX2_FLAG
 if [ $? -ne 0 ]; then
     echo "Error: make failed."

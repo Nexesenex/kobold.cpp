@@ -50,7 +50,7 @@ logit_bias_max = 512
 dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.86.2"
+KcppVersion = "1.87"
 showdebug = True
 kcpp_instance = None #global running instance
 global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None}
@@ -313,7 +313,9 @@ class tts_load_model_inputs(ctypes.Structure):
 class tts_generation_inputs(ctypes.Structure):
     _fields_ = [("prompt", ctypes.c_char_p),
                 ("speaker_seed", ctypes.c_int),
-                ("audio_seed", ctypes.c_int)]
+                ("audio_seed", ctypes.c_int),
+                ("custom_speaker_text", ctypes.c_char_p),
+                ("custom_speaker_data", ctypes.c_char_p)]
 
 class tts_generation_outputs(ctypes.Structure):
     _fields_ = [("status", ctypes.c_int),
@@ -1505,11 +1507,34 @@ def tts_load_model(ttc_model_filename,cts_model_filename):
     ret = handle.tts_load_model(inputs)
     return ret
 
+def tts_prepare_voice_json(jsonstr):
+    try:
+        if not jsonstr:
+            return None
+        parsed_json = json.loads(jsonstr)
+        txt = parsed_json.get("text","")
+        items = parsed_json.get("words",[])
+        processed = ""
+        if txt=="" or not items or len(items)<1:
+            return None
+        for item in items:
+            word = item.get("word","")
+            duration = item.get("duration","")
+            codes = item.get("codes",[])
+            codestr = ""
+            for c in codes:
+                codestr += f"<|{c}|>"
+            processed += f"{word}<|t_{duration:.2f}|><|code_start|>{codestr}<|code_end|>\n"
+        return {"phrase":txt.strip()+".","voice":processed.strip()}
+    except Exception:
+        return None
+
 def tts_generate(genparams):
     global args
     prompt = genparams.get("input", genparams.get("text", ""))
     prompt = prompt.strip()
     voice = 1
+    speaker_json = tts_prepare_voice_json(genparams.get("speaker_json","")) #handle custom cloned voices
     voicestr = genparams.get("voice", genparams.get("speaker_wav", ""))
     voice_mapping = ["kobo","cheery","sleepy","shouty","chatty"]
     normalized_voice = voicestr.strip().lower() if voicestr else ""
@@ -1526,6 +1551,13 @@ def tts_generate(genparams):
     except Exception:
         aseed = -1
     inputs.audio_seed = aseed
+    if speaker_json:
+        inputs.custom_speaker_text = speaker_json.get("phrase","").encode("UTF-8")
+        inputs.custom_speaker_data = speaker_json.get("voice","").encode("UTF-8")
+        inputs.speaker_seed = 100
+    else:
+        inputs.custom_speaker_text = "".encode("UTF-8")
+        inputs.custom_speaker_data = "".encode("UTF-8")
     ret = handle.tts_generate(inputs)
     outstr = ""
     if ret.status==1:
@@ -1909,7 +1941,7 @@ def transform_genparams(genparams, api_format):
                         if item['type']=="text":
                                 messages_string += item['text']
                         elif item['type']=="image_url":
-                            if item['image_url'] and item['image_url']['url'] and item['image_url']['url'].startswith("data:image"):
+                            if 'image_url' in item and item['image_url'] and item['image_url']['url'] and item['image_url']['url'].startswith("data:image"):
                                 images_added.append(item['image_url']['url'].split(",", 1)[1])
                 # If last message, add any tools calls after message content and before message end token if any
                 if message['role'] == "user" and message_index == len(messages_array):
@@ -3480,7 +3512,17 @@ Enter Prompt:<br>
                         }}).encode())
                         return
 
-                utfprint("\nInput: " + json.dumps(genparams),1)
+
+                tmpimgs = genparams.get("images", []) # reduce amount of text printed to terminal when dumping large images
+                if tmpimgs and isinstance(tmpimgs, (list, tuple)) and len(tmpimgs)>0:
+                    printablegenparams = copy.deepcopy(genparams)
+                    outarr = []
+                    for img in tmpimgs:
+                        outarr.append(str(img[:512])+"...")
+                    printablegenparams["images"] = outarr
+                    utfprint("\nInput: " + json.dumps(printablegenparams),1)
+                else:
+                    utfprint("\nInput: " + json.dumps(genparams),1)
 
                 if args.foreground:
                     bring_terminal_to_foreground()

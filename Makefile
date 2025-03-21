@@ -577,7 +577,7 @@ ggml_v3-opencl.o: otherarch/ggml_v3-opencl.cpp otherarch/ggml_v3-opencl.h
 	$(CXX) $(CXXFLAGS) $(CLBLAST_FLAGS) -c $< -o $@
 
 #vulkan
-ggml-vulkan.o: ggml/src/ggml-vulkan/ggml-vulkan.cpp ggml/include/ggml-vulkan.h ggml/src/ggml-vulkan-shaders.hpp ggml/src/ggml-vulkan-shaders.cpp
+ggml-vulkan.o: ggml/src/ggml-vulkan/ggml-vulkan.cpp ggml/include/ggml-vulkan.h ggml/src/ggml-vulkan-shaders.cpp
 	$(CXX) $(CXXFLAGS) $(VULKAN_FLAGS) -c $< -o $@
 
 # intermediate objects
@@ -629,7 +629,7 @@ gpttype_adapter_vulkan_noavx2.o: $(GPTTYPE_ADAPTER)
 	$(CXX) $(CXXFLAGS) $(FAILSAFE_FLAGS) $(VULKAN_FLAGS) -c $< -o $@
 
 clean:
-	rm -vf *.o main sdmain whispermain quantize_gguf quantize_clip quantize_gpt2 quantize_gptj quantize_neox quantize_mpt vulkan-shaders-gen gguf-split gguf-split.exe vulkan-shaders-gen.exe main.exe sdmain.exe whispermain.exe quantize_clip.exe quantize_gguf.exe quantize_gptj.exe quantize_gpt2.exe quantize_neox.exe quantize_mpt.exe koboldcpp_default.dll koboldcpp_failsafe.dll koboldcpp_noavx2.dll koboldcpp_clblast.dll koboldcpp_clblast_noavx2.dll koboldcpp_clblast_failsafe.dll koboldcpp_cublas.dll koboldcpp_hipblas.dll koboldcpp_vulkan.dll koboldcpp_vulkan_noavx2.dll koboldcpp_default.so koboldcpp_failsafe.so koboldcpp_noavx2.so koboldcpp_clblast.so koboldcpp_clblast_noavx2.so koboldcpp_clblast_failsafe.so koboldcpp_cublas.so koboldcpp_hipblas.so koboldcpp_vulkan.so koboldcpp_vulkan_noavx2.so
+	rm -vf *.o main sdmain whispermain quantize_gguf quantize_clip quantize_gpt2 quantize_gptj quantize_neox quantize_mpt vulkan-shaders-gen gguf-split gguf-split.exe vulkan-shaders-gen.exe main.exe sdmain.exe whispermain.exe quantize_clip.exe quantize_gguf.exe quantize_gptj.exe quantize_gpt2.exe quantize_neox.exe quantize_mpt.exe koboldcpp_default.dll koboldcpp_failsafe.dll koboldcpp_noavx2.dll koboldcpp_clblast.dll koboldcpp_clblast_noavx2.dll koboldcpp_clblast_failsafe.dll koboldcpp_cublas.dll koboldcpp_hipblas.dll koboldcpp_vulkan.dll koboldcpp_vulkan_noavx2.dll koboldcpp_default.so koboldcpp_failsafe.so koboldcpp_noavx2.so koboldcpp_clblast.so koboldcpp_clblast_noavx2.so koboldcpp_clblast_failsafe.so koboldcpp_cublas.so koboldcpp_hipblas.so koboldcpp_vulkan.so koboldcpp_vulkan_noavx2.so ggml/src/ggml-vulkan-shaders.cpp ggml/src/ggml-vulkan-shaders.hpp
 	rm -vrf ggml/src/ggml-cuda/*.o
 	rm -vrf ggml/src/ggml-cuda/template-instances/*.o
 
@@ -647,8 +647,13 @@ gguf-split: examples/gguf-split/gguf-split.cpp ggml.o ggml-cpu.o llama.o build-i
 gemma3-cli: examples/llava/gemma3-cli.cpp common/arg.cpp build-info.h ggml.o ggml-cpu.o llama.o console.o llavaclip_default.o llava.o ggml-backend_default.o ggml-backend-reg_default.o $(OBJS_FULL) $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 
+ggml/src/ggml-vulkan-shaders.cpp:
+ifdef VULKAN_BUILD
+	@$(MAKE) vulkan-shaders-gen
+endif
+
 vulkan-shaders-gen: ggml/src/ggml-vulkan/vulkan-shaders/vulkan-shaders-gen.cpp
-	@echo 'This command can be MANUALLY run to regenerate vulkan shaders. Normally concedo will do it, so you do not have to.'
+	@echo 'Vulkan shaders need to be regenerated. This can only be done on Windows or Linux. Please stand by...'
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 ifeq ($(OS),Windows_NT)
 	@echo 'Now rebuilding vulkan shaders for Windows...'
