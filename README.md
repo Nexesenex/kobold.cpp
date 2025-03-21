@@ -32,6 +32,9 @@ The currently supported options include:
 - Generating images (in KCPP)
 - "Speaking" through TTS (in KCPP)
 - Adding data to the TextDB and searching for information in it
+- Searching the chat log
+- Knowing the current date
+- Enabling a word count on the AI responses
 
 Using this function requires the following conditions to be met:
 - Use an instruct model
