@@ -24141,8 +24141,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}
 	}
 
-	let currentChainOfThought = [], recentActions = [], lastMessage = "", maxActionsInHistory = 20, maxThoughtsWithoutUserInput = 20
+	let currentChainOfThought = [], recentActions = [], lastMessage = "", maxActionsInHistory = 20, maxThoughtsWithoutUserInput = 20, currentAgentCycle = null, endCurrent = false
 	let runAgentCycle = async (initialPrompt = undefined) => {
+		endCurrent = false
 		// gametext_arr = []
 		// render_gametext()
 
@@ -24165,7 +24166,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		let hasAttemptedToCompleteOnce = false
 		let lastThoughtWasBlank = false
 		let wordCountEnabled = false
-		for (let i = 0; i < maxThoughtsWithoutUserInput; i++)
+		for (let i = 0; i < maxThoughtsWithoutUserInput && endCurrent === false; i++)
 		{
 			currentChainOfThought = currentChainOfThought.splice(-maxActionsInHistory)
 			recentActions = recentActions.splice(-maxActionsInHistory)
@@ -24423,6 +24424,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				addThought(createSysPrompt, `Chain of thought had an exception: ${e}`)
 			}
 		}
+		currentAgentCycle = null
 	}
 
 	let originalDisplaySettingsTab = display_settings_tab, originalConfirmSettings = confirm_settings, originalPrepareSubmitGeneration = prepare_submit_generation, originalRestartNewGame = restart_new_game
@@ -24436,12 +24438,17 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		originalConfirmSettings()
 	}
 
-	prepare_submit_generation = () => {
+	prepare_submit_generation = async () => {
 		if (isAgentModeEnabledAndSetCorrectly())
 		{
 			let inputText = document.getElementById("input_text").value;
 			document.getElementById("input_text").value = "";
-			runAgentCycle(inputText)
+			if (currentAgentCycle !== null)
+			{
+				endCurrent = true
+				await currentAgentCycle
+			}
+			currentAgentCycle = runAgentCycle(inputText)
 		}
 		else
 		{
