@@ -618,7 +618,10 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
     std::string prompt = inputs.prompt;
     std::string custom_speaker_text = inputs.custom_speaker_text;
     std::string custom_speaker_data = inputs.custom_speaker_data;
-    const std::string sampletext = (custom_speaker_text=="")?process_text("but that is what it is",ttsver):process_text(custom_speaker_text,ttsver);
+
+    // const std::string sampletext = (custom_speaker_text=="")?process_text("but that is what it is",ttsver):process_text(custom_speaker_text,ttsver);
+
+    const std::string sampletext = (custom_speaker_text=="")?process_text("but that is what it is",ttsver):custom_speaker_text;
 
     // process prompt and generate voice codes
     llama_kv_cache_clear(ttc_ctx);

@@ -56,10 +56,10 @@ dry_seq_break_max = 512
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.87002"
-LcppVersion = "b4936"
+KcppVersion = "1.87010"
+LcppVersion = "b4957"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/03/21"
+ReleaseDate = "2025/03/25"
 showdebug = True
 # guimode = False
 kcpp_instance = None #global running instance
@@ -2196,8 +2196,13 @@ def tts_prepare_voice_json(jsonstr):
             codestr = ""
             for c in codes:
                 codestr += f"<|{c}|>"
-            processed += f"{word}<|t_{duration:.2f}|><|code_start|>{codestr}<|code_end|>\n"
-        return {"phrase":txt.strip()+".","voice":processed.strip()}
+
+            # processed += f"{word}<|t_{duration:.2f}|><|code_start|>{codestr}<|code_end|>\n"
+        # return {"phrase":txt.strip()+".","voice":processed.strip()}
+
+            processed += f"{word}<t_{duration:.2f}><|code_start|>{codestr}<|code_end|>\n"
+        return {"phrase":txt,"voice":processed}
+
     except Exception:
         return None
 
