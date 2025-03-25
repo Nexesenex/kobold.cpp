@@ -23989,6 +23989,17 @@ ${json_schema}`
 
 let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"message":"I must make sure that I respond to the user with \"send_message\""}}}`
 </script>
+<style>
+	#stopThinking {
+		position: absolute;
+		right: 20px;
+		bottom: 10px;
+		color: red;
+		background: #333;
+		border-radius: 10px;
+		padding: 5px;
+	}
+</style>
 <script>
 	let createGeneratePayload = (prompt) => {
 			return {
@@ -24166,6 +24177,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		let hasAttemptedToCompleteOnce = false
 		let lastThoughtWasBlank = false
 		let wordCountEnabled = false
+
+		document.getElementById("stopThinking").classList.remove("hidden")
 		for (let i = 0; i < maxThoughtsWithoutUserInput && endCurrent === false; i++)
 		{
 			currentChainOfThought = currentChainOfThought.splice(-maxActionsInHistory)
@@ -24425,6 +24438,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			}
 		}
 		currentAgentCycle = null
+		document.getElementById("stopThinking").classList.add("hidden")
 	}
 
 	let originalDisplaySettingsTab = display_settings_tab, originalConfirmSettings = confirm_settings, originalPrepareSubmitGeneration = prepare_submit_generation, originalRestartNewGame = restart_new_game
@@ -24462,7 +24476,19 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		lastMessage = ""
 		originalRestartNewGame()
 	}
-	
+
+	let createStopThinkingButton = () => {
+		
+		let elem = document.createElement("span"); 
+		elem.id = "stopThinking";
+		document.getElementById("input_text").parentElement.appendChild(elem)
+		elem.innerText = "Stop agent thinking"
+		elem.classList.add("hidden")
+		elem.onclick = () => {
+			endCurrent = true
+			elem.classList.add("hidden")
+		}
+	}
 
 	window.addEventListener('load', () => {
 		if (localsettings?.agentBehaviour == undefined)
@@ -24485,6 +24511,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		settingLabelElem.append(settingDiv)
 		settingLabelElem.append(settingInput)
 		lastSettingContainer.append(settingLabelElem)
+
+		createStopThinkingButton()
 	})
 
 </script>
