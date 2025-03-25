@@ -235,6 +235,30 @@ struct tts_generation_outputs
     const char * data = "";
 };
 
+struct embeddings_load_model_inputs
+{
+    const int threads = 4;
+    const char * model_filename = nullptr;
+    const char * executable_path = nullptr;
+    const int clblast_info = 0;
+    const int cublas_info = 0;
+    const char * vulkan_info = nullptr;
+    const int gpulayers = 0;
+    const bool flash_attention = false;
+    const bool quiet = false;
+    const int debugmode = 0;
+};
+struct embeddings_generation_inputs
+{
+    const char * prompt = nullptr;
+};
+struct embeddings_generation_outputs
+{
+    int status = -1;
+    int count = 0;
+    const char * data = "";
+};
+
 extern std::string executable_path;
 extern std::string lora_filename;
 extern std::string lora_base;

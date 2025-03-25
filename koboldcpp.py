@@ -65,6 +65,7 @@ mmprojpath = "" #if empty, it's not initialized
 password = "" #if empty, no auth key required
 fullwhispermodelpath = "" #if empty, it's not initialized
 ttsmodelpath = "" #if empty, not initialized
+embeddingsmodelpath = "" #if empty, not initialized
 maxctx = 4096
 maxhordectx = 4096
 maxhordelen = 400
@@ -321,6 +322,26 @@ class tts_generation_outputs(ctypes.Structure):
     _fields_ = [("status", ctypes.c_int),
                 ("data", ctypes.c_char_p)]
 
+class embeddings_load_model_inputs(ctypes.Structure):
+    _fields_ = [("threads", ctypes.c_int),
+                ("model_filename", ctypes.c_char_p),
+                ("executable_path", ctypes.c_char_p),
+                ("clblast_info", ctypes.c_int),
+                ("cublas_info", ctypes.c_int),
+                ("vulkan_info", ctypes.c_char_p),
+                ("gpulayers", ctypes.c_int),
+                ("flash_attention", ctypes.c_bool),
+                ("quiet", ctypes.c_bool),
+                ("debugmode", ctypes.c_int)]
+
+class embeddings_generation_inputs(ctypes.Structure):
+    _fields_ = [("prompt", ctypes.c_char_p)]
+
+class embeddings_generation_outputs(ctypes.Structure):
+    _fields_ = [("status", ctypes.c_int),
+                ("count", ctypes.c_int),
+                ("data", ctypes.c_char_p)]
+
 def getdirpath():
     return os.path.dirname(os.path.realpath(__file__))
 def getabspath():
@@ -494,6 +515,10 @@ def init_library():
     handle.tts_load_model.restype = ctypes.c_bool
     handle.tts_generate.argtypes = [tts_generation_inputs]
     handle.tts_generate.restype = tts_generation_outputs
+    handle.embeddings_load_model.argtypes = [embeddings_load_model_inputs]
+    handle.embeddings_load_model.restype = ctypes.c_bool
+    handle.embeddings_generate.argtypes = [embeddings_generation_inputs]
+    handle.embeddings_generate.restype = embeddings_generation_outputs
     handle.last_logprobs.restype = last_logprobs_outputs
     handle.detokenize.argtypes = [token_count_outputs]
     handle.detokenize.restype = ctypes.c_char_p
@@ -694,7 +719,7 @@ def string_contains_or_overlaps_sequence_substring(inputstr, sequences):
     return False
 
 def get_capabilities():
-    global savedata_obj, has_multiplayer, KcppVersion, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath
+    global savedata_obj, has_multiplayer, KcppVersion, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath, embeddingsmodelpath
     has_llm = not (friendlymodelname=="inactive")
     has_txt2img = not (friendlysdmodelname=="inactive" or fullsdmodelpath=="")
     has_vision = (mmprojpath!="")
@@ -702,9 +727,10 @@ def get_capabilities():
     has_whisper = (fullwhispermodelpath!="")
     has_search = True if args.websearch else False
     has_tts = (ttsmodelpath!="")
+    has_embeddings = (embeddingsmodelpath!="")
     has_server_saving = args.admin and not (args.admindatadir == "")
     admin_type = (2 if args.admin and args.admindir and args.adminpassword else (1 if args.admin and args.admindir else 0))
-    return {"result":"KoboldCpp", "version":KcppVersion, "protected":has_password, "llm":has_llm, "txt2img":has_txt2img,"vision":has_vision,"transcribe":has_whisper,"multiplayer":has_multiplayer,"websearch":has_search,"tts":has_tts, "savedata":(savedata_obj is not None), "admin": admin_type, "hasServerSaving": has_server_saving}
+    return {"result":"KoboldCpp", "version":KcppVersion, "protected":has_password, "llm":has_llm, "txt2img":has_txt2img,"vision":has_vision,"transcribe":has_whisper,"multiplayer":has_multiplayer,"websearch":has_search,"tts":has_tts, "embeddings":has_embeddings, "savedata":(savedata_obj is not None), "admin": admin_type, "hasServerSaving": has_server_saving}
 
 def dump_gguf_metadata(file_path): #if you're gonna copy this into your own project at least credit concedo
     chunk_size = 1024*1024*12  # read first 12mb of file
@@ -937,7 +963,7 @@ def fetch_gpu_properties(testCL,testCU,testVK):
 
         AMDgpu = None
         try: # Get NVIDIA GPU names
-            output = subprocess.run(['nvidia-smi','--query-gpu=name,memory.total,memory.free','--format=csv,noheader'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
+            output = subprocess.run(['nvidia-smi','--query-gpu=name,memory.total,memory.free','--format=csv,noheader'], capture_output=True, text=True, check=True, encoding='utf-8', timeout=10).stdout
             FetchedCUdevices = [line.split(",")[0].strip() for line in output.splitlines()]
             FetchedCUdeviceMem = [line.split(",")[1].strip().split(" ")[0].strip() for line in output.splitlines()]
             FetchedCUfreeMem = [line.split(",")[2].strip().split(" ")[0].strip() for line in output.splitlines()]
@@ -948,7 +974,7 @@ def fetch_gpu_properties(testCL,testCU,testVK):
             pass
         if len(FetchedCUdevices)==0:
             try: # Get AMD ROCm GPU names
-                output = subprocess.run(['rocminfo'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
+                output = subprocess.run(['rocminfo'], capture_output=True, text=True, check=True, encoding='utf-8', timeout=10).stdout
                 device_name = None
                 for line in output.splitlines(): # read through the output line by line
                     line = line.strip()
@@ -960,7 +986,7 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                     elif line.startswith("Device Type:") and "GPU" not in line:
                         device_name = None
                 if FetchedCUdevices:
-                    getamdvram = subprocess.run(['rocm-smi', '--showmeminfo', 'vram', '--csv'], capture_output=True, text=True, check=True, encoding='utf-8').stdout # fetch VRAM of devices
+                    getamdvram = subprocess.run(['rocm-smi', '--showmeminfo', 'vram', '--csv'], capture_output=True, text=True, check=True, encoding='utf-8', timeout=10).stdout # fetch VRAM of devices
                     if getamdvram:
                         FetchedCUdeviceMem = [line.split(",")[1].strip() for line in getamdvram.splitlines()[1:] if line.strip()]
             except Exception:
@@ -995,7 +1021,7 @@ def fetch_gpu_properties(testCL,testCU,testVK):
 
     if testVK:
         try: # Get Vulkan names
-            output = subprocess.run(['vulkaninfo','--summary'], capture_output=True, text=True, check=True, encoding='utf-8').stdout
+            output = subprocess.run(['vulkaninfo','--summary'], capture_output=True, text=True, check=True, encoding='utf-8', timeout=10).stdout
             devicelist = [line.split("=")[1].strip() for line in output.splitlines() if "deviceName" in line]
             devicetypes = [line.split("=")[1].strip() for line in output.splitlines() if "deviceType" in line]
             idx = 0
@@ -1018,10 +1044,10 @@ def fetch_gpu_properties(testCL,testCU,testVK):
             output = ""
             data = None
             try:
-                output = subprocess.run(["clinfo","--json"], capture_output=True, text=True, check=True, encoding='utf-8').stdout
+                output = subprocess.run(["clinfo","--json"], capture_output=True, text=True, check=True, encoding='utf-8', timeout=10).stdout
                 data = json.loads(output)
             except Exception:
-                output = subprocess.run([((os.path.join(basepath, "simpleclinfo.exe")) if os.name == 'nt' else "clinfo"),"--json"], capture_output=True, text=True, check=True, creationflags=subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS, encoding='utf-8').stdout
+                output = subprocess.run([((os.path.join(basepath, "simpleclinfo.exe")) if os.name == 'nt' else "clinfo"),"--json"], capture_output=True, text=True, check=True, creationflags=subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS, encoding='utf-8', timeout=10).stdout
                 data = json.loads(output)
             plat = 0
             dev = 0
@@ -1096,8 +1122,12 @@ def load_model(model_filename):
     inputs.use_fastforward = (0 if args.nofastforward else 1)
     inputs.flash_attention = args.flashattention
     if args.quantkv>0:
-        inputs.quant_k = inputs.quant_v = args.quantkv
-        inputs.flash_attention = True
+        if args.flashattention:
+            inputs.quant_k = inputs.quant_v = args.quantkv
+        else:
+            inputs.quant_k = args.quantkv
+            inputs.quant_v = 0
+            print("\nWarning: quantkv was used without flashattention! This is NOT RECOMMENDED!\nOnly K cache can be quantized, and performance can suffer.\nIn some cases, it might even use more VRAM when doing a full offload.\nYou are strongly encouraged to use flashattention if you want to use quantkv.")
     else:
         inputs.quant_k = inputs.quant_v = 0
     inputs.blasbatchsize = args.blasbatchsize
@@ -1564,6 +1594,48 @@ def tts_generate(genparams):
         outstr = ret.data.decode("UTF-8","ignore")
     return outstr
 
+def embeddings_load_model(model_filename):
+    global args
+    inputs = embeddings_load_model_inputs()
+    inputs.model_filename = model_filename.encode("UTF-8")
+    inputs.gpulayers = 0
+    inputs.flash_attention = False
+    inputs.threads = args.threads
+    inputs = set_backend_props(inputs)
+    ret = handle.embeddings_load_model(inputs)
+    return ret
+
+def embeddings_generate(genparams):
+    global args
+    prompts = []
+    if isinstance(genparams.get('input',[]), list):
+        prompts = genparams.get('input',[])
+    else:
+        prompt = genparams.get("input", "")
+        if prompt:
+            prompts.append(prompt)
+
+    tokarrs = []
+    tokcnt = 0
+    for prompt in prompts:
+        tokarr = []
+        tmpcnt = 0
+        try:
+            inputs = embeddings_generation_inputs()
+            inputs.prompt = prompt.encode("UTF-8")
+            ret = handle.embeddings_generate(inputs)
+            if ret.status==1:
+                outstr = ret.data.decode("UTF-8","ignore")
+                tokarr = json.loads(outstr) if outstr else []
+                tmpcnt = ret.count
+        except Exception as e:
+            tokarr = []
+            tmpcnt = 0
+            print(f"Error: {e}")
+        tokarrs.append(tokarr)
+        tokcnt += tmpcnt
+    return {"count":tokcnt, "data":tokarrs}
+
 def tokenize_ids(countprompt,tcaddspecial):
     rawcountdata = handle.token_count(countprompt.encode("UTF-8"),tcaddspecial)
     countlimit = rawcountdata.count if (rawcountdata.count>=0 and rawcountdata.count<50000) else 0
@@ -1895,7 +1967,7 @@ def transform_genparams(genparams, api_format):
 
             # tools handling
             tools_array = genparams.get('tools', [])
-            chosen_tool = genparams.get('tool_choice', None)
+            chosen_tool = genparams.get('tool_choice', "auto")
             tool_json_formatting_instruction = " Use this style of JSON object formatting to give your answer if you think the user is asking you to perform an action: " + json.dumps([{"id": "insert an id for the response", "type": "function", "function": {"name": "insert the name of the function you want to call", "arguments": {"first property key": "first property value", "second property key": "second property value"}}}], indent=0)
             if tools_array and len(tools_array) > 0 and chosen_tool is not None:
                 try:
@@ -1947,16 +2019,34 @@ def transform_genparams(genparams, api_format):
                 if message['role'] == "user" and message_index == len(messages_array):
                     # Check if user is passing a openai tools array, if so add to end of prompt before assistant prompt unless tool_choice has been set to None
                     if tools_array and len(tools_array) > 0 and chosen_tool is not None and chosen_tool!="none":
+                        #if auto mode, determine whether a tool is needed
                         tools_string = json.dumps(tools_array, indent=0)
-                        messages_string += tools_string
-                        messages_string += tool_json_formatting_instruction
+                        should_use_tools = True
+                        if chosen_tool=="auto":
+                            temp_poll = {
+                                "prompt": f"{messages_string}\n\nAvailable Tools:\n{tools_string}\n\nBased on the above, answer in one word only (yes or no): Should a tool be used?\n\nAnswer:\n",
+                                "max_length":4,
+                                "temperature":0.2,
+                                "top_k":10,
+                                "rep_pen":1,
+                                "ban_eos_token":False
+                                }
+                            temp_poll_result = generate(genparams=temp_poll)
+                            if temp_poll_result and "no" in temp_poll_result['text'].lower():
+                                should_use_tools = False
+                            if not args.quiet:
+                                print(f"\nDeciding if we should use a tool: {temp_poll_result['text']} ({should_use_tools})")
 
-                        # Set temperature low automatically if function calling
-                        genparams["temperature"] = 0.2
-                        genparams["using_openai_tools"] = True
+                        if should_use_tools:
+                            messages_string += tools_string
+                            messages_string += tool_json_formatting_instruction
 
-                        # Set grammar to llamacpp example grammar to force json response (see https://github.com/ggerganov/llama.cpp/blob/master/grammars/json_arr.gbnf)
-                        genparams["grammar"] = r"""
+                            # Set temperature low automatically if function calling
+                            genparams["temperature"] = 0.2
+                            genparams["using_openai_tools"] = True
+
+                            # Set grammar to llamacpp example grammar to force json response (see https://github.com/ggerganov/llama.cpp/blob/master/grammars/json_arr.gbnf)
+                            genparams["grammar"] = r"""
 root   ::= arr
 value  ::= object | array | string | number | ("true" | "false" | "null") ws
 arr  ::=
@@ -3408,7 +3498,7 @@ Enter Prompt:<br>
 
         reqblocking = False
         muint = int(args.multiuser)
-        if muint<=0 and ((args.whispermodel and args.whispermodel!="") or (args.sdmodel and args.sdmodel!="") or (args.ttsmodel and args.ttsmodel!="")):
+        if muint<=0 and ((args.whispermodel and args.whispermodel!="") or (args.sdmodel and args.sdmodel!="") or (args.ttsmodel and args.ttsmodel!="") or (args.embeddingsmodel and args.embeddingsmodel!="")):
             muint = 2 # this prevents errors when using voice/img together with text
         multiuserlimit = ((muint-1) if muint > 1 else 6)
         #backwards compatibility for up to 7 concurrent requests, use default limit of 7 if multiuser set to 1
@@ -3434,6 +3524,7 @@ Enter Prompt:<br>
             is_comfyui_imggen = False
             is_transcribe = False
             is_tts = False
+            is_embeddings = False
 
             if self.path.endswith('/request'):
                 api_format = 1
@@ -3479,11 +3570,14 @@ Enter Prompt:<br>
             if self.path.endswith('/api/extra/tts') or self.path.endswith('/v1/audio/speech') or self.path.endswith('/tts_to_audio'):
                 is_tts = True
 
-            if is_imggen or is_transcribe or is_tts or api_format > 0:
+            if self.path.endswith('/api/extra/embeddings') or self.path.endswith('/v1/embeddings'):
+                is_embeddings = True
+
+            if is_imggen or is_transcribe or is_tts or is_embeddings or api_format > 0:
                 global last_req_time
                 last_req_time = time.time()
 
-                if not is_imggen and not is_transcribe and not is_tts and api_format!=5:
+                if not is_imggen and not self.path.endswith('/tts_to_audio') and api_format!=5:
                     if not self.secure_endpoint():
                         return
 
@@ -3527,7 +3621,7 @@ Enter Prompt:<br>
                 if args.foreground:
                     bring_terminal_to_foreground()
 
-                if api_format > 0:#text gen
+                if api_format > 0: #text gen
                     # Check if streaming chat completions, if so, set stream mode to true
                     if (api_format == 4 or api_format == 3) and "stream" in genparams and genparams["stream"]:
                         sse_stream_flag = True
@@ -3600,6 +3694,24 @@ Enter Prompt:<br>
                     except Exception as ex:
                         utfprint(ex,1)
                         print("TTS: The response could not be sent, maybe connection was terminated?")
+                        time.sleep(0.2) #short delay
+                    return
+                elif is_embeddings:
+                    try:
+                        gen = embeddings_generate(genparams)
+                        outdatas = []
+                        odidx = 0
+                        for od in gen["data"]:
+                            outdatas.append([{"object":"embedding","index":odidx,"embedding":od}])
+                            odidx += 1
+                        genresp = (json.dumps({"object":"list","data":outdatas,"model":"koboldcpp-embeddings","usage":{"prompt_tokens":gen["count"],"total_tokens":gen["count"]}}).encode())
+                        self.send_response(200)
+                        self.send_header('content-length', str(len(genresp)))
+                        self.end_headers(content_type='application/json')
+                        self.wfile.write(genresp)
+                    except Exception as ex:
+                        utfprint(ex,1)
+                        print("Create Embeddings: The response could not be sent, maybe connection was terminated?")
                         time.sleep(0.2) #short delay
                     return
 
@@ -3731,7 +3843,7 @@ def show_gui():
             if dlfile:
                 args.model_param = dlfile
             load_config_cli(args.model_param)
-        if not args.model_param and not args.sdmodel and not args.whispermodel and not args.ttsmodel and not args.nomodel:
+        if not args.model_param and not args.sdmodel and not args.whispermodel and not args.ttsmodel and not args.embeddingsmodel and not args.nomodel:
             global exitcounter
             exitcounter = 999
             exit_with_error(2,"No gguf model or kcpps file was selected. Exiting.")
@@ -3797,6 +3909,7 @@ def show_gui():
                     togglehorde(1,1,1)
                     togglesdquant(1,1,1)
                     toggletaesd(1,1,1)
+                    tabbuttonaction(tabnames[curr_tab_idx])
 
     if sys.platform=="darwin":
         root.resizable(False,False)
@@ -3941,20 +4054,28 @@ def show_gui():
     tts_threads_var = ctk.StringVar(value=str(default_threads))
     ttsmaxlen_var = ctk.StringVar(value=str(default_ttsmaxlen))
 
+    embeddings_model_var = ctk.StringVar()
+
     admin_var = ctk.IntVar(value=0)
     admin_dir_var = ctk.StringVar()
     admin_text_model_dir_var = ctk.StringVar()
     admin_data_dir_var = ctk.StringVar()
     admin_password_var = ctk.StringVar()
 
+    curr_tab_idx = 0
+
     def tabbuttonaction(name):
+        nonlocal curr_tab_idx
+        idx = 0
         for t in tabcontent:
             if name == t:
                 tabcontent[t].grid(row=0, column=0)
                 navbuttons[t].configure(fg_color="#6f727b")
+                curr_tab_idx = idx
             else:
                 tabcontent[t].grid_remove()
                 navbuttons[t].configure(fg_color="transparent")
+            idx += 1
 
     # Dynamically create tabs + buttons based on values of [tabnames]
     for idx, name in enumerate(tabnames):
@@ -4175,25 +4296,22 @@ def show_gui():
         else:
             fastforward.set(1)
             smartcontextbox.grid_remove()
-
-        if flashattention.get()==1:
-            qkvslider.grid()
-            qkvlabel.grid()
-            noqkvlabel.grid_remove()
-        else:
-            qkvslider.grid_remove()
-            qkvlabel.grid_remove()
+        qkvslider.grid()
+        qkvlabel.grid()
+        if flashattention.get()==0 and quantkv_var.get()>0:
             noqkvlabel.grid()
+        else:
+            noqkvlabel.grid_remove()
+
 
     def toggleflashattn(a,b,c):
-        if flashattention.get()==1:
-            qkvslider.grid()
-            qkvlabel.grid()
-            noqkvlabel.grid_remove()
-        else:
-            qkvslider.grid_remove()
-            qkvlabel.grid_remove()
+        qkvslider.grid()
+        qkvlabel.grid()
+        if flashattention.get()==0 and quantkv_var.get()>0:
             noqkvlabel.grid()
+        else:
+            noqkvlabel.grid_remove()
+
 
 
     def guibench():
@@ -4400,11 +4518,12 @@ def show_gui():
                 item.grid_remove()
     makecheckbox(tokens_tab,  "Custom RoPE Config", variable=customrope_var, row=22, command=togglerope,tooltiptxt="Override the default RoPE configuration with custom RoPE scaling.")
     makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, command=toggleflashattn,  tooltiptxt="Enable flash attention for GGUF models.")
-    noqkvlabel = makelabel(tokens_tab,"Requirments Not Met",31,0,"Requires FlashAttention ENABLED.")
+    noqkvlabel = makelabel(tokens_tab,"QuantKV works best with flash attention enabled",33,0,"WARNING: NOT RECOMMENDED.\nOnly K cache can be quantized, and performance can suffer.\nIn some cases, it might even use more VRAM when doing a full offload.")
     noqkvlabel.configure(text_color="#ff5555")
-    qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 2, 30, set=0,tooltip="Enable quantization of KV cache.\nRequires FlashAttention and disables ContextShift.")
-    makecheckbox(tokens_tab, "No BOS Token", nobostoken_var, 33, tooltiptxt="Prevents BOS token from being added at the start of any prompt. Usually NOT recommended for most models.")
-    makelabelentry(tokens_tab, "MoE Experts:", moeexperts_var, row=35, padx=100, singleline=True, tooltip="Override number of MoE experts.")
+    qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 2, 30, set=0,tooltip="Enable quantization of KV cache.\nRequires FlashAttention for full effect, otherwise only K cache is quantized.")
+    quantkv_var.trace("w", toggleflashattn)
+    makecheckbox(tokens_tab, "No BOS Token", nobostoken_var, 43, tooltiptxt="Prevents BOS token from being added at the start of any prompt. Usually NOT recommended for most models.")
+    makelabelentry(tokens_tab, "MoE Experts:", moeexperts_var, row=45, padx=100, singleline=True, tooltip="Override number of MoE experts.")
 
     togglerope(1,1,1)
     toggleflashattn(1,1,1)
@@ -4422,8 +4541,9 @@ def show_gui():
     makelabelentry(model_tab, "Draft Amount: ", draftamount_var, 13, 50,padx=100,singleline=True,tooltip="How many tokens to draft per chunk before verifying results")
     makelabelentry(model_tab, "Splits: ", draftgpusplit_str_vars, 13, 50,padx=210,singleline=True,tooltip="Distribution of draft model layers. Leave blank to follow main model's gpu split. Only works if multi-gpu (All) selected in main model.", labelpadx=160)
     makelabelentry(model_tab, "Layers: ", draftgpulayers_var, 13, 50,padx=320,singleline=True,tooltip="How many layers to GPU offload for the draft model", labelpadx=270)
-    makefileentry(model_tab, "Preload Story:", "Select Preloaded Story File", preloadstory_var, 15,width=280,singlerow=True,tooltiptxt="Select an optional KoboldAI JSON savefile \nto be served on launch to any client.")
-    makefileentry(model_tab, "SaveData File:", "Select or Create New SaveData Database File", savedatafile_var, 17,width=280,filetypes=[("KoboldCpp SaveDB", "*.jsondb")],singlerow=True,dialog_type=1,tooltiptxt="Selecting a file will allow data to be loaded and saved persistently to this KoboldCpp server remotely. File is created if it does not exist.")
+    makefileentry(model_tab, "Embeds Model:", "Select Embeddings Model File", embeddings_model_var, 15, width=280,singlerow=True, filetypes=[("*.gguf","*.gguf")], tooltiptxt="Select an embeddings GGUF model that can be used to generate embedding vectors.")
+    makefileentry(model_tab, "Preload Story:", "Select Preloaded Story File", preloadstory_var, 17,width=280,singlerow=True,tooltiptxt="Select an optional KoboldAI JSON savefile \nto be served on launch to any client.")
+    makefileentry(model_tab, "SaveData File:", "Select or Create New SaveData Database File", savedatafile_var, 19,width=280,filetypes=[("KoboldCpp SaveDB", "*.jsondb")],singlerow=True,dialog_type=1,tooltiptxt="Selecting a file will allow data to be loaded and saved persistently to this KoboldCpp server remotely. File is created if it does not exist.")
     makefileentry(model_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 24, width=250, filetypes=[("JSON Adapter", "*.json")], tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
     def pickpremadetemplate():
         initialDir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'kcpp_adapters')
@@ -4579,7 +4699,7 @@ def show_gui():
 
     # launch
     def guilaunch():
-        if model_var.get() == "" and sd_model_var.get() == "" and whisper_model_var.get() == "" and tts_model_var.get() == "" and nomodel.get()!=1:
+        if model_var.get() == "" and sd_model_var.get() == "" and whisper_model_var.get() == "" and tts_model_var.get() == "" and embeddings_model_var.get() == "" and nomodel.get()!=1:
             tmp = askopenfilename(title="Select ggml model .bin or .gguf file")
             model_var.set(tmp)
         nonlocal nextstate
@@ -4605,10 +4725,7 @@ def show_gui():
         args.quiet = quietmode.get()==1
         args.nocertify = nocertifymode.get()==1
         args.nomodel = nomodel.get()==1
-        if flashattention.get()==1:
-            args.quantkv = quantkv_var.get()
-        else:
-            args.quantkv = 0
+        args.quantkv = quantkv_var.get()
 
         gpuchoiceidx = 0
         args.usecpu = False
@@ -4752,6 +4869,9 @@ def show_gui():
 
         if whisper_model_var.get() != "":
             args.whispermodel = whisper_model_var.get()
+
+        if embeddings_model_var.get() != "":
+            args.embeddingsmodel = embeddings_model_var.get()
 
         if tts_model_var.get() != "" and wavtokenizer_var.get() != "":
             args.ttsthreads = (0 if tts_threads_var.get()=="" else int(tts_threads_var.get()))
@@ -4938,6 +5058,8 @@ def show_gui():
         ttsgpu_var.set(dict["ttsgpu"] if ("ttsgpu" in dict) else 0)
         ttsmaxlen_var.set(str(dict["ttsmaxlen"]) if ("ttsmaxlen" in dict and dict["ttsmaxlen"]) else str(default_ttsmaxlen))
 
+        embeddings_model_var.set(dict["embeddingsmodel"] if ("embeddingsmodel" in dict and dict["embeddingsmodel"]) else "")
+
         admin_var.set(dict["admin"] if ("admin" in dict) else 0)
         admin_dir_var.set(dict["admindir"] if ("admindir" in dict and dict["admindir"]) else "")
         admin_text_model_dir_var.set(dict["admintextmodelsdir"] if ("admintextmodelsdir" in dict and dict["admintextmodelsdir"]) else "")
@@ -5020,7 +5142,7 @@ def show_gui():
         kcpp_exporting_template = False
         export_vars()
 
-        if not args.model_param and not args.sdmodel and not args.whispermodel and not args.ttsmodel and not args.nomodel:
+        if not args.model_param and not args.sdmodel and not args.whispermodel and not args.ttsmodel and not args.embeddingsmodel and not args.nomodel:
             exitcounter = 999
             print("")
             time.sleep(0.5)
@@ -5627,10 +5749,6 @@ def main(launch_args, default_args):
         print(f"{KcppVersion}") # just print version and exit
         return
 
-    #prevent quantkv from being used without flash attn
-    if args.quantkv and args.quantkv>0 and not args.flashattention:
-        exit_with_error(1, "Error: Using --quantkv requires --flashattention")
-
     args = convert_outdated_args(args)
 
     temp_hide_print = (args.model_param and args.prompt and not args.benchmark and not (args.debugmode >= 1))
@@ -5686,7 +5804,7 @@ def main(launch_args, default_args):
         load_config_cli(args.model_param)
 
     # show the GUI launcher if a model was not provided
-    if args.showgui or (not args.model_param and not args.sdmodel and not args.whispermodel and not args.ttsmodel and not args.nomodel):
+    if args.showgui or (not args.model_param and not args.sdmodel and not args.whispermodel and not args.ttsmodel and not args.embeddingsmodel and not args.nomodel):
         #give them a chance to pick a file
         print("For command line arguments, please refer to --help")
         print("***")
@@ -5813,7 +5931,7 @@ def main(launch_args, default_args):
 
 def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
     global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui, start_time, exitcounter, global_memory, using_gui_launcher
-    global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath
+    global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath, embeddingsmodelpath
 
     start_server = True
 
@@ -5961,6 +6079,10 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
         dlfile = download_model_from_url(args.ttswavtokenizer,[".gguf"],min_file_size=500000)
         if dlfile:
             args.ttswavtokenizer = dlfile
+    if args.embeddingsmodel and args.embeddingsmodel!="":
+        dlfile = download_model_from_url(args.embeddingsmodel,[".gguf"],min_file_size=500000)
+        if dlfile:
+            args.embeddingsmodel = dlfile
 
     # sanitize and replace the default vanity name. remember me....
     if args.model_param and args.model_param!="":
@@ -6252,6 +6374,24 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
                 exitcounter = 999
                 exit_with_error(3,"Could not load TTS model!")
 
+    #handle embeddings model
+    if args.embeddingsmodel and args.embeddingsmodel!="":
+        if not os.path.exists(args.embeddingsmodel):
+            if args.ignoremissing:
+                print("Ignoring missing TTS model files!")
+                args.embeddingsmodel = None
+            else:
+                exitcounter = 999
+                exit_with_error(2,f"Cannot find embeddings model files: {args.embeddingsmodel}")
+        else:
+            embeddingsmodelpath = args.embeddingsmodel
+            embeddingsmodelpath = os.path.abspath(embeddingsmodelpath)
+            loadok = embeddings_load_model(embeddingsmodelpath)
+            print("Load Embeddings Model OK: " + str(loadok))
+            if not loadok:
+                exitcounter = 999
+                exit_with_error(3,"Could not load Embeddings model!")
+
 
     #load embedded lite
     try:
@@ -6309,6 +6449,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
     enabledmlist.append("ApiKeyPassword") if "protected" in caps and caps["protected"] else disabledmlist.append("ApiKeyPassword")
     enabledmlist.append("WebSearchProxy") if "websearch" in caps and caps["websearch"] else disabledmlist.append("WebSearchProxy")
     enabledmlist.append("TextToSpeech") if "tts" in caps and caps["tts"] else disabledmlist.append("TextToSpeech")
+    enabledmlist.append("VectorEmbeddings") if "embeddings" in caps and caps["embeddings"] else disabledmlist.append("VectorEmbeddings")
     enabledmlist.append("AdminControl") if "admin" in caps and caps["admin"]!=0 else disabledmlist.append("AdminControl")
 
     print(f"======\nActive Modules: {' '.join(enabledmlist)}")
@@ -6538,7 +6679,7 @@ if __name__ == '__main__':
     advparser.add_argument("--ignoremissing", help="Ignores all missing non-essential files, just skipping them instead.", action='store_true')
     advparser.add_argument("--chatcompletionsadapter", metavar=('[filename]'), help="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.", default="AutoGuess")
     advparser.add_argument("--flashattention", help="Enables flash attention.", action='store_true')
-    advparser.add_argument("--quantkv", help="Sets the KV cache data type quantization, 0=f16, 1=q8, 2=q4. Requires Flash Attention, and disables context shifting.",metavar=('[quantization level 0/1/2]'), type=int, choices=[0,1,2], default=0)
+    advparser.add_argument("--quantkv", help="Sets the KV cache data type quantization, 0=f16, 1=q8, 2=q4. Requires Flash Attention for full effect, otherwise only K cache is quantized.",metavar=('[quantization level 0/1/2]'), type=int, choices=[0,1,2], default=0)
     advparser.add_argument("--forceversion", help="If the model file format detection fails (e.g. rogue modified model) you can set this to override the detected format (enter desired version, e.g. 401 for GPTNeoX-Type2).",metavar=('[version]'), type=int, default=0)
     advparser.add_argument("--smartcontext", help="Reserving a portion of context to try processing less frequently. Outdated. Not recommended.", action='store_true')
     advparser.add_argument("--unpack", help="Extracts the file contents of the KoboldCpp binary into a target directory.", metavar=('destination'), type=str, default="")
@@ -6585,6 +6726,9 @@ if __name__ == '__main__':
     ttsparsergroup.add_argument("--ttsgpu", help="Use the GPU for TTS.", action='store_true')
     ttsparsergroup.add_argument("--ttsmaxlen", help="Limit number of audio tokens generated with TTS.",  type=int, default=default_ttsmaxlen)
     ttsparsergroup.add_argument("--ttsthreads", metavar=('[threads]'), help="Use a different number of threads for TTS if specified. Otherwise, has the same value as --threads.", type=int, default=0)
+
+    embeddingsparsergroup = parser.add_argument_group('Embeddings Model Commands')
+    embeddingsparsergroup.add_argument("--embeddingsmodel", metavar=('[filename]'), help="Specify an embeddings model to be loaded for generating embedding vectors.", default="")
 
     admingroup = parser.add_argument_group('Administration Commands')
     admingroup.add_argument("--admin", help="Enables admin mode, allowing you to unload and reload different configurations or models.", action='store_true')
