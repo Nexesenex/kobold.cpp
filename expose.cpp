@@ -247,6 +247,15 @@ extern "C"
         return ttstype_generate(inputs);
     }
 
+    bool embeddings_load_model(const embeddings_load_model_inputs inputs)
+    {
+        return embeddingstype_load_model(inputs);
+    }
+    embeddings_generation_outputs embeddings_generate(const embeddings_generation_inputs inputs)
+    {
+        return embeddingstype_generate(inputs);
+    }
+
     const char * new_token(int idx) {
         if (generated_tokens.size() <= idx || idx < 0) return nullptr;
 
