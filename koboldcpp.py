@@ -3980,6 +3980,7 @@ def show_gui():
     usemlock = ctk.IntVar()
     debugmode = ctk.IntVar()
     keepforeground = ctk.IntVar()
+    terminalonly = ctk.IntVar()
     quietmode = ctk.IntVar(value=0)
     nocertifymode = ctk.IntVar(value=0)
 
@@ -4473,7 +4474,8 @@ def show_gui():
         "Use MMAP": [usemmap, "Use mmap to load models if enabled, model will not be unloadable"],
         "Use mlock": [usemlock, "Enables mlock, preventing the RAM used to load the model from being paged out."],
         "Debug Mode": [debugmode, "Enables debug mode, with extra info printed to the terminal."],
-        "Keep Foreground": [keepforeground, "Bring KoboldCpp to the foreground every time there is a new generation."]
+        "Keep Foreground": [keepforeground, "Bring KoboldCpp to the foreground every time there is a new generation."],
+        "CLI Terminal Only": [terminalonly, "Does not launch KoboldCpp HTTP server. Instead, enables KoboldCpp from the command line, accepting interactive console input and displaying responses to the terminal."]
     }
 
     for idx, (name, properties) in enumerate(hardware_boxes.items()):
@@ -4722,6 +4724,7 @@ def show_gui():
         args.nofastforward = fastforward.get()==0
         args.remotetunnel = remotetunnel.get()==1
         args.foreground = keepforeground.get()==1
+        args.cli = terminalonly.get()==1
         args.quiet = quietmode.get()==1
         args.nocertify = nocertifymode.get()==1
         args.nomodel = nomodel.get()==1
@@ -4880,7 +4883,7 @@ def show_gui():
             args.ttsgpu = (ttsgpu_var.get()==1)
             args.ttsmaxlen = int(ttsmaxlen_var.get())
 
-        args.admin = (admin_var.get()==1)
+        args.admin = (admin_var.get()==1 and not args.cli)
         args.admindir = admin_dir_var.get()
         args.admintextmodelsdir = admin_text_model_dir_var.get()
         args.admindatadir = admin_data_dir_var.get()
@@ -4905,6 +4908,7 @@ def show_gui():
         fastforward.set(0 if "nofastforward" in dict and dict["nofastforward"] else 1)
         remotetunnel.set(1 if "remotetunnel" in dict and dict["remotetunnel"] else 0)
         keepforeground.set(1 if "foreground" in dict and dict["foreground"] else 0)
+        terminalonly.set(1 if "cli" in dict and dict["cli"] else 0)
         quietmode.set(1 if "quiet" in dict and dict["quiet"] else 0)
         nocertifymode.set(1 if "nocertify" in dict and dict["nocertify"] else 0)
         nomodel.set(1 if "nomodel" in dict and dict["nomodel"] else 0)
@@ -5749,9 +5753,13 @@ def main(launch_args, default_args):
         print(f"{KcppVersion}") # just print version and exit
         return
 
+    #prevent disallowed combos
+    if (args.nomodel or args.benchmark or args.launch or args.admin) and args.cli:
+        exit_with_error(1, "Error: --cli cannot be combined with --launch, --nomodel, --admin or --benchmark")
+
     args = convert_outdated_args(args)
 
-    temp_hide_print = (args.model_param and args.prompt and not args.benchmark and not (args.debugmode >= 1))
+    temp_hide_print = (args.model_param and (args.prompt and not args.cli) and not args.benchmark and not (args.debugmode >= 1))
 
     if not temp_hide_print:
         print(f"***\nWelcome to KoboldCpp - Version {KcppVersion}")
@@ -5828,7 +5836,7 @@ def main(launch_args, default_args):
         print("\nWARNING: Admin was set without selecting an admin directory. Admin cannot be used.\n")
 
     if not args.admin: #run in single process mode
-        if args.remotetunnel and not args.prompt and not args.benchmark:
+        if args.remotetunnel and not args.prompt and not args.benchmark and not args.cli:
             setuptunnel(global_memory, True if args.sdmodel else False)
         kcpp_main_process(args,global_memory,using_gui_launcher)
         if global_memory["input_to_exit"]:
@@ -5839,7 +5847,7 @@ def main(launch_args, default_args):
         with multiprocessing.Manager() as mp_manager:
             global_memory = mp_manager.dict({"tunnel_url": "", "restart_target": "", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None})
 
-            if args.remotetunnel and not args.prompt and not args.benchmark:
+            if args.remotetunnel and not args.prompt and not args.benchmark and not args.cli:
                 setuptunnel(global_memory, True if args.sdmodel else False)
 
             # Sets the current configuration
@@ -5940,7 +5948,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
     using_gui_launcher = gui_launcher
     start_time = time.time()
 
-    if args.model_param and args.prompt and not args.benchmark and not (args.debugmode >= 1):
+    if args.model_param and (args.prompt and not args.cli) and not args.benchmark and not (args.debugmode >= 1):
         suppress_stdout()
 
     if global_memory["modelOverride"] is not None:
@@ -5949,7 +5957,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
     noModelLoaded = args.nomodel and not ("model_param" in args and args.model_param is not None and len(args.model_param) > 0 and len(args.model_param[0]) > 0)
     global_memory["currentModel"] = None if noModelLoaded else args.model_param
 
-    if args.model_param and (args.benchmark or args.prompt):
+    if args.model_param and (args.benchmark or args.prompt or args.cli):
         start_server = False
 
     #try to read story if provided
@@ -6473,34 +6481,36 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
         endpoint_url = f"{httpsaffix}://localhost:{args.port}"
     else:
         endpoint_url = f"{httpsaffix}://{args.host}:{args.port}"
-    if not args.remotetunnel:
-        print(f"Starting Kobold API on port {args.port} at {endpoint_url}/api/")
-        print(f"Starting OpenAI Compatible API on port {args.port} at {endpoint_url}/v1/")
-        if args.sdmodel:
-            print(f"StableUI is available at {endpoint_url}/sdui/")
-    elif global_memory:
-        val = global_memory["tunnel_url"]
-        if val:
-            endpoint_url = val
-            remote_url = val
-            print(f"Your remote Kobold API can be found at {endpoint_url}/api")
-            print(f"Your remote OpenAI Compatible API can be found at {endpoint_url}/v1")
+
+    if start_server:
+        if not args.remotetunnel:
+            print(f"Starting Kobold API on port {args.port} at {endpoint_url}/api/")
+            print(f"Starting OpenAI Compatible API on port {args.port} at {endpoint_url}/v1/")
             if args.sdmodel:
                 print(f"StableUI is available at {endpoint_url}/sdui/")
-        global_memory["load_complete"] = True
-    if args.launch:
-        def launch_browser_thread():
-            LaunchWebbrowser(endpoint_url,"--launch was set, but could not launch web browser automatically.")
-        browser_thread = threading.Timer(2, launch_browser_thread) #2 second delay
-        browser_thread.start()
+        elif global_memory:
+            val = global_memory["tunnel_url"]
+            if val:
+                endpoint_url = val
+                remote_url = val
+                print(f"Your remote Kobold API can be found at {endpoint_url}/api")
+                print(f"Your remote OpenAI Compatible API can be found at {endpoint_url}/v1")
+                if args.sdmodel:
+                    print(f"StableUI is available at {endpoint_url}/sdui/")
+            global_memory["load_complete"] = True
+        if args.launch:
+            def launch_browser_thread():
+                LaunchWebbrowser(endpoint_url,"--launch was set, but could not launch web browser automatically.")
+            browser_thread = threading.Timer(2, launch_browser_thread) #2 second delay
+            browser_thread.start()
 
-    if args.hordekey and args.hordekey!="":
-        if args.hordeworkername and args.hordeworkername!="":
-            horde_thread = threading.Thread(target=run_horde_worker,args=(args,args.hordekey,args.hordeworkername))
-            horde_thread.daemon = True
-            horde_thread.start()
-        else:
-            print("Horde worker could not start. You need to specify a horde worker name with --hordeworkername")
+        if args.hordekey and args.hordekey!="":
+            if args.hordeworkername and args.hordeworkername!="":
+                horde_thread = threading.Thread(target=run_horde_worker,args=(args,args.hordekey,args.hordeworkername))
+                horde_thread.daemon = True
+                horde_thread.start()
+            else:
+                print("Horde worker could not start. You need to specify a horde worker name with --hordeworkername")
 
     #if post-ready script specified, execute it
     if args.onready:
@@ -6512,82 +6522,105 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
         timer_thread.start()
 
     if not start_server:
-        save_to_file = (args.benchmark and args.benchmark!="stdout" and args.benchmark!="")
-        benchmaxctx = maxctx
-        benchlen = args.promptlimit
-        benchtemp = 0.1
-        benchtopk = 1
-        benchreppen = 1
-        benchbaneos = True
-        benchmodel = sanitize_string(os.path.splitext(os.path.basename(modelname))[0])
-        benchprompt = ""
-        if args.prompt:
-            benchprompt = args.prompt
-            benchtopk = 100
-            benchreppen = 1.07
-            benchtemp = 0.8
-            if not args.benchmark:
-                benchbaneos = False
-        if args.benchmark:
-            if os.path.exists(args.benchmark) and os.path.getsize(args.benchmark) > 1000000:
-                print("\nWarning: The benchmark CSV output file you selected exceeds 1MB. This is probably not what you want, did you select the wrong CSV file?\nFor safety, benchmark output will not be saved.")
-                save_to_file = False
-            if save_to_file:
-                print(f"\nRunning benchmark (Save to File: {args.benchmark})...")
-            else:
-                print("\nRunning benchmark (Not Saved)...")
-            if benchprompt=="":
-                benchprompt = " 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1"
-                for i in range(0,14): #generate massive prompt
-                    benchprompt += benchprompt
-        genp = {
-            "prompt":benchprompt,
-            "max_length":benchlen,
-            "max_context_length":benchmaxctx,
-            "temperature":benchtemp,
-            "top_k":benchtopk,
-            "rep_pen":benchreppen,
-            "ban_eos_token":benchbaneos
-        }
-        genout = generate(genparams=genp)
-        result = genout['text']
-        if args.prompt and not args.benchmark:
-            restore_stdout()
-            print(result)
-        if args.benchmark:
-            result = (result[:8] if len(result)>8 else "") if not args.prompt else result
-            t_pp = float(handle.get_last_process_time())*float(benchmaxctx-benchlen)*0.001
-            t_gen = float(handle.get_last_eval_time())*float(benchlen)*0.001
-            s_pp = float(benchmaxctx-benchlen)/t_pp
-            s_gen = float(benchlen)/t_gen
-            datetimestamp = datetime.now(timezone.utc)
-            benchflagstr = f"NoAVX2={args.noavx2} Threads={args.threads} HighPriority={args.highpriority} Cublas_Args={args.usecublas} Tensor_Split={args.tensor_split} BlasThreads={args.blasthreads} BlasBatchSize={args.blasbatchsize} FlashAttention={args.flashattention} KvCache={args.quantkv}"
-            print(f"\nBenchmark Completed - v{KcppVersion} Results:\n======")
-            print(f"Flags: {benchflagstr}")
-            print(f"Timestamp: {datetimestamp}")
-            print(f"Backend: {libname}")
-            print(f"Layers: {args.gpulayers}")
-            print(f"Model: {benchmodel}")
-            print(f"MaxCtx: {benchmaxctx}")
-            print(f"GenAmount: {benchlen}\n-----")
-            print(f"ProcessingTime: {t_pp:.3f}s")
-            print(f"ProcessingSpeed: {s_pp:.2f}T/s")
-            print(f"GenerationTime: {t_gen:.3f}s")
-            print(f"GenerationSpeed: {s_gen:.2f}T/s")
-            print(f"TotalTime: {(t_pp+t_gen):.3f}s")
-            print(f"Output: {result}\n-----")
-            if save_to_file:
-                try:
-                    with open(args.benchmark, "a") as file:
-                        file.seek(0, 2)
-                        if file.tell() == 0: #empty file
-                            file.write("Timestamp,Backend,Layers,Model,MaxCtx,GenAmount,ProcessingTime,ProcessingSpeed,GenerationTime,GenerationSpeed,TotalTime,Output,Flags")
-                        file.write(f"\n{datetimestamp},{libname},{args.gpulayers},{benchmodel},{benchmaxctx},{benchlen},{t_pp:.2f},{s_pp:.2f},{t_gen:.2f},{s_gen:.2f},{(t_pp+t_gen):.2f},{result},{benchflagstr}")
-                except Exception as e:
-                    print(f"Error writing benchmark to file: {e}")
-            if global_memory and using_gui_launcher and not save_to_file:
-                global_memory["input_to_exit"] = True
-                time.sleep(1)
+        if args.cli:
+            print("\n===\nNow running KoboldCpp in Interactive Terminal Chat mode.\nType /quit or /exit to end session.\n")
+            lastturns = []
+            if args.prompt and args.prompt!="":
+                lastturns.append({"role":"system","content":args.prompt})
+                print(f"System Prompt:\n{args.prompt}\n")
+            while True:
+                lastuserinput = input("> ")
+                if lastuserinput=="/quit" or lastuserinput=="/exit":
+                    break
+                if not lastuserinput:
+                    continue
+                lastturns.append({"role":"user","content":lastuserinput})
+                payload = {"messages":lastturns,"rep_pen":1.07,"temperature":0.8}
+                payload = transform_genparams(payload, 4) #to chat completions
+                suppress_stdout()
+                genout = generate(genparams=payload)
+                restore_stdout()
+                result = genout["text"]
+                if result:
+                    lastturns.append({"role":"assistant","content":result})
+                print(result.strip() + "\n", flush=True)
+        else:
+            save_to_file = (args.benchmark and args.benchmark!="stdout" and args.benchmark!="")
+            benchmaxctx = maxctx
+            benchlen = args.promptlimit
+            benchtemp = 0.1
+            benchtopk = 1
+            benchreppen = 1
+            benchbaneos = True
+            benchmodel = sanitize_string(os.path.splitext(os.path.basename(modelname))[0])
+            benchprompt = ""
+            if args.prompt:
+                benchprompt = args.prompt
+                benchtopk = 100
+                benchreppen = 1.07
+                benchtemp = 0.8
+                if not args.benchmark:
+                    benchbaneos = False
+            if args.benchmark:
+                if os.path.exists(args.benchmark) and os.path.getsize(args.benchmark) > 1000000:
+                    print("\nWarning: The benchmark CSV output file you selected exceeds 1MB. This is probably not what you want, did you select the wrong CSV file?\nFor safety, benchmark output will not be saved.")
+                    save_to_file = False
+                if save_to_file:
+                    print(f"\nRunning benchmark (Save to File: {args.benchmark})...")
+                else:
+                    print("\nRunning benchmark (Not Saved)...")
+                if benchprompt=="":
+                    benchprompt = " 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1"
+                    for i in range(0,14): #generate massive prompt
+                        benchprompt += benchprompt
+            genp = {
+                "prompt":benchprompt,
+                "max_length":benchlen,
+                "max_context_length":benchmaxctx,
+                "temperature":benchtemp,
+                "top_k":benchtopk,
+                "rep_pen":benchreppen,
+                "ban_eos_token":benchbaneos
+            }
+            genout = generate(genparams=genp)
+            result = genout['text']
+            if args.prompt and not args.benchmark:
+                restore_stdout()
+                print(result)
+            if args.benchmark:
+                result = (result[:8] if len(result)>8 else "") if not args.prompt else result
+                t_pp = float(handle.get_last_process_time())*float(benchmaxctx-benchlen)*0.001
+                t_gen = float(handle.get_last_eval_time())*float(benchlen)*0.001
+                s_pp = float(benchmaxctx-benchlen)/t_pp
+                s_gen = float(benchlen)/t_gen
+                datetimestamp = datetime.now(timezone.utc)
+                benchflagstr = f"NoAVX2={args.noavx2} Threads={args.threads} HighPriority={args.highpriority} Cublas_Args={args.usecublas} Tensor_Split={args.tensor_split} BlasThreads={args.blasthreads} BlasBatchSize={args.blasbatchsize} FlashAttention={args.flashattention} KvCache={args.quantkv}"
+                print(f"\nBenchmark Completed - v{KcppVersion} Results:\n======")
+                print(f"Flags: {benchflagstr}")
+                print(f"Timestamp: {datetimestamp}")
+                print(f"Backend: {libname}")
+                print(f"Layers: {args.gpulayers}")
+                print(f"Model: {benchmodel}")
+                print(f"MaxCtx: {benchmaxctx}")
+                print(f"GenAmount: {benchlen}\n-----")
+                print(f"ProcessingTime: {t_pp:.3f}s")
+                print(f"ProcessingSpeed: {s_pp:.2f}T/s")
+                print(f"GenerationTime: {t_gen:.3f}s")
+                print(f"GenerationSpeed: {s_gen:.2f}T/s")
+                print(f"TotalTime: {(t_pp+t_gen):.3f}s")
+                print(f"Output: {result}\n-----")
+                if save_to_file:
+                    try:
+                        with open(args.benchmark, "a") as file:
+                            file.seek(0, 2)
+                            if file.tell() == 0: #empty file
+                                file.write("Timestamp,Backend,Layers,Model,MaxCtx,GenAmount,ProcessingTime,ProcessingSpeed,GenerationTime,GenerationSpeed,TotalTime,Output,Flags")
+                            file.write(f"\n{datetimestamp},{libname},{args.gpulayers},{benchmodel},{benchmaxctx},{benchlen},{t_pp:.2f},{s_pp:.2f},{t_gen:.2f},{s_gen:.2f},{(t_pp+t_gen):.2f},{result},{benchflagstr}")
+                    except Exception as e:
+                        print(f"Error writing benchmark to file: {e}")
+                if global_memory and using_gui_launcher and not save_to_file:
+                    global_memory["input_to_exit"] = True
+                    time.sleep(1)
 
     if start_server:
         if args.remotetunnel:
@@ -6599,7 +6632,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
         asyncio.run(RunServerMultiThreaded(args.host, args.port, KcppServerRequestHandler))
     else:
         # Flush stdout for previous win32 issue so the client can see output.
-        if not args.prompt or args.benchmark:
+        if not args.prompt or args.benchmark or args.cli:
             print("Server was not started, main function complete. Idling.", flush=True)
 
 if __name__ == '__main__':
@@ -6657,6 +6690,7 @@ if __name__ == '__main__':
     advparser.add_argument("--onready", help="An optional shell command to execute after the model has been loaded.", metavar=('[shell command]'), type=str, default="",nargs=1)
     advparser.add_argument("--benchmark", help="Do not start server, instead run benchmarks. If filename is provided, appends results to provided file.", metavar=('[filename]'), nargs='?', const="stdout", type=str, default=None)
     advparser.add_argument("--prompt", metavar=('[prompt]'), help="Passing a prompt string triggers a direct inference, loading the model, outputs the response to stdout and exits. Can be used alone or with benchmark.", type=str, default="")
+    advparser.add_argument("--cli", help="Does not launch KoboldCpp HTTP server. Instead, enables KoboldCpp from the command line, accepting interactive console input and displaying responses to the terminal.", action='store_true')
     advparser.add_argument("--promptlimit", help="Sets the maximum number of generated tokens, usable only with --prompt or --benchmark",metavar=('[token limit]'), type=int, default=100)
     advparser.add_argument("--multiuser", help="Runs in multiuser mode, which queues incoming requests instead of blocking them.", metavar=('limit'), nargs='?', const=1, type=int, default=1)
     advparser.add_argument("--multiplayer", help="Hosts a shared multiplayer session that others can join.", action='store_true')

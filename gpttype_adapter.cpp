@@ -583,7 +583,7 @@ static void speculative_decoding_setup(std::string spec_model_filename, const ll
     draft_ctx_params.type_v = base_ctx_params.type_v;
 
     llama_model * draftmodel = llama_model_load_from_file(spec_model_filename.c_str(), draft_model_params);
-    draft_ctx = llama_new_context_with_model(draftmodel, draft_ctx_params);
+    draft_ctx = llama_init_from_model(draftmodel, draft_ctx_params);
     if(draft_ctx == NULL)
     {
         printf("Error: failed to load speculative decoding draft model '%s'\n", spec_model_filename.c_str());
@@ -2227,7 +2227,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         llama_ctx_params.flash_attn = kcpp_data->flash_attn;
         llama_ctx_params.type_k = (inputs.quant_k>1?GGML_TYPE_Q4_0:(inputs.quant_k==1?GGML_TYPE_Q8_0:GGML_TYPE_F16));
         llama_ctx_params.type_v = (inputs.quant_v>1?GGML_TYPE_Q4_0:(inputs.quant_v==1?GGML_TYPE_Q8_0:GGML_TYPE_F16));
-        llama_ctx_v4 = llama_new_context_with_model(llamamodel, llama_ctx_params);
+        llama_ctx_v4 = llama_init_from_model(llamamodel, llama_ctx_params);
 
         if (llama_ctx_v4 == NULL)
         {

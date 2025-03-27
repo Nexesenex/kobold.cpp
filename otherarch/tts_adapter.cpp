@@ -542,7 +542,7 @@ bool ttstype_load_model(const tts_load_model_inputs inputs)
     tts_ctx_params.flash_attn = inputs.flash_attention;
 
     llama_model * ttcmodel = llama_model_load_from_file(modelfile_ttc.c_str(), tts_model_params);
-    ttc_ctx = llama_new_context_with_model(ttcmodel, tts_ctx_params);
+    ttc_ctx = llama_init_from_model(ttcmodel, tts_ctx_params);
 
     if (ttc_ctx == nullptr) {
         printf("\nTTS Load Error: Failed to initialize ttc context!\n");
@@ -552,7 +552,7 @@ bool ttstype_load_model(const tts_load_model_inputs inputs)
     llama_model * ctsmodel = llama_model_load_from_file(modelfile_cts.c_str(), tts_model_params);
 
     tts_ctx_params.embeddings = true; //this requires embeddings instead
-    cts_ctx = llama_new_context_with_model(ctsmodel, tts_ctx_params);
+    cts_ctx = llama_init_from_model(ctsmodel, tts_ctx_params);
 
     if (cts_ctx == nullptr) {
         printf("\nTTS Load Error: Failed to initialize cts context!\n");
