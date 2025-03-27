@@ -24152,20 +24152,49 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}
 	}
 
+	let getLastActions = (amountOfActions = 10) => {
+		return repack_instruct_turns(concat_gametext(true), `{{[INPUT]}}`, `{{[OUTPUT]}}`, `{{[SYSTEM]}}`, true).map(msg => { 
+			msg.msg = msg.msg.replaceAll("{{[SYSTEM_END]}}", "").replaceAll("{{[INPUT_END]}}", "").replaceAll("{{[OUTPUT_END]}}", "").trim(); 
+			return msg 
+		}).filter(msg => !/^\n*$/.test(msg.msg) && !!msg.msg && msg.msg.indexOf("Chain of thought repetition detected - ending") === -1 && msg.msg.indexOf("Chain of thought complete") === -1).splice(-amountOfActions)
+	}
+
 	let currentChainOfThought = [], recentActions = [], lastMessage = "", maxActionsInHistory = 20, maxThoughtsWithoutUserInput = 20, currentAgentCycle = null, endCurrent = false
+
 	let runAgentCycle = async (initialPrompt = undefined) => {
 		endCurrent = false
 		// gametext_arr = []
 		// render_gametext()
 
-		let addThought = (wrapperHandler, prompt, onlyDisplay = false) => {
+		let addThought = (wrapperHandler, prompt, onlyDisplay = false, onlyAdd = false) => {
 			thought = wrapperHandler(prompt)
 			if (!onlyDisplay)
 			{
 				currentChainOfThought.push(thought)
 			}
-			gametext_arr.push(thought.replace(/\\\\/g, ""))
-			render_gametext()
+			if (!onlyAdd)
+			{
+				gametext_arr.push(thought.replace(/\\\\/g, ""))
+				render_gametext()
+			}
+		}
+
+		if (currentChainOfThought.length == 0)
+		{
+			getLastActions().forEach(action => {
+				switch(action.source)
+				{
+					case "system":
+						addThought(createSysPrompt, action.msg, false, true);
+						break;
+					case "ai":
+						addThought(createAIPrompt, action.msg, false, true);
+						break;
+					case "human":
+						addThought(createInstructPrompt, action.msg, false, true);
+						break;
+				}
+			})
 		}
 
 		let input = !!initialPrompt ? initialPrompt : prompt(`Request for initial user input`)
