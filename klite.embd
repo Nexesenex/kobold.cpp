@@ -20467,15 +20467,26 @@ Current version indicated by LITEVER below.
 		searchStr = replace_search_placeholders(searchStr)
 		recentTextStr = replace_search_placeholders(recentTextStr)
 
-		let i = 0, startLoc = 0;
-		while (startLoc < allText.length && i < Number.MAX_SAFE_INTEGER) {
-			let actualChunkStart = Math.max(0, startLoc - chunkSizeOverlap);
-			let actualChunkEnd = Math.min(allText.length, actualChunkStart + chunkSize);
-			let currentSnippet = allText.substring(actualChunkStart, actualChunkEnd);
-			paragraphs.push(currentSnippet);
-			startLoc = actualChunkEnd;
-			i++;
-		}
+		let i = 0; //, startLoc = 0;
+		// while (startLoc < allText.length && i < Number.MAX_SAFE_INTEGER) {
+		// 	let actualChunkStart = Math.max(0, startLoc - chunkSizeOverlap);
+		// 	let actualChunkEnd = Math.min(allText.length, actualChunkStart + chunkSize);
+		// 	let currentSnippet = allText.substring(actualChunkStart, actualChunkEnd);
+		// 	paragraphs.push(currentSnippet);
+		// 	startLoc = actualChunkEnd;
+		// 	i++;
+		// }
+		allText.split("[DOCUMENT BREAK]").forEach(doc => {
+			let startLoc = 0;
+			while (startLoc < doc.length && i < Number.MAX_SAFE_INTEGER) {
+				let actualChunkStart = Math.max(0, startLoc - chunkSizeOverlap);
+				let actualChunkEnd = Math.min(doc.length, actualChunkStart + chunkSize);
+				let currentSnippet = doc.substring(actualChunkStart, actualChunkEnd);
+				paragraphs.push(currentSnippet);
+				startLoc = actualChunkEnd;
+				i++;
+			}
+		})
 		paragraphs = paragraphs.map(c => c.replace(/\n\n/g, "\n")).filter(s => !!s);
 		let pgcount = 0;
 		paragraphs = paragraphs.map(txt => {
