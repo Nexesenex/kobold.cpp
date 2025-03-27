@@ -24040,6 +24040,11 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			payload["grammar_retain_state"] = false
 			payload["banned_tokens"] = ["{}"]
 		}
+		concat_gametext(true, "", "", "", false, true)
+		if(is_using_kcpp_with_llava() && insertAIVisionImages.length>0)
+		{
+			payload.images = insertAIVisionImages;
+		}
 		let reqOpt = {
 			method: 'POST', // or 'PUT'
 			headers: get_kobold_header(),
