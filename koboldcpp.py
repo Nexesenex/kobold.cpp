@@ -4159,7 +4159,7 @@ def show_gui():
                     ctk.set_widget_scaling(smallratio)
                     changerunmode(1,1,1)
                     togglerope(1,1,1)
-                    # toggleflashattn(1,1,1)
+                    toggleflashattn(1,1,1)
                     togglectxshift(1,1,1)
                     togglehorde(1,1,1)
                     togglesdquant(1,1,1)
@@ -4626,9 +4626,9 @@ def show_gui():
             # noqkvlabel.grid_remove()
 
 
-    # def toggleflashattn(a,b,c):
-        # qkvslider.grid()
-        # qkvlabel.grid()
+    def toggleflashattn(a,b,c):
+        qkvslider.grid()
+        qkvlabel.grid()
         # if flashattention.get()==0 and quantkv_var.get()>0:
             # noqkvlabel.grid()
         # else:
@@ -4865,8 +4865,8 @@ def show_gui():
                 item.grid_remove()
     makecheckbox(tokens_tab,  "Custom RoPE Config", variable=customrope_var, row=22, command=togglerope,tooltiptxt="Override the default RoPE configuration with custom RoPE scaling.")
 
-    # makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, command=toggleflashattn, tooltiptxt="Enable flash attention for GGUF models.")
-    makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28,  tooltiptxt="Enable flash attention for GGUF models.")
+    makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, command=toggleflashattn, tooltiptxt="Enable flash attention for GGUF models.")
+    # makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28,  tooltiptxt="Enable flash attention for GGUF models.")
     # noqkvlabel = makelabel(tokens_tab,"QuantKV works best with flash attention enabled",33,0,"WARNING: NOT RECOMMENDED.\nOnly K cache can be quantized, and performance can suffer.\nIn some cases, it might even use more VRAM when doing a full offload.")
     # noqkvlabel.configure(text_color="#ff5555")
     # qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 2, 30, set=0,tooltip="Enable quantization of KV cache.\nRequires FlashAttention for full effect, otherwise only K cache is quantized.")
@@ -4882,7 +4882,7 @@ def show_gui():
     model_var.trace("w", gui_changed_modelfile)
 
     togglerope(1,1,1)
-    # toggleflashattn(1,1,1)
+    toggleflashattn(1,1,1)
     togglectxshift(1,1,1)
 
     # Model Tab
