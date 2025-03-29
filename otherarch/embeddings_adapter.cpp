@@ -142,7 +142,7 @@ bool embeddingstype_load_model(const embeddings_load_model_inputs inputs)
     ctx_params.n_threads_batch = nthreads;
     ctx_params.flash_attn = inputs.flash_attention;
 
-    embeddings_ctx = llama_new_context_with_model(embeddingsmodel, ctx_params);
+    embeddings_ctx = llama_init_from_model(embeddingsmodel, ctx_params);
 
     if (embeddings_ctx == nullptr) {
         printf("\nEmbeddings Model Load Error: Failed to initialize context!\n");
