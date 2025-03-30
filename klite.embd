@@ -24228,7 +24228,7 @@ ${getCommandsAsText(true)}
 Resources:
 1. Use "ask_user" to tell them to implement new commands if you need one. Do not use ask_user unless absolutely necessary.
 2. When responding with None, use null, as otherwise the JSON cannot be parsed.
-3. Use "search_memory" if the user has an instruction which requires more information.
+3. Use "search_history" if the user has an instruction which requires more information.
 4. The current date is: ${new Date().toUTCString()}
 
 Performance Evaluation:
@@ -24638,7 +24638,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							break
 						case "search_history":
 							let searchHistoryString = action?.args?.searchString
-							if (!!searchString) 
+							if (!!searchHistoryString) 
 							{
 								let ltmSnippets = DatabaseMinisearch(`${documentdb_data}\n\nHistory: ${concat_gametext(true)}`, searchHistoryString, "", 0);
 								if (ltmSnippets.length === 0)
