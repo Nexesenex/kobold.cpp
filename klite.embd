@@ -23755,6 +23755,11 @@ else
 	}
 
 	window.addEventListener('load', () => {
+		if (is_using_kcpp_with_server_saving())
+		{
+			document.getElementById("topbtn_ai").classList.remove("hidden");
+		}
+
 		let hasAppended = false;
 		document.querySelector("#topbtn_save_load .nav-link").onclick = () => {
 			closeTopNav();
