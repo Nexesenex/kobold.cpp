@@ -17748,16 +17748,19 @@ Current version indicated by LITEVER below.
 				//accept all newline formats for backwards compatibility
 				fulltxt = replaceAll(fulltxt, "\n\n"+get_instruct_starttag(true)+"\n\n", `%SpcStg%`);
 				fulltxt = replaceAll(fulltxt, "\n\n"+get_instruct_endtag(true)+"\n\n", `%SpcEtg%`);
-				fulltxt = replaceAll(fulltxt, "\n\n"+get_instruct_systag(true)+"\n\n", `%SpcSyg%`);
 				fulltxt = replaceAll(fulltxt, "\n"+get_instruct_starttag(true)+"\n", `%SpcStg%`);
 				fulltxt = replaceAll(fulltxt, "\n"+get_instruct_endtag(true)+"\n", `%SpcEtg%`);
-				fulltxt = replaceAll(fulltxt, "\n"+get_instruct_systag(true)+"\n", `%SpcSyg%`);
 				fulltxt = replaceAll(fulltxt, get_instruct_starttag(false), `%SpcStg%`);
 				fulltxt = replaceAll(fulltxt, get_instruct_endtag(false), `%SpcEtg%`);			
-				fulltxt = replaceAll(fulltxt, get_instruct_systag(false), `%SpcSyg%`);
 				fulltxt = replaceAll(fulltxt, get_instruct_starttag(true), `%SpcStg%`);
 				fulltxt = replaceAll(fulltxt, get_instruct_endtag(true), `%SpcEtg%`);
-				fulltxt = replaceAll(fulltxt, get_instruct_systag(true), `%SpcSyg%`);
+				if (isAgentModeEnabledAndSetCorrectly())
+				{
+					fulltxt = replaceAll(fulltxt, "\n\n"+get_instruct_systag(true)+"\n\n", `%SpcSyg%`);
+					fulltxt = replaceAll(fulltxt, "\n"+get_instruct_systag(true)+"\n", `%SpcSyg%`);
+					fulltxt = replaceAll(fulltxt, get_instruct_systag(false), `%SpcSyg%`);
+					fulltxt = replaceAll(fulltxt, get_instruct_systag(true), `%SpcSyg%`);
+				}
 				if (localsettings.separate_end_tags) {
 					if (get_instruct_endtag_end(true)) {
 						fulltxt = replaceAll(fulltxt, get_instruct_endtag_end(true), ``);
@@ -24365,7 +24368,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	let originalRepackInstructTurns = repack_instruct_turns, cotOverrideRepack = false;
 
 	let allTagsValid = () => {
-		return !!instructstartplaceholder && !!instructstartplaceholder_end && !!instructsysplaceholder && !!instructsysplaceholder_end && !!instructendplaceholder && !!instructendplaceholder_end
+		let placeholders = !!instructstartplaceholder && !!instructstartplaceholder_end && !!instructsysplaceholder && !!instructsysplaceholder_end && !!instructendplaceholder && !!instructendplaceholder_end
+		let tags = !!localsettings.instruct_starttag && !!localsettings.instruct_starttag_end && !!localsettings.instruct_endtag && !!localsettings.instruct_endtag_end && !!localsettings.instruct_systag && !!localsettings.instruct_systag_end
+		return placeholders && tags
 	}
 
 	let isAgentModeEnabledAndSetCorrectly = () => {
