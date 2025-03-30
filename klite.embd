@@ -24214,7 +24214,7 @@ Action: {"command":{"name":"stop_thinking","args":null}}
 System: Chain of thought complete`
 
 let actionPrompt = () => {
-	return `You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user.
+	return `${!!localsettings.instruct_sysprompt ? `${localsettings.instruct_sysprompt}\n\n` : ""}You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user.
 
 Constraints:
 1. Only use commands defined below - no other actions are available.
