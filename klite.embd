@@ -24735,7 +24735,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 								let waitForI2ILoop = () => {
 									return new Promise((resolve, reject) => {
 										let intervalId = setInterval(() => {
-											if (waitingFori2iSelection === false)
+											if (waitingFori2iSelection === false || endCurrent)
 											{
 												clearInterval(intervalId)
 												resolve()
@@ -24744,9 +24744,13 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 									})
 								}
 								await waitForI2ILoop()
-								generate_new_image(i2iPrompt, i2i64)
+								if (!!i2i64)
+								{
+									generate_new_image(i2iPrompt, i2i64)
+									addThought(createSysPrompt, `Image generated`)
+								}
 								i2i64 = undefined;
-								addThought(createSysPrompt, `Image generated`)
+								waitingFori2iSelection = false;
 							}
 							else
 							{
