@@ -14257,7 +14257,7 @@ Current version indicated by LITEVER below.
 							let ltmContent = "";
 							for(let i=0;i<ltmSnippets.length;++i)
 							{
-								ltmContent += `\n[Info Snippet: ${ltmSnippets[i].snippet}]\n`;
+								ltmContent += getInfoSnippet(ltmSnippets[i]);
 							}
 							wistr = ltmContent + wistr;
 						}
@@ -20669,7 +20669,8 @@ Current version indicated by LITEVER below.
 			let comparisons = sectionSummary.map(doc => {
 				return {
 					match: doc.score,
-					snippet: doc.snippet
+					snippet: doc.snippet,
+					document: doc.document
 				};
 			}).sort((a, b) => {
 				return (a.match > b.match ? -1 : 1);
@@ -20706,25 +20707,36 @@ Current version indicated by LITEVER below.
 		// 	i++;
 		// }
 		allText.split("[DOCUMENT BREAK]").forEach(doc => {
+			doc = doc.trim()
+			let titleMatch = doc.match(/^\[([^\n]+?)\]/), title = null;
+			if (titleMatch !== null)
+			{
+				doc = doc.replace(titleMatch[0], "")
+				title = titleMatch[1]
+			}
 			let startLoc = 0;
 			while (startLoc < doc.length && i < Number.MAX_SAFE_INTEGER) {
 				let actualChunkStart = Math.max(0, startLoc - chunkSizeOverlap);
 				let actualChunkEnd = Math.min(doc.length, actualChunkStart + chunkSize);
 				let currentSnippet = doc.substring(actualChunkStart, actualChunkEnd);
-				paragraphs.push(currentSnippet);
+				paragraphs.push({snippet: currentSnippet, document: title});
 				startLoc = actualChunkEnd;
 				i++;
 			}
 		})
-		paragraphs = paragraphs.map(c => c.replace(/\n\n/g, "\n")).filter(s => !!s);
+		paragraphs = paragraphs.map(c => {
+			c.snippet = c.snippet.replace(/\n\n/g, "\n");
+			return c;
+		}).filter(c => !!c.snippet);
 		let pgcount = 0;
-		paragraphs = paragraphs.map(txt => {
+		paragraphs = paragraphs.map(paragraph => {
 			pgcount += 1;
 			return {
 				id: pgcount,
-				snippet: txt,
-				text: stripToTokens(txt),
-				category: "context"
+				snippet: paragraph.snippet,
+				text: stripToTokens(paragraph.snippet),
+				category: "context",
+				document: paragraph.document
 			}
 		});
 
@@ -20751,7 +20763,7 @@ Current version indicated by LITEVER below.
 		//step 2: initialize minisearch engine
 		let miniSearch = new MiniSearch({
 			fields: ["text"], // fields to index for full-text search
-			storeFields: ['category', "snippet"], // fields to return with search results
+			storeFields: ['category', "snippet", "document"], // fields to return with search results
 			searchOptions: {
 				fuzzy: 0,
 				bm25: { // https://lucaong.github.io/minisearch/types/MiniSearch.BM25Params.html
@@ -24426,6 +24438,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}).filter(msg => !/^\n*$/.test(msg.msg) && !!msg.msg && msg.msg.indexOf("Chain of thought repetition detected - ending") === -1 && msg.msg.indexOf("Chain of thought complete") === -1).splice(-amountOfActions)
 	}
 
+	let getInfoSnippet = (snippet) => {
+		return `\n[Info Snippet${!!snippet.document ? ` from document "${snippet.document}"` : ""}: ${snippet.snippet}]\n`;
+	}
+
 	let currentChainOfThought = [], recentActions = [], lastMessage = "", maxActionsInHistory = 20, maxThoughtsWithoutUserInput = 5, currentAgentCycle = null, endCurrent = false
 
 	let runAgentCycle = async (initialPrompt = undefined) => {
@@ -24619,7 +24635,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							let searchHistoryString = action?.args?.searchString
 							if (!!searchString) 
 							{
-								let ltmSnippets = DatabaseMinisearch(`${documentdb_data}\n\nHistory: ${concat_gametext(true)}`, searchHistoryString, searchHistoryString, 0);
+								let ltmSnippets = DatabaseMinisearch(`${documentdb_data}\n\nHistory: ${concat_gametext(true)}`, searchHistoryString, "", 0);
 								if (ltmSnippets.length === 0)
 								{
 									addThought(createSysPrompt, `History search performed: Nothing found`)
@@ -24629,7 +24645,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 									let ltmContent = "History search performed:";
 									for(let i=0;i<ltmSnippets.length;++i)
 									{
-										ltmContent += `\n[Info Snippet: ${ltmSnippets[i].snippet}]\n`;
+										ltmContent += getInfoSnippet(ltmSnippets[i]);
 									}
 									addThought(createSysPrompt, ltmContent)
 								}
@@ -24643,7 +24659,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							let searchString = action?.args?.searchString
 							if (!!searchString) 
 							{
-								let ltmSnippets = DatabaseMinisearch(documentdb_data, searchString, searchString, 0);
+								let ltmSnippets = DatabaseMinisearch(documentdb_data, searchString, "", 0);
 								if (ltmSnippets.length === 0)
 								{
 									addThought(createSysPrompt, `Memory search performed: Nothing found`)
@@ -24653,7 +24669,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 									let ltmContent = "Memory search performed:";
 									for(let i=0;i<ltmSnippets.length;++i)
 									{
-										ltmContent += `\n[Info Snippet: ${ltmSnippets[i].snippet}]\n`;
+										ltmContent += getInfoSnippet(ltmSnippets[i]);
 									}
 									addThought(createSysPrompt, ltmContent)
 								}
@@ -24667,7 +24683,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							let searchChatlogString = action?.args?.searchString
 							if (!!searchChatlogString) 
 							{
-								let ltmSnippets = DatabaseMinisearch(concat_gametext(true), searchChatlogString, searchChatlogString, 0);
+								let ltmSnippets = DatabaseMinisearch(concat_gametext(true), searchChatlogString, "", 0);
 								if (ltmSnippets.length === 0)
 								{
 									addThought(createSysPrompt, `Chatlog search performed: Nothing found`)
@@ -24677,7 +24693,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 									let ltmContent = "Chatlog search performed:";
 									for(let i=0;i<ltmSnippets.length;++i)
 									{
-										ltmContent += `\n[Info Snippet: ${ltmSnippets[i].snippet}]\n`;
+										ltmContent += getInfoSnippet(ltmSnippets[i]);
 									}
 									addThought(createSysPrompt, ltmContent)
 								}
