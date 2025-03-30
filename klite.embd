@@ -24749,6 +24749,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 									generate_new_image(i2iPrompt, i2i64)
 									addThought(createSysPrompt, `Image generated`)
 								}
+								else
+								{
+									addThought(createSysPrompt, `User did not select an image - no image generated`)
+								}
 								i2i64 = undefined;
 								waitingFori2iSelection = false;
 							}
