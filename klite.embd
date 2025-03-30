@@ -17981,7 +17981,10 @@ Current version indicated by LITEVER below.
 			}else{
 				document.getElementById("topbtn_customendpt").classList.remove("hidden");
 			}
-			document.getElementById("topbtn_ai").classList.add("hidden");
+			if (!is_using_kcpp_with_server_saving())
+			{
+				document.getElementById("topbtn_ai").classList.add("hidden");
+			}
 			document.getElementById("topbtn_newgame").classList.remove("hidden");
 			document.getElementById("topbtn_save_load").classList.remove("hidden");
 			document.getElementById("topbtn_scenarios").classList.add("hidden");
@@ -17990,7 +17993,7 @@ Current version indicated by LITEVER below.
 			document.getElementById("topbtn_reconnect").classList.add("hidden");
 			document.getElementById("topbtn_customendpt").classList.add("hidden");
 
-			if(localflag)
+			if(!is_using_kcpp_with_server_saving() && localflag)
 			{
 				document.getElementById("topbtn_ai").classList.add("hidden");
 			}else{
@@ -23770,11 +23773,6 @@ else
 	}
 
 	window.addEventListener('load', () => {
-		if (is_using_kcpp_with_server_saving())
-		{
-			document.getElementById("topbtn_ai").classList.remove("hidden");
-		}
-
 		let hasAppended = false;
 		document.querySelector("#topbtn_save_load .nav-link").onclick = () => {
 			closeTopNav();
