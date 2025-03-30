@@ -24119,6 +24119,13 @@ let getCommands = () => {
 			"isExtended": true
 		},
 		{
+			"name": "generate_image_based_on_another_image",
+			"description": "Generates an image using AI based on a prompt and an input image. Will prompt the user to select an image.",
+			"args": { "prompt": "<prompt to generate image with>" },
+			"enabled": localsettings.generate_images_mode == 2, // Only enabled if local endpoint exists / is in use
+			"isExtended": true
+		},
+		{
 			"name": "speak",
 			"description": "Say something to the user using text to speech.",
 			"args": { "textToSay": "<text to say>" },
@@ -24719,6 +24726,33 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 								addThought(createSysPrompt, `No prompt provided, image not generated`)
 							}
 							break
+						case "generate_image_based_on_another_image":
+							let i2iPrompt = action?.args?.prompt
+							if (!!i2iPrompt) {
+								waitingFori2iSelection = true
+								addThought(createSysPrompt, `Please click an image as a source for img2img generation`, true)
+
+								let waitForI2ILoop = () => {
+									return new Promise((resolve, reject) => {
+										let intervalId = setInterval(() => {
+											if (waitingFori2iSelection === false)
+											{
+												clearInterval(intervalId)
+												resolve()
+											}
+										}, 1000)
+									})
+								}
+								await waitForI2ILoop()
+								generate_new_image(i2iPrompt, i2i64)
+								i2i64 = undefined;
+								addThought(createSysPrompt, `Image generated`)
+							}
+							else
+							{
+								addThought(createSysPrompt, `No prompt provided, image not generated`)
+							}
+							break
 						case "speak":
 							let textToSay = action?.args?.textToSay
 							if (!!textToSay) {
@@ -24777,7 +24811,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		document.getElementById("stopThinking").classList.add("hidden")
 	}
 
-	let originalDisplaySettingsTab = display_settings_tab, originalConfirmSettings = confirm_settings, originalPrepareSubmitGeneration = prepare_submit_generation, originalRestartNewGame = restart_new_game
+	let originalDisplaySettingsTab = display_settings_tab, originalConfirmSettings = confirm_settings, originalPrepareSubmitGeneration = prepare_submit_generation, originalRestartNewGame = restart_new_game,
+	originalClickImage = click_image;
+
 	display_settings_tab = (tabIndex) => {
 		originalDisplaySettingsTab(tabIndex);
 		document.getElementById("agentBehaviour").checked = localsettings.agentBehaviour;
@@ -24811,6 +24847,19 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		recentActions = []
 		lastMessage = ""
 		originalRestartNewGame()
+	}
+
+	let waitingFori2iSelection = false, i2i64 = undefined;
+	click_image = (target,imghash) => {
+		if (target && waitingFori2iSelection)
+		{
+			i2i64 = target.src;
+			waitingFori2iSelection = false
+		}
+		else
+		{
+			originalClickImage(target,imghash)
+		}
 	}
 
 	let createStopThinkingButton = () => {
