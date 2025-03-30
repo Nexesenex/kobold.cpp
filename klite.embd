@@ -24064,17 +24064,24 @@ let getCommands = () => {
 			"isExtended": true
 		},
 		{
+			"name": "search_history",
+			"description": "Searches history for a series of keywords.",
+			"args": { "searchString": "<string to search for>" },
+			"enabled": true,
+			"isExtended": true
+		},
+		{
 			"name": "search_memory",
 			"description": "Searches memory for a series of keywords.",
 			"args": { "searchString": "<string to search for>" },
-			"enabled": true,
+			"enabled": false,
 			"isExtended": true
 		},
 		{
 			"name": "search_chatlog",
 			"description": "Searches the conversation between the user and AI for a series of keywords.",
 			"args": { "searchString": "<string to search for>" },
-			"enabled": true,
+			"enabled": false,
 			"isExtended": true
 		},
 		{
@@ -24409,7 +24416,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}).filter(msg => !/^\n*$/.test(msg.msg) && !!msg.msg && msg.msg.indexOf("Chain of thought repetition detected - ending") === -1 && msg.msg.indexOf("Chain of thought complete") === -1).splice(-amountOfActions)
 	}
 
-	let currentChainOfThought = [], recentActions = [], lastMessage = "", maxActionsInHistory = 20, maxThoughtsWithoutUserInput = 20, currentAgentCycle = null, endCurrent = false
+	let currentChainOfThought = [], recentActions = [], lastMessage = "", maxActionsInHistory = 20, maxThoughtsWithoutUserInput = 5, currentAgentCycle = null, endCurrent = false
 
 	let runAgentCycle = async (initialPrompt = undefined) => {
 		endCurrent = false
@@ -24429,26 +24436,26 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			}
 		}
 
-		if (currentChainOfThought.length == 0)
-		{
-			getLastActions().forEach(action => {
-				switch(action.source)
-				{
-					case "system":
-						addThought(createSysPrompt, action.msg, false, true);
-						break;
-					case "ai":
-						addThought(createAIPrompt, action.msg, false, true);
-						break;
-					case "human":
-						addThought(createInstructPrompt, action.msg, false, true);
-						break;
-				}
-			})
-		}
+		currentChainOfThought = []
+		getLastActions(maxActionsInHistory).forEach(action => {
+			switch(action.source)
+			{
+				case "system":
+					addThought(createSysPrompt, action.msg, false, true);
+					break;
+				case "ai":
+					addThought(createAIPrompt, action.msg, false, true);
+					break;
+				case "human":
+					addThought(createInstructPrompt, action.msg, false, true);
+					break;
+			}
+		})
 
-		let input = !!initialPrompt ? initialPrompt : prompt(`Request for initial user input`)
-		addThought(createInstructPrompt, input)
+		if (!!initialPrompt)
+		{
+			addThought(createInstructPrompt, initialPrompt)
+		}		
 
 		let validCommands = getCommands().filter(command => !!command.enabled).map(command => command.name)
 		let jsonGrammar = "root   ::= object\nvalue  ::= object | array | string | number | (\"true\" | \"false\" | \"null\") ws\n\nobject ::=\n  \"{\" ws (\n            string \":\" ws value\n    (\",\" ws string \":\" ws value)*\n  )? \"}\" ws\n\narray  ::=\n  \"[\" ws (\n            value\n    (\",\" ws value)*\n  )? \"]\" ws\n\nstring ::=\n  \"\\\"\" (\n    [^\"\\\\\\x7F\\x00-\\x1F] |\n    \"\\\\\" ([\"\\\\bfnrt] | \"u\" [0-9a-fA-F]{4}) # escapes\n  )* \"\\\"\" ws\n\nnumber ::= (\"-\"? ([0-9] | [1-9] [0-9]{0,15})) (\".\" [0-9]+)? ([eE] [-+]? [0-9] [1-9]{0,15})? ws\n\n# Optional space: by convention, applied in this grammar after literal chars when allowed\nws ::= | \" \" | \"\\n\" [ \\t]{0,20}"
@@ -24598,6 +24605,30 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 								addThought(createSysPrompt, `Text was empty - nothing added to memory`)
 							}
 							break
+						case "search_history":
+							let searchHistoryString = action?.args?.searchString
+							if (!!searchString) 
+							{
+								let ltmSnippets = DatabaseMinisearch(`${documentdb_data}\n\nHistory: ${concat_gametext(true)}`, searchHistoryString, searchHistoryString, 0);
+								if (ltmSnippets.length === 0)
+								{
+									addThought(createSysPrompt, `History search performed: Nothing found`)
+								}
+								else
+								{
+									let ltmContent = "History search performed:";
+									for(let i=0;i<ltmSnippets.length;++i)
+									{
+										ltmContent += `\n[Info Snippet: ${ltmSnippets[i].snippet}]\n`;
+									}
+									addThought(createSysPrompt, ltmContent)
+								}
+							}
+							else
+							{
+								addThought(createSysPrompt, `Search string was empty, no search performed`)
+							}
+							break
 						case "search_memory":
 							let searchString = action?.args?.searchString
 							if (!!searchString) 
@@ -24626,7 +24657,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							let searchChatlogString = action?.args?.searchString
 							if (!!searchChatlogString) 
 							{
-								let ltmSnippets = DatabaseMinisearch(concat_gametext(true) , searchChatlogString, searchChatlogString, 0);
+								let ltmSnippets = DatabaseMinisearch(concat_gametext(true), searchChatlogString, searchChatlogString, 0);
 								if (ltmSnippets.length === 0)
 								{
 									addThought(createSysPrompt, `Chatlog search performed: Nothing found`)
