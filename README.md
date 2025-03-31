@@ -1,4 +1,4 @@
-# Esolithe's fork of KoboldCPP
+# Esobold (Esolithe's fork of KoboldCPP)
 
 Welcome all, this fork focuses on enhanced remote management, server saving and integration in KoboldCPP and Kobold Lite.
 
