@@ -12028,6 +12028,11 @@ Current version indicated by LITEVER below.
 		hide_popups();
 	}
 
+	function estimate_and_show_textDB_usage() {
+		let snippetEstimate =  Number(document.getElementById("documentdb_chunksize").value) *1.5 * Number(document.getElementById("documentdb_numresults").value);
+		document.getElementById("documentdb_snippetestimate").innerText = `Estimate of context usage ${snippetEstimate / 3} tokens (${snippetEstimate} characters)`;
+	}
+
 	function confirm_memory() {
 		current_memory = document.getElementById("memorytext").value;
 		current_anote = document.getElementById("anotetext").value;
@@ -19083,6 +19088,7 @@ Current version indicated by LITEVER below.
 			case 2:
 				document.getElementById("documentdb_tab").classList.add("active");
 				document.getElementById("documentdb_tab_container").classList.remove("hidden");
+				estimate_and_show_textDB_usage();
 				break;
 			case 3:
 				document.getElementById("websearch_tab").classList.add("active");
@@ -21134,39 +21140,85 @@ Current version indicated by LITEVER below.
 
 				<div class="settinglabel" style="padding: 4px;">
 					<div class="justifyleft settingsmall" title="Search Includes Context History">Search Includes Context History <span class="helpicon">?
-						<span class="helptext">If enabled, the entire story/chat history is used as a searchable document</span></span></div>
+						<span class="helptext">If enabled, the entire story/chat history is used as a searchable document.</span></span></div>
 					<input title="Search Context History" type="checkbox" id="documentdb_searchhistory" style="margin:0px 0 0;">
 				</div>
 
-				<div class="settinglabel" style="padding: 4px;">
+				<div class="settingitem" style="width: unset;">
+					<div class="settinglabel" style="padding: 4px;">
+						<div class="justifyleft settingsmall">Num. Search Results <span class="helpicon">?<span class="helptext">Controls how many search results to retrieve from DB. Each search result is added to the context as a snippet of the DB
+						document.</span></span></div>
+						<input title="Number of Search Results" inputmode="numeric" class="justifyright flex-push-right settingsmall" id="documentdb_numresults" oninput="
+						document.getElementById('documentdb_numresults_slide').value = this.value; estimate_and_show_textDB_usage();">
+					</div>
+					<div><input title="Number of Search Results Slider" type="range" min="1" max="5" step="1" id="documentdb_numresults_slide" oninput="
+						document.getElementById('documentdb_numresults').value = this.value; estimate_and_show_textDB_usage();"></div>
+					<div class="settingminmax">
+						<div class="justifyleft">1</div>
+						<div class="justifyright">5</div>
+					</div>
+				</div>
+
+				<div class="settingitem" style="width: unset;">
+					<div class="settinglabel" style="padding: 4px;">
+						<div class="justifyleft settingsmall">Extra Text For Search <span class="helpicon">?<span class="helptext">Adds the specified amount of characters from the context before the last user message to the search query.</span></span></div>
+						<input title="Extra Text For Search" inputmode="numeric" class="justifyright flex-push-right settingsmall" id="documentdb_searchrange" oninput="
+						document.getElementById('documentdb_searchrange_slide').value = this.value;">
+					</div>
+					<div><input title="Extra Text For Search Slider" type="range" min="50" max="500" step="10" id="documentdb_searchrange_slide" oninput="
+						document.getElementById('documentdb_searchrange').value = this.value;"></div>
+					<div class="settingminmax">
+						<div class="justifyleft">50</div>
+						<div class="justifyright">500</div>
+					</div>
+				</div>
+
+				<div class="settingitem" style="width: unset;">
+					<div class="settinglabel" style="padding: 4px;">
+						<div class="justifyleft settingsmall">Snippet Size <span class="helpicon">?<span class="helptext">Controls the size (in characters) of each snippet taken from the documents.</span></span></div>
+						<input title="Snippet Size" inputmode="numeric" class="justifyright flex-push-right settingsmall" id="documentdb_chunksize" oninput="
+						document.getElementById('documentdb_chunksize_slide').value = this.value; estimate_and_show_textDB_usage();">
+					</div>
+					<div><input title="Snippet Size Slider" type="range" min="100" max="2000" step="50" id="documentdb_chunksize_slide" oninput="
+						document.getElementById('documentdb_chunksize').value = this.value; estimate_and_show_textDB_usage();"></div>
+					<div class="settingminmax">
+						<div class="justifyleft">100</div>
+						<div class="justifyright">2000</div>
+					</div>
+				</div>
+				
+				<div class="settinglabel settingsmall" style="padding: 4px;" id="documentdb_snippetestimate"></div>
+				<!-- <div class="settinglabel" style="padding: 4px;">
 					<div class="justifyleft settingsmall">Num. Search Results <span class="helpicon">?
-					<span class="helptext">Controls how many snippets to retrieve from DB</span></span></div>
+					<span class="helptext">Controls how many search results to retrieve from DB. Each search result is added to the context as a snippet of the DB document.</span></span></div>
 					<input title="Number of Search Results" class="settinglabel miniinput"
 						style="height:16px;margin:0px 4px 0; width:90px;font-size:10px;" type="number"
 						min="1" max="5" step="1" pattern="\d+" placeholder="" value="" id="documentdb_numresults">
-				</div>
-				<div class="settinglabel" style="padding: 4px;">
-					<div class="justifyleft settingsmall">Nearby Text Amount <span class="helpicon">?
-						<span class="helptext">Controls	amount of nearby text included in the search query</span></span>
+				</div> -->
+				<!-- <div class="settinglabel" style="padding: 4px;">
+					<div class="justifyleft settingsmall">Extra Text For Search <span class="helpicon">?
+						<span class="helptext">Adds the specified amount of characters from the context before the last user message to the search query.</span></span>
 					</div>
-					<input title="Nearby Text Amount" class="settinglabel miniinput"
+					<input title="Extra Text For Search" class="settinglabel miniinput"
 						style="height:16px;margin:0px 4px 0; width:90px;font-size:10px;" type="number"
 						min="1" step="1" pattern="\d+" placeholder="" value="" id="documentdb_searchrange">
-				</div>
-				<div class="settinglabel" style="padding: 4px;">
-					<div class="justifyleft settingsmall">Search Chunk Size <span class="helpicon">?
-					<span class="helptext">Controls the size of each snippet being searched for</span></span>
+				</div> -->
+				<!-- <div class="settinglabel" style="padding: 4px;">
+					<div class="justifyleft settingsmall">Snippet Size <span class="helpicon">?
+					<span class="helptext">Controls the size (in characters) of each snippet taken from the documents.</span></span>
 					</div>
-					<input title="Search Chunk Size" class="settinglabel miniinput"
+					<input title="Snippet Size" class="settinglabel miniinput"
 						style="height:16px;margin:0px 4px 0; width:90px;font-size:10px;" type="number"
 						min="0" step="1" pattern="\d+" placeholder="" value="" id="documentdb_chunksize">
-				</div>
+					<div class="justifyright settingsmall" id="documentdb_snippetestimate"></div>
+				</div> -->
+				<div class="settinglabel settingsmall" style="padding: 4px;">Please note, as with world info this can cause context reprocessing.  It is recommended to have at least 8K context size and a good prompt processing speed to use this feature.</div>
 				<div class="settinglabel">
 					<div class="justifyleft"><br>TextDB Storage<span class="helpicon">?<span
-						class="helptext">Paste as much raw text data here as you like. E.g. background information, reference documents, etc. This text will populate the database that will be chunked and searched by TextDB.</span></span></div>
+						class="helptext">Paste as much raw text data here as you like. E.g. background information, reference documents, etc. This text will populate the database that will be chunked and searched by TextDB. This can be split using "[DOCUMENT BREAK]" to split the overall database into smaller documents, and titles can be added with "[DOCUMENT BREAK][Title of document]This is the content of the document".</span></span></div>
 				</div>
 				<textarea title="Edit TextDB" class="form-control menuinput_multiline" id="documentdb_data" style="height: 120px;"
-					placeholder="Paste as much text data here as you like. This text will populate the database that will be searched by TextDB."></textarea>
+					placeholder="Paste as much text data here as you like. This text will populate the database that will be searched by TextDB. This can be split using [DOCUMENT BREAK] to split the overall database into smaller documents, and titles can be added with [DOCUMENT BREAK][Title of document]This is the content of the document."></textarea>
 			</div>
 
 			<div class="context_tab_container" id="websearch_tab_container">
