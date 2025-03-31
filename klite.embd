@@ -7154,7 +7154,37 @@ Current version indicated by LITEVER below.
 			//check if it's a world info only card, if so, do not restart game
 			if(combinedmem.trim()=="" && greeting=="" && obj.entries)
 			{
-				current_wi = load_tavern_wi(obj,chatopponent,myname);
+				msgboxYesNo("Import World Info / Lorebook into TextDB instead of overwriting existing World Info?\n\nYes = TextDB Used\nNo = World Info Used\n\nIf unsure, select 'No'.","Import World Info / Lorebook Mode", ()=>{
+					let importLorebookAsTextDB = (lorebook) => {						
+						if (!!lorebook?.entries)
+						{
+							let outputText = Object.values(lorebook.entries)
+								.map(loreEntry => {
+									let {name, comment, content} = loreEntry;
+									let keys = [...new Set([...loreEntry.key, ...loreEntry.keys, ...loreEntry.keysecondary])];
+									let description = `### Name: ${name}`
+									if (comment !== name) {
+										description += `\n(Description: ${comment})`
+									}
+									if (keys.length > 0)
+									{
+										description += `\n(Alternative names: ${keys.join(",")})`
+									}
+									description += `\nDetails: ${content}`
+									return description
+								});
+							documentdb_data += `[DOCUMENT BREAK][${lorebook?.name}]${outputText.join("\n\n")}`;
+							msgbox(`Lorebook "${lorebook?.name}" loaded into TextDB`)
+						}
+						else
+						{
+							msgbox(`No entries found for ${lorebook?.name}`)
+						}
+					}
+					importLorebookAsTextDB(obj)
+				},()=>{
+					current_wi = load_tavern_wi(obj,chatopponent,myname);
+				});
 			}
 			else if(agnaidatafieldsempty.trim()=="" && obj.entries && obj.kind=="memory")
 			{
@@ -24957,6 +24987,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 		createStopThinkingButton()
 	})
+
+
 
 </script>
 </html>
