@@ -2022,27 +2022,29 @@ def transform_genparams(genparams, api_format):
                         #if auto mode, determine whether a tool is needed
                         tools_string = json.dumps(tools_array, indent=0)
                         should_use_tools = True
+                        user_start = user_message_start
+                        user_end = assistant_message_start
                         if chosen_tool=="auto":
                             temp_poll = {
-                                "prompt": f"{messages_string}\n\nAvailable Tools:\n{tools_string}\n\nBased on the above, answer in one word only (yes or no): Should a tool be used?\n\nAnswer:\n",
+                                "prompt": f"{user_start}User query:\n\n{messages_string}\n\nTool Code:\n{tools_string}Determine from the provided tool code if the user query would be best answered by a listed tool (One word: yes / no):{user_end}",
                                 "max_length":4,
-                                "temperature":0.2,
-                                "top_k":10,
+                                "temperature":0.1,
+                                "top_k":1,
                                 "rep_pen":1,
                                 "ban_eos_token":False
                                 }
                             temp_poll_result = generate(genparams=temp_poll)
-                            if temp_poll_result and "no" in temp_poll_result['text'].lower():
+                            if temp_poll_result and "yes" not in temp_poll_result['text'].lower():
                                 should_use_tools = False
                             if not args.quiet:
-                                print(f"\nDeciding if we should use a tool: {temp_poll_result['text']} ({should_use_tools})")
+                                print(f"\nRelevant tool is listed: {temp_poll_result['text']} ({should_use_tools})")
 
                         if should_use_tools:
                             messages_string += tools_string
                             messages_string += tool_json_formatting_instruction
 
                             # Set temperature low automatically if function calling
-                            genparams["temperature"] = 0.2
+                            genparams["temperature"] = 0.1
                             genparams["using_openai_tools"] = True
 
                             # Set grammar to llamacpp example grammar to force json response (see https://github.com/ggerganov/llama.cpp/blob/master/grammars/json_arr.gbnf)
@@ -2504,6 +2506,7 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 tool_calls = extract_json_from_string(recvtxt)
                 if tool_calls and len(tool_calls)>0:
                     recvtxt = None
+                    currfinishreason = "tool_calls"
             res = {"id": "chatcmpl-A1", "object": "chat.completion", "created": int(time.time()), "model": friendlymodelname,
                    "usage": {"prompt_tokens": prompttokens, "completion_tokens": comptokens, "total_tokens": (prompttokens+comptokens)},
                    "choices": [{"index": 0, "message": {"role": "assistant", "content": recvtxt, "tool_calls": tool_calls}, "finish_reason": currfinishreason, "logprobs":logprobsdict}]}
@@ -2537,6 +2540,10 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     async def handle_sse_stream(self, genparams, api_format):
         global friendlymodelname, currfinishreason
+        # if tools, do not send anything - OAI tool calls will be handled with fakestreaming!
+        using_openai_tools = genparams.get('using_openai_tools', False)
+        if api_format == 4 and using_openai_tools:
+            return
         self.send_response(200)
         self.send_header("X-Accel-Buffering", "no")
         self.send_header("cache-control", "no-cache")
@@ -2547,6 +2554,7 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
         incomplete_token_buffer = bytearray()
         async_sleep_short = 0.02
         await asyncio.sleep(0.35) #anti race condition, prevent check from overtaking generate
+
         try:
             tokenReserve = "" #keeps fully formed tokens that we cannot send out yet
             while True:
@@ -3636,6 +3644,26 @@ Enter Prompt:<br>
                             self.send_header('content-length', str(len(genresp)))
                             self.end_headers(content_type='application/json')
                             self.wfile.write(genresp)
+                        elif api_format == 4 and genparams.get('using_openai_tools', False): #special case, fake streaming for openai tool calls
+                            self.send_response(200)
+                            self.send_header("X-Accel-Buffering", "no")
+                            self.send_header("cache-control", "no-cache")
+                            self.send_header("connection", "keep-alive")
+                            self.end_headers(content_type='text/event-stream')
+                            toolsdata_res = []
+                            try:
+                                toolsdata_res = gen['choices'][0]['message']['tool_calls']
+                                if toolsdata_res and len(toolsdata_res)>0:
+                                    toolsdata_res[0]["index"] = 0 # need to add an index for OWUI
+                            except Exception:
+                                toolsdata_res = []
+                            toolsdata_p1 = json.dumps({"id":"koboldcpp","object":"chat.completion.chunk","created":int(time.time()),"model":friendlymodelname,"choices":[{"index":0,"finish_reason":None,"delta":{'role':'assistant','content':None, "tool_calls":toolsdata_res}}]})
+                            toolsdata_p2 = json.dumps({"id":"koboldcpp","object":"chat.completion.chunk","created":int(time.time()),"model":friendlymodelname,"choices":[{"index":0,"finish_reason":"tool_calls","delta":{}}]})
+                            self.wfile.write(f'data: {toolsdata_p1}\n\n'.encode())
+                            self.wfile.write(f'data: {toolsdata_p2}\n\n'.encode())
+                            self.wfile.write('data: [DONE]'.encode())
+                            self.wfile.flush()
+                            self.close_connection = True
                     except Exception as ex:
                         utfprint(ex,1)
                         print("Generate: The response could not be sent, maybe connection was terminated?")
