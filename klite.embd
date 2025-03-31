@@ -24362,7 +24362,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			if (splitPositions.length > 0)
 			{
 				let newDel = delimiters.map(delimiter => {let pos = (currentString.substring(delimiter.length, currentString.length)).indexOf(delimiter); return pos > 0 ? pos + delimiter.length : -1})
-				combinedPos = splitPositions.concat(newDel).filter(pos => pos > 0).sort((a, b) => a > b)
+				combinedPos = splitPositions.concat(newDel).filter(pos => pos > 0).sort((a, b) => a > b ? 1 : -1)
 				let splitPos;
 				if (combinedPos.length === 0) {
 					splitPos = currentString.length
