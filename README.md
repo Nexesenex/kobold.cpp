@@ -27,19 +27,34 @@ An attempt to replicate tool usage / agent logic in Lite.  Essentially, the AI i
 The currently supported options include:
 - Sending messages / Asking for additional user input
 - Searching the web
+
+![image](https://github.com/user-attachments/assets/1b5d066c-f71a-4b07-8e92-8a88870ed892)
+
 - Evaluating mathematical formulas
 - Rolling dice (can be used for random generation)
-- Generating images (in KCPP)
+![image](https://github.com/user-attachments/assets/91529033-6a21-4cc3-a0c2-730fb68a99af)
+
+- Generating images (in KCPP) - Both from text and another image
+![image](https://github.com/user-attachments/assets/39bc5433-54f2-4c9e-8422-9e20d4383b71)
+![image](https://github.com/user-attachments/assets/97bef072-06d9-47a1-8066-2bcb5c20bc6f)
+
 - "Speaking" through TTS (in KCPP)
-- Adding data to the TextDB and searching for information in it
-- Searching the chat log
+- Adding data to the TextDB and searching for information in it, along with the chat log
 - Knowing the current date
 - Enabling a word count on the AI responses
+- Supports system prompts
 
 Using this function requires the following conditions to be met:
 - Use an instruct model
 - Use separate start and end tags for all roles (tick the option under the instruct settings and ensure they are all filled out, like ChatML)
 - Ensure that if you wish the AI to use web searching, TTS or image gen that the respective options are configured and enabled in the UI
+
+## Improvements to TextDB (probably will be upstreamed in the future)
+- UI improvements
+
+![image](https://github.com/user-attachments/assets/94b0f24e-360e-4c66-8d40-8b9185117902)
+- Importing of lorebooks from the load button as Text DB entries
+- Support for ```[DOCUMENT BREAK][Name of document]This is the content of the document``` which allows for user defined groupings of sections
 
 ## Running the fork
 
