@@ -201,12 +201,30 @@ embeddings_generation_outputs embeddingstype_generate(const embeddings_generatio
     std::vector<std::vector<int32_t>> prompt_inputs;
     auto inp = common_tokenize(embeddings_ctx, prompt, true, true);
     if (inp.size() > n_batch) {
-        printf("\n%s: number of tokens in an input (%lld) exceeds embedding size limit for this model (%lld), lower token amount!\n",
+        if (inputs.truncate) {
+            int oldsize = inp.size();
+            //get bos token
+            std::vector<int> bos;
+            bos = common_tokenize(embeddings_ctx, "", true,true);
+            int offset = inp.size() - n_batch + 1;
+            inp = std::vector<int>(inp.begin() + offset, inp.end());
+            //replace bos into front if exists
+            if(bos.size()>0 && inp.size()>0)
+            {
+                inp[0] = bos[0];
+            }
+            if(embeddings_debug)
+            {
+                printf("\n%s: Input too long, truncated from %d to last %d tokens.\n", __func__,oldsize,inp.size());
+            }
+        } else {
+            printf("\n%s: number of tokens in an input (%lld) exceeds embedding size limit for this model (%lld), lower token amount!\n",
                 __func__, (long long int) inp.size(), (long long int) n_batch);
-        output.data = "";
-        output.status = 0;
-        output.count = 0;
-        return output;
+            output.data   = "";
+            output.status = 0;
+            output.count  = 0;
+            return output;
+        }
     }
     prompt_inputs.push_back(inp);
 

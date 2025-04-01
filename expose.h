@@ -251,6 +251,7 @@ struct embeddings_load_model_inputs
 struct embeddings_generation_inputs
 {
     const char * prompt = nullptr;
+    const bool truncate = true;
 };
 struct embeddings_generation_outputs
 {
