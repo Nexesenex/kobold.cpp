@@ -24208,7 +24208,7 @@ let getCommands = () => {
 		},
 		{
 			"name": "generate_image_based_on_another_image",
-			"description": "Generates an image using AI based on a prompt and an input image. Will prompt the user to select an image. Only use this when the user specifically wants an image generated.",
+			"description": "Generates an image using AI based on a prompt and an input image. Will prompt the user to select an image.",
 			"args": { "prompt": "<prompt to generate image with>" },
 			"enabled": localsettings.generate_images_mode == 2, // Only enabled if local endpoint exists / is in use
 			"isExtended": true
@@ -24320,6 +24320,7 @@ Resources:
 2. When responding with None, use null, as otherwise the JSON cannot be parsed.
 3. Use "search_history" if the user has an instruction which requires more information.
 4. The current date is: ${new Date().toUTCString()}
+5. The user may have provided an image for analysis. If the user asks for details about the image, image generation is forbidden.
 
 Performance Evaluation:
 1. Continuously assess your actions.
@@ -24559,6 +24560,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}
 
 		currentChainOfThought = []
+		recentActions = []
+		lastMessage = ""
 		getLastActions(maxActionsInHistory).forEach(action => {
 			switch(action.source)
 			{
