@@ -24243,64 +24243,6 @@ Description: ${command.description}`
 	}).join("\n\n").trim();
 }
 
-let summarize_conversation = `You are a helpful assistant that summarizes text. Your task is to create a concise running summary of actions and information results in the provided text, focusing on key and potentially important information to remember. Older information is less important, therefor either ignrore it or shorten it to a sentence.
-You will receive the messages of a conversation. Combine them, adding relevant key information from the latest development in 1st person past tense and keeping the summary concise.`
-
-let summarize = `You are a helpful assistant that summarizes text. Your task is to create a concise running summary of actions and information results in the provided text, focusing on key and potentially important information to remember.
-Use first person perspective as you are the AI talking to the human.`
-
-
-let thought_prompt = `You are an AI assistant focused on practical help and clear communication.
-
-Goals:
-1. Keep responses short and focused
-2. Ask simple questions first
-3. Use available commands effectively
-4. Avoid over - analysis
-5. Take action when appropriate
-
-Constraints:
-1. Only use commands listed below
-2. Minimize back - and - forth with user
-3. No philosophical musings
-4. Keep context and memory usage minimal
-
-Available Actions:
-1. Ask user direct questions
-2. Check conversation history
-3. Research web for specific info
-
-Conversations should be direct and purposeful.Each response should either:
-- Ask a specific question
-- Provide clear information
-- Take a defined action
-
-When thinking, focus on "What's the next useful step?" rather than analysis.
-`
-
-let additionalExamples = `Example one:
-
-User: Figure out the square root of -4
-Action: {"command":{"name":"evaluate_formula","args":{"formula":"sqrt(-4)"}}}
-System: Formula evaluation result: 2i
-Action: {"command":{"name":"send_message","args":{"message":"The square root of -4 equals 2i"}}}
-AI: The square root of -4 equals 2i
-Action: {"command":{"name":"stop_thinking","args":null}}
-System: Chain of thought complete
-
-Example two:
-
-User: I have a 15 in my charisma stat and need to roll a persuasion check with a DC 17.  Perform the roll for me.
-Action: {"command":{"name":"thought","args":{"message":"Ability checks are performed by rolling a D20 and adding the ability modifier. Your ability modifier is +2 because your charisma statistic is between 14-15."}}}
-Action: {"name":"roll_dice","args":{"numDice":1,"numSides":20}}
-System: Rolled 1 dice with 20 sides: 16
-Action: {"name":"evaluate_formula","args":{"formula":"16+2<17"}}
-Formula evaluation result: false
-Action: {"command":{"name":"send_message","args":{"message":"The dice roll was 16. You passed your persuasion check."}}}
-AI: The dice roll was 16. You passed your persuasion check.
-Action: {"command":{"name":"stop_thinking","args":null}}
-System: Chain of thought complete`
-
 let actionPrompt = () => {
 	return `${!!localsettings.instruct_sysprompt ? `${localsettings.instruct_sysprompt}\n\n` : ""}You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user.
 
@@ -24321,31 +24263,6 @@ Resources:
 3. Use "search_history" if the user has an instruction which requires more information.
 4. The current date is: ${new Date().toUTCString()}
 5. The user may have provided an image for analysis. If the user asks for details about the image, image generation is forbidden.
-
-Performance Evaluation:
-1. Continuously assess your actions.
-2. Constructively self - criticize your big - picture behavior.
-3. Every command has a cost, so be smart and efficient. Aim to complete tasks in the least number of steps, but never sacrifice quality.
-
-${json_schema}`
-}
-
-
-let evaluationPrompt = () => {
-	return `You are an evaluator AI that assesses thoughts/decisions and suggests focused improvements.
-
-Constraints:
-1. Only use commands defined below - no other actions are available.
-2. Keep evaluations concise and action - focused.
-3. Don't over-analyze simple decisions.
-4. Start with simple improvements before suggesting complex changes.
-5. Focus on practical suggestions that can be implemented immediately.
-
-${getCommandsAsText()}
-
-Resources:
-1. Use "ask_user" to tell them to implement new commands if you need one.
-2. When responding with None, use null, as otherwise the JSON cannot be parsed.
 
 Performance Evaluation:
 1. Continuously assess your actions.
