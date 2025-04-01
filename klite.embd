@@ -24971,6 +24971,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		currentChainOfThought = []
 		recentActions = []
 		lastMessage = ""
+		clearSuggestions()
 		originalRestartNewGame()
 	}
 
