@@ -24,7 +24,7 @@ It offers the following functionalities:
 
 ## Agent thinking mode (experimental)
 
-An attempt to replicate tool usage / agent logic in Lite.  Essentially, the AI is provided the user input and a list of tools that it can use.
+An attempt to replicate tool usage / agent logic in Lite.  Essentially, the AI is provided the user input and a list of tools that it can use.  Only works in classic mode for now.
 
 The currently supported options include:
 - Sending messages / Asking for additional user input (including AI suggested options like a text adventure)
