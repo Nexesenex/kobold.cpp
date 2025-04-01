@@ -1,5 +1,7 @@
 # Esobold (Esolithe's fork of KoboldCPP)
 
+![Kobold](https://github.com/user-attachments/assets/f5cb4087-bc72-47fc-91a5-29a4d6495648)
+
 Welcome all, this fork focuses on enhanced remote management, server saving and integration in KoboldCPP and Kobold Lite.
 
 It offers the following functionalities:
@@ -25,7 +27,10 @@ It offers the following functionalities:
 An attempt to replicate tool usage / agent logic in Lite.  Essentially, the AI is provided the user input and a list of tools that it can use.
 
 The currently supported options include:
-- Sending messages / Asking for additional user input
+- Sending messages / Asking for additional user input (including AI suggested options like a text adventure)
+
+![2025-04-01 19_57_17-KoboldAI Lite — LibreWolf](https://github.com/user-attachments/assets/c46ce852-8d04-4451-a27e-7eb2cd1ab462)
+
 - Searching the web
 
 ![image](https://github.com/user-attachments/assets/1b5d066c-f71a-4b07-8e92-8a88870ed892)
@@ -42,7 +47,7 @@ The currently supported options include:
 - Adding data to the TextDB and searching for information in it, along with the chat log
 - Knowing the current date
 - Enabling a word count on the AI responses
-- Supports system prompts
+- Supports system prompts, both using and setting it automatically
 
 Using this function requires the following conditions to be met:
 - Use an instruct model
