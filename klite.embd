@@ -25058,6 +25058,22 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}	
 	}
 
+	let originalBtnBack = btn_back, originalBtnRedo = btn_redo, originalBtnRetry = btn_retry;
+
+	btn_back = () => {
+		clearSuggestions()
+		originalBtnBack()
+	}
+
+	btn_redo = () => {
+		clearSuggestions()
+		originalBtnRedo()
+	}
+
+	btn_retry = () => {
+		clearSuggestions()
+		originalBtnRetry()
+	}
 
 	window.addEventListener('load', () => {
 		if (localsettings?.agentBehaviour == undefined)
