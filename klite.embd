@@ -24158,8 +24158,8 @@ let getCommands = () => {
 			"isExtended": true
 		},
 		{
-			"name": "add_to_memory",
-			"description": "Adds a block of text to memory. It should include any necessary keywords for searching within the text.",
+			"name": "add_to_history",
+			"description": "Adds a block of text to history. It should include any necessary keywords for searching within the text.",
 			"args": { "text": "<text to add>" },
 			"enabled": true,
 			"isExtended": true
@@ -24168,6 +24168,13 @@ let getCommands = () => {
 			"name": "overwrite_system_prompt",
 			"description": "Overwrites the existing system prompt with a new set of instructions. Only use this when explicitly requested by the user, use memory in general.",
 			"args": { "text": "<new system prompt>" },
+			"enabled": true,
+			"isExtended": true
+		},
+		{
+			"name": "overwrite_current_state",
+			"description": "Overwrites the existing stored state with new text. The current stored state is sent with every action.",
+			"args": { "text": "<new state>" },
 			"enabled": true,
 			"isExtended": true
 		},
@@ -24260,9 +24267,11 @@ ${getCommandsAsText(true)}
 Resources:
 1. Use "ask_user" to tell them to implement new commands if you need one. Do not use ask_user unless absolutely necessary.
 2. When responding with None, use null, as otherwise the JSON cannot be parsed.
-3. Use "search_history" if the user has an instruction which requires more information.
-4. The current date is: ${new Date().toUTCString()}
-5. The user may have provided an image for analysis. If the user asks for details about the image, image generation is forbidden.
+3. Use "overwrite_current_state" to keep current information.
+4. Use "add_to_history" to store background information which may be needed in future.
+4. Use "search_history" if the user has an instruction which requires more information.
+5. The current date is: ${new Date().toUTCString()}
+6. The user may have provided an image for analysis. If the user asks for details about the image, image generation is forbidden.
 
 Performance Evaluation:
 1. Continuously assess your actions.
@@ -24456,6 +24465,24 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return `\n[Info Snippet${!!snippet.document ? ` from document "${snippet.document}"` : ""}: ${snippet.snippet}]\n`;
 	}
 
+	let getDocumentFromTextDB = (documentName) => {
+		regex = `\(\\[DOCUMENT BREAK\\]\\[${documentName}\\]\)\(.*?\)\(\\[DOCUMENT BREAK\\]\)`
+		let match = documentdb_data.match(new RegExp(regex, "s"))
+		return !!match ? match[2].trim() : null
+	}
+
+	let replaceDocumentFromTextDB = (documentName, documentContent) => {
+		if (documentdb_data.indexOf(`[DOCUMENT BREAK][${documentName}]`) !== -1)
+		{
+			regex = `\(\\[DOCUMENT BREAK\\]\\[${documentName}\\]\)\(.*?\)\(\\[DOCUMENT BREAK\\]\)`
+			documentdb_data = documentdb_data.replace(new RegExp(regex, "s"), `$1${documentContent.trim()}$3`)
+		}
+		else
+		{
+			documentdb_data += `[DOCUMENT BREAK][${documentName}]${documentContent.trim()}[DOCUMENT BREAK]`
+		}
+	}
+
 	let currentChainOfThought = [], recentActions = [], lastMessage = "", maxActionsInHistory = 20, maxThoughtsWithoutUserInput = 5, currentAgentCycle = null, endCurrent = false
 
 	let runAgentCycle = async (initialPrompt = undefined) => {
@@ -24517,7 +24544,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			let history = createSysPrompt(actionPrompt()) + currentChainOfThought.join()
 			if (recentActions.length > 0)
 			{
-				history += createSysPrompt(`Note: Avoid repeating recent thoughts or suggestions.\nRecent actions suggested: ${recentActions.map(action => `${action.name}(${JSON.stringify(action?.args)})`).join(", ")}`)
+				history += createSysPrompt(`Current state: ${getDocumentFromTextDB('State')}\n\nNote: Avoid repeating recent thoughts or suggestions.\nRecent actions suggested: ${recentActions.map(action => `${action.name}(${JSON.stringify(action?.args)})`).join(", ")}`)
 			}
 
 			let resp = await generateAndGetTextFromPrompt(replace_instruct_placeholders(history), jsonGrammar)
@@ -24649,16 +24676,16 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 						case "list_extended_commands":
 							addThought(createSysPrompt, `List of possible actions: ${getCommandsAsText(true)}`)
 							break
-						case "add_to_memory":
+						case "add_to_history":
 							let textToAdd = action?.args?.text
 							if (!!textToAdd)
 							{
 								documentdb_data = `${documentdb_data}\n\n${textToAdd}`
-								addThought(createSysPrompt, `Text has been added to memory`)
+								addThought(createSysPrompt, `Text has been added to history`)
 							}
 							else
 							{
-								addThought(createSysPrompt, `Text was empty - nothing added to memory`)
+								addThought(createSysPrompt, `Text was empty - nothing added to history`)
 							}
 							break
 						case "search_history":
@@ -24804,6 +24831,17 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							else
 							{
 								addThought(createSysPrompt, `No system prompt provided, nothing has been overwritten`)
+							}
+							break
+						case "overwrite_current_state":
+							let newState = action?.args?.text
+							if (!!newState) {								
+								replaceDocumentFromTextDB('State', newState)
+								addThought(createSysPrompt, `Current state has been overwritten`)
+							}
+							else
+							{
+								addThought(createSysPrompt, `No state provided, nothing has been overwritten`)
 							}
 							break
 						
@@ -25031,7 +25069,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		height: 500px !important;
 		aspect-ratio: 1;
 		border-radius: 250px;
-		margin: 50px;
+		margin: 50px 50px 50px 0px;
 	}
 </style>
 <script>
