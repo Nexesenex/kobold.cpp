@@ -53,7 +53,7 @@
         "assistant_end": "<end_of_turn>\n"
     }
 }, {
-    "search": ["<|start_header_id|>system"],
+    "search": ["<|start_header_id|>assistant<|end_header_id|>"],
     "name": "Llama 3.x.",
     "adapter": {
         "system_start": "<|start_header_id|>system<|end_header_id|>\n\n",

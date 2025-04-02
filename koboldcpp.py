@@ -56,10 +56,10 @@ dry_seq_break_max = 512
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.87030"
-LcppVersion = "b4998"
+KcppVersion = "1.87100"
+LcppVersion = "b5018"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/03/31"
+ReleaseDate = "2025/04/01"
 showdebug = True
 # guimode = False
 kcpp_instance = None #global running instance
@@ -69,6 +69,7 @@ using_gui_launcher = False
 handle = None
 friendlymodelname = "inactive"
 friendlysdmodelname = "inactive"
+friendlyembeddingsmodelname = "inactive"
 lastgeneratedcomfyimg = b''
 fullsdmodelpath = ""  #if empty, it's not initialized
 mmprojpath = "" #if empty, it's not initialized
@@ -350,7 +351,8 @@ class embeddings_load_model_inputs(ctypes.Structure):
                 ("debugmode", ctypes.c_int)]
 
 class embeddings_generation_inputs(ctypes.Structure):
-    _fields_ = [("prompt", ctypes.c_char_p)]
+    _fields_ = [("prompt", ctypes.c_char_p),
+                ("truncate", ctypes.c_bool)]
 
 class embeddings_generation_outputs(ctypes.Structure):
     _fields_ = [("status", ctypes.c_int),
@@ -2307,6 +2309,7 @@ def embeddings_generate(genparams):
         try:
             inputs = embeddings_generation_inputs()
             inputs.prompt = prompt.encode("UTF-8")
+            inputs.truncate = genparams.get('truncate', True)
             ret = handle.embeddings_generate(inputs)
             if ret.status==1:
                 outstr = ret.data.decode("UTF-8","ignore")
@@ -2661,7 +2664,7 @@ def transform_genparams(genparams, api_format):
             # tools handling
             tools_array = genparams.get('tools', [])
             chosen_tool = genparams.get('tool_choice', "auto")
-            tool_json_formatting_instruction = " Use this style of JSON object formatting to give your answer if you think the user is asking you to perform an action: " + json.dumps([{"id": "insert an id for the response", "type": "function", "function": {"name": "insert the name of the function you want to call", "arguments": {"first property key": "first property value", "second property key": "second property value"}}}], indent=0)
+            tool_json_formatting_instruction = "\nUse this style of JSON object formatting to give your answer if you think the user is asking you to perform an action: " + json.dumps([{"id": "insert an id for the response", "type": "function", "function": {"name": "insert the name of the function you want to call", "arguments": {"first property key": "first property value", "second property key": "second property value"}}}], indent=0)
             if tools_array and len(tools_array) > 0 and chosen_tool is not None:
                 try:
                     specified_function = ""
@@ -2678,7 +2681,7 @@ def transform_genparams(genparams, api_format):
                     if located_tooljson:
                         tools_array = []
                         tools_array.append(located_tooljson)
-                        tool_json_formatting_instruction = f"The user is asking you to use the style of this JSON object formatting to complete the parameters for the specific function named {specified_function} in the following format: " + json.dumps([{"id": "insert an id for the response", "type": "function", "function": {"name": f"{specified_function}", "arguments": {"first property key": "first property value", "second property key": "second property value"}}}], indent=0)
+                        tool_json_formatting_instruction = f"\nThe user is asking you to use the style of this JSON object formatting to complete the parameters for the specific function named {specified_function} in the following format: " + json.dumps([{"id": "insert an id for the response", "type": "function", "function": {"name": f"{specified_function}", "arguments": {"first property key": "first property value", "second property key": "second property value"}}}], indent=0)
                 except Exception:
                     # In case of any issues, just revert back to no specified function
                     pass
@@ -2715,11 +2718,13 @@ def transform_genparams(genparams, api_format):
                         #if auto mode, determine whether a tool is needed
                         tools_string = json.dumps(tools_array, indent=0)
                         should_use_tools = True
-                        user_start = adapter_obj.get("user_start", "### Instruction:\n\n")
-                        user_end = adapter_obj.get("user_end", "\n\n### Response:\n\n")
+                        user_end = assistant_message_start
                         if chosen_tool=="auto":
+                            # if you want a different template, you can set 'custom_tools_prompt' in the chat completions adapter as follows
+                            custom_tools_prompt = adapter_obj.get("custom_tools_prompt", "Can the user query be answered by a listed tool? (One word response: yes or no):")
+                            # note: message string already contains the instruct start tag!
                             temp_poll = {
-                                "prompt": f"{user_start}User query:\n\n{messages_string}\n\nTool Code:\n{tools_string}Determine from the provided tool code if the user query would be best answered by a listed tool (One word: yes / no):{user_end}",
+                                "prompt": f"{messages_string}\n\nTool List:\n{tools_string}\n\n{custom_tools_prompt}{user_end}",
                                 "max_length":4,
                                 "temperature":0.1,
                                 "top_k":1,
@@ -2727,7 +2732,7 @@ def transform_genparams(genparams, api_format):
                                 "ban_eos_token":False
                                 }
                             temp_poll_result = generate(genparams=temp_poll)
-                            if temp_poll_result and not "yes" in temp_poll_result['text'].lower():
+                            if temp_poll_result and "yes" not in temp_poll_result['text'].lower():
                                 should_use_tools = False
                             if not args.quiet:
                                 print(f"\nRelevant tool is listed: {temp_poll_result['text']} ({should_use_tools})")
@@ -2963,6 +2968,10 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
             if using_openai_tools:
                 tool_calls = extract_json_from_string(recvtxt)
                 if tool_calls and len(tool_calls)>0:
+                    for tc in tool_calls:
+                        tcarg = tc.get("function",{}).get("arguments",None)
+                        if tcarg and not isinstance(tcarg, str):
+                            tc["function"]["arguments"] = json.dumps(tcarg)
                     recvtxt = None
                     currfinishreason = "tool_calls"
             res = {"id": "chatcmpl-A1", "object": "chat.completion", "created": int(time.time()), "model": friendlymodelname,
@@ -2998,6 +3007,10 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     async def handle_sse_stream(self, genparams, api_format):
         global friendlymodelname, currfinishreason
+        # if tools, do not send anything - OAI tool calls will be handled with fakestreaming!
+        using_openai_tools = genparams.get('using_openai_tools', False)
+        if api_format == 4 and using_openai_tools:
+            return
         self.send_response(200)
         self.send_header("X-Accel-Buffering", "no")
         self.send_header("cache-control", "no-cache")
@@ -3008,6 +3021,7 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
         incomplete_token_buffer = bytearray()
         async_sleep_short = 0.02
         await asyncio.sleep(0.35) #anti race condition, prevent check from overtaking generate
+
         try:
             tokenReserve = "" #keeps fully formed tokens that we cannot send out yet
             while True:
@@ -3225,7 +3239,7 @@ Enter Prompt:<br>
     def do_GET(self):
         global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
         global last_req_time, start_time
-        global savedata_obj, has_multiplayer, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat, multiplayer_lastactive, maxctx, maxhordelen, friendlymodelname, lastgeneratedcomfyimg, KcppVersion, totalgens, preloaded_story, exitcounter, currentusergenkey, friendlysdmodelname, fullsdmodelpath, mmprojpath, password
+        global savedata_obj, has_multiplayer, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat, multiplayer_lastactive, maxctx, maxhordelen, friendlymodelname, lastgeneratedcomfyimg, KcppVersion, totalgens, preloaded_story, exitcounter, currentusergenkey, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, friendlyembeddingsmodelname
         self.path = self.path.rstrip('/')
         response_body = None
         content_type = 'application/json'
@@ -3894,6 +3908,26 @@ Enter Prompt:<br>
                             self.send_header('content-length', str(len(genresp)))
                             self.end_headers(content_type='application/json')
                             self.wfile.write(genresp)
+                        elif api_format == 4 and genparams.get('using_openai_tools', False): #special case, fake streaming for openai tool calls
+                            self.send_response(200)
+                            self.send_header("X-Accel-Buffering", "no")
+                            self.send_header("cache-control", "no-cache")
+                            self.send_header("connection", "keep-alive")
+                            self.end_headers(content_type='text/event-stream')
+                            toolsdata_res = []
+                            try:
+                                toolsdata_res = gen['choices'][0]['message']['tool_calls']
+                                if toolsdata_res and len(toolsdata_res)>0:
+                                    toolsdata_res[0]["index"] = 0 # need to add an index for OWUI
+                            except Exception:
+                                toolsdata_res = []
+                            toolsdata_p1 = json.dumps({"id":"koboldcpp","object":"chat.completion.chunk","created":int(time.time()),"model":friendlymodelname,"choices":[{"index":0,"finish_reason":None,"delta":{'role':'assistant','content':None, "tool_calls":toolsdata_res}}]})
+                            toolsdata_p2 = json.dumps({"id":"koboldcpp","object":"chat.completion.chunk","created":int(time.time()),"model":friendlymodelname,"choices":[{"index":0,"finish_reason":"tool_calls","delta":{}}]})
+                            self.wfile.write(f'data: {toolsdata_p1}\n\n'.encode())
+                            self.wfile.write(f'data: {toolsdata_p2}\n\n'.encode())
+                            self.wfile.write('data: [DONE]'.encode())
+                            self.wfile.flush()
+                            self.close_connection = True
                     except Exception as ex:
                         utfprint(ex,1)
                         print("Generate: The response could not be sent, maybe connection was terminated?")
@@ -3960,9 +3994,9 @@ Enter Prompt:<br>
                         outdatas = []
                         odidx = 0
                         for od in gen["data"]:
-                            outdatas.append([{"object":"embedding","index":odidx,"embedding":od}])
+                            outdatas.append({"object":"embedding","index":odidx,"embedding":od})
                             odidx += 1
-                        genresp = (json.dumps({"object":"list","data":outdatas,"model":"koboldcpp-embeddings","usage":{"prompt_tokens":gen["count"],"total_tokens":gen["count"]}}).encode())
+                        genresp = (json.dumps({"object":"list","data":outdatas,"model":friendlyembeddingsmodelname,"usage":{"prompt_tokens":gen["count"],"total_tokens":gen["count"]}}).encode())
                         self.send_response(200)
                         self.send_header('content-length', str(len(genresp)))
                         self.end_headers(content_type='application/json')
@@ -6007,6 +6041,7 @@ def convert_args_to_template(savdict):
     savdict["useclblast"] = None
     savdict["usecublas"] = None
     savdict["usevulkan"] = None
+    savdict["usecpu"] = None
     savdict["tensor_split"] = None
     savdict["draftgpusplit"] = None
     savdict["config"] = None
@@ -6348,7 +6383,7 @@ def main(launch_args, default_args):
 
 def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
     global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui, start_time, exitcounter, global_memory, using_gui_launcher
-    global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath, embeddingsmodelpath
+    global libname, args, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath, embeddingsmodelpath, friendlyembeddingsmodelname
 
     start_server = True
 
@@ -6798,6 +6833,9 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
             embeddingsmodelpath = os.path.abspath(embeddingsmodelpath)
             loadok = embeddings_load_model(embeddingsmodelpath)
             print("Load Embeddings Model OK: " + str(loadok))
+            friendlyembeddingsmodelname = os.path.basename(embeddingsmodelpath)
+            friendlyembeddingsmodelname = os.path.splitext(friendlyembeddingsmodelname)[0]
+            friendlyembeddingsmodelname = sanitize_string(friendlyembeddingsmodelname)
             if not loadok:
                 exitcounter = 999
                 exit_with_error(3,"Could not load Embeddings model!")
