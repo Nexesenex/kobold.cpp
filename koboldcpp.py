@@ -56,10 +56,10 @@ dry_seq_break_max = 512
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.87100"
-LcppVersion = "b5018"
+KcppVersion = "1.87200"
+LcppVersion = "b5038"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/04/01"
+ReleaseDate = "2025/04/03"
 showdebug = True
 # guimode = False
 kcpp_instance = None #global running instance
@@ -1911,13 +1911,16 @@ def generate(genparams, stream_flag=False):
     global showmaxctxwarning
     if max_context_length > maxctx:
         if showmaxctxwarning:
-            print(f"\n(Warning! Request max_context_length={max_context_length} exceeds allocated context size of {maxctx}. It will be reduced to fit. Consider launching with increased --contextsize to avoid errors. This message will only show once per session.)")
+            print(f"\n!!! ====== !!!\n(Warning! Request max_context_length={max_context_length} exceeds allocated context size of {maxctx}. It will be reduced to fit. Consider launching with increased --contextsize to avoid issues. This message will only show once per session.)\n!!! ====== !!!")
             showmaxctxwarning = False
         max_context_length = maxctx
-    min_remain = min(max_context_length-4, 16)
-    if max_length >= (max_context_length-min_remain):
-        max_length = max_context_length-min_remain
-        print("\nWarning: You are trying to generate with max_length near or exceeding max_context_length. Most of the context will be removed, and your outputs will not be very coherent.")
+    min_remain_hardlimit = max(min(max_context_length-4, 16),int(max_context_length*0.1))
+    min_remain_softlimit = max(min(max_context_length-4, 16),int(max_context_length*0.4))
+    if max_length >= (max_context_length-min_remain_softlimit):
+        print(f"\n!!! ====== !!!\nWarning: You are trying to generate text with max_length ({max_length}) near or exceeding max_context_length limit ({max_context_length}).\nMost of the context will be removed, and your outputs will not be very coherent.\nConsider launching with increased --contextsize to avoid issues.\n!!! ====== !!!")
+        if max_length >= (max_context_length-min_remain_hardlimit):
+            max_length = max_context_length-min_remain_hardlimit
+
 
     inputs.max_context_length = max_context_length   # this will resize the context buffer if changed
     inputs.max_length = max_length
@@ -3751,7 +3754,7 @@ Enter Prompt:<br>
                 if targetfile and targetfile!="":
                     dirpath = os.path.abspath(args.admindir)
                     targetfilepath = os.path.join(dirpath, targetfile)
-                    opts = [f for f in os.listdir(dirpath) if (f.endswith(".kcpps") or f.endswith(".kcppt") or f.endswith(".gguf")) and os.path.isfile(os.path.join(dirpath, f))]
+                    opts = [f for f in os.listdir(dirpath) if (f.lower().endswith(".kcpps") or f.lower().endswith(".kcppt") or f.lower().endswith(".gguf")) and os.path.isfile(os.path.join(dirpath, f))]
                     if targetfile in opts and os.path.exists(targetfilepath):
                         print(f"Admin: Received request to reload config to {targetfile}")
                         global_memory["restart_target"] = targetfile
@@ -5075,7 +5078,8 @@ def show_gui():
         if not filename:
             return
         filenamestr = str(filename).strip()
-        filenamestr = f"{filenamestr}.kcppt" if ".kcppt" not in filenamestr.lower() else filenamestr
+        if not filenamestr.endswith(".kcppt"):
+            filenamestr += ".kcpps"
         file = open(filenamestr, 'w')
         file.write(json.dumps(savdict))
         file.close()
@@ -5520,8 +5524,9 @@ def show_gui():
         filename = asksaveasfilename(filetypes=file_type, defaultextension=file_type)
         if not filename:
             return
-        filenamestr = str(filename).strip()
-        filenamestr = f"{filenamestr}.kcpps" if ".kcpps" not in filenamestr.lower() else filenamestr
+        filenamestr = str(filename).strip().lower()
+        if not filenamestr.endswith(".kcpps"):
+            filenamestr += ".kcpps"
         file = open(filenamestr, 'w')
         file.write(json.dumps(savdict))
         file.close()
@@ -6055,11 +6060,14 @@ def save_config_cli(filename, template):
     if filename is None:
         return
     filenamestr = str(filename).strip()
-    filenamestr = f"{filenamestr}.kcpps" if ".kcpps" not in filenamestr.lower() else filenamestr
+    if not filenamestr.endswith(".kcpps") and not template:
+        filenamestr += ".kcpps"
+    if not filenamestr.endswith(".kcppt") and template:
+        filenamestr += ".kcppt"
     file = open(filenamestr, 'w')
     file.write(json.dumps(savdict))
     file.close()
-    print(f"\nSaved .kcpps configuration file as {filename}\nIt can be loaded with --config [filename] in future.")
+    print(f"\nSaved configuration file as {filenamestr}\nIt can be loaded with --config [filename] in future.")
     pass
 
 def delete_old_pyinstaller():
@@ -6560,8 +6568,9 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
 
     if args.savedatafile and isinstance(args.savedatafile, str):
         filepath = os.path.abspath(args.savedatafile)  # Ensure it's an absolute path
-        if not filepath.endswith(".jsondb"):
+        if not filepath.lower().endswith(".jsondb"):
             filepath += ".jsondb"
+            args.savedatafile += ".jsondb"
         try:
             with open(filepath, 'r+', encoding='utf-8', errors='ignore') as f:
                 loaded = json.load(f)
