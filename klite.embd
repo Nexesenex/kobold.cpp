@@ -24591,11 +24591,11 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					if (wordCountEnabled && !!action?.args?.message && typeof action?.args?.message === "string")
 					{
 						
-						addThought(createAIPrompt, `Action (words = ${action?.args?.message.split(/\s/g).filter(s => s.length > 0).length}): ${JSON.stringify(action)}`)
+						addThought(createAIPrompt, `Action (words = ${action?.args?.message.split(/\s/g).filter(s => s.length > 0).length}): ${JSON.stringify(json)}`)
 					}
 					else
 					{
-						addThought(createAIPrompt, `Action: ${JSON.stringify(action)}`)
+						addThought(createAIPrompt, `Action: ${JSON.stringify(json)}`)
 					}
 					let isCompleted = false
 					switch (action.name)
