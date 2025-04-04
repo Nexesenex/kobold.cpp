@@ -384,6 +384,9 @@ def get_default_threads():
     processor = platform.processor()
     if 'Intel' in processor:
         default_threads = (8 if default_threads > 8 else default_threads) #this helps avoid e-cores.
+    if default_threads > 32:
+        print(f"Auto CPU Threads capped at 32 (instead of {default_threads}). You can override this by passing an explicit number of --threads.")
+        default_threads = 32
     return default_threads
 
 def pick_existant_file(ntoption,nonntoption):
