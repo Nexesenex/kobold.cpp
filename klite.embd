@@ -24722,7 +24722,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							let searchHistoryString = action?.args?.searchString
 							if (!!searchHistoryString) 
 							{
-								let ltmSnippets = DatabaseMinisearch(`${documentdb_data}\n\nHistory: ${concat_gametext(true)}`, searchHistoryString, "", 0);
+								let ltmSnippets = DatabaseMinisearch(`${documentdb_data}\n\nHistory: ${concat_gametext(true)}`, searchHistoryString, "");
 								if (ltmSnippets.length === 0)
 								{
 									addThought(createSysPrompt, `History search performed: Nothing found`)
@@ -24746,7 +24746,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							let searchString = action?.args?.searchString
 							if (!!searchString) 
 							{
-								let ltmSnippets = DatabaseMinisearch(documentdb_data, searchString, "", 0);
+								let ltmSnippets = DatabaseMinisearch(documentdb_data, searchString, "");
 								if (ltmSnippets.length === 0)
 								{
 									addThought(createSysPrompt, `Memory search performed: Nothing found`)
@@ -24770,7 +24770,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							let searchChatlogString = action?.args?.searchString
 							if (!!searchChatlogString) 
 							{
-								let ltmSnippets = DatabaseMinisearch(concat_gametext(true), searchChatlogString, "", 0);
+								let ltmSnippets = DatabaseMinisearch(concat_gametext(true), searchChatlogString, "");
 								if (ltmSnippets.length === 0)
 								{
 									addThought(createSysPrompt, `Chatlog search performed: Nothing found`)
