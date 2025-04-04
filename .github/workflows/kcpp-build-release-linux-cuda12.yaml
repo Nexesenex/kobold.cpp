@@ -8,6 +8,9 @@ env:
 jobs:
   linux:
     runs-on: ubuntu-22.04
+    container:
+      image: ubuntu:20.04
+      options: --privileged
     steps:
       - name: Clone
         id: checkout
@@ -18,11 +21,19 @@ jobs:
       - name: Dependencies
         id: depends
         run: |
-          sudo apt-get update
-          sudo apt-get install git curl bzip2
+          apt-get update
+          apt-get install -y sudo
+          export DEBIAN_FRONTEND=noninteractive
+          sudo ln -fs /usr/share/zoneinfo/UTC /etc/localtime
+          echo "tzdata tzdata/Areas select Etc" | sudo debconf-set-selections
+          echo "tzdata tzdata/Zones/Etc select UTC" | sudo debconf-set-selections
+          sudo apt-get -y install git curl bzip2 build-essential tcl-dev tk-dev python3-tk
 
       - name: Build
         id: make_build
+        env:
+          TCL_LIBRARY: /usr/lib/tcl8.6
+          TK_LIBRARY: /usr/lib/tk8.6
         run: |
           ./koboldcpp.sh dist
 
