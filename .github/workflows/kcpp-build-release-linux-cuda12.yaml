@@ -23,10 +23,13 @@ jobs:
         run: |
           apt-get update
           apt-get install -y sudo
-          sudo apt-get -y install git curl bzip2
+          sudo apt-get -y install git curl bzip2 build-essential tcl-dev tk-dev python3-tk
 
       - name: Build
         id: make_build
+        env:
+          TCL_LIBRARY: /usr/lib/tcl8.6
+          TK_LIBRARY: /usr/lib/tk8.6
         run: |
           ./koboldcpp.sh dist
 

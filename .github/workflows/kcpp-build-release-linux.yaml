@@ -23,7 +23,12 @@ jobs:
         run: |
           apt-get update
           apt-get install -y sudo
-          sudo apt-get -y install git curl bzip2
+          sudo apt-get -y install git curl bzip2 python3-tk tcl tk
+
+      - name: Set Tcl/Tk Paths
+        run: |
+          echo "TCL_LIBRARY=$(find /usr/lib/ -name 'tcl8*' | head -n 1)" >> $GITHUB_ENV
+          echo "TK_LIBRARY=$(find /usr/lib/ -name 'tk8*' | head -n 1)" >> $GITHUB_ENV
 
       - name: Build
         id: make_build
