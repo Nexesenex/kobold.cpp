@@ -2297,8 +2297,11 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             }
         }
 
-        //determine mem per token
-        std::vector<int> tmp = {1, 2, 3, 4};
+        //warmup at least 33 tokens to trigger batch
+        std::vector<int> tmp;
+        for (int i = 1; i <= 33; ++i) {
+            tmp.push_back(i);
+        }
         llama_kv_self_clear(llama_ctx_v4);
         auto er = llama_decode(llama_ctx_v4, llama_batch_get_one(tmp.data(), tmp.size()));
         if(er!=0)

@@ -27,7 +27,12 @@ jobs:
           sudo ln -fs /usr/share/zoneinfo/UTC /etc/localtime
           echo "tzdata tzdata/Areas select Etc" | sudo debconf-set-selections
           echo "tzdata tzdata/Zones/Etc select UTC" | sudo debconf-set-selections
-          sudo apt-get -y install git curl bzip2 build-essential tcl-dev tk-dev python3-tk
+          sudo apt-get -y install git curl bzip2 python3-tk tcl tk
+
+      - name: Set Tcl/Tk Paths
+        run: |
+          echo "TCL_LIBRARY=$(find /usr/lib/ -name 'tcl8*' | head -n 1)" >> $GITHUB_ENV
+          echo "TK_LIBRARY=$(find /usr/lib/ -name 'tk8*' | head -n 1)" >> $GITHUB_ENV
 
       - name: Build
         id: make_build
