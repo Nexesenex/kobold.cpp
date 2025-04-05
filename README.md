@@ -48,6 +48,7 @@ The currently supported options include:
 - Knowing the current date
 - Enabling a word count on the AI responses
 - Supports system prompts, both using and setting it automatically
+- Supports setting a "state" parameter which is always inserted at the end of the text
 
 Using this function requires the following conditions to be met:
 - Use an instruct model
