@@ -2796,11 +2796,12 @@ int GetThreadsToUse(bool blasmode)
 }
 
 //this function prepares the clip embds for llava. it's only needed when images change
-static void PrepareLlavaEmbds(const int nctx, const std::vector<int> & llava_sep)
+static void PrepareLlavaEmbds(const int nctx, const std::vector<int> & llava_sep, const std::vector<int> & llava_intro)
 {
     if(clp_ctx!=nullptr && clp_img_data!=nullptr)
     {
         int sepsize = llava_sep.size();
+        int introsize = llava_intro.size();
         last_llava_mem.clear();
 
         for(int i=0;i<llava_images.size();++i)
@@ -2829,6 +2830,10 @@ static void PrepareLlavaEmbds(const int nctx, const std::vector<int> & llava_sep
                 if(llava_images[i].clp_image_tokens>0 && llava_images[i].clp_image_tokens < nctx)
                 {
                     int tokcnt = (i==0?(llava_images[i].clp_image_tokens):(llava_images[i].clp_image_tokens+sepsize));
+                    if(i==0)
+                    {
+                        tokcnt += introsize;
+                    }
                     for(int n=0;n<tokcnt;++n)
                     {
                         last_llava_mem.push_back(current_llava_identifier);
@@ -3144,6 +3149,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     std::vector<int> embd_inp;
     std::vector<int> embd_inp_mem; //for storing added memory
     std::vector<int> llava_sep; //to separate between different llava images
+    std::vector<int> llava_intro; //to separate between different llava images
     bool llava_embds_built = false;
 
     int32_t nctx = kcpp_data->n_ctx;
@@ -3151,6 +3157,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     TokenizeString(kcpp_data->prompt, embd_inp, file_format, add_bos_token);
     bool use_mrope = (file_format == FileFormat::GGUF_GENERIC && file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2VL);
     TokenizeString("\n\n", llava_sep, file_format, false);
+    TokenizeString("\nImages:\n", llava_intro, file_format, false);
 
     if(llava_composite_image_signature=="")
     {
@@ -3158,7 +3165,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     }
     if(llava_images_changed)
     {
-        PrepareLlavaEmbds(nctx, llava_sep);
+        PrepareLlavaEmbds(nctx, llava_sep, llava_intro);
         llava_embds_built = true;
     }
 
@@ -3872,7 +3879,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 {
                     if(!llava_embds_built) //this should never happen! however, handle it anyway
                     {
-                        PrepareLlavaEmbds(nctx, llava_sep);
+                        PrepareLlavaEmbds(nctx, llava_sep, llava_intro);
                         llava_embds_built = true;
                         printf("\nSomehow vision embd was not prepared (maybe no fast forward), rebuilding it...\n");
                     }
@@ -3888,6 +3895,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                         int llavatokenscounted = 0;
                         int llavatokensevaled = 0;
                         int sepsize = llava_sep.size();
+                        int introsize = llava_intro.size();
                         while(input_consumed < embd_inp.size() && (embd_inp[input_consumed]==LLAVA_TOKEN_IDENTIFIER_A || embd_inp[input_consumed]==LLAVA_TOKEN_IDENTIFIER_B))
                         {
                             if (!last_n_tokens.empty())
@@ -3902,7 +3910,23 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                         for(int i=0;i<llava_images.size();++i)
                         {
                             //note: no handling for draft_ctx as we don't support vision for it
-                            if(i>0 && sepsize>0)
+                            if(introsize>0 && i==0)
+                            {
+                                //added at the start of everything
+                                kcpp_embd_batch batch = kcpp_embd_batch(llava_intro, n_past, use_mrope, false);
+                                auto evr = llama_decode(llama_ctx_v4, batch.batch);
+                                if(evr!=0)
+                                {
+                                    printf("\nError when appending llava intro: %d\n",evr);
+                                }
+                                else
+                                {
+                                    printf("\rProcessing LLaVa Intro (%d tokens)",introsize);
+                                }
+                                n_past += introsize;
+                                llavatokensevaled += introsize;
+                            }
+                            if(sepsize>0 && i>0)
                             {
                                 //add a separator between each image
                                 kcpp_embd_batch batch = kcpp_embd_batch(llava_sep, n_past, use_mrope, false);

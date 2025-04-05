@@ -50,7 +50,7 @@ logit_bias_max = 512
 dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.87.3"
+KcppVersion = "1.87.4"
 showdebug = True
 kcpp_instance = None #global running instance
 global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None}
@@ -722,6 +722,22 @@ def string_contains_or_overlaps_sequence_substring(inputstr, sequences):
         if string_has_overlap(inputstr, s, 10):
             return True
     return False
+
+def truncate_long_json(data, max_length):
+    if isinstance(data, dict):
+        new_data = {}
+        for key, value in data.items():
+            if isinstance(value, str):
+                new_data[key] = value[:max_length] + "..." if len(value) > max_length else value
+            else:
+                new_data[key] = truncate_long_json(value, max_length)
+        return new_data
+    elif isinstance(data, list):
+        return [truncate_long_json(item, max_length) for item in data]
+    elif isinstance(data, str):
+        return data[:max_length] + "..." if len(data) > max_length else data
+    else:
+        return data
 
 def get_capabilities():
     global savedata_obj, has_multiplayer, KcppVersion, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath, embeddingsmodelpath
@@ -3030,11 +3046,12 @@ Enter Prompt:<br>
         body = None
         if contlenstr:
             content_length = int(contlenstr)
-            if content_length > (1024*1024*32): #32mb payload limit
+            max_pl = int(args.maxrequestsize) if args.maxrequestsize else 32
+            if content_length > (1024*1024*max_pl): #payload size limit
                 self.send_response(500)
                 self.end_headers(content_type='application/json')
                 self.wfile.write(json.dumps({"detail": {
-                "msg": "Payload is too big. Max payload size is 32MB.",
+                "msg": f"Payload is too big. Max payload size is {max_pl}MB.",
                 "type": "bad_input",
                 }}).encode())
                 return
@@ -3050,11 +3067,11 @@ Enter Prompt:<br>
                     if line:
                         chunk_length = max(0,int(line, 16))
                         content_length += chunk_length
-                    if not line or chunklimit > 512 or content_length > (1024*1024*32): #32mb payload limit
+                    if not line or chunklimit > 512 or content_length > (1024*1024*48): #48mb payload limit
                         self.send_response(500)
                         self.end_headers(content_type='application/json')
                         self.wfile.write(json.dumps({"detail": {
-                        "msg": "Payload is too big. Max payload size is 32MB.",
+                        "msg": "Payload is too big. Max payload size is 48MB.",
                         "type": "bad_input",
                         }}).encode())
                         return
@@ -3629,17 +3646,11 @@ Enter Prompt:<br>
                         }}).encode())
                         return
 
-
-                tmpimgs = genparams.get("images", []) # reduce amount of text printed to terminal when dumping large images
-                if tmpimgs and isinstance(tmpimgs, (list, tuple)) and len(tmpimgs)>0:
-                    printablegenparams = copy.deepcopy(genparams)
-                    outarr = []
-                    for img in tmpimgs:
-                        outarr.append(str(img[:512])+"...")
-                    printablegenparams["images"] = outarr
-                    utfprint("\nInput: " + json.dumps(printablegenparams),1)
-                else:
-                    utfprint("\nInput: " + json.dumps(genparams),1)
+                trunc_len = 8000
+                if args.debugmode >= 1:
+                    trunc_len = 16000
+                printablegenparams = truncate_long_json(genparams,trunc_len)
+                utfprint("\nInput: " + json.dumps(printablegenparams),1)
 
                 if args.foreground:
                     bring_terminal_to_foreground()
@@ -4077,6 +4088,7 @@ def show_gui():
     ssl_cert_var = ctk.StringVar()
     ssl_key_var = ctk.StringVar()
     password_var = ctk.StringVar()
+    maxrequestsize_var = ctk.StringVar(value=str(32))
 
     sd_model_var = ctk.StringVar()
     sd_lora_var = ctk.StringVar()
@@ -4620,6 +4632,9 @@ def show_gui():
     makefileentry(network_tab, "SSL Key:", "Select SSL key.pem file", ssl_key_var, 9, width=200, filetypes=[("Unencrypted Key PEM", "*.pem")], singlerow=True, singlecol=False, tooltiptxt="Select your unencrypted .pem SSL key file for https.\nCan be generated with OpenSSL.")
     makelabelentry(network_tab, "Password: ", password_var, 10, 200,tooltip="Enter a password required to use this instance.\nThis key will be required for all text endpoints.\nImage endpoints are not secured.")
 
+    makelabelentry(network_tab, "Max Req. Size (MB):", maxrequestsize_var, row=20, width=50, tooltip="Specify a max request payload size. Any requests to the server larger than this size will be dropped. Do not change if unsure.")
+
+
     # Horde Tab
     horde_tab = tabcontent["Horde Worker"]
     makelabel(horde_tab, "Horde:", 18,0,"Settings for embedded AI Horde worker").grid(pady=10)
@@ -4756,7 +4771,7 @@ def show_gui():
 
     def export_vars():
         nonlocal kcpp_exporting_template
-        args.threads = int(threads_var.get())
+        args.threads =  (get_default_threads() if threads_var.get()=="" else int(threads_var.get()))
         args.usemlock   = usemlock.get() == 1
         args.debugmode  = debugmode.get()
         args.launch     = launchbrowser.get()==1
@@ -4808,7 +4823,7 @@ def show_gui():
             if runopts_var.get() == "Use Vulkan (Old CPU)":
                 args.noavx2 = True
         if gpulayers_var.get():
-            args.gpulayers = int(gpulayers_var.get())
+            args.gpulayers = (0 if gpulayers_var.get()=="" else int(gpulayers_var.get()))
         if runopts_var.get()=="Use CPU":
             args.usecpu = True
         if runopts_var.get()=="Use CPU (Old CPU)":
@@ -4875,6 +4890,7 @@ def show_gui():
         args.multiuser = multiuser_var.get()
         args.multiplayer = (multiplayer_var.get()==1)
         args.websearch = (websearch_var.get()==1)
+        args.maxrequestsize = int(maxrequestsize_var.get()) if maxrequestsize_var.get()!="" else 32
 
         if usehorde_var.get() != 0:
             args.hordemodelname = horde_name_var.get()
@@ -4925,7 +4941,7 @@ def show_gui():
             args.ttsmodel = tts_model_var.get()
             args.ttswavtokenizer = wavtokenizer_var.get()
             args.ttsgpu = (ttsgpu_var.get()==1)
-            args.ttsmaxlen = int(ttsmaxlen_var.get())
+            args.ttsmaxlen = (default_ttsmaxlen if ttsmaxlen_var.get()=="" else int(ttsmaxlen_var.get()))
 
         args.admin = (admin_var.get()==1 and not args.cli)
         args.admindir = admin_dir_var.get()
@@ -5084,6 +5100,8 @@ def show_gui():
         horde_apikey_var.set(dict["hordekey"] if ("hordekey" in dict and dict["hordekey"]) else "")
         horde_workername_var.set(dict["hordeworkername"] if ("hordeworkername" in dict and dict["hordeworkername"]) else "")
         usehorde_var.set(1 if ("hordekey" in dict and dict["hordekey"]) else 0)
+        if "maxrequestsize" in dict and dict["maxrequestsize"]:
+            maxrequestsize_var.set(dict["maxrequestsize"])
 
         sd_model_var.set(dict["sdmodel"] if ("sdmodel" in dict and dict["sdmodel"]) else "")
         sd_clamped_var.set(int(dict["sdclamped"]) if ("sdclamped" in dict and dict["sdclamped"]) else 0)
@@ -6776,6 +6794,7 @@ if __name__ == '__main__':
     advparser.add_argument("--moeexperts", metavar=('[num of experts]'), help="How many experts to use for MoE models (default=follow gguf)", type=int, default=-1)
     advparser.add_argument("--defaultgenamt", help="How many tokens to generate by default, if not specified. Must be smaller than context size. Usually, your frontend GUI will override this.", type=check_range(int,128,2048), default=512)
     advparser.add_argument("--nobostoken", help="Prevents BOS token from being added at the start of any prompt. Usually NOT recommended for most models.", action='store_true')
+    advparser.add_argument("--maxrequestsize", metavar=('[size in MB]'), help="Specify a max request payload size. Any requests to the server larger than this size will be dropped. Do not change if unsure.", type=int, default=32)
     advparser.add_argument("--developerMode", help="Enables developer utilities, such as hot reloading of Kobold Lite.", default=False, type=bool)
     compatgroup2 = parser.add_mutually_exclusive_group()
     compatgroup2.add_argument("--showgui", help="Always show the GUI instead of launching the model right away when loading settings from a .kcpps file.", action='store_true')
