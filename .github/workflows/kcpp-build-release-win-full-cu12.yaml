@@ -88,7 +88,7 @@ jobs:
       - name: Generate VK Instructions
         id: gen_vk_instructions
         run: |
-          echo "If you cannot compile vulkan shaders yourself with glslc, you can manually patch in precompiled vulkan shader source files. Copy these 2 files to the ggml/src directory before building." > vulkan-readme.txt
+          echo "If you cannot compile vulkan shaders yourself with glslc, you can manually patch in precompiled vulkan shader source files. Copy ggml-vulkan-shaders.cpp and ggml-vulkan-shaders.hpp to the ggml/src subdirectory in KoboldCpp source files before building." > vulkan-readme.txt
 
       - name: Save Standalone Vulkan Shaders
         uses: actions/upload-artifact@v4
