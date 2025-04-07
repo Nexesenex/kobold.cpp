@@ -972,6 +972,8 @@ def autoset_gpu_layers(ctxsize,sdquanted,bbs): #shitty algo to determine how man
 def fetch_gpu_properties(testCL,testCU,testVK):
     import subprocess
 
+    gpumem_ignore_limit = 1024*1024*600
+
     if testCU:
         FetchedCUdevices = []
         FetchedCUdeviceMem = []
@@ -1038,6 +1040,7 @@ def fetch_gpu_properties(testCL,testCU,testVK):
 
     if testVK:
         try: # Get Vulkan names
+            foundVkGPU = False
             output = subprocess.run(['vulkaninfo','--summary'], capture_output=True, text=True, check=True, encoding='utf-8', timeout=10).stdout
             devicelist = [line.split("=")[1].strip() for line in output.splitlines() if "deviceName" in line]
             devicetypes = [line.split("=")[1].strip() for line in output.splitlines() if "deviceType" in line]
@@ -1050,8 +1053,31 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                 idx = 0
                 for dvtype in devicetypes:
                     if idx<len(VKIsDGPU):
-                        VKIsDGPU[idx] = (1 if dvtype=="PHYSICAL_DEVICE_TYPE_DISCRETE_GPU" else 0)
+                        typeflag = (1 if dvtype=="PHYSICAL_DEVICE_TYPE_DISCRETE_GPU" else 0)
+                        VKIsDGPU[idx] = typeflag
+                        if typeflag:
+                            foundVkGPU = True
                         idx += 1
+
+            if foundVkGPU:
+                try: # Try get vulkan memory (experimental)
+                    output = subprocess.run(['vulkaninfo'], capture_output=True, text=True, check=True, encoding='utf-8', timeout=10).stdout
+                    devicechunks = output.split("VkPhysicalDeviceMemoryProperties")[1:]
+                    gpuidx = 0
+                    lowestvkmem = 0
+                    for chunk in devicechunks:
+                        heaps = chunk.split("memoryTypes:")[0].split("memoryHeaps[")[1:]
+                        snippet = heaps[0]
+                        if "MEMORY_HEAP_DEVICE_LOCAL_BIT" in snippet and "size" in snippet:
+                            match = re.search(r"size\s*=\s*(\d+)", snippet)
+                            if match:
+                                dmem = int(match.group(1))
+                                if dmem > gpumem_ignore_limit:
+                                    lowestvkmem = dmem if lowestvkmem==0 else (dmem if dmem<lowestvkmem else lowestvkmem)
+                        gpuidx += 1
+                except Exception: # failed to get vulkan vram
+                    pass
+            MaxMemory[0] = max(lowestvkmem,MaxMemory[0])
         except Exception:
             pass
 
@@ -1077,7 +1103,8 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                     idx = plat+dev*2
                     if idx<len(CLDevices):
                         CLDevicesNames[idx] = dname
-                        lowestclmem = dmem if lowestclmem==0 else (dmem if dmem<lowestclmem else lowestclmem)
+                        if dmem > gpumem_ignore_limit:
+                            lowestclmem = dmem if lowestclmem==0 else (dmem if dmem<lowestclmem else lowestclmem)
                     dev += 1
                 plat += 1
             MaxMemory[0] = max(lowestclmem,MaxMemory[0])
