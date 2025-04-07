@@ -1,7 +1,7 @@
 #include "ggml.h"
 #include "gguf.h"
 #include "llama.h"
-#include "common.h"
+#include "common/common.h"
 #include "build-info.h"
 
 #include <algorithm>

@@ -674,9 +674,21 @@ ifeq ($(OS),Windows_NT)
 	@echo 'Vulkan Shaders Rebuilt for Windows...'
 else
 	@echo 'Now rebuilding vulkan shaders for Linux...'
-	${shell} chmod +x vulkan-shaders-gen
-	${shell} chmod +x glslc-linux
-	$(shell) ./vulkan-shaders-gen --glslc ./glslc-linux --input-dir ggml/src/ggml-vulkan/vulkan-shaders --target-hpp ggml/src/ggml-vulkan-shaders.hpp --target-cpp ggml/src/ggml-vulkan-shaders.cpp
+	@chmod +x vulkan-shaders-gen glslc-linux
+	@echo 'Checking if bundled glslc-linux binary is usable...'
+	@GLSLC_BIN=$$(if ./glslc-linux --version >/dev/null 2>&1; then \
+		echo "./glslc-linux"; \
+	elif command -v glslc >/dev/null 2>&1; then \
+		echo "glslc"; \
+	else \
+		echo ""; \
+	fi); \
+	if [ -z "$$GLSLC_BIN" ]; then \
+		echo "Error: No usable glslc found. Vulkan shaders cannot be compiled!"; \
+	else \
+		echo "Using GLSLC: $$GLSLC_BIN"; \
+		./vulkan-shaders-gen --glslc "$$GLSLC_BIN" --input-dir ggml/src/ggml-vulkan/vulkan-shaders --target-hpp ggml/src/ggml-vulkan-shaders.hpp --target-cpp ggml/src/ggml-vulkan-shaders.cpp; \
+	fi
 	@echo 'Vulkan Shaders Rebuilt for Linux...'
 endif
 
