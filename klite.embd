@@ -24226,6 +24226,14 @@ else
 			"enabled": true
 			},
 			{
+				"name": "analyse_image",
+				"description": "Produces a description about an image using AI based on a prompt and an input image. Will prompt the user to select an image to analyse.",
+				"args": {
+					"prompt": "<prompt to query image about>"
+				},
+				"enabled": is_using_kcpp_with_llava() // Only enabled if local endpoint exists / is in use
+			},
+			{
 			"name": "generate_image",
 			"description": "Generates an image using AI based on a prompt. Using Booru tags is advised.",
 			"args": {
@@ -24317,7 +24325,7 @@ else
 	}
 
 	let getCommandsGNBF = () => {
-		return "alternative-0 ::= \"{\" space alternative-0-command-kv \"}\" space\nalternative-0-command ::= \"{\" space alternative-0-command-name-kv \",\" space alternative-0-command-args-kv \"}\" space\nalternative-0-command-args ::= \"{\" space alternative-0-command-args-message-kv \",\" space alternative-0-command-args-suggestionsToPickFrom-kv \"}\" space\nalternative-0-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-0-command-args\nalternative-0-command-args-message-kv ::= \"\\\"message\\\"\" space \":\" space string\nalternative-0-command-args-suggestionsToPickFrom-kv ::= \"\\\"suggestionsToPickFrom\\\"\" space \":\" space array\nalternative-0-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-0-command\nalternative-0-command-name ::= \"\\\"\" (\"ask_user\") \"\\\"\" space\nalternative-0-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-0-command-name\nalternative-1 ::= \"{\" space alternative-1-command-kv \"}\" space\nalternative-1-command ::= \"{\" space alternative-1-command-name-kv \",\" space alternative-1-command-args-kv \"}\" space\nalternative-1-command-args ::= \"{\" space alternative-1-command-args-message-kv \"}\" space\nalternative-1-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-1-command-args\nalternative-1-command-args-message-kv ::= \"\\\"message\\\"\" space \":\" space string\nalternative-1-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-1-command\nalternative-1-command-name ::= \"\\\"\" (\"thought\") \"\\\"\" space\nalternative-1-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-1-command-name\nalternative-10 ::= \"{\" space alternative-10-command-kv \"}\" space\nalternative-10-command ::= \"{\" space alternative-10-command-name-kv \",\" space alternative-10-command-args-kv \"}\" space\nalternative-10-command-args ::= \"{\" space alternative-10-command-args-searchString-kv \"}\" space\nalternative-10-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-10-command-args\nalternative-10-command-args-searchString-kv ::= \"\\\"searchString\\\"\" space \":\" space string\nalternative-10-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-10-command\nalternative-10-command-name ::= \"\\\"\" (\"search_history\") \"\\\"\" space\nalternative-10-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-10-command-name\nalternative-11 ::= \"{\" space alternative-11-command-kv \"}\" space\nalternative-11-command ::= \"{\" space alternative-11-command-name-kv \",\" space alternative-11-command-args-kv \"}\" space\nalternative-11-command-args ::= \"{\" space alternative-11-command-args-state-kv \"}\" space\nalternative-11-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-11-command-args\nalternative-11-command-args-state-kv ::= \"\\\"state\\\"\" space \":\" space boolean\nalternative-11-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-11-command\nalternative-11-command-name ::= \"\\\"\" (\"wordcount\") \"\\\"\" space\nalternative-11-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-11-command-name\nalternative-12 ::= \"{\" space alternative-12-command-kv \"}\" space\nalternative-12-command ::= \"{\" space alternative-12-command-name-kv \",\" space alternative-12-command-args-kv \"}\" space\nalternative-12-command-args ::= \"{\" space alternative-12-command-args-prompt-kv \"}\" space\nalternative-12-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-12-command-args\nalternative-12-command-args-prompt-kv ::= \"\\\"prompt\\\"\" space \":\" space string\nalternative-12-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-12-command\nalternative-12-command-name ::= \"\\\"\" (\"generate_image\") \"\\\"\" space\nalternative-12-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-12-command-name\nalternative-13 ::= \"{\" space alternative-13-command-kv \"}\" space\nalternative-13-command ::= \"{\" space alternative-13-command-name-kv \",\" space alternative-13-command-args-kv \"}\" space\nalternative-13-command-args ::= \"{\" space alternative-13-command-args-prompt-kv \"}\" space\nalternative-13-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-13-command-args\nalternative-13-command-args-prompt-kv ::= \"\\\"prompt\\\"\" space \":\" space string\nalternative-13-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-13-command\nalternative-13-command-name ::= \"\\\"\" (\"generate_image_based_on_another_image\") \"\\\"\" space\nalternative-13-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-13-command-name\nalternative-14 ::= \"{\" space alternative-14-command-kv \"}\" space\nalternative-14-command ::= \"{\" space alternative-14-command-name-kv \",\" space alternative-14-command-args-kv \"}\" space\nalternative-14-command-args ::= \"{\" space alternative-14-command-args-textToSay-kv \"}\" space\nalternative-14-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-14-command-args\nalternative-14-command-args-textToSay-kv ::= \"\\\"textToSay\\\"\" space \":\" space string\nalternative-14-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-14-command\nalternative-14-command-name ::= \"\\\"\" (\"speak\") \"\\\"\" space\nalternative-14-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-14-command-name\nalternative-2 ::= \"{\" space alternative-2-command-kv \"}\" space\nalternative-2-command ::= \"{\" space alternative-2-command-name-kv \",\" space alternative-2-command-args-kv \"}\" space\nalternative-2-command-args ::= \"{\" space alternative-2-command-args-message-kv \"}\" space\nalternative-2-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-2-command-args\nalternative-2-command-args-message-kv ::= \"\\\"message\\\"\" space \":\" space string\nalternative-2-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-2-command\nalternative-2-command-name ::= \"\\\"\" (\"send_message\") \"\\\"\" space\nalternative-2-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-2-command-name\nalternative-3 ::= \"{\" space alternative-3-command-kv \"}\" space\nalternative-3-command ::= \"{\" space alternative-3-command-name-kv \",\" space alternative-3-command-args-kv \"}\" space\nalternative-3-command-args ::= \"{\" space  \"}\" space\nalternative-3-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-3-command-args\nalternative-3-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-3-command\nalternative-3-command-name ::= \"\\\"\" (\"stop_thinking\") \"\\\"\" space\nalternative-3-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-3-command-name\nalternative-4 ::= \"{\" space alternative-4-command-kv \"}\" space\nalternative-4-command ::= \"{\" space alternative-4-command-name-kv \",\" space alternative-4-command-args-kv \"}\" space\nalternative-4-command-args ::= \"{\" space alternative-4-command-args-query-kv \"}\" space\nalternative-4-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-4-command-args\nalternative-4-command-args-query-kv ::= \"\\\"query\\\"\" space \":\" space string\nalternative-4-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-4-command\nalternative-4-command-name ::= \"\\\"\" (\"web_search\") \"\\\"\" space\nalternative-4-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-4-command-name\nalternative-5 ::= \"{\" space alternative-5-command-kv \"}\" space\nalternative-5-command ::= \"{\" space alternative-5-command-name-kv \",\" space alternative-5-command-args-kv \"}\" space\nalternative-5-command-args ::= \"{\" space alternative-5-command-args-numDice-kv \",\" space alternative-5-command-args-numSides-kv \"}\" space\nalternative-5-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-5-command-args\nalternative-5-command-args-numDice-kv ::= \"\\\"numDice\\\"\" space \":\" space integer\nalternative-5-command-args-numSides-kv ::= \"\\\"numSides\\\"\" space \":\" space integer\nalternative-5-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-5-command\nalternative-5-command-name ::= \"\\\"\" (\"roll_dice\") \"\\\"\" space\nalternative-5-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-5-command-name\nalternative-6 ::= \"{\" space alternative-6-command-kv \"}\" space\nalternative-6-command ::= \"{\" space alternative-6-command-name-kv \",\" space alternative-6-command-args-kv \"}\" space\nalternative-6-command-args ::= \"{\" space alternative-6-command-args-formula-kv \"}\" space\nalternative-6-command-args-formula-kv ::= \"\\\"formula\\\"\" space \":\" space string\nalternative-6-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-6-command-args\nalternative-6-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-6-command\nalternative-6-command-name ::= \"\\\"\" (\"evaluate_formula\") \"\\\"\" space\nalternative-6-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-6-command-name\nalternative-7 ::= \"{\" space alternative-7-command-kv \"}\" space\nalternative-7-command ::= \"{\" space alternative-7-command-name-kv \",\" space alternative-7-command-args-kv \"}\" space\nalternative-7-command-args ::= \"{\" space alternative-7-command-args-text-kv \"}\" space\nalternative-7-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-7-command-args\nalternative-7-command-args-text-kv ::= \"\\\"text\\\"\" space \":\" space string\nalternative-7-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-7-command\nalternative-7-command-name ::= \"\\\"\" (\"add_to_history\") \"\\\"\" space\nalternative-7-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-7-command-name\nalternative-8 ::= \"{\" space alternative-8-command-kv \"}\" space\nalternative-8-command ::= \"{\" space alternative-8-command-name-kv \",\" space alternative-8-command-args-kv \"}\" space\nalternative-8-command-args ::= \"{\" space alternative-8-command-args-text-kv \"}\" space\nalternative-8-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-8-command-args\nalternative-8-command-args-text-kv ::= \"\\\"text\\\"\" space \":\" space string\nalternative-8-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-8-command\nalternative-8-command-name ::= \"\\\"\" (\"overwrite_system_prompt\") \"\\\"\" space\nalternative-8-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-8-command-name\nalternative-9 ::= \"{\" space alternative-9-command-kv \"}\" space\nalternative-9-command ::= \"{\" space alternative-9-command-name-kv \",\" space alternative-9-command-args-kv \"}\" space\nalternative-9-command-args ::= \"{\" space alternative-9-command-args-text-kv \"}\" space\nalternative-9-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-9-command-args\nalternative-9-command-args-text-kv ::= \"\\\"text\\\"\" space \":\" space string\nalternative-9-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-9-command\nalternative-9-command-name ::= \"\\\"\" (\"overwrite_current_state\") \"\\\"\" space\nalternative-9-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-9-command-name\narray ::= \"[\" space ( value (\",\" space value)* )? \"]\" space\nboolean ::= (\"true\" | \"false\") space\nchar ::= [^\"\\\\\\x7F\\x00-\\x1F] | [\\\\] ([\"\\\\bfnrt] | \"u\" [0-9a-fA-F]{4})\ndecimal-part ::= [0-9]{1,16}\ninteger ::= (\"-\"? integral-part) space\nintegral-part ::= [0] | [1-9] [0-9]{0,15}\nnull ::= \"null\" space\nnumber ::= (\"-\"? integral-part) (\".\" decimal-part)? ([eE] [-+]? integral-part)? space\nobject ::= \"{\" space ( string \":\" space value (\",\" space string \":\" space value)* )? \"}\" space\nroot ::= alternative-0 | alternative-1 | alternative-2 | alternative-3 | alternative-4 | alternative-5 | alternative-6 | alternative-7 | alternative-8 | alternative-9 | alternative-10 | alternative-11 | alternative-12 | alternative-13 | alternative-14\nspace ::= | \" \" | \"\\n\"{1,2} [ \\t]{0,20}\nstring ::= \"\\\"\" char* \"\\\"\" space\nvalue ::= object | array | string | number | boolean | null"
+		return "alternative-0 ::= \"{\" space alternative-0-command-kv \"}\" space\nalternative-0-command ::= \"{\" space alternative-0-command-name-kv \",\" space alternative-0-command-args-kv \"}\" space\nalternative-0-command-args ::= \"{\" space alternative-0-command-args-message-kv \",\" space alternative-0-command-args-suggestionsToPickFrom-kv \"}\" space\nalternative-0-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-0-command-args\nalternative-0-command-args-message-kv ::= \"\\\"message\\\"\" space \":\" space string\nalternative-0-command-args-suggestionsToPickFrom-kv ::= \"\\\"suggestionsToPickFrom\\\"\" space \":\" space array\nalternative-0-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-0-command\nalternative-0-command-name ::= \"\\\"\" (\"ask_user\") \"\\\"\" space\nalternative-0-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-0-command-name\nalternative-1 ::= \"{\" space alternative-1-command-kv \"}\" space\nalternative-1-command ::= \"{\" space alternative-1-command-name-kv \",\" space alternative-1-command-args-kv \"}\" space\nalternative-1-command-args ::= \"{\" space alternative-1-command-args-message-kv \"}\" space\nalternative-1-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-1-command-args\nalternative-1-command-args-message-kv ::= \"\\\"message\\\"\" space \":\" space string\nalternative-1-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-1-command\nalternative-1-command-name ::= \"\\\"\" (\"thought\") \"\\\"\" space\nalternative-1-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-1-command-name\nalternative-10 ::= \"{\" space alternative-10-command-kv \"}\" space\nalternative-10-command ::= \"{\" space alternative-10-command-name-kv \",\" space alternative-10-command-args-kv \"}\" space\nalternative-10-command-args ::= \"{\" space alternative-10-command-args-searchString-kv \"}\" space\nalternative-10-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-10-command-args\nalternative-10-command-args-searchString-kv ::= \"\\\"searchString\\\"\" space \":\" space string\nalternative-10-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-10-command\nalternative-10-command-name ::= \"\\\"\" (\"search_history\") \"\\\"\" space\nalternative-10-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-10-command-name\nalternative-11 ::= \"{\" space alternative-11-command-kv \"}\" space\nalternative-11-command ::= \"{\" space alternative-11-command-name-kv \",\" space alternative-11-command-args-kv \"}\" space\nalternative-11-command-args ::= \"{\" space alternative-11-command-args-state-kv \"}\" space\nalternative-11-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-11-command-args\nalternative-11-command-args-state-kv ::= \"\\\"state\\\"\" space \":\" space boolean\nalternative-11-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-11-command\nalternative-11-command-name ::= \"\\\"\" (\"wordcount\") \"\\\"\" space\nalternative-11-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-11-command-name\nalternative-12 ::= \"{\" space alternative-12-command-kv \"}\" space\nalternative-12-command ::= \"{\" space alternative-12-command-name-kv \",\" space alternative-12-command-args-kv \"}\" space\nalternative-12-command-args ::= \"{\" space alternative-12-command-args-prompt-kv \"}\" space\nalternative-12-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-12-command-args\nalternative-12-command-args-prompt-kv ::= \"\\\"prompt\\\"\" space \":\" space string\nalternative-12-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-12-command\nalternative-12-command-name ::= \"\\\"\" (\"analyse_image\") \"\\\"\" space\nalternative-12-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-12-command-name\nalternative-13 ::= \"{\" space alternative-13-command-kv \"}\" space\nalternative-13-command ::= \"{\" space alternative-13-command-name-kv \",\" space alternative-13-command-args-kv \"}\" space\nalternative-13-command-args ::= \"{\" space alternative-13-command-args-prompt-kv \"}\" space\nalternative-13-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-13-command-args\nalternative-13-command-args-prompt-kv ::= \"\\\"prompt\\\"\" space \":\" space string\nalternative-13-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-13-command\nalternative-13-command-name ::= \"\\\"\" (\"generate_image\") \"\\\"\" space\nalternative-13-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-13-command-name\nalternative-14 ::= \"{\" space alternative-14-command-kv \"}\" space\nalternative-14-command ::= \"{\" space alternative-14-command-name-kv \",\" space alternative-14-command-args-kv \"}\" space\nalternative-14-command-args ::= \"{\" space alternative-14-command-args-prompt-kv \"}\" space\nalternative-14-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-14-command-args\nalternative-14-command-args-prompt-kv ::= \"\\\"prompt\\\"\" space \":\" space string\nalternative-14-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-14-command\nalternative-14-command-name ::= \"\\\"\" (\"generate_image_based_on_another_image\") \"\\\"\" space\nalternative-14-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-14-command-name\nalternative-15 ::= \"{\" space alternative-15-command-kv \"}\" space\nalternative-15-command ::= \"{\" space alternative-15-command-name-kv \",\" space alternative-15-command-args-kv \"}\" space\nalternative-15-command-args ::= \"{\" space alternative-15-command-args-textToSay-kv \"}\" space\nalternative-15-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-15-command-args\nalternative-15-command-args-textToSay-kv ::= \"\\\"textToSay\\\"\" space \":\" space string\nalternative-15-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-15-command\nalternative-15-command-name ::= \"\\\"\" (\"speak\") \"\\\"\" space\nalternative-15-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-15-command-name\nalternative-2 ::= \"{\" space alternative-2-command-kv \"}\" space\nalternative-2-command ::= \"{\" space alternative-2-command-name-kv \",\" space alternative-2-command-args-kv \"}\" space\nalternative-2-command-args ::= \"{\" space alternative-2-command-args-message-kv \"}\" space\nalternative-2-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-2-command-args\nalternative-2-command-args-message-kv ::= \"\\\"message\\\"\" space \":\" space string\nalternative-2-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-2-command\nalternative-2-command-name ::= \"\\\"\" (\"send_message\") \"\\\"\" space\nalternative-2-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-2-command-name\nalternative-3 ::= \"{\" space alternative-3-command-kv \"}\" space\nalternative-3-command ::= \"{\" space alternative-3-command-name-kv \",\" space alternative-3-command-args-kv \"}\" space\nalternative-3-command-args ::= \"{\" space  \"}\" space\nalternative-3-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-3-command-args\nalternative-3-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-3-command\nalternative-3-command-name ::= \"\\\"\" (\"stop_thinking\") \"\\\"\" space\nalternative-3-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-3-command-name\nalternative-4 ::= \"{\" space alternative-4-command-kv \"}\" space\nalternative-4-command ::= \"{\" space alternative-4-command-name-kv \",\" space alternative-4-command-args-kv \"}\" space\nalternative-4-command-args ::= \"{\" space alternative-4-command-args-query-kv \"}\" space\nalternative-4-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-4-command-args\nalternative-4-command-args-query-kv ::= \"\\\"query\\\"\" space \":\" space string\nalternative-4-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-4-command\nalternative-4-command-name ::= \"\\\"\" (\"web_search\") \"\\\"\" space\nalternative-4-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-4-command-name\nalternative-5 ::= \"{\" space alternative-5-command-kv \"}\" space\nalternative-5-command ::= \"{\" space alternative-5-command-name-kv \",\" space alternative-5-command-args-kv \"}\" space\nalternative-5-command-args ::= \"{\" space alternative-5-command-args-numDice-kv \",\" space alternative-5-command-args-numSides-kv \"}\" space\nalternative-5-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-5-command-args\nalternative-5-command-args-numDice-kv ::= \"\\\"numDice\\\"\" space \":\" space integer\nalternative-5-command-args-numSides-kv ::= \"\\\"numSides\\\"\" space \":\" space integer\nalternative-5-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-5-command\nalternative-5-command-name ::= \"\\\"\" (\"roll_dice\") \"\\\"\" space\nalternative-5-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-5-command-name\nalternative-6 ::= \"{\" space alternative-6-command-kv \"}\" space\nalternative-6-command ::= \"{\" space alternative-6-command-name-kv \",\" space alternative-6-command-args-kv \"}\" space\nalternative-6-command-args ::= \"{\" space alternative-6-command-args-formula-kv \"}\" space\nalternative-6-command-args-formula-kv ::= \"\\\"formula\\\"\" space \":\" space string\nalternative-6-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-6-command-args\nalternative-6-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-6-command\nalternative-6-command-name ::= \"\\\"\" (\"evaluate_formula\") \"\\\"\" space\nalternative-6-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-6-command-name\nalternative-7 ::= \"{\" space alternative-7-command-kv \"}\" space\nalternative-7-command ::= \"{\" space alternative-7-command-name-kv \",\" space alternative-7-command-args-kv \"}\" space\nalternative-7-command-args ::= \"{\" space alternative-7-command-args-text-kv \"}\" space\nalternative-7-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-7-command-args\nalternative-7-command-args-text-kv ::= \"\\\"text\\\"\" space \":\" space string\nalternative-7-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-7-command\nalternative-7-command-name ::= \"\\\"\" (\"add_to_history\") \"\\\"\" space\nalternative-7-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-7-command-name\nalternative-8 ::= \"{\" space alternative-8-command-kv \"}\" space\nalternative-8-command ::= \"{\" space alternative-8-command-name-kv \",\" space alternative-8-command-args-kv \"}\" space\nalternative-8-command-args ::= \"{\" space alternative-8-command-args-text-kv \"}\" space\nalternative-8-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-8-command-args\nalternative-8-command-args-text-kv ::= \"\\\"text\\\"\" space \":\" space string\nalternative-8-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-8-command\nalternative-8-command-name ::= \"\\\"\" (\"overwrite_system_prompt\") \"\\\"\" space\nalternative-8-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-8-command-name\nalternative-9 ::= \"{\" space alternative-9-command-kv \"}\" space\nalternative-9-command ::= \"{\" space alternative-9-command-name-kv \",\" space alternative-9-command-args-kv \"}\" space\nalternative-9-command-args ::= \"{\" space alternative-9-command-args-text-kv \"}\" space\nalternative-9-command-args-kv ::= \"\\\"args\\\"\" space \":\" space alternative-9-command-args\nalternative-9-command-args-text-kv ::= \"\\\"text\\\"\" space \":\" space string\nalternative-9-command-kv ::= \"\\\"command\\\"\" space \":\" space alternative-9-command\nalternative-9-command-name ::= \"\\\"\" (\"overwrite_current_state\") \"\\\"\" space\nalternative-9-command-name-kv ::= \"\\\"name\\\"\" space \":\" space alternative-9-command-name\narray ::= \"[\" space ( value (\",\" space value)* )? \"]\" space\nboolean ::= (\"true\" | \"false\") space\nchar ::= [^\"\\\\\\x7F\\x00-\\x1F] | [\\\\] ([\"\\\\bfnrt] | \"u\" [0-9a-fA-F]{4})\ndecimal-part ::= [0-9]{1,16}\ninteger ::= (\"-\"? integral-part) space\nintegral-part ::= [0] | [1-9] [0-9]{0,15}\nnull ::= \"null\" space\nnumber ::= (\"-\"? integral-part) (\".\" decimal-part)? ([eE] [-+]? integral-part)? space\nobject ::= \"{\" space ( string \":\" space value (\",\" space string \":\" space value)* )? \"}\" space\nroot ::= alternative-0 | alternative-1 | alternative-2 | alternative-3 | alternative-4 | alternative-5 | alternative-6 | alternative-7 | alternative-8 | alternative-9 | alternative-10 | alternative-11 | alternative-12 | alternative-13 | alternative-14 | alternative-15\nspace ::= | \" \" | \"\\n\"{1,2} [ \\t]{0,20}\nstring ::= \"\\\"\" char* \"\\\"\" space\nvalue ::= object | array | string | number | boolean | null"
 	}
 </script>
 <script>
@@ -24329,144 +24337,6 @@ else
 		"args": { "type": "object" }
 	}
 } `
-
-// let getCommands = () => {
-// 	return [
-// 		{
-// 			"name": "ask_user",
-// 			"description": "Ask the user for input. Optionally, suggested responses can be provided to the user as well.",
-// 			"args": { "message": "<message that awaits user input>", "suggestionsToPickFrom": "<suggestions the user can pick from as an array of strings>" }, // null,
-// 			"enabled": true,
-// 			"isExtended": false
-// 		},
-// 		{
-// 			"name": "thought",
-// 			"description": "Records a thought for the next action to use. Not visible to the user.",
-// 			"args": { "message": "<thoughts to record>" },
-// 			"enabled": false,
-// 			"isExtended": false
-// 		},
-// 		{
-// 			"name": "send_message",
-// 			"description": "Send a message to the user without waiting for their response. Does not return anything.",
-// 			"args": { "message": "<message to send>" },
-// 			"enabled": true,
-// 			"isExtended": false
-// 		},
-// 		{
-// 			"name": "stop_thinking",
-// 			"description": "Ends the current chain of thought. Can only be used after a \"send_message\" action.",
-// 			"args": null,
-// 			"enabled": true,
-// 			"isExtended": false
-// 		},
-// 		{
-// 			"name": "list_extended_commands",
-// 			"description": "Gets the full list of additional commands which can be used.",
-// 			"args": null,
-// 			"enabled": false,
-// 			"isExtended": false
-// 		},
-// 		{
-// 			"name": "conversation_history",
-// 			"description": "gets the full conversation history",
-// 			"args": null,
-// 			"enabled": false,
-// 			"isExtended": true
-// 		},
-// 		{
-// 			"name": "web_search",
-// 			"description": "search the web for keyword",
-// 			"args": { "query": "<query to research>" },
-// 			"enabled": websearch_enabled,
-// 			"isExtended": true
-// 		},
-// 		{
-// 			"name": "roll_dice",
-// 			"description": "Rolls a number of dice with the same amount of sides.",
-// 			"args": { "numDice": "<number of dice>", "numSides": "<number of sides on the dice>" },
-// 			"enabled": true,
-// 			"isExtended": true
-// 		},
-// 		{
-// 			"name": "evaluate_formula",
-// 			"description": "Evaluates a mathematical formula and returns the result.",
-// 			"args": { "formula": "<mathematical formula to evaluate>" },
-// 			"enabled": true,
-// 			"isExtended": true
-// 		},
-// 		{
-// 			"name": "add_to_history",
-// 			"description": "Adds a block of text to history. It should include any necessary keywords for searching within the text.",
-// 			"args": { "text": "<text to add>" },
-// 			"enabled": true,
-// 			"isExtended": true
-// 		},
-// 		{
-// 			"name": "overwrite_system_prompt",
-// 			"description": "Overwrites the existing system prompt with a new set of instructions. Only use this when explicitly requested by the user, use memory in general.",
-// 			"args": { "text": "<new system prompt>" },
-// 			"enabled": true,
-// 			"isExtended": true
-// 		},
-// 		{
-// 			"name": "overwrite_current_state",
-// 			"description": "Overwrites the existing stored state with new text. The current stored state is sent with every action.",
-// 			"args": { "text": "<new state>" },
-// 			"enabled": true,
-// 			"isExtended": true
-// 		},
-// 		{
-// 			"name": "search_history",
-// 			"description": "Searches history for a series of keywords.",
-// 			"args": { "searchString": "<string to search for>" },
-// 			"enabled": true,
-// 			"isExtended": true
-// 		},
-// 		{
-// 			"name": "search_memory",
-// 			"description": "Searches memory for a series of keywords.",
-// 			"args": { "searchString": "<string to search for>" },
-// 			"enabled": false,
-// 			"isExtended": true
-// 		},
-// 		{
-// 			"name": "search_chatlog",
-// 			"description": "Searches the conversation between the user and AI for a series of keywords.",
-// 			"args": { "searchString": "<string to search for>" },
-// 			"enabled": false,
-// 			"isExtended": true
-// 		},
-// 		{
-// 			"name": "wordcount",
-// 			"description": "Enables or disables a word count for each 'ask_user', 'thought' or 'send_message'.",
-// 			"args": { "state": "<true or false>" },
-// 			"enabled": true,
-// 			"isExtended": true
-// 		},
-// 		{
-// 			"name": "generate_image",
-// 			"description": "Generates an image using AI based on a prompt. Using Booru tags is advised.",
-// 			"args": { "prompt": "<prompt to generate image with>" },
-// 			"enabled": localsettings.generate_images_mode == 2, // Only enabled if local endpoint exists / is in use
-// 			"isExtended": true
-// 		},
-// 		{
-// 			"name": "generate_image_based_on_another_image",
-// 			"description": "Generates an image using AI based on a prompt and an input image. Will prompt the user to select an image.",
-// 			"args": { "prompt": "<prompt to generate image with>" },
-// 			"enabled": localsettings.generate_images_mode == 2, // Only enabled if local endpoint exists / is in use
-// 			"isExtended": true
-// 		},
-// 		{
-// 			"name": "speak",
-// 			"description": "Say something to the user using text to speech.",
-// 			"args": { "textToSay": "<text to say>" },
-// 			"enabled": localsettings.speech_synth == KCPP_TTS_ID, // Only enabled if local endpoint exists / is in use
-// 			"isExtended": true
-// 		}
-// 	]
-// }
 
 let getCommandsAsText = (showExtended = false) => {
 	return getCommands().filter(command => !!command?.enabled).filter(command => !!showExtended || command?.isExtended === false).map(command => {
@@ -24553,7 +24423,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}
 	}
 	
-	let generateFromPrompt = (prompt, grammar = "") => {
+	let generateFromPrompt = (prompt, grammar = "", images = []) => {
 		let payload = createGeneratePayload(prompt)
 		if (!!grammar)
 		{
@@ -24562,9 +24432,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			payload["banned_tokens"] = ["{}"]
 		}
 		concat_gametext(true, "", "", "", false, true)
-		if(is_using_kcpp_with_llava() && insertAIVisionImages.length>0)
+		let llavaImages = insertAIVisionImages.concat(images)
+		if(is_using_kcpp_with_llava() && llavaImages.length > 0)
 		{
-			payload.images = insertAIVisionImages;
+			payload.images = llavaImages;
 		}
 		let reqOpt = {
 			method: 'POST', // or 'PUT'
@@ -24580,8 +24451,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			.then((response) => response.json())
 	}
 
-	let generateAndGetTextFromPrompt = async (prompt, grammar = "") => {
-		let resp = await generateFromPrompt(prompt, grammar)
+	let generateAndGetTextFromPrompt = async (prompt, grammar = "", images = []) => {
+		let resp = await generateFromPrompt(prompt, grammar, images)
 		let isRespValid = !!resp?.results && Array.isArray(resp.results) && resp.results.length > 0
 		if (isRespValid)
 		{
@@ -25002,6 +24873,45 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							let wordCountState = action?.args?.state
 							wordCountEnabled = !!wordCountState
 							addThought(createSysPrompt, `Word count is ${wordCountEnabled ? "enabled" : "disabled"}`)
+							break
+						case "analyse_image":
+							let analysisPrompt = action?.args?.prompt
+							if (!analysisPrompt)
+							{
+								analysisPrompt = "Describe the image in detail. Transcribe and include any text from the image in the description."
+							}
+							if (!!analysisPrompt) {
+								waitingFori2iSelection = true
+								addThought(createSysPrompt, `Please click an image as a source for image analysis`, true)
+
+								let waitForI2ILoop = () => {
+									return new Promise((resolve, reject) => {
+										let intervalId = setInterval(() => {
+											if (waitingFori2iSelection === false || endCurrent)
+											{
+												clearInterval(intervalId)
+												resolve()
+											}
+										}, 1000)
+									})
+								}
+								await waitForI2ILoop()
+								if (!!i2i64)
+								{
+									let parts = i2i64.split(',');
+									if (parts.length === 2 && parts[0].startsWith('data:image')) {
+										i2i64 = parts[1];
+									}
+									let analysisResult = await generateAndGetTextFromPrompt(analysisPrompt, undefined, [i2i64])
+									addThought(createSysPrompt, `Image analysed: ${analysisResult}`)
+								}
+								else
+								{
+									addThought(createSysPrompt, `User did not select an image - no image analysed`)
+								}
+								i2i64 = undefined;
+								waitingFori2iSelection = false;
+							}
 							break
 						case "generate_image":
 							let prompt = action?.args?.prompt
