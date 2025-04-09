@@ -24410,7 +24410,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			"max_length": localsettings.max_length,
 			"min_p": localsettings.min_p,
 			"presence_penalty": localsettings.presence_penalty,
-			"prompt": prompt,
+			"prompt": replace_placeholders(prompt, false, true),
 			"render_special": false,
 			"rep_pen": localsettings.rep_pen,
 			"rep_pen_range": localsettings.rep_pen_range,
@@ -24902,7 +24902,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 									if (parts.length === 2 && parts[0].startsWith('data:image')) {
 										i2i64 = parts[1];
 									}
-									let analysisResult = await generateAndGetTextFromPrompt(analysisPrompt, undefined, [i2i64])
+									let analysisResult = await generateAndGetTextFromPrompt(createInstructPrompt(analysisPrompt), undefined, [i2i64])
 									addThought(createSysPrompt, `Image analysed: ${analysisResult}`)
 								}
 								else
