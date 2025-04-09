@@ -50,7 +50,7 @@ logit_bias_max = 512
 dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.87.4"
+KcppVersion = "1.88"
 showdebug = True
 kcpp_instance = None #global running instance
 global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None}
@@ -266,6 +266,8 @@ class sd_generation_inputs(ctypes.Structure):
     _fields_ = [("prompt", ctypes.c_char_p),
                 ("negative_prompt", ctypes.c_char_p),
                 ("init_images", ctypes.c_char_p),
+                ("mask", ctypes.c_char_p),
+                ("flip_mask", ctypes.c_bool),
                 ("denoising_strength", ctypes.c_float),
                 ("cfg_scale", ctypes.c_float),
                 ("sample_steps", ctypes.c_int),
@@ -982,7 +984,6 @@ def fetch_gpu_properties(testCL,testCU,testVK):
         FetchedCUdevices = []
         FetchedCUdeviceMem = []
         FetchedCUfreeMem = []
-        faileddetectvram = False
 
         AMDgpu = None
         try: # Get NVIDIA GPU names
@@ -993,7 +994,6 @@ def fetch_gpu_properties(testCL,testCU,testVK):
         except Exception:
             FetchedCUdeviceMem = []
             FetchedCUfreeMem = []
-            faileddetectvram = True
             pass
         if len(FetchedCUdevices)==0:
             try: # Get AMD ROCm GPU names
@@ -1015,7 +1015,6 @@ def fetch_gpu_properties(testCL,testCU,testVK):
             except Exception:
                 FetchedCUdeviceMem = []
                 FetchedCUfreeMem = []
-                faileddetectvram = True
                 pass
         lowestcumem = 0
         lowestfreecumem = 0
@@ -1034,13 +1033,12 @@ def fetch_gpu_properties(testCL,testCU,testVK):
         except Exception:
             lowestcumem = 0
             lowestfreecumem = 0
-            faileddetectvram = True
-
-        if faileddetectvram:
-            print("Unable to detect VRAM, please set layers manually.")
 
         MaxMemory[0] = max(lowestcumem,MaxMemory[0])
         MaxFreeMemory[0] = max(lowestfreecumem,MaxFreeMemory[0])
+
+        if MaxMemory[0] < (1024*1024*256):
+            print("Unable to detect VRAM, please set layers manually.")
 
     if testVK:
         try: # Get Vulkan names
@@ -1492,6 +1490,8 @@ def sd_generate(genparams):
             prompt = forced_posprompt
     init_images_arr = genparams.get("init_images", [])
     init_images = ("" if (not init_images_arr or len(init_images_arr)==0 or not init_images_arr[0]) else init_images_arr[0])
+    mask = genparams.get("mask", "")
+    flip_mask = genparams.get("inpainting_mask_invert", 0)
     denoising_strength = tryparsefloat(genparams.get("denoising_strength", 0.6))
     cfg_scale = tryparsefloat(genparams.get("cfg_scale", 5))
     sample_steps = tryparseint(genparams.get("steps", 20))
@@ -1528,6 +1528,8 @@ def sd_generate(genparams):
     inputs.prompt = prompt.encode("UTF-8")
     inputs.negative_prompt = negative_prompt.encode("UTF-8")
     inputs.init_images = init_images.encode("UTF-8")
+    inputs.mask = "".encode("UTF-8") if not mask else mask.encode("UTF-8")
+    inputs.flip_mask = flip_mask
     inputs.cfg_scale = cfg_scale
     inputs.denoising_strength = denoising_strength
     inputs.sample_steps = sample_steps
@@ -5644,6 +5646,8 @@ def reload_from_new_args(newargs):
         setattr(args,"prompt","")
         setattr(args,"config",None)
         setattr(args,"launch",None)
+        if "istemplate" in newargs and newargs["istemplate"]:
+            auto_set_backend_cli()
     except Exception as e:
         print(f"Reload New Config Failed: {e}")
 
