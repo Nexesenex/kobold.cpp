@@ -24789,7 +24789,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							let textToAdd = action?.args?.text
 							if (!!textToAdd)
 							{
-								documentdb_data = `${documentdb_data}\n\n${textToAdd}`
+								documentdb_data = `${documentdb_data}[DOCUMENT BREAK]${textToAdd}[DOCUMENT BREAK]`
 								addThought(createSysPrompt, `Text has been added to history`)
 							}
 							else
@@ -24902,7 +24902,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 									if (parts.length === 2 && parts[0].startsWith('data:image')) {
 										i2i64 = parts[1];
 									}
-									let analysisResult = await generateAndGetTextFromPrompt(createInstructPrompt(analysisPrompt), undefined, [i2i64])
+									let analysisResult = await generateAndGetTextFromPrompt(`${createInstructPrompt(analysisPrompt)}${instructendplaceholder}`, undefined, [i2i64])
 									addThought(createSysPrompt, `Image analysed: ${analysisResult}`)
 								}
 								else
