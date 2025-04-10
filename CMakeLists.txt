@@ -65,6 +65,7 @@ find_package(Threads REQUIRED)
 add_compile_definitions(LOG_DISABLE_LOGS)
 add_compile_definitions(GGML_USE_CPU)
 add_compile_definitions(GGML_USE_CPU_AARCH64)
+add_compile_definitions(NOMINMAX)
 
 if (MSVC)
     add_compile_options("$<$<COMPILE_LANGUAGE:C>:/utf-8>")
@@ -423,11 +424,11 @@ add_library(ggml
             ggml/src/ggml-cpu/binary-ops.cpp
             ggml/src/ggml-cpu/unary-ops.h
             ggml/src/ggml-cpu/unary-ops.cpp
-            ggml-cpu/simd-mappings.h
-            ggml-cpu/vec.h
-            ggml-cpu/vec.cpp
-            ggml-cpu/ops.h
-            ggml-cpu/ops.cpp
+            ggml/src/ggml-cpu/simd-mappings.h
+            ggml/src/ggml-cpu/vec.h
+            ggml/src/ggml-cpu/vec.cpp
+            ggml/src/ggml-cpu/ops.h
+            ggml/src/ggml-cpu/ops.cpp
             ggml/src/ggml-backend-reg.cpp
             ggml/include/gguf.h
             ggml/src/gguf.cpp
