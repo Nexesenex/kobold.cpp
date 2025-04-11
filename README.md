@@ -24,7 +24,7 @@ It offers the following functionalities:
 
 ## Agent thinking mode (experimental)
 
-An attempt to replicate tool usage / agent logic in Lite.  Essentially, the AI is provided the user input and a list of tools that it can use.  Only works in classic mode for now.
+An attempt to replicate tool usage / agent logic in Lite.  Essentially, the AI is provided the user input and a list of tools that it can use.  Should work on all UI modes for instruct.
 
 The currently supported options include:
 - Sending messages / Asking for additional user input (including AI suggested options like a text adventure)
@@ -39,10 +39,10 @@ The currently supported options include:
 - Rolling dice (can be used for random generation)
 ![image](https://github.com/user-attachments/assets/91529033-6a21-4cc3-a0c2-730fb68a99af)
 
-- Generating images (in KCPP) - Both from text and another image
+- Generating images at different aspect ratios (in KCPP) - Both from text and another image
 ![image](https://github.com/user-attachments/assets/39bc5433-54f2-4c9e-8422-9e20d4383b71)
 ![image](https://github.com/user-attachments/assets/97bef072-06d9-47a1-8066-2bcb5c20bc6f)
-
+- Analysing images (in KCPP)
 - "Speaking" through TTS (in KCPP)
 - Adding data to the TextDB and searching for information in it, along with the chat log
 - Knowing the current date
