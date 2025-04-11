@@ -18662,7 +18662,7 @@ Current version indicated by LITEVER below.
 					case "human":
 						namepart = "User"
 						break
-					case "AI":
+					case "ai":
 						namepart = cosmetic_corpo_ai_nick
 						break
 					default:
@@ -24416,7 +24416,7 @@ ${json_schema}`
 let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"message":"I must make sure that I respond to the user with \"send_message\""}}}`
 </script>
 <style>
-	#stopThinking {
+	.stopThinking {
 		position: absolute;
 		right: 20px;
 		bottom: 10px;
@@ -24666,7 +24666,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		let lastThoughtWasBlank = false
 		let wordCountEnabled = false
 
-		document.getElementById("stopThinking").classList.remove("hidden")
+		Array(...document.getElementsByClassName("stopThinking")).forEach(elem => elem.classList.remove("hidden"))
 		for (let i = 0; i < maxThoughtsWithoutUserInput && endCurrent === false; i++)
 		{
 			clearSuggestions()
@@ -25060,7 +25060,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			}
 		}
 		currentAgentCycle = null
-		document.getElementById("stopThinking").classList.add("hidden")
+		Array(...document.getElementsByClassName("stopThinking")).forEach(elem => elem.classList.add("hidden"))
 	}
 
 	let originalDisplaySettingsTab = display_settings_tab, originalConfirmSettings = confirm_settings, originalPrepareSubmitGeneration = prepare_submit_generation, originalRestartNewGame = restart_new_game,
@@ -25117,15 +25117,17 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 	let createStopThinkingButton = () => {
 		
-		let elem = document.createElement("span"); 
-		elem.id = "stopThinking";
-		document.getElementById("input_text").parentElement.appendChild(elem)
-		elem.innerText = "Stop agent thinking"
-		elem.classList.add("hidden")
-		elem.onclick = () => {
-			endCurrent = true
+		["input_text", "cht_inp", "corpo_cht_inp"].forEach(id => {
+			let elem = document.createElement("span");
+			elem.classList.add("stopThinking");
+			document.getElementById(id).parentElement.appendChild(elem)
+			elem.innerText = "Stop agent thinking"
 			elem.classList.add("hidden")
-		}
+			elem.onclick = () => {
+				endCurrent = true
+				elem.classList.add("hidden")
+			}
+		})
 	}
 
 	let removeChoiceContainer = () => {
