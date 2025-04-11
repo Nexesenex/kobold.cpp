@@ -18654,7 +18654,26 @@ Current version indicated by LITEVER below.
 				processed_msg = processed_msg.replace(/\[<\|[\s\S]+?\|>\]/g, ""); //remove normal comments too
 			}
 
-			let namepart = (curr.myturn ? "User" : cosmetic_corpo_ai_nick);
+			let namepart;
+			if (isAgentModeEnabledAndSetCorrectly())
+			{
+				switch (curr.source)
+				{
+					case "human":
+						namepart = "User"
+						break
+					case "AI":
+						namepart = cosmetic_corpo_ai_nick
+						break
+					default:
+						namepart = "System"
+				}
+			} 
+			else
+			{
+				namepart = (curr.myturn ? "User" : cosmetic_corpo_ai_nick);
+			}
+				
 			//advanced name replacement
 			if(localsettings.opmode==3 && curr.name) //chat mode
 			{
