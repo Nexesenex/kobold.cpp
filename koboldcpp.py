@@ -49,7 +49,7 @@ logit_bias_max = 512
 dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.87.4"
+KcppVersion = "1.88"
 showdebug = True
 kcpp_instance = None #global running instance
 global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False}
@@ -263,6 +263,8 @@ class sd_generation_inputs(ctypes.Structure):
     _fields_ = [("prompt", ctypes.c_char_p),
                 ("negative_prompt", ctypes.c_char_p),
                 ("init_images", ctypes.c_char_p),
+                ("mask", ctypes.c_char_p),
+                ("flip_mask", ctypes.c_bool),
                 ("denoising_strength", ctypes.c_float),
                 ("cfg_scale", ctypes.c_float),
                 ("sample_steps", ctypes.c_int),
@@ -972,11 +974,12 @@ def autoset_gpu_layers(ctxsize,sdquanted,bbs): #shitty algo to determine how man
 def fetch_gpu_properties(testCL,testCU,testVK):
     import subprocess
 
+    gpumem_ignore_limit = 1024*1024*600
+
     if testCU:
         FetchedCUdevices = []
         FetchedCUdeviceMem = []
         FetchedCUfreeMem = []
-        faileddetectvram = False
 
         AMDgpu = None
         try: # Get NVIDIA GPU names
@@ -987,7 +990,6 @@ def fetch_gpu_properties(testCL,testCU,testVK):
         except Exception:
             FetchedCUdeviceMem = []
             FetchedCUfreeMem = []
-            faileddetectvram = True
             pass
         if len(FetchedCUdevices)==0:
             try: # Get AMD ROCm GPU names
@@ -1009,7 +1011,6 @@ def fetch_gpu_properties(testCL,testCU,testVK):
             except Exception:
                 FetchedCUdeviceMem = []
                 FetchedCUfreeMem = []
-                faileddetectvram = True
                 pass
         lowestcumem = 0
         lowestfreecumem = 0
@@ -1028,16 +1029,16 @@ def fetch_gpu_properties(testCL,testCU,testVK):
         except Exception:
             lowestcumem = 0
             lowestfreecumem = 0
-            faileddetectvram = True
-
-        if faileddetectvram:
-            print("Unable to detect VRAM, please set layers manually.")
 
         MaxMemory[0] = max(lowestcumem,MaxMemory[0])
         MaxFreeMemory[0] = max(lowestfreecumem,MaxFreeMemory[0])
 
+        if MaxMemory[0] < (1024*1024*256):
+            print("Unable to detect VRAM, please set layers manually.")
+
     if testVK:
         try: # Get Vulkan names
+            foundVkGPU = False
             output = subprocess.run(['vulkaninfo','--summary'], capture_output=True, text=True, check=True, encoding='utf-8', timeout=10).stdout
             devicelist = [line.split("=")[1].strip() for line in output.splitlines() if "deviceName" in line]
             devicetypes = [line.split("=")[1].strip() for line in output.splitlines() if "deviceType" in line]
@@ -1050,8 +1051,31 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                 idx = 0
                 for dvtype in devicetypes:
                     if idx<len(VKIsDGPU):
-                        VKIsDGPU[idx] = (1 if dvtype=="PHYSICAL_DEVICE_TYPE_DISCRETE_GPU" else 0)
+                        typeflag = (1 if dvtype=="PHYSICAL_DEVICE_TYPE_DISCRETE_GPU" else 0)
+                        VKIsDGPU[idx] = typeflag
+                        if typeflag:
+                            foundVkGPU = True
                         idx += 1
+
+            if foundVkGPU:
+                try: # Try get vulkan memory (experimental)
+                    output = subprocess.run(['vulkaninfo'], capture_output=True, text=True, check=True, encoding='utf-8', timeout=10).stdout
+                    devicechunks = output.split("VkPhysicalDeviceMemoryProperties")[1:]
+                    gpuidx = 0
+                    lowestvkmem = 0
+                    for chunk in devicechunks:
+                        heaps = chunk.split("memoryTypes:")[0].split("memoryHeaps[")[1:]
+                        snippet = heaps[0]
+                        if "MEMORY_HEAP_DEVICE_LOCAL_BIT" in snippet and "size" in snippet:
+                            match = re.search(r"size\s*=\s*(\d+)", snippet)
+                            if match:
+                                dmem = int(match.group(1))
+                                if dmem > gpumem_ignore_limit:
+                                    lowestvkmem = dmem if lowestvkmem==0 else (dmem if dmem<lowestvkmem else lowestvkmem)
+                        gpuidx += 1
+                except Exception: # failed to get vulkan vram
+                    pass
+            MaxMemory[0] = max(lowestvkmem,MaxMemory[0])
         except Exception:
             pass
 
@@ -1077,7 +1101,8 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                     idx = plat+dev*2
                     if idx<len(CLDevices):
                         CLDevicesNames[idx] = dname
-                        lowestclmem = dmem if lowestclmem==0 else (dmem if dmem<lowestclmem else lowestclmem)
+                        if dmem > gpumem_ignore_limit:
+                            lowestclmem = dmem if lowestclmem==0 else (dmem if dmem<lowestclmem else lowestclmem)
                     dev += 1
                 plat += 1
             MaxMemory[0] = max(lowestclmem,MaxMemory[0])
@@ -1461,6 +1486,8 @@ def sd_generate(genparams):
             prompt = forced_posprompt
     init_images_arr = genparams.get("init_images", [])
     init_images = ("" if (not init_images_arr or len(init_images_arr)==0 or not init_images_arr[0]) else init_images_arr[0])
+    mask = genparams.get("mask", "")
+    flip_mask = genparams.get("inpainting_mask_invert", 0)
     denoising_strength = tryparsefloat(genparams.get("denoising_strength", 0.6))
     cfg_scale = tryparsefloat(genparams.get("cfg_scale", 5))
     sample_steps = tryparseint(genparams.get("steps", 20))
@@ -1497,6 +1524,8 @@ def sd_generate(genparams):
     inputs.prompt = prompt.encode("UTF-8")
     inputs.negative_prompt = negative_prompt.encode("UTF-8")
     inputs.init_images = init_images.encode("UTF-8")
+    inputs.mask = "".encode("UTF-8") if not mask else mask.encode("UTF-8")
+    inputs.flip_mask = flip_mask
     inputs.cfg_scale = cfg_scale
     inputs.denoising_strength = denoising_strength
     inputs.sample_steps = sample_steps
@@ -5157,6 +5186,8 @@ def reload_from_new_args(newargs):
         setattr(args,"prompt","")
         setattr(args,"config",None)
         setattr(args,"launch",None)
+        if "istemplate" in newargs and newargs["istemplate"]:
+            auto_set_backend_cli()
     except Exception as e:
         print(f"Reload New Config Failed: {e}")
 

@@ -19,7 +19,7 @@ KoboldCpp is an easy-to-use AI text-generation software for GGML and GGUF models
 - Includes multiple modes (chat, adventure, instruct, storywriter) and UI Themes (aesthetic roleplay, classic writer, corporate assistant, messsenger)
 - Supports loading Tavern Character Cards, importing many different data formats from various sites, reading or exporting JSON savefiles and persistent stories.
 - Many other features including new samplers, regex support, websearch, RAG via TextDB and more.
-- Ready-to-use binaries for Windows, MacOS, Linux, Android (via Termux), Colab, Docker, also supports other platforms if self-compiled (like Raspberry PI).
+- Ready-to-use binaries for Windows, MacOS, Linux. Runs directly with Colab, Docker, also supports other platforms if self-compiled (like  Android (via Termux) and Raspberry PI).
 - [Need help finding a model? Read this!](https://github.com/LostRuins/koboldcpp/wiki#getting-an-ai-model-file)
 
 ## Windows Usage (Precompiled Binary, Recommended)
@@ -31,7 +31,7 @@ KoboldCpp is an easy-to-use AI text-generation software for GGML and GGUF models
 - You can also run it using the command line. For info, please check `koboldcpp.exe --help`
 
 ## Linux Usage (Precompiled Binary, Recommended)
-On modern Linux systems, you should download the `koboldcpp-linux-x64-cuda1150` prebuilt PyInstaller binary on the **[releases page](https://github.com/LostRuins/koboldcpp/releases/latest)**. Simply download and run the binary (You may have to `chmod +x` it first).
+On modern Linux systems, you should download the `koboldcpp-linux-x64-cuda1150` prebuilt PyInstaller binary for greatest compatibility on the **[releases page](https://github.com/LostRuins/koboldcpp/releases/latest)**. Simply download and run the binary (You may have to `chmod +x` it first). If you have a newer device, you can also try the `koboldcpp-linux-x64-cuda1210` instead for better speeds.
 
 Alternatively, you can also install koboldcpp to the current directory by running the following terminal command:
 ```

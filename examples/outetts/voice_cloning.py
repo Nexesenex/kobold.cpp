@@ -9,7 +9,7 @@ model_config = outetts.HFModelConfig_v1(
 interface = outetts.InterfaceHF(model_version="0.2", cfg=model_config)
 
 speaker = interface.create_speaker(
-    audio_path="/path/to/audio.wav",
+    audio_path="input_audio.wav",
 
     # If transcript is not provided, it will be automatically transcribed using Whisper
     transcript=None,            # Set to None to use Whisper for transcription

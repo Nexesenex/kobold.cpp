@@ -6,11 +6,11 @@ import numpy as np
 from gguf import *
 from transformers import (
     AutoProcessor,
-    Qwen2VLForConditionalGeneration,
-    Qwen2_5_VLForConditionalGeneration,
-    Qwen2VLProcessor,
     Qwen2VLConfig,
-    Qwen2_5_VLConfig,
+    Qwen2VLProcessor,
+    Qwen2VLForConditionalGeneration,
+    Qwen2_5_VLConfig, # type: ignore[reportAttributeAccessIssue]
+    Qwen2_5_VLForConditionalGeneration, # type: ignore[reportAttributeAccessIssue]
 )
 
 
@@ -102,7 +102,7 @@ def main(args):
         np_dtype = np.float32
         ftype = 0
     elif args.data_type == 'fp16':
-        dtype = torch.float32
+        dtype = torch.float16
         np_dtype = np.float16
         ftype = 1
     else:

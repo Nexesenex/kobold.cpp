@@ -1,5 +1,5 @@
 #include "build-info.h"
-#include "common.h"
+#include "common/common.h"
 #include "llama.h"
 
 #include <cstdio>

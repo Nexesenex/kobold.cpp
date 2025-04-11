@@ -62,6 +62,7 @@ struct SDParams {
     std::string lora_model_dir;
     std::string output_path = "output.png";
     std::string input_path;
+    std::string mask_path;
     std::string control_image_path;
 
     std::string prompt;
@@ -69,6 +70,7 @@ struct SDParams {
     float min_cfg     = 1.0f;
     float cfg_scale   = 7.0f;
     float guidance    = 3.5f;
+    float eta         = 0.f;
     float style_ratio = 20.f;
     int clip_skip     = -1;  // <= 0 represents unspecified
     int width         = 512;
@@ -99,9 +101,9 @@ struct SDParams {
     int upscale_repeats           = 1;
 
     std::vector<int> skip_layers = {7, 8, 9};
-    float slg_scale              = 0.;
-    float skip_layer_start       = 0.01;
-    float skip_layer_end         = 0.2;
+    float slg_scale              = 0.f;
+    float skip_layer_start       = 0.01f;
+    float skip_layer_end         = 0.2f;
 };
 
 //shared
@@ -113,6 +115,7 @@ static sd_ctx_t * sd_ctx = nullptr;
 static int sddebugmode = 0;
 static std::string recent_data = "";
 static uint8_t * input_image_buffer = NULL;
+static uint8_t * input_mask_buffer = NULL;
 
 static std::string sdplatformenv, sddeviceenv, sdvulkandeviceenv;
 static bool notiling = false;
@@ -317,6 +320,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
     std::string cleanprompt = clean_input_prompt(inputs.prompt);
     std::string cleannegprompt = clean_input_prompt(inputs.negative_prompt);
     std::string img2img_data = std::string(inputs.init_images);
+    std::string img2img_mask = std::string(inputs.mask);
     std::string sampler = inputs.sample_method;
 
     sd_params->prompt = cleanprompt;
@@ -351,6 +355,10 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
         newheight = newheight - (newheight%64);
         sd_params->width = newwidth;
         sd_params->height = newheight;
+        if(!sd_is_quiet && sddebugmode==1)
+        {
+            printf("\nDownscale to %dx%d as %d > %d\n",newwidth,newheight,biggestdim,reslimit);
+        }
     }
     bool dotile = (sd_params->width>768 || sd_params->height>768) && !notiling;
     set_sd_vae_tiling(sd_ctx,dotile); //changes vae tiling, prevents memory related crash/oom
@@ -358,11 +366,14 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
     //for img2img
     sd_image_t input_image = {0,0,0,nullptr};
     std::vector<uint8_t> image_buffer;
+    std::vector<uint8_t> image_mask_buffer;
     int nx, ny, nc;
+    int nx2, ny2, nc2;
     int img2imgW = sd_params->width; //for img2img input
     int img2imgH = sd_params->height;
     int img2imgC = 3; // Assuming RGB image
     std::vector<uint8_t> resized_image_buf(img2imgW * img2imgH * img2imgC);
+    std::vector<uint8_t> resized_mask_buf(img2imgW * img2imgH * img2imgC);
 
     std::string ts = get_timestamp_str();
     if(!sd_is_quiet)
@@ -429,6 +440,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
                           sd_params->clip_skip,
                           sd_params->cfg_scale,
                           sd_params->guidance,
+                          sd_params->eta,
                           sd_params->width,
                           sd_params->height,
                           sd_params->sample_method,
@@ -461,6 +473,11 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
              stbi_image_free(input_image_buffer);
              input_image_buffer = nullptr;
         }
+         if(input_mask_buffer!=nullptr) //just in time free old buffer
+        {
+             stbi_image_free(input_mask_buffer);
+             input_mask_buffer = nullptr;
+        }
 
         input_image_buffer = stbi_load_from_memory(image_buffer.data(), image_buffer.size(), &nx, &ny, &nc, 3);
 
@@ -486,10 +503,40 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
             return output;
         }
 
+        if(img2img_mask!="")
+        {
+            image_mask_buffer = kcpp_base64_decode(img2img_mask);
+            input_mask_buffer = stbi_load_from_memory(image_mask_buffer.data(), image_mask_buffer.size(), &nx2, &ny2, &nc2, 1);
+            // Resize the image
+            int resok = stbir_resize_uint8(input_mask_buffer, nx2, ny2, 0, resized_mask_buf.data(), img2imgW, img2imgH, 0, 1);
+            if (!resok) {
+                printf("\nKCPP SD: resize image failed!\n");
+                output.data = "";
+                output.status = 0;
+                return output;
+            }
+            if(inputs.flip_mask)
+            {
+                int bufsiz = resized_mask_buf.size();
+                for (int i = 0; i < bufsiz; ++i) {
+                    resized_mask_buf[i] = 255 - resized_mask_buf[i];
+                }
+            }
+        }
+
         input_image.width = img2imgW;
         input_image.height = img2imgH;
         input_image.channel = img2imgC;
         input_image.data = resized_image_buf.data();
+
+        uint8_t* mask_image_buffer    = NULL;
+        std::vector<uint8_t> default_mask_image_vec(img2imgW * img2imgH * img2imgC, 255);
+        if (img2img_mask != "") {
+            mask_image_buffer = resized_mask_buf.data();
+        } else {
+            mask_image_buffer = default_mask_image_vec.data();
+        }
+        sd_image_t mask_image = { (uint32_t) img2imgW, (uint32_t) img2imgH, 1, mask_image_buffer };
 
         if(!sd_is_quiet && sddebugmode==1)
         {
@@ -510,11 +557,13 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
 
         results = img2img(sd_ctx,
                             input_image,
+                            mask_image,
                             sd_params->prompt.c_str(),
                             sd_params->negative_prompt.c_str(),
                             sd_params->clip_skip,
                             sd_params->cfg_scale,
                             sd_params->guidance,
+                            sd_params->eta,
                             sd_params->width,
                             sd_params->height,
                             sd_params->sample_method,
