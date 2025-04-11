@@ -813,5 +813,5 @@ if __name__ == '__main__':
 # This code is from https://github.com/ggml-org/llama.cpp/blob/82974011f312057b446c27267105bd7ad3810599/examples/json_schema_to_grammar.py (MIT license)
 # 1. Extract commands using lite - JSON.stringify(getCommandsSchema())
 # 2. Put the JSON output in a file and run this one on it to get the GNBF (json_schema_to_grammar.py examples\AgentGrammar.json)
-# 3. Put it into the grammar box and confirm
+# 3. Put it into the grammar box and confirm (removing any wrapped lined from console)
 # 4. Run JSON.stringify(localsettings.grammar) and update the GNBF embedded in Lite

@@ -473,10 +473,14 @@
                             "properties": {
                                 "prompt": {
                                     "type": "string"
+                                },
+                                "aspect": {
+                                    "type": "string"
                                 }
                             },
                             "required": [
-                                "prompt"
+                                "prompt",
+                                "aspect"
                             ]
                         }
                     },
