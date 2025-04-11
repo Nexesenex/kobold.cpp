@@ -20361,6 +20361,7 @@ Current version indicated by LITEVER below.
 		`<style>
 			.you-portrait-image`+classSuffixStr+` {margin: 10px 6px; background:url(`+ as.you_portrait +`); background-clip: content-box; background-position: 50% 50%; background-size: 100% 100%; background-origin: content-box; background-repeat: no-repeat; border:none;}
 			.AI-portrait-image`+classSuffixStr+` {margin: 10px 6px; background:url(`+ (as.AI_portrait!="default"?as.AI_portrait:niko_square) +`); background-clip: content-box; background-position: 50% 50%; background-size: 100% 100%; background-origin: content-box; background-repeat: no-repeat; border:none;}
+			.System-portrait-image`+classSuffixStr+` {margin: 10px 6px; background:url(${favivon_normal}); background-clip: content-box; background-position: 50% 50%; background-size: 100% 100%; background-origin: content-box; background-repeat: no-repeat; border:none;}
 		</style>
 		`;
 
@@ -20539,9 +20540,13 @@ Current version indicated by LITEVER below.
 			}
 			return [blocks.join(''),codestashes];
 		}
+
 		function transformInputToAestheticStyle(bodyStr, isPreview) { // Trim unnecessary empty space and new lines, and append * or " to each bubble if start/end sequence ends with * or ", to preserve styling.
+		
+			let sys = "system"
 			bodyStr = bodyStr.replaceAll(you + '\n', you).replaceAll(you + ' ', you).replaceAll(you, style('you') + `${you.endsWith('*') ? '*' : ''}` + `${you.endsWith('"') ? '"' : ''}`);
 			bodyStr = bodyStr.replaceAll(bot + '\n', bot).replaceAll(bot + ' ', bot).replaceAll(bot, style('AI') + `${bot.endsWith('*') ? '*' : ''}` + `${bot.endsWith('"') ? '"' : ''}`);
+			bodyStr = bodyStr.replaceAll(sys + '\n', sys).replaceAll(sys + ' ', sys).replaceAll(sys, style('sys') + `${sys.endsWith('*') ? '*' : ''}` + `${sys.endsWith('"') ? '"' : ''}`);
 
 			//for adventure mode, highlight our actions with blockquotes
 			if (localsettings.opmode == 2) {
