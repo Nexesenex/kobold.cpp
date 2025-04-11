@@ -8,6 +8,9 @@ env:
 jobs:
   linux:
     runs-on: ubuntu-22.04
+    container:
+      image: ubuntu:20.04
+      options: --privileged
     steps:
       - name: Clone
         id: checkout
@@ -18,8 +21,18 @@ jobs:
       - name: Dependencies
         id: depends
         run: |
-          sudo apt-get update
-          sudo apt-get install git curl bzip2
+          apt-get update
+          apt-get install -y sudo
+          export DEBIAN_FRONTEND=noninteractive
+          sudo ln -fs /usr/share/zoneinfo/UTC /etc/localtime
+          echo "tzdata tzdata/Areas select Etc" | sudo debconf-set-selections
+          echo "tzdata tzdata/Zones/Etc select UTC" | sudo debconf-set-selections
+          sudo apt-get -y install git curl bzip2 python3-tk tcl tk
+
+      - name: Set Tcl/Tk Paths
+        run: |
+          echo "TCL_LIBRARY=$(find /usr/lib/ -name 'tcl8*' | head -n 1)" >> $GITHUB_ENV
+          echo "TK_LIBRARY=$(find /usr/lib/ -name 'tk8*' | head -n 1)" >> $GITHUB_ENV
 
       - name: Build
         id: make_build

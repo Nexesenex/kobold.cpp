@@ -38,8 +38,6 @@
     "search": ["System role not supported", "<start_of_turn>"],
     "name": "Google Gemma 2.",
     "adapter": {
-        "system_start": "<start_of_turn>user\n",
-        "system_end": "<end_of_turn>\n",
         "user_start": "<start_of_turn>user\n",
         "user_end": "<end_of_turn>\n",
         "assistant_start": "<start_of_turn>model\n",
@@ -49,8 +47,6 @@
     "search": ["<start_of_image>", "<start_of_turn>", "<end_of_turn>"],
     "name": "Google Gemma 3.",
     "adapter": {
-        "system_start": "<start_of_turn>user\n",
-        "system_end": "<end_of_turn>\n",
         "user_start": "<start_of_turn>user\n",
         "user_end": "<end_of_turn>\n",
         "assistant_start": "<start_of_turn>model\n",

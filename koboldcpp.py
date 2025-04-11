@@ -56,10 +56,10 @@ dry_seq_break_max = 512
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.87200"
-LcppVersion = "b5038"
+KcppVersion = "1.87400"
+LcppVersion = "b5057"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/04/03"
+ReleaseDate = "2025/04/08"
 showdebug = True
 # guimode = False
 kcpp_instance = None #global running instance
@@ -402,6 +402,9 @@ def get_default_threads():
     processor = platform.processor()
     if 'Intel' in processor:
         default_threads = (8 if default_threads > 8 else default_threads) #this helps avoid e-cores.
+    if default_threads > 48:
+        print(f"Auto CPU Threads capped at 48 (instead of {default_threads}). You can override this by passing an explicit number of --threads.")
+        default_threads = 48
     return default_threads
 
 def pick_existant_file(ntoption,nonntoption):
@@ -794,6 +797,22 @@ def string_contains_or_overlaps_sequence_substring(inputstr, sequences):
         if string_has_overlap(inputstr, s, 10):
             return True
     return False
+
+def truncate_long_json(data, max_length):
+    if isinstance(data, dict):
+        new_data = {}
+        for key, value in data.items():
+            if isinstance(value, str):
+                new_data[key] = value[:max_length] + "..." if len(value) > max_length else value
+            else:
+                new_data[key] = truncate_long_json(value, max_length)
+        return new_data
+    elif isinstance(data, list):
+        return [truncate_long_json(item, max_length) for item in data]
+    elif isinstance(data, str):
+        return data[:max_length] + "..." if len(data) > max_length else data
+    else:
+        return data
 
 def get_capabilities():
     global savedata_obj, has_multiplayer, KcppVersion, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath, embeddingsmodelpath
@@ -1526,11 +1545,12 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
 def fetch_gpu_properties(testCL,testCU,testVK):
     import subprocess
 
+    gpumem_ignore_limit = 1024*1024*600
+
     if testCU:
         FetchedCUdevices = []
         FetchedCUdeviceMem = []
         FetchedCUfreeMem = []
-        faileddetectvram = False
 
         AMDgpu = None
         try: # Get NVIDIA GPU names
@@ -1541,7 +1561,6 @@ def fetch_gpu_properties(testCL,testCU,testVK):
         except Exception:
             FetchedCUdeviceMem = []
             FetchedCUfreeMem = []
-            faileddetectvram = True
             pass
         if len(FetchedCUdevices)==0:
             try: # Get AMD ROCm GPU names
@@ -1563,11 +1582,25 @@ def fetch_gpu_properties(testCL,testCU,testVK):
             except Exception:
                 FetchedCUdeviceMem = []
                 FetchedCUfreeMem = []
-                faileddetectvram = True
                 pass
 
         # lowestcumem = 0
         # lowestfreecumem = 0
+        # try:
+            # for idx in range(0,4):
+                # if(len(FetchedCUdevices)>idx):
+                    # CUDevicesNames[idx] = FetchedCUdevices[idx]
+            # for idx in range(0,4):
+                # if(len(FetchedCUdevices)>idx):
+                    # if len(FetchedCUdeviceMem)>idx:
+                        # dmem = int(FetchedCUdeviceMem[idx]) if AMDgpu else (int(FetchedCUdeviceMem[idx])*1024*1024)
+                        # lowestcumem = dmem if lowestcumem==0 else (dmem if dmem<lowestcumem else lowestcumem)
+                    # if len(FetchedCUfreeMem)>idx:
+                        # dmem = (int(FetchedCUfreeMem[idx])*1024*1024)
+                        # lowestfreecumem = dmem if lowestfreecumem==0 else (dmem if dmem<lowestfreecumem else lowestfreecumem)
+        # except Exception:
+            # lowestcumem = 0
+            # lowestfreecumem = 0
 
         for idx in range(0,16):
             if(len(FetchedCUdevices)>idx):
@@ -1638,8 +1671,12 @@ def fetch_gpu_properties(testCL,testCU,testVK):
             # lowestfreecumem = 0
             # faileddetectvram = True
 
+        if MaxMemory[0] < (1024*1024*256):
+            print("Unable to detect VRAM, please set layers manually.")
+
     if testVK:
         try: # Get Vulkan names
+            foundVkGPU = False
             output = subprocess.run(['vulkaninfo','--summary'], capture_output=True, text=True, check=True, encoding='utf-8', timeout=10).stdout
             devicelist = [line.split("=")[1].strip() for line in output.splitlines() if "deviceName" in line]
             devicetypes = [line.split("=")[1].strip() for line in output.splitlines() if "deviceType" in line]
@@ -1652,8 +1689,31 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                 idx = 0
                 for dvtype in devicetypes:
                     if idx<len(VKIsDGPU):
-                        VKIsDGPU[idx] = (1 if dvtype=="PHYSICAL_DEVICE_TYPE_DISCRETE_GPU" else 0)
+                        typeflag = (1 if dvtype=="PHYSICAL_DEVICE_TYPE_DISCRETE_GPU" else 0)
+                        VKIsDGPU[idx] = typeflag
+                        if typeflag:
+                            foundVkGPU = True
                         idx += 1
+
+            if foundVkGPU:
+                try: # Try get vulkan memory (experimental)
+                    output = subprocess.run(['vulkaninfo'], capture_output=True, text=True, check=True, encoding='utf-8', timeout=10).stdout
+                    devicechunks = output.split("VkPhysicalDeviceMemoryProperties")[1:]
+                    gpuidx = 0
+                    lowestvkmem = 0
+                    for chunk in devicechunks:
+                        heaps = chunk.split("memoryTypes:")[0].split("memoryHeaps[")[1:]
+                        snippet = heaps[0]
+                        if "MEMORY_HEAP_DEVICE_LOCAL_BIT" in snippet and "size" in snippet:
+                            match = re.search(r"size\s*=\s*(\d+)", snippet)
+                            if match:
+                                dmem = int(match.group(1))
+                                if dmem > gpumem_ignore_limit:
+                                    lowestvkmem = dmem if lowestvkmem==0 else (dmem if dmem<lowestvkmem else lowestvkmem)
+                        gpuidx += 1
+                except Exception: # failed to get vulkan vram
+                    pass
+            MaxMemory[0] = max(lowestvkmem,MaxMemory[0])
         except Exception:
             pass
 
@@ -1679,7 +1739,8 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                     idx = plat+dev*2
                     if idx<len(CLDevices):
                         CLDevicesNames[idx] = dname
-                        lowestclmem = dmem if lowestclmem==0 else (dmem if dmem<lowestclmem else lowestclmem)
+                        if dmem > gpumem_ignore_limit:
+                            lowestclmem = dmem if lowestclmem==0 else (dmem if dmem<lowestclmem else lowestclmem)
                     dev += 1
                 plat += 1
             MaxMemory[0] = max(lowestclmem,MaxMemory[0])
@@ -3448,11 +3509,12 @@ Enter Prompt:<br>
         body = None
         if contlenstr:
             content_length = int(contlenstr)
-            if content_length > (1024*1024*32): #32mb payload limit
+            max_pl = int(args.maxrequestsize) if args.maxrequestsize else 32
+            if content_length > (1024*1024*max_pl): #payload size limit
                 self.send_response(500)
                 self.end_headers(content_type='application/json')
                 self.wfile.write(json.dumps({"detail": {
-                "msg": "Payload is too big. Max payload size is 32MB.",
+                "msg": f"Payload is too big. Max payload size is {max_pl}MB.",
                 "type": "bad_input",
                 }}).encode())
                 return
@@ -3468,11 +3530,11 @@ Enter Prompt:<br>
                     if line:
                         chunk_length = max(0,int(line, 16))
                         content_length += chunk_length
-                    if not line or chunklimit > 512 or content_length > (1024*1024*32): #32mb payload limit
+                    if not line or chunklimit > 512 or content_length > (1024*1024*48): #48mb payload limit
                         self.send_response(500)
                         self.end_headers(content_type='application/json')
                         self.wfile.write(json.dumps({"detail": {
-                        "msg": "Payload is too big. Max payload size is 32MB.",
+                        "msg": "Payload is too big. Max payload size is 48MB.",
                         "type": "bad_input",
                         }}).encode())
                         return
@@ -3881,17 +3943,11 @@ Enter Prompt:<br>
                         }}).encode())
                         return
 
-
-                tmpimgs = genparams.get("images", []) # reduce amount of text printed to terminal when dumping large images
-                if tmpimgs and isinstance(tmpimgs, (list, tuple)) and len(tmpimgs)>0:
-                    printablegenparams = copy.deepcopy(genparams)
-                    outarr = []
-                    for img in tmpimgs:
-                        outarr.append(str(img[:512])+"...")
-                    printablegenparams["images"] = outarr
-                    utfprint("\nInput: " + json.dumps(printablegenparams),1)
-                else:
-                    utfprint("\nInput: " + json.dumps(genparams),1)
+                trunc_len = 8000
+                if args.debugmode >= 1:
+                    trunc_len = 16000
+                printablegenparams = truncate_long_json(genparams,trunc_len)
+                utfprint("\nInput: " + json.dumps(printablegenparams),1)
 
                 if args.foreground:
                     bring_terminal_to_foreground()
@@ -4396,6 +4452,7 @@ def show_gui():
     ssl_cert_var = ctk.StringVar()
     ssl_key_var = ctk.StringVar()
     password_var = ctk.StringVar()
+    maxrequestsize_var = ctk.StringVar(value=str(32))
 
     sd_model_var = ctk.StringVar()
     sd_lora_var = ctk.StringVar()
@@ -4974,6 +5031,9 @@ def show_gui():
     makefileentry(network_tab, "SSL Key:", "Select SSL key.pem file", ssl_key_var, 9, width=200, filetypes=[("Unencrypted Key PEM", "*.pem")], singlerow=True, singlecol=False, tooltiptxt="Select your unencrypted .pem SSL key file for https.\nCan be generated with OpenSSL.")
     makelabelentry(network_tab, "Password: ", password_var, 10, 200,tooltip="Enter a password required to use this instance.\nThis key will be required for all text endpoints.\nImage endpoints are not secured.")
 
+    makelabelentry(network_tab, "Max Req. Size (MB):", maxrequestsize_var, row=20, width=50, tooltip="Specify a max request payload size. Any requests to the server larger than this size will be dropped. Do not change if unsure.")
+
+
     # Horde Tab
     horde_tab = tabcontent["Horde Worker"]
     makelabel(horde_tab, "Horde:", 18,0,"Settings for embedded AI Horde worker").grid(pady=10)
@@ -5074,7 +5134,7 @@ def show_gui():
         file_type = [("KoboldCpp/Croco.Cpp LaunchTemplate", "*.kcppt")]
         #remove blacklisted fields
         savdict = convert_args_to_template(savdict)
-        filename = asksaveasfilename(filetypes=file_type, defaultextension=file_type)
+        filename = asksaveasfilename(filetypes=file_type, defaultextension=".kcppt")
         if not filename:
             return
         filenamestr = str(filename).strip()
@@ -5118,7 +5178,7 @@ def show_gui():
 
     def export_vars():
         nonlocal kcpp_exporting_template
-        args.threads = int(threads_var.get())
+        args.threads =  (get_default_threads() if threads_var.get()=="" else int(threads_var.get()))
         args.usemlock   = usemlock.get() == 1
         args.debugmode  = debugmode.get()
         args.launch     = launchbrowser.get()==1
@@ -5185,7 +5245,7 @@ def show_gui():
             if runopts_var.get() == "Use Vulkan (Old CPU)":
                 args.noavx2 = True
         if gpulayers_var.get():
-            args.gpulayers = int(gpulayers_var.get())
+            args.gpulayers = (0 if gpulayers_var.get()=="" else int(gpulayers_var.get()))
         if runopts_var.get()=="Use CPU":
             args.usecpu = True
         if runopts_var.get()=="Use CPU (Old CPU)":
@@ -5258,6 +5318,7 @@ def show_gui():
         args.multiuser = multiuser_var.get()
         args.multiplayer = (multiplayer_var.get()==1)
         args.websearch = (websearch_var.get()==1)
+        args.maxrequestsize = int(maxrequestsize_var.get()) if maxrequestsize_var.get()!="" else 32
 
         if usehorde_var.get() != 0:
             args.hordemodelname = horde_name_var.get()
@@ -5308,7 +5369,7 @@ def show_gui():
             args.ttsmodel = tts_model_var.get()
             args.ttswavtokenizer = wavtokenizer_var.get()
             args.ttsgpu = (ttsgpu_var.get()==1)
-            args.ttsmaxlen = int(ttsmaxlen_var.get())
+            args.ttsmaxlen = (default_ttsmaxlen if ttsmaxlen_var.get()=="" else int(ttsmaxlen_var.get()))
 
         args.admin = (admin_var.get()==1 and not args.cli)
         args.admindir = admin_dir_var.get()
@@ -5482,6 +5543,8 @@ def show_gui():
         horde_apikey_var.set(dict["hordekey"] if ("hordekey" in dict and dict["hordekey"]) else "")
         horde_workername_var.set(dict["hordeworkername"] if ("hordeworkername" in dict and dict["hordeworkername"]) else "")
         usehorde_var.set(1 if ("hordekey" in dict and dict["hordekey"]) else 0)
+        if "maxrequestsize" in dict and dict["maxrequestsize"]:
+            maxrequestsize_var.set(dict["maxrequestsize"])
 
         sd_model_var.set(dict["sdmodel"] if ("sdmodel" in dict and dict["sdmodel"]) else "")
         sd_clamped_var.set(int(dict["sdclamped"]) if ("sdclamped" in dict and dict["sdclamped"]) else 0)
@@ -5520,12 +5583,14 @@ def show_gui():
         kcpp_exporting_template = False
         export_vars()
         savdict = json.loads(json.dumps(args.__dict__))
+
         file_type = [("KoboldCpp/Croco.Cpp Settings", "*.kcpps")]
-        filename = asksaveasfilename(filetypes=file_type, defaultextension=file_type)
+        filename = asksaveasfilename(filetypes=file_type, defaultextension=".kcpps")
+
         if not filename:
             return
-        filenamestr = str(filename).strip().lower()
-        if not filenamestr.endswith(".kcpps"):
+        filenamestr = str(filename).strip()
+        if not filenamestr.lower().endswith(".kcpps"):
             filenamestr += ".kcpps"
         file = open(filenamestr, 'w')
         file.write(json.dumps(savdict))
@@ -5535,7 +5600,7 @@ def show_gui():
     def load_config_gui(): #this is used to populate the GUI with a config file, whereas load_config_cli simply overwrites cli args
         file_type = [("KoboldCpp/Croco.Cpp Settings", "*.kcpps *.kcppt")]
         global runmode_untouched
-        filename = askopenfilename(filetypes=file_type, defaultextension=file_type, initialdir=None)
+        filename = askopenfilename(filetypes=file_type, defaultextension=".kcppt", initialdir=None)
         if not filename or filename=="":
             return
         runmode_untouched = False
@@ -7285,7 +7350,7 @@ if __name__ == '__main__':
 
     advparser.add_argument("--defaultgenamt", help="How many tokens to generate by default, if not specified. Must be smaller than context size. Usually, your frontend GUI will override this.", type=check_range(int,128,2048), default=512)
     advparser.add_argument("--nobostoken", help="Prevents BOS token from being added at the start of any prompt. Usually NOT recommended for most models.", action='store_true')
-
+    advparser.add_argument("--maxrequestsize", metavar=('[size in MB]'), help="Specify a max request payload size. Any requests to the server larger than this size will be dropped. Do not change if unsure.", type=int, default=32)
     compatgroup2 = parser.add_mutually_exclusive_group()
     compatgroup2.add_argument("--showgui", help="Always show the GUI instead of launching the model right away when loading settings from a .kcpps file.", action='store_true')
     compatgroup2.add_argument("--skiplauncher", help="Doesn't display or use the GUI launcher.", action='store_true')
