@@ -24481,7 +24481,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	let split = (input, ...delimiters) => {
 		let output = [], currentString = input, i = 0
 
-		while (currentString.length > 0 && i < 100)
+		while (currentString.length > 0 && i < 100000)
 		{
 			i++
 			let splitPositions = delimiters.map(delimiter => currentString.indexOf(delimiter)).filter(pos => pos > -1).sort()
