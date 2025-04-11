@@ -241,10 +241,14 @@
                             "properties": {
                                 "text": {
                                     "type": "string"
+                                },
+                                "keywords": {
+                                    "type": "array"
                                 }
                             },
                             "required": [
-                                "text"
+                                "text",
+                                "keywords"
                             ]
                         }
                     },
@@ -433,10 +437,14 @@
                             "properties": {
                                 "prompt": {
                                     "type": "string"
+                                },
+                                "aspect": {
+                                    "type": "string"
                                 }
                             },
                             "required": [
-                                "prompt"
+                                "prompt",
+                                "aspect"
                             ]
                         }
                     },
