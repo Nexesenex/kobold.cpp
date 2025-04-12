@@ -1349,7 +1349,7 @@ static void ggml_cuda_op_mul_mat_cublas(
             GGML_ASSERT(to_bf16_cuda != nullptr);
             size_t ne = src1_ncols*ne10;
             src1_as_bf16.alloc(ne);
-            to_bf16_cuda(src1_ddf_i, src1_as_bf16.get(), ne, stream);
+            to_bf16_cuda(src1_ddf_i, src1_as_bf16.get(), src1_ncols, ne10, stream);
         }
         const nv_bfloat16 * src1_ptr = src1->type == GGML_TYPE_BF16 ? (const nv_bfloat16 *) src1_ddf_i : src1_as_bf16.get();
         const nv_bfloat16 * src0_ptr = (const nv_bfloat16 *)src0_dd_i;
@@ -1369,7 +1369,7 @@ static void ggml_cuda_op_mul_mat_cublas(
                     CUBLAS_GEMM_DEFAULT_TENSOR_OP));
 
         const to_fp32_cuda_t to_fp32_cuda = ggml_get_to_fp32_cuda(GGML_TYPE_BF16);
-        to_fp32_cuda(dst_bf16.get(), dst_dd_i, row_diff*src1_ncols, stream);
+        to_fp32_cuda(dst_bf16.get(), dst_dd_i, row_diff, src1_ncols, stream);
     } else if (((GGML_CUDA_CC_IS_NVIDIA(cc) && cc >= GGML_CUDA_CC_VOLTA) || GGML_CUDA_CC_IS_AMD(cc)) && use_fp16) {
         // convert src0 and src1 to fp16, multiply as fp16, convert dst to fp32
         ggml_cuda_pool_alloc<half> src0_as_f16(ctx.pool(id));
