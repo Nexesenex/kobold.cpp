@@ -152,6 +152,9 @@ else
 endif # LLAMA_NOAVX2
 else
 	CFLAGS += -march=native -mtune=native
+	SIMPLECFLAGS += -march=native -mtune=native
+	SIMPLERCFLAGS += -march=native -mtune=native
+	FULLCFLAGS += -march=native -mtune=native
 endif # LLAMA_PORTABLE
 endif # if x86
 

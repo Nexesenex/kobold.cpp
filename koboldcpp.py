@@ -742,6 +742,23 @@ def truncate_long_json(data, max_length):
     else:
         return data
 
+def convert_json_to_gbnf(json_obj):
+    try:
+        from json_to_gbnf import SchemaConverter
+        prop_order = []
+        converter = SchemaConverter(
+        prop_order={name: idx for idx, name in enumerate(prop_order)},
+        allow_fetch=False,
+        dotall=False,
+        raw_pattern=False)
+        schema = json.loads(json.dumps(json_obj))
+        converter.visit(schema, '')
+        outstr = converter.format_grammar()
+        return outstr
+    except Exception as e:
+        print(f"JSON to GBNF failed: {e}")
+        return ""
+
 def get_capabilities():
     global savedata_obj, has_multiplayer, KcppVersion, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath, embeddingsmodelpath
     has_llm = not (friendlymodelname=="inactive")
@@ -2070,6 +2087,7 @@ def transform_genparams(genparams, api_format):
                         elif item['type']=="image_url":
                             if 'image_url' in item and item['image_url'] and item['image_url']['url'] and item['image_url']['url'].startswith("data:image"):
                                 images_added.append(item['image_url']['url'].split(",", 1)[1])
+                                messages_string += "\n(Attached Image)\n"
                 # If last message, add any tools calls after message content and before message end token if any
                 if message['role'] == "user" and message_index == len(messages_array):
                     # Check if user is passing a openai tools array, if so add to end of prompt before assistant prompt unless tool_choice has been set to None
@@ -3149,6 +3167,19 @@ Enter Prompt:<br>
                 response_body = (json.dumps({"result": detokstr,"success":True}).encode())
             except Exception as e:
                 utfprint("Detokenize Error: " + str(e))
+                response_code = 400
+                response_body = (json.dumps({"result": "","success":False}).encode())
+
+        elif self.path.endswith('/api/extra/json_to_grammar'):
+            if not self.secure_endpoint():
+                return
+            try:
+                genparams = json.loads(body)
+                schema = genparams.get('schema', {})
+                decoded = convert_json_to_gbnf(schema)
+                response_body = (json.dumps({"result": decoded,"success":(True if decoded else False)}).encode())
+            except Exception as e:
+                utfprint("JSON to Grammar Error: " + str(e))
                 response_code = 400
                 response_body = (json.dumps({"result": "","success":False}).encode())
 
@@ -4409,6 +4440,13 @@ def show_gui():
         num_backends_built.grid(row=1, column=1, padx=205, pady=0)
         num_backends_built.configure(text_color="#00ff00")
 
+    def vulkan_fa_lbl():
+        if flashattention.get()!=0 and (runopts_var.get() == "Use Vulkan" or runopts_var.get() == "Use Vulkan (Old CPU)") and (gpulayers_var.get()!="" and int(gpulayers_var.get())):
+            avoidfalabel.grid()
+        else:
+            avoidfalabel.grid_remove()
+
+
     def gui_changed_modelfile(*args):
         global importvars_in_progress
         if not importvars_in_progress:
@@ -4444,7 +4482,7 @@ def show_gui():
         else:
             layercounter_label.grid_remove()
             quick_layercounter_label.grid_remove()
-        pass
+        vulkan_fa_lbl()
 
     def changed_gpu_choice_var(*args):
         global exitcounter
@@ -4499,8 +4537,7 @@ def show_gui():
             noqkvlabel.grid()
         else:
             noqkvlabel.grid_remove()
-
-
+        vulkan_fa_lbl()
 
     def guibench():
         args.benchmark = "stdout"
@@ -4557,8 +4594,10 @@ def show_gui():
             tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
             tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
             quick_use_flashattn.grid_remove()
+            use_flashattn.grid(row=28, column=0, padx=8, pady=1,  stick="nw")
         else:
             quick_use_flashattn.grid(row=22, column=1, padx=8, pady=1,  stick="nw")
+            use_flashattn.grid(row=28, column=0, padx=8, pady=1,  stick="nw")
 
         if index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Old CPU)" or index == "Use CLBlast (Older CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
             gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
@@ -4577,7 +4616,7 @@ def show_gui():
             quick_gpu_layers_entry.grid_remove()
         changed_gpulayers_estimate()
         changed_gpu_choice_var()
-
+        vulkan_fa_lbl()
 
     # presets selector
     makelabel(quick_tab, "Presets:", 1,0,"Select a backend to use.\nCuBLAS runs on Nvidia GPUs, and is much faster.\nVulkan and CLBlast works on all GPUs but is somewhat slower.\nOtherwise, runs on CPU only.\nNoAVX2 and Failsafe modes support older PCs.")
@@ -4679,11 +4718,6 @@ def show_gui():
     ctk.CTkButton(hardware_tab , text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
 
 
-    runopts_var.trace('w', changerunmode)
-    changerunmode(1,1,1)
-    global runmode_untouched
-    runmode_untouched = True
-
     # Tokens Tab
     tokens_tab = tabcontent["Tokens"]
     # tokens checkboxes
@@ -4706,17 +4740,15 @@ def show_gui():
             else:
                 item.grid_remove()
     makecheckbox(tokens_tab,  "Custom RoPE Config", variable=customrope_var, row=22, command=togglerope,tooltiptxt="Override the default RoPE configuration with custom RoPE scaling.")
-    makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, command=toggleflashattn,  tooltiptxt="Enable flash attention for GGUF models.")
+    use_flashattn = makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, command=toggleflashattn,  tooltiptxt="Enable flash attention for GGUF models.")
     noqkvlabel = makelabel(tokens_tab,"QuantKV works best with flash attention enabled",33,0,"WARNING: NOT RECOMMENDED.\nOnly K cache can be quantized, and performance can suffer.\nIn some cases, it might even use more VRAM when doing a full offload.")
     noqkvlabel.configure(text_color="#ff5555")
+    avoidfalabel = makelabel(tokens_tab,"Flash attention discouraged with Vulkan GPU offload!",35,0,"FlashAttention is discouraged when using Vulkan GPU offload.")
+    avoidfalabel.configure(text_color="#ff5555")
     qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 2, 30, set=0,tooltip="Enable quantization of KV cache.\nRequires FlashAttention for full effect, otherwise only K cache is quantized.")
     quantkv_var.trace("w", toggleflashattn)
     makecheckbox(tokens_tab, "No BOS Token", nobostoken_var, 43, tooltiptxt="Prevents BOS token from being added at the start of any prompt. Usually NOT recommended for most models.")
     makelabelentry(tokens_tab, "MoE Experts:", moeexperts_var, row=45, padx=100, singleline=True, tooltip="Override number of MoE experts.")
-
-    togglerope(1,1,1)
-    toggleflashattn(1,1,1)
-    togglectxshift(1,1,1)
 
     # Model Tab
     model_tab = tabcontent["Loaded Files"]
@@ -4793,7 +4825,6 @@ def show_gui():
             horde_name_var.set(sanitize_string(os.path.splitext(basefile)[0]))
 
     makecheckbox(horde_tab, "Configure for Horde", usehorde_var, 19, command=togglehorde,tooltiptxt="Enable the embedded AI Horde worker.")
-    togglehorde(1,1,1)
 
     # Image Gen Tab
 
@@ -4895,6 +4926,16 @@ def show_gui():
             zenity_permitted = (nozenity_var.get()==0)
         makecheckbox(extra_tab, "Use Classic FilePicker", nozenity_var, 20, tooltiptxt="Use the classic TKinter file picker instead.")
         nozenity_var.trace("w", togglezenity)
+
+    # refresh
+    runopts_var.trace('w', changerunmode)
+    changerunmode(1,1,1)
+    global runmode_untouched
+    runmode_untouched = True
+    togglerope(1,1,1)
+    toggleflashattn(1,1,1)
+    togglectxshift(1,1,1)
+    togglehorde(1,1,1)
 
     # launch
     def guilaunch():
@@ -6466,6 +6507,8 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
 
         if not args.blasthreads or args.blasthreads <= 0:
             args.blasthreads = args.threads
+        if args.flashattention and (args.usevulkan is not None) and args.gpulayers!=0:
+            print("\nWARNING: FlashAttention is strongly discouraged when using Vulkan GPU offload as it is extremely slow!\n")
 
         modelname = os.path.abspath(args.model_param)
         print(args)

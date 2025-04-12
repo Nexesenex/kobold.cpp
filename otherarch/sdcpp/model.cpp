@@ -1749,7 +1749,7 @@ bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb, ggml_backend
     bool success = true;
     for (size_t file_index = 0; file_index < file_paths_.size(); file_index++) {
         std::string file_path = file_paths_[file_index];
-        LOG_DEBUG("loading tensors from %s", file_path.c_str());
+        LOG_DEBUG("loading tensors from %s\n", file_path.c_str());
 
         std::ifstream file(file_path, std::ios::binary);
         if (!file.is_open()) {
@@ -1886,7 +1886,12 @@ bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb, ggml_backend
                 }
             }
             int64_t t2 = ggml_time_ms();
-            pretty_progress(++tensor_count, processed_tensor_storages.size(), (t2 - t1) / 1000.0f);
+            ++tensor_count;
+            if(tensor_count<2 || tensor_count%5==0 || (tensor_count+10) > processed_tensor_storages.size())
+            {
+                //throttle progress printing
+                pretty_progress(tensor_count, processed_tensor_storages.size(), (t2 - t1) / 1000.0f);
+            }
             t1 = t2;
         }
 
