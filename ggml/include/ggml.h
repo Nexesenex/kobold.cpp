@@ -712,10 +712,6 @@ extern "C" {
     GGML_API const char * ggml_op_name  (enum ggml_op   op);
     GGML_API const char * ggml_op_symbol(enum ggml_op   op);
 
-
-    GGML_API const char * ggml_unary_op_name(enum ggml_unary_op op);
-    GGML_API const char * ggml_op_desc(const struct ggml_tensor * t); // unary or op name
-
     GGML_API const char * ggml_unary_op_name(enum ggml_unary_op op);
     GGML_API const char * ggml_op_desc(const struct ggml_tensor * t); // unary or op name
 
