@@ -1984,20 +1984,17 @@ inline static void ggml_vec_sgn_f16 (const int n, ggml_fp16_t * y, const ggml_fp
     }
 }
 inline static void ggml_vec_step_f32 (const int n, float * y, const float * x) { for (int i = 0; i < n; ++i) y[i] = (x[i] > 0.f) ? 1.f : 0.f; }
-
 inline static void ggml_vec_step_f16 (const int n, ggml_fp16_t * y, const ggml_fp16_t * x) {
     for (int i = 0; i < n; ++i) {
         y[i] = GGML_FP32_TO_FP16((GGML_FP16_TO_FP32(x[i]) > 0.f) ? 1.f : 0.f);
     }
 }
-// inline static void ggml_vec_tanh_f32 (const int n, float * y, const float * x) { for (int i = 0; i < n; ++i) y[i] = tanhf(x[i]);  }
-
+inline static void ggml_vec_tanh_f32 (const int n, float * y, const float * x) { for (int i = 0; i < n; ++i) y[i] = tanhf(x[i]);  }
 inline static void ggml_vec_tanh_f16 (const int n, ggml_fp16_t * y, const ggml_fp16_t * x) {
     for (int i = 0; i < n; ++i) {
         y[i] = GGML_FP32_TO_FP16(tanhf(GGML_FP16_TO_FP32(x[i])));
     }
 }
-
 inline static void ggml_vec_elu_f32  (const int n, float * y, const float * x) { for (int i = 0; i < n; ++i) y[i] = (x[i] > 0.f) ? x[i] : expm1f(x[i]); }
 inline static void ggml_vec_elu_f16 (const int n, ggml_fp16_t * y, const ggml_fp16_t * x) {
     for (int i = 0; i < n; ++i) {
@@ -2045,8 +2042,8 @@ inline static void ggml_vec_exp_f16 (const int n, ggml_fp16_t * y, const ggml_fp
     }
 }
 
-static const float GELU_QUICK_COEF = -1.702f;
 static const float GELU_COEF_A     = 0.044715f;
+static const float GELU_QUICK_COEF = -1.702f;
 static const float SQRT_2_OVER_PI  = 0.79788456080286535587989211986876f;
 
 inline static float ggml_gelu_f32(float x) {
@@ -2427,15 +2424,6 @@ inline static __m128 ggml_v_softcap(__m128 x, float s_before, float s_after) {
 
 static void ggml_vec_silu_f32(const int n, float * y, const float * x) {
     int i = 0;
-// #if TRUE //todo: this reverts a working SILU FOR STABLE DIFFUSION CPP CPU
-    // uint16_t t;
-    // for (int i = 0; i < n; ++i) {
-        // ggml_fp16_t fp16 = GGML_FP32_TO_FP16(x[i]);
-        // memcpy(&t, &fp16, sizeof(uint16_t));
-        // y[i] = GGML_FP16_TO_FP32(ggml_table_silu_f16[t]);
-    // }
-    // return;
-// #endif
 #if defined(__AVX512F__) && defined(__AVX512DQ__)
     for (; i + 15 < n; i += 16) {
         _mm512_storeu_ps(y + i, ggml_v_silu(_mm512_loadu_ps(x + i)));
@@ -4998,8 +4986,7 @@ static void ggml_compute_forward_dup(
                     ggml_compute_forward_dup_q(params, dst);
                     break;
                 }
-
-                GGML_ABORT("fatal error, not support forward dup oper from %d ot %d", src0->type, dst->type);
+                GGML_ABORT("fatal error");
             }
     }
 }
@@ -7574,10 +7561,6 @@ UseGgmlGemm1:;
     if (src1->type != vec_dot_type) {
         char * wdata = params->wdata;
 
-#if IK_PRINT_TIMING
-        int64_t t1 = ggml_time_us();
-#endif
-
         const size_t nbw0 = ggml_type_size(vec_dot_type);
         const size_t nbw1 = ggml_row_size(vec_dot_type, ne10);
         const size_t nbw2 = nbw1*ne11;
@@ -7610,12 +7593,6 @@ UseGgmlGemm1:;
             }
         }
     #endif
-
-#if IK_PRINT_TIMING
-        int64_t t2 = ggml_time_us();
-        if (ith == 0) printf("quantize(%s): %d us\n", dst->name, (int)(t2 - t1));
-#endif
-
     }
 
     if (ith == 0) {
@@ -13379,10 +13356,6 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
         return;
     }
 
-#if IK_PRINT_TIMING
-    int64_t t1 = ggml_time_us();
-#endif
-
     switch (tensor->op) {
         case GGML_OP_DUP:
             {
@@ -13761,10 +13734,6 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
                 GGML_ABORT("fatal error");
             }
     }
-#if IK_PRINT_TIMING
-    int64_t t2 = ggml_time_us();
-    if (params->ith == 0) printf("%s(%s): %d us\n", ggml_op_name(tensor->op), tensor->name, (int)(t2 - t1));
-#endif
 }
 
 // Android's libc implementation "bionic" does not support setting affinity
@@ -13889,6 +13858,7 @@ static int ggml_get_n_tasks(struct ggml_tensor * node, int n_threads) {
                 case GGML_UNARY_OP_SGN:
                 case GGML_UNARY_OP_NEG:
                 case GGML_UNARY_OP_STEP:
+                //case GGML_UNARY_OP_TANH:
                 case GGML_UNARY_OP_ELU:
                 case GGML_UNARY_OP_RELU:
                 case GGML_UNARY_OP_SIGMOID:
@@ -14339,7 +14309,7 @@ struct ggml_cplan ggml_graph_plan(
             struct ggml_threadpool * threadpool) {
 
     if (threadpool == NULL) {
-        GGML_PRINT_DEBUG("Threadpool is not specified. Will create a disposable threadpool : n_threads %d\n", n_threads);
+        //GGML_PRINT_DEBUG("Threadpool is not specified. Will create a disposable threadpool : n_threads %d\n", n_threads);
     }
     if (n_threads <= 0) {
         n_threads = threadpool ? threadpool->n_threads_max : GGML_DEFAULT_N_THREADS;
@@ -14796,7 +14766,7 @@ enum ggml_status ggml_graph_compute(struct ggml_cgraph * cgraph, struct ggml_cpl
     bool disposable_threadpool = false;
 
     if (threadpool == NULL) {
-        GGML_PRINT_DEBUG("Threadpool is not specified. Will create a disposable threadpool : n_threads %d\n", n_threads);
+        //GGML_PRINT_DEBUG("Threadpool is not specified. Will create a disposable threadpool : n_threads %d\n", n_threads);
         disposable_threadpool = true;
 
         struct ggml_threadpool_params ttp = ggml_threadpool_params_default(n_threads);
@@ -14855,8 +14825,6 @@ enum ggml_status ggml_graph_compute(struct ggml_cgraph * cgraph, struct ggml_cpl
 
 enum ggml_status ggml_graph_compute_with_ctx(struct ggml_context * ctx, struct ggml_cgraph * cgraph, int n_threads) {
     struct ggml_cplan cplan = ggml_graph_plan(cgraph, n_threads, NULL);
-
-    // struct ggml_object * obj = ggml_new_object(ctx, GGML_OBJECT_TYPE_WORK_BUFFER, cplan.work_size);
 
     cplan.work_data = (uint8_t *)ggml_new_buffer(ctx, cplan.work_size);
 
