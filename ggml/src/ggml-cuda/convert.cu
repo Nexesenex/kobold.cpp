@@ -1198,7 +1198,7 @@ static __global__ void convert_unary(const void * __restrict__ vx, dst_t * __res
 
     const src_t * x = (const src_t *) vx;
 
-    y[i] = x[i];
+    y[i] = float(x[i]);
 }
 
 template <typename dst_t>
@@ -1239,9 +1239,7 @@ static void convert_unary_cuda(const void * __restrict__ vx, dst_t * __restrict_
     convert_unary<src_t><<<num_blocks, CUDA_DEQUANTIZE_BLOCK_SIZE, 0, stream>>>(vx, y, k);
 }
 
-
-
-template <typename dst_t>
+/* template <typename dst_t>
 // static void convert_from_bf16_cuda(const void * __restrict__ vx, dst_t * __restrict__ y, const int64_t k, cudaStream_t stream) {
 static void convert_from_bf16_cuda(const void * __restrict__ vx, dst_t * __restrict__ y, const int64_t nrows, const int64_t n_per_row, cudaStream_t stream) {
     const int64_t k = nrows*n_per_row;
@@ -1255,14 +1253,21 @@ static void convert_to_bf16_cuda(const void * __restrict__ vx, nv_bfloat16 * __r
     const int64_t k = nrows*n_per_row;
     const int num_blocks = (k + CUDA_DEQUANTIZE_BLOCK_SIZE - 1) / CUDA_DEQUANTIZE_BLOCK_SIZE;
     convert_to_bf16<<<num_blocks, CUDA_DEQUANTIZE_BLOCK_SIZE, 0, stream>>>((const src_t *)vx, y, k);
-}
+} */
+
+// to_bf16_cuda_t ggml_get_to_bf16_cuda(ggml_type type) {
+    // switch (type) {
+        // case GGML_TYPE_F32:
+            // return convert_to_bf16_cuda<float>;
+        // case GGML_TYPE_F16:
+            // return convert_to_bf16_cuda<half>;
 
 to_bf16_cuda_t ggml_get_to_bf16_cuda(ggml_type type) {
     switch (type) {
         case GGML_TYPE_F32:
-            return convert_to_bf16_cuda<float>;
+            return convert_unary_cuda<float>;
         case GGML_TYPE_F16:
-            return convert_to_bf16_cuda<half>;
+            return convert_unary_cuda<half>;
         default:
             return nullptr;
     }
@@ -1344,7 +1349,8 @@ to_fp16_cuda_t ggml_get_to_fp16_cuda(ggml_type type) {
         case GGML_TYPE_F32:
             return convert_unary_cuda<float>;
         case GGML_TYPE_BF16:
-            return convert_from_bf16_cuda;
+            // return convert_from_bf16_cuda;
+            return convert_unary_cuda<nv_bfloat16>;
         default:
             return nullptr;
     }
