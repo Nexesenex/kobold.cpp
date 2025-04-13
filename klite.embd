@@ -24488,8 +24488,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 <style>
 	.stopThinking {
 		position: absolute;
-		right: 20px;
-		bottom: 10px;
 		color: red;
 		background: #333;
 		border-radius: 10px;
@@ -25252,6 +25250,21 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			document.getElementById(id).parentElement.appendChild(elem)
 			elem.innerText = "Stop agent thinking"
 			elem.classList.add("hidden")
+			if (id === "input_text")
+			{
+				elem.style.right = "20px";
+				elem.style.bottom = "10px";
+			}
+			else if (id === "cht_inp")
+			{
+				elem.style.right = "100px";
+				elem.style.bottom = "0px";
+			}
+			else if (id === "corpo_cht_inp")
+			{
+				elem.style.right = "50px";
+				elem.style.bottom = "0px";
+			}
 			elem.onclick = () => {
 				endCurrent = true
 				elem.classList.add("hidden")
@@ -25280,11 +25293,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		removeChoiceContainer()
 		if (!!currentSuggestions && currentSuggestions.length > 0)
 		{
-
-			let container = document.getElementById("gametext");
 			let choiceContainer = document.createElement("span");
 			choiceContainer.style.padding = "10px";
-			container.appendChild(choiceContainer);
 
 			choiceContainer.id = "choiceContainer"
 			currentSuggestions.forEach(suggestion => {
@@ -25305,6 +25315,27 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				clearSuggestions()
 			}
 			choiceContainer.appendChild(cancelChoice)
+
+			let container, input, sendButton;
+			switch (parseInt(localsettings.gui_type_instruct))
+			{
+				case 2:
+					container = document.getElementById("chat_msg_body");
+					input = document.getElementById("cht_inp");
+					sendButton = document.getElementById("chat_msg_send_btn");
+					break;
+				case 3:
+					container = document.getElementById("corpo_body");
+					input = document.getElementById("corpo_cht_inp");
+					sendButton = document.getElementById("corpo_chat_send_btn");
+					break;
+				default:
+					container = document.getElementById("gametext");
+					input = document.getElementById("input_text");
+					sendButton = document.getElementById("btnsend");
+					break
+			}			
+			container.appendChild(choiceContainer);
 		}
 	}
 
