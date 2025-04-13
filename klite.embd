@@ -24613,7 +24613,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return localsettings.opmode == 4 && !!localsettings?.agentBehaviour && allTagsValid()
 	}
 
-	repack_instruct_turns = (input, usertag, aitag, systag, allow_blank) => {
+	repack_instruct_turns = (input, usertag, aitag, systag, allow_blank, filterOutActions = true) => {
 		if (isAgentModeEnabledAndSetCorrectly())
 		{
 			let turns = split(input, usertag, aitag, systag)
@@ -24638,6 +24638,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				out.message = elem.replace(usertag, "").replace(aitag, "").replace(systag, "")
 				return out
 			})
+			if (filterOutActions)
+			{
+				combined_chunks = combined_chunks.filter(elem => elem.message.trim().indexOf("Action: {") !== 0)
+			}
 			
 			return combined_chunks.map(elem => {
 				if (allow_blank || elem.message.trim() != "") {
@@ -24655,8 +24659,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}
 	}
 
+	let agentFilterOutActions = true
 	let getLastActions = (amountOfActions = 10) => {
-		return repack_instruct_turns(concat_gametext(true), `{{[INPUT]}}`, `{{[OUTPUT]}}`, `{{[SYSTEM]}}`, true).map(msg => { 
+		return repack_instruct_turns(concat_gametext(true), `{{[INPUT]}}`, `{{[OUTPUT]}}`, `{{[SYSTEM]}}`, true, agentFilterOutActions).map(msg => {
 			msg.msg = msg.msg.replaceAll("{{[SYSTEM_END]}}", "").replaceAll("{{[INPUT_END]}}", "").replaceAll("{{[OUTPUT_END]}}", "").trim(); 
 			return msg 
 		}).filter(msg => !/^\n*$/.test(msg.msg) && !!msg.msg && msg.msg.indexOf("Chain of thought repetition detected - ending") === -1 && msg.msg.indexOf("Chain of thought complete") === -1).splice(-amountOfActions)
@@ -25043,7 +25048,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							let prompt = action?.args?.prompt
 							let aspect = action?.args?.aspect
 							if (!!prompt) {
-
 								generate_new_image(prompt, undefined, calcImageSizing(aspect))
 								addThought(createSysPrompt, `Image generated`)
 							}
@@ -25208,6 +25212,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			let inputText = document.getElementById("input_text").value;
 			document.getElementById("input_text").value = "";
+			// Hack to ensure that images are always saved as new turns		
+			localsettings.img_newturn = true
 			if (currentAgentCycle !== null)
 			{
 				endCurrent = true
