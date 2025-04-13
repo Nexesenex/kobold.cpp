@@ -24254,6 +24254,17 @@ else
 			"enabled": true
 			},
 			{
+			"name": "overwrite_current_action_chain",
+			"description": "Overwrites the existing order of actions. After a user input, the order of actions will be enforced if it is set. Actions must be provided as an array in the order they should be taken. Provide an empty array to allow free actions.",
+			"args": {
+				"orderOfActions": {
+				description: "<an array of actions to take after a user input>",
+				type: "array"
+				}
+			},
+			"enabled": true
+			},
+			{
 			"name": "search_history",
 			"description": "Searches history for a series of keywords.",
 			"args": {
@@ -24487,7 +24498,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 </style>
 <script>
 	let createGeneratePayload = (prompt) => {
-			return {
+		return {
 			"genkey": `KCPPAgent${Math.floor(Math.random() * 1000)}`,
 			"max_context_length": localsettings.max_context_length,
 			"max_length": localsettings.max_length,
@@ -24743,10 +24754,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		if (!!initialPrompt)
 		{
 			addThought(createInstructPrompt, initialPrompt)
-		}		
-
-		let validCommands = getCommands().filter(command => !!command.enabled).map(command => command.name)
-		let jsonGrammar = await getCommandsGNBF()
+		}
 
 		let hasAttemptedToCompleteOnce = false
 		let lastThoughtWasBlank = false
@@ -24756,6 +24764,14 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		for (let i = 0; i < maxThoughtsWithoutUserInput && endCurrent === false; i++)
 		{
 			clearSuggestions()
+			let validCommands = getEnabledCommands().map(command => command.name)
+
+			let currentOrderOfActions = getDocumentFromTextDB('Order of actions')
+			currentOrderOfActions = !!currentOrderOfActions ? currentOrderOfActions.split(",").filter(act => !!act) : []
+			let nextAction = currentOrderOfActions.splice(i).filter(act => validCommands.includes(act))
+			nextAction = nextAction.length > 0 ? getCommands().filter(act => act.name === nextAction[0]) : undefined
+
+			let jsonGrammar = await getCommandsGNBF(nextAction)
 
 			currentChainOfThought = currentChainOfThought.splice(-maxActionsInHistory)
 			recentActions = recentActions.splice(-maxActionsInHistory)
@@ -24763,7 +24779,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			let history = createSysPrompt(actionPrompt()) + currentChainOfThought.join()
 			if (recentActions.length > 0)
 			{
-				history += createSysPrompt(`Current state: ${getDocumentFromTextDB('State')}\n\nNote: Avoid repeating recent thoughts or suggestions.\nRecent actions suggested: ${recentActions.map(action => `${action.name}(${JSON.stringify(action?.args)})`).join(", ")}`)
+				history += createSysPrompt(`Current state: ${getDocumentFromTextDB('State')}${currentOrderOfActions.length > 0 ? `\n\nOrder of actions: ${currentOrderOfActions.join(" -> ")}` : ""}\n\nNote: Avoid repeating recent thoughts or suggestions.\nRecent actions suggested: ${recentActions.map(action => `${action.name}(${JSON.stringify(action?.args)})`).join(", ")}`)
 			}
 
 			let resp = await generateAndGetTextFromPrompt(replace_instruct_placeholders(history), jsonGrammar)
@@ -25082,7 +25098,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							}
 							else
 							{
-								addThought(createSysPrompt, `No text provided, nothing has been said`)
+								addThought(createSysPrompt, `zNo text provided, nothing has been said`)
 							}
 							break
 						case "overwrite_system_prompt":
@@ -25105,6 +25121,28 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							else
 							{
 								addThought(createSysPrompt, `No state provided, nothing has been overwritten`)
+							}
+							break
+						case "overwrite_current_action_chain":
+							let orderOfActions = action?.args?.orderOfActions
+							if (!!orderOfActions && Array.isArray(orderOfActions)) {
+								if (orderOfActions.length === 0)
+								{
+									replaceDocumentFromTextDB('Order of actions', "")
+									addThought(createSysPrompt, `Current order of actions has been cleared`)
+										
+								}
+								else
+								{
+									replaceDocumentFromTextDB('Order of actions', [...orderOfActions.filter(act => getCommands().map(command => command.name).includes(act)), "stop_thinking"].join(","))
+									addThought(createSysPrompt, `Current order of actions has been overwritten`)
+
+								}
+								isCompleted = true
+								hasAttemptedToCompleteOnce = true
+							}
+							else {
+								addThought(createSysPrompt, `No order of actions provided, nothing has been overwritten`)
 							}
 							break
 						
@@ -25217,6 +25255,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			elem.onclick = () => {
 				endCurrent = true
 				elem.classList.add("hidden")
+				// trigger_abort_controller()
 			}
 		})
 	}
