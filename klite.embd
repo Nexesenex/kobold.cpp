@@ -24676,7 +24676,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				sizing = [Math.min(iwidth, iheight), Math.min(iwidth, iheight)]
 				break
 		}
-		return 
+		return sizing
 	}
 
 	let currentChainOfThought = [], recentActions = [], lastMessage = "", maxActionsInHistory = 20, maxThoughtsWithoutUserInput = 5, currentAgentCycle = null, endCurrent = false
