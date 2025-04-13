@@ -4487,9 +4487,7 @@ static void ggml_compute_forward_add(
         case GGML_TYPE_Q4_1:
         case GGML_TYPE_Q5_0:
         case GGML_TYPE_Q5_1:
-        case GGML_TYPE_Q6_0:
         case GGML_TYPE_Q8_0:
-        case GGML_TYPE_Q8_1:
         case GGML_TYPE_Q2_K:
         case GGML_TYPE_Q3_K:
         case GGML_TYPE_Q4_K:
@@ -4502,21 +4500,8 @@ static void ggml_compute_forward_add(
         case GGML_TYPE_IQ3_XXS:
         case GGML_TYPE_IQ1_S:
         case GGML_TYPE_IQ1_M:
-        case GGML_TYPE_IQ1_BN:
-        case GGML_TYPE_IQ2_BN:
         case GGML_TYPE_IQ4_NL:
         case GGML_TYPE_IQ4_XS:
-        case GGML_TYPE_IQ4_KS:
-        case GGML_TYPE_IQ4_KSS:
-        case GGML_TYPE_IQ2_K:
-        case GGML_TYPE_IQ2_KS:
-        case GGML_TYPE_IQ2_KT:
-        case GGML_TYPE_IQ3_KT:
-        case GGML_TYPE_IQ4_KT:
-        case GGML_TYPE_IQ3_K:
-        case GGML_TYPE_IQ4_K:
-        case GGML_TYPE_IQ5_K:
-        case GGML_TYPE_IQ6_K:
         case GGML_TYPE_IQ3_S:
         case GGML_TYPE_IQ2_S:
             {
@@ -4878,7 +4863,6 @@ static void ggml_compute_forward_add1(
         case GGML_TYPE_Q4_1:
         case GGML_TYPE_Q5_0:
         case GGML_TYPE_Q5_1:
-        case GGML_TYPE_Q6_0:
         case GGML_TYPE_Q8_0:
         case GGML_TYPE_Q8_1:
         case GGML_TYPE_Q2_K:
@@ -4893,21 +4877,8 @@ static void ggml_compute_forward_add1(
         case GGML_TYPE_IQ3_XXS:
         case GGML_TYPE_IQ1_S:
         case GGML_TYPE_IQ1_M:
-        case GGML_TYPE_IQ1_BN:
-        case GGML_TYPE_IQ2_BN:
         case GGML_TYPE_IQ4_NL:
         case GGML_TYPE_IQ4_XS:
-        case GGML_TYPE_IQ4_KS:
-        case GGML_TYPE_IQ4_KSS:
-        case GGML_TYPE_IQ2_K:
-        case GGML_TYPE_IQ2_KS:
-        case GGML_TYPE_IQ2_KT:
-        case GGML_TYPE_IQ3_KT:
-        case GGML_TYPE_IQ4_KT:
-        case GGML_TYPE_IQ3_K:
-        case GGML_TYPE_IQ4_K:
-        case GGML_TYPE_IQ5_K:
-        case GGML_TYPE_IQ6_K:
         case GGML_TYPE_IQ3_S:
         case GGML_TYPE_IQ2_S:
             {
@@ -5019,7 +4990,6 @@ static void ggml_compute_forward_acc(
         case GGML_TYPE_Q4_1:
         case GGML_TYPE_Q5_0:
         case GGML_TYPE_Q5_1:
-        case GGML_TYPE_Q6_0:
         case GGML_TYPE_Q8_0:
         case GGML_TYPE_Q8_1:
         case GGML_TYPE_Q2_K:
@@ -5034,21 +5004,8 @@ static void ggml_compute_forward_acc(
         case GGML_TYPE_IQ3_XXS:
         case GGML_TYPE_IQ1_S:
         case GGML_TYPE_IQ1_M:
-        case GGML_TYPE_IQ1_BN:
-        case GGML_TYPE_IQ2_BN:
         case GGML_TYPE_IQ4_NL:
         case GGML_TYPE_IQ4_XS:
-        case GGML_TYPE_IQ4_KS:
-        case GGML_TYPE_IQ4_KSS:
-        case GGML_TYPE_IQ2_K:
-        case GGML_TYPE_IQ2_KS:
-        case GGML_TYPE_IQ2_KT:
-        case GGML_TYPE_IQ3_KT:
-        case GGML_TYPE_IQ4_KT:
-        case GGML_TYPE_IQ3_K:
-        case GGML_TYPE_IQ4_K:
-        case GGML_TYPE_IQ5_K:
-        case GGML_TYPE_IQ6_K:
         case GGML_TYPE_IQ3_S:
         case GGML_TYPE_IQ2_S:
         default:
@@ -7574,9 +7531,7 @@ static void ggml_compute_forward_out_prod(
         case GGML_TYPE_Q4_1:
         case GGML_TYPE_Q5_0:
         case GGML_TYPE_Q5_1:
-        case GGML_TYPE_Q6_0:
         case GGML_TYPE_Q8_0:
-        case GGML_TYPE_Q8_1:
         case GGML_TYPE_Q2_K:
         case GGML_TYPE_Q3_K:
         case GGML_TYPE_Q4_K:
@@ -7589,21 +7544,8 @@ static void ggml_compute_forward_out_prod(
         case GGML_TYPE_IQ3_XXS:
         case GGML_TYPE_IQ1_S:
         case GGML_TYPE_IQ1_M:
-        case GGML_TYPE_IQ1_BN:
-        case GGML_TYPE_IQ2_BN:
         case GGML_TYPE_IQ4_NL:
         case GGML_TYPE_IQ4_XS:
-        case GGML_TYPE_IQ4_KS:
-        case GGML_TYPE_IQ4_KSS:
-        case GGML_TYPE_IQ2_K:
-        case GGML_TYPE_IQ2_KS:
-        case GGML_TYPE_IQ2_KT:
-        case GGML_TYPE_IQ3_KT:
-        case GGML_TYPE_IQ4_KT:
-        case GGML_TYPE_IQ3_K:
-        case GGML_TYPE_IQ4_K:
-        case GGML_TYPE_IQ5_K:
-        case GGML_TYPE_IQ6_K:
         case GGML_TYPE_IQ3_S:
         case GGML_TYPE_IQ2_S:
             {
@@ -7850,7 +7792,6 @@ static void ggml_compute_forward_set(
         case GGML_TYPE_Q4_1:
         case GGML_TYPE_Q5_0:
         case GGML_TYPE_Q5_1:
-        case GGML_TYPE_Q6_0:
         case GGML_TYPE_Q8_0:
         case GGML_TYPE_Q8_1:
         case GGML_TYPE_Q2_K:
@@ -7865,21 +7806,8 @@ static void ggml_compute_forward_set(
         case GGML_TYPE_IQ3_XXS:
         case GGML_TYPE_IQ1_S:
         case GGML_TYPE_IQ1_M:
-        case GGML_TYPE_IQ1_BN:
-        case GGML_TYPE_IQ2_BN:
         case GGML_TYPE_IQ4_NL:
         case GGML_TYPE_IQ4_XS:
-        case GGML_TYPE_IQ4_KS:
-        case GGML_TYPE_IQ4_KSS:
-        case GGML_TYPE_IQ2_K:
-        case GGML_TYPE_IQ2_KS:
-        case GGML_TYPE_IQ2_KT:
-        case GGML_TYPE_IQ3_KT:
-        case GGML_TYPE_IQ4_KT:
-        case GGML_TYPE_IQ3_K:
-        case GGML_TYPE_IQ4_K:
-        case GGML_TYPE_IQ5_K:
-        case GGML_TYPE_IQ6_K:
         case GGML_TYPE_IQ3_S:
         case GGML_TYPE_IQ2_S:
         default:
@@ -8125,7 +8053,6 @@ static void ggml_compute_forward_get_rows(
         case GGML_TYPE_Q4_1:
         case GGML_TYPE_Q5_0:
         case GGML_TYPE_Q5_1:
-        case GGML_TYPE_Q6_0:
         case GGML_TYPE_Q8_0:
         case GGML_TYPE_Q8_1:
         case GGML_TYPE_Q2_K:
@@ -8140,21 +8067,8 @@ static void ggml_compute_forward_get_rows(
         case GGML_TYPE_IQ3_XXS:
         case GGML_TYPE_IQ1_S:
         case GGML_TYPE_IQ1_M:
-        case GGML_TYPE_IQ1_BN:
-        case GGML_TYPE_IQ2_BN:
         case GGML_TYPE_IQ4_NL:
         case GGML_TYPE_IQ4_XS:
-        case GGML_TYPE_IQ4_KS:
-        case GGML_TYPE_IQ4_KSS:
-        case GGML_TYPE_IQ2_K:
-        case GGML_TYPE_IQ2_KS:
-        case GGML_TYPE_IQ2_KT:
-        case GGML_TYPE_IQ3_KT:
-        case GGML_TYPE_IQ4_KT:
-        case GGML_TYPE_IQ3_K:
-        case GGML_TYPE_IQ4_K:
-        case GGML_TYPE_IQ5_K:
-        case GGML_TYPE_IQ6_K:
         case GGML_TYPE_IQ3_S:
         case GGML_TYPE_IQ2_S:
             {
@@ -8772,7 +8686,6 @@ static void ggml_compute_forward_clamp(
         case GGML_TYPE_Q4_1:
         case GGML_TYPE_Q5_0:
         case GGML_TYPE_Q5_1:
-        case GGML_TYPE_Q6_0:
         case GGML_TYPE_Q8_0:
         case GGML_TYPE_Q8_1:
         case GGML_TYPE_Q2_K:
@@ -8787,21 +8700,8 @@ static void ggml_compute_forward_clamp(
         case GGML_TYPE_IQ3_XXS:
         case GGML_TYPE_IQ1_S:
         case GGML_TYPE_IQ1_M:
-        case GGML_TYPE_IQ1_BN:
-        case GGML_TYPE_IQ2_BN:
         case GGML_TYPE_IQ4_NL:
         case GGML_TYPE_IQ4_XS:
-        case GGML_TYPE_IQ4_KS:
-        case GGML_TYPE_IQ4_KSS:
-        case GGML_TYPE_IQ2_K:
-        case GGML_TYPE_IQ2_KS:
-        case GGML_TYPE_IQ2_KT:
-        case GGML_TYPE_IQ3_KT:
-        case GGML_TYPE_IQ4_KT:
-        case GGML_TYPE_IQ3_K:
-        case GGML_TYPE_IQ4_K:
-        case GGML_TYPE_IQ5_K:
-        case GGML_TYPE_IQ6_K:
         case GGML_TYPE_IQ3_S:
         case GGML_TYPE_IQ2_S:
         case GGML_TYPE_Q8_K:
