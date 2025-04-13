@@ -25268,7 +25268,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			elem.onclick = () => {
 				endCurrent = true
 				elem.classList.add("hidden")
-				// trigger_abort_controller()
+				currentAgentCycle = null
+				trigger_abort_controller()
 			}
 		})
 	}
