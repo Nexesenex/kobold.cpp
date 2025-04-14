@@ -3366,6 +3366,16 @@ Current version indicated by LITEVER below.
 	},
 	{
 		"id":7,
+		"name":"Llama 4 Chat",
+		"user":"<|header_start|>user<|header_end|>\\n\\n",
+		"user_end":"<|eot|>",
+		"assistant":"<|header_start|>assistant<|header_end|>\\n\\n",
+		"assistant_end":"<|eot|>",
+		"system":"<|header_start|>system<|header_end|>\\n\\n",
+		"system_end":"<|eot|>",
+	},
+	{
+		"id":8,
 		"name":"Metharme",
 		"user":"<|user|>",
 		"user_end":"",
@@ -3375,7 +3385,7 @@ Current version indicated by LITEVER below.
 		"system_end":"",
 	},
 	{
-		"id":8,
+		"id":9,
 		"name":"Mistral V1",
 		"user":" [INST] ",
 		"user_end":"",
@@ -3385,7 +3395,7 @@ Current version indicated by LITEVER below.
 		"system_end":"",
 	},
 	{
-		"id":9,
+		"id":10,
 		"name":"Mistral V2 & V3",
 		"user":"[INST] ",
 		"user_end":"",
@@ -3395,8 +3405,8 @@ Current version indicated by LITEVER below.
 		"system_end":"",
 	},
 	{
-		"id":10,
-		"name":"Mistral V7",
+		"id":11,
+		"name":"Mistral V7 & V3-Tekken",
 		"user":"[INST]",
 		"user_end":"",
 		"assistant":"[/INST]",
@@ -3405,8 +3415,8 @@ Current version indicated by LITEVER below.
 		"system_end":"[/SYSTEM_PROMPT]",
 	},
 	{
-		"id":11,
-		"name":"Phi",
+		"id":12,
+		"name":"Phi-3 Mini",
 		"user":"<|user|>\\n",
 		"user_end":"<|end|>\\n",
 		"assistant":"<|assistant|>",
@@ -3415,7 +3425,7 @@ Current version indicated by LITEVER below.
 		"system_end":"<|end|>\\n",
 	},
 	{
-		"id":12,
+		"id":13,
 		"name":"Vicuna",
 		"user":"\\nUSER: ",
 		"user_end":"",
@@ -3425,7 +3435,7 @@ Current version indicated by LITEVER below.
 		"system_end":"",
 	},
 	{
-		"id":13,
+		"id":14,
 		"name":"Deepseek V2.5",
 		"user":"<｜User｜>",
 		"user_end":"<｜end▁of▁sentence｜>",
@@ -3435,7 +3445,7 @@ Current version indicated by LITEVER below.
 		"system_end":"",
 	},
 	{
-		"id":14,
+		"id":15,
 		"name":"KoboldCppAutomatic",
 		"user":"{{[INPUT]}}",
 		"user_end":"",
@@ -12674,7 +12684,7 @@ Current version indicated by LITEVER below.
 				let matchiter = 0;
 				inputtxt = inputtxt.replace(/%ExpandBtn%/g, function (m) {
 					let curr = matches[matchiter];
-					let expandedhtml = `<span><button type="button" title="Show Thoughts" class="btn btn-primary" style="font-size:12px;padding:2px 2px;" onclick="toggle_hide_thinking(this)">Show Thoughts (${curr.length} characters)</button><span class="color_lightgreen hidden"><br>${escape_html(curr)}</span></span>`;
+					let expandedhtml = `<span><button type="button" title="Show Thoughts" class="btn btn-primary" style="font-size:12px;padding:2px 2px;" onclick="toggle_hide_thinking(this)">Show Thoughts (${curr.length} characters)</button><span class="color_lightgreen hidden"><br>${escape_html(curr)}\n</span></span>`;
 					++matchiter;
 					return expandedhtml;
 				});
@@ -21978,7 +21988,7 @@ Current version indicated by LITEVER below.
 						<div class="inlinelabel" style="font-size: 11px;">
 							<div class="justifyleft" style="padding:3px">Voice Delay: </div>
 							<input title="Voice Delay Milliseconds" type="text" inputmode="decimal" value="300" id="voice_end_delay" style="width:40px">
-							<input type="file" id="transcribe_file_input" accept="audio/*" style="display:none;">
+							<input type="file" id="transcribe_file_input" accept="audio/*,video/*" style="display:none;">
 							<button id="transcribe_file_btn" type="button" class="bg_green btn btn-primary" style="height:20px; padding:2px 3px; font-size:11px;margin-top: 3px;" onclick="transcribe_file_btn()">Transcribe File</button>
 						</div>
 

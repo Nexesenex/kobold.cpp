@@ -160,6 +160,10 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
     {
         printf("With Custom Clip-G Model: %s\n",clipg_filename.c_str());
     }
+    if(inputs.quant)
+    {
+        printf("Note: Loading a pre-quantized model is always faster than using compress weights!\n");
+    }
 
     //duplicated from expose.cpp
     int cl_parseinfo = inputs.clblast_info; //first digit is whether configured, second is platform, third is devices

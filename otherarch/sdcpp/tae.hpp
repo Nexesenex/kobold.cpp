@@ -149,7 +149,7 @@ public:
                 if (i == 1) {
                     h = ggml_relu_inplace(ctx, h);
                 } else {
-                    h = ggml_upscale(ctx, h, 2);
+                    h = ggml_upscale(ctx, h, 2, ggml_scale_mode::GGML_SCALE_MODE_NEAREST);
                 }
                 continue;
             }

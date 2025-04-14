@@ -817,6 +817,23 @@ def truncate_long_json(data, max_length):
     else:
         return data
 
+def convert_json_to_gbnf(json_obj):
+    try:
+        from json_to_gbnf import SchemaConverter
+        prop_order = []
+        converter = SchemaConverter(
+        prop_order={name: idx for idx, name in enumerate(prop_order)},
+        allow_fetch=False,
+        dotall=False,
+        raw_pattern=False)
+        schema = json.loads(json.dumps(json_obj))
+        converter.visit(schema, '')
+        outstr = converter.format_grammar()
+        return outstr
+    except Exception as e:
+        print(f"JSON to GBNF failed: {e}")
+        return ""
+
 def get_capabilities():
     global savedata_obj, has_multiplayer, KcppVersion, friendlymodelname, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, fullwhispermodelpath, ttsmodelpath, embeddingsmodelpath
     has_llm = not (friendlymodelname=="inactive")
@@ -1548,7 +1565,8 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
 def fetch_gpu_properties(testCL,testCU,testVK):
     import subprocess
 
-    gpumem_ignore_limit = 1024*1024*600
+    gpumem_ignore_limit_min = 1024*1024*600 #600 mb min
+    gpumem_ignore_limit_max = 1024*1024*1024*300 #300 gb max
 
     if testCU:
         FetchedCUdevices = []
@@ -1711,7 +1729,7 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                             match = re.search(r"size\s*=\s*(\d+)", snippet)
                             if match:
                                 dmem = int(match.group(1))
-                                if dmem > gpumem_ignore_limit:
+                                if dmem > gpumem_ignore_limit_min and dmem < gpumem_ignore_limit_max:
                                     lowestvkmem = dmem if lowestvkmem==0 else (dmem if dmem<lowestvkmem else lowestvkmem)
                         gpuidx += 1
                 except Exception: # failed to get vulkan vram
@@ -1742,13 +1760,17 @@ def fetch_gpu_properties(testCL,testCU,testVK):
                     idx = plat+dev*2
                     if idx<len(CLDevices):
                         CLDevicesNames[idx] = dname
-                        if dmem > gpumem_ignore_limit:
+                        if dmem > gpumem_ignore_limit_min and dmem < gpumem_ignore_limit_max:
                             lowestclmem = dmem if lowestclmem==0 else (dmem if dmem<lowestclmem else lowestclmem)
                     dev += 1
                 plat += 1
             MaxMemory[0] = max(lowestclmem,MaxMemory[0])
         except Exception:
             pass
+    if MaxMemory[0]>0:
+        print(f"Auto Detected Free GPU Memory: {int(MaxMemory[0]/1024/1024)} MB (Set GPU layers manually if incorrect)")
+    else:
+        print("Unable to determine GPU Memory")
     return
 
 def auto_set_backend_cli():
@@ -2782,6 +2804,7 @@ def transform_genparams(genparams, api_format):
                         elif item['type']=="image_url":
                             if 'image_url' in item and item['image_url'] and item['image_url']['url'] and item['image_url']['url'].startswith("data:image"):
                                 images_added.append(item['image_url']['url'].split(",", 1)[1])
+                                messages_string += "\n(Attached Image)\n"
                 # If last message, add any tools calls after message content and before message end token if any
                 if message['role'] == "user" and message_index == len(messages_array):
                     # Check if user is passing a openai tools array, if so add to end of prompt before assistant prompt unless tool_choice has been set to None
@@ -3592,6 +3615,19 @@ Enter Prompt:<br>
                 response_code = 400
                 response_body = (json.dumps({"result": "","success":False}).encode())
 
+        elif self.path.endswith('/api/extra/json_to_grammar'):
+            if not self.secure_endpoint():
+                return
+            try:
+                genparams = json.loads(body)
+                schema = genparams.get('schema', {})
+                decoded = convert_json_to_gbnf(schema)
+                response_body = (json.dumps({"result": decoded,"success":(True if decoded else False)}).encode())
+            except Exception as e:
+                utfprint("JSON to Grammar Error: " + str(e))
+                response_code = 400
+                response_body = (json.dumps({"result": "","success":False}).encode())
+
         elif self.path.endswith('/api/extra/abort'):
             if not self.secure_endpoint():
                 return
@@ -4202,6 +4238,20 @@ def zenity(filetypes=None, initialdir="", initialfile="", **kwargs) -> Tuple[int
         .replace("?", "\\?").replace("&", "&amp;").replace("|", "&#124;").replace("<", "&lt;").replace(">", "&gt;")\
         .replace("(", "\\(").replace(")", "\\)").replace("[", "\\[").replace("]", "\\]").replace("{", "\\{").replace("}", "\\}")
 
+    def zenity_sanity_check(): #make sure zenity is sane
+        nonlocal zenity_bin
+        try: # Run `zenity --help` and pipe to grep
+            result = subprocess.run(f"{zenity_bin} --help | grep Usage", shell=True, capture_output=True, text=True)
+            if result.returncode == 0 and "Usage" in result.stdout:
+                return True
+            else:
+                return False
+        except FileNotFoundError:
+            return False
+
+    if not zenity_sanity_check():
+        raise Exception("Zenity not working correctly, falling back to TK GUI.")
+
     # Build args based on keywords
     args = ['/usr/bin/env', zenity_bin, '--file-selection']
     for k, v in kwargs.items():
@@ -4365,7 +4415,6 @@ def show_gui():
                     toggleflashattn(1,1,1)
                     togglectxshift(1,1,1)
                     togglehorde(1,1,1)
-                    togglesdquant(1,1,1)
                     toggletaesd(1,1,1)
                     tabbuttonaction(tabnames[curr_tab_idx])
 
@@ -4748,6 +4797,13 @@ def show_gui():
         num_backends_built.grid(row=1, column=1, padx=205, pady=0)
         num_backends_built.configure(text_color="#00ff00")
 
+    def vulkan_fa_lbl():
+        if flashattention.get()!=0 and (runopts_var.get() == "Use Vulkan" or runopts_var.get() == "Use Vulkan (Old CPU)") and (gpulayers_var.get()!="" and int(gpulayers_var.get())):
+            avoidfalabel.grid()
+        else:
+            avoidfalabel.grid_remove()
+
+
     def gui_changed_modelfile(*args):
         global importvars_in_progress
         if not importvars_in_progress:
@@ -4783,7 +4839,7 @@ def show_gui():
         else:
             layercounter_label.grid_remove()
             quick_layercounter_label.grid_remove()
-        pass
+        vulkan_fa_lbl()
 
     def changed_gpu_choice_var(*args):
         global exitcounter
@@ -4839,6 +4895,7 @@ def show_gui():
             # noqkvlabel.grid()
         # else:
             # noqkvlabel.grid_remove()
+        # vulkan_fa_lbl()
 
     def guibench():
         args.benchmark = "stdout"
@@ -4895,8 +4952,10 @@ def show_gui():
             tensor_split_label.grid(row=8, column=0, padx = 8, pady=1, stick="nw")
             tensor_split_entry.grid(row=8, column=1, padx=8, pady=1, stick="nw")
             quick_use_flashattn.grid_remove()
+            use_flashattn.grid(row=28, column=0, padx=8, pady=1,  stick="nw")
         else:
             quick_use_flashattn.grid(row=22, column=1, padx=8, pady=1,  stick="nw")
+            use_flashattn.grid(row=28, column=0, padx=8, pady=1,  stick="nw")
 
         if index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Old CPU)" or index == "Use CLBlast (Older CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)":
             gpu_layers_label.grid(row=6, column=0, padx = 8, pady=1, stick="nw")
@@ -4915,7 +4974,7 @@ def show_gui():
             quick_gpu_layers_entry.grid_remove()
         changed_gpulayers_estimate()
         changed_gpu_choice_var()
-
+        vulkan_fa_lbl()
 
     # presets selector
     makelabel(quick_tab, "Presets:", 1,0,"Select a backend to use.\nCuBLAS runs on Nvidia GPUs, and is much faster.\nVulkan and CLBlast works on all GPUs but is somewhat slower.\nOtherwise, runs on CPU only.\nNoAVX2 and Failsafe modes support older PCs.")
@@ -5028,11 +5087,10 @@ def show_gui():
     model_var.trace("w", gui_changed_modelfile)
     ctk.CTkButton(hardware_tab, text = "Run Benchmark", command = guibench ).grid(row=110,column=0, stick="se", padx= 0, pady=2)
 
-
-    runopts_var.trace('w', changerunmode)
-    changerunmode(1,1,1)
-    global runmode_untouched
-    runmode_untouched = True
+    # runopts_var.trace('w', changerunmode)
+    # changerunmode(1,1,1)
+    # global runmode_untouched
+    # runmode_untouched = True
 
     # GPU layers Autoloader Tab
     gpu_al_tab = tabcontent["GPU AutoLayers"]
@@ -5071,12 +5129,13 @@ def show_gui():
                 item.grid_remove()
     makecheckbox(tokens_tab,  "Custom RoPE Config", variable=customrope_var, row=22, command=togglerope,tooltiptxt="Override the default RoPE configuration with custom RoPE scaling.")
 
-    makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, command=toggleflashattn, tooltiptxt="Enable flash attention for GGUF models.")
-    # makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28,  tooltiptxt="Enable flash attention for GGUF models.")
-    # noqkvlabel = makelabel(tokens_tab,"QuantKV works best with flash attention enabled",33,0,"WARNING: NOT RECOMMENDED.\nOnly K cache can be quantized, and performance can suffer.\nIn some cases, it might even use more VRAM when doing a full offload.")
-    # noqkvlabel.configure(text_color="#ff5555")
-    # qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 2, 30, set=0,tooltip="Enable quantization of KV cache.\nRequires FlashAttention for full effect, otherwise only K cache is quantized.")
+    use_flashattn = makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, command=toggleflashattn,  tooltiptxt="Enable flash attention for GGUF models.")
+    noqkvlabel = makelabel(tokens_tab,"QuantKV works best with flash attention enabled",33,0,"WARNING: NOT RECOMMENDED.\nOnly K cache can be quantized, and performance can suffer.\nIn some cases, it might even use more VRAM when doing a full offload.")
+    noqkvlabel.configure(text_color="#ff5555")
+    avoidfalabel = makelabel(tokens_tab,"Flash attention discouraged with Vulkan GPU offload!",35,0,"FlashAttention is discouraged when using Vulkan GPU offload.")
+    avoidfalabel.configure(text_color="#ff5555")
     qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 22, 30, set=0,tooltip="Enable quantization of KV cache (KVQ). Mode 0 (F16) is default. Modes 1-14 requires FlashAttention.\nMode 8-10, 14, 17, 22 disable ContextShift.\nModes 15-22 work without FA, for incompatible models.")
+
     quantkv_var.trace("w", toggleflashattn)
     makecheckbox(tokens_tab, "No BOS Token", nobostoken_var, 33, tooltiptxt="Prevents BOS token from being added at the start of any prompt. Usually NOT recommended for most models.")
 
@@ -5086,10 +5145,6 @@ def show_gui():
     # load model
     makefileentry(tokens_tab, "Model:", "Select GGML or GGML Model File", model_var, 50, 576, onchoosefile=on_picked_model_file, filetypes=[("GGML bin or GGUF", ("*.bin","*.gguf"))] ,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
     model_var.trace("w", gui_changed_modelfile)
-
-    togglerope(1,1,1)
-    toggleflashattn(1,1,1)
-    togglectxshift(1,1,1)
 
     # Model Tab
     model_tab = tabcontent["Loaded Files"]
@@ -5169,7 +5224,6 @@ def show_gui():
             horde_name_var.set(sanitize_string(os.path.splitext(basefile)[0]))
 
     makecheckbox(horde_tab, "Configure for Horde", usehorde_var, 19, command=togglehorde,tooltiptxt="Enable the embedded AI Horde worker.")
-    togglehorde(1,1,1)
 
     # Image Gen Tab
 
@@ -5179,23 +5233,10 @@ def show_gui():
     makelabelentry(images_tab, "Image Threads:" , sd_threads_var, 6, 50,padx=290,singleline=True,tooltip="How many threads to use during image generation.\nIf left blank, uses same value as threads.")
     sd_model_var.trace("w", gui_changed_modelfile)
 
-    sdloritem1,sdloritem2,sdloritem3 = makefileentry(images_tab, "Image LoRA (Must be non-quant):", "Select SD lora file",sd_lora_var, 10, width=280, singlecol=True, filetypes=[("*.safetensors *.gguf", "*.safetensors *.gguf")],tooltiptxt="Select a .safetensors or .gguf SD LoRA model file to be loaded.")
-    sdloritem4,sdloritem5 = makelabelentry(images_tab, "Image LoRA Multiplier:" , sd_loramult_var, 12, 50,padx=290,singleline=True,tooltip="What mutiplier value to apply the SD LoRA with.")
-    def togglesdquant(a,b,c):
-        if sd_quant_var.get()==1:
-            sdloritem1.grid_remove()
-            sdloritem2.grid_remove()
-            sdloritem3.grid_remove()
-            sdloritem4.grid_remove()
-            sdloritem5.grid_remove()
-        else:
-            if not sdloritem1.grid_info() or not sdloritem2.grid_info() or not sdloritem3.grid_info() or not sdloritem4.grid_info() or not sdloritem5.grid_info():
-                sdloritem1.grid()
-                sdloritem2.grid()
-                sdloritem3.grid()
-                sdloritem4.grid()
-                sdloritem5.grid()
-    makecheckbox(images_tab, "Compress Weights (Saves Memory)", sd_quant_var, 8,command=togglesdquant,tooltiptxt="Quantizes the SD model weights to save memory. May degrade quality.")
+    makefileentry(images_tab, "Image LoRA (safetensors/gguf):", "Select SD lora file",sd_lora_var, 10, width=280, singlecol=True, filetypes=[("*.safetensors *.gguf", "*.safetensors *.gguf")],tooltiptxt="Select a .safetensors or .gguf SD LoRA model file to be loaded. Should be unquantized!")
+    makelabelentry(images_tab, "Image LoRA Multiplier:" , sd_loramult_var, 12, 50,padx=290,singleline=True,tooltip="What mutiplier value to apply the SD LoRA with.")
+
+    makecheckbox(images_tab, "Compress Weights (Saves Memory)", sd_quant_var, 8,tooltiptxt="Quantizes the SD model weights to save memory. May degrade quality.")
     sd_quant_var.trace("w", changed_gpulayers_estimate)
 
     makefileentry(images_tab, "T5-XXL File:", "Select Optional T5-XXL model file (SD3 or flux)",sd_t5xxl_var, 14, width=280, singlerow=True, filetypes=[("*.safetensors *.gguf","*.safetensors *.gguf")],tooltiptxt="Select a .safetensors t5xxl file to be loaded.")
@@ -5269,6 +5310,16 @@ def show_gui():
             zenity_permitted = (nozenity_var.get()==0)
         makecheckbox(extra_tab, "Use Classic FilePicker", nozenity_var, 20, tooltiptxt="Use the classic TKinter file picker instead.")
         nozenity_var.trace("w", togglezenity)
+
+    # refresh
+    runopts_var.trace('w', changerunmode)
+    changerunmode(1,1,1)
+    global runmode_untouched
+    runmode_untouched = True
+    togglerope(1,1,1)
+    toggleflashattn(1,1,1)
+    togglectxshift(1,1,1)
+    togglehorde(1,1,1)
 
     # launch
     def guilaunch():
@@ -5465,13 +5516,11 @@ def show_gui():
             args.sdclipg = sd_clipg_var.get()
         if sd_quant_var.get()==1:
             args.sdquant = True
-            args.sdlora = ""
+        if sd_lora_var.get() != "":
+            args.sdlora = sd_lora_var.get()
+            args.sdloramult = float(sd_loramult_var.get())
         else:
-            if sd_lora_var.get() != "":
-                args.sdlora = sd_lora_var.get()
-                args.sdloramult = float(sd_loramult_var.get())
-            else:
-                args.sdlora = ""
+            args.sdlora = ""
 
         if whisper_model_var.get() != "":
             args.whispermodel = whisper_model_var.get()
@@ -6884,6 +6933,8 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
 
         if not args.blasthreads or args.blasthreads <= 0:
             args.blasthreads = args.threads
+        if args.flashattention and (args.usevulkan is not None) and args.gpulayers!=0:
+            print("\nWARNING: FlashAttention is strongly discouraged when using Vulkan GPU offload as it is extremely slow!\n")
 
         modelname = os.path.abspath(args.model_param)
         print(args)
@@ -7488,7 +7539,7 @@ if __name__ == '__main__':
     sdparsergroupvae.add_argument("--sdvaeauto", help="Uses a built-in VAE via TAE SD, which is very fast, and fixed bad VAEs.", action='store_true')
     sdparsergrouplora = sdparsergroup.add_mutually_exclusive_group()
     sdparsergrouplora.add_argument("--sdquant", help="If specified, loads the model quantized to save memory.", action='store_true')
-    sdparsergrouplora.add_argument("--sdlora", metavar=('[filename]'), help="Specify a stable diffusion LORA safetensors model to be applied. Cannot be used with quant models.", default="")
+    sdparsergrouplora.add_argument("--sdlora", metavar=('[filename]'), help="Specify a stable diffusion LORA safetensors model to be applied.", default="")
     sdparsergroup.add_argument("--sdloramult", metavar=('[amount]'), help="Multiplier for the LORA model to be applied.", type=float, default=1.0)
     sdparsergroup.add_argument("--sdnotile", help="Disables VAE tiling, may not work for large images.", action='store_true')
 
