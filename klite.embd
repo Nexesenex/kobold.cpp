@@ -25192,6 +25192,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}
 		currentAgentCycle = null
 		Array(...document.getElementsByClassName("stopThinking")).forEach(elem => elem.classList.add("hidden"))
+		submit_multiplayer(true)
 	}
 
 	let originalDisplaySettingsTab = display_settings_tab, originalConfirmSettings = confirm_settings, originalPrepareSubmitGeneration = prepare_submit_generation, originalRestartNewGame = restart_new_game,
@@ -25275,6 +25276,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				endCurrent = true
 				elem.classList.add("hidden")
 				currentAgentCycle = null
+				submit_multiplayer(true)
 				trigger_abort_controller()
 			}
 		})
