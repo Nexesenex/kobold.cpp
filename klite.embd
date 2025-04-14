@@ -24779,7 +24779,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			currentChainOfThought = currentChainOfThought.splice(-maxActionsInHistory)
 			recentActions = recentActions.splice(-maxActionsInHistory)
 			
-			let history = createSysPrompt(actionPrompt()) + currentChainOfThought.join()
+			let history = createSysPrompt(actionPrompt()) + current_memory + currentChainOfThought.join()
 			if (recentActions.length > 0)
 			{
 				history += createSysPrompt(`Current state: ${getDocumentFromTextDB('State')}${currentOrderOfActions.length > 0 ? `\n\nOrder of actions: ${currentOrderOfActions.join(" -> ")}` : ""}\n\nNote: Avoid repeating recent thoughts or suggestions.\nRecent actions suggested: ${recentActions.map(action => `${action.name}(${JSON.stringify(action?.args)})`).join(", ")}`)
