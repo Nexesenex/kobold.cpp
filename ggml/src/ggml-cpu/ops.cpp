@@ -3956,10 +3956,10 @@ void ggml_compute_forward_scale(
 // ggml_compute_forward_softcap
 
 static void ggml_compute_forward_softcap_f32(
-        const struct ggml_compute_params * params,
-        struct ggml_tensor * dst) {
+        const ggml_compute_params * params,
+        ggml_tensor * dst) {
 
-    const struct ggml_tensor * src0 = dst->src[0];
+    const ggml_tensor * src0 = dst->src[0];
 
     GGML_ASSERT(ggml_is_contiguous(src0));
     GGML_ASSERT(ggml_is_contiguous(dst));
@@ -4008,9 +4008,9 @@ static void ggml_compute_forward_softcap_f32(
     }
 }
 
-static void ggml_compute_forward_softcap(
-        const struct ggml_compute_params * params,
-        struct ggml_tensor * dst) {
+void ggml_compute_forward_softcap(
+        const ggml_compute_params * params,
+        ggml_tensor * dst) {
 
     const struct ggml_tensor * src0 = dst->src[0];
 
@@ -4029,8 +4029,8 @@ static void ggml_compute_forward_softcap(
 // ggml_compute_forward_softcap_max
 
 static void ggml_compute_forward_softcap_max_f32(
-        const struct ggml_compute_params * params,
-        struct ggml_tensor * dst) {
+        const ggml_compute_params * params,
+        ggml_tensor * dst) {
 
     const struct ggml_tensor * src0 = dst->src[0];
     const struct ggml_tensor * src1 = dst->src[1];
@@ -4129,9 +4129,9 @@ static void ggml_compute_forward_softcap_max_f32(
 
 }
 
-static void ggml_compute_forward_softcap_max(
-        const struct ggml_compute_params * params,
-        struct ggml_tensor * dst) {
+void ggml_compute_forward_softcap_max(
+        const ggml_compute_params * params,
+        ggml_tensor * dst) {
 
     const struct ggml_tensor * src0 = dst->src[0];
 

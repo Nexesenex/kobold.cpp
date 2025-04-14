@@ -25,6 +25,8 @@ extern "C" {
 #endif
 
 void ggml_compute_forward_dup(const struct ggml_compute_params * params, struct ggml_tensor * dst);
+// void ggml_compute_forward_dup_q4(const struct ggml_compute_params * params, struct ggml_tensor * dst);
+// void ggml_compute_forward_dup_q8(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_add(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_add1(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_acc(const struct ggml_compute_params * params, struct ggml_tensor * dst);
@@ -58,6 +60,8 @@ void ggml_compute_forward_diag_mask_inf(const struct ggml_compute_params * param
 void ggml_compute_forward_diag_mask_zero(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_soft_max(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_soft_max_ext_back(const struct ggml_compute_params * params, struct ggml_tensor * dst);
+void ggml_compute_forward_softcap(const struct ggml_compute_params * params, struct ggml_tensor * dst);
+void ggml_compute_forward_softcap_max(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_rope(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_rope_back(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_clamp(const struct ggml_compute_params * params, struct ggml_tensor * dst);
