@@ -47,6 +47,9 @@ jobs:
 
       - name: Build
         id: make_build
+        env:
+          TCL_LIBRARY: /usr/lib/tcl8.6
+          TK_LIBRARY: /usr/lib/tk8.6
         run: |
           ./koboldcpp.sh dist
 

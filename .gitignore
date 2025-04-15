@@ -147,6 +147,10 @@ koboldcpp_hipblas.dll
 bin/
 conda/
 
+*.bak
+
 # Jetbrains idea folder
 .idea/
-*.bak
+
+# Cloudflare files
+cloudflared.*

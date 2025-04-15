@@ -1,0 +1,530 @@
+{
+    "anyOf": [
+        {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "pattern": "^ask_user$"
+                        },
+                        "args": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "suggestionsToPickFrom": {
+                                    "type": "array"
+                                }
+                            },
+                            "required": [
+                                "message",
+                                "suggestionsToPickFrom"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "name",
+                        "args"
+                    ]
+                }
+            },
+            "required": [
+                "command"
+            ]
+        },
+        {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "pattern": "^thought$"
+                        },
+                        "args": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "message"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "name",
+                        "args"
+                    ]
+                }
+            },
+            "required": [
+                "command"
+            ]
+        },
+        {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "pattern": "^send_message$"
+                        },
+                        "args": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "message"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "name",
+                        "args"
+                    ]
+                }
+            },
+            "required": [
+                "command"
+            ]
+        },
+        {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "pattern": "^stop_thinking$"
+                        },
+                        "args": {
+                            "type": "object",
+                            "properties": {},
+                            "required": []
+                        }
+                    },
+                    "required": [
+                        "name",
+                        "args"
+                    ]
+                }
+            },
+            "required": [
+                "command"
+            ]
+        },
+        {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "pattern": "^web_search$"
+                        },
+                        "args": {
+                            "type": "object",
+                            "properties": {
+                                "query": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "query"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "name",
+                        "args"
+                    ]
+                }
+            },
+            "required": [
+                "command"
+            ]
+        },
+        {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "pattern": "^roll_dice$"
+                        },
+                        "args": {
+                            "type": "object",
+                            "properties": {
+                                "numDice": {
+                                    "type": "integer"
+                                },
+                                "numSides": {
+                                    "type": "integer"
+                                }
+                            },
+                            "required": [
+                                "numDice",
+                                "numSides"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "name",
+                        "args"
+                    ]
+                }
+            },
+            "required": [
+                "command"
+            ]
+        },
+        {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "pattern": "^evaluate_formula$"
+                        },
+                        "args": {
+                            "type": "object",
+                            "properties": {
+                                "formula": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "formula"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "name",
+                        "args"
+                    ]
+                }
+            },
+            "required": [
+                "command"
+            ]
+        },
+        {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "pattern": "^add_to_history$"
+                        },
+                        "args": {
+                            "type": "object",
+                            "properties": {
+                                "text": {
+                                    "type": "string"
+                                },
+                                "keywords": {
+                                    "type": "array"
+                                }
+                            },
+                            "required": [
+                                "text",
+                                "keywords"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "name",
+                        "args"
+                    ]
+                }
+            },
+            "required": [
+                "command"
+            ]
+        },
+        {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "pattern": "^overwrite_system_prompt$"
+                        },
+                        "args": {
+                            "type": "object",
+                            "properties": {
+                                "text": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "text"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "name",
+                        "args"
+                    ]
+                }
+            },
+            "required": [
+                "command"
+            ]
+        },
+        {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "pattern": "^overwrite_current_state$"
+                        },
+                        "args": {
+                            "type": "object",
+                            "properties": {
+                                "text": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "text"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "name",
+                        "args"
+                    ]
+                }
+            },
+            "required": [
+                "command"
+            ]
+        },
+        {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "pattern": "^search_history$"
+                        },
+                        "args": {
+                            "type": "object",
+                            "properties": {
+                                "searchString": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "searchString"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "name",
+                        "args"
+                    ]
+                }
+            },
+            "required": [
+                "command"
+            ]
+        },
+        {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "pattern": "^wordcount$"
+                        },
+                        "args": {
+                            "type": "object",
+                            "properties": {
+                                "state": {
+                                    "type": "boolean"
+                                }
+                            },
+                            "required": [
+                                "state"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "name",
+                        "args"
+                    ]
+                }
+            },
+            "required": [
+                "command"
+            ]
+        },
+        {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "pattern": "^analyse_image$"
+                        },
+                        "args": {
+                            "type": "object",
+                            "properties": {
+                                "prompt": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "prompt"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "name",
+                        "args"
+                    ]
+                }
+            },
+            "required": [
+                "command"
+            ]
+        },
+        {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "pattern": "^generate_image$"
+                        },
+                        "args": {
+                            "type": "object",
+                            "properties": {
+                                "prompt": {
+                                    "type": "string"
+                                },
+                                "aspect": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "prompt",
+                                "aspect"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "name",
+                        "args"
+                    ]
+                }
+            },
+            "required": [
+                "command"
+            ]
+        },
+        {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "pattern": "^generate_image_based_on_another_image$"
+                        },
+                        "args": {
+                            "type": "object",
+                            "properties": {
+                                "prompt": {
+                                    "type": "string"
+                                },
+                                "aspect": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "prompt",
+                                "aspect"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "name",
+                        "args"
+                    ]
+                }
+            },
+            "required": [
+                "command"
+            ]
+        },
+        {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "pattern": "^speak$"
+                        },
+                        "args": {
+                            "type": "object",
+                            "properties": {
+                                "textToSay": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "textToSay"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "name",
+                        "args"
+                    ]
+                }
+            },
+            "required": [
+                "command"
+            ]
+        }
+    ]
+}

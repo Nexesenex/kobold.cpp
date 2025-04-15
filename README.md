@@ -1,9 +1,9 @@
-# Croco.Cpp (CCPP) - Readme to be updated :
+# Croco.Cpp (CCPP), a KoboldCPP mod - Esobold Powered version - Readme to be updated :
 
 <details>
 <summary>Unroll DISCLAIMER:</summary>
 
-Croco.Cpp is a fork of KoboldCPP, already known as KoboldCPP Frankenstein, Frankenfork, or shortened in KCPP-F.
+Croco.Cpp is a fork/mod of KoboldCPP, already known as KoboldCPP Frankenstein, Frankenfork, or shortened in KCPP-F.
 The namechange is due to my boredom with the Frankenstein marker I myself initiated a year ago.
 As usual, the Croco.Cpp builds are NOT supported by the KoboldCPP (KCPP) team, Github, or Discord channel.
 They are for greedy-test and amusement only.
@@ -16,7 +16,7 @@ Important : New models sometimes integrated in my builds (like recently Mistral 
 
 Presentation :
 
-Croco.Cpp (CCPP) is a fork of the experimental branch of KoboldCPP (KCPP), mainly aimed at NVidia Cuda users (I'm myself using Ampere GPUs, it doesn't support the other backends as of now, it might support Hipblas/ROCm, but it's not tested), with a few modifications accordingly to my own needs :
+Croco.Cpp (CCPP) is a fork/mod of the experimental branch of KoboldCPP (KCPP), mainly aimed at NVidia Cuda users (I'm myself using Ampere GPUs, it doesn't support the other backends as of now, it might support Hipblas/ROCm, but it's not tested), with a few modifications accordingly to my own needs :
 - A more cluttered GUI that I had to enlarge to put all my mess.
 - More context steps in GUI, as well as more Blas Batch Size (supports MMVQ 1-8 for example).
 - Physical Blas Batch Size Exposed and configurable.
@@ -227,7 +227,11 @@ Cuda 11.4.4/11.5 arch 35375052 : CuCML_ArCML_SMC2_DmmvX32Y1
 KoboldCpp-experimental is a sligthly extended KoboldCpp with [custom](experimental/README.md) functionality.
 
 
-# koboldcpp
+-----
+
+Croco is based on KoboldCPP
+
+# koboldcpp (for information)
 
 KoboldCpp is an easy-to-use AI text-generation software for GGML and GGUF models, inspired by the original **KoboldAI**. It's a single self-contained distributable from Concedo, that builds off llama.cpp and adds many additional powerful features.
 
@@ -431,3 +435,89 @@ when you can't use the precompiled binary directly, we provide an automated buil
   - Image Recognition MMproj: [Pick the correct one for your model architecture here](https://huggingface.co/koboldcpp/mmproj/tree/main)
   - Speech Recognition: [Whisper models for Speech-To-Text](https://huggingface.co/koboldcpp/whisper/tree/main)
   - Text-To-Speech: [TTS models for Narration](https://huggingface.co/koboldcpp/tts/tree/main)
+
+
+-----
+
+Croco is also using the following fork of KoboldCPP, Esobold.
+
+# Esobold (Esolithe's fork of KoboldCPP) (for information)
+
+![Kobold](https://github.com/user-attachments/assets/f5cb4087-bc72-47fc-91a5-29a4d6495648)
+
+Welcome all, this fork focuses on enhanced remote management, server saving and integration in KoboldCPP and Kobold Lite.
+
+It offers the following functionalities:
+- Config reloading (Cedo's implementation) enhanced with an option to select a text model to override the config (useful to switch between models using a generic "8B" or "12B" config without needing one for each model).  There is also helper text in Lite to show you the current config and model in use, along with a waiting mechanism to only reload when it's ready.
+
+![411112504-e4d6936f-234f-40d8-8bfe-578c4332089d](https://github.com/user-attachments/assets/de7d4105-ffdd-40c3-bc0e-26041b6ded36)
+- Save / load from server - with or without admin password: It is possible to store saves, scenarios, character cards, lorebooks etc.  The difference with the main KCPP is this option integrates with the scenerio search, offers the ability to upload multiple types of content and does not limit the amount of save uploaded.  Both options can be used together if desired.
+
+![413011334-de6d3101-5621-4c47-a45b-d71f1b436cce](https://github.com/user-attachments/assets/098f64c6-9f6e-4951-b4a9-b4b458ddb7d8)
+- Data on the server can be assigned a thumbnail
+
+![418191433-72b95f51-7868-4a4b-bb50-e92605e1a13c](https://github.com/user-attachments/assets/8618d216-42d8-4c34-a859-5c4a1e809136)
+![413011254-30449652-2292-406c-8d27-bc04d2389a38](https://github.com/user-attachments/assets/63c3f6af-8695-4d4f-92b1-654ccf006fb4)
+- Server save data can be accessed in the scenarios tab (allowing searching by types and names)
+
+![418191036-d773e536-6c09-4b76-828e-6e542e075f0e](https://github.com/user-attachments/assets/81dfea9f-9862-4b52-ba3d-92472a1b758c)
+![418190669-f839ed18-0fb9-4319-82d8-03952c5d3f20](https://github.com/user-attachments/assets/2ee0c202-8f68-44d6-aa6f-18ae35f33857)
+
+- Agent thinking (based on prompts from this cool project [here](https://github.com/Wladastic/mini_autogpt))
+
+## Agent thinking mode (experimental)
+
+An attempt to replicate tool usage / agent logic in Lite.  Essentially, the AI is provided the user input and a list of tools that it can use.  Should work on all UI modes for instruct.
+
+The currently supported options include:
+- Sending messages / Asking for additional user input (including AI suggested options like a text adventure)
+
+![2025-04-01 19_57_17-KoboldAI Lite — LibreWolf](https://github.com/user-attachments/assets/c46ce852-8d04-4451-a27e-7eb2cd1ab462)
+
+- Searching the web
+
+![image](https://github.com/user-attachments/assets/1b5d066c-f71a-4b07-8e92-8a88870ed892)
+
+- Evaluating mathematical formulas
+- Rolling dice (can be used for random generation)
+![image](https://github.com/user-attachments/assets/91529033-6a21-4cc3-a0c2-730fb68a99af)
+
+- Generating images at different aspect ratios (in KCPP) - Both from text and another image
+![image](https://github.com/user-attachments/assets/39bc5433-54f2-4c9e-8422-9e20d4383b71)
+![image](https://github.com/user-attachments/assets/97bef072-06d9-47a1-8066-2bcb5c20bc6f)
+- Analysing images (in KCPP)
+- "Speaking" through TTS (in KCPP)
+- Adding data to the TextDB and searching for information in it, along with the chat log
+- Knowing the current date
+- Enabling a word count on the AI responses
+- Supports system prompts, both using and setting it automatically
+- Supports setting a "state" parameter which is always inserted at the end of the text
+
+Using this function requires the following conditions to be met:
+- Use an instruct model
+- Use separate start and end tags for all roles (tick the option under the instruct settings and ensure they are all filled out, like ChatML)
+- Ensure that if you wish the AI to use web searching, TTS or image gen that the respective options are configured and enabled in the UI
+
+## Improvements to TextDB (probably will be upstreamed in the future)
+- UI improvements
+
+![image](https://github.com/user-attachments/assets/94b0f24e-360e-4c66-8d40-8b9185117902)
+- Importing of lorebooks from the load button as Text DB entries
+- Support for ```[DOCUMENT BREAK][Name of document]This is the content of the document``` which allows for user defined groupings of sections
+
+## Running the fork
+
+Most of the settings are identical to KoboldCPP, but there's a couple of additional options to note in the launcher (admin tab) - admin must be enabled for these to work:
+- Model directory: A folder with text model GGUFs you wish to allow switching between - this is an override on top of using a config, so please ensure a config directory is set as well.
+- Data directory: A folder server side data is stored (for example saves, character cards etc).
+
+![411112726-0ae7fed6-3baf-43fd-a1d6-bab52319a6ee](https://github.com/user-attachments/assets/8e80b8a3-11fc-4aa0-b4c8-5a9feacf02cb)
+
+If you prefer the arguments:
+- To turn on remote management: --admin
+- To set a management password: --adminpassword "..."
+- To set the reloadable configs directory --admindir "..."
+- To set the reloadable models directory (overriding the config model): --admintextmodelsdir "..."
+- To sets the data storage directory (where the database storing server side saves are stored): --admindatadir "..."
+
+---
