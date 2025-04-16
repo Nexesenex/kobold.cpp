@@ -20584,7 +20584,10 @@ Current version indicated by LITEVER below.
 			let sys = "system"
 			bodyStr = bodyStr.replaceAll(you + '\n', you).replaceAll(you + ' ', you).replaceAll(you, style('you') + `${you.endsWith('*') ? '*' : ''}` + `${you.endsWith('"') ? '"' : ''}`);
 			bodyStr = bodyStr.replaceAll(bot + '\n', bot).replaceAll(bot + ' ', bot).replaceAll(bot, style('AI') + `${bot.endsWith('*') ? '*' : ''}` + `${bot.endsWith('"') ? '"' : ''}`);
-			bodyStr = bodyStr.replaceAll(sys + '\n', sys).replaceAll(sys + ' ', sys).replaceAll(sys, style('sys') + `${sys.endsWith('*') ? '*' : ''}` + `${sys.endsWith('"') ? '"' : ''}`);
+			if (isAgentModeEnabledAndSetCorrectly())
+			{
+				bodyStr = bodyStr.replaceAll(sys + '\n', sys).replaceAll(sys + ' ', sys).replaceAll(sys, style('sys') + `${sys.endsWith('*') ? '*' : ''}` + `${sys.endsWith('"') ? '"' : ''}`);	
+			}
 
 			//for adventure mode, highlight our actions with blockquotes
 			if (localsettings.opmode == 2) {
