@@ -2,6 +2,9 @@
 #ifndef GGML_VULKAN_COOPMAT_GLSLC_SUPPORT
 #define GGML_VULKAN_COOPMAT_GLSLC_SUPPORT
 #endif
+#ifndef GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT
+#define GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT
+#endif
 #ifndef GGML_VULKAN_INTEGER_DOT_GLSLC_SUPPORT
 #define GGML_VULKAN_INTEGER_DOT_GLSLC_SUPPORT
 #endif
@@ -58,7 +61,11 @@
 #include "ggml-impl.h"
 #include "ggml-backend-impl.h"
 
+#ifndef NO_VULKAN_EXTENSIONS
 #include "ggml-vulkan-shaders.cpp"
+#else
+#include "ggml-vulkan-shaders-noext.cpp"
+#endif
 
 #define ROUNDUP_POW2(M, N) (((M) + (N) - 1) & ~((N) - 1))
 #define CEIL_DIV(M, N) (((M) + (N)-1) / (N))

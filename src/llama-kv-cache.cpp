@@ -27,7 +27,7 @@ bool llama_kv_cache_unified::init(
 
     recurrent = llama_model_is_recurrent(&model);
     v_trans   = !recurrent && !cparams.flash_attn;
-    can_shift = !recurrent && model.arch != LLM_ARCH_DEEPSEEK2; // not supported due to MLA
+    can_shift = !recurrent;
 
     LLAMA_LOG_INFO("%s: kv_size = %d, offload = %d, type_k = '%s', type_v = '%s', n_layer = %d, can_shift = %d\n",
             __func__, kv_size, offload, ggml_type_name(type_k), ggml_type_name(type_v), n_layer, can_shift);
@@ -205,7 +205,7 @@ bool llama_kv_cache_unified::seq_rm(llama_seq_id seq_id, llama_pos p0, llama_pos
             }
         }
 
-        return true;
+       // return true;
     }
 
     for (uint32_t i = 0; i < size; ++i) {
@@ -487,8 +487,10 @@ void llama_kv_cache_unified::commit() {
     }
 
     if (pending.ranges.empty()) {
+        if (!recurrent) {
         LLAMA_LOG_WARN("%s: no pending KV cache updates to commit - might indicate a bug (ref: %s)\n",
                 __func__, "https://github.com/ggml-org/llama.cpp/pull/12695");
+        }
         return;
     }
 
