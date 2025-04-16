@@ -58,11 +58,11 @@ dry_seq_break_max = 512
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.88015"
-LcppVersion = "b5123"
+KcppVersion = "1.89000"
+LcppVersion = "b5143"
 EsoboldVersion = "RMv1.7.0+2c"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/04/14"
+ReleaseDate = "2025/04/16"
 showdebug = True
 # guimode = False
 kcpp_instance = None #global running instance
@@ -7705,13 +7705,17 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
                 lastturns.append({"role":"user","content":lastuserinput})
                 payload = {"messages":lastturns,"rep_pen":1.07,"temperature":0.8}
                 payload = transform_genparams(payload, 4) #to chat completions
-                suppress_stdout()
+                if args.debugmode < 1:
+                    suppress_stdout()
                 genout = generate(genparams=payload)
-                restore_stdout()
-                result = genout["text"]
+                if args.debugmode < 1:
+                    restore_stdout()
+                result = (genout["text"] if "text" in genout else "")
                 if result:
                     lastturns.append({"role":"assistant","content":result})
-                print(result.strip() + "\n", flush=True)
+                    print(result.strip() + "\n", flush=True)
+                else:
+                    print("(No Response Received)\n", flush=True)
         else:
             save_to_file = (args.benchmark and args.benchmark!="stdout" and args.benchmark!="")
             gpu0avram = int(MaxMemory[0]/1024/1024)
