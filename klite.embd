@@ -3030,6 +3030,7 @@ Current version indicated by LITEVER below.
 	var documentdb_searchrange = 300;
 	var documentdb_chunksize = 800;
 	var documentdb_data = "";
+	var documentdb_useEmbeddings = false
 	var generateimagesinterval = 750; //if generated images is enabled, it will trigger after every 700 new characters in context.
 	var nextgeneratedimagemilestone = generateimagesinterval; //used to keep track of when to generate the next image
 	var image_db = {}; //stores a dictionary of pending images
@@ -6508,6 +6509,7 @@ Current version indicated by LITEVER below.
 		new_save_storyobj.documentdb_searchrange = documentdb_searchrange;
 		new_save_storyobj.documentdb_chunksize = documentdb_chunksize;
 		new_save_storyobj.documentdb_data = documentdb_data;
+		new_save_storyobj.documentdb_useEmbeddings = documentdb_useEmbeddings;
 
 		if (export_settings) {
 			new_save_storyobj.savedsettings = JSON.parse(JSON.stringify(localsettings));
@@ -6793,6 +6795,10 @@ Current version indicated by LITEVER below.
 				if(storyobj.documentdb_data)
 				{
 					documentdb_data = storyobj.documentdb_data;
+				}
+				if(storyobj.documentdb_useEmbeddings)
+				{
+					documentdb_useEmbeddings = storyobj.documentdb_useEmbeddings;
 				}
 
 
@@ -12172,6 +12178,7 @@ Current version indicated by LITEVER below.
 		documentdb_searchrange = document.getElementById("documentdb_searchrange").value;
 		documentdb_chunksize = document.getElementById("documentdb_chunksize").value;
 		documentdb_data = document.getElementById("documentdb_data").value;
+		documentdb_useEmbeddings = document.getElementById("documentdb_useEmbeddings").checked?true:false;
 		documentdb_numresults = parseInt(documentdb_numresults);
 		documentdb_numresults = cleannum(documentdb_numresults,1,10);
 		documentdb_searchrange = parseInt(documentdb_searchrange);
@@ -12541,6 +12548,7 @@ Current version indicated by LITEVER below.
 			documentdb_searchrange = 300;
 			documentdb_chunksize = 800;
 			documentdb_data = "";
+			documentdb_useEmbeddings = false;
 		}
 		warn_on_quit = false;
 		show_corpo_leftpanel(false);
@@ -13790,7 +13798,7 @@ Current version indicated by LITEVER below.
 		});
 	}
 
-	function submit_generation(senttext)
+	async function submit_generation(senttext)
 	{
 		warn_on_quit = true;
 		let newgen = senttext;
@@ -14285,7 +14293,7 @@ Current version indicated by LITEVER below.
 							fullDocument += "\n"+historicalContext;
 						}
 
-						let ltmSnippets = DatabaseMinisearch(fullDocument,ltmSearchQuery,recentTextStr);
+						let ltmSnippets = await DatabaseMinisearch(fullDocument,ltmSearchQuery,recentTextStr);
 						if (ltmSnippets.length === 0)
 						{
 							console.log("No memory fragments found either as history is too short or no relevant content found");
@@ -19205,6 +19213,7 @@ Current version indicated by LITEVER below.
 		document.getElementById("documentdb_searchrange").value = documentdb_searchrange;
 		document.getElementById("documentdb_chunksize").value = documentdb_chunksize;
 		document.getElementById("documentdb_data").value = documentdb_data;
+		document.getElementById("documentdb_useEmbeddings").value = documentdb_useEmbeddings;
 	}
 
 	function toggle_logit_bias_string()
@@ -20643,7 +20652,7 @@ Current version indicated by LITEVER below.
 
 	//LTM TextDB Memsnipper searching
 	//searches dbText for searchStr and recentTextStr, returns up to 3 results
-	function DatabaseMinisearch(dbText, searchStr, recentTextStr, minSimilarity = 0.2)
+	async function DatabaseMinisearch(dbText, searchStr, recentTextStr, minSimilarity = 0.2)
 	{	//predefined minisearch constants
 		const chunkSize = documentdb_chunksize;
 		const chunkSizeOverlap = chunkSize*0.5;
@@ -20763,66 +20772,78 @@ Current version indicated by LITEVER below.
 			c.snippet = c.snippet.replace(/\n\n/g, "\n");
 			return c;
 		}).filter(c => !!c.snippet);
-		let pgcount = 0;
-		paragraphs = paragraphs.map(paragraph => {
-			pgcount += 1;
-			return {
-				id: pgcount,
-				snippet: paragraph.snippet,
-				text: stripToTokens(paragraph.snippet),
-				category: "context",
-				document: paragraph.document
-			}
-		});
 
-		// a list of commonly used words that have little meaning and can be excluded from analysis.
-		const stopwords = [
-			'about', 'above', 'after', 'again', 'all', 'also', 'am', 'an', 'and', 'another',
-			'any', 'are', 'as', 'at', 'be', 'because', 'been', 'before', 'being', 'below',
-			'between', 'both', 'but', 'by', 'came', 'can', 'cannot', 'come', 'could', 'did',
-			'do', 'does', 'doing', 'during', 'each', 'few', 'for', 'from', 'further', 'get',
-			'got', 'has', 'had', 'he', 'have', 'her', 'here', 'him', 'himself', 'his', 'how',
-			'if', 'in', 'into', 'is', 'it', 'its', 'itself', 'like', 'make', 'many', 'me',
-			'might', 'more', 'most', 'much', 'must', 'my', 'myself', 'never', 'now', 'of', 'on',
-			'only', 'or', 'other', 'our', 'ours', 'ourselves', 'out', 'over', 'own',
-			'said', 'same', 'see', 'she', 'should', 'since', 'so', 'some', 'still', 'such', 'take', 'than',
-			'that', 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there', 'these', 'they',
-			'this', 'those', 'through', 'to', 'too', 'under', 'until', 'up', 'very', 'was',
-			'way', 'we', 'well', 'were', 'what', 'where', 'when', 'which', 'while', 'who',
-			'whom', 'with', 'would', 'why', 'you', 'your', 'yours', 'yourself',
-			'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
-			'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '$', '1',
-			'2', '3', '4', '5', '6', '7', '8', '9', '0', '_',
-			'll', 're'
-		];
-		//step 2: initialize minisearch engine
-		let miniSearch = new MiniSearch({
-			fields: ["text"], // fields to index for full-text search
-			storeFields: ['category', "snippet", "document"], // fields to return with search results
-			searchOptions: {
-				fuzzy: 0,
-				bm25: { // https://lucaong.github.io/minisearch/types/MiniSearch.BM25Params.html
-					b: 0.7, // Normalisation for the length of the string
-					d: 0.7, // Minimum significance of a term showing up once
-					k: 1.5 // Term frequency falloff (higher values allow for bigger differences based on amount of repetition of terms)
+		let miniSearch;
+		if (!!documentdb_useEmbeddings)
+		{
+			let searchResults = await embeddingSearcher.getRankedEmbeddings(searchStr, ...paragraphs)
+			searchResults = searchResults.filter(x=>x.similarity>minSimilarity);
+			searchResults = searchResults.slice(0, valuesToReturn);
+			return searchResults;
+		}
+		else
+		{
+			let pgcount = 0;
+			paragraphs = paragraphs.map(paragraph => {
+				pgcount += 1;
+				return {
+					id: pgcount,
+					snippet: paragraph.snippet,
+					text: stripToTokens(paragraph.snippet),
+					category: "context",
+					document: paragraph.document
 				}
-			},
-			processTerm: (term, _fieldName) => {
-				let processedTerm = stopwords.includes(term.toLowerCase()) ? false : MiniSearch.getDefault("processTerm")(term);
-				return processedTerm;
-			},
-			tokenize: (str) => {
-				let terms = MiniSearch.getDefault("tokenize")(str);
-				return terms.concat(terms.map(porterStemmer));
-			}
-		});
-		miniSearch.addAll(paragraphs); //populate minisearch with paragraphs
+			});
 
-		//step 3: run the search over the dbText to generate matches
-		let searchResults = searchAndScore(searchStr,recentTextStr,paragraphs);
-		searchResults = searchResults.filter(x=>x.match>minSimilarity);
-		searchResults = searchResults.slice(0, valuesToReturn);
-		return searchResults;
+			// a list of commonly used words that have little meaning and can be excluded from analysis.
+			const stopwords = [
+				'about', 'above', 'after', 'again', 'all', 'also', 'am', 'an', 'and', 'another',
+				'any', 'are', 'as', 'at', 'be', 'because', 'been', 'before', 'being', 'below',
+				'between', 'both', 'but', 'by', 'came', 'can', 'cannot', 'come', 'could', 'did',
+				'do', 'does', 'doing', 'during', 'each', 'few', 'for', 'from', 'further', 'get',
+				'got', 'has', 'had', 'he', 'have', 'her', 'here', 'him', 'himself', 'his', 'how',
+				'if', 'in', 'into', 'is', 'it', 'its', 'itself', 'like', 'make', 'many', 'me',
+				'might', 'more', 'most', 'much', 'must', 'my', 'myself', 'never', 'now', 'of', 'on',
+				'only', 'or', 'other', 'our', 'ours', 'ourselves', 'out', 'over', 'own',
+				'said', 'same', 'see', 'she', 'should', 'since', 'so', 'some', 'still', 'such', 'take', 'than',
+				'that', 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there', 'these', 'they',
+				'this', 'those', 'through', 'to', 'too', 'under', 'until', 'up', 'very', 'was',
+				'way', 'we', 'well', 'were', 'what', 'where', 'when', 'which', 'while', 'who',
+				'whom', 'with', 'would', 'why', 'you', 'your', 'yours', 'yourself',
+				'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
+				'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '$', '1',
+				'2', '3', '4', '5', '6', '7', '8', '9', '0', '_',
+				'll', 're'
+			];
+			//step 2: initialize minisearch engine
+			miniSearch = new MiniSearch({
+				fields: ["text"], // fields to index for full-text search
+				storeFields: ['category', "snippet", "document"], // fields to return with search results
+				searchOptions: {
+					fuzzy: 0,
+					bm25: { // https://lucaong.github.io/minisearch/types/MiniSearch.BM25Params.html
+						b: 0.7, // Normalisation for the length of the string
+						d: 0.7, // Minimum significance of a term showing up once
+						k: 1.5 // Term frequency falloff (higher values allow for bigger differences based on amount of repetition of terms)
+					}
+				},
+				processTerm: (term, _fieldName) => {
+					let processedTerm = stopwords.includes(term.toLowerCase()) ? false : MiniSearch.getDefault("processTerm")(term);
+					return processedTerm;
+				},
+				tokenize: (str) => {
+					let terms = MiniSearch.getDefault("tokenize")(str);
+					return terms.concat(terms.map(porterStemmer));
+				}
+			});
+			miniSearch.addAll(paragraphs); //populate minisearch with paragraphs
+
+			//step 3: run the search over the dbText to generate matches
+			let searchResults = searchAndScore(searchStr, recentTextStr, paragraphs);
+			searchResults = searchResults.filter(x => x.match > minSimilarity);
+			searchResults = searchResults.slice(0, valuesToReturn);
+			return searchResults;
+		}
 	}
 	</script>
 
@@ -21162,6 +21183,13 @@ Current version indicated by LITEVER below.
 				<div class="settinglabel" style="padding: 4px;">
 					<div class="justifyleft settingsmall" title="Enable TextDB">Enable TextDB </div>
 					<input title="Enable TextDB" type="checkbox" id="documentdb_enabled" style="margin:0px 0 0;">
+				</div>
+
+				<div class="settinglabel" style="padding: 4px;">
+					<div class="justifyleft settingsmall" title="Enable TextDB">Use Embeddings for Searching </div>
+					<div class="justifyleft settingsmall" title="Use Embeddings for Searching">Use Embeddings for Searching <span class="helpicon">?
+						<span class="helptext">If enabled, the text DB is converted to vectors using the KoboldCPP embedding endpoint. If not, it uses the traditional TextDB keyword based search. Generally, embeddings are slower to generate initially (so when making changes to DB the next response might be very slow) - but may understand the context of the sentence better while also potentially supporting multiple languages.</span></span></div>
+					<input title="Use Embeddings for Searching" type="checkbox" id="documentdb_useEmbeddings" style="margin:0px 0 0;">
 				</div>
 
 				<div class="settinglabel" style="padding: 4px;">
@@ -24846,7 +24874,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							let searchHistoryString = action?.args?.searchString
 							if (!!searchHistoryString) 
 							{
-								let ltmSnippets = DatabaseMinisearch(`${documentdb_data}\n\nHistory: ${concat_gametext(true)}`, searchHistoryString, "");
+								let ltmSnippets = await DatabaseMinisearch(`${documentdb_data}\n\nHistory: ${concat_gametext(true)}`, searchHistoryString, "");
 								if (ltmSnippets.length === 0)
 								{
 									addThought(createSysPrompt, `History search performed: Nothing found`)
@@ -24870,7 +24898,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							let searchString = action?.args?.searchString
 							if (!!searchString) 
 							{
-								let ltmSnippets = DatabaseMinisearch(documentdb_data, searchString, "");
+								let ltmSnippets = await DatabaseMinisearch(documentdb_data, searchString, "");
 								if (ltmSnippets.length === 0)
 								{
 									addThought(createSysPrompt, `Memory search performed: Nothing found`)
@@ -24894,7 +24922,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							let searchChatlogString = action?.args?.searchString
 							if (!!searchChatlogString) 
 							{
-								let ltmSnippets = DatabaseMinisearch(concat_gametext(true), searchChatlogString, "");
+								let ltmSnippets = await DatabaseMinisearch(concat_gametext(true), searchChatlogString, "");
 								if (ltmSnippets.length === 0)
 								{
 									addThought(createSysPrompt, `Chatlog search performed: Nothing found`)
@@ -25474,14 +25502,14 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		computeIfAbscentEmbedding = async (hash, generator) => {
 			let currentEmbedding = await this.getEmbedding(hash)
 			if (currentEmbedding === undefined) {
-				return await this.saveEmbedding(generator(hash))
+				return await this.saveEmbedding(await generator(hash))
 			}
 		}
 
 		computeAndGetIfAbscentEmbedding = async (hash, generator) => {
 			let currentEmbedding = await this.getEmbedding(hash)
 			if (currentEmbedding === undefined) {
-				await this.saveEmbedding(generator(hash))
+				await this.saveEmbedding(await generator(hash))
 			}
 			return await this.getEmbedding(hash)
 		}
@@ -25494,168 +25522,114 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		deleteEmbedding = async (id) => {
 			return await this.deleteData("Embeddings", "EmbeddingsStore", id)
 		}
+
+		deleteDocument = async (document) => {
+			let embeddings = await embeddingDB.getEmbeddingsByDocument(document);
+			for (let embedding of embeddings)
+			{
+				await this.deleteData("Embeddings", "EmbeddingsStore", embedding.id)	
+			}
+		}
 	}
 
 	window.embeddingDB = new EmbeddingDB()
 
 </script>
-<!-- <script>
-	dbText = documentdb_data
-	searchStr = "When did the Martians invade?"
-	recentTextStr = ""
-	chunkSize = documentdb_chunksize;
-	chunkSizeOverlap = chunkSize * 0.5;
-	maxEmbeddings = 5
+<script type="module">
+		class EmbeddingSearcher
+		{
+			getHashForText = (text) => {
+				return forge.md5.create().update(text).digest().toHex()
+			}
 
-	getHashForText = (text) => {
-		return forge.md5.create().update(text).digest().toHex()
-	}
+			generateEmbedding = async (text) => {
+				let reqOpt = {
+					method: 'POST', // or 'PUT'
+					headers: get_kobold_header(),
+					body: JSON.stringify({
+						"input": text,
+						"truncate": true
+					}),
+				};
+				if (globalabortcontroller) {
+					reqOpt.signal = globalabortcontroller.signal;
+				}
+				let sub_endpt = apply_proxy_url(`${custom_kobold_endpoint}/api/extra/embeddings`);
+				return fetch(sub_endpt, reqOpt)
+					.then((response) => response.json())
+			}
 
-	getEmbedding = async (text) => {
-		let reqOpt = {
-			method: 'POST', // or 'PUT'
-			headers: get_kobold_header(),
-			body: JSON.stringify({
-				"input": text,
-				"truncate": true
-			}),
-		};
-		if (globalabortcontroller) {
-			reqOpt.signal = globalabortcontroller.signal;
-		}
-		let sub_endpt = apply_proxy_url(`${custom_kobold_endpoint}/api/extra/embeddings`);
-		return fetch(sub_endpt, reqOpt)
-			.then((response) => response.json())
-	}
+			getEmbeddings = async (...paragraphs) => {
+				let embeddings = []
+				for (let i = 0; i < paragraphs.length; i++) {
+					let embeddingObj = undefined
+					if (!!paragraphs[i]?.snippet) {
+						let documentContent = paragraphs[i]?.snippet;
+						let hashFromText = this.getHashForText(documentContent),
+							documentName = paragraphs[i]?.document;
 
-	getEmbeddings = async (...paragraphs) => {
-		let embeddings = []
-		for (let i = 0; i < maxEmbeddings && i < paragraphs.length; i++) {
-			let embedding = await getEmbedding(paragraphs[i])
-			if (!!embedding?.data && embedding?.data.length > 0 && !!embedding?.data[0]?.embedding) {
-				embeddings.push({
-					text: paragraphs[i],
-					embedding: embedding?.data[0]?.embedding
+						embeddingObj = await embeddingDB.computeAndGetIfAbscentEmbedding(hashFromText, async (hash) => {
+							let embedding = await this.generateEmbedding(documentContent)
+							if (!!embedding?.data && embedding?.data.length > 0 && !!embedding?.data[0]?.embedding) {
+								return {
+									document: !!documentName ? documentName : "None",
+									hash: hash,
+									embedding: embedding.data[0].embedding,
+									snippet: documentContent
+								}
+							}
+							return undefined
+						});
+					} else {
+						let documentContent = paragraphs[i]
+						let embedding = await this.generateEmbedding(documentContent)
+						if (!!embedding?.data && embedding?.data.length > 0 && !!embedding?.data[0]?.embedding) {
+							embeddingObj = {
+								document: "None",
+								hash: this.getHashForText(documentContent),
+								embedding: embedding.data[0].embedding,
+								snippet: documentContent
+							}
+						}
+					}
+
+					if (!!embeddingObj) {
+						embeddings.push(embeddingObj)
+					}
+				}
+				return embeddings
+			}
+
+			cosineSimilarity = (A, B) => {
+				let dotproduct = 0;
+				let mA = 0;
+				let mB = 0;
+
+				for (let i = 0; i < A.length; i++) {
+					dotproduct += A[i] * B[i];
+					mA += A[i] * A[i];
+					mB += B[i] * B[i];
+				}
+
+				mA = Math.sqrt(mA);
+				mB = Math.sqrt(mB);
+
+				return dotproduct / (mA * mB);
+			}
+
+			getRankedEmbeddings = async (searchTerm, ...paragraphs) => {
+				let embeddings = await this.getEmbeddings(...paragraphs)
+				let searchEmbedding = await this.getEmbeddings(searchTerm)
+
+				embeddings.forEach(embedding => {
+					embedding.similarity = this.cosineSimilarity(searchEmbedding[0].embedding, embedding.embedding)
 				})
+
+				embeddings.sort((a, b) => a.similarity > b.similarity ? -1 : 1)
+				return embeddings
 			}
 		}
-		return embeddings
-	}
 
-	cosineSimilarity = (A, B) => {
-		let dotproduct = 0;
-		let mA = 0;
-		let mB = 0;
-
-		for (let i = 0; i < A.length; i++) {
-			dotproduct += A[i] * B[i];
-			mA += A[i] * A[i];
-			mB += B[i] * B[i];
-		}
-
-		mA = Math.sqrt(mA);
-		mB = Math.sqrt(mB);
-
-		return dotproduct / (mA * mB);
-	}
-
-	cleanupSpecialTags = function (text) {
-		text = text.replace(/\{\{\[INPUT\]\}\}/g, "").replace(/\{\{\[OUTPUT\]\}\}/g, "");
-		text = text.replace(/\{\{\[INPUT_END\]\}\}/g, "").replace(/\{\{\[OUTPUT_END\]\}\}/g, "");
-		text = text.replace(/\{\{\[SYSTEM\]\}\}/g, "").replace(/\{\{\[SYSTEM_END\]\}\}/g, "");
-		return text;
-	}
-
-	getParas = (text) => {
-		let i = 0,
-			paragraphs = [];
-		text.split("[DOCUMENT BREAK]").forEach(doc => {
-			doc = doc.trim()
-			let titleMatch = doc.match(/^\[([^\n]+?)\]/),
-				title = null;
-			if (titleMatch !== null) {
-				doc = doc.replace(titleMatch[0], "")
-				title = titleMatch[1]
-			}
-			let startLoc = 0;
-			while (startLoc < doc.length && i < Number.MAX_SAFE_INTEGER) {
-				let actualChunkStart = Math.max(0, startLoc - chunkSizeOverlap);
-				let actualChunkEnd = Math.min(doc.length, actualChunkStart + chunkSize);
-				let currentSnippet = doc.substring(actualChunkStart, actualChunkEnd);
-				paragraphs.push({
-					snippet: currentSnippet,
-					document: title
-				});
-				startLoc = actualChunkEnd;
-				i++;
-			}
-		})
-		paragraphs = paragraphs.map(c => {
-			c.snippet = c.snippet.replace(/\n\n/g, "\n");
-			return c;
-		}).filter(c => !!c.snippet);
-		return paragraphs
-	}
-
-	// createEmbeddingSchema = (db, oldVersion, newVersion, transaction, event) => {
-	// 	dbCon = db.result;
-	// 	store = dbCon.createObjectStore("EmbeddingsStore", {
-	// 		keyPath: "id"
-	// 	});
-	// 	index = store.createIndex("HashIndex", "hash");
-	// }
-
-	// async function saveData(dbName, storeName, dataArray) {
-	// 	const db = await idb.openDB(dbName, 1, createEmbeddingSchema);
-	// 	const tran = await db.transaction(storeName, 'readwrite');
-	// 	const store = tran.objectStore(storeName);
-
-	// 	for (let item of dataArray) {
-	// 		await store.put(item);
-	// 	}
-	// }
-
-	// saveEmbedding = (dataArray) => {
-	// 	return saveData('Embeddings', 'EmbeddingsStore', dataArray)
-	// }
-
-	// async function getData(dbName, storeName, searchTerms, indexName) {
-	// 	const db = await idb.openDB(dbName, 1, createEmbeddingSchema);
-	// 	if (!!indexName) {
-	// 		return await db.getFromIndex(storeName, indexName, searchTerms)
-	// 	}
-	// 	return await db.get(storeName, searchTerms)
-	// }
-
-	// getEmbedding = (searchTerms, indexName) => {
-	// 	return getData('Embeddings', 'EmbeddingsStore', searchTerms, indexName)
-	// }
-
-	// await saveEmbedding([{
-	// 	id: 1,
-	// 	hash: "abc",
-	// 	embedding: [0, 1, 2]
-	// }]);
-	// await getEmbedding("abc", "HashIndex")
-
-	//step 1: chunk the dbtext into paragraph chunks
-	allText = cleanupSpecialTags(dbText);
-	allText = replaceAll(allText, recentTextStr, "");
-
-	// Ensure placeholders are replaced to allow searching for user / character
-	allText = replace_search_placeholders(allText)
-	searchStr = replace_search_placeholders(searchStr)
-	recentTextStr = replace_search_placeholders(recentTextStr)
-
-	paragraphs = getParas(allText)
-	embeddings = await getEmbeddings(...paragraphs.map(paragraph => paragraph.snippet))
-	searchEmbedding = await getEmbeddings(searchStr)
-
-	embeddings.forEach(embedding => {
-		embedding.similarity = cosineSimilarity(searchEmbedding[0].embedding, embedding.embedding)
-	})
-
-	embeddings.sort((a, b) => a.similarity > b.similarity ? -1 : 1)
-	embeddings
-</script> -->
+		window.embeddingSearcher = new EmbeddingSearcher()
+</script>
 </html>
