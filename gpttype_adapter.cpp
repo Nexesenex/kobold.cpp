@@ -2189,6 +2189,17 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             kvo.tag = LLAMA_KV_OVERRIDE_TYPE_INT;
             kvo.val_i64 = inputs.moe_experts;
             kvos.push_back(kvo);
+        }
+        std::string override_kv = inputs.override_kv;
+        if(override_kv != "" && file_format==FileFormat::GGUF_GENERIC)
+        {
+            printf("\nAttempting to apply KV override: %s...\n",override_kv.c_str());
+            bool kvo_ok = string_parse_kv_override(override_kv.c_str(),kvos);
+            LLAMA_LOG_INFO("\nKV override result: %s\n",(kvo_ok?"success":"failed"));
+            fflush(stdout);
+        }
+        if(kvos.size()>0)
+        {
             model_params.kv_overrides = kvos.data();
         }
         llama_model * llamamodel = llama_model_load_from_file(kcpp_data->model_filename.c_str(), model_params);
