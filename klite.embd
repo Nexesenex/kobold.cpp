@@ -12,9 +12,9 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 229;
+	const LITEVER = 230;
 	const urlParams = new URLSearchParams(window.location.search);
-	var localflag = true;
+	var localflag = urlParams.get('local'); //this will be replaced automatically in embedded kcpp
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
 </script>
 
@@ -9078,7 +9078,7 @@ Current version indicated by LITEVER below.
 		.then((response) => response.json())
 		.then((data) => {
 			console.log(data);
-			if (data && data.data.length > 0)
+			if (data && data.data && data.data.length > 0)
 			{
 				for (var i = dropdown.options.length - 1; i >= 0; i--) {
 					var option = dropdown.options[i];

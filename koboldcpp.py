@@ -2784,13 +2784,26 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
         reply = ""
         status = str(parsed_dict['status'][0]) if 'status' in parsed_dict else "Ready To Generate"
         prompt = str(parsed_dict['prompt'][0]) if 'prompt' in parsed_dict else ""
+        chatmsg = str(parsed_dict['chatmsg'][0]) if 'chatmsg' in parsed_dict else ""
         max_length = int(parsed_dict['max_length'][0]) if 'max_length' in parsed_dict else 100
         temperature = float(parsed_dict['temperature'][0]) if 'temperature' in parsed_dict else 0.75
         top_k = int(parsed_dict['top_k'][0]) if 'top_k' in parsed_dict else 100
         top_p = float(parsed_dict['top_p'][0]) if 'top_p' in parsed_dict else 0.9
         rep_pen = float(parsed_dict['rep_pen'][0]) if 'rep_pen' in parsed_dict else 1.0
         ban_eos_token = int(parsed_dict['ban_eos_token'][0]) if 'ban_eos_token' in parsed_dict else 0
-        gencommand = (parsed_dict['generate'][0] if 'generate' in parsed_dict else "")=="Generate"
+        genbtnval = (parsed_dict['generate'][0] if 'generate' in parsed_dict else "")
+        gencommand = (genbtnval=="Generate" or genbtnval=="Send")
+        chatmode = int(parsed_dict['chatmode'][0]) if 'chatmode' in parsed_dict else 0
+        stops = []
+        prefix = ""
+        if chatmode:
+            ban_eos_token = False
+            if chatmsg:
+                prompt += f"\nUser: {chatmsg}\nAssistant:"
+            else:
+                gencommand = False
+            stops = ["\nUser:","\nAssistant:"]
+            prefix = "[This is a chat conversation log between User and Assistant.]\n"
 
         if modelbusy.locked():
             status = "Model is currently busy, try again later."
@@ -2804,23 +2817,41 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 epurl = f"{httpsaffix}://localhost:{args.port}"
                 if args.host!="":
                     epurl = f"{httpsaffix}://{args.host}:{args.port}"
-                gen_payload = {"prompt": prompt,"max_length": max_length,"temperature": temperature,"top_k": top_k,"top_p": top_p,"rep_pen": rep_pen,"ban_eos_token":ban_eos_token}
+                gen_payload = {"prompt": prefix+prompt,"max_length": max_length,"temperature": temperature,"top_k": top_k,"top_p": top_p,"rep_pen": rep_pen,"ban_eos_token":ban_eos_token, "stop_sequence":stops}
                 respjson = make_url_request(f'{epurl}/api/v1/generate', gen_payload)
                 reply = html.escape(respjson["results"][0]["text"])
+                if chatmode:
+                    reply = " "+reply.strip()
                 status = "Generation Completed"
 
             if "generate" in parsed_dict:
                 del parsed_dict["generate"]
+            if "chatmsg" in parsed_dict:
+                del parsed_dict["chatmsg"]
             parsed_dict["prompt"] = prompt + reply
             parsed_dict["status"] = status
+            parsed_dict["chatmode"] = ("1" if chatmode else "0")
             updated_query_string = urlparse.urlencode(parsed_dict, doseq=True)
             updated_path = parsed_url._replace(query=updated_query_string).geturl()
             self.path = updated_path
+            time.sleep(0.2) #short delay
             self.send_response(302)
             self.send_header("location", self.path)
             self.end_headers(content_type='text/html')
             return
 
+        bodycontent = f'''<b>{"Chat Mode" if chatmode else "Story Mode"}</b><br>'''
+        if chatmode:
+            tmp = prompt.strip().replace("\n","<br>")
+            bodycontent += f'''<p>{"No History Yet. Talk to the AI." if prompt=="" else tmp}</p>
+            <label>Say: </label><input type="text" size="40" value="" name="chatmsg">
+            <input type="hidden" name="prompt" value="{prompt}">
+            <input type="submit" name="generate" value="Send"> (Be patient)'''
+        else:
+            bodycontent += f'''
+<textarea name="prompt" cols="60" rows="8" wrap="soft" placeholder="Enter Prompt Here">{prompt}</textarea><br>
+<input type="submit" name="generate" value="Generate"> (Be patient)
+'''
         finalhtml = f'''<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -2831,8 +2862,7 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
 <p>KoboldCpp can be used without Javascript enabled, however this is not recommended.
 <br>If you have Javascript, please use <a href="/">KoboldAI Lite WebUI</a> instead.</p><hr>
 <form action="/noscript">
-Enter Prompt:<br>
-<textarea name="prompt" cols="60" rows="8" wrap="soft" placeholder="Enter Prompt Here">{prompt}</textarea>
+{bodycontent}
 <hr>
 <b>{status}</b><br>
 <hr>
@@ -2842,11 +2872,18 @@ Enter Prompt:<br>
 <label>Top-P</label> <input type="text" size="4" value="{top_p}" name="top_p"><br>
 <label>Rep. Pen</label> <input type="text" size="4" value="{rep_pen}" name="rep_pen"><br>
 <label>Prevent EOS</label> <input type="checkbox" name="ban_eos_token" value="1" {"checked" if ban_eos_token else ""}><br>
-<input type="submit" name="generate" value="Generate"> (Please be patient)
+<input type="hidden" name="chatmode" value="{chatmode}">
 </form>
-<form action="/noscript">
-<input type="submit" value="Reset">
+<hr>
+<div style="display: inline-block;">
+<form action="/noscript" style="display: inline;">
+<input type="submit" value="Reset (Story Mode)">
 </form>
+<form action="/noscript" style="display: inline;">
+<input type="hidden" name="chatmode" value="1">
+<input type="submit" value="Reset (Chat Mode)">
+</form>
+</div>
 </div>
 </body></html>'''
         finalhtml = finalhtml.encode('utf-8')
@@ -6661,10 +6698,12 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
         with open(os.path.join(basepath, "klite.embd"), mode='rb') as f:
             embedded_kailite = f.read()
             # patch it with extra stuff
-            origStr = "Sorry, KoboldAI Lite requires Javascript to function."
-            patchedStr = "Sorry, KoboldAI Lite requires Javascript to function.<br>You can use <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp NoScript mode</a> instead."
+            patches = [{"find":"Sorry, KoboldAI Lite requires Javascript to function.","replace":"Sorry, KoboldAI Lite requires Javascript to function.<br>You can use <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp NoScript mode</a> instead."},
+                       {"find":"var localflag = urlParams.get('local');","replace":"var localflag = true;"},
+                       {"find":"<p id=\"tempgtloadtxt\">Loading...</p>","replace":"<p id=\"tempgtloadtxt\">Loading...<br>(If load fails, try <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp NoScript mode</a> instead.)</p>"}]
             embedded_kailite = embedded_kailite.decode("UTF-8","ignore")
-            embedded_kailite = embedded_kailite.replace(origStr, patchedStr)
+            for p in patches:
+                embedded_kailite = embedded_kailite.replace(p["find"], p["replace"])
             embedded_kailite = embedded_kailite.encode()
             print("Embedded KoboldAI Lite loaded.")
     except Exception:
