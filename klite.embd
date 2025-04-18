@@ -25403,8 +25403,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		indexedDBAgnostic = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB || window.shimIndexedDB;
 		dbCon;
 
-		createEmbeddingSchema = (scope) => {
-			let store = scope.dbCon.result.createObjectStore("EmbeddingsStore", {
+		createEmbeddingSchema = () => {
+			let store = this.dbCon.result.createObjectStore("EmbeddingsStore", {
 				keyPath: "id",
 				autoIncrement: true
 			});
@@ -25430,7 +25430,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}
 
 		getData = async (dbName, storeName, searchTerms, indexName) => {
-			const db = await idb.openDB(dbName, 1, () => this.createEmbeddingSchema(this));
+			const db = await idb.openDB(dbName, 1, this.createEmbeddingSchema);
 			if (!!indexName) {
 				return await db.getFromIndex(storeName, indexName, searchTerms)
 			}
@@ -25438,7 +25438,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}
 
 		getAllData = async (dbName, storeName, searchTerms, indexName) => {
-			const db = await idb.openDB(dbName, 1, () => this.createEmbeddingSchema(this));
+			const db = await idb.openDB(dbName, 1, this.createEmbeddingSchema);
 			if (!!indexName) {
 				return await db.getAllFromIndex(storeName, indexName, searchTerms)
 			}
@@ -25454,7 +25454,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}
 
 		saveData = async (dbName, storeName, item) => {
-			let db = await idb.openDB(dbName, 1, () => this.createEmbeddingSchema(this));
+			let db = await idb.openDB(dbName, 1, this.createEmbeddingSchema);
 			let tran = await db.transaction(storeName, 'readwrite');
 			let store = tran.objectStore(storeName);
 			return await store.put(item);
@@ -25487,7 +25487,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}
 
 		deleteData = async (dbName, storeName, id) => {
-			let db = await idb.openDB(dbName, 1, () => this.createEmbeddingSchema(this));
+			let db = await idb.openDB(dbName, 1, this.createEmbeddingSchema);
 			return await db.delete(storeName, id)
 		}
 
