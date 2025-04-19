@@ -2785,25 +2785,38 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
         status = str(parsed_dict['status'][0]) if 'status' in parsed_dict else "Ready To Generate"
         prompt = str(parsed_dict['prompt'][0]) if 'prompt' in parsed_dict else ""
         chatmsg = str(parsed_dict['chatmsg'][0]) if 'chatmsg' in parsed_dict else ""
+        imgprompt = str(parsed_dict['imgprompt'][0]) if 'imgprompt' in parsed_dict else ""
         max_length = int(parsed_dict['max_length'][0]) if 'max_length' in parsed_dict else 100
         temperature = float(parsed_dict['temperature'][0]) if 'temperature' in parsed_dict else 0.75
         top_k = int(parsed_dict['top_k'][0]) if 'top_k' in parsed_dict else 100
         top_p = float(parsed_dict['top_p'][0]) if 'top_p' in parsed_dict else 0.9
         rep_pen = float(parsed_dict['rep_pen'][0]) if 'rep_pen' in parsed_dict else 1.0
         ban_eos_token = int(parsed_dict['ban_eos_token'][0]) if 'ban_eos_token' in parsed_dict else 0
+        steps = int(parsed_dict['steps'][0]) if 'steps' in parsed_dict else 25
+        cfg = int(parsed_dict['cfg'][0]) if 'cfg' in parsed_dict else 7
         genbtnval = (parsed_dict['generate'][0] if 'generate' in parsed_dict else "")
         gencommand = (genbtnval=="Generate" or genbtnval=="Send")
         chatmode = int(parsed_dict['chatmode'][0]) if 'chatmode' in parsed_dict else 0
+        imgmode = int(parsed_dict['imgmode'][0]) if 'imgmode' in parsed_dict else 0
+        human_name = str(parsed_dict['human_name'][0]) if 'human_name' in parsed_dict else "User"
+        bot_name = str(parsed_dict['bot_name'][0]) if 'bot_name' in parsed_dict else "Assistant"
         stops = []
         prefix = ""
         if chatmode:
             ban_eos_token = False
+            prompt = prompt.replace("1HdNl1","\n")
             if chatmsg:
-                prompt += f"\nUser: {chatmsg}\nAssistant:"
+                prompt += f"\n{human_name}: {chatmsg}\n{bot_name}:"
             else:
                 gencommand = False
-            stops = ["\nUser:","\nAssistant:"]
-            prefix = "[This is a chat conversation log between User and Assistant.]\n"
+            stops = [f"\n{human_name}:",f"\n{bot_name}:"]
+            prefix = f"[This is a chat conversation log between {human_name} and {bot_name}.]\n"
+        elif imgmode:
+            if imgprompt:
+                prompt = imgprompt
+                max_length = 1
+            else:
+                gencommand = False
 
         if modelbusy.locked():
             status = "Model is currently busy, try again later."
@@ -2817,20 +2830,27 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 epurl = f"{httpsaffix}://localhost:{args.port}"
                 if args.host!="":
                     epurl = f"{httpsaffix}://{args.host}:{args.port}"
-                gen_payload = {"prompt": prefix+prompt,"max_length": max_length,"temperature": temperature,"top_k": top_k,"top_p": top_p,"rep_pen": rep_pen,"ban_eos_token":ban_eos_token, "stop_sequence":stops}
-                respjson = make_url_request(f'{epurl}/api/v1/generate', gen_payload)
-                reply = html.escape(respjson["results"][0]["text"])
-                if chatmode:
-                    reply = " "+reply.strip()
+                if imgmode and imgprompt:
+                    gen_payload = {"prompt":{"3":{"inputs":{"cfg":cfg,"steps":steps}},"6":{"inputs":{"text":imgprompt}}}}
+                    respjson = make_url_request(f'{epurl}/prompt', gen_payload)
+                else:
+                    gen_payload = {"prompt": prefix+prompt,"max_length": max_length,"temperature": temperature,"top_k": top_k,"top_p": top_p,"rep_pen": rep_pen,"ban_eos_token":ban_eos_token, "stop_sequence":stops}
+                    respjson = make_url_request(f'{epurl}/api/v1/generate', gen_payload)
+                    reply = html.escape(respjson["results"][0]["text"])
+                    if chatmode:
+                        reply = " "+reply.strip()
                 status = "Generation Completed"
 
             if "generate" in parsed_dict:
                 del parsed_dict["generate"]
             if "chatmsg" in parsed_dict:
                 del parsed_dict["chatmsg"]
+            if "imgprompt" in parsed_dict:
+                del parsed_dict["imgprompt"]
             parsed_dict["prompt"] = prompt + reply
             parsed_dict["status"] = status
             parsed_dict["chatmode"] = ("1" if chatmode else "0")
+            parsed_dict["imgmode"] = ("1" if imgmode else "0")
             updated_query_string = urlparse.urlencode(parsed_dict, doseq=True)
             updated_path = parsed_url._replace(query=updated_query_string).geturl()
             self.path = updated_path
@@ -2840,18 +2860,49 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers(content_type='text/html')
             return
 
-        bodycontent = f'''<b>{"Chat Mode" if chatmode else "Story Mode"}</b><br>'''
-        if chatmode:
-            tmp = prompt.strip().replace("\n","<br>")
-            bodycontent += f'''<p>{"No History Yet. Talk to the AI." if prompt=="" else tmp}</p>
+        imgbtn = '''<form action="/noscript" style="display: inline;">
+        <input type="hidden" name="imgmode" value="1">
+        <input type="submit" value="Image Mode">
+        </form>'''
+
+        bodycontent = f'''<b><u>{"Image Mode" if imgmode else ("Chat Mode" if chatmode else "Story Mode")}</u></b><br>'''
+        optionscontent = ""
+        if imgmode:
+            bodycontent += f'''<p>Generated Image: {prompt if prompt else "None"}</p>
+            {'<img src="view.png" width="320" width="320">' if prompt else ""}<br>
+            <label>Image Prompt: </label><input type="text" size="40" value="" name="imgprompt">
+            <input type="hidden" name="generate" value="Generate" />
+            <input type="submit" value="Generate"> (Be patient)'''
+        elif chatmode:
+            oldconvo = prompt.strip().replace(f"{human_name}:",f"<b>{human_name}:</b>").replace(f"{bot_name}:",f"<b>{bot_name}:</b>").replace("\n","<br>")
+            oldconvo += f'''<input type="hidden" name="human_name" value="{human_name}"><input type="hidden" name="bot_name" value="{bot_name}">'''
+            newconvo = '''Start a new conversation.<br>
+            <label>Your Name: </label> <input type="text" size="10" value="User" name="human_name"><br>
+            <label>Bot Name: </label> <input type="text" size="10" value="Assistant" name="bot_name"><br>'''
+            clnprompt = prompt.replace("\n","1HdNl1")
+            bodycontent += f'''<p>{newconvo if prompt=="" else oldconvo}</p>
+            <input type="hidden" name="prompt" value="{clnprompt}">
             <label>Say: </label><input type="text" size="40" value="" name="chatmsg">
-            <input type="hidden" name="prompt" value="{prompt}">
-            <input type="submit" name="generate" value="Send"> (Be patient)'''
+            <input type="hidden" name="generate" value="Send" />
+            <input type="submit" value="Send"> (Be patient)'''
         else:
             bodycontent += f'''
 <textarea name="prompt" cols="60" rows="8" wrap="soft" placeholder="Enter Prompt Here">{prompt}</textarea><br>
-<input type="submit" name="generate" value="Generate"> (Be patient)
+<input type="hidden" name="generate" value="Generate" />
+<input type="submit" value="Generate"> (Be patient)
 '''
+        if not imgmode:
+            optionscontent = f'''<label>Gen. Amount</label> <input type="text" size="4" value="{max_length}" name="max_length"><br>
+            <label>Temperature</label> <input type="text" size="4" value="{temperature}" name="temperature"><br>
+            <label>Top-K</label> <input type="text" size="4" value="{top_k}" name="top_k"><br>
+            <label>Top-P</label> <input type="text" size="4" value="{top_p}" name="top_p"><br>
+            <label>Rep. Pen</label> <input type="text" size="4" value="{rep_pen}" name="rep_pen"><br>
+            <label>Prevent EOS</label> <input type="checkbox" name="ban_eos_token" value="1" {"checked" if ban_eos_token else ""}><br>'''
+        else:
+            optionscontent = f'''<label>Steps</label> <input type="text" size="4" value="{steps}" name="steps"><br>
+            <label>Cfg. Scale</label> <input type="text" size="4" value="{cfg}" name="cfg"><br>'''
+
+        caps = get_capabilities()
         finalhtml = f'''<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -2866,23 +2917,21 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
 <hr>
 <b>{status}</b><br>
 <hr>
-<label>Gen. Amount</label> <input type="text" size="4" value="{max_length}" name="max_length"><br>
-<label>Temperature</label> <input type="text" size="4" value="{temperature}" name="temperature"><br>
-<label>Top-K</label> <input type="text" size="4" value="{top_k}" name="top_k"><br>
-<label>Top-P</label> <input type="text" size="4" value="{top_p}" name="top_p"><br>
-<label>Rep. Pen</label> <input type="text" size="4" value="{rep_pen}" name="rep_pen"><br>
-<label>Prevent EOS</label> <input type="checkbox" name="ban_eos_token" value="1" {"checked" if ban_eos_token else ""}><br>
+{optionscontent}
 <input type="hidden" name="chatmode" value="{chatmode}">
+<input type="hidden" name="imgmode" value="{imgmode}">
 </form>
 <hr>
 <div style="display: inline-block;">
+Change Mode<br>
 <form action="/noscript" style="display: inline;">
-<input type="submit" value="Reset (Story Mode)">
+<input type="submit" value="Story Mode">
 </form>
 <form action="/noscript" style="display: inline;">
 <input type="hidden" name="chatmode" value="1">
-<input type="submit" value="Reset (Chat Mode)">
+<input type="submit" value="Chat Mode">
 </form>
+{imgbtn if ("txt2img" in caps and caps["txt2img"]) else ""}
 </div>
 </div>
 </body></html>'''
@@ -3044,7 +3093,7 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 response_body = (json.dumps([]).encode())
             else:
                 response_body = (json.dumps([friendlysdmodelname]).encode())
-        elif self.path=='/view' or self.path=='/api/view' or self.path.startswith('/view?') or self.path.startswith('/api/view?'): #emulate comfyui
+        elif self.path=='/view' or self.path=='/view.png' or self.path=='/api/view' or self.path.startswith('/view?') or self.path.startswith('/api/view?'): #emulate comfyui
             content_type = 'image/png'
             response_body = lastgeneratedcomfyimg
         elif self.path=='/history' or self.path=='/api/history' or self.path.startswith('/api/history/') or self.path.startswith('/history/'): #emulate comfyui
@@ -3992,9 +4041,9 @@ def zenity(filetypes=None, initialdir="", initialfile="", **kwargs) -> Tuple[int
         raise Exception("Zenity disabled, attempting to use TK GUI.")
     if sys.platform != "linux":
         raise Exception("Zenity GUI is only usable on Linux, attempting to use TK GUI.")
-    zenity_bin = shutil.which("zenity")
+    zenity_bin = shutil.which("yad")
     if not zenity_bin:
-        zenity_bin = shutil.which("yad")
+        zenity_bin = shutil.which("zenity")
     if not zenity_bin:
         raise Exception("Zenity not present, falling back to TK GUI.")
 
@@ -5373,9 +5422,14 @@ def show_gui():
 
     def load_config_gui(): #this is used to populate the GUI with a config file, whereas load_config_cli simply overwrites cli args
         file_type = [("KoboldCpp Settings", "*.kcpps *.kcppt")]
-        global runmode_untouched
+        global runmode_untouched, zenity_permitted
         filename = zentk_askopenfilename(filetypes=file_type, defaultextension=".kcppt", initialdir=None)
         if not filename or filename=="":
+            return
+        if not os.path.exists(filename) or os.path.getsize(filename)<4 or os.path.getsize(filename)>50000000: #for sanity, check invaid kcpps
+            print("The selected config file seems to be invalid.")
+            if zenity_permitted:
+                print("You can try using the legacy filepicker instead (in Extra).")
             return
         runmode_untouched = False
         with open(filename, 'r', encoding='utf-8', errors='ignore') as f:
