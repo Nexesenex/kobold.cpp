@@ -24571,8 +24571,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 	let originalRepackInstructTurns = repack_instruct_turns, cotOverrideRepack = false;
 
-	let agentFilterOutActions = true
-	repack_instruct_turns = (input, usertag, aitag, systag, allow_blank, filterOutActions = agentFilterOutActions) => {
+	repack_instruct_turns = (input, usertag, aitag, systag, allow_blank, filterOutActions = (localsettings?.agentHideCOT)) => {
 		if (isAgentModeEnabledAndSetCorrectly())
 		{
 			let turns = split(input, usertag, aitag, systag)
@@ -24599,7 +24598,21 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			})
 			if (filterOutActions)
 			{
-				combined_chunks = combined_chunks.filter(elem => elem.message.trim().indexOf("Action: {") !== 0)
+				let listOfExclusions = ["Action: {", "History search performed:", "Chain of thought complete", "Stop thinking action confirmed",
+				 "Web search results:", "Text has been added to history", "Formula evaluation result:", "Formula evaluation could not be completed as no formula was provided", 
+				 "Text has been added to history", "Text was empty - nothing added to history", "Search string was empty, no search performed", "Word count is", "Image analysed:", 
+				 "Image generated", "No prompt provided, image not generated", "Text has been spoken", "No text provided, nothing has been said", "System prompt has been overwritten", 
+				 "No system prompt provided, nothing has been overwritten", "Current state has been overwritten", "No state provided, nothing has been overwritten", "Current order of actions has been cleared",
+				  "Current order of actions has been overwritten", "No order of actions provided, nothing has been overwritten"]
+				combined_chunks = combined_chunks
+				.filter(elem => !listOfExclusions.find(excludedStart => elem.message.trim().indexOf(excludedStart) === 0))
+				.map(elem => {
+					if (elem.message.indexOf("Request for user input:") === 0)
+					{
+						elem.message = elem.message.replace("Request for user input:", "").trim()
+					}
+					return elem
+				})
 			}
 			
 			return combined_chunks.map(elem => {
@@ -25058,7 +25071,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 							}
 							else
 							{
-								addThought(createSysPrompt, `zNo text provided, nothing has been said`)
+								addThought(createSysPrompt, `No text provided, nothing has been said`)
 							}
 							break
 						case "overwrite_system_prompt":
@@ -25159,10 +25172,12 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	display_settings_tab = (tabIndex) => {
 		originalDisplaySettingsTab(tabIndex);
 		document.getElementById("agentBehaviour").checked = localsettings.agentBehaviour;
+		document.getElementById("agentHideCOT").checked = localsettings.agentHideCOT;
 	}
 
 	confirm_settings = () => {
 		localsettings.agentBehaviour = (document.getElementById("agentBehaviour").checked ? true : false);
+		localsettings.agentHideCOT = (document.getElementById("agentHideCOT").checked ? true : false);
 		originalConfirmSettings()
 	}
 
@@ -25338,21 +25353,33 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			localsettings.agentBehaviour = false
 		}
+		if (localsettings?.agentHideCOT == undefined)
+		{
+			localsettings.agentHideCOT = true
+		}
 
+		let createSettingElemBool = (inputElemId, labelTitle, labelText) => {
+			let settingLabelElem = document.createElement("div")
+			settingLabelElem.classList.add("settinglabel")
+			let settingDiv = document.createElement("div")
+			settingDiv.classList.add("justifyleft", "settingsmall")
+			settingDiv.innerHTML = `${labelTitle} <span class="helpicon">?<span class="helptext">${labelText}</span></span>`
+			let settingInput = document.createElement("input")
+			settingInput.type = "checkbox"
+			settingInput.title = labelTitle
+			settingInput.id = inputElemId
+			settingInput.style = "margin:0px 0px 0px auto;"
+
+			settingLabelElem.append(settingDiv)
+			settingLabelElem.append(settingInput)
+			return settingLabelElem
+		}
 		let lastSettingContainer = document.querySelector("#settingsmenuformat > .settingitem:last-child")
-		let settingLabelElem = document.createElement("div")
-		settingLabelElem.classList.add("settinglabel")
-		let settingDiv = document.createElement("div")
-		settingDiv.classList.add("justifyleft", "settingsmall")
-		settingDiv.innerHTML = `Agent behaviour (experimental) <span class="helpicon">?<span class="helptext">Allows the AI to use multiple generations and certain tools to see if it can improve results.  This can include web search (if enabled), dice rolling, and formula evaluation.  Please note when this is enabled each user instruction is executed in isolation - i.e. the chat history is cleared before the new instruction is executed (to be improved in future). This mode requires instruct start and end tags for all roles. Image and TTS only is enabled for local KCPP users.</span></span>`
-		let settingInput = document.createElement("input")
-		settingInput.type = "checkbox"
-		settingInput.title = "Agent behaviour"
-		settingInput.id = "agentBehaviour"
-		settingInput.style = "margin:0px 0px 0px auto;"
 
-		settingLabelElem.append(settingDiv)
-		settingLabelElem.append(settingInput)
+		let settingLabelElem = createSettingElemBool("agentBehaviour", "Agent behaviour (experimental)", "Allows the AI to use multiple generations and certain tools to see if it can improve results.  This can include web search (if enabled), dice rolling, and formula evaluation.  This mode requires instruct start and end tags for all roles. Image and TTS only is enabled for local KCPP users.")
+		lastSettingContainer.append(settingLabelElem)
+
+		settingLabelElem = createSettingElemBool("agentHideCOT", "Hide agent COT (experimental)", "Hides agent thinking steps (such as searches)")
 		lastSettingContainer.append(settingLabelElem)
 
 		createStopThinkingButton()
