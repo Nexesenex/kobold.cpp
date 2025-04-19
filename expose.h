@@ -66,6 +66,7 @@ struct load_model_inputs
     const float norm_rms_eps = -1.0f;
 
     const bool no_bos_token = false;
+    const char * override_kv = nullptr;
     const bool flash_attention = false;
     const float tensor_split[tensor_split_max] = {};
     const int quant_k = 0;

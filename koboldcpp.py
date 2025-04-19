@@ -42,7 +42,7 @@ logprobs_max = 5
 default_draft_amount = 8
 default_ttsmaxlen = 4096
 default_visionmaxres = 1024
-net_save_slots = 8
+net_save_slots = 10
 
 # abuse prevention (don't abuse the antislop! :D)
 stop_token_max = 1024
@@ -200,6 +200,7 @@ class load_model_inputs(ctypes.Structure):
                 ("norm_rms_eps", ctypes.c_float),
 
                 ("no_bos_token", ctypes.c_bool),
+                ("override_kv", ctypes.c_char_p),
                 ("flash_attention", ctypes.c_bool),
                 ("tensor_split", ctypes.c_float * tensor_split_max),
                 ("quant_k", ctypes.c_int),
@@ -1773,7 +1774,7 @@ def fetch_gpu_properties(testCL,testCU,testVK):
         except Exception:
             pass
     if MaxMemory[0]>0:
-        print(f"Auto Detected Free GPU Memory: {int(MaxMemory[0]/1024/1024)} MB (Set GPU layers manually if incorrect)")
+        print(f"Detected Free GPU Memory: {int(MaxMemory[0]/1024/1024)} MB (Set GPU layers manually if incorrect)")
     else:
         print("Unable to determine GPU Memory")
     return
@@ -1919,6 +1920,7 @@ def load_model(model_filename):
     inputs.norm_rms_eps = args.normrmseps
 
     inputs.no_bos_token = args.nobostoken
+    inputs.override_kv = args.overridekv.encode("UTF-8") if args.overridekv else "".encode("UTF-8")
     inputs = set_backend_props(inputs)
     ret = handle.load_model(inputs)
     return ret
@@ -3499,13 +3501,39 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
         reply = ""
         status = str(parsed_dict['status'][0]) if 'status' in parsed_dict else "Ready To Generate"
         prompt = str(parsed_dict['prompt'][0]) if 'prompt' in parsed_dict else ""
+        chatmsg = str(parsed_dict['chatmsg'][0]) if 'chatmsg' in parsed_dict else ""
+        imgprompt = str(parsed_dict['imgprompt'][0]) if 'imgprompt' in parsed_dict else ""
         max_length = int(parsed_dict['max_length'][0]) if 'max_length' in parsed_dict else 100
         temperature = float(parsed_dict['temperature'][0]) if 'temperature' in parsed_dict else 0.75
         top_k = int(parsed_dict['top_k'][0]) if 'top_k' in parsed_dict else 100
         top_p = float(parsed_dict['top_p'][0]) if 'top_p' in parsed_dict else 0.9
         rep_pen = float(parsed_dict['rep_pen'][0]) if 'rep_pen' in parsed_dict else 1.0
         ban_eos_token = int(parsed_dict['ban_eos_token'][0]) if 'ban_eos_token' in parsed_dict else 0
-        gencommand = (parsed_dict['generate'][0] if 'generate' in parsed_dict else "")=="Generate"
+        steps = int(parsed_dict['steps'][0]) if 'steps' in parsed_dict else 25
+        cfg = int(parsed_dict['cfg'][0]) if 'cfg' in parsed_dict else 7
+        genbtnval = (parsed_dict['generate'][0] if 'generate' in parsed_dict else "")
+        gencommand = (genbtnval=="Generate" or genbtnval=="Send")
+        chatmode = int(parsed_dict['chatmode'][0]) if 'chatmode' in parsed_dict else 0
+        imgmode = int(parsed_dict['imgmode'][0]) if 'imgmode' in parsed_dict else 0
+        human_name = str(parsed_dict['human_name'][0]) if 'human_name' in parsed_dict else "User"
+        bot_name = str(parsed_dict['bot_name'][0]) if 'bot_name' in parsed_dict else "Assistant"
+        stops = []
+        prefix = ""
+        if chatmode:
+            ban_eos_token = False
+            prompt = prompt.replace("1HdNl1","\n")
+            if chatmsg:
+                prompt += f"\n{human_name}: {chatmsg}\n{bot_name}:"
+            else:
+                gencommand = False
+            stops = [f"\n{human_name}:",f"\n{bot_name}:"]
+            prefix = f"[This is a chat conversation log between {human_name} and {bot_name}.]\n"
+        elif imgmode:
+            if imgprompt:
+                prompt = imgprompt
+                max_length = 1
+            else:
+                gencommand = False
 
         if modelbusy.locked():
             status = "Model is currently busy, try again later."
@@ -3519,22 +3547,74 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 epurl = f"{httpsaffix}://localhost:{args.port}"
                 if args.host!="":
                     epurl = f"{httpsaffix}://{args.host}:{args.port}"
-                gen_payload = {"prompt": prompt,"max_length": max_length,"temperature": temperature,"top_k": top_k,"top_p": top_p,"rep_pen": rep_pen,"ban_eos_token":ban_eos_token}
-                respjson = make_url_request(f'{epurl}/api/v1/generate', gen_payload)
-                reply = html.escape(respjson["results"][0]["text"])
+                if imgmode and imgprompt:
+                    gen_payload = {"prompt":{"3":{"inputs":{"cfg":cfg,"steps":steps}},"6":{"inputs":{"text":imgprompt}}}}
+                    respjson = make_url_request(f'{epurl}/prompt', gen_payload)
+                else:
+                    gen_payload = {"prompt": prefix+prompt,"max_length": max_length,"temperature": temperature,"top_k": top_k,"top_p": top_p,"rep_pen": rep_pen,"ban_eos_token":ban_eos_token, "stop_sequence":stops}
+                    respjson = make_url_request(f'{epurl}/api/v1/generate', gen_payload)
+                    reply = html.escape(respjson["results"][0]["text"])
+                    if chatmode:
+                        reply = " "+reply.strip()
                 status = "Generation Completed"
 
             if "generate" in parsed_dict:
                 del parsed_dict["generate"]
+            if "chatmsg" in parsed_dict:
+                del parsed_dict["chatmsg"]
+            if "imgprompt" in parsed_dict:
+                del parsed_dict["imgprompt"]
             parsed_dict["prompt"] = prompt + reply
             parsed_dict["status"] = status
+            parsed_dict["chatmode"] = ("1" if chatmode else "0")
+            parsed_dict["imgmode"] = ("1" if imgmode else "0")
             updated_query_string = urlparse.urlencode(parsed_dict, doseq=True)
             updated_path = parsed_url._replace(query=updated_query_string).geturl()
             self.path = updated_path
+            time.sleep(0.2) #short delay
             self.send_response(302)
             self.send_header("location", self.path)
             self.end_headers(content_type='text/html')
             return
+
+        imgbtn = '''<form action="/noscript" style="display: inline;">
+        <input type="hidden" name="imgmode" value="1">
+        <input type="submit" value="Image Mode">
+        </form>'''
+
+        bodycontent = f'''<b><u>{"Image Mode" if imgmode else ("Chat Mode" if chatmode else "Story Mode")}</u></b><br>'''
+        optionscontent = ""
+        if imgmode:
+            bodycontent += f'''<p>Generated Image: {prompt if prompt else "None"}</p>
+            {'<img src="view.png" width="320" width="320">' if prompt else ""}<br>
+            <label>Image Prompt: </label><input type="text" size="40" value="" name="imgprompt">
+            <input type="submit" name="generate" value="Generate"> (Be patient)'''
+        elif chatmode:
+            oldconvo = prompt.strip().replace(f"{human_name}:",f"<b>{human_name}:</b>").replace(f"{bot_name}:",f"<b>{bot_name}:</b>").replace("\n","<br>")
+            oldconvo += f'''<input type="hidden" name="human_name" value="{human_name}"><input type="hidden" name="bot_name" value="{bot_name}">'''
+            newconvo = '''Start a new conversation.<br>
+            <label>Your Name: </label> <input type="text" size="10" value="User" name="human_name"><br>
+            <label>Bot Name: </label> <input type="text" size="10" value="Assistant" name="bot_name"><br>'''
+            clnprompt = prompt.replace("\n","1HdNl1")
+            bodycontent += f'''<p>{newconvo if prompt=="" else oldconvo}</p>
+            <input type="hidden" name="prompt" value="{clnprompt}">
+            <label>Say: </label><input type="text" size="40" value="" name="chatmsg">
+            <input type="submit" name="generate" value="Send"> (Be patient)'''
+        else:
+            bodycontent += f'''
+<textarea name="prompt" cols="60" rows="8" wrap="soft" placeholder="Enter Prompt Here">{prompt}</textarea><br>
+<input type="submit" name="generate" value="Generate"> (Be patient)
+'''
+        if not imgmode:
+            optionscontent = f'''<label>Gen. Amount</label> <input type="text" size="4" value="{max_length}" name="max_length"><br>
+            <label>Temperature</label> <input type="text" size="4" value="{temperature}" name="temperature"><br>
+            <label>Top-K</label> <input type="text" size="4" value="{top_k}" name="top_k"><br>
+            <label>Top-P</label> <input type="text" size="4" value="{top_p}" name="top_p"><br>
+            <label>Rep. Pen</label> <input type="text" size="4" value="{rep_pen}" name="rep_pen"><br>
+            <label>Prevent EOS</label> <input type="checkbox" name="ban_eos_token" value="1" {"checked" if ban_eos_token else ""}><br>'''
+        else:
+            optionscontent = f'''<label>Steps</label> <input type="text" size="4" value="{steps}" name="steps"><br>
+            <label>Cfg. Scale</label> <input type="text" size="4" value="{cfg}" name="cfg"><br>'''
 
         finalhtml = f'''<!doctype html>
 <html lang="en"><head>
@@ -3546,22 +3626,26 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
 <p>KoboldCpp/Croco.Cpp can be used without Javascript enabled, however this is not recommended.
 <br>If you have Javascript, please use <a href="/">KoboldAI Lite WebUI</a> instead.</p><hr>
 <form action="/noscript">
-Enter Prompt:<br>
-<textarea name="prompt" cols="60" rows="8" wrap="soft" placeholder="Enter Prompt Here">{prompt}</textarea>
+{bodycontent}
 <hr>
 <b>{status}</b><br>
 <hr>
-<label>Gen. Amount</label> <input type="text" size="4" value="{max_length}" name="max_length"><br>
-<label>Temperature</label> <input type="text" size="4" value="{temperature}" name="temperature"><br>
-<label>Top-K</label> <input type="text" size="4" value="{top_k}" name="top_k"><br>
-<label>Top-P</label> <input type="text" size="4" value="{top_p}" name="top_p"><br>
-<label>Rep. Pen</label> <input type="text" size="4" value="{rep_pen}" name="rep_pen"><br>
-<label>Prevent EOS</label> <input type="checkbox" name="ban_eos_token" value="1" {"checked" if ban_eos_token else ""}><br>
-<input type="submit" name="generate" value="Generate"> (Please be patient)
+{optionscontent}
+<input type="hidden" name="chatmode" value="{chatmode}">
+<input type="hidden" name="imgmode" value="{imgmode}">
 </form>
-<form action="/noscript">
-<input type="submit" value="Reset">
+<hr>
+<div style="display: inline-block;">
+Change Mode<br>
+<form action="/noscript" style="display: inline;">
+<input type="submit" value="Story Mode">
 </form>
+<form action="/noscript" style="display: inline;">
+<input type="hidden" name="chatmode" value="1">
+<input type="submit" value="Chat Mode">
+</form>
+{imgbtn if "txt2img" in get_capabilities() else ""}
+</div>
 </div>
 </body></html>'''
         finalhtml = finalhtml.encode('utf-8')
@@ -3731,7 +3815,7 @@ Enter Prompt:<br>
                 response_body = (json.dumps([]).encode())
             else:
                 response_body = (json.dumps([friendlysdmodelname]).encode())
-        elif self.path=='/view' or self.path=='/api/view' or self.path.startswith('/view?') or self.path.startswith('/api/view?'): #emulate comfyui
+        elif self.path=='/view' or self.path=='/view.png' or self.path=='/api/view' or self.path.startswith('/view?') or self.path.startswith('/api/view?'): #emulate comfyui
             content_type = 'image/png'
             response_body = lastgeneratedcomfyimg
         elif self.path=='/history' or self.path=='/api/history' or self.path.startswith('/api/history/') or self.path.startswith('/history/'): #emulate comfyui
@@ -4679,9 +4763,9 @@ def zenity(filetypes=None, initialdir="", initialfile="", **kwargs) -> Tuple[int
         raise Exception("Zenity disabled, attempting to use TK GUI.")
     if sys.platform != "linux":
         raise Exception("Zenity GUI is only usable on Linux, attempting to use TK GUI.")
-    zenity_bin = shutil.which("zenity")
+    zenity_bin = shutil.which("yad")
     if not zenity_bin:
-        zenity_bin = shutil.which("yad")
+        zenity_bin = shutil.which("zenity")
     if not zenity_bin:
         raise Exception("Zenity not present, falling back to TK GUI.")
 
@@ -4693,7 +4777,7 @@ def zenity(filetypes=None, initialdir="", initialfile="", **kwargs) -> Tuple[int
     def zenity_sanity_check(): #make sure zenity is sane
         nonlocal zenity_bin
         try: # Run `zenity --help` and pipe to grep
-            result = subprocess.run(f"{zenity_bin} --help | grep Usage", shell=True, capture_output=True, text=True)
+            result = subprocess.run(f"{zenity_bin} --help | grep Usage", shell=True, capture_output=True, text=True, encoding='utf-8', timeout=10)
             if result.returncode == 0 and "Usage" in result.stdout:
                 return True
             else:
@@ -4757,15 +4841,6 @@ def zentk_askopenfilename(**options):
     except Exception:
         from tkinter.filedialog import askopenfilename
         result = askopenfilename(**options)
-    return result
-
-def zentk_askopenmultiplefilenames(**options):
-    try:
-        files = zenity(filetypes=options.get("filetypes"), initialdir=options.get("initialdir"), title=options.get("title"), multiple=True, separator="\n")[1].splitlines()
-        result = tuple(filter(os.path.isfile, files))
-    except Exception:
-        from tkinter.filedialog import askopenfilenames
-        result = askopenfilenames(**options)
     return result
 
 def zentk_askdirectory(**options):
@@ -5032,6 +5107,7 @@ def show_gui():
 
     defaultgenamt_var = ctk.StringVar(value=str(512))
     nobostoken_var = ctk.IntVar(value=0)
+    override_kv_var = ctk.StringVar(value="")
 
     model_var = ctk.StringVar()
     lora_var = ctk.StringVar()
@@ -5237,7 +5313,7 @@ def show_gui():
         changed_gpu_choice_var()
 
     def on_picked_model_file(filepath):
-        if filepath.lower().endswith('.kcpps') or filepath.lower().endswith('.kcppt'):
+        if filepath and (filepath.lower().endswith('.kcpps') or filepath.lower().endswith('.kcppt')):
             #load it as a config file instead
             with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
                 dict = json.load(f)
@@ -5591,10 +5667,12 @@ def show_gui():
     qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 22, 30, set=0,tooltip="Enable quantization of KV cache (KVQ). Mode 0 (F16) is default. Modes 1-14 requires FlashAttention.\nMode 8-10, 14, 17, 22 disable ContextShift.\nModes 15-22 work without FA, for incompatible models.")
 
     quantkv_var.trace("w", toggleflashattn)
-    makecheckbox(tokens_tab, "No BOS Token", nobostoken_var, 33, tooltiptxt="Prevents BOS token from being added at the start of any prompt. Usually NOT recommended for most models.")
 
-    makelabelentry(tokens_tab, "MoE Experts:", moeexperts_var, row=35, padx=100, singleline=True, tooltip="Override number of MoE experts.")
-    makelabelentry(tokens_tab, "Norm RMS Epsilon:", normrmseps_var, row=38, padx=150, singleline=True, tooltip="Override Norm RMS Epsilon value to use for the model.\nUseful for <2bpw quants mainly.\nExample of format: 1.95e-05")
+    makecheckbox(tokens_tab, "No BOS Token", nobostoken_var, 43, tooltiptxt="Prevents BOS token from being added at the start of any prompt. Usually NOT recommended for most models.")
+
+    makelabelentry(tokens_tab, "MoE Experts:", moeexperts_var, row=45, padx=100, singleline=True, width=50, tooltip="Override number of MoE experts.")
+    makelabelentry(tokens_tab, "Norm RMS Epsilon:", normrmseps_var, row=47, padx=150, singleline=True, width=100, tooltip="Override Norm RMS Epsilon value to use for the model.\nUseful for <2bpw quants mainly.\nExample of format: 1.95e-05")
+    makelabelentry(tokens_tab, "Override KV:", override_kv_var, row=49, padx=100, singleline=True, width=250, tooltip="Advanced option to override model metadata by key, same as in llama.cpp. Mainly for debugging, not intended for general use. Types: int, float, bool, str")
 
     # load model
     makefileentry(tokens_tab, "Model:", "Select GGML or GGML Model File", model_var, 50, 576, onchoosefile=on_picked_model_file, filetypes=[("GGML bin or GGUF", ("*.bin","*.gguf"))] ,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
@@ -5906,6 +5984,7 @@ def show_gui():
 
         args.defaultgenamt = int(defaultgenamt_var.get()) if defaultgenamt_var.get()!="" else 512
         args.nobostoken = (nobostoken_var.get()==1)
+        args.overridekv = None if override_kv_var.get() == "" else override_kv_var.get()
         args.chatcompletionsadapter = None if chatcompletionsadapter_var.get() == "" else chatcompletionsadapter_var.get()
         try:
             if kcpp_exporting_template and isinstance(args.chatcompletionsadapter, str) and args.chatcompletionsadapter!="" and os.path.exists(args.chatcompletionsadapter):
@@ -6109,6 +6188,8 @@ def show_gui():
             defaultgenamt_var.set(dict["defaultgenamt"])
 
         nobostoken_var.set(dict["nobostoken"] if ("nobostoken" in dict) else 0)
+        if "overridekv" in dict and dict["overridekv"]:
+            override_kv_var.set(dict["overridekv"])
 
         if "blasbatchsize" in dict and dict["blasbatchsize"]:
             blas_size_var.set(blasbatchsize_values.index(str(dict["blasbatchsize"])))
@@ -6221,9 +6302,14 @@ def show_gui():
 
     def load_config_gui(): #this is used to populate the GUI with a config file, whereas load_config_cli simply overwrites cli args
         file_type = [("KoboldCpp/Croco.Cpp Settings", "*.kcpps *.kcppt")]
-        global runmode_untouched
+        global runmode_untouched, zenity_permitted
         filename = zentk_askopenfilename(filetypes=file_type, defaultextension=".kcppt", initialdir=None)
         if not filename or filename=="":
+            return
+        if not os.path.exists(filename) or os.path.getsize(filename)<4 or os.path.getsize(filename)>50000000: #for sanity, check invaid kcpps
+            print("The selected config file seems to be invalid.")
+            if zenity_permitted:
+                print("You can try using the legacy filepicker instead (in Extra).")
             return
         runmode_untouched = False
         with open(filename, 'r', encoding='utf-8', errors='ignore') as f:
@@ -7575,10 +7661,16 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
         with open(os.path.join(basepath, "klite.embd"), mode='rb') as f:
             embedded_kailite = f.read()
             # patch it with extra stuff
-            origStr = "Sorry, KoboldAI Lite requires Javascript to function."
-            patchedStr = "Sorry, KoboldAI Lite requires Javascript to function.<br>You can use <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp/Croco.Cpp NoScript mode</a> instead."
+
+            # origStr = "Sorry, KoboldAI Lite requires Javascript to function."
+
+            patches = [{"find":"Sorry, KoboldAI Lite requires Javascript to function.","replace":"Sorry, KoboldAI Lite requires Javascript to function.<br>You can use <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp/Croco.Cpp NoScript mode</a> instead."},
+                       {"find":"var localflag = urlParams.get('local');","replace":"var localflag = true;"},
+                       {"find":"<p id=\"tempgtloadtxt\">Loading...</p>","replace":"<p id=\"tempgtloadtxt\">Loading...<br>(If load fails, try <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp/Croco.Cpp NoScript mode</a> instead.)</p>"}]
+
             embedded_kailite = embedded_kailite.decode("UTF-8","ignore")
-            embedded_kailite = embedded_kailite.replace(origStr, patchedStr)
+            for p in patches:
+                embedded_kailite = embedded_kailite.replace(p["find"], p["replace"])
             embedded_kailite = embedded_kailite.encode()
             print("Embedded KoboldAI Lite loaded.")
     except Exception:
@@ -8009,7 +8101,11 @@ if __name__ == '__main__':
     advparser.add_argument("--defaultgenamt", help="How many tokens to generate by default, if not specified. Must be smaller than context size. Usually, your frontend GUI will override this.", type=check_range(int,128,2048), default=512)
     advparser.add_argument("--nobostoken", help="Prevents BOS token from being added at the start of any prompt. Usually NOT recommended for most models.", action='store_true')
     advparser.add_argument("--maxrequestsize", metavar=('[size in MB]'), help="Specify a max request payload size. Any requests to the server larger than this size will be dropped. Do not change if unsure.", type=int, default=32)
+
     advparser.add_argument("--developerMode", help="Enables developer utilities, such as hot reloading of Kobold Lite.", default=False, type=bool)
+
+    advparser.add_argument("--overridekv", metavar=('[name=type:value]'), help="Advanced option to override a metadata by key, same as in llama.cpp. Mainly for debugging, not intended for general use. Types: int, float, bool, str", default="")
+
     compatgroup2 = parser.add_mutually_exclusive_group()
     compatgroup2.add_argument("--showgui", help="Always show the GUI instead of launching the model right away when loading settings from a .kcpps file.", action='store_true')
     compatgroup2.add_argument("--skiplauncher", help="Doesn't display or use the GUI launcher.", action='store_true')

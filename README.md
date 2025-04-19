@@ -233,7 +233,7 @@ Croco is based on KoboldCPP
 
 # koboldcpp (for information)
 
-KoboldCpp is an easy-to-use AI text-generation software for GGML and GGUF models, inspired by the original **KoboldAI**. It's a single self-contained distributable from Concedo, that builds off llama.cpp and adds many additional powerful features.
+KoboldCpp is an easy-to-use AI text-generation software for GGML and GGUF models, inspired by the original **KoboldAI**. It's a single self-contained distributable that builds off **llama.cpp** and adds many additional powerful features.
 
 ![Preview](media/preview.png)
 ![Preview](media/preview2.png)
