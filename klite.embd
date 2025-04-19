@@ -24224,7 +24224,7 @@ else
 			},
 			{
 			"name": "overwrite_current_action_chain",
-			"description": "Overwrites the existing order of actions. After a user input, the order of actions will be enforced if it is set. Actions must be provided as an array in the order they should be taken. Provide an empty array to allow free actions.",
+			"description": "Overwrites the existing order of actions. After a user input, the order of actions will be enforced if it is set. Actions must be provided as an array in the order they should be taken. If there are multiple actions which can be taken (an OR), use a '|' delimiter between the options in the string. Provide an empty array to allow free actions.",
 			"args": {
 				"orderOfActions": {
 				description: "<an array of actions to take after a user input>",
@@ -24742,8 +24742,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 			let currentOrderOfActions = getDocumentFromTextDB('Order of actions')
 			currentOrderOfActions = !!currentOrderOfActions ? currentOrderOfActions.split(",").filter(act => !!act) : []
-			let nextAction = currentOrderOfActions.splice(i).filter(act => validCommands.includes(act))
-			nextAction = nextAction.length > 0 ? getCommands().filter(act => act.name === nextAction[0]) : undefined
+			let nextAction = currentOrderOfActions.splice(i).filter(acts => acts.split("|").find(act => validCommands.includes(act)))
+			nextAction = nextAction.length > 0 ? getCommands().filter(act => nextAction[0].split("|").includes(act.name)) : undefined
 
 			let jsonGrammar = await getCommandsGNBF(nextAction)
 
@@ -25103,11 +25103,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 								{
 									replaceDocumentFromTextDB('Order of actions', "")
 									addThought(createSysPrompt, `Current order of actions has been cleared`)
-										
 								}
 								else
 								{
-									replaceDocumentFromTextDB('Order of actions', [...orderOfActions.filter(act => getCommands().map(command => command.name).includes(act)), "stop_thinking"].join(","))
+									replaceDocumentFromTextDB('Order of actions', [...orderOfActions.filter(acts => acts.split("|").find(act => getCommands().map(command => command.name).includes(act))), "stop_thinking"].join(","))
 									addThought(createSysPrompt, `Current order of actions has been overwritten`)
 
 								}
