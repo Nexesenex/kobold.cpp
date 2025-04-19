@@ -15584,7 +15584,15 @@ Current version indicated by LITEVER below.
 				{
 					//console.log(outputimg);
 					let origImg = "data:image/jpeg;base64," + outputimg;
-					let imgres = localsettings.img_allowhd?(localsettings.img_aspect==0?NO_HD_RES_PX:HD_RES_PX):NO_HD_RES_PX;
+					let imgres = NO_HD_RES_PX
+					if (!!sizing && sizing.length === 2)
+					{
+						imgres = Math.max(sizing[0], sizing[1])
+					}
+					else
+					{
+						imgres = localsettings.img_allowhd ? (localsettings.img_aspect == 0 ? NO_HD_RES_PX : HD_RES_PX) : NO_HD_RES_PX;
+					}
 					compressImage(origImg, (newDataUri) => {
 						image_db[imgid].done = true;
 						image_db[imgid].result = newDataUri;
@@ -15624,7 +15632,15 @@ Current version indicated by LITEVER below.
 					{
 						//console.log(outputimg);
 						let origImg = "data:image/jpeg;base64," + outputimg;
-						let imgres = localsettings.img_allowhd?HD_RES_PX:NO_HD_RES_PX;
+						let imgres = NO_HD_RES_PX
+						if (!!sizing && sizing.length === 2)
+						{
+							imgres = Math.max(sizing[0], sizing[1])
+						}
+						else
+						{
+							imgres = localsettings.img_allowhd?HD_RES_PX:NO_HD_RES_PX;
+						}
 						compressImage(origImg, (newDataUri) => {
 							image_db[imgid].done = true;
 							image_db[imgid].result = newDataUri;
