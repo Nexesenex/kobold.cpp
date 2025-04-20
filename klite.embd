@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 231;
+	const LITEVER = 232;
 	const urlParams = new URLSearchParams(window.location.search);
 	var localflag = urlParams.get('local'); //this will be replaced automatically in embedded kcpp
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -3080,6 +3080,7 @@ Current version indicated by LITEVER below.
 	var koboldcpp_admin_type = 0; //0 = no admin, 1=has admin, 2=protected admin
 	var lastSearchQuery = "";
 	var lastSearchResults = [];
+	var recentSearchQueries = [];
 	var multiplayer_active = false;
 	var multiplayer_pinged = false;
 	var multiplayer_override_name = "";
@@ -3241,12 +3242,13 @@ Current version indicated by LITEVER below.
 		regexreplace_data: [],
 		placeholder_tags_data: [],
 		thinking_pattern: "<think>([\\s\\S]+?)<\/think>",
-		thinking_action: 1, //0=display, 1=collapse, 2=hide, 3=remove
+		thinking_action: 1, //0=display, 1=collapse, 2=hide
 		start_thinking_tag: "<think>",
 		force_thinking_tag: false,
-		strip_past_thinking: true,
+		strip_thinking_mode: 1, //0=no stripping, 1=strip except recent, 2=strip all
 		websearch_enabled: false,
 		websearch_multipass: false,
+		websearch_retain: false,
 		websearch_template: "",
 
 		max_context_length: (localflag?4096:1800),
@@ -5474,11 +5476,11 @@ Current version indicated by LITEVER below.
 			.replace(/<\/blockquote\>\n<blockquote\>/g, "\n<br>")
 			.replace(/!\[(.*?)\]\((.*?) "(.*?)"\)/gm,'<img alt="$1" src="$2" $3 />')
 			.replace(/!\[(.*?)\]\((.*?)\)/gm, '<img alt="$1" src="$2" />')
-			.replace(/\[(.*?)\]\((.*?) "new"\)/gm, '<a href="$2" target=_new>$1</a>')
-			.replace(/\[(.*?)\]\((.*?) "(.*?)"\)/gm, '<a href="$2" title="$3">$1</a>')
-			.replace(/<http(.*?)\>/gm, '<a href="http$1">http$1</a>')
-			.replace(/\[(.*?)\]\(\)/gm, '<a href="$1">$1</a>')
-			.replace(/\[(.*?)\]\((.*?)\)/gm, '<a href="$2">$1</a>')
+			.replace(/\[(.*?)\]\((.*?) "new"\)/gm, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+			.replace(/\[(.*?)\]\((.*?) "(.*?)"\)/gm, '<a href="$2" title="$3" target="_blank" rel="noopener noreferrer">$1</a>')
+			.replace(/<http(.*?)\>/gm, '<a href="http$1" target="_blank" rel="noopener noreferrer">http$1</a>')
+			.replace(/\[(.*?)\]\(\)/gm, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
+			.replace(/\[(.*?)\]\((.*?)\)/gm, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
 
 			.replace(/^[\*+-][ .](.*)/gm, "<ul><li>$1</li></ul>")
 			.replace(/\%SpcEtg\%(\d\d?)[.](.*)([\n]?)/gm, "\%SpcEtg\%\n$1.$2\n")
@@ -6763,7 +6765,7 @@ Current version indicated by LITEVER below.
 			let old_thinking_action = localsettings.thinking_action;
 			let old_start_thinking_tag = localsettings.start_thinking_tag;
 			let old_force_thinking_tag = localsettings.force_thinking_tag;
-			let old_strip_past_thinking = localsettings.strip_past_thinking;
+			let old_strip_thinking_mode = localsettings.strip_thinking_mode;
 
 			//determine if oldui file or newui file format
 			restart_new_game(false);
@@ -6895,10 +6897,6 @@ Current version indicated by LITEVER below.
 				{
 					localsettings.force_thinking_tag = storyobj.force_thinking_tag;
 				}
-				if(storyobj.strip_past_thinking===false || storyobj.strip_past_thinking===true)
-				{
-					localsettings.strip_past_thinking = storyobj.strip_past_thinking;
-				}
 				if(storyobj.start_thinking_tag)
 				{
 					localsettings.start_thinking_tag = storyobj.start_thinking_tag;
@@ -7017,7 +7015,7 @@ Current version indicated by LITEVER below.
 						localsettings.thinking_action = old_thinking_action;
 						localsettings.start_thinking_tag = old_start_thinking_tag;
 						localsettings.force_thinking_tag = old_force_thinking_tag;
-						localsettings.strip_past_thinking = old_strip_past_thinking;
+						localsettings.strip_thinking_mode = old_strip_thinking_mode;
 					}
 
 					localsettings.my_api_key = tmpapikey1;
@@ -7592,16 +7590,27 @@ Current version indicated by LITEVER below.
 	{
 		hide_popups();
 		document.getElementById("charcreator_name").value = document.getElementById("charcreator_persona").value = document.getElementById("charcreator_scenario").value = document.getElementById("charcreator_greeting").value = "";
+        document.getElementById("usecharactertemplate").checked = false;
 		document.getElementById("charactercreator").classList.remove("hidden");
 		tempAestheticInstructUISettings = deepCopyAestheticSettings(aestheticInstructUISettings);
 		character_creator_updateimg();
+		character_creator_template_toggle();
 	}
 	function character_creator_updateimg()
 	{
 		document.getElementById("charcreator_avatar").style.backgroundImage = `url(` + (aestheticInstructUISettings.AI_portrait != "default" ? aestheticInstructUISettings.AI_portrait : niko_square) + `)`;
 	}
+	function character_creator_template_toggle()
+	{
+		if (document.getElementById("usecharactertemplate").checked) {
+			document.getElementById("nocharactertemplate").classList.add("hidden");
+		} else {
+			document.getElementById("nocharactertemplate").classList.remove("hidden");
+		}
+	}
 	function character_creator_done(confirm)
 	{
+		let usingtemplate = document.getElementById("usecharactertemplate").checked; //are we using Peter's template?
 		if (!confirm)
 		{
 			aestheticInstructUISettings = deepCopyAestheticSettings(tempAestheticInstructUISettings);
@@ -7623,6 +7632,18 @@ Current version indicated by LITEVER below.
 				scenario = "\n[Scenario: "+scenario+"]";
 			}
 			let combinedmem = memory + scenario;
+
+			if(usingtemplate)
+			{
+				let introduction = "[Overview: <give the AI a one sentence overview of what your intention is here>]";
+				let character = "\n\n[" + chatopponent + "'s Character definition:\nAge:\nHeight:\nWeight:\nBuild:\nHair:\nEyes:\nEyebrows:\nClothing Preferences:\nPersonality:\nMind:\nSpeech:\nAccent:\nMannerisms:\nLikes:\nDislikes:\nHobbies:\nShort-term Goals:\nLong-term Goals:\n" + chatopponent + "’s primary goal is:\nChildhood memories of " + chatopponent + ":\nLong-term memories of " + chatopponent + ": <also add descriptions of friends and similar persons from the life of " + chatopponent + " here>\nShort-term Memories relevant for the scenario:  ]";
+				let genre = "\n\n[Genre: <add one or more genre definitions for your scenario here>]";
+				let tags = "\n\n[Tags: <add one or more tags describing your role-play for the AI here>]";
+				let scenario = "\n\n[Scenario: <add your scenario here>]";
+				let examples = "\n\n" + chatopponent + ": <add some example messages (hidden) for " + chatopponent + " here>";
+				combinedmem = introduction + character + genre + tags + scenario + examples;
+			}
+
 			greeting = "\n{{char}}: "+ greeting;
 			restart_new_game(false);
 
@@ -7645,6 +7666,10 @@ Current version indicated by LITEVER below.
 		}
 		tempAestheticInstructUISettings = null;
 		hide_popups();
+		if (confirm && usingtemplate)
+        {
+            btn_memory();
+        }
 	}
 
 	function click_scenario(idx)
@@ -11285,6 +11310,7 @@ Current version indicated by LITEVER below.
 		}
 		document.getElementById("websearch_enabled").checked = localsettings.websearch_enabled;
 		document.getElementById("websearch_multipass").checked = localsettings.websearch_multipass;
+		document.getElementById("websearch_retain").checked = localsettings.websearch_retain;
 		document.getElementById("websearch_template").value = (localsettings.websearch_template==""?default_websearch_template:localsettings.websearch_template);
 		if(is_using_kcpp_with_websearch())
 		{
@@ -11746,6 +11772,7 @@ Current version indicated by LITEVER below.
 		}
 		localsettings.websearch_enabled = document.getElementById("websearch_enabled").checked?true:false;
 		localsettings.websearch_multipass = document.getElementById("websearch_multipass").checked?true:false;
+		localsettings.websearch_retain = document.getElementById("websearch_retain").checked?true:false;
 		localsettings.websearch_template = (document.getElementById("websearch_template").value==default_websearch_template?"":document.getElementById("websearch_template").value);
 		if(validate_regex(localsettings.thinking_pattern))
 		{
@@ -11757,7 +11784,7 @@ Current version indicated by LITEVER below.
 		}
 		localsettings.thinking_action = parseInt(document.getElementById("thinking_action").value);
 		localsettings.force_thinking_tag = document.getElementById("force_thinking_tag").checked?true:false;
-		localsettings.strip_past_thinking = document.getElementById("strip_past_thinking").checked?true:false;
+		localsettings.strip_thinking_mode = parseInt(document.getElementById("strip_thinking_mode").value);
 		localsettings.start_thinking_tag = document.getElementById("start_thinking_tag").value;
 
 
@@ -12584,6 +12611,8 @@ Current version indicated by LITEVER below.
 		last_known_filename = "saved_story.json";
 		is_impersonate_user = false;
 		voice_is_processing = false;
+		recentSearchQueries = [];
+		lastSearchResults = [];
 		if (!keep_memory)
 		{
 			personal_notes = "";
@@ -13999,10 +14028,25 @@ Current version indicated by LITEVER below.
 			truncated_context = truncated_context.replace(/\xA0/g,' '); //replace non breaking space nbsp
 
 			//remove past thoughts
-			if(localsettings.strip_past_thinking && localsettings.thinking_action>0 && localsettings.thinking_pattern!="") //removal of cot
+			if(localsettings.thinking_pattern!="") //removal of cot
 			{
-				let pat = new RegExp(localsettings.thinking_pattern, "gm");
-				truncated_context = truncated_context.replace(pat, "");
+				if(localsettings.strip_thinking_mode==2) //strip all thinking
+				{
+					let pat = new RegExp(localsettings.thinking_pattern, "gm");
+					truncated_context = truncated_context.replace(pat, "");
+				}
+				else if(localsettings.strip_thinking_mode==1) //strip except recent
+				{
+					let endmatcher = (localsettings.placeholder_tags ? instructendplaceholder : get_instruct_endtag(true));
+					let lastInstructIdx = truncated_context.lastIndexOf(endmatcher);
+					if (lastInstructIdx !== -1) {
+						let beforePart = truncated_context.slice(0, lastInstructIdx); // Split into two parts
+						let afterPart = truncated_context.slice(lastInstructIdx);
+						let pat = new RegExp(localsettings.thinking_pattern, "gm");	// Remove all thinking before splitpoint
+						beforePart = beforePart.replace(pat, "");
+						truncated_context = beforePart + afterPart; // Combine and done
+					}
+				}
 			}
 
 			let max_allowed_characters = getMaxAllowedCharacters(truncated_context, maxctxlen, maxgenamt);
@@ -14312,6 +14356,15 @@ Current version indicated by LITEVER below.
 					let sresult = lastSearchResults[i];
 					let snippet = `\n[Search Snippet: ${sresult.title}\nSource: ${sresult.url}\nExcerpt: ${((sresult.content && sresult.content!="")?sresult.content:sresult.desc)}]`;
 					wistr = snippet + wistr;
+				}
+				if(recentSearchQueries && recentSearchQueries.length>0 && localsettings.websearch_retain)
+				{
+					for(let i=0;i<recentSearchQueries.length;++i)
+					{
+						let sresult = recentSearchQueries[i];
+						let snippet = `\n[Old Search Snippet: ${sresult.title}\nSource: ${sresult.url}\nExcerpt: ${((sresult.content && sresult.content!="")?sresult.content:sresult.desc)}]`;
+						wistr = snippet + wistr;
+					}
 				}
 			}
 
@@ -16060,11 +16113,6 @@ Current version indicated by LITEVER below.
 					gentxt = gentxt.replace(pat, rep);
 				}
 			}
-		}
-		if(localsettings.thinking_action==3 && localsettings.thinking_pattern!="") //removal of cot
-		{
-			let pat = new RegExp(localsettings.thinking_pattern, "gm");
-			gentxt = gentxt.replace(pat, "");
 		}
 
 		//trim trailing whitespace, and multiple newlines
@@ -19332,7 +19380,7 @@ Current version indicated by LITEVER below.
 		document.getElementById("thinking_pattern").value = localsettings.thinking_pattern;
 		document.getElementById("thinking_action").value = localsettings.thinking_action;
 		document.getElementById("force_thinking_tag").checked = localsettings.force_thinking_tag;
-		document.getElementById("strip_past_thinking").checked = localsettings.strip_past_thinking;
+		document.getElementById("strip_thinking_mode").value = localsettings.strip_thinking_mode;
 		document.getElementById("start_thinking_tag").value = localsettings.start_thinking_tag;
 	}
 
@@ -20635,6 +20683,14 @@ Current version indicated by LITEVER below.
 				.then(x => x.json())
 				.then(values => {
 					lastSearchQuery = webSearchQuery;
+					if(lastSearchResults && lastSearchResults.length>0)
+					{
+						recentSearchQueries.push(lastSearchResults[0]);
+						if(recentSearchQueries.length>2)
+						{
+							recentSearchQueries.shift();
+						}
+					}
 					lastSearchResults = values;
 					if(pending_response_id=="-1")
 					{
@@ -20646,6 +20702,7 @@ Current version indicated by LITEVER below.
 				.catch(error => {
 					console.log("WebSearch Error: " + error);
 					lastSearchResults = [];
+					recentSearchQueries = [];
 					lastSearchQuery = "";
 					if(pending_response_id=="-1")
 					{
@@ -20694,6 +20751,7 @@ Current version indicated by LITEVER below.
 		else
 		{
 			lastSearchResults = [];
+			recentSearchQueries = [];
 			lastSearchQuery = "";
 			websearch_in_progress = false;
 			onDone();
@@ -21134,7 +21192,7 @@ Current version indicated by LITEVER below.
 						</div>
 					</span>
 				</div>
-				<textarea title="Edit Memory" class="form-control menuinput_multiline" id="memorytext" style="height: 120px;"
+				<textarea title="Edit Memory" class="form-control menuinput_multiline" id="memorytext" style="height: 160px;"
 					placeholder="Edit the memory to be sent with each request to the AI."></textarea>
 				<div class="settinglabel">
 					<div class="justifyleft"><br>Author's Note<span class="helpicon">?<span
@@ -22109,6 +22167,11 @@ Current version indicated by LITEVER below.
 								<textarea title="Multipass WebSearch Template" style="height: 80px;" class="form-control menuinput_multiline" id="websearch_template"
 								placeholder=""></textarea>
 							</div>
+							<div class="settinglabel" style="padding: 4px;">
+								<div class="justifyleft settingsmall" title="Retain Previous Searches">Retain Recent Searches <span class="helpicon">?<span
+									class="helptext">Normally search results are only used once and then discarded. Enable this to retain search results for the previous 3 turns.</span></span></div>
+								<input title="Retain Previous Searches" type="checkbox" id="websearch_retain" style="margin:0px 0 0;">
+							</div>
 						</div>
 					</div>
 				</div>
@@ -22174,13 +22237,18 @@ Current version indicated by LITEVER below.
 					<div id="expandthinking" class="hidden">
 						<div class="settinglabel justifyleft">This allows you to specify regex to handle output from reasoning models, to hide, remove, or ignore the Chain-Of-Thought.</div>
 						<div style="padding:4px" class="settinglabel justifyleft">CoT Regex Pattern: <input class="settinglabel miniinput" style="margin-left:4px;width:calc(100% - 132px);" type="text" placeholder="(Inactive)" value="" id="thinking_pattern"></div>
-						<div style="padding:4px" class="settinglabel justifyleft">CoT Handling: <select class="form-control" style="margin-left:4px;height: 25px; font-size:12px; padding:2px;display:inline;width:120px" id="thinking_action">
-							<option value="0" selected>Display</option>
-							<option value="1">Collapse</option>
+						<div style="padding:4px" class="settinglabel justifyleft">CoT Display: <span class="helpicon">?<span
+							class="helptext">Controls the visibility of thinking sections in the UI. Does not affect submitted thinking tags.</span></span><select class="form-control" style="margin-left:4px;height: 25px; font-size:12px; padding:2px;display:inline;width:120px" id="thinking_action">
+							<option value="0">Display</option>
+							<option value="1" selected>Collapse</option>
 							<option value="2">Hide</option>
-							<option value="3">Remove</option>
 						</select></div>
-						<div style="padding:4px" class="settinglabel justifyleft">Don't Submit Old Thoughts <input title="Do not submit Past Thoughts" type="checkbox" id="strip_past_thinking" style="margin:4px;"></div>
+						<div style="padding:4px" class="settinglabel justifyleft">CoT Submitted: <span class="helpicon">?<span
+							class="helptext">Controls which thinking tags are submitted to the AI.</span></span><select class="form-control" style="margin-left:4px;height: 25px; font-size:12px; padding:2px;display:inline;width:160px" id="strip_thinking_mode">
+							<option value="0">Include All Thinking</option>
+							<option value="1" selected>Only Newest Thinking</option>
+							<option value="2">Exclude All Thinking</option>
+						</select></div>
 						<div style="padding:4px" class="settinglabel justifyleft">Force Insert Thinking Tag <input title="Force Insert Thinking Tag" type="checkbox" id="force_thinking_tag" style="margin:4px;"><input class="settinglabel miniinput" style="margin-left:4px;width:100px;" type="text" placeholder="" value="" id="start_thinking_tag"></div>
 						<div style="padding:4px" class="settinglabel justifyleft">Note: 'Force Insert Thinking Tags' does not work with the 'Remove' option of CoT handling regex.</div>
 					</div>
@@ -22595,6 +22663,11 @@ Current version indicated by LITEVER below.
 					<div id="charcreator_avatar" style="background-position: 50% 50%; background-size: 100% 100%; background-origin: content-box; background-repeat: no-repeat; width: 32px; height:32px; border-radius:100rem; background-clip: content-box; margin: 4px 4px; border:none;"></div>
 				</div>
 				<div class="inlinelabel">
+                    <div class="justify-center" style="margin:4px;">Use Character Template <span class="helpicon">?<span class="helptext">Adds a character template to memory while creating the character instead.</span></span>
+                    <input type="checkbox" title="Use Character Template" id="usecharactertemplate" onchange="character_creator_template_toggle()" style="margin:0px 0px 0px auto;"></div>
+                </div>
+				<div id="nocharactertemplate">
+				<div class="inlinelabel">
 					<div class="justifyleft" style="padding:4px">Character Persona: </div>
 					<input title="Character Persona" style="width:calc(100% - 136px);" type="text" placeholder="Describe this character (e.g. 25yo Male Elf, Brave, Chatty)" value="" id="charcreator_persona">
 				</div>
@@ -22602,11 +22675,11 @@ Current version indicated by LITEVER below.
 					<div class="justifyleft" style="padding:4px">Describe Scenario: </div>
 					<input title="Describe Scenario" style="width:calc(100% - 136px);" type="text" placeholder="Describe the scenario (e.g. A fireside chat at the spooky campsite)" value="" id="charcreator_scenario">
 				</div>
+				</div>
 				<div class="inlinelabel">
 					<div class="justifyleft" style="padding:4px">Character Greeting: </div>
 					<input title="Character Greeting" style="width:calc(100% - 136px);" type="text" placeholder="First message greeting (e.g. Hello, traveller!)" value="" id="charcreator_greeting">
 				</div>
-
 				After creating your character, you can edit it further at any time in the 'Context' memory window.
 			</div>
 			<div class="popupfooter">

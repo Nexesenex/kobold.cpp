@@ -3588,7 +3588,8 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
             bodycontent += f'''<p>Generated Image: {prompt if prompt else "None"}</p>
             {'<img src="view.png" width="320" width="320">' if prompt else ""}<br>
             <label>Image Prompt: </label><input type="text" size="40" value="" name="imgprompt">
-            <input type="submit" name="generate" value="Generate"> (Be patient)'''
+            <input type="hidden" name="generate" value="Generate" />
+            <input type="submit" value="Generate"> (Be patient)'''
         elif chatmode:
             oldconvo = prompt.strip().replace(f"{human_name}:",f"<b>{human_name}:</b>").replace(f"{bot_name}:",f"<b>{bot_name}:</b>").replace("\n","<br>")
             oldconvo += f'''<input type="hidden" name="human_name" value="{human_name}"><input type="hidden" name="bot_name" value="{bot_name}">'''
@@ -3599,11 +3600,13 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
             bodycontent += f'''<p>{newconvo if prompt=="" else oldconvo}</p>
             <input type="hidden" name="prompt" value="{clnprompt}">
             <label>Say: </label><input type="text" size="40" value="" name="chatmsg">
-            <input type="submit" name="generate" value="Send"> (Be patient)'''
+            <input type="hidden" name="generate" value="Send" />
+            <input type="submit" value="Send"> (Be patient)'''
         else:
             bodycontent += f'''
 <textarea name="prompt" cols="60" rows="8" wrap="soft" placeholder="Enter Prompt Here">{prompt}</textarea><br>
-<input type="submit" name="generate" value="Generate"> (Be patient)
+<input type="hidden" name="generate" value="Generate" />
+<input type="submit" value="Generate"> (Be patient)
 '''
         if not imgmode:
             optionscontent = f'''<label>Gen. Amount</label> <input type="text" size="4" value="{max_length}" name="max_length"><br>
@@ -3616,6 +3619,7 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
             optionscontent = f'''<label>Steps</label> <input type="text" size="4" value="{steps}" name="steps"><br>
             <label>Cfg. Scale</label> <input type="text" size="4" value="{cfg}" name="cfg"><br>'''
 
+        caps = get_capabilities()
         finalhtml = f'''<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -3644,7 +3648,7 @@ Change Mode<br>
 <input type="hidden" name="chatmode" value="1">
 <input type="submit" value="Chat Mode">
 </form>
-{imgbtn if "txt2img" in get_capabilities() else ""}
+{imgbtn if ("txt2img" in caps and caps["txt2img"]) else ""}
 </div>
 </div>
 </body></html>'''
