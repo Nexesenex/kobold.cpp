@@ -19281,7 +19281,7 @@ Current version indicated by LITEVER below.
 		document.getElementById("documentdb_searchrange").value = documentdb_searchrange;
 		document.getElementById("documentdb_chunksize").value = documentdb_chunksize;
 		document.getElementById("documentdb_data").value = documentdb_data;
-		document.getElementById("documentdb_useEmbeddings").value = documentdb_useEmbeddings;
+		document.getElementById("documentdb_useEmbeddings").checked = documentdb_useEmbeddings;
 	}
 
 	function toggle_logit_bias_string()
@@ -21264,7 +21264,6 @@ Current version indicated by LITEVER below.
 				</div>
 
 				<div class="settinglabel" style="padding: 4px;">
-					<div class="justifyleft settingsmall" title="Enable TextDB">Use Embeddings for Searching </div>
 					<div class="justifyleft settingsmall" title="Use Embeddings for Searching">Use Embeddings for Searching <span class="helpicon">?
 						<span class="helptext">If enabled, the text DB is converted to vectors using the KoboldCPP embedding endpoint. If not, it uses the traditional TextDB keyword based search. Generally, embeddings are slower to generate initially (so when making changes to DB the next response might be very slow) - but may understand the context of the sentence better while also potentially supporting multiple languages.</span></span></div>
 					<input title="Use Embeddings for Searching" type="checkbox" id="documentdb_useEmbeddings" style="margin:0px 0 0;">
