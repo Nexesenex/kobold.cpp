@@ -3076,6 +3076,7 @@ Current version indicated by LITEVER below.
 	var koboldcpp_has_websearch = false;
 	var koboldcpp_has_savedatafile = false;
 	var koboldcpp_has_server_saving = false;
+	var koboldcpp_has_embeddings = false
 	var koboldcpp_admin_type = 0; //0 = no admin, 1=has admin, 2=protected admin
 	var lastSearchQuery = "";
 	var lastSearchResults = [];
@@ -6229,6 +6230,11 @@ Current version indicated by LITEVER below.
 	{
 		return (window.location.hostname.includes("koboldai.net") || window.location.hostname.includes("lostruins.github.io"));
 	}
+
+	function is_using_kcpp_with_embeddings() {
+		return (custom_kobold_endpoint != "" && koboldcpp_version && koboldcpp_version != "" && compare_version_str(koboldcpp_version, "1.84") >= 0 && koboldcpp_has_embeddings);
+	}
+
 
 	function determine_if_ban_eos(input_was_empty) {
 		if(localsettings.eos_ban_mode == 3)
@@ -9695,6 +9701,7 @@ Current version indicated by LITEVER below.
 									koboldcpp_admin_type = (data.admin?data.admin:0);
 									koboldcpp_has_savedatafile = (data.savedata?true:false)
 									koboldcpp_has_server_saving = (data.hasServerSaving ? true:false)
+									koboldcpp_has_embeddings = (data.embeddings ? true : false)
 									let has_password = (data.protected?true:false);
 									let has_txt2img = (data.txt2img?true:false);
 									let no_txt_model = (mdlname=="inactive");
@@ -15451,6 +15458,7 @@ Current version indicated by LITEVER below.
 		return inputtext;
 	}
 
+	let higherQualityForSaving = 0.9
 	function getImageSizing(sizing = undefined)
 	{
 		if (!!sizing && sizing.length == 2)
@@ -15459,7 +15467,6 @@ Current version indicated by LITEVER below.
 				iheight: sizing[0], iwidth: sizing[1]
 			}
 		}
-		sizing
 		let iwidth = 512;
 		let iheight = 512;
 		let aspectRatio = localsettings.img_aspect
@@ -15650,9 +15657,11 @@ Current version indicated by LITEVER below.
 					//console.log(outputimg);
 					let origImg = "data:image/jpeg;base64," + outputimg;
 					let imgres = NO_HD_RES_PX
+					let useHigherQuality = false
 					if (!!sizing && sizing.length === 2)
 					{
 						imgres = Math.max(sizing[0], sizing[1])
+						useHigherQuality = true
 					}
 					else
 					{
@@ -15661,7 +15670,7 @@ Current version indicated by LITEVER below.
 					compressImage(origImg, (newDataUri) => {
 						image_db[imgid].done = true;
 						image_db[imgid].result = newDataUri;
-					}, false, imgres);
+					}, false, imgres, useHigherQuality ? higherQualityForSaving : undefined);
 				}else{
 					image_db[imgid].queue = "Failed";
 					msgbox("Image Generation Failed!\n\nPlease make sure KoboldCpp / Forge / A1111 is running and properly configured!\nIn your local install of Automatic1111 WebUi, modify webui-user.bat and add these flags to enable API access:\n\nset COMMANDLINE_ARGS= --api --listen --cors-allow-origins=*\n");
@@ -15698,9 +15707,11 @@ Current version indicated by LITEVER below.
 						//console.log(outputimg);
 						let origImg = "data:image/jpeg;base64," + outputimg;
 						let imgres = NO_HD_RES_PX
+						let useHigherQuality = false
 						if (!!sizing && sizing.length === 2)
 						{
 							imgres = Math.max(sizing[0], sizing[1])
+							useHigherQuality = true
 						}
 						else
 						{
@@ -15709,7 +15720,7 @@ Current version indicated by LITEVER below.
 						compressImage(origImg, (newDataUri) => {
 							image_db[imgid].done = true;
 							image_db[imgid].result = newDataUri;
-						}, true, imgres);
+						}, true, imgres, useHigherQuality ? higherQualityForSaving : undefined);
 					}else{
 						image_db[imgid].queue = "Failed";
 						msgbox("Image Generation Failed!\n\nPlease make sure your OpenAI key is set correctly and you are allowed to use DALL-E.\n");
@@ -20848,7 +20859,7 @@ Current version indicated by LITEVER below.
 		}).filter(c => !!c.snippet);
 
 		let miniSearch;
-		if (!!documentdb_useEmbeddings)
+		if (!!documentdb_useEmbeddings && is_using_kcpp_with_embeddings())
 		{
 			let searchResults = await embeddingSearcher.getRankedEmbeddings(searchStr, ...paragraphs)
 			searchResults = searchResults.filter(x=>x.similarity>minSimilarity);
@@ -24473,9 +24484,9 @@ else
 				},
 				"enabled": is_using_kcpp_with_llava(), // Only enabled if local endpoint exists / is in use
 				"executor": async (action) => {
-					let analysisPrompt = action?.args?.prompt
-					if (!analysisPrompt) {
-						analysisPrompt = "Describe the image in detail. Transcribe and include any text from the image in the description."
+					let analysisPrompt = "Describe the image in detail. Transcribe and include any text from the image in the description."
+					if (!!action?.args?.prompt) {
+						analysisPrompt += `Specifically please focus on:\n\n${action?.args?.prompt}`
 					}
 					if (!!analysisPrompt) {
 						waitingFori2iSelection = true
@@ -24692,17 +24703,8 @@ else
 </script>
 <script>
 	// https://github.com/Wladastic/mini_autogpt is the original repo for these prompts - They have been modified with some attempted improvements.  It is MIT licensed.
-	let json_schema = `RESPOND WITH ONLY VALID JSON CONFORMING TO THE FOLLOWING SCHEMA:
-{
-	"command": {
-		"name": { "type": "string" },
-		"args": { "type": "object" }
-	}
-} `
-
-let getCommandsAsText = (showExtended = false) => {
-	// .filter(command => !!showExtended || command?.isExtended === false)
-	return getEnabledCommands().map(command => {
+let getCommandsAsText = (commands = getEnabledCommands()) => {
+	return commands.map(command => {
 		let baseCommand = `Command: ${command.name}
 Description: ${command.description}`
 		if (!!command.args)
@@ -24721,35 +24723,54 @@ Description: ${command.description}`
 	}).join("\n\n").trim();
 }
 
-let actionPrompt = () => {
-	return `${!!localsettings.instruct_sysprompt ? `${localsettings.instruct_sysprompt}\n\n` : ""}You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user.
-
-Constraints:
+let agentConstraints = `Constraints:
 1. Only use commands defined below - no other actions are available.
 2. No user assistance unless absolutely necessary.
 3. Keep thoughts concise and action - focused.
 4. Don't over-analyze simple decisions.
 5. Start with simple questions / actions before complex ones.
 6. Never repeat recent questions or actions.
-7. Check recent history before asking questions.
-
-${getCommandsAsText(true)}
-
-Resources:
+7. Check recent history before asking questions.`,
+agentResources = `Resources:
 1. Use "ask_user" to tell them to implement new commands if you need one. Do not use ask_user unless absolutely necessary.
 2. When responding with None, use null, as otherwise the JSON cannot be parsed.
 3. Use "overwrite_current_state" to keep current information.
 4. Use "add_to_history" to store background information which may be needed in future.
 4. Use "search_history" if the user has an instruction which requires more information.
 5. The current date is: ${new Date().toUTCString()}
-6. The user may have provided an image for analysis. If the user asks for details about the image, image generation is forbidden.
-
-Performance Evaluation:
+6. The user may have provided an image for analysis. If the user asks for details about the image, image generation is forbidden.`,
+agentEvaluation = `Performance Evaluation:
 1. Continuously assess your actions.
 2. Constructively self - criticize your big - picture behavior.
-3. Every command has a cost, so be smart and efficient. Aim to complete tasks in the least number of steps, but never sacrifice quality.
+3. Every command has a cost, so be smart and efficient. Aim to complete tasks in the least number of steps, but never sacrifice quality.`,
+json_schema = `RESPOND WITH ONLY VALID JSON CONFORMING TO THE FOLLOWING SCHEMA:
+{
+	"command": {
+		"name": { "type": "string" },
+		"args": { "type": "object" }
+	}
+} `;
+
+/**
+ * Old action prompt
+let actionPrompt = () => {
+	return `${!!localsettings.instruct_sysprompt ? `${localsettings.instruct_sysprompt}\n\n` : ""}You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user.
+
+${constraints}
+
+${getCommandsAsText()}
+
+${agentResources}
+
+${agentEvaluation}
 
 ${json_schema}`
+}**/
+
+let actionPrompt = (commands = getEnabledCommands()) => {
+	return `${!!localsettings.instruct_sysprompt ? `${localsettings.instruct_sysprompt}` : `You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user.`}
+
+${getCommandsAsText(commands)}`
 }
 
 let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"message":"I must make sure that I respond to the user with \"send_message\""}}}`
@@ -24975,8 +24996,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return sizing
 	}
 
-	let getInitialAgentPrompt = () => {
-		return current_memory + createSysPrompt(actionPrompt())
+	let getInitialAgentPrompt = (commands = getEnabledCommands()) => {
+		return current_memory + createSysPrompt(actionPrompt(commands))
 	}
 
 	let getFinalAgentPrompt = (currentOrderOfActions) => {
@@ -25035,7 +25056,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			currentChainOfThought = currentChainOfThought.splice(-maxActionsInHistory)
 			recentActions = recentActions.splice(-maxActionsInHistory)
 			
-			let history = getInitialAgentPrompt() + currentChainOfThought.join()
+			let history = getInitialAgentPrompt(nextAction) + currentChainOfThought.join()
 			history += getFinalAgentPrompt(currentOrderOfActions)
 
 			let resp = await generateAndGetTextFromPrompt(replace_instruct_placeholders(history), jsonGrammar, [], recentActions.map(JSON.stringify))
