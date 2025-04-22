@@ -698,13 +698,14 @@ else
 	@echo 'Now rebuilding vulkan shaders for Linux...'
 	@chmod +x vulkan-shaders-gen glslc-linux
 	@echo 'Checking if bundled glslc-linux binary is usable...'
-	@GLSLC_BIN=$$(if ./glslc-linux --version >/dev/null 2>&1; then \
-		echo "./glslc-linux"; \
-	elif command -v glslc >/dev/null 2>&1; then \
-		echo "glslc"; \
-	else \
-		echo ""; \
-	fi); \
+	@GLSLC_BIN=$$( \
+		if [ -x ./glslc-linux ] && ./glslc-linux --version 2>/dev/null | grep -q "glslang"; then \
+			echo "./glslc-linux"; \
+		elif command -v glslc >/dev/null 2>&1; then \
+			echo "glslc"; \
+		else \
+			echo ""; \
+		fi); \
 	if [ -z "$$GLSLC_BIN" ]; then \
 		echo "Error: No usable glslc found. Vulkan shaders cannot be compiled!"; \
 	else \
