@@ -25314,6 +25314,15 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}	
 	}
 
+	
+	let originalMergeEditField = merge_edit_field;
+
+	merge_edit_field = () => {
+		
+		removeChoiceContainer()
+		originalMergeEditField()
+	}
+
 	let originalBtnBack = btn_back, originalBtnRedo = btn_redo, originalBtnRetry = btn_retry;
 
 	btn_back = () => {
