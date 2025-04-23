@@ -24753,8 +24753,7 @@ else
 	// https://github.com/Wladastic/mini_autogpt is the original repo for these prompts - They have been modified with some attempted improvements.  It is MIT licensed.
 let getCommandsAsText = (commands = getEnabledCommands()) => {
 	return commands.map(command => {
-		let baseCommand = `Command: ${command.name}
-Description: ${command.description}`
+		let baseCommand = `Command: ${command.name}\nDescription: ${command.description}`
 		if (!!command.args)
 		{
 			let args = Object.keys(command.args).map(key => {
@@ -25044,13 +25043,125 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return sizing
 	}
 
-	let getInitialAgentPrompt = (commands = getEnabledCommands()) => {
-		return current_memory + createSysPrompt(actionPrompt(commands))
+	let getInitialAgentPrompt = (commands = getEnabledCommands(), max_mem_len) => {
+		return substring_to_boundary(current_memory, max_mem_len) + createSysPrompt(actionPrompt(commands))
 	}
 
 	let getFinalAgentPrompt = (currentOrderOfActions) => {
 		let basePrompt = createSysPrompt(`Current state: ${getDocumentFromTextDB('State')}${currentOrderOfActions.length > 0 ? `\n\nOrder of actions: ${currentOrderOfActions.join(" -> ")}` : ""}`)
 		return basePrompt
+	}
+
+	/**
+	 * Mostly a copy and paste of the main function - tweaked the format returned along with adding a clean cut off for WI
+	 */
+	let getWorldInfoForAgent = (wimatch_context, maxWILength) => {
+		//if world info exists, we inject it right after the memory
+		//for each matching key
+		if (wi_searchdepth > 0) {
+			let cutoff = wimatch_context.length - wi_searchdepth;
+			cutoff = cutoff < 0 ? 0 : cutoff;
+			wimatch_context = wimatch_context.substring(cutoff);
+		}
+		if (!localsettings.case_sensitive_wi) {
+			wimatch_context = wimatch_context.toLowerCase();
+		}
+
+		let wistr = "";
+		if (current_wi.length > 0) {
+			for (var x = 0; x < current_wi.length; ++x) {
+				let wi = current_wi[x];
+
+				let shoulduse = false;
+
+				//see if this is a valid wi entry
+				if (wi.content == null || wi.content == "") {
+					continue;
+				}
+
+				if (wi.widisabled) {
+					continue;
+				}
+
+				if (wi.constant) {
+					shoulduse = true;
+				} else {
+					//see if this is a valid wi entry
+					if (wi.key == null || wi.key == "") {
+					continue;
+					}
+
+					//selective, but bad secondary key. treat as only 1 key
+					let invalidseckey = (wi.selective && (wi.keysecondary == "" || wi.keysecondary == null));
+					let invalidantikey = (wi.selective && (wi.keyanti == "" || wi.keyanti == null));
+
+					let wiks = wi.key.split(",");
+
+					if (!wi.selective || (invalidseckey && invalidantikey)) {
+					if (localsettings.case_sensitive_wi) {
+						shoulduse = wiks.some(k => wimatch_context.includes(k.trim()));
+					} else {
+						shoulduse = wiks.some(k => wimatch_context.includes(k.trim().toLowerCase()));
+					}
+					} else {
+					let wikanti = [];
+					let wiks2 = [];
+					if (!invalidantikey) {
+						wikanti = wi.keyanti.split(",");
+					}
+					if (!invalidseckey) {
+						wiks2 = wi.keysecondary.split(",");
+					}
+					let t1 = false,
+						t2 = false,
+						t3 = false;
+					if (localsettings.case_sensitive_wi) {
+						t1 = wiks.some(k => wimatch_context.includes(k.trim()));
+						t2 = wiks2.some(k => wimatch_context.includes(k.trim()));
+						t3 = wikanti.some(k => wimatch_context.includes(k.trim()));
+					} else {
+						t1 = wiks.some(k => wimatch_context.includes(k.trim().toLowerCase()));
+						t2 = wiks2.some(k => wimatch_context.includes(k.trim().toLowerCase()));
+						t3 = wikanti.some(k => wimatch_context.includes(k.trim().toLowerCase()));
+					}
+					if (!invalidantikey && !invalidseckey) //all keys valid
+					{
+						shoulduse = (t1 && t2 && !t3);
+					} else if (invalidantikey) {
+						shoulduse = (t1 && t2);
+					} else {
+						shoulduse = (t1 && !t3);
+					}
+					}
+				}
+
+				if (shoulduse) {
+					//check if randomness less than 100%
+					if (wi.probability && wi.probability < 100) {
+					let roll = Math.floor(Math.random() * 100) + 1;
+					if (roll < wi.probability) {
+						let tags = (wi.key || "").split(",").concat((wi.keysecondary || "").split(",")).filter(elem => elem.trim() !== "").map(elem => elem.toLowerCase()).filter((elem, pos, arr) => pos === arr.indexOf(elem))
+						let wiString = `[Additional information (tags: ${tags.join(", ")}):\n${wi.content}]\n`
+						if (maxWILength < wistr.lengt + wiString.length)
+						{
+							return wistr
+						}
+						wistr += wiString;
+					}
+					} else {
+						//always insert
+						let tags = (wi.key || "").split(",").concat((wi.keysecondary || "").split(",")).filter(elem => elem.trim() !== "").map(elem => elem.toLowerCase()).filter((elem, pos, arr) => pos === arr.indexOf(elem))
+						let wiString = `[Additional information (tags: ${tags.join(", ")}):\n${wi.content}]\n`
+						if (maxWILength < wistr.lengt + wiString.length)
+						{
+							return wistr
+						}
+						wistr += wiString;
+					}
+				}
+			}
+		}
+		return wistr
 	}
 
 	let recentActions = [], maxActionsInHistory = 20, maxThoughtsWithoutUserInput = 5, currentAgentCycle = null, endCurrent = false
@@ -25104,8 +25215,43 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			currentChainOfThought = currentChainOfThought.splice(-maxActionsInHistory)
 			recentActions = recentActions.splice(-maxActionsInHistory)
 			
-			let history = getInitialAgentPrompt(nextAction) + currentChainOfThought.join()
-			history += getFinalAgentPrompt(currentOrderOfActions)
+			// All content			
+			let truncated_context = concat_gametext(true, "", "", "", false, true); //no need to truncate if memory is empty
+			truncated_context = truncated_context.replace(/\xA0/g, ' '); //replace non breaking space nbsp
+
+			// Context quantities
+			let maxctxlen = localsettings.max_context_length;
+			let maxgenamt = localsettings.max_length;
+			let max_allowed_characters = getMaxAllowedCharacters(truncated_context, maxctxlen, maxgenamt);
+			let max_mem_len = Math.floor(max_allowed_characters * 0.8);
+			let max_anote_len = Math.floor(max_allowed_characters * 0.6);
+			let max_wi_len = Math.floor(max_allowed_characters * 0.5);
+
+			let history = getInitialAgentPrompt(nextAction, max_mem_len)
+			let wiToInclude = createSysPrompt(getWorldInfoForAgent(truncated_context, max_wi_len))
+			let anToInclude = createSysPrompt(substring_to_boundary(current_anotetemplate.replace("<|>", current_anote), max_anote_len))
+			let finalAgentPrompt = getFinalAgentPrompt(currentOrderOfActions)
+
+			let cotAsText = "", maxLengthOfCot = max_allowed_characters - history.length - wiToInclude.length - anToInclude.length - finalAgentPrompt.length
+			for (let j = currentChainOfThought.length - 1; j >= 0; j--) {
+				if (cotAsText.length + currentChainOfThought[j].length > maxLengthOfCot) {
+					break
+				}
+				cotAsText = currentChainOfThought[j] + cotAsText
+			}
+
+			if (wi_insertlocation === "0") // WI after memory
+			{
+				history += wiToInclude
+				history += cotAsText
+			}
+			else
+			{
+				history += cotAsText
+				history += wiToInclude
+			}
+			history += anToInclude
+			history += finalAgentPrompt
 
 			let resp = await generateAndGetTextFromPrompt(replace_instruct_placeholders(history), jsonGrammar, [], recentActions.map(JSON.stringify))
 			
