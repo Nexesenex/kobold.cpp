@@ -24242,6 +24242,10 @@ else
 		}
 	}
 
+	let preparePromptForImageGen = (prompt) => {
+		return prompt.replaceAll(/\.+/g, ",").replaceAll(/_+/g, " ").replaceAll(/\n+/g, " ")
+	}
+
 	let wordCountEnabled = false
 	let getCommands = () => {
 	return [
@@ -24527,7 +24531,7 @@ else
 			},
 			{
 			"name": "generate_image",
-			"description": "Generates an image using AI based on a prompt.",
+			"description": "Generates an image using AI based on a prompt. Be specific in the prompt about physical characteristics and settings as names of people may not be known.",
 			"args": {
 				"prompt": "<prompt to generate image with>",
 				"aspect": {
@@ -24540,7 +24544,7 @@ else
 					let prompt = action?.args?.prompt
 					let aspect = action?.args?.aspect
 					if (!!prompt) {
-						generate_new_image(prompt, undefined, calcImageSizing(aspect))
+						generate_new_image(preparePromptForImageGen(prompt), undefined, calcImageSizing(aspect))
 						addThought(createSysPrompt, `Image generated`)
 					}
 					else {
@@ -24550,7 +24554,7 @@ else
 			},
 			{
 			"name": "generate_image_based_on_another_image",
-			"description": "Generates an image using AI based on a prompt and an input image. Will prompt the user to select an image.",
+			"description": "Generates an image using AI based on a prompt and an input image. Will prompt the user to select an image. Be specific in the prompt about physical characteristics and settings as names of people may not be known.",
 			"args": {
 				"prompt": "<prompt to generate image with>",
 				"aspect": {
@@ -24578,7 +24582,7 @@ else
 						await waitForI2ILoop()
 						if (!!i2i64) {
 							let aspectI2I = action?.args?.aspect
-							generate_new_image(i2iPrompt, i2i64, calcImageSizing(aspectI2I))
+							generate_new_image(preparePromptForImageGen(i2iPrompt), i2i64, calcImageSizing(aspectI2I))
 							addThought(createSysPrompt, `Image generated`)
 						}
 						else {
