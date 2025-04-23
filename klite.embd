@@ -528,6 +528,19 @@ Current version indicated by LITEVER below.
 		background-color: #6a6a6a;
 	}
 
+	.btnicon-agent, .btnicon-agent:active, .btnicon-agent:hover, .btnicon-agent:focus, .btnicon-agent:active:focus
+	{
+		background-size: 80% 80%;
+		background-position: center;
+		background-repeat: no-repeat;
+		background-image: var(--img_favicon_normal);
+		background-color: #15a0ad;
+	}
+	.btnicon-agent.inactive, .btnicon-agent.inactive:active, .btnicon-agent.inactive:hover, .btnicon-agent.inactive:focus, .btnicon-agent.inactive:active:focus
+	{
+		background-color: #6a6a6a;
+	}
+
 	/* Help tooltips */
 	.helpicon {
 		display: inline-block;
@@ -4102,6 +4115,7 @@ Current version indicated by LITEVER below.
 	//toggle genimg btn
 	update_genimg_button_visiblility();
 	update_websearch_button_visibility();
+	updateAgentButtonVisibility();
 
 	//invert colors
 	toggle_invert_colors();
@@ -9706,6 +9720,7 @@ Current version indicated by LITEVER below.
 									let has_txt2img = (data.txt2img?true:false);
 									let no_txt_model = (mdlname=="inactive");
 									update_websearch_button_visibility();
+									updateAgentButtonVisibility();
 
 									//also check against kcpp's max true context length
 									fetch(apply_proxy_url(desiredkoboldendpoint + koboldcpp_truemaxctxlen_endpoint),
@@ -11560,6 +11575,25 @@ Current version indicated by LITEVER below.
 		}
 	}
 
+	function updateAgentButtonVisibility() {
+		if (localsettings.agentBehaviour) {
+			document.getElementById("btn_toggleAgent").classList.remove("inactive");
+			document.getElementById("btn_toggleAgentAesthetic").classList.remove("inactive");
+		}
+		else {
+			document.getElementById("btn_toggleAgent").classList.add("inactive");
+			document.getElementById("btn_toggleAgentAesthetic").classList.add("inactive");
+		}
+		if(localsettings.opmode === "4") {
+			document.getElementById("btn_toggleAgent").classList.remove("hidden");
+			document.getElementById("btn_toggleAgentAesthetic").classList.remove("hidden");
+		}
+		else {
+			document.getElementById("btn_toggleAgent").classList.add("hidden");
+			document.getElementById("btn_toggleAgentAesthetic").classList.add("hidden");
+		}
+	}
+
 	function confirm_chat_and_instruct_tags()
 	{
 		localsettings.chatname = document.getElementById("chatname").value;
@@ -11782,6 +11816,7 @@ Current version indicated by LITEVER below.
 		localsettings.img_allownsfw = (document.getElementById("img_allownsfw").checked ? true : false);
 		update_genimg_button_visiblility();
 		update_websearch_button_visibility();
+		updateAgentButtonVisibility();
 
 		localsettings.img_cfgscale = parseFloat(document.getElementById("img_cfgscale").value);
 		localsettings.img_img2imgstr = parseFloat(document.getElementById("img_img2imgstr").value);
@@ -18363,6 +18398,7 @@ Current version indicated by LITEVER below.
 
 		update_genimg_button_visiblility();
 		update_websearch_button_visibility();
+		updateAgentButtonVisibility();
 
 		idle_timer = 0;
 		document.getElementById("token-budget").innerText = last_token_budget;
@@ -21057,6 +21093,7 @@ Current version indicated by LITEVER below.
 				<button type="button" class="btn btn-primary mainnav" id="btn_actretry" onclick="btn_retry()">Retry</button>
 				<button type="button" class="btn btn-primary bg_green mainnav" id="btn_genimg" onclick="add_img_btn_menu()">Add Img</button>
 				<button type="button" class="btn btn-primary mainnav slim btnicon-websearch hidden" id="btn_togglesearch" onclick="toggle_websearch()">&nbsp;</button>
+				<button type="button" class="btn btn-primary mainnav btnicon-agent slim inactive" id="btn_toggleAgent" onclick="toggleAgent()" tabindex="0">&nbsp;</button>
 			</div>
 			<div class="borderbox flex flex-push-right">
 				<input type="checkbox" id="entersubmit" class="mainnav" onclick="toggle_entersends()" checked>
@@ -21106,6 +21143,7 @@ Current version indicated by LITEVER below.
 						<button type="button" class="btn btn-primary mainnav" id="btn_actretry2" onclick="btn_retry()">Retry</button>
 						<button type="button" class="btn btn-primary bg_green mainnav" id="btn_genimg2" onclick="add_img_btn_menu()">Add Img</button>
 						<button type="button" class="btn btn-primary mainnav slim btnicon-websearch hidden" id="btn_togglesearch2" onclick="toggle_websearch()">&nbsp;</button>
+						<button type="button" class="btn btn-primary mainnav btnicon-agent slim inactive" id="btn_toggleAgentAesthetic" onclick="toggleAgent()" tabindex="0">&nbsp;</button>
 						<button type="button" class="btn btn-primary mainnav" id="btn_editmode" onclick="btn_editmode()">Edit</button>
 					</div>
 				</div>
@@ -25174,10 +25212,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		submit_multiplayer(true)
 	}
 
-	let originalDisplaySettingsTab = display_settings_tab, originalConfirmSettings = confirm_settings, originalPrepareSubmitGeneration = prepare_submit_generation, originalRestartNewGame = restart_new_game;
+	let originalDisplaySettings = display_settings, originalConfirmSettings = confirm_settings, originalPrepareSubmitGeneration = prepare_submit_generation, originalRestartNewGame = restart_new_game;
 
-	display_settings_tab = (tabIndex) => {
-		originalDisplaySettingsTab(tabIndex);
+	display_settings = () => {
+		originalDisplaySettings()
 		document.getElementById("agentBehaviour").checked = localsettings.agentBehaviour;
 		document.getElementById("agentHideCOT").checked = localsettings.agentHideCOT;
 	}
@@ -25215,6 +25253,25 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		originalRestartNewGame()
 	}
 
+	let toggleAgent = () => {
+		localsettings.agentBehaviour = !localsettings.agentBehaviour;
+		if (!localsettings.agentBehaviour)
+		{
+			stopAgentThinking()
+		}
+		updateAgentButtonVisibility();
+		render_gametext();
+	}
+
+	let stopAgentThinking = () => {
+		
+		endCurrent = true
+		Array(...document.getElementsByClassName("stopThinking")).forEach(elem => elem.classList.add("hidden"))
+		currentAgentCycle = null
+		submit_multiplayer(true)
+		trigger_abort_controller()
+	}
+
 	let createStopThinkingButton = () => {
 		
 		["input_text", "cht_inp", "corpo_cht_inp"].forEach(id => {
@@ -25238,13 +25295,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				elem.style.right = "50px";
 				elem.style.bottom = "0px";
 			}
-			elem.onclick = () => {
-				endCurrent = true
-				elem.classList.add("hidden")
-				currentAgentCycle = null
-				submit_multiplayer(true)
-				trigger_abort_controller()
-			}
+			elem.onclick = stopAgentThinking
 		})
 	}
 
@@ -25321,7 +25372,11 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		if (isAgentModeEnabledAndSetCorrectly())
 		{
 			renderSuggestions()
-		}	
+		}
+		else
+		{
+			removeChoiceContainer()
+		}
 	}
 
 	
