@@ -3714,10 +3714,12 @@ Change Mode<br>
                     with open(os.path.join(basepath, "klite.embd"), mode='rb') as f:
                         embedded_kailite = f.read()
                         # patch it with extra stuff
-                        origStr = "Sorry, KoboldAI Lite requires Javascript to function."
-                        patchedStr = "Sorry, KoboldAI Lite requires Javascript to function.<br>You can use <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp NoScript mode</a> instead."
+                        patches = [{"find":"Sorry, KoboldAI Lite requires Javascript to function.","replace":"Sorry, KoboldAI Lite requires Javascript to function.<br>You can use <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp NoScript mode</a> instead."},
+                                {"find":"var localflag = urlParams.get('local');","replace":"var localflag = true;"},
+                                {"find":"<p id=\"tempgtloadtxt\">Loading...</p>","replace":"<p id=\"tempgtloadtxt\">Loading...<br>(If load fails, try <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp NoScript mode</a> instead.)</p>"}]
                         embedded_kailite = embedded_kailite.decode("UTF-8","ignore")
-                        embedded_kailite = embedded_kailite.replace(origStr, patchedStr)
+                        for p in patches:
+                            embedded_kailite = embedded_kailite.replace(p["find"], p["replace"])
                         embedded_kailite = embedded_kailite.encode()
 
                 response_body = embedded_kailite
@@ -8155,11 +8157,11 @@ if __name__ == '__main__':
     advparser.add_argument("--nobostoken", help="Prevents BOS token from being added at the start of any prompt. Usually NOT recommended for most models.", action='store_true')
     advparser.add_argument("--maxrequestsize", metavar=('[size in MB]'), help="Specify a max request payload size. Any requests to the server larger than this size will be dropped. Do not change if unsure.", type=int, default=32)
 
-    advparser.add_argument("--developerMode", help="Enables developer utilities, such as hot reloading of Kobold Lite.", default=False, type=bool)
-
     advparser.add_argument("--overridekv", metavar=('[name=type:value]'), help="Advanced option to override a metadata by key, same as in llama.cpp. Mainly for debugging, not intended for general use. Types: int, float, bool, str", default="")
 
     advparser.add_argument("--overridetensors", metavar=('[tensor name pattern=buffer type]'), help="Advanced option to override tensor backend selection, same as in llama.cpp.", default="")
+
+    advparser.add_argument("--developerMode", help="Enables developer utilities, such as hot reloading of Kobold Lite.", default=False, type=bool)
 
     compatgroup2 = parser.add_mutually_exclusive_group()
     compatgroup2.add_argument("--showgui", help="Always show the GUI instead of launching the model right away when loading settings from a .kcpps file.", action='store_true')
