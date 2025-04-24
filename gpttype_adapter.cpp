@@ -2890,7 +2890,8 @@ static void PrepareLlavaEmbds(const int nctx, const std::vector<int> & llava_sep
                 {
                     printf("\nLLAVA Clip Embed %i used Tokens: %d",i,llava_images[i].clp_image_tokens);
                 }
-                if(llava_images[i].clp_image_tokens>0 && llava_images[i].clp_image_tokens < nctx)
+                int cliptokensneeded = llava_images[i].clp_image_tokens;
+                if(cliptokensneeded>0 && cliptokensneeded < nctx)
                 {
                     int tokcnt = (i==0?(llava_images[i].clp_image_tokens):(llava_images[i].clp_image_tokens+sepsize));
                     if(i==0)
@@ -2904,7 +2905,7 @@ static void PrepareLlavaEmbds(const int nctx, const std::vector<int> & llava_sep
                 }
                 else
                 {
-                    printf("\nWarning: LLAVA Image excluded - Context size too low or not enough clip tokens!\n");
+                    printf("\nWarning: LLAVA Image excluded - Context size too low or not enough clip tokens! (needed %d)\n",cliptokensneeded);
                 }
             }
         }
