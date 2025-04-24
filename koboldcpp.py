@@ -27,6 +27,7 @@ import asyncio
 import socket
 import threading
 import html
+import random
 import urllib.parse as urlparse
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -82,7 +83,7 @@ ttsmodelpath = "" #if empty, not initialized
 embeddingsmodelpath = "" #if empty, not initialized
 maxctx = 4096
 maxhordectx = 4096
-maxhordelen = 400
+maxhordelen = 512
 modelbusy = threading.Lock()
 requestsinqueue = 0
 defaultport = 5001
@@ -179,6 +180,7 @@ class load_model_inputs(ctypes.Structure):
                 ("draft_gpulayers", ctypes.c_int),
                 ("draft_gpusplit", ctypes.c_float * tensor_split_max),
                 ("mmproj_filename", ctypes.c_char_p),
+                ("mmproj_cpu", ctypes.c_bool),
                 ("visionmaxres", ctypes.c_int),
                 ("use_mmap", ctypes.c_bool),
                 ("use_mlock", ctypes.c_bool),
@@ -201,6 +203,7 @@ class load_model_inputs(ctypes.Structure):
 
                 ("no_bos_token", ctypes.c_bool),
                 ("override_kv", ctypes.c_char_p),
+                ("override_tensors", ctypes.c_char_p),
                 ("flash_attention", ctypes.c_bool),
                 ("tensor_split", ctypes.c_float * tensor_split_max),
                 ("quant_k", ctypes.c_int),
@@ -1015,7 +1018,7 @@ def extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath,
             fsize = os.path.getsize(filepath)
             if fsize>10000000: #dont bother with models < 10mb as they are probably bad
                 ggufmeta = read_gguf_metadata(filepath)
-                modelfile_extracted_meta = [ggufmeta,fsize,sdfsize,whisperfsize,mmprojsize,draftmodelsize,ttsmodelsize] #extract done. note that meta may be null
+                modelfile_extracted_meta = [filepath,ggufmeta,fsize,sdfsize,whisperfsize,mmprojsize,draftmodelsize,ttsmodelsize] #extract done. note that meta may be null
         except Exception:
             modelfile_extracted_meta = None
 
@@ -1334,37 +1337,47 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             print(f"GPUS total VRAM: {int(gpumem/1024/1024)} MiB - {usedmem/1024/1024} MiB used - {(reservedmem-usedmem)/1024/1024} MiB reserved = {mem/1024/1024} MiB usable")
             
         layerlimit_intermed = 0
-        fsize = modelfile_extracted_meta[1]
+        fsize = modelfile_extracted_meta[2]
+        fname = modelfile_extracted_meta[0]
         print(f"FIRST_STEP : Initial layer limit: {layerlimit_intermed} ; Model size: {fsize/1024/1024:.3f} MiB ; context size: {ctxsize} tokens")
         print(f"GPUs global reserved VRAM: {reservedmem/1024/1024} MiB (Toral occupied VRAM + Total overhead) ; GPUs total usable VRAM: {mem/1024/1024} MiB")    
 
         if fsize>10000000: #dont bother with models < 10mb
             cs = ctxsize
 
-            if modelfile_extracted_meta[2] > 1024*1024*1024*5: #sdxl tax
+            if "-00001-of-000" in fname:
+                match = re.search(r'-(\d{5})-of-(\d{5})\.', fname)
+                if match:
+                    total_parts = int(match.group(2))
+                    if total_parts > 1 and total_parts < 99:
+                        print("Multi-Part GGUF detected. Layer estimates may not be very accurate - recommend setting layers manually.")
+                        fsize *= total_parts
+            if modelfile_extracted_meta[3] > 1024*1024*1024*5: #sdxl tax
                 mem -= 1024*1024*1024*(6 if sdquanted else 9)
                 print(f"GPUs total VRAM available after SDXL tax: {int(mem/1024/1024)} MiB")
                 print("***")
-            elif modelfile_extracted_meta[2] > 1024*1024*512: #normal sd tax
+            elif modelfile_extracted_meta[3] > 1024*1024*512: #normal sd tax
                 mem -= 1024*1024*1024*(3.25 if sdquanted else 4.25)
                 print(f"GPUs total VRAM available after SD normal tax: {int(mem/1024/1024)} MiB")
                 print("***")
-            if modelfile_extracted_meta[3] > 1024*1024*10: #whisper tax
-                max(350*1024*1024,modelfile_extracted_meta[3]*1.5)
+            if modelfile_extracted_meta[4] > 1024*1024*10: #whisper tax
+                mem -= max(350*1024*1024,modelfile_extracted_meta[4]*1.5)
                 print(f"GPUs total VRAM available after Whisper tax: {int(mem/1024/1024)} MiB")
                 print("***")
-            if modelfile_extracted_meta[4] > 1024*1024*10: #mmproj tax
-                max(350*1024*1024,modelfile_extracted_meta[3]*1.5)
+            if modelfile_extracted_meta[5] > 1024*1024*10: #mmproj tax
+                mem -= max(350*1024*1024,modelfile_extracted_meta[5]*1.5)
                 print(f"GPUs total VRAM available after Mmproj tax: {int(mem/1024/1024)} MiB")
                 print("***")
-            if modelfile_extracted_meta[5] > 1024*1024*10: #draft model tax
-                mem -= (modelfile_extracted_meta[5] * 1.5)
+            if modelfile_extracted_meta[6] > 1024*1024*10: #draft model tax
+                mem -= (modelfile_extracted_meta[6] * 1.5)
                 print(f"GPUs total VRAM available after Draft model tax: {int(mem/1024/1024)} MiB")
                 print("***")
-            if modelfile_extracted_meta[6] > 1024*1024*10: #tts model tax
-                mem -= 350*1024*1024
+            if modelfile_extracted_meta[7] > 1024*1024*10: #tts model tax
+                mem -= max(600*1024*1024, modelfile_extracted_meta[7] * 3)
                 print(f"GPUs total VRAM available after TTS model tax: {int(mem/1024/1024)} MiB")
                 print("***")
+
+            mem = 0 if mem < 0 else mem
 
             bbs = blasbatchsize
             bbs_ratio = bbs / 128
@@ -1438,12 +1451,6 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             if kvq == 22: # IQ4_NL-F16
                 kvbpw = 20.5
 
-            # if modelfile_extracted_meta[5] > 1024*1024*10: #draft model tax
-                # mem -= (modelfile_extracted_meta[5] * 1.5)
-            # if modelfile_extracted_meta[6] > 1024*1024*10: #tts model tax
-                # mem -= max(600*1024*1024, modelfile_extracted_meta[6] * 3)
-            # mem = 0 if mem < 0 else mem
-
             if cs:
                 csmul = ((cs+4096)/6144) if cs >= 2048 else 1.0 #Nexes 2
                 # csmul = (cs/4096) if cs >= 8192 else (cs/(2048+(cs-2048)/3)) if cs >= 2048 else 1.0 #Nexes 1
@@ -1473,7 +1480,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,blasbatchsize,flashattention,quantkv,mm
             print("***")
             if ratio_init < 1:
                 print(f"STEP_2: The initial ratio {ratio_init:.3f} is inferior to 1. Partial offload is supposed, some CALCULATIONS will verify this.")
-                ggufmeta = modelfile_extracted_meta[0]
+                ggufmeta = modelfile_extracted_meta[1]
                 # ggufmeta = read_gguf_metadata(filepath)
                 if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
                     print(f"Failure to read metadata or no layers number declared. FALLBACK CALCULATIONS :")
@@ -1827,6 +1834,7 @@ def load_model(model_filename):
         else:
             inputs.draft_gpusplit[n] = 0
     inputs.mmproj_filename = args.mmproj.encode("UTF-8") if args.mmproj else "".encode("UTF-8")
+    inputs.mmproj_cpu = (True if args.mmprojcpu else False)
     inputs.visionmaxres = (512 if args.visionmaxres < 512 else (2048 if args.visionmaxres > 2048 else args.visionmaxres))
     inputs.use_smartcontext = (1 if args.smartcontext else 0)
     inputs.use_contextshift = (1 if args.contextshift else 0)
@@ -1921,6 +1929,7 @@ def load_model(model_filename):
 
     inputs.no_bos_token = args.nobostoken
     inputs.override_kv = args.overridekv.encode("UTF-8") if args.overridekv else "".encode("UTF-8")
+    inputs.override_tensors = args.overridetensors.encode("UTF-8") if args.overridetensors else "".encode("UTF-8")
     inputs = set_backend_props(inputs)
     ret = handle.load_model(inputs)
     return ret
@@ -1961,6 +1970,14 @@ def generate(genparams, stream_flag=False):
     ban_eos_token = genparams.get('ban_eos_token', False)
     stream_sse = stream_flag
     grammar = genparams.get('grammar', '')
+    #translate grammar if its json
+    try:
+        grammarjson = json.loads(grammar)
+        decoded = convert_json_to_gbnf(grammarjson)
+        if decoded:
+            grammar = decoded
+    except Exception:
+        pass
     grammar_retain_state = genparams.get('grammar_retain_state', False)
     genkey = genparams.get('genkey', '')
     trimstop = genparams.get('trim_stop', True)
@@ -2460,7 +2477,6 @@ def websearch(query):
     import urllib.parse
     import urllib.request
     import difflib
-    import random
     from html.parser import HTMLParser
     from concurrent.futures import ThreadPoolExecutor
     num_results = 10
@@ -2760,6 +2776,32 @@ def transform_genparams(genparams, api_format):
             tools_message_start = adapter_obj.get("tools_start", "")
             tools_message_end = adapter_obj.get("tools_end", "")
             images_added = []
+            jsongrammar = r"""
+root   ::= arr
+value  ::= object | array | string | number | ("true" | "false" | "null") ws
+arr  ::=
+  "[\n" ws (
+            value
+    (",\n" ws value)*
+  )? "]"
+object ::=
+  "{" ws (
+            string ":" ws value
+    ("," ws string ":" ws value)*
+  )? "}" ws
+array  ::=
+  "[" ws (
+            value
+    ("," ws value)*
+  )? "]" ws
+string ::=
+  "\"" (
+    [^"\\\x7F\x00-\x1F] |
+    "\\" (["\\bfnrt] | "u" [0-9a-fA-F]{4})
+  )* "\"" ws
+number ::= ("-"? ([0-9] | [1-9] [0-9]{0,15})) ("." [0-9]+)? ([eE] [-+]? [1-9] [0-9]{0,15})? ws
+ws ::= | " " | "\n" [ \t]{0,20}
+"""
 
             # tools handling
             tools_array = genparams.get('tools', [])
@@ -2784,6 +2826,24 @@ def transform_genparams(genparams, api_format):
                         tool_json_formatting_instruction = f"\nThe user is asking you to use the style of this JSON object formatting to complete the parameters for the specific function named {specified_function} in the following format: " + json.dumps([{"id": "insert an id for the response", "type": "function", "function": {"name": f"{specified_function}", "arguments": {"first property key": "first property value", "second property key": "second property value"}}}], indent=0)
                 except Exception:
                     # In case of any issues, just revert back to no specified function
+                    print("Tools parsing not valid - discarded")
+                    pass
+
+            # handle structured outputs
+            respformat = genparams.get('response_format', None)
+            if respformat:
+                try:
+                    rt = respformat.get('type')
+                    if rt.lower() == "json_schema":
+                        schema = respformat.get('json_schema').get('schema')
+                        decoded = convert_json_to_gbnf(schema)
+                        if decoded:
+                            genparams["grammar"] = decoded
+                    elif rt.lower() == "json_object":
+                        genparams["grammar"] = jsongrammar
+                except Exception:
+                    # In case of any issues, just do normal gen
+                    print("Structured Output not valid - discarded")
                     pass
 
             message_index = 0
@@ -2824,13 +2884,15 @@ def transform_genparams(genparams, api_format):
                             # if you want a different template, you can set 'custom_tools_prompt' in the chat completions adapter as follows
                             custom_tools_prompt = adapter_obj.get("custom_tools_prompt", "Can the user query be answered by a listed tool? (One word response: yes or no):")
                             # note: message string already contains the instruct start tag!
+                            pollgrammar = r'root ::= "yes" | "no" | "Yes" | "No" | "YES" | "NO"'
                             temp_poll = {
                                 "prompt": f"{messages_string}\n\nTool List:\n{tools_string}\n\n{custom_tools_prompt}{user_end}",
                                 "max_length":4,
                                 "temperature":0.1,
                                 "top_k":1,
                                 "rep_pen":1,
-                                "ban_eos_token":False
+                                "ban_eos_token":False,
+                                "grammar":pollgrammar
                                 }
                             temp_poll_result = generate(genparams=temp_poll)
                             if temp_poll_result and "yes" not in temp_poll_result['text'].lower():
@@ -2847,32 +2909,7 @@ def transform_genparams(genparams, api_format):
                             genparams["using_openai_tools"] = True
 
                             # Set grammar to llamacpp example grammar to force json response (see https://github.com/ggerganov/llama.cpp/blob/master/grammars/json_arr.gbnf)
-                            genparams["grammar"] = r"""
-root   ::= arr
-value  ::= object | array | string | number | ("true" | "false" | "null") ws
-arr  ::=
-  "[\n" ws (
-            value
-    (",\n" ws value)*
-  )? "]"
-object ::=
-  "{" ws (
-            string ":" ws value
-    ("," ws string ":" ws value)*
-  )? "}" ws
-array  ::=
-  "[" ws (
-            value
-    ("," ws value)*
-  )? "]" ws
-string ::=
-  "\"" (
-    [^"\\\x7F\x00-\x1F] |
-    "\\" (["\\bfnrt] | "u" [0-9a-fA-F]{4})
-  )* "\"" ws
-number ::= ("-"? ([0-9] | [1-9] [0-9]{0,15})) ("." [0-9]+)? ([eE] [-+]? [1-9] [0-9]{0,15})? ws
-ws ::= | " " | "\n" [ \t]{0,20}
-"""
+                            genparams["grammar"] = jsongrammar
                 if message['role'] == "system":
                     messages_string += system_message_end
                 elif message['role'] == "user":
@@ -3571,7 +3608,7 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
             updated_query_string = urlparse.urlencode(parsed_dict, doseq=True)
             updated_path = parsed_url._replace(query=updated_query_string).geturl()
             self.path = updated_path
-            time.sleep(0.2) #short delay
+            time.sleep(0.3) #short delay
             self.send_response(302)
             self.send_header("location", self.path)
             self.end_headers(content_type='text/html')
@@ -3585,8 +3622,9 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
         bodycontent = f'''<b><u>{"Image Mode" if imgmode else ("Chat Mode" if chatmode else "Story Mode")}</u></b><br>'''
         optionscontent = ""
         if imgmode:
+            randimg = f'<img src="view_image{random.randint(100, 999)}.png" width="320" width="320">'
             bodycontent += f'''<p>Generated Image: {prompt if prompt else "None"}</p>
-            {'<img src="view.png" width="320" width="320">' if prompt else ""}<br>
+            {randimg if prompt else ""}<br>
             <label>Image Prompt: </label><input type="text" size="40" value="" name="imgprompt">
             <input type="hidden" name="generate" value="Generate" />
             <input type="submit" value="Generate"> (Be patient)'''
@@ -3819,7 +3857,7 @@ Change Mode<br>
                 response_body = (json.dumps([]).encode())
             else:
                 response_body = (json.dumps([friendlysdmodelname]).encode())
-        elif self.path=='/view' or self.path=='/view.png' or self.path=='/api/view' or self.path.startswith('/view?') or self.path.startswith('/api/view?'): #emulate comfyui
+        elif self.path=='/view' or self.path=='/view.png' or self.path=='/api/view' or self.path.startswith('/view_image') or self.path.startswith('/view?') or self.path.startswith('/api/view?'): #emulate comfyui
             content_type = 'image/png'
             response_body = lastgeneratedcomfyimg
         elif self.path=='/history' or self.path=='/api/history' or self.path.startswith('/api/history/') or self.path.startswith('/history/'): #emulate comfyui
@@ -5112,6 +5150,7 @@ def show_gui():
     defaultgenamt_var = ctk.StringVar(value=str(512))
     nobostoken_var = ctk.IntVar(value=0)
     override_kv_var = ctk.StringVar(value="")
+    override_tensors_var = ctk.StringVar(value="")
 
     model_var = ctk.StringVar()
     lora_var = ctk.StringVar()
@@ -5119,6 +5158,7 @@ def show_gui():
     preloadstory_var = ctk.StringVar()
     savedatafile_var = ctk.StringVar()
     mmproj_var = ctk.StringVar()
+    mmprojcpu_var = ctk.IntVar(value=0)
     visionmaxres_var = ctk.StringVar(value=str(default_visionmaxres))
     draftmodel_var = ctk.StringVar()
     draftamount_var = ctk.StringVar(value=str(default_draft_amount))
@@ -5353,7 +5393,7 @@ def show_gui():
 
     def changed_gpulayers_estimate(*args):
         predicted_gpu_layers = autoset_gpu_layers(int(contextsize_text[context_var.get()]),(sd_quant_var.get()==1),int(blasbatchsize_values[int(blas_size_var.get())]),flashattention.get(),int(quantkv_values[int(quantkv_var.get())]),mmq_var.get(),lowvram_var.get(),int(poslayeroffset_values[int(poslayeroffset_var.get())]),int(neglayeroffset_values[int(neglayeroffset_var.get())]))
-        max_gpu_layers = (f"/{modelfile_extracted_meta[0][0]+3}" if (modelfile_extracted_meta and modelfile_extracted_meta[0] and modelfile_extracted_meta[0][0]!=0) else "")
+        max_gpu_layers = (f"/{modelfile_extracted_meta[0][0]+3}" if (modelfile_extracted_meta and modelfile_extracted_meta[1] and modelfile_extracted_meta[1][0]!=0) else "")
         index = runopts_var.get()
         gpu_be = (index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Old CPU)" or index == "Use CLBlast (Older CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)")
         layercounter_label.grid(row=6, column=1, padx=75, sticky="W")
@@ -5364,7 +5404,7 @@ def show_gui():
         elif gpu_be and gpulayers_var.get()=="-1" and predicted_gpu_layers>0:
             quick_layercounter_label.configure(text=f"(Auto: {predicted_gpu_layers}{max_gpu_layers} Layers)")
             layercounter_label.configure(text=f"(Auto: {predicted_gpu_layers}{max_gpu_layers} Layers)")
-        elif gpu_be and gpulayers_var.get()=="-1" and predicted_gpu_layers<=0 and (modelfile_extracted_meta and modelfile_extracted_meta[1]):
+        elif gpu_be and gpulayers_var.get()=="-1" and predicted_gpu_layers<=0 and (modelfile_extracted_meta and modelfile_extracted_meta[2]):
             quick_layercounter_label.configure(text="(Auto: No Offload)")
             layercounter_label.configure(text="(Auto: No Offload)")
         elif gpu_be and gpulayers_var.get()=="":
@@ -5674,9 +5714,10 @@ def show_gui():
 
     makecheckbox(tokens_tab, "No BOS Token", nobostoken_var, 43, tooltiptxt="Prevents BOS token from being added at the start of any prompt. Usually NOT recommended for most models.")
 
-    makelabelentry(tokens_tab, "MoE Experts:", moeexperts_var, row=45, padx=100, singleline=True, width=50, tooltip="Override number of MoE experts.")
-    makelabelentry(tokens_tab, "Norm RMS Epsilon:", normrmseps_var, row=47, padx=150, singleline=True, width=100, tooltip="Override Norm RMS Epsilon value to use for the model.\nUseful for <2bpw quants mainly.\nExample of format: 1.95e-05")
-    makelabelentry(tokens_tab, "Override KV:", override_kv_var, row=49, padx=100, singleline=True, width=250, tooltip="Advanced option to override model metadata by key, same as in llama.cpp. Mainly for debugging, not intended for general use. Types: int, float, bool, str")
+    makelabelentry(tokens_tab, "MoE Experts:", moeexperts_var, row=45, padx=150, singleline=True, width=50, tooltip="Override number of MoE experts.")
+    makelabelentry(tokens_tab, "Override KV:", override_kv_var, row=47, padx=150, singleline=True, width=250, tooltip="Advanced option to override model metadata by key, same as in llama.cpp. Mainly for debugging, not intended for general use. Types: int, float, bool, str")
+    makelabelentry(tokens_tab, "Override Tensors:", override_tensors_var, row=49, padx=120, singleline=True, width=150, tooltip="Advanced option to override tensor backend selection, same as in llama.cpp.")
+    makelabelentry(tokens_tab, "Norm RMS Epsilon:", normrmseps_var, row=51, padx=150, singleline=True, width=100, tooltip="Override Norm RMS Epsilon value to use for the model.\nUseful for <2bpw quants mainly.\nExample of format: 1.95e-05")
 
     # load model
     makefileentry(tokens_tab, "Model:", "Select GGML or GGML Model File", model_var, 50, 576, onchoosefile=on_picked_model_file, filetypes=[("GGML bin or GGUF", ("*.bin","*.gguf"))] ,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
@@ -5690,7 +5731,9 @@ def show_gui():
     makefileentry(model_tab, "Text Lora Base:", "Select Lora Base File", lora_base_var, 5,width=280,singlerow=True,tooltiptxt="Select an optional F16 GGML Text LoRA base file to use.\nLeave blank to skip.")
     makefileentry(model_tab, "Vision mmproj:", "Select Vision mmproj File", mmproj_var, 7,width=280,singlerow=True,tooltiptxt="Select a mmproj file to use for vision models like LLaVA.\nLeave blank to skip.")
 
-    makelabelentry(model_tab, "Vision MaxRes:", visionmaxres_var, 9, padx=100, singleline=True, tooltip=f"Clamp MMProj vision maximum allowed resolution. Allowed values are between 512 to 2048 px (default {default_visionmaxres}).")
+    makecheckbox(model_tab, "Vision Force CPU", mmprojcpu_var, 9, tooltiptxt="Force CLIP for Vision mmproj always on CPU.")
+    makelabelentry(model_tab, "Vision MaxRes:", visionmaxres_var, 9, padx=320, singleline=True, tooltip=f"Clamp MMProj vision maximum allowed resolution. Allowed values are between 512 to 2048 px (default {default_visionmaxres}).", labelpadx=220)
+
     makefileentry(model_tab, "Draft Model:", "Select Speculative Text Model File", draftmodel_var, 11,width=280,singlerow=True,tooltiptxt="Select a draft text model file to use for speculative decoding.\nLeave blank to skip.")
     makelabelentry(model_tab, "Draft Amount: ", draftamount_var, 13, 50,padx=100,singleline=True,tooltip="How many tokens to draft per chunk before verifying results")
     makelabelentry(model_tab, "Splits: ", draftgpusplit_str_vars, 13, 50,padx=210,singleline=True,tooltip="Distribution of draft model layers. Leave blank to follow main model's gpu split. Only works if multi-gpu (All) selected in main model.", labelpadx=160)
@@ -5989,6 +6032,7 @@ def show_gui():
         args.defaultgenamt = int(defaultgenamt_var.get()) if defaultgenamt_var.get()!="" else 512
         args.nobostoken = (nobostoken_var.get()==1)
         args.overridekv = None if override_kv_var.get() == "" else override_kv_var.get()
+        args.overridetensors = None if override_tensors_var.get() == "" else override_tensors_var.get()
         args.chatcompletionsadapter = None if chatcompletionsadapter_var.get() == "" else chatcompletionsadapter_var.get()
         try:
             if kcpp_exporting_template and isinstance(args.chatcompletionsadapter, str) and args.chatcompletionsadapter!="" and os.path.exists(args.chatcompletionsadapter):
@@ -6010,6 +6054,7 @@ def show_gui():
         except Exception:
             pass
         args.mmproj = None if mmproj_var.get() == "" else mmproj_var.get()
+        args.mmprojcpu = (mmprojcpu_var.get()==1)
         args.visionmaxres = int(visionmaxres_var.get()) if visionmaxres_var.get()!="" else default_visionmaxres
         args.draftmodel = None if draftmodel_var.get() == "" else draftmodel_var.get()
         args.draftamount = int(draftamount_var.get()) if draftamount_var.get()!="" else default_draft_amount
@@ -6194,6 +6239,8 @@ def show_gui():
         nobostoken_var.set(dict["nobostoken"] if ("nobostoken" in dict) else 0)
         if "overridekv" in dict and dict["overridekv"]:
             override_kv_var.set(dict["overridekv"])
+        if "overridetensors" in dict and dict["overridetensors"]:
+            override_tensors_var.set(dict["overridetensors"])
 
         if "blasbatchsize" in dict and dict["blasbatchsize"]:
             blas_size_var.set(blasbatchsize_values.index(str(dict["blasbatchsize"])))
@@ -6219,6 +6266,7 @@ def show_gui():
                 lora_var.set(dict["lora"][0])
 
         mmproj_var.set(dict["mmproj"] if ("mmproj" in dict and dict["mmproj"]) else "")
+        mmprojcpu_var.set(1 if ("mmprojcpu" in dict and dict["mmprojcpu"]) else 0)
         if "visionmaxres" in dict and dict["visionmaxres"]:
             visionmaxres_var.set(dict["visionmaxres"])
         draftmodel_var.set(dict["draftmodel"] if ("draftmodel" in dict and dict["draftmodel"]) else "")
@@ -8074,6 +8122,7 @@ if __name__ == '__main__':
     advparser.add_argument("--ssl", help="Allows all content to be served over SSL instead. A valid UNENCRYPTED SSL cert and key .pem files must be provided", metavar=('[cert_pem]', '[key_pem]'), nargs='+')
     advparser.add_argument("--nocertify", help="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.", action='store_true')
     advparser.add_argument("--mmproj", metavar=('[filename]'), help="Select a multimodal projector file for vision models like LLaVA.", default="")
+    advparser.add_argument("--mmprojcpu", help="Force CLIP for Vision mmproj always on CPU.", action='store_true')
     advparser.add_argument("--visionmaxres", metavar=('[max px]'), help="Clamp MMProj vision maximum allowed resolution. Allowed values are between 512 to 2048 px (default 1024).", type=int, default=default_visionmaxres)
     advparser.add_argument("--draftmodel", metavar=('[filename]'), help="Load a small draft model for speculative decoding. It will be fully offloaded. Vocab must match the main model.", default="")
     advparser.add_argument("--draftamount", metavar=('[tokens]'), help="How many tokens to draft per chunk before verifying results", type=int, default=default_draft_amount)
@@ -8109,6 +8158,8 @@ if __name__ == '__main__':
     advparser.add_argument("--developerMode", help="Enables developer utilities, such as hot reloading of Kobold Lite.", default=False, type=bool)
 
     advparser.add_argument("--overridekv", metavar=('[name=type:value]'), help="Advanced option to override a metadata by key, same as in llama.cpp. Mainly for debugging, not intended for general use. Types: int, float, bool, str", default="")
+
+    advparser.add_argument("--overridetensors", metavar=('[tensor name pattern=buffer type]'), help="Advanced option to override tensor backend selection, same as in llama.cpp.", default="")
 
     compatgroup2 = parser.add_mutually_exclusive_group()
     compatgroup2.add_argument("--showgui", help="Always show the GUI instead of launching the model right away when loading settings from a .kcpps file.", action='store_true')

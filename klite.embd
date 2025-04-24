@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 232;
+	const LITEVER = 233;
 	const urlParams = new URLSearchParams(window.location.search);
 	var localflag = urlParams.get('local'); //this will be replaced automatically in embedded kcpp
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -3251,8 +3251,8 @@ Current version indicated by LITEVER below.
 		websearch_retain: false,
 		websearch_template: "",
 
-		max_context_length: (localflag?4096:1800),
-		max_length: (localflag?240:200),
+		max_context_length: (localflag?4096:2048),
+		max_length: (localflag?512:256),
 		auto_ctxlen: true,
 		auto_genamt: true,
 		rep_pen: 1.07,
@@ -7636,7 +7636,7 @@ Current version indicated by LITEVER below.
 			if(usingtemplate)
 			{
 				let introduction = "[Overview: <give the AI a one sentence overview of what your intention is here>]";
-				let character = "\n\n[" + chatopponent + "'s Character definition:\nAge:\nHeight:\nWeight:\nBuild:\nHair:\nEyes:\nEyebrows:\nClothing Preferences:\nPersonality:\nMind:\nSpeech:\nAccent:\nMannerisms:\nLikes:\nDislikes:\nHobbies:\nShort-term Goals:\nLong-term Goals:\n" + chatopponent + "’s primary goal is:\nChildhood memories of " + chatopponent + ":\nLong-term memories of " + chatopponent + ": <also add descriptions of friends and similar persons from the life of " + chatopponent + " here>\nShort-term Memories relevant for the scenario:  ]";
+				let character = "\n\n[" + chatopponent + "'s Character definition:\nGender: <female, male, unknown>\nSpecies: <human, elf, alien>\nAge:\nHeight:\nWeight:\nBuild:\nHair:\nEyes:\nEyebrows:\nClothing Preferences:\nPersonality:\nMind:\nSpeech:\nAccent:\nMannerisms:\nLikes:\nDislikes:\nHobbies:\nShort-term Goals:\nLong-term Goals:\n" + chatopponent + "’s primary goal is:\nChildhood memories of " + chatopponent + ":\nLong-term memories of " + chatopponent + ": <also add descriptions of friends and similar persons from the life of " + chatopponent + " here>\nShort-term Memories relevant for the scenario:  ]";
 				let genre = "\n\n[Genre: <add one or more genre definitions for your scenario here>]";
 				let tags = "\n\n[Tags: <add one or more tags describing your role-play for the AI here>]";
 				let scenario = "\n\n[Scenario: <add your scenario here>]";
@@ -7653,7 +7653,10 @@ Current version indicated by LITEVER below.
 				greeting = replace_placeholders(greeting, false, true);
 				combinedmem = replace_placeholders(combinedmem, false, true);
 			}
-			gametext_arr.push(greeting);
+			if(greeting)
+			{
+				gametext_arr.push(greeting);
+			}
 			if (combinedmem != "") {
 				current_memory = combinedmem;
 			}
@@ -9764,10 +9767,15 @@ Current version indicated by LITEVER below.
 											document.getElementById("max_context_length_slide").max = ep_maxctx;
 											document.getElementById("max_context_length_slide_label").innerText = ep_maxctx;
 										}
-										if(ep_maxctx && ep_maxctx>4096 && document.getElementById("max_length_slide").max<1024)
+										if(ep_maxctx && ep_maxctx>=4096 && document.getElementById("max_length_slide").max<1024)
 										{
 											document.getElementById("max_length_slide").max = 1024;
 											document.getElementById("max_length_slide_label").innerText = 1024;
+										}
+										if(ep_maxctx && ep_maxctx>=16384 && document.getElementById("max_length_slide").max<2048)
+										{
+											document.getElementById("max_length_slide").max = 2048;
+											document.getElementById("max_length_slide_label").innerText = 2048;
 										}
 										if(localflag && localsettings.max_context_length==4096 && ep_maxctx>4096)
 										{
@@ -14871,7 +14879,7 @@ Current version indicated by LITEVER below.
 					oai_payload.logit_bias = submit_payload.params.logit_bias;
 				}
 
-				let is_using_o1 = custom_oai_model.toLowerCase().startsWith("o1-") || custom_oai_model.toLowerCase()=="o1" || custom_oai_model.toLowerCase().startsWith("o3-") || custom_oai_model.toLowerCase()=="o3";
+				let is_using_o1 = custom_oai_model.toLowerCase().startsWith("o1-") || custom_oai_model.toLowerCase()=="o1" || custom_oai_model.toLowerCase().startsWith("o3-") || custom_oai_model.toLowerCase()=="o3" || custom_oai_model.toLowerCase().startsWith("o4-") || custom_oai_model.toLowerCase()=="o4";
 				let is_using_4o_search = custom_oai_model.toLowerCase().includes("-search-preview");
 				if(is_using_o1 || is_using_4o_search)
 				{
@@ -19257,13 +19265,9 @@ Current version indicated by LITEVER below.
 		memory_tab = newtab;
 		document.getElementById("memory_tab").classList.remove("active");
 		document.getElementById("wi_tab").classList.remove("active");
-		document.getElementById("websearch_tab").classList.remove("active");
-		document.getElementById("token_tab").classList.remove("active");
 		document.getElementById("documentdb_tab").classList.remove("active");
 		document.getElementById("memory_tab_container").classList.add("hidden");
 		document.getElementById("wi_tab_container").classList.add("hidden");
-		document.getElementById("websearch_tab_container").classList.add("hidden");
-		document.getElementById("token_tab_container").classList.add("hidden");
 		document.getElementById("documentdb_tab_container").classList.add("hidden");
 
 		switch (newtab) {
@@ -19279,14 +19283,6 @@ Current version indicated by LITEVER below.
 				document.getElementById("documentdb_tab").classList.add("active");
 				document.getElementById("documentdb_tab_container").classList.remove("hidden");
 				estimate_and_show_textDB_usage();
-				break;
-			case 3:
-				document.getElementById("websearch_tab").classList.add("active");
-				document.getElementById("websearch_tab_container").classList.remove("hidden");
-				break;
-			case 4:
-				document.getElementById("token_tab").classList.add("active");
-				document.getElementById("token_tab_container").classList.remove("hidden");
 				break;
 			default:
 				break;
@@ -21177,8 +21173,6 @@ Current version indicated by LITEVER below.
 				<li id="memory_tab" class="active"><a class="" href="#" onclick="display_memory_tab(0)">Memory</a></li>
 				<li id="wi_tab"><a class="" href="#" onclick="display_memory_tab(1)">World Info</a></li>
 				<li id="documentdb_tab"><a class="" href="#" onclick="display_memory_tab(2)">TextDB</a></li>
-				<li id="websearch_tab"><a class="" href="#" onclick="display_memory_tab(3)">WebSearch</a></li>
-				<li id="token_tab"><a class="" href="#" onclick="display_memory_tab(4)">Tokens</a></li>
 			  </ul></div>
 
 			<div class="context_tab_container" id="memory_tab_container">
@@ -21367,15 +21361,6 @@ Current version indicated by LITEVER below.
 				<textarea title="Edit TextDB" class="form-control menuinput_multiline" id="documentdb_data" style="height: 120px;"
 					placeholder="Paste as much text data here as you like. This text will populate the database that will be searched by TextDB. This can be split using [DOCUMENT BREAK] to split the overall database into smaller documents, and titles can be added with [DOCUMENT BREAK][Title of document]This is the content of the document."></textarea>
 			</div>
-
-			<div class="context_tab_container" id="websearch_tab_container">
-				<div class="settinglabel" style="padding: 4px;">WebSearch Moved to Settings Panel (Media Tab). This section will be removed in future.</div>
-			</div>
-
-			<div class="context_tab_container" id="token_tab_container">
-				<div class="settinglabel" style="padding: 4px;">Token Configs Moved to Settings Panel (tokens Tab). This section will be removed in future.</div>
-			</div>
-
 			<div id="memorycontainerfooter" class="popupfooter">
 				<button type="button" class="btn btn-primary" onclick="confirm_memory();save_wi();commit_wi_changes();render_gametext();sync_multiplayer(true);hide_popups()">OK</button>
 				<button type="button" class="btn btn-primary" onclick="hide_popups();">Cancel</button>
@@ -22646,7 +22631,7 @@ Current version indicated by LITEVER below.
 
 	<div class="popupcontainer flex hidden" id="charactercreator">
 		<div class="popupbg flex"></div>
-		<div class="nspopup flexsize higher">
+		<div class="nspopup flexsize evenhigher">
 			<div class="popuptitlebar">
 				<div class="popuptitletext">Roleplay Character Creator</div>
 			</div>
@@ -22667,18 +22652,18 @@ Current version indicated by LITEVER below.
                     <input type="checkbox" title="Use Character Template" id="usecharactertemplate" onchange="character_creator_template_toggle()" style="margin:0px 0px 0px auto;"></div>
                 </div>
 				<div id="nocharactertemplate">
-				<div class="inlinelabel">
+				<div class="inlinelabel" style="padding-bottom: 4px;">
 					<div class="justifyleft" style="padding:4px">Character Persona: </div>
-					<input title="Character Persona" style="width:calc(100% - 136px);" type="text" placeholder="Describe this character (e.g. 25yo Male Elf, Brave, Chatty)" value="" id="charcreator_persona">
+					<textarea class="form-control menuinput_multiline"  title="Character Persona" type="text" placeholder="Describe this character (e.g. 25yo Male Elf, Brave, Chatty)" id="charcreator_persona"></textarea>
 				</div>
-				<div class="inlinelabel">
+				<div class="inlinelabel" style="padding-bottom: 4px;">
 					<div class="justifyleft" style="padding:4px">Describe Scenario: </div>
-					<input title="Describe Scenario" style="width:calc(100% - 136px);" type="text" placeholder="Describe the scenario (e.g. A fireside chat at the spooky campsite)" value="" id="charcreator_scenario">
+					<textarea class="form-control menuinput_multiline" title="Describe Scenario" type="text" placeholder="Describe the scenario (e.g. A fireside chat at the spooky campsite)" id="charcreator_scenario"></textarea>
 				</div>
 				</div>
-				<div class="inlinelabel">
+				<div class="inlinelabel" style="padding-bottom: 4px;">
 					<div class="justifyleft" style="padding:4px">Character Greeting: </div>
-					<input title="Character Greeting" style="width:calc(100% - 136px);" type="text" placeholder="First message greeting (e.g. Hello, traveller!)" value="" id="charcreator_greeting">
+					<textarea class="form-control menuinput_multiline"  title="Character Greeting" type="text" placeholder="First message greeting (e.g. Hello, traveller!)" id="charcreator_greeting"></textarea>
 				</div>
 				After creating your character, you can edit it further at any time in the 'Context' memory window.
 			</div>
