@@ -11632,7 +11632,7 @@ Current version indicated by LITEVER below.
 			document.getElementById("btn_toggleAgent").classList.add("inactive");
 			document.getElementById("btn_toggleAgentAesthetic").classList.add("inactive");
 		}
-		if(localsettings.opmode === "4") {
+		if(localsettings.opmode == "4") {
 			document.getElementById("btn_toggleAgent").classList.remove("hidden");
 			document.getElementById("btn_toggleAgentAesthetic").classList.remove("hidden");
 		}
@@ -25280,6 +25280,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			}
 			history += anToInclude
 			history += finalAgentPrompt
+			// Add the start tag for the AI to guide it to respond as the AI
+			history += instructendplaceholder
 
 			let resp = await generateAndGetTextFromPrompt(replace_instruct_placeholders(history), jsonGrammar, [], recentActions.map(JSON.stringify))
 			
