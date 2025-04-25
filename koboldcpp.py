@@ -3861,8 +3861,8 @@ def show_gui():
 
     tabcontent = {}
     # slider data
-    blasbatchsize_values = ["-1", "32", "64", "128", "256", "512", "1024", "2048"]
-    blasbatchsize_text = ["Don't Batch BLAS","32","64","128","256","512","1024","2048"]
+    blasbatchsize_values = ["-1", "16", "32", "64", "128", "256", "512", "1024", "2048"]
+    blasbatchsize_text = ["Don't Batch BLAS", "16","32","64","128","256","512","1024","2048"]
     contextsize_text = ["256", "512", "1024", "2048", "3072", "4096", "6144", "8192", "10240", "12288", "14336", "16384", "20480", "24576", "28672", "32768", "40960", "49152", "57344", "65536", "81920", "98304", "114688", "131072"]
     antirunopts = [opt.replace("Use ", "") for lib, opt in lib_option_pairs if opt not in runopts]
     quantkv_text = ["F16 (Off)","8-Bit","4-Bit"]
@@ -6590,7 +6590,7 @@ if __name__ == '__main__':
     advparser.add_argument("--version", help="Prints version and exits.", action='store_true')
     advparser.add_argument("--analyze", metavar=('[filename]'), help="Reads the metadata, weight types and tensor names in any GGUF file.", default="")
     advparser.add_argument("--ropeconfig", help="If set, uses customized RoPE scaling from configured frequency scale and frequency base (e.g. --ropeconfig 0.25 10000). Otherwise, uses NTK-Aware scaling set automatically based on context size. For linear rope, simply set the freq-scale and ignore the freq-base",metavar=('[rope-freq-scale]', '[rope-freq-base]'), default=[0.0, 10000.0], type=float, nargs='+')
-    advparser.add_argument("--blasbatchsize", help="Sets the batch size used in BLAS processing (default 512). Setting it to -1 disables BLAS mode, but keeps other benefits like GPU offload.", type=int,choices=[-1,32,64,128,256,512,1024,2048], default=512)
+    advparser.add_argument("--blasbatchsize", help="Sets the batch size used in BLAS processing (default 512). Setting it to -1 disables BLAS mode, but keeps other benefits like GPU offload.", type=int,choices=[-1,16,32,64,128,256,512,1024,2048], default=512)
     advparser.add_argument("--blasthreads", help="Use a different number of threads during BLAS if specified. Otherwise, has the same value as --threads",metavar=('[threads]'), type=int, default=0)
     advparser.add_argument("--lora", help="LLAMA models only, applies a lora file on top of model. Experimental.", metavar=('[lora_filename]', '[lora_base]'), nargs='+')
     advparser.add_argument("--noshift", help="If set, do not attempt to Trim and Shift the GGUF context.", action='store_true')

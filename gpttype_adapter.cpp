@@ -1832,9 +1832,13 @@ static int GetBatchSize(int desiredBlasBatchSize,FileFormat in_file_format)
                             file_format == FileFormat::GPTJ_2 ||
                             file_format == FileFormat::RWKV_1 ||
                             file_format==FileFormat::RWKV_2);
-    if(!approved_format || desiredBlasBatchSize<=0)
+    if(!approved_format && desiredBlasBatchSize>0)
     {
         desiredBlasBatchSize = 16;
+    }
+    if(desiredBlasBatchSize<=0)
+    {
+        desiredBlasBatchSize = 1;
     }
     if (file_format != FileFormat::GGML && file_format != FileFormat::GGHF && file_format != FileFormat::GGJT && file_format != FileFormat::GGJT_2 && file_format != FileFormat::GGJT_3 && file_format != FileFormat::GGUF_GENERIC)
     {
