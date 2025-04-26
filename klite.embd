@@ -3595,7 +3595,7 @@ Current version indicated by LITEVER below.
 			return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
 		}).join(''))
 	}
-	function cyrb_hash(str, seed = 0) { //generate a unique hash from a model name
+	function cyrb_hash(str, seed = 0, hashBytes = 3) { //generate a unique hash from a model name
 		let h1 = 0xdeadbeef ^ seed,
 			h2 = 0x41c6ce57 ^ seed;
 		for (let i = 0, ch; i < str.length; i++) {
@@ -3607,7 +3607,7 @@ Current version indicated by LITEVER below.
 		h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
 		let hsh = (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
 		//truncate to first 3 bytes
-		return hsh.substring(0, 6);
+		return hsh.substring(0, hashBytes*2);
 	};
 	function import_props_into_object(existingObj, objToImport) { //import new fields from one object into another while preserving exsting
 		for (var k in objToImport) {
@@ -6246,7 +6246,10 @@ Current version indicated by LITEVER below.
 			"prompt": prompt,
 			"n": 1,
 			"size": "1024x1024",
-			"response_format":"b64_json",
+		}
+		if(localsettings.saved_dalle_model!="gpt-image-1")
+		{
+			dalle_payload["response_format"] = "b64_json";
 		}
 
 		//remove all null fields
@@ -6268,17 +6271,17 @@ Current version indicated by LITEVER below.
 			console.log(resp);
 			if(resp.data && resp.data.length>0)
 			{
-				onImagesDone(resp.data[0].b64_json);
+				onImagesDone(resp.data[0].b64_json,null);
 			}
 			else
 			{
 				console.log("Generation Error!");
-				onImagesDone(null);
+				onImagesDone(null,JSON.stringify(resp));
 			}
 
 		}).catch((error) => {
 			console.log("Generation Error: " + error);
-			onImagesDone(null);
+			onImagesDone(null,null);
 		});
 
 	}
@@ -15829,7 +15832,7 @@ Current version indicated by LITEVER below.
 				image_db[imgid] = { done: false, queue: "Generating", result: "", prompt:sentence, poll_category:0 };
 				image_db[imgid].aspect = 0;
 				image_db[imgid].imsource = 0; //0=generated,1=uploaded
-				generate_dalle_image(genimg_payload,(outputimg)=>{
+				generate_dalle_image(genimg_payload,(outputimg,outputerr)=>{
 					if(outputimg)
 					{
 						//console.log(outputimg);
@@ -15851,7 +15854,7 @@ Current version indicated by LITEVER below.
 						}, true, imgres, useHigherQuality ? higherQualityForSaving : undefined);
 					}else{
 						image_db[imgid].queue = "Failed";
-						msgbox("Image Generation Failed!\n\nPlease make sure your OpenAI key is set correctly and you are allowed to use DALL-E.\n");
+						msgbox(`Image Generation Failed!\n\n${outputerr?(outputerr+"\n\n"):""}Please make sure your OpenAI key is set correctly and you are allowed to use DALL-E.\n`);
 					}
 				});
 			}
@@ -20869,7 +20872,7 @@ Current version indicated by LITEVER below.
 	async function DatabaseMinisearch(dbText, searchStr, recentTextStr, minSimilarity = 0.2)
 	{	//predefined minisearch constants
 		const chunkSize = documentdb_chunksize;
-		const chunkSizeOverlap = chunkSize*0.5;
+		const chunkSizeOverlap = Math.min(chunkSize*0.5, 500);
 		const maxResultsPerSection = 5; //returns up to 5 matches per section
 		const valuesToReturn = documentdb_numresults;
 
@@ -21456,11 +21459,11 @@ Current version indicated by LITEVER below.
 						<input title="Snippet Size" inputmode="numeric" class="justifyright flex-push-right settingsmall" id="documentdb_chunksize" oninput="
 						document.getElementById('documentdb_chunksize_slide').value = this.value; estimate_and_show_textDB_usage();">
 					</div>
-					<div><input title="Snippet Size Slider" type="range" min="100" max="2000" step="50" id="documentdb_chunksize_slide" oninput="
+					<div><input title="Snippet Size Slider" type="range" min="100" max="3000" step="50" id="documentdb_chunksize_slide" oninput="
 						document.getElementById('documentdb_chunksize').value = this.value; estimate_and_show_textDB_usage();"></div>
 					<div class="settingminmax">
 						<div class="justifyleft">100</div>
-						<div class="justifyright">2000</div>
+						<div class="justifyright">3000</div>
 					</div>
 				</div>
 				
@@ -25905,7 +25908,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		class EmbeddingSearcher
 		{
 			getHashForText = (text) => {
-				return forge.md5.create().update(text).digest().toHex()
+				// MD5 implementation: forge.md5.create().update(text).digest().toHex()
+				return cyrb_hash(text, 0, 4)
 			}
 
 			generateEmbedding = async (text) => {
@@ -25925,13 +25929,13 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					.then((response) => response.json())
 			}
 
-			getEmbeddings = async (...paragraphs) => {
+			getEmbeddings = async (modelHashInUse, ...paragraphs) => {
 				let embeddings = []
 				for (let i = 0; i < paragraphs.length; i++) {
 					let embeddingObj = undefined
 					if (!!paragraphs[i]?.snippet) {
 						let documentContent = paragraphs[i]?.snippet;
-						let hashFromText = this.getHashForText(documentContent),
+						let hashFromText = this.getHashForText(`${modelHashInUse}###${documentContent}`),
 							documentName = paragraphs[i]?.document;
 
 						embeddingObj = await embeddingDB.computeAndGetIfAbscentEmbedding(hashFromText, async (hash) => {
@@ -25941,7 +25945,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 									document: !!documentName ? documentName : "None",
 									hash: hash,
 									embedding: embedding.data[0].embedding,
-									snippet: documentContent
+									snippet: documentContent,
+									modelUsed: embedding?.model
 								}
 							}
 							return undefined
@@ -25952,9 +25957,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 						if (!!embedding?.data && embedding?.data.length > 0 && !!embedding?.data[0]?.embedding) {
 							embeddingObj = {
 								document: "None",
-								hash: this.getHashForText(documentContent),
+								hash: this.getHashForText(`${modelHashInUse}###${documentContent}`),
 								embedding: embedding.data[0].embedding,
-								snippet: documentContent
+								snippet: documentContent,
+								modelUsed: embedding?.model
 							}
 						}
 					}
@@ -25984,8 +25990,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			}
 
 			getRankedEmbeddings = async (searchTerm, ...paragraphs) => {
-				let embeddings = await this.getEmbeddings(...paragraphs)
-				let searchEmbedding = await this.getEmbeddings(searchTerm)
+				let searchEmbedding = await this.getEmbeddings("Unknown", searchTerm)
+				let modelUsedForSearchEmbedding = searchEmbedding[0]?.modelUsed
+				let embeddings = await this.getEmbeddings(modelUsedForSearchEmbedding, ...paragraphs)
 
 				embeddings.forEach(embedding => {
 					embedding.similarity = this.cosineSimilarity(searchEmbedding[0].embedding, embedding.embedding)

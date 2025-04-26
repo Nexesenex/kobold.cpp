@@ -2046,6 +2046,10 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         printf("Warning: Only GGUF models can use max context above 16k. Max context lowered to 16k.\n");
         clamped_max_context_length = 16384;
     }
+    if (isGguf && file_format_meta.model_architecture == GGUFArch::ARCH_GLM4 && kcpp_data->n_batch > 16) {
+        printf("GLM-4 is broken on larger batch sizes. Clamping batch size to 16.\n");
+        kcpp_data->n_batch = kcpp_data->n_ubatch = 16;
+    }
 
     kcpp_data->n_ctx = clamped_max_context_length;
     max_context_limit_at_load = clamped_max_context_length;
@@ -2614,6 +2618,9 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         {
             printf("\nLLAMA EVAL returned nonzero: %d\n",er);
         }
+        tmp = {1};
+        llama_kv_self_clear(llama_ctx_v4);
+        er = llama_decode(llama_ctx_v4, llama_batch_get_one(tmp.data(), tmp.size()));
         return ModelLoadResult::SUCCESS;
     }
     else if (file_format == FileFormat::RWKV_1 || file_format==FileFormat::RWKV_2)
