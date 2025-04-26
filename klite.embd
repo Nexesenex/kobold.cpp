@@ -20800,7 +20800,7 @@ Current version indicated by LITEVER below.
 	async function DatabaseMinisearch(dbText, searchStr, recentTextStr, minSimilarity = 0.2)
 	{	//predefined minisearch constants
 		const chunkSize = documentdb_chunksize;
-		const chunkSizeOverlap = chunkSize*0.5;
+		const chunkSizeOverlap = Math.min(chunkSize*0.5, 500);
 		const maxResultsPerSection = 5; //returns up to 5 matches per section
 		const valuesToReturn = documentdb_numresults;
 
