@@ -24552,11 +24552,16 @@ else
 			"args": {
 				"searchString": "<string to search for>"
 			},
-			"enabled": true,
+			"enabled": documentdb_enabled,
 				"executor": async (action) => {
 					let searchHistoryString = action?.args?.searchString
 					if (!!searchHistoryString) {
-						let ltmSnippets = await DatabaseMinisearch(`${documentdb_data}\n\nHistory: ${concat_gametext(true)}`, searchHistoryString, "");
+						let contentToSearch = documentdb_data
+						if (!!documentdb_searchhistory)
+						{
+							contentToSearch += `\n\n[DOCUMENT BREAK][Chatlog history]${concat_gametext(true)}[DOCUMENT BREAK]`
+						}
+						let ltmSnippets = await DatabaseMinisearch(contentToSearch, searchHistoryString, "");
 						if (ltmSnippets.length === 0) {
 							addThought(createSysPrompt, `History search performed: Nothing found`)
 						}
