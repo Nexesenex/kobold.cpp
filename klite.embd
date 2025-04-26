@@ -3523,7 +3523,7 @@ Current version indicated by LITEVER below.
 			return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
 		}).join(''))
 	}
-	function cyrb_hash(str, seed = 0) { //generate a unique hash from a model name
+	function cyrb_hash(str, seed = 0, hashBytes = 3) { //generate a unique hash from a model name
 		let h1 = 0xdeadbeef ^ seed,
 			h2 = 0x41c6ce57 ^ seed;
 		for (let i = 0, ch; i < str.length; i++) {
@@ -3535,7 +3535,7 @@ Current version indicated by LITEVER below.
 		h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
 		let hsh = (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
 		//truncate to first 3 bytes
-		return hsh.substring(0, 6);
+		return hsh.substring(0, hashBytes*2);
 	};
 	function import_props_into_object(existingObj, objToImport) { //import new fields from one object into another while preserving exsting
 		for (var k in objToImport) {
@@ -25832,7 +25832,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		class EmbeddingSearcher
 		{
 			getHashForText = (text) => {
-				return forge.md5.create().update(text).digest().toHex()
+				// MD5 implementation: forge.md5.create().update(text).digest().toHex()
+				return cyrb_hash(text, 0, 4)
 			}
 
 			generateEmbedding = async (text) => {
