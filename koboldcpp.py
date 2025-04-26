@@ -597,16 +597,20 @@ def end_trim_to_sentence(input_text):
         return input_text[:last + 1].strip()
     return input_text.strip()
 
-def tryparseint(value):
+def tryparseint(value,fallback):
+    if value is None:
+        return fallback
     try:
         return int(value)
     except ValueError:
-        return value
-def tryparsefloat(value):
+        return fallback
+def tryparsefloat(value,fallback):
+    if value is None:
+        return fallback
     try:
         return float(value)
     except ValueError:
-        return value
+        return fallback
 
 def is_incomplete_utf8_sequence(byte_seq): #note, this will only flag INCOMPLETE sequences, corrupted ones will be ignored.
     try:
@@ -882,7 +886,7 @@ def dump_gguf_metadata(file_path): #if you're gonna copy this into your own proj
         return
 
 def read_gguf_metadata(file_path):
-    chunk_size = 8192  # read only first 8kb of file
+    chunk_size = 16384  # read only first 16kb of file
     try:
         def read_gguf_key(keyname,data,maxval):
             keylen = len(keyname)
@@ -901,7 +905,7 @@ def read_gguf_metadata(file_path):
                 return 0 #not found
 
         fsize = os.path.getsize(file_path)
-        if fsize < 10000: #ignore files under 10kb
+        if fsize < (chunk_size+256): #ignore files under 16kb
             return None
         with open(file_path, 'rb') as f:
             file_header = f.read(4)
@@ -943,7 +947,7 @@ def extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath,
         except Exception:
             modelfile_extracted_meta = None
 
-def autoset_gpu_layers(ctxsize,sdquanted,bbs): #shitty algo to determine how many layers to use
+def autoset_gpu_layers(ctxsize, sdquanted, bbs, qkv_level): #shitty algo to determine how many layers to use
     global showusedmemwarning, modelfile_extracted_meta # reference cached values instead
     gpumem = MaxMemory[0]
     usedmem = 0
@@ -952,14 +956,14 @@ def autoset_gpu_layers(ctxsize,sdquanted,bbs): #shitty algo to determine how man
         if showusedmemwarning and usedmem > (2.5*1024*1024*1024):
             showusedmemwarning = False
             print(f"Note: KoboldCpp has detected that a significant amount of GPU VRAM ({usedmem/1024/1024} MB) is currently used by another application.\nFor best results, you may wish to close that application and then restart KoboldCpp.\n***")
-    reservedmem = max(1.3*1024*1024*1024,(0.5*1024*1024*1024 + usedmem)) # determine vram overhead
+    reservedmem = max(1.25*1024*1024*1024,(0.5*1024*1024*1024 + usedmem)) # determine vram overhead
     try:
         if not modelfile_extracted_meta:
             return 0
         layerlimit = 0
         fsize = modelfile_extracted_meta[2]
         fname = modelfile_extracted_meta[0]
-        if fsize>10000000: #dont bother with models < 10mb
+        if fsize > (10*1024*1024): #dont bother with models < 10mb
             cs = ctxsize
             mem = gpumem
             if "-00001-of-000" in fname:
@@ -983,9 +987,7 @@ def autoset_gpu_layers(ctxsize,sdquanted,bbs): #shitty algo to determine how man
                 mem -= max(600*1024*1024, modelfile_extracted_meta[7] * 3)
             mem = 0 if mem < 0 else mem
 
-            csmul = 1.0
-            if cs:
-                csmul = (cs/4096) if cs >= 8192 else 1.8 if cs > 4096 else 1.2 if cs > 2048 else 1.0
+            csmul = (cs/4096) if cs >= 8192 else 1.8 if cs > 4096 else 1.2 if cs > 2048 else 1.0
             ggufmeta = modelfile_extracted_meta[1]
             if not ggufmeta or ggufmeta[0]==0: #fail to read or no layers
                 sizeperlayer = fsize*csmul*0.052
@@ -995,10 +997,12 @@ def autoset_gpu_layers(ctxsize,sdquanted,bbs): #shitty algo to determine how man
                 headcount = ggufmeta[1]
                 headkvlen = (ggufmeta[2] if ggufmeta[2] > 0 else 128)
                 ratio = (mem-usedmem)/(fsize*csmul*1.6*(1.0 if bbs <= 512 else 1.2))
-                computemem = layers*(4 if bbs <= 512 else (bbs/128))*headkvlen*cs*4*1.55 # apply blasbatchsize calculations if over 512
-                contextmem = layers*headcount*headkvlen*cs*4*1.15
                 if headcount > 0:
-                    ratio = max(ratio, (mem - reservedmem - computemem) / (fsize + contextmem))
+                    # rubbish random formula. apply blasbatchsize calculations if over 512
+                    fattn_discount = 1.0/(3.2 if qkv_level==2 else (1.6 if qkv_level==1 else 1.0))
+                    mem1 = layers*(4 if bbs <= 512 else (bbs/128))*headkvlen*cs*fattn_discount*4*1.45
+                    mem2 = layers*headcount*headkvlen*cs*fattn_discount*4*1.15
+                    ratio = max(ratio,(mem - reservedmem - mem1) / (fsize + mem2))
                 layerlimit = min(int(ratio*layers), (layers + 3))
         layerlimit = (0 if layerlimit<=2 else layerlimit)
         return layerlimit
@@ -1241,32 +1245,32 @@ def generate(genparams, stream_flag=False):
     prompt = genparams.get('prompt', "")
     memory = genparams.get('memory', "")
     images = genparams.get('images', [])
-    max_context_length = int(genparams.get('max_context_length', maxctx))
-    max_length = int(genparams.get('max_length', args.defaultgenamt))
-    temperature = float(genparams.get('temperature', 0.75))
-    top_k = int(genparams.get('top_k', 100))
-    top_a = float(genparams.get('top_a', 0.0))
-    top_p = float(genparams.get('top_p', 0.92))
-    min_p = float(genparams.get('min_p', 0.0))
-    typical_p = float(genparams.get('typical', 1.0))
-    tfs = float(genparams.get('tfs', 1.0))
-    nsigma = float(genparams.get('nsigma', 0.0))
-    rep_pen = float(genparams.get('rep_pen', 1.0))
-    rep_pen_range = int(genparams.get('rep_pen_range', 320))
-    rep_pen_slope = float(genparams.get('rep_pen_slope', 1.0))
-    presence_penalty = float(genparams.get('presence_penalty', 0.0))
-    mirostat = int(genparams.get('mirostat', 0))
-    mirostat_tau = float(genparams.get('mirostat_tau', 5.0))
-    mirostat_eta = float(genparams.get('mirostat_eta', 0.1))
-    dry_multiplier = float(genparams.get('dry_multiplier', 0.0))
-    dry_base = float(genparams.get('dry_base', 1.75))
-    dry_allowed_length = int(genparams.get('dry_allowed_length', 2))
-    dry_penalty_last_n = int(genparams.get('dry_penalty_last_n', 320))
+    max_context_length = tryparseint(genparams.get('max_context_length', maxctx),maxctx)
+    max_length = tryparseint(genparams.get('max_length', args.defaultgenamt),args.defaultgenamt)
+    temperature = tryparsefloat(genparams.get('temperature', 0.75),0.75)
+    top_k = tryparseint(genparams.get('top_k', 100),100)
+    top_a = tryparsefloat(genparams.get('top_a', 0.0),0.0)
+    top_p = tryparsefloat(genparams.get('top_p', 0.92),0.92)
+    min_p = tryparsefloat(genparams.get('min_p', 0.0),0.0)
+    typical_p = tryparsefloat(genparams.get('typical', 1.0),1.0)
+    tfs = tryparsefloat(genparams.get('tfs', 1.0),1.0)
+    nsigma = tryparsefloat(genparams.get('nsigma', 0.0),0.0)
+    rep_pen = tryparsefloat(genparams.get('rep_pen', 1.0),1.0)
+    rep_pen_range = tryparseint(genparams.get('rep_pen_range', 320),320)
+    rep_pen_slope = tryparsefloat(genparams.get('rep_pen_slope', 1.0),1.0)
+    presence_penalty = tryparsefloat(genparams.get('presence_penalty', 0.0),0.0)
+    mirostat = tryparseint(genparams.get('mirostat', 0),0)
+    mirostat_tau = tryparsefloat(genparams.get('mirostat_tau', 5.0),5.0)
+    mirostat_eta = tryparsefloat(genparams.get('mirostat_eta', 0.1),0.1)
+    dry_multiplier = tryparsefloat(genparams.get('dry_multiplier', 0.0),0.0)
+    dry_base = tryparsefloat(genparams.get('dry_base', 1.75),1.75)
+    dry_allowed_length = tryparseint(genparams.get('dry_allowed_length', 2),2)
+    dry_penalty_last_n = tryparseint(genparams.get('dry_penalty_last_n', 320),320)
     dry_sequence_breakers = genparams.get('dry_sequence_breakers', [])
-    xtc_threshold = float(genparams.get('xtc_threshold', 0.2))
-    xtc_probability = float(genparams.get('xtc_probability', 0))
+    xtc_threshold = tryparsefloat(genparams.get('xtc_threshold', 0.2),0.2)
+    xtc_probability = tryparsefloat(genparams.get('xtc_probability', 0),0)
     sampler_order = genparams.get('sampler_order', [6, 0, 1, 3, 4, 2, 5])
-    seed = tryparseint(genparams.get('sampler_seed', -1))
+    seed = tryparseint(genparams.get('sampler_seed', -1),-1)
     stop_sequence = genparams.get('stop_sequence', [])
     ban_eos_token = genparams.get('ban_eos_token', False)
     stream_sse = stream_flag
@@ -1282,9 +1286,9 @@ def generate(genparams, stream_flag=False):
     grammar_retain_state = genparams.get('grammar_retain_state', False)
     genkey = genparams.get('genkey', '')
     trimstop = genparams.get('trim_stop', True)
-    dynatemp_range = float(genparams.get('dynatemp_range', 0.0))
-    dynatemp_exponent = float(genparams.get('dynatemp_exponent', 1.0))
-    smoothing_factor = float(genparams.get('smoothing_factor', 0.0))
+    dynatemp_range = tryparsefloat(genparams.get('dynatemp_range', 0.0),0.0)
+    dynatemp_exponent = tryparsefloat(genparams.get('dynatemp_exponent', 1.0),1.0)
+    smoothing_factor = tryparsefloat(genparams.get('smoothing_factor', 0.0),0.0)
     logit_biases = genparams.get('logit_bias', {})
     render_special = genparams.get('render_special', False)
     banned_strings = genparams.get('banned_strings', []) # SillyTavern uses that name
@@ -1538,14 +1542,14 @@ def sd_generate(genparams):
     init_images = ("" if (not init_images_arr or len(init_images_arr)==0 or not init_images_arr[0]) else init_images_arr[0])
     mask = genparams.get("mask", "")
     flip_mask = genparams.get("inpainting_mask_invert", 0)
-    denoising_strength = tryparsefloat(genparams.get("denoising_strength", 0.6))
-    cfg_scale = tryparsefloat(genparams.get("cfg_scale", 5))
-    sample_steps = tryparseint(genparams.get("steps", 20))
-    width = tryparseint(genparams.get("width", 512))
-    height = tryparseint(genparams.get("height", 512))
-    seed = tryparseint(genparams.get("seed", -1))
+    denoising_strength = tryparsefloat(genparams.get("denoising_strength", 0.6),0.6)
+    cfg_scale = tryparsefloat(genparams.get("cfg_scale", 5),5)
+    sample_steps = tryparseint(genparams.get("steps", 20),20)
+    width = tryparseint(genparams.get("width", 512),512)
+    height = tryparseint(genparams.get("height", 512),512)
+    seed = tryparseint(genparams.get("seed", -1),-1)
     sample_method = genparams.get("sampler_name", "k_euler_a")
-    clip_skip = tryparseint(genparams.get("clip_skip", -1))
+    clip_skip = tryparseint(genparams.get("clip_skip", -1),-1)
 
     #clean vars
     width = width - (width%64)
@@ -2047,13 +2051,13 @@ def transform_genparams(genparams, api_format):
         else:
             genparams["stop_sequence"] = [genparams.get('stop')]
 
-        genparams["sampler_seed"] = tryparseint(genparams.get('seed', -1))
+        genparams["sampler_seed"] = tryparseint(genparams.get('seed', -1),-1)
         genparams["mirostat"] = genparams.get('mirostat_mode', 0)
 
         if api_format==4 or api_format==7: #handle ollama chat here too
             # translate openai chat completion messages format into one big string.
             messages_array = genparams.get('messages', [])
-            messages_string = ""
+            messages_string = adapter_obj.get("chat_start", "")
             system_message_start = adapter_obj.get("system_start", "\n### Instruction:\n")
             system_message_end = adapter_obj.get("system_end", "")
             user_message_start = adapter_obj.get("user_start", "\n### Instruction:\n")
@@ -2252,7 +2256,7 @@ ws ::= | " " | "\n" [ \t]{0,20}
         if "top_p" in ollamaopts:
             genparams["top_p"] = ollamaopts.get('top_p', 0.92)
         if "seed" in ollamaopts:
-            genparams["sampler_seed"] = tryparseint(ollamaopts.get('seed', -1))
+            genparams["sampler_seed"] = tryparseint(ollamaopts.get('seed', -1),-1)
         if "stop" in ollamaopts:
             genparams["stop_sequence"] = ollamaopts.get('stop', [])
         genparams["stop_sequence"].append(user_message_start.strip())
@@ -3419,7 +3423,7 @@ Change Mode<br>
             loadid = -1
             try:
                 tempbody = json.loads(body)
-                loadid = tryparseint(tempbody.get('slot', 0))
+                loadid = tryparseint(tempbody.get('slot', 0),0)
             except Exception:
                 loadid = -1
             if loadid < 0 or str(loadid) not in savedata_obj:
@@ -3436,7 +3440,7 @@ Change Mode<br>
             else:
                 try:
                     incoming_story = json.loads(body) # ensure submitted data is valid json
-                    slotid = tryparseint(incoming_story.get('slot', -1))
+                    slotid = tryparseint(incoming_story.get('slot', -1),-1)
                     dataformat = incoming_story.get('format', "")
                     title = incoming_story.get('title', "")
                     if not title or title=="":
@@ -4314,8 +4318,8 @@ def show_gui():
 
     tabcontent = {}
     # slider data
-    blasbatchsize_values = ["-1", "32", "64", "128", "256", "512", "1024", "2048"]
-    blasbatchsize_text = ["Don't Batch BLAS","32","64","128","256","512","1024","2048"]
+    blasbatchsize_values = ["-1", "16", "32", "64", "128", "256", "512", "1024", "2048"]
+    blasbatchsize_text = ["Don't Batch BLAS", "16","32","64","128","256","512","1024","2048"]
     contextsize_text = ["256", "512", "1024", "2048", "3072", "4096", "6144", "8192", "10240", "12288", "14336", "16384", "20480", "24576", "28672", "32768", "40960", "49152", "57344", "65536", "81920", "98304", "114688", "131072"]
     antirunopts = [opt.replace("Use ", "") for lib, opt in lib_option_pairs if opt not in runopts]
     quantkv_text = ["F16 (Off)","8-Bit","4-Bit"]
@@ -4605,7 +4609,7 @@ def show_gui():
         pass
 
     def changed_gpulayers_estimate(*args):
-        predicted_gpu_layers = autoset_gpu_layers(int(contextsize_text[context_var.get()]),(sd_quant_var.get()==1),int(blasbatchsize_values[int(blas_size_var.get())]))
+        predicted_gpu_layers = autoset_gpu_layers(int(contextsize_text[context_var.get()]),(sd_quant_var.get()==1),int(blasbatchsize_values[int(blas_size_var.get())]),(quantkv_var.get() if flashattention.get()==1 else 0))
         max_gpu_layers = (f"/{modelfile_extracted_meta[1][0]+3}" if (modelfile_extracted_meta and modelfile_extracted_meta[1] and modelfile_extracted_meta[1][0]!=0) else "")
         index = runopts_var.get()
         gpu_be = (index == "Use Vulkan" or index == "Use Vulkan (Old CPU)" or index == "Use CLBlast" or index == "Use CLBlast (Old CPU)" or index == "Use CLBlast (Older CPU)" or index == "Use CuBLAS" or index == "Use hipBLAS (ROCm)")
@@ -4682,6 +4686,7 @@ def show_gui():
         else:
             noqkvlabel.grid_remove()
         vulkan_fa_lbl()
+        changed_gpulayers_estimate()
 
     def guibench():
         args.benchmark = "stdout"
@@ -4779,7 +4784,7 @@ def show_gui():
     quick_gpuname_label = ctk.CTkLabel(quick_tab, text="")
     quick_gpuname_label.grid(row=3, column=1, padx=75, sticky="W")
     quick_gpuname_label.configure(text_color="#ffff00")
-    quick_gpu_layers_entry,quick_gpu_layers_label = makelabelentry(quick_tab,"GPU Layers:", gpulayers_var, 6, 50,tooltip="How many layers to offload onto the GPU.\nVRAM intensive, usage increases with model and context size.\nRequires some trial and error to find the best fit value.\n\nCommon values for total layers, accuracy not guaranteed.\n\nLlama/Mistral 7b/8b: 33\nSolar 10.7b/11b: 49\nLlama 13b: 41\nLlama 20b(stack): 63\nLlama/Yi 34b: 61\nMixtral 8x7b: 33\nLlama 70b: 81")
+    quick_gpu_layers_entry,quick_gpu_layers_label = makelabelentry(quick_tab,"GPU Layers:", gpulayers_var, 6, 50,tooltip="How many layers to offload onto the GPU.\nUsage varies based on model type and increases with model and context size.\nRequires some trial and error to find the best fit value.\n\nNote: The auto estimation is often inaccurate! Please set layers yourself for best results!")
     quick_layercounter_label = ctk.CTkLabel(quick_tab, text="")
     quick_layercounter_label.grid(row=6, column=1, padx=75, sticky="W")
     quick_layercounter_label.configure(text_color="#ffff00")
@@ -4854,7 +4859,7 @@ def show_gui():
     # blas thread specifier
     makelabelentry(hardware_tab, "BLAS threads:" , blas_threads_var, 14, 50,tooltip="How many threads to use during BLAS processing.\nIf left blank, uses same value as regular thread count.")
     # blas batch size
-    makeslider(hardware_tab, "BLAS Batch Size:", blasbatchsize_text, blas_size_var, 0, 7, 16,width=200, set=5,tooltip="How many tokens to process at once per batch.\nLarger values use more memory.")
+    makeslider(hardware_tab, "BLAS Batch Size:", blasbatchsize_text, blas_size_var, 0, len(blasbatchsize_values)-1, 16,width=200, set=6,tooltip="How many tokens to process at once per batch.\nLarger values use more memory.")
     blas_size_var.trace("w", changed_gpulayers_estimate)
 
     # force version
@@ -6587,7 +6592,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
             if args.gpulayers==-1:
                 if MaxMemory[0] > 0 and (not args.usecpu) and ((args.usecublas is not None) or (args.usevulkan is not None) or (args.useclblast is not None) or sys.platform=="darwin"):
                     extract_modelfile_params(args.model_param,args.sdmodel,args.whispermodel,args.mmproj,args.draftmodel,args.ttsmodel if args.ttsgpu else "")
-                    layeramt = autoset_gpu_layers(args.contextsize,args.sdquant,args.blasbatchsize)
+                    layeramt = autoset_gpu_layers(args.contextsize,args.sdquant,args.blasbatchsize,(args.quantkv if args.flashattention else 0))
                     print(f"Auto Recommended GPU Layers: {layeramt}")
                     args.gpulayers = layeramt
                 else:
@@ -7080,7 +7085,7 @@ if __name__ == '__main__':
     advparser.add_argument("--version", help="Prints version and exits.", action='store_true')
     advparser.add_argument("--analyze", metavar=('[filename]'), help="Reads the metadata, weight types and tensor names in any GGUF file.", default="")
     advparser.add_argument("--ropeconfig", help="If set, uses customized RoPE scaling from configured frequency scale and frequency base (e.g. --ropeconfig 0.25 10000). Otherwise, uses NTK-Aware scaling set automatically based on context size. For linear rope, simply set the freq-scale and ignore the freq-base",metavar=('[rope-freq-scale]', '[rope-freq-base]'), default=[0.0, 10000.0], type=float, nargs='+')
-    advparser.add_argument("--blasbatchsize", help="Sets the batch size used in BLAS processing (default 512). Setting it to -1 disables BLAS mode, but keeps other benefits like GPU offload.", type=int,choices=[-1,32,64,128,256,512,1024,2048], default=512)
+    advparser.add_argument("--blasbatchsize", help="Sets the batch size used in BLAS processing (default 512). Setting it to -1 disables BLAS mode, but keeps other benefits like GPU offload.", type=int,choices=[-1,16,32,64,128,256,512,1024,2048], default=512)
     advparser.add_argument("--blasthreads", help="Use a different number of threads during BLAS if specified. Otherwise, has the same value as --threads",metavar=('[threads]'), type=int, default=0)
     advparser.add_argument("--lora", help="LLAMA models only, applies a lora file on top of model. Experimental.", metavar=('[lora_filename]', '[lora_base]'), nargs='+')
     advparser.add_argument("--noshift", help="If set, do not attempt to Trim and Shift the GGUF context.", action='store_true')
