@@ -25828,6 +25828,75 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	window.embeddingDB = new EmbeddingDB()
 
 </script>
+<style>
+	div.waitingToast {
+		display: flex;
+		background-color: #4787be;
+		border: solid red 1px;
+		border-radius: 20px;
+		position: absolute;
+		bottom: 15%;
+		right: 5%;
+		padding-right: 20px;
+	}
+
+	div.waitingIcon {
+		height: 50px;
+		width: 50px;
+		position: unset;
+		margin: 10px;
+	}
+
+	div.waitingToastText {
+		align-content: center;
+		word-break: break-all;
+		max-width: 300px;
+	}
+</style>
+<script>
+	class WaitingToast
+	{
+		#waitingDiv
+		#waitingText
+		constructor()
+		{
+			this.waitingDiv = document.createElement("div")
+			this.waitingDiv.classList.add("waitingToast", "hidden")
+
+			let waitingIcon = document.createElement("div")
+			waitingIcon.classList.add("imgloader", "waitingIcon")
+			this.waitingDiv.appendChild(waitingIcon)
+
+			this.waitingText = document.createElement("div")
+			this.waitingText.classList.add("waitingToastText")
+			this.waitingDiv.appendChild(this.waitingText)
+
+			document.body.appendChild(this.waitingDiv)
+		}
+
+		show() {
+			this.waitingDiv.classList.remove("hidden")
+		}
+
+		hide() {
+			this.waitingDiv.classList.add("hidden")
+		}
+
+		setText(text) 
+		{
+			this.waitingText.innerText = text
+		}
+	}
+
+	window.waitingToast = new WaitingToast()
+
+	let originalTriggerAbortController = trigger_abort_controller
+
+	trigger_abort_controller = () => {
+		waitingToast.hide()
+		originalTriggerAbortController()
+	}
+</script>
 <script type="module">
 		class EmbeddingSearcher
 		{
@@ -25854,6 +25923,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			}
 
 			getEmbeddings = async (modelHashInUse, ...paragraphs) => {
+				waitingToast.setText(`Generating embedding for search text: 0/${paragraphs.length}`);
 				let embeddings = []
 				for (let i = 0; i < paragraphs.length; i++) {
 					let embeddingObj = undefined
@@ -25892,6 +25962,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					if (!!embeddingObj) {
 						embeddings.push(embeddingObj)
 					}
+
+					waitingToast.setText(`Generating embedding for search text: ${i + 1}/${paragraphs.length}`);
 				}
 				return embeddings
 			}
@@ -25914,13 +25986,19 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			}
 
 			getRankedEmbeddings = async (searchTerm, ...paragraphs) => {
+				waitingToast.show();
+				waitingToast.setText("Generating embedding for search text");
 				let searchEmbedding = await this.getEmbeddings("Unknown", searchTerm)
 				let modelUsedForSearchEmbedding = searchEmbedding[0]?.modelUsed
-				let embeddings = await this.getEmbeddings(modelUsedForSearchEmbedding, ...paragraphs)
-
+				let embeddings = await this.getEmbeddings(modelUsedForSearchEmbedding, ...paragraphs);
+				
+				waitingToast.setText(`Searching embedding for search text: 0/${embeddings.length}`);
+				let i = 0;
 				embeddings.forEach(embedding => {
 					embedding.similarity = this.cosineSimilarity(searchEmbedding[0].embedding, embedding.embedding)
+					waitingToast.setText(`Searching embedding for search text: ${++i}/${embeddings.length}`);
 				})
+				waitingToast.hide()
 
 				embeddings.sort((a, b) => a.similarity > b.similarity ? -1 : 1)
 				return embeddings
