@@ -24469,17 +24469,51 @@ else
 			"name": "overwrite_current_state",
 			"description": "Overwrites the existing stored state with new text. The current stored state is sent with every action.",
 			"args": {
-				"text": "<new state>"
+				"text": {
+					description: "<new state>",
+					format: getDocumentFromTextDB('StateFormat')
+				}
 			},
 			"enabled": true,
 				"executor": (action) => {
 					let newState = action?.args?.text
+					if (typeof newState === "object")
+					{
+						newState = JSON.stringify(newState)
+					}
 					if (!!newState) {
 						replaceDocumentFromTextDB('State', newState)
 						addThought(createSysPrompt, `Current state has been overwritten`)
 					}
 					else {
 						addThought(createSysPrompt, `No state provided, nothing has been overwritten`)
+					}
+				}
+			},
+			{
+				"name": "overwrite_current_state_response",
+				"description": "The current state can be overwritten by the overwrite_current_state command. Providing a JSON object to this function will enforce a particular response format when overriding the state.",
+				"args": {
+					"json": "<format which should be used when overwriting the current state>"
+				},
+				"enabled": true,
+				"executor": (action) => {
+					let newStateFormat = action?.args?.json
+					try
+					{
+						let newStateFormatAsJson = JSON.parse(newStateFormat)
+						if (!!newStateFormatAsJson) {
+							replaceDocumentFromTextDB('StateFormat', JSON.stringify(newStateFormatAsJson))
+							addThought(createSysPrompt, `Current state format has been overwritten`)
+						}
+						else {
+							addThought(createSysPrompt, `No valid state format provided, nothing has been overwritten`)
+						}
+					}
+					catch (e)
+					{
+						addThought(createSysPrompt, `No valid state format provided, nothing has been overwritten`)
+						// Surpress error
 					}
 				}
 			},
@@ -24689,6 +24723,44 @@ else
 	let getEnabledCommands = () => {
 		return getCommands().filter(command => !!command?.enabled)
 	}
+	
+	let toJsonSchema = (obj, currentRef = {}) => {
+		switch (typeof obj) {
+			case "string":
+				currentRef.type = "string"
+				break
+			case "number":
+			case "bigint":
+				currentRef.type = "number"
+				break
+			case "boolean":
+				currentRef.type = "boolean"
+				break
+			case "object":
+				if (Array.isArray(obj))
+				{
+					currentRef.type = "array"
+				}
+				else
+				{
+					currentRef.type = "object"
+					currentRef.properties = {}
+					currentRef.required = []
+					for (key in obj) {
+						currentRef.properties[key] = {}
+						currentRef.required.push(key)
+						toJsonSchema(obj[key], currentRef.properties[key])
+					}
+				}
+				break
+			case "function":
+			case "undefined":
+			case "symbol":
+				break
+		}
+
+		return currentRef
+	}
 
 	let getCommandsSchema = (commands = getEnabledCommands()) => {
 		let baseCommandStructure = {
@@ -24698,44 +24770,18 @@ else
 			}
 		}
 
-		let toSchema = (obj, currentRef = {}) => {
-			switch (typeof obj) {
-				case "string":
-					currentRef.type = "string"
-					break
-				case "number":
-				case "bigint":
-					currentRef.type = "number"
-					break
-				case "boolean":
-					currentRef.type = "boolean"
-					break
-				case "object":
-					currentRef.type = "object"
-					currentRef.properties = {}
-					currentRef.required = []
-					for (key in obj) {
-						currentRef.properties[key] = {}
-						currentRef.required.push(key)
-						toSchema(obj[key], currentRef.properties[key])
-					}
-					break
-				case "function":
-				case "undefined":
-				case "symbol":
-					break
-			}
-
-			return currentRef
-		}
-
 		let commandsSchema = commands.map(command => {
-			let elem = toSchema(baseCommandStructure)
+			let elem = toJsonSchema(baseCommandStructure)
 			let args = elem.properties.command.properties.args;
 			
 			elem.properties.command.properties.name["pattern"] = `^${command.name}$`
 			for (arg in command.args) {
-				if (typeof command.args[arg] === "object" && !!command.args[arg]?.type) {
+				if (typeof command.args[arg] === "object" && !!command.args[arg]?.format)
+				{
+					let formatToUse = toJsonSchema(JSON.parse(command.args[arg]?.format))
+					args.properties[arg] = formatToUse
+				}
+				else if (typeof command.args[arg] === "object" && !!command.args[arg]?.type) {
 					args.properties[arg] = {
 						type: command.args[arg].type
 					}
@@ -24990,7 +25036,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				 "Text has been added to history", "Text was empty - nothing added to history", "Search string was empty, no search performed", "Word count is", "Image analysed:", 
 				 "Image generated", "No prompt provided, image not generated", "Text has been spoken", "No text provided, nothing has been said", "System prompt has been overwritten", 
 				 "No system prompt provided, nothing has been overwritten", "Current state has been overwritten", "No state provided, nothing has been overwritten", "Current order of actions has been cleared",
-				  "Current order of actions has been overwritten", "No order of actions provided, nothing has been overwritten", "Error - Empty response instead of action. Ensure all responses are valid JSON."]
+				  "Current order of actions has been overwritten", "No order of actions provided, nothing has been overwritten", "Error - Empty response instead of action. Ensure all responses are valid JSON.",
+				"Current state format has been overwritten", "No valid state format provided, nothing has been overwritten"]
 				combined_chunks = combined_chunks
 				.filter(elem => !listOfExclusions.find(excludedStart => elem.message.trim().indexOf(excludedStart) === 0))
 				.map(elem => {
