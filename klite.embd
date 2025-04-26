@@ -24626,7 +24626,7 @@ else
 							if (parts.length === 2 && parts[0].startsWith('data:image')) {
 								i2i64 = parts[1];
 							}
-							let analysisResult = await generateAndGetTextFromPrompt(`${createInstructPrompt(analysisPrompt)}${instructendplaceholder}`, undefined, [i2i64])
+							let analysisResult = await generateAndGetTextFromPrompt(`${createInstructPrompt(analysisPrompt)}${instructendplaceholder}${!!localsettings?.inject_jailbreak_instruct ? localsettings.custom_jailbreak_text : ""}`, undefined, [i2i64])
 							addThought(createSysPrompt, `Image analysed: ${analysisResult}`)
 						}
 						else {
@@ -25337,6 +25337,11 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			history += finalAgentPrompt
 			// Add the start tag for the AI to guide it to respond as the AI
 			history += instructendplaceholder
+			// Add jailbreak if present
+			if (!!localsettings?.inject_jailbreak_instruct)
+			{
+				history += localsettings.custom_jailbreak_text
+			}
 
 			let resp = await generateAndGetTextFromPrompt(replace_instruct_placeholders(history), jsonGrammar, [], recentActions.map(JSON.stringify))
 			
