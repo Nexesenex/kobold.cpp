@@ -212,10 +212,17 @@ when you can't use the precompiled binary directly, we provide an automated buil
 - After all binaries are built, you can run the python script with the command `koboldcpp.py --model [ggml_model.gguf]` (and add `--gpulayers (number of layer)` if you wish to offload layers to GPU).
 
 ### Compiling on Android (Termux Installation)
-- [Install and run Termux from F-Droid](https://f-droid.org/en/packages/com.termux/)
-- Enter the command `termux-change-repo` and choose `Mirror by BFSU`
-- Install dependencies with `pkg install wget git python` (plus any other missing packages)
-- Install dependencies `apt install openssl` (if needed)
+- [First, Install and run Termux from F-Droid](https://f-droid.org/en/packages/com.termux/)
+## Termux Quick Setup Script
+You can use this auto-installation script to quickly install and build everything and launch KoboldCpp with a model.
+Simply run:
+`curl -sSL https://raw.githubusercontent.com/LostRuins/koboldcpp/concedo/android_install.sh | sh`
+and follow the prompts displayed on screen.
+## Termux Manual Instructions
+- Open termux and run the command `apt update`
+- Install dependency `apt install openssl`
+- Install other dependencies with `pkg install wget git python`
+- Run `pkg upgrade`
 - Clone the repo `git clone https://github.com/LostRuins/koboldcpp.git`
 - Navigate to the koboldcpp folder `cd koboldcpp`
 - Build the project `make`
@@ -223,7 +230,8 @@ when you can't use the precompiled binary directly, we provide an automated buil
 - Grab a small GGUF model, such as `wget https://huggingface.co/concedo/KobbleTinyV2-1.1B-GGUF/resolve/main/KobbleTiny-Q4_K.gguf`
 - Start the python server `python koboldcpp.py --model KobbleTiny-Q4_K.gguf`
 - Connect to `http://localhost:5001` on your mobile browser
-- If you encounter any errors, make sure your packages are up-to-date with `pkg up`
+- If you encounter any errors, make sure your packages are up-to-date with `pkg up` and `pkg upgrade`
+- If you have trouble installing an dependency, you can try the command `termux-change-repo` and choose a different repo (e.g. `Mirror by BFSU`)
 - GPU acceleration for Termux may be possible but I have not explored it. If you find a good cross-device solution, do share or PR it.
 
 ## AMD Users
