@@ -21383,11 +21383,11 @@ Current version indicated by LITEVER below.
 						<input title="Snippet Size" inputmode="numeric" class="justifyright flex-push-right settingsmall" id="documentdb_chunksize" oninput="
 						document.getElementById('documentdb_chunksize_slide').value = this.value; estimate_and_show_textDB_usage();">
 					</div>
-					<div><input title="Snippet Size Slider" type="range" min="100" max="2000" step="50" id="documentdb_chunksize_slide" oninput="
+					<div><input title="Snippet Size Slider" type="range" min="100" max="3000" step="50" id="documentdb_chunksize_slide" oninput="
 						document.getElementById('documentdb_chunksize').value = this.value; estimate_and_show_textDB_usage();"></div>
 					<div class="settingminmax">
 						<div class="justifyleft">100</div>
-						<div class="justifyright">2000</div>
+						<div class="justifyright">3000</div>
 					</div>
 				</div>
 				
