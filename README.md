@@ -48,7 +48,7 @@ The currently supported options include:
 - Knowing the current date
 - Enabling a word count on the AI responses
 - Supports system prompts, both using and setting it automatically
-- Supports setting a "state" parameter which is always inserted at the end of the text
+- Supports setting a "state" parameter which is always inserted at the end of the text.  It is also possible to define the format that the response must use (i.e. {health: 10, mana: 20...})
 - Support enforcing a specific action order (i.e. the agent can be set to always roll a dice, then send a response)
 
 Using this function requires the following conditions to be met:
@@ -62,7 +62,7 @@ Using this function requires the following conditions to be met:
 ![image](https://github.com/user-attachments/assets/94b0f24e-360e-4c66-8d40-8b9185117902)
 - Importing of lorebooks from the load button as Text DB entries
 - Support for ```[DOCUMENT BREAK][Name of document]This is the content of the document``` which allows for user defined groupings of sections
-- (Experimental) Support for embedding models running in KCPP - Embeddings are generated on the server based on the text DB content, and then stored in the browser (the first search after changing the Text DB may take some time).  When a search is required, it runs entirely in the browser.  Please note that for now, the only way to clear the stored embeddings is to clear the website data.
+- Support for embedding models running in KCPP - Embeddings are generated on the server based on the text DB content, and then stored in the browser (notification indicates progress - can take some time).
 
 ![image](https://github.com/user-attachments/assets/41ec4f1c-5698-4ef3-ba7c-6998cbc1d8f3)
 
