@@ -24060,6 +24060,13 @@ else
 		}
 	}
 
+	let originalLoadSelectedFile = load_selected_file
+
+	load_selected_file = (file) => {
+		loadingNewGame = true
+		originalLoadSelectedFile(file)
+	}
+
 	window.addEventListener('load', () => {
 		let hasAppended = false;
 		document.querySelector("#topbtn_save_load .nav-link").onclick = () => {
@@ -25022,6 +25029,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return output.filter(text => text.length > 0)
 	}
 
+	var loadingNewGame = true
 	let originalRepackInstructTurns = repack_instruct_turns, cotOverrideRepack = false;
 
 	repack_instruct_turns = (input, usertag, aitag, systag, allow_blank, filterOutActions = (localsettings?.agentHideCOT)) => {
@@ -25050,25 +25058,24 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				return out
 			})
 
-			for (let i = combined_chunks.length - 1; i >= 0 && i > combined_chunks.length - 10; i--)
+			if (loadingNewGame)
 			{
-				let elem = combined_chunks[i]
-				if (elem.message.indexOf("Action: ") === 0)
-				{
-					let actionJson = elem.message.replace("Action:", "").trim()
-					try 
-					{
-						let actionObj = JSON.parse(actionJson.replaceAll("&quot;", `"`))
-						if (actionObj?.command?.name === "ask_user" && Array.isArray(actionObj?.command?.args?.suggestionsToPickFrom))
-						{
-							setSuggestions(actionObj?.command?.args?.suggestionsToPickFrom.map(String))
-							break		
+				loadingNewGame = false
+				for (let i = combined_chunks.length - 1; i >= 0 && i > combined_chunks.length - 10; i--) {
+					let elem = combined_chunks[i]
+					if (elem.message.indexOf("Action: ") === 0) {
+						let actionJson = elem.message.replace("Action:", "").trim()
+						try {
+							let actionObj = JSON.parse(actionJson.replaceAll("&quot;", `"`))
+							if (actionObj?.command?.name === "ask_user" && Array.isArray(actionObj?.command?.args?.suggestionsToPickFrom)) {
+								setSuggestions(actionObj?.command?.args?.suggestionsToPickFrom.map(String))
+								break
+							}
+						}
+						catch (e) {
+							// Suppress errors
 						}
 					}
-					catch (e)
-					{
-						// Surpress errors
-					}					
 				}
 			}
 
@@ -25285,7 +25292,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return wistr
 	}
 
-	let recentActions = [], maxActionsInHistory = 20, maxThoughtsWithoutUserInput = 5, currentAgentCycle = null, endCurrent = false
+	let recentActions = [], maxActionsInHistory = 20, currentAgentCycle = null, endCurrent = false
 
 	let runAgentCycle = async (initialPrompt = undefined) => {
 		endCurrent = false
@@ -25317,7 +25324,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		let lastThoughtWasBlank = false
 
 		Array(...document.getElementsByClassName("stopThinking")).forEach(elem => elem.classList.remove("hidden"))
-		for (let i = 0; i < maxThoughtsWithoutUserInput && endCurrent === false; i++)
+		for (let i = 0; i < localsettings.agentCOTMax && endCurrent === false; i++)
 		{
 			clearSuggestions()
 			let validCommands = getEnabledCommands().map(command => command.name)
@@ -25492,11 +25499,14 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		originalDisplaySettings()
 		document.getElementById("agentBehaviour").checked = localsettings.agentBehaviour;
 		document.getElementById("agentHideCOT").checked = localsettings.agentHideCOT;
+		document.getElementById("agentCOTMax").value = localsettings.agentCOTMax;
+		document.getElementById("agentCOTMaxnumeric").value = localsettings.agentCOTMax;
 	}
 
 	confirm_settings = () => {
 		localsettings.agentBehaviour = (document.getElementById("agentBehaviour").checked ? true : false);
 		localsettings.agentHideCOT = (document.getElementById("agentHideCOT").checked ? true : false);
+		localsettings.agentCOTMax = document.getElementById("agentCOTMax").value;
 		originalConfirmSettings()
 	}
 
@@ -25521,6 +25531,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	restart_new_game = () => {
+		loadingNewGame = true
 		currentChainOfThought = []
 		recentActions = []
 		clearSuggestions()
@@ -25688,6 +25699,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			localsettings.agentHideCOT = true
 		}
+		if (localsettings?.agentCOTMax == undefined)
+		{
+			localsettings.agentCOTMax = 5
+		}		
 
 		let createSettingElemBool = (inputElemId, labelTitle, labelText) => {
 			let settingLabelElem = document.createElement("div")
@@ -25705,6 +25720,67 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			settingLabelElem.append(settingInput)
 			return settingLabelElem
 		}
+
+		let createSettingElemRange = (inputElemId, labelTitle, labelText, min, max, step, value) => {
+			let settingLabelElem = document.createElement("div")
+			settingLabelElem.classList.add("settinglabel")
+			let settingDiv = document.createElement("div")
+			settingDiv.classList.add("justifyleft", "settingsmall")
+			settingDiv.innerHTML = `${labelTitle} <span class="helpicon">?<span class="helptext">${labelText}</span></span>`
+			
+			let settingInputNumeric = document.createElement("input")
+			settingInputNumeric.type = "numeric"
+			settingInputNumeric.min = min
+			settingInputNumeric.max = max
+			settingInputNumeric.step = step
+			settingInputNumeric.value = value
+			settingInputNumeric.title = labelTitle
+			settingInputNumeric.id = `${inputElemId}numeric`
+			settingInputNumeric.classList.add("justifyright", "flex-push-right", "settingsmall", "widerinput")
+			settingInputNumeric.style = "margin:0px 0px 0px auto;"
+			settingLabelElem.append(settingDiv)
+			settingLabelElem.append(settingInputNumeric)
+
+			let settingInput = document.createElement("input")
+			settingInput.type = "range"
+			settingInput.min = min
+			settingInput.max = max
+			settingInput.step = step
+			settingInput.value = value
+			settingInput.title = labelTitle
+			settingInput.id = inputElemId
+			settingInput.style = "margin:0px 0px 0px auto;"
+
+			settingInputNumeric.oninput = () => {
+				settingInput.value = settingInputNumeric.value;
+			}
+
+			settingInput.oninput = () => {
+				settingInputNumeric.value = settingInput.value;
+			}
+
+			let inputDiv = document.createElement("div")
+			inputDiv.append(settingInput)
+
+			let minMaxDiv = document.createElement("div")
+			minMaxDiv.classList.add("settingminmax")
+			let minDiv = document.createElement("div")
+			minDiv.classList.add("justifyleft")
+			minDiv.innerText = min
+			let maxDiv = document.createElement("div")
+			maxDiv.classList.add("justifyright")
+			maxDiv.innerText = max
+			minMaxDiv.append(minDiv)
+			minMaxDiv.append(maxDiv)
+
+			let settingElem = document.createElement("div")
+			settingElem.style.width = "100%"
+			settingElem.classList.add("settingitem")
+			settingElem.append(settingLabelElem)
+			settingElem.append(inputDiv)
+			settingElem.append(minMaxDiv)
+			return settingElem
+		}
 		let lastSettingContainer = document.querySelector("#settingsmenuformat > .settingitem:last-child")
 
 		let settingLabelElem = createSettingElemBool("agentBehaviour", "Agent behaviour (experimental)", "Allows the AI to use multiple generations and certain tools to see if it can improve results.  This can include web search (if enabled), dice rolling, and formula evaluation.  This mode requires instruct start and end tags for all roles. Image and TTS only is enabled for local KCPP users.")
@@ -25717,6 +25793,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		lastSettingContainer.append(settingLabelElem)
 
 		settingLabelElem = createSettingElemBool("agentHideCOT", "Hide agent COT (experimental)", "Hides agent thinking steps (such as searches)")
+		lastSettingContainer.append(settingLabelElem)
+
+		settingLabelElem = createSettingElemRange("agentCOTMax", "Maximum agent actions", "Defines the maximum number of actions the agent can take without a user input", 1, 20, 1, 5)
 		lastSettingContainer.append(settingLabelElem)
 
 		createStopThinkingButton()
