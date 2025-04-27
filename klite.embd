@@ -16204,7 +16204,7 @@ Current version indicated by LITEVER below.
 		//fix alpaca leakage
 		if(localsettings.fix_alpaca_leak && (localsettings.opmode == 2 || localsettings.opmode == 3 || localsettings.opmode == 4) && get_instruct_starttag(true).toLowerCase().includes("### instruction"))
 		{
-			let matches = gentxt.match(/\n### ([^\s]+?):\n/g);
+			let matches = gentxt.match(/\n### (instruction|response)\n|\n### ([^\s]+?):\n/gi);
 			for(let m in matches)
 			{
 				let foundStop = gentxt.indexOf(matches[m]);
@@ -24545,17 +24545,51 @@ else
 			"name": "overwrite_current_state",
 			"description": "Overwrites the existing stored state with new text. The current stored state is sent with every action.",
 			"args": {
-				"text": "<new state>"
+				"text": {
+					description: "<new state>",
+					format: getDocumentFromTextDB('StateFormat')
+				}
 			},
 			"enabled": true,
 				"executor": (action) => {
 					let newState = action?.args?.text
+					if (typeof newState === "object")
+					{
+						newState = JSON.stringify(newState)
+					}
 					if (!!newState) {
 						replaceDocumentFromTextDB('State', newState)
 						addThought(createSysPrompt, `Current state has been overwritten`)
 					}
 					else {
 						addThought(createSysPrompt, `No state provided, nothing has been overwritten`)
+					}
+				}
+			},
+			{
+				"name": "overwrite_current_state_response",
+				"description": "The current state can be overwritten by the overwrite_current_state command. Providing a JSON object to this function will enforce a particular response format when overriding the state.",
+				"args": {
+					"json": "<format which should be used when overwriting the current state>"
+				},
+				"enabled": true,
+				"executor": (action) => {
+					let newStateFormat = action?.args?.json
+					try
+					{
+						let newStateFormatAsJson = JSON.parse(newStateFormat)
+						if (!!newStateFormatAsJson) {
+							replaceDocumentFromTextDB('StateFormat', JSON.stringify(newStateFormatAsJson))
+							addThought(createSysPrompt, `Current state format has been overwritten`)
+						}
+						else {
+							addThought(createSysPrompt, `No valid state format provided, nothing has been overwritten`)
+						}
+					}
+					catch (e)
+					{
+						addThought(createSysPrompt, `No valid state format provided, nothing has been overwritten`)
+						// Surpress error
 					}
 				}
 			},
@@ -24594,11 +24628,16 @@ else
 			"args": {
 				"searchString": "<string to search for>"
 			},
-			"enabled": true,
+			"enabled": documentdb_enabled,
 				"executor": async (action) => {
 					let searchHistoryString = action?.args?.searchString
 					if (!!searchHistoryString) {
-						let ltmSnippets = await DatabaseMinisearch(`${documentdb_data}\n\nHistory: ${concat_gametext(true)}`, searchHistoryString, "");
+						let contentToSearch = documentdb_data
+						if (!!documentdb_searchhistory)
+						{
+							contentToSearch += `\n\n[DOCUMENT BREAK][Chatlog history]${concat_gametext(true)}[DOCUMENT BREAK]`
+						}
+						let ltmSnippets = await DatabaseMinisearch(contentToSearch, searchHistoryString, "");
 						if (ltmSnippets.length === 0) {
 							addThought(createSysPrompt, `History search performed: Nothing found`)
 						}
@@ -24663,7 +24702,7 @@ else
 							if (parts.length === 2 && parts[0].startsWith('data:image')) {
 								i2i64 = parts[1];
 							}
-							let analysisResult = await generateAndGetTextFromPrompt(`${createInstructPrompt(analysisPrompt)}${instructendplaceholder}`, undefined, [i2i64])
+							let analysisResult = await generateAndGetTextFromPrompt(`${createInstructPrompt(analysisPrompt)}${instructendplaceholder}${!!localsettings?.inject_jailbreak_instruct ? localsettings.custom_jailbreak_text : ""}`, undefined, [i2i64])
 							addThought(createSysPrompt, `Image analysed: ${analysisResult}`)
 						}
 						else {
@@ -24765,6 +24804,44 @@ else
 	let getEnabledCommands = () => {
 		return getCommands().filter(command => !!command?.enabled)
 	}
+	
+	let toJsonSchema = (obj, currentRef = {}) => {
+		switch (typeof obj) {
+			case "string":
+				currentRef.type = "string"
+				break
+			case "number":
+			case "bigint":
+				currentRef.type = "number"
+				break
+			case "boolean":
+				currentRef.type = "boolean"
+				break
+			case "object":
+				if (Array.isArray(obj))
+				{
+					currentRef.type = "array"
+				}
+				else
+				{
+					currentRef.type = "object"
+					currentRef.properties = {}
+					currentRef.required = []
+					for (key in obj) {
+						currentRef.properties[key] = {}
+						currentRef.required.push(key)
+						toJsonSchema(obj[key], currentRef.properties[key])
+					}
+				}
+				break
+			case "function":
+			case "undefined":
+			case "symbol":
+				break
+		}
+
+		return currentRef
+	}
 
 	let getCommandsSchema = (commands = getEnabledCommands()) => {
 		let baseCommandStructure = {
@@ -24774,44 +24851,18 @@ else
 			}
 		}
 
-		let toSchema = (obj, currentRef = {}) => {
-			switch (typeof obj) {
-				case "string":
-					currentRef.type = "string"
-					break
-				case "number":
-				case "bigint":
-					currentRef.type = "number"
-					break
-				case "boolean":
-					currentRef.type = "boolean"
-					break
-				case "object":
-					currentRef.type = "object"
-					currentRef.properties = {}
-					currentRef.required = []
-					for (key in obj) {
-						currentRef.properties[key] = {}
-						currentRef.required.push(key)
-						toSchema(obj[key], currentRef.properties[key])
-					}
-					break
-				case "function":
-				case "undefined":
-				case "symbol":
-					break
-			}
-
-			return currentRef
-		}
-
 		let commandsSchema = commands.map(command => {
-			let elem = toSchema(baseCommandStructure)
+			let elem = toJsonSchema(baseCommandStructure)
 			let args = elem.properties.command.properties.args;
 			
 			elem.properties.command.properties.name["pattern"] = `^${command.name}$`
 			for (arg in command.args) {
-				if (typeof command.args[arg] === "object" && !!command.args[arg]?.type) {
+				if (typeof command.args[arg] === "object" && !!command.args[arg]?.format)
+				{
+					let formatToUse = toJsonSchema(JSON.parse(command.args[arg]?.format))
+					args.properties[arg] = formatToUse
+				}
+				else if (typeof command.args[arg] === "object" && !!command.args[arg]?.type) {
 					args.properties[arg] = {
 						type: command.args[arg].type
 					}
@@ -25066,7 +25117,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				 "Text has been added to history", "Text was empty - nothing added to history", "Search string was empty, no search performed", "Word count is", "Image analysed:", 
 				 "Image generated", "No prompt provided, image not generated", "Text has been spoken", "No text provided, nothing has been said", "System prompt has been overwritten", 
 				 "No system prompt provided, nothing has been overwritten", "Current state has been overwritten", "No state provided, nothing has been overwritten", "Current order of actions has been cleared",
-				  "Current order of actions has been overwritten", "No order of actions provided, nothing has been overwritten", "Error - Empty response instead of action. Ensure all responses are valid JSON."]
+				  "Current order of actions has been overwritten", "No order of actions provided, nothing has been overwritten", "Error - Empty response instead of action. Ensure all responses are valid JSON.",
+				"Current state format has been overwritten", "No valid state format provided, nothing has been overwritten"]
 				combined_chunks = combined_chunks
 				.filter(elem => !listOfExclusions.find(excludedStart => elem.message.trim().indexOf(excludedStart) === 0))
 				.map(elem => {
@@ -25361,6 +25413,11 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			history += finalAgentPrompt
 			// Add the start tag for the AI to guide it to respond as the AI
 			history += instructendplaceholder
+			// Add jailbreak if present
+			if (!!localsettings?.inject_jailbreak_instruct)
+			{
+				history += localsettings.custom_jailbreak_text
+			}
 
 			let resp = await generateAndGetTextFromPrompt(replace_instruct_placeholders(history), jsonGrammar, [], recentActions.map(JSON.stringify))
 			
@@ -25904,6 +25961,75 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	window.embeddingDB = new EmbeddingDB()
 
 </script>
+<style>
+	div.waitingToast {
+		display: flex;
+		background-color: #4787be;
+		border: solid red 1px;
+		border-radius: 20px;
+		position: absolute;
+		bottom: 15%;
+		right: 5%;
+		padding-right: 20px;
+	}
+
+	div.waitingIcon {
+		height: 50px;
+		width: 50px;
+		position: unset;
+		margin: 10px;
+	}
+
+	div.waitingToastText {
+		align-content: center;
+		word-break: break-all;
+		max-width: 300px;
+	}
+</style>
+<script>
+	class WaitingToast
+	{
+		#waitingDiv
+		#waitingText
+		constructor()
+		{
+			this.waitingDiv = document.createElement("div")
+			this.waitingDiv.classList.add("waitingToast", "hidden")
+
+			let waitingIcon = document.createElement("div")
+			waitingIcon.classList.add("imgloader", "waitingIcon")
+			this.waitingDiv.appendChild(waitingIcon)
+
+			this.waitingText = document.createElement("div")
+			this.waitingText.classList.add("waitingToastText")
+			this.waitingDiv.appendChild(this.waitingText)
+
+			document.body.appendChild(this.waitingDiv)
+		}
+
+		show() {
+			this.waitingDiv.classList.remove("hidden")
+		}
+
+		hide() {
+			this.waitingDiv.classList.add("hidden")
+		}
+
+		setText(text) 
+		{
+			this.waitingText.innerText = text
+		}
+	}
+
+	window.waitingToast = new WaitingToast()
+
+	let originalTriggerAbortController = trigger_abort_controller
+
+	trigger_abort_controller = () => {
+		waitingToast.hide()
+		originalTriggerAbortController()
+	}
+</script>
 <script type="module">
 		class EmbeddingSearcher
 		{
@@ -25930,6 +26056,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			}
 
 			getEmbeddings = async (modelHashInUse, ...paragraphs) => {
+				waitingToast.setText(`Generating embedding for search text: 0/${paragraphs.length}`);
 				let embeddings = []
 				for (let i = 0; i < paragraphs.length; i++) {
 					let embeddingObj = undefined
@@ -25968,6 +26095,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					if (!!embeddingObj) {
 						embeddings.push(embeddingObj)
 					}
+
+					waitingToast.setText(`Generating embedding for search text: ${i + 1}/${paragraphs.length}`);
 				}
 				return embeddings
 			}
@@ -25990,13 +26119,19 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			}
 
 			getRankedEmbeddings = async (searchTerm, ...paragraphs) => {
+				waitingToast.show();
+				waitingToast.setText("Generating embedding for search text");
 				let searchEmbedding = await this.getEmbeddings("Unknown", searchTerm)
 				let modelUsedForSearchEmbedding = searchEmbedding[0]?.modelUsed
-				let embeddings = await this.getEmbeddings(modelUsedForSearchEmbedding, ...paragraphs)
-
+				let embeddings = await this.getEmbeddings(modelUsedForSearchEmbedding, ...paragraphs);
+				
+				waitingToast.setText(`Searching embedding for search text: 0/${embeddings.length}`);
+				let i = 0;
 				embeddings.forEach(embedding => {
 					embedding.similarity = this.cosineSimilarity(searchEmbedding[0].embedding, embedding.embedding)
+					waitingToast.setText(`Searching embedding for search text: ${++i}/${embeddings.length}`);
 				})
+				waitingToast.hide()
 
 				embeddings.sort((a, b) => a.similarity > b.similarity ? -1 : 1)
 				return embeddings

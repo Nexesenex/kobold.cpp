@@ -38,7 +38,6 @@ Croco.Cpp (CCPP) is a fork/mod of the experimental branch of KoboldCPP (KCPP), m
 - Supported (not anymore, sadly) EmphasisFSM by Yoshku to handle the "" and ** formatting in KCPP and SillyTavern (mostly, if you have troubles of chat (thoughts, actions, dialogues) formatting, and anti-slop doesn't cut it for your needs somehow).
 - Since 1.71010, an enhanced model layers autoloader on GPU (which is less and less cluttered and bugged lol), based on Concedo's code and Pyroserenus formulas, but different from Henky's subsequent commit on KCPP-official. It's compatible with KV_Quants, accounts for FA, MMQ, LowVram, works in single and multi-GPU (up to 16?), is accessible in CLI and GUI modes, and can be configured easily in tandem with tensor split for an entirely customized loading accordingly to one's rig and needs.
 
-
 Recommanded settings for Commande Line Interface / GUI :
 ```
 --flashattention (except for Gemma?)
@@ -359,10 +358,17 @@ when you can't use the precompiled binary directly, we provide an automated buil
 - After all binaries are built, you can run the python script with the command `koboldcpp.py --model [ggml_model.gguf]` (and add `--gpulayers (number of layer)` if you wish to offload layers to GPU).
 
 ### Compiling on Android (Termux Installation)
-- [Install and run Termux from F-Droid](https://f-droid.org/en/packages/com.termux/)
-- Enter the command `termux-change-repo` and choose `Mirror by BFSU`
-- Install dependencies with `pkg install wget git python` (plus any other missing packages)
-- Install dependencies `apt install openssl` (if needed)
+- [First, Install and run Termux from F-Droid](https://f-droid.org/en/packages/com.termux/)
+## Termux Quick Setup Script
+You can use this auto-installation script to quickly install and build everything and launch KoboldCpp with a model.
+Simply run:
+`curl -sSL https://raw.githubusercontent.com/LostRuins/koboldcpp/concedo/android_install.sh | sh`
+and follow the prompts displayed on screen.
+## Termux Manual Instructions
+- Open termux and run the command `apt update`
+- Install dependency `apt install openssl`
+- Install other dependencies with `pkg install wget git python`
+- Run `pkg upgrade`
 - Clone the repo `git clone https://github.com/LostRuins/koboldcpp.git`
 - Navigate to the koboldcpp folder `cd koboldcpp`
 - Build the project `make`
@@ -370,7 +376,8 @@ when you can't use the precompiled binary directly, we provide an automated buil
 - Grab a small GGUF model, such as `wget https://huggingface.co/concedo/KobbleTinyV2-1.1B-GGUF/resolve/main/KobbleTiny-Q4_K.gguf`
 - Start the python server `python koboldcpp.py --model KobbleTiny-Q4_K.gguf`
 - Connect to `http://localhost:5001` on your mobile browser
-- If you encounter any errors, make sure your packages are up-to-date with `pkg up`
+- If you encounter any errors, make sure your packages are up-to-date with `pkg up` and `pkg upgrade`
+- If you have trouble installing an dependency, you can try the command `termux-change-repo` and choose a different repo (e.g. `Mirror by BFSU`)
 - GPU acceleration for Termux may be possible but I have not explored it. If you find a good cross-device solution, do share or PR it.
 
 ## AMD Users
@@ -491,7 +498,7 @@ The currently supported options include:
 - Knowing the current date
 - Enabling a word count on the AI responses
 - Supports system prompts, both using and setting it automatically
-- Supports setting a "state" parameter which is always inserted at the end of the text
+- Supports setting a "state" parameter which is always inserted at the end of the text.  It is also possible to define the format that the response must use (i.e. {health: 10, mana: 20...})
 - Support enforcing a specific action order (i.e. the agent can be set to always roll a dice, then send a response)
 
 Using this function requires the following conditions to be met:
@@ -505,7 +512,7 @@ Using this function requires the following conditions to be met:
 ![image](https://github.com/user-attachments/assets/94b0f24e-360e-4c66-8d40-8b9185117902)
 - Importing of lorebooks from the load button as Text DB entries
 - Support for ```[DOCUMENT BREAK][Name of document]This is the content of the document``` which allows for user defined groupings of sections
-- (Experimental) Support for embedding models running in KCPP - Embeddings are generated on the server based on the text DB content, and then stored in the browser (the first search after changing the Text DB may take some time).  When a search is required, it runs entirely in the browser.  Please note that for now, the only way to clear the stored embeddings is to clear the website data.
+- Support for embedding models running in KCPP - Embeddings are generated on the server based on the text DB content, and then stored in the browser (notification indicates progress - can take some time).
 
 ![image](https://github.com/user-attachments/assets/41ec4f1c-5698-4ef3-ba7c-6998cbc1d8f3)
 
