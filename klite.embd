@@ -25049,6 +25049,29 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				out.message = elem.replace(usertag, "").replace(aitag, "").replace(systag, "")
 				return out
 			})
+
+			for (let i = combined_chunks.length - 1; i >= 0 && i > combined_chunks.length - 10; i--)
+			{
+				let elem = combined_chunks[i]
+				if (elem.message.indexOf("Action: ") === 0)
+				{
+					let actionJson = elem.message.replace("Action:", "").trim()
+					try 
+					{
+						let actionObj = JSON.parse(actionJson.replaceAll("&quot;", `"`))
+						if (actionObj?.command?.name === "ask_user" && Array.isArray(actionObj?.command?.args?.suggestionsToPickFrom))
+						{
+							setSuggestions(actionObj?.command?.args?.suggestionsToPickFrom.map(String))
+							break		
+						}
+					}
+					catch (e)
+					{
+						// Surpress errors
+					}					
+				}
+			}
+
 			if (filterOutActions)
 			{
 				let listOfExclusions = ["Action: {", "History search performed:", "Chain of thought complete", "Stop thinking action confirmed",
