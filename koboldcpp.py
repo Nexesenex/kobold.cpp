@@ -4829,18 +4829,19 @@ def zenity(filetypes=None, initialdir="", initialfile="", **kwargs) -> Tuple[int
         .replace("?", "\\?").replace("&", "&amp;").replace("|", "&#124;").replace("<", "&lt;").replace(">", "&gt;")\
         .replace("(", "\\(").replace(")", "\\)").replace("[", "\\[").replace("]", "\\]").replace("{", "\\{").replace("}", "\\}")
 
-    def zenity_sanity_check(): #make sure zenity is sane
-        nonlocal zenity_bin
+    def zenity_sanity_check(zenity_bin): #make sure zenity is sane
         try: # Run `zenity --help` and pipe to grep
-            result = subprocess.run(f"{zenity_bin} --help | grep Usage", shell=True, capture_output=True, text=True, encoding='utf-8', timeout=10)
+            result = subprocess.run(f"{zenity_bin} --help", shell=True, capture_output=True, text=True, encoding='utf-8', timeout=10)
             if result.returncode == 0 and "Usage" in result.stdout:
                 return True
             else:
+                print(f"Zenity/YAD sanity check failed - ReturnCode={result.returncode}")
                 return False
         except FileNotFoundError:
+            print(f"Zenity/YAD sanity check failed - {zenity_bin} not found")
             return False
 
-    if not zenity_sanity_check():
+    if not zenity_sanity_check(zenity_bin):
         raise Exception("Zenity not working correctly, falling back to TK GUI.")
 
     # Build args based on keywords
