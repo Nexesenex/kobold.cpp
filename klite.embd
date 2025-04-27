@@ -24471,7 +24471,8 @@ else
 				"executor": (action) => {
 					let systemPrompt = action?.args?.text
 					if (!!systemPrompt) {
-						localsettings.instruct_sysprompt = systemPrompt
+						// localsettings.instruct_sysprompt = systemPrompt
+						current_memory = `{{[SYSTEM]}}${systemPrompt}{{[SYSTEM_END]}}`
 						addThought(createSysPrompt, `System prompt has been overwritten`)
 					}
 					else {
