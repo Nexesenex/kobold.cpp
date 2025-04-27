@@ -359,12 +359,14 @@ when you can't use the precompiled binary directly, we provide an automated buil
 
 ### Compiling on Android (Termux Installation)
 - [First, Install and run Termux from F-Droid](https://f-droid.org/en/packages/com.termux/)
-## Termux Quick Setup Script
-You can use this auto-installation script to quickly install and build everything and launch KoboldCpp with a model.
+## Termux Quick Setup Script (Easy Setup)
+- You can use this auto-installation script to quickly install and build everything and launch KoboldCpp with a model.
 Simply run:
-`curl -sSL https://raw.githubusercontent.com/LostRuins/koboldcpp/concedo/android_install.sh | sh`
-and follow the prompts displayed on screen.
-## Termux Manual Instructions
+```
+curl -sSL https://raw.githubusercontent.com/LostRuins/koboldcpp/concedo/android_install.sh | sh
+```
+and it will install everything required. Alternatively, you can download the above `android_install.sh` script to file, then do `chmod +x` and run it interactively.
+## Termux Manual Instructions (DIY Setup)
 - Open termux and run the command `apt update`
 - Install dependency `apt install openssl`
 - Install other dependencies with `pkg install wget git python`

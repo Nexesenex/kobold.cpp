@@ -11,7 +11,11 @@ fi
 echo "--------------------------------------------"
 echo "KoboldCPP Quick Installer for Termux (Android only!)"
 echo "--------------------------------------------"
-if [ -t 0 ]; then
+if [ $# -ge 1 ]; then
+    choice="$1"
+    echo "Using command-line argument: $choice"
+# Check if running interactively (terminal input)
+elif [ -t 0 ]; then
     # Running interactively
     echo "[1] - Proceed to install and launch with default model Gemma3-1B"
     echo "[2] - Proceed to install without a model, you can download one later."
