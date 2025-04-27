@@ -19352,6 +19352,17 @@ Current version indicated by LITEVER below.
 		document.getElementById("documentdb_chunksize").value = documentdb_chunksize;
 		document.getElementById("documentdb_data").value = documentdb_data;
 		document.getElementById("documentdb_useEmbeddings").checked = documentdb_useEmbeddings;
+		if(is_using_kcpp_with_embeddings())
+		{
+			document.getElementById("documentdb_useEmbeddings").parentElement.classList.remove("color_red");
+			document.getElementById("documentdb_useEmbeddings").disabled = false;
+		}
+		else
+		{
+			document.getElementById("documentdb_useEmbeddings").parentElement.classList.add("color_red");
+			document.getElementById("documentdb_useEmbeddings").disabled = true;
+			document.getElementById("documentdb_useEmbeddings").checked = false;
+		}
 	}
 
 	function toggle_logit_bias_string()
