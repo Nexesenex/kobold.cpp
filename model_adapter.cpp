@@ -291,6 +291,15 @@ void print_tok_vec(std::vector<float> &embd)
             if (keyidx != -1) {
                 freq_base_train = gguf_get_val_f32(ctx, keyidx);
             }
+            fkey = "tokenizer.ggml.add_bos_token";
+            keyidx = gguf_find_key(ctx, fkey.c_str());
+            if (keyidx != -1) {
+                bool result = gguf_get_val_bool(ctx, keyidx);
+                if(result==false)
+                {
+                    fileformatmeta->explicitly_no_bos = true;
+                }
+            }
 
             int filever = gguf_get_version(ctx);
 

@@ -864,7 +864,7 @@ def dump_gguf_metadata(file_path): #if you're gonna copy this into your own proj
                 if dt_translated=="arr":
                     print(f"{dt_translated}: {curr_key} = [{len(curr_val)}]")
                 elif dt_translated=="str":
-                    print(f"{dt_translated}: {curr_key} = {curr_val[:100]}")
+                    print(f"{dt_translated}: {curr_key} = {curr_val[:256]}")
                 else:
                     print(f"{dt_translated}: {curr_key} = {curr_val}")
             print("\n*** GGUF TENSOR INFO ***")
@@ -4100,18 +4100,24 @@ def zenity(filetypes=None, initialdir="", initialfile="", **kwargs) -> Tuple[int
         .replace("?", "\\?").replace("&", "&amp;").replace("|", "&#124;").replace("<", "&lt;").replace(">", "&gt;")\
         .replace("(", "\\(").replace(")", "\\)").replace("[", "\\[").replace("]", "\\]").replace("{", "\\{").replace("}", "\\}")
 
-    def zenity_sanity_check(): #make sure zenity is sane
-        nonlocal zenity_bin
+    def zenity_sanity_check(zenity_bin): #make sure zenity is sane
         try: # Run `zenity --help` and pipe to grep
-            result = subprocess.run(f"{zenity_bin} --help | grep Usage", shell=True, capture_output=True, text=True, encoding='utf-8', timeout=10)
+            sc_clean_env = os.environ.copy()
+            sc_clean_env.pop("LD_LIBRARY_PATH", None)
+            sc_clean_env["PATH"] = "/usr/bin:/bin"
+            scargs = ['/usr/bin/env', zenity_bin, '--help']
+            result = subprocess.run(scargs, env=sc_clean_env, capture_output=True, text=True, encoding="utf-8", timeout=10)
+
             if result.returncode == 0 and "Usage" in result.stdout:
                 return True
             else:
+                print(f"Zenity/YAD sanity check failed - ReturnCode={result.returncode}")
                 return False
         except FileNotFoundError:
+            print(f"Zenity/YAD sanity check failed - {zenity_bin} not found")
             return False
 
-    if not zenity_sanity_check():
+    if not zenity_sanity_check(zenity_bin):
         raise Exception("Zenity not working correctly, falling back to TK GUI.")
 
     # Build args based on keywords
@@ -5818,18 +5824,20 @@ def setuptunnel(global_memory, has_sd):
             tunneloutput = ""
             tunnelrawlog = ""
             time.sleep(0.2)
+            tunnelbinary = ""
             if os.name == 'nt':
                 print("Starting Cloudflare Tunnel for Windows, please wait...", flush=True)
-                tunnelproc = subprocess.Popen(f"cloudflared.exe tunnel --url {httpsaffix}://localhost:{args.port}{ssladd}", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                tunnelbinary = "cloudflared.exe"
             elif sys.platform=="darwin":
                 print("Starting Cloudflare Tunnel for MacOS, please wait...", flush=True)
-                tunnelproc = subprocess.Popen(f"./cloudflared tunnel --url {httpsaffix}://localhost:{args.port}{ssladd}", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                tunnelbinary = "./cloudflared"
             elif sys.platform == "linux" and platform.machine().lower() == "aarch64":
                 print("Starting Cloudflare Tunnel for ARM64 Linux, please wait...", flush=True)
-                tunnelproc = subprocess.Popen(f"./cloudflared-linux-arm64 tunnel --url {httpsaffix}://localhost:{args.port}{ssladd}", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                tunnelbinary = "./cloudflared-linux-arm64"
             else:
                 print("Starting Cloudflare Tunnel for Linux, please wait...", flush=True)
-                tunnelproc = subprocess.Popen(f"./cloudflared-linux-amd64 tunnel --url {httpsaffix}://localhost:{args.port}{ssladd}", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                tunnelbinary = "./cloudflared-linux-amd64"
+            tunnelproc = subprocess.Popen(f"{tunnelbinary} tunnel --url {httpsaffix}://localhost:{int(args.port)}{ssladd}", text=True, encoding='utf-8', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
             time.sleep(10)
             def tunnel_reader():
                 nonlocal tunnelproc,tunneloutput,tunnelrawlog
@@ -5963,6 +5971,8 @@ def load_config_cli(filename):
     print("Loading .kcpps configuration file...")
     with open(filename, 'r', encoding='utf-8', errors='ignore') as f:
         config = json.load(f)
+        if "onready" in config:
+            config["onready"] = "" #do not allow onready commands from config
         args.istemplate = False
         raw_args = (sys.argv[1:]) #a lousy hack to allow for overriding kcpps
         for key, value in config.items():
@@ -6069,30 +6079,26 @@ def downloader_internal(input_url, output_filename, capture_output, min_file_siz
 
     try:
         if shutil.which("aria2c") is not None:
-            rc = subprocess.run(
-                f"aria2c -x 16 -s 16 --summary-interval=30 --console-log-level=error --log-level=error --download-result=default --allow-overwrite=true --file-allocation=none -o {output_filename} {input_url}",
-                shell=True, capture_output=capture_output, text=True, check=True, encoding='utf-8'
-            )
+            rc = subprocess.run([
+                    "aria2c", "-x", "16", "-s", "16", "--summary-interval=30", "--console-log-level=error", "--log-level=error",
+                    "--download-result=default", "--allow-overwrite=true", "--file-allocation=none", "-o", output_filename, input_url
+                ], capture_output=capture_output, text=True, check=True, encoding='utf-8')
             dl_success = (rc.returncode == 0 and os.path.exists(output_filename) and os.path.getsize(output_filename) > min_file_size)
     except subprocess.CalledProcessError as e:
         print(f"aria2c failed: {e}")
 
     try:
         if not dl_success and shutil.which("curl") is not None:
-            rc = subprocess.run(
-                f"curl -fLo {output_filename} {input_url}",
-                shell=True, capture_output=capture_output, text=True, check=True, encoding='utf-8'
-            )
+            rc = subprocess.run(["curl", "-fLo", output_filename, input_url],
+                capture_output=capture_output, text=True, check=True, encoding="utf-8")
             dl_success = (rc.returncode == 0 and os.path.exists(output_filename) and os.path.getsize(output_filename) > min_file_size)
     except subprocess.CalledProcessError as e:
         print(f"curl failed: {e}")
 
     try:
         if not dl_success and shutil.which("wget") is not None:
-            rc = subprocess.run(
-                f"wget -O {output_filename} {input_url}",
-                shell=True, capture_output=capture_output, text=True, check=True, encoding='utf-8'
-            )
+            rc = subprocess.run(["wget", "-O", output_filename, input_url],
+                capture_output=capture_output, text=True, check=True, encoding="utf-8")
             dl_success = (rc.returncode == 0 and os.path.exists(output_filename) and os.path.getsize(output_filename) > min_file_size)
     except subprocess.CalledProcessError as e:
         print(f"wget failed: {e}")

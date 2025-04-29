@@ -1,5 +1,5 @@
 {
-  "system_start": "[gMASK]<sop><|system|>\n",
+  "system_start": "<|system|>\n",
   "system_end": "",
   "user_start": "<|user|>\n",
   "user_end": "",
