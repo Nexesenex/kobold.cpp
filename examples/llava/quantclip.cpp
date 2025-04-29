@@ -16,7 +16,7 @@ int main(int argc, char ** argv) {
 
      if (argc != 3 && argc != 4) {
         fprintf(stderr, "usage: %s mmproj-f16.gguf output-mmproj-quantized.gguf TYPE\n", argv[0]);
-        printf("\nGGML_TYPE_Q4_0    = 2\nGGML_TYPE_Q4_1    = 3\nGGML_TYPE_Q5_0    = 6\nGGML_TYPE_Q5_1    = 7\nGGML_TYPE_Q8_0    = 8\n");
+        printf("\nGGML_TYPE_F16    = 1\nGGML_TYPE_Q4_0    = 2\nGGML_TYPE_Q4_1    = 3\nGGML_TYPE_Q5_0    = 6\nGGML_TYPE_Q5_1    = 7\nGGML_TYPE_Q8_0    = 8\n");
 
         return 1;
     }

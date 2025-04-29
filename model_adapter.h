@@ -77,6 +77,7 @@ struct FileFormatExtraMeta
 
     int n_expert_count = 0;
     std::string model_architecture_str = "";
+    bool explicitly_no_bos = false; //only true if key exists AND is false
 };
 
 struct TopPicksData

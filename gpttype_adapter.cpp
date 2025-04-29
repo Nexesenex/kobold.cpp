@@ -2054,9 +2054,10 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     kcpp_data->n_ctx = clamped_max_context_length;
     max_context_limit_at_load = clamped_max_context_length;
     add_bos_token = !inputs.no_bos_token;
+
     if(!add_bos_token)
     {
-        printf("\n======\nBOS token prefix was disabled! Your output may be degraded!\n======\n");
+        printf("\n======\nBOS token prefix was disabled! Your output may be degraded unless model was designed for it!\n======\n");
     }
 
     neox_ctx_v2.hparams.n_ctx  = neox_ctx_v3.hparams.n_ctx
@@ -2605,6 +2606,14 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
                 speculative_chunk_amt = inputs.draft_amount;
                 speculative_decoding_setup(draftmodel_filename, model_params, llama_ctx_params, n_vocab, inputs.draft_gpusplit, inputs.draft_gpulayers, inputs.draft_quant_k, inputs.draft_quant_v);
             }
+        }
+
+        //we cannot really trust the add bos in vocab. old models don't set it.
+        // instead, we EXPLICITY need to find the add_bos_token key==false to automatically set it off.
+        if(!llamamodel->vocab.get_add_bos() && add_bos_token && file_format_meta.explicitly_no_bos)
+        {
+            printf("\nThis architecture has explicitly disabled the BOS token - if you need it, you must add it manually.\n");
+            add_bos_token = false;
         }
 
         //warmup at least 33 tokens to trigger batch
@@ -3698,6 +3707,30 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                     }
                 }
                 printf("\nFound a total of %zu restart heads, %d trivial, %d non-trivial.\n", dry_sequence_breakers.size(), trivial, non_trivial);
+            }
+        }
+    }
+
+    //need to add a cursed hack to get coherency for GLM4, by ensuring injection for both sop and gmask
+    if (file_format == FileFormat::GGUF_GENERIC && file_format_meta.model_architecture == GGUFArch::ARCH_GLM4) {
+        std::string temp = gpttype_get_chat_template();
+        if (temp.find("[gMASK]<sop>") != std::string::npos) {
+            if (addedmemory == "") {
+                if (kcpp_data->prompt.rfind("[gMASK]", 0) == 0) {  //check startswith
+                    kcpp_data->prompt.erase(0, 7);
+                }
+                if (kcpp_data->prompt.rfind("<sop>", 0) == 0) {  //check startswith
+                    kcpp_data->prompt.erase(0, 5);
+                }
+                addedmemory = "<sop>";
+            } else {
+                if (addedmemory.rfind("[gMASK]", 0) == 0) {  //check startswith
+                    addedmemory.erase(0, 7);
+                }
+                if (addedmemory.rfind("<sop>", 0) == 0) {  //check startswith
+                    addedmemory.erase(0, 5);
+                }
+                addedmemory = "<sop>" + addedmemory;
             }
         }
     }

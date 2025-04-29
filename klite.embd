@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 233;
+	const LITEVER = 234;
 	const urlParams = new URLSearchParams(window.location.search);
 	var localflag = urlParams.get('local'); //this will be replaced automatically in embedded kcpp
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -3190,6 +3190,7 @@ Current version indicated by LITEVER below.
 		instruct_systag_end: "",
 		instruct_sysprompt: "",
 		instruct_has_markdown: true,
+		instruct_has_latex: true,
 		placeholder_tags: true,
 		render_special_tags: false,
 		request_logprobs: false,
@@ -3363,6 +3364,16 @@ Current version indicated by LITEVER below.
 	},
 	{
 		"id":3,
+		"name":"ChatML (No Think)",
+		"user":"<|im_start|>user\\n",
+		"user_end":"<|im_end|>\\n",
+		"assistant":"<|im_start|>assistant\\n<think>\\n\\n</think>\\n",
+		"assistant_end":"<|im_end|>\\n",
+		"system":"<|im_start|>system\\n",
+		"system_end":"<|im_end|>\\n",
+	},
+	{
+		"id":4,
 		"name":"CommandR",
 		"user":"<|START_OF_TURN_TOKEN|><|USER_TOKEN|>",
 		"user_end":"<|END_OF_TURN_TOKEN|>",
@@ -3372,7 +3383,7 @@ Current version indicated by LITEVER below.
 		"system_end":"<|END_OF_TURN_TOKEN|>",
 	},
 	{
-		"id":4,
+		"id":5,
 		"name":"Gemma 2 & 3",
 		"user":"<start_of_turn>user\\n",
 		"user_end":"<end_of_turn>\\n",
@@ -3382,7 +3393,7 @@ Current version indicated by LITEVER below.
 		"system_end":"<end_of_turn>\\n",
 	},
 	{
-		"id":5,
+		"id":6,
 		"name":"Llama 2 Chat",
 		"user":"[INST] ",
 		"user_end":"",
@@ -3392,7 +3403,7 @@ Current version indicated by LITEVER below.
 		"system_end":"",
 	},
 	{
-		"id":6,
+		"id":7,
 		"name":"Llama 3 Chat",
 		"user":"<|start_header_id|>user<|end_header_id|>\\n\\n",
 		"user_end":"<|eot_id|>",
@@ -3402,7 +3413,7 @@ Current version indicated by LITEVER below.
 		"system_end":"<|eot_id|>",
 	},
 	{
-		"id":7,
+		"id":8,
 		"name":"Llama 4 Chat",
 		"user":"<|header_start|>user<|header_end|>\\n\\n",
 		"user_end":"<|eot|>",
@@ -3412,7 +3423,7 @@ Current version indicated by LITEVER below.
 		"system_end":"<|eot|>",
 	},
 	{
-		"id":8,
+		"id":9,
 		"name":"Metharme",
 		"user":"<|user|>",
 		"user_end":"",
@@ -3422,7 +3433,7 @@ Current version indicated by LITEVER below.
 		"system_end":"",
 	},
 	{
-		"id":9,
+		"id":10,
 		"name":"Mistral V1",
 		"user":" [INST] ",
 		"user_end":"",
@@ -3432,7 +3443,7 @@ Current version indicated by LITEVER below.
 		"system_end":"",
 	},
 	{
-		"id":10,
+		"id":11,
 		"name":"Mistral V2 & V3",
 		"user":"[INST] ",
 		"user_end":"",
@@ -3442,7 +3453,7 @@ Current version indicated by LITEVER below.
 		"system_end":"",
 	},
 	{
-		"id":11,
+		"id":12,
 		"name":"Mistral V7 & V3-Tekken",
 		"user":"[INST]",
 		"user_end":"",
@@ -3452,7 +3463,7 @@ Current version indicated by LITEVER below.
 		"system_end":"[/SYSTEM_PROMPT]",
 	},
 	{
-		"id":12,
+		"id":13,
 		"name":"Phi-3 Mini",
 		"user":"<|user|>\\n",
 		"user_end":"<|end|>\\n",
@@ -3462,7 +3473,7 @@ Current version indicated by LITEVER below.
 		"system_end":"<|end|>\\n",
 	},
 	{
-		"id":13,
+		"id":14,
 		"name":"Vicuna",
 		"user":"\\nUSER: ",
 		"user_end":"",
@@ -3472,7 +3483,7 @@ Current version indicated by LITEVER below.
 		"system_end":"",
 	},
 	{
-		"id":14,
+		"id":15,
 		"name":"Deepseek V2.5",
 		"user":"<｜User｜>",
 		"user_end":"<｜end▁of▁sentence｜>",
@@ -3482,7 +3493,17 @@ Current version indicated by LITEVER below.
 		"system_end":"",
 	},
 	{
-		"id":15,
+		"id":16,
+		"name":"GLM-4",
+		"user":"<|user|>\\n",
+		"user_end":"",
+		"assistant":"<|assistant|>",
+		"assistant_end":"",
+		"system":"<|system|>\\n",
+		"system_end":"",
+	},
+	{
+		"id":100,
 		"name":"KoboldCppAutomatic",
 		"user":"{{[INPUT]}}",
 		"user_end":"",
@@ -5472,7 +5493,7 @@ Current version indicated by LITEVER below.
 		navigator.clipboard.writeText(innercode);
 	}
 
-	function simpleMarkdown(text) {
+	function simpleMarkdown(text, renderLatex) {
 		const escapeHTML = (str) => str.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 		const highlightCode = (code) => {
 			let cpybtn = `<button class="unselectable" onclick="return copyMarkdownCode(this)" style="float:right;">Copy</button>`;
@@ -5595,7 +5616,10 @@ Current version indicated by LITEVER below.
 			.replace(/  \n/g, "\n<br/>");
 			md = replaceTabbedCodeblocks(md);
 			md = md.replace(/<\/code\><\/pre\>\n<pre\><code\>/g, "\n");
-			md = replaceLatex(md);
+			if(renderLatex)
+			{
+				md = replaceLatex(md);
+			}
 			md = md.replace(/<\/ul>\n/gm, "</ul>").replace(/<\/ol>\n/gm, "</ol>");
 			md = md.replace(/\\([`_~\*\+\-\.\^\\\<\>\(\)\[\]])/gm, "$1");
 			return md;
@@ -11327,6 +11351,7 @@ Current version indicated by LITEVER below.
 		document.getElementById("adventure_context_mod").checked = localsettings.adventure_context_mod;
 		document.getElementById("chat_context_mod").checked = localsettings.chat_context_mod;
 		document.getElementById("instruct_has_markdown").checked = localsettings.instruct_has_markdown;
+		document.getElementById("instruct_has_latex").checked = localsettings.instruct_has_latex;
 		document.getElementById("placeholder_tags").checked = localsettings.placeholder_tags;
 		document.getElementById("run_in_background").checked = run_in_background;
 		document.getElementById("auto_ctxlen").checked = localsettings.auto_ctxlen;
@@ -11798,6 +11823,7 @@ Current version indicated by LITEVER below.
 		localsettings.adventure_context_mod = (document.getElementById("adventure_context_mod").checked ? true : false);
 		localsettings.chat_context_mod = (document.getElementById("chat_context_mod").checked ? true : false);
 		localsettings.instruct_has_markdown = (document.getElementById("instruct_has_markdown").checked ? true : false);
+		localsettings.instruct_has_latex = (document.getElementById("instruct_has_latex").checked ? true : false);
 		localsettings.placeholder_tags = (document.getElementById("placeholder_tags").checked ? true : false);
 		run_in_background = (document.getElementById("run_in_background").checked ? true : false);
 		background_audio_loop(run_in_background);
@@ -18077,7 +18103,7 @@ Current version indicated by LITEVER below.
 					{
 						fulltxt += "```"; //force end code block
 					}
-					fulltxt = simpleMarkdown(fulltxt);
+					fulltxt = simpleMarkdown(fulltxt,localsettings.instruct_has_latex);
 				}
 
 				let instruct_turns = repack_instruct_turns(fulltxt, `%SpcStg%`,`%SpcEtg%`,`%SpcSyg%`, true);
@@ -18866,7 +18892,10 @@ Current version indicated by LITEVER below.
 				{
 					processed_msg += "```"; //force end code block
 				}
-				processed_msg = simpleMarkdown(processed_msg);
+				if(localsettings.instruct_has_markdown)
+				{
+					processed_msg = simpleMarkdown(processed_msg,localsettings.instruct_has_latex);
+				}
 
 				//convert the msg into images
 				processed_msg = processed_msg.replace(/\[<\|p\|.+?\|p\|>\]/g, function (m) {
@@ -20658,7 +20687,7 @@ Current version indicated by LITEVER below.
 					replacedText = replacedText.replace(/&quot;(.*?)&quot;/g, wrapperSpan(styleRole, 'speech')); 	// Apply the speech style to "speech".
 					if(localsettings.instruct_has_markdown)
 					{
-						replacedText = simpleMarkdown(replacedText);
+						replacedText = simpleMarkdown(replacedText,localsettings.instruct_has_latex);
 					}
 					return `<span>${replacedText}</span>`;
 				});
@@ -21676,8 +21705,13 @@ Current version indicated by LITEVER below.
 					<div class="settingitem">
 						<div class="settinglabel">
 							<div class="justifyleft settingsmall">Enable Markdown <span class="helpicon">?<span
-								class="helptext">Allows the UI to use markdown formatting such as quotes, LaTeX, and code blocks.</span></span></div>
+								class="helptext">Allows the UI to use markdown formatting such as quotes and code blocks.</span></span></div>
 								<input type="checkbox" title="Enabled Markdown" id="instruct_has_markdown" style="margin:0px 0px 0px auto;">
+						</div>
+						<div class="settinglabel">
+							<div class="justifyleft settingsmall">Enable LaTeX <span class="helpicon">?<span
+								class="helptext">Allows the UI to render LaTeX within markdown formatting (Needs Markdown).</span></span></div>
+								<input type="checkbox" title="Enable LaTeX (Needs Markdown)" id="instruct_has_latex" style="margin:0px 0px 0px auto;">
 						</div>
 						<div class="settinglabel">
 							<div class="justifyleft settingsmall">Trim Sentences <span class="helpicon">?<span
