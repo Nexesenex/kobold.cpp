@@ -25171,7 +25171,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			if (loadingNewGame)
 			{
 				loadingNewGame = false
-				for (let i = combined_chunks.length - 1; i >= 0 && i > combined_chunks.length - 10; i--) {
+				for (let i = combined_chunks.length - 1; i >= 0 && i >= combined_chunks.length - 4; i--) {
 					let elem = combined_chunks[i]
 					if (elem.message.indexOf("Action: ") === 0) {
 						let actionJson = elem.message.replace("Action:", "").trim()
@@ -25781,6 +25781,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		
 		removeChoiceContainer()
 		originalMergeEditField()
+		renderSuggestions()
 	}
 
 	let originalBtnBack = btn_back, originalBtnRedo = btn_redo, originalBtnRetry = btn_retry;
