@@ -33,7 +33,7 @@ int main(int argc, char ** argv) {
 
     printf("quantizing mmproj clip model to type=%d... ",type);
     clip_model_quantize(fname_inp.c_str(), fname_out.c_str(), type);
-    printf("done\n");
+    printf("\ndone\n");
 
     return 0;
 }

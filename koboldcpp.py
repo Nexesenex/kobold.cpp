@@ -59,11 +59,11 @@ dry_seq_break_max = 512
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.90050"
-LcppVersion = "b5218"
-EsoboldVersion = "RMv1.8.3+6c"
+KcppVersion = "1.90105"
+LcppVersion = "b5226"
+EsoboldVersion = "RMv1.8.3+7c"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/04/29"
+ReleaseDate = "2025/04/30"
 showdebug = True
 # guimode = False
 kcpp_instance = None #global running instance
@@ -2762,9 +2762,9 @@ def transform_genparams(genparams, api_format):
         default_adapter = {} if chatcompl_adapter is None else chatcompl_adapter
         adapter_obj = genparams.get('adapter', default_adapter)
         default_max_tok = (adapter_obj.get("max_length", args.defaultgenamt) if (api_format==4 or api_format==7) else args.defaultgenamt)
-        genparams["max_length"] = int(genparams.get('max_tokens', genparams.get('max_completion_tokens', default_max_tok)))
+        genparams["max_length"] = tryparseint(genparams.get('max_tokens', genparams.get('max_completion_tokens', default_max_tok)),default_max_tok)
         presence_penalty = genparams.get('presence_penalty', genparams.get('frequency_penalty', 0.0))
-        genparams["presence_penalty"] = float(presence_penalty)
+        genparams["presence_penalty"] = tryparsefloat(presence_penalty,0.0)
         # openai allows either a string or a list as a stop sequence
         if isinstance(genparams.get('stop',[]), list):
             genparams["stop_sequence"] = genparams.get('stop', [])
@@ -2777,7 +2777,7 @@ def transform_genparams(genparams, api_format):
         if api_format==4 or api_format==7: #handle ollama chat here too
             # translate openai chat completion messages format into one big string.
             messages_array = genparams.get('messages', [])
-            messages_string = adapter_obj.get("chat_start", "")
+            messages_string = "" #chat start no longer needed, handled internally
             system_message_start = adapter_obj.get("system_start", "\n### Instruction:\n")
             system_message_end = adapter_obj.get("system_end", "")
             user_message_start = adapter_obj.get("user_start", "\n### Instruction:\n")
