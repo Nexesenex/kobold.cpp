@@ -3489,12 +3489,24 @@ bool clip_model_quantize(const char * fname_inp, const char * fname_out, const i
     assert(itype < GGML_TYPE_COUNT);
     ggml_type type = static_cast<ggml_type>(itype);
 
-    auto * ctx_clip = clip_init(fname_inp, clip_context_params{
+    auto ccparams = clip_context_params{
         /* use_gpu */   false,
-        /* verbosity */ GGML_LOG_LEVEL_ERROR,
-    });
+        /* verbosity */ GGML_LOG_LEVEL_DEBUG,
+    };
+    g_logger_state.verbosity_thold = ccparams.verbosity;
+    clip_ctx * ctx_clip = new clip_ctx(ccparams);
+    clip_model_loader loader(fname_inp, *ctx_clip);
+    try {
+        loader.load_hparams();
+        loader.load_tensors();
+        loader.alloc_compute_meta();
+    } catch (const std::exception & e) {
+        printf("%s: failed to load model '%s': %s\n", __func__, fname_inp, e.what());
+        delete ctx_clip;
+        return false;
+    }
 
-    const auto & ctx_src = ctx_clip->ctx_gguf.get();
+    const auto & ctx_src = loader.ctx_gguf.get();
     const auto & ctx_data = ctx_clip->ctx_data.get();
 
     auto * ctx_out = gguf_init_empty();

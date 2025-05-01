@@ -52,7 +52,7 @@ logit_bias_max = 512
 dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.90"
+KcppVersion = "1.90.1"
 showdebug = True
 kcpp_instance = None #global running instance
 global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None}
@@ -2042,14 +2042,15 @@ def transform_genparams(genparams, api_format):
         default_adapter = {} if chatcompl_adapter is None else chatcompl_adapter
         adapter_obj = genparams.get('adapter', default_adapter)
         default_max_tok = (adapter_obj.get("max_length", args.defaultgenamt) if (api_format==4 or api_format==7) else args.defaultgenamt)
-        genparams["max_length"] = int(genparams.get('max_tokens', genparams.get('max_completion_tokens', default_max_tok)))
+        genparams["max_length"] = tryparseint(genparams.get('max_tokens', genparams.get('max_completion_tokens', default_max_tok)),default_max_tok)
         presence_penalty = genparams.get('presence_penalty', genparams.get('frequency_penalty', 0.0))
-        genparams["presence_penalty"] = float(presence_penalty)
+        genparams["presence_penalty"] = tryparsefloat(presence_penalty,0.0)
         # openai allows either a string or a list as a stop sequence
-        if isinstance(genparams.get('stop',[]), list):
-            genparams["stop_sequence"] = genparams.get('stop', [])
-        else:
-            genparams["stop_sequence"] = [genparams.get('stop')]
+        if genparams.get('stop',[]) is not None:
+            if isinstance(genparams.get('stop',[]), list):
+                genparams["stop_sequence"] = genparams.get('stop', [])
+            else:
+                genparams["stop_sequence"] = [genparams.get('stop')]
 
         genparams["sampler_seed"] = tryparseint(genparams.get('seed', -1),-1)
         genparams["mirostat"] = genparams.get('mirostat_mode', 0)
@@ -2057,7 +2058,7 @@ def transform_genparams(genparams, api_format):
         if api_format==4 or api_format==7: #handle ollama chat here too
             # translate openai chat completion messages format into one big string.
             messages_array = genparams.get('messages', [])
-            messages_string = adapter_obj.get("chat_start", "")
+            messages_string = "" #chat start no longer needed, handled internally
             system_message_start = adapter_obj.get("system_start", "\n### Instruction:\n")
             system_message_end = adapter_obj.get("system_end", "")
             user_message_start = adapter_obj.get("user_start", "\n### Instruction:\n")
@@ -2244,7 +2245,8 @@ ws ::= | " " | "\n" [ \t]{0,20}
         ollamasysprompt = genparams.get('system', "")
         ollamabodyprompt = f"{detokstr}{user_message_start}{genparams.get('prompt', '')}{assistant_message_start}"
         ollamaopts = genparams.get('options', {})
-        genparams["stop_sequence"] = genparams.get('stop', [])
+        if genparams.get('stop',[]) is not None:
+            genparams["stop_sequence"] = genparams.get('stop', [])
         if "num_predict" in ollamaopts:
             genparams["max_length"] = ollamaopts.get('num_predict', args.defaultgenamt)
         if "num_ctx" in ollamaopts:
@@ -4090,9 +4092,12 @@ def zenity(filetypes=None, initialdir="", initialfile="", **kwargs) -> Tuple[int
     if sys.platform != "linux":
         raise Exception("Zenity GUI is only usable on Linux, attempting to use TK GUI.")
     zenity_bin = shutil.which("yad")
+    using_yad = True
     if not zenity_bin:
         zenity_bin = shutil.which("zenity")
+        using_yad = False
     if not zenity_bin:
+        using_yad = False
         raise Exception("Zenity not present, falling back to TK GUI.")
 
     def zenity_clean(txt: str):
@@ -4121,7 +4126,7 @@ def zenity(filetypes=None, initialdir="", initialfile="", **kwargs) -> Tuple[int
         raise Exception("Zenity not working correctly, falling back to TK GUI.")
 
     # Build args based on keywords
-    args = ['/usr/bin/env', zenity_bin, '--file-selection']
+    args = ['/usr/bin/env', zenity_bin, ('--file' if using_yad else '--file-selection')]
     for k, v in kwargs.items():
         if v is True:
             args.append(f'--{k.replace("_", "-").strip("-")}')
@@ -6569,7 +6574,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
         global maxctx
         maxctx = args.contextsize
 
-    args.defaultgenamt = max(128, min(args.defaultgenamt, 2048))
+    args.defaultgenamt = max(128, min(args.defaultgenamt, 4096))
     args.defaultgenamt = min(args.defaultgenamt, maxctx / 2)
 
     if args.nocertify:
@@ -7137,7 +7142,7 @@ if __name__ == '__main__':
     advparser.add_argument("--exporttemplate", help="Exports the current selected arguments as a .kcppt template file", metavar=('[filename]'), type=str, default="")
     advparser.add_argument("--nomodel", help="Allows you to launch the GUI alone, without selecting any model.", action='store_true')
     advparser.add_argument("--moeexperts", metavar=('[num of experts]'), help="How many experts to use for MoE models (default=follow gguf)", type=int, default=-1)
-    advparser.add_argument("--defaultgenamt", help="How many tokens to generate by default, if not specified. Must be smaller than context size. Usually, your frontend GUI will override this.", type=check_range(int,128,2048), default=512)
+    advparser.add_argument("--defaultgenamt", help="How many tokens to generate by default, if not specified. Must be smaller than context size. Usually, your frontend GUI will override this.", type=check_range(int,64,4096), default=512)
     advparser.add_argument("--nobostoken", help="Prevents BOS token from being added at the start of any prompt. Usually NOT recommended for most models.", action='store_true')
     advparser.add_argument("--maxrequestsize", metavar=('[size in MB]'), help="Specify a max request payload size. Any requests to the server larger than this size will be dropped. Do not change if unsure.", type=int, default=32)
     advparser.add_argument("--overridekv", metavar=('[name=type:value]'), help="Advanced option to override a metadata by key, same as in llama.cpp. Mainly for debugging, not intended for general use. Types: int, float, bool, str", default="")

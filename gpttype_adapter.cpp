@@ -1907,10 +1907,18 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         printf("Warning: Only GGUF models can use max context above 16k. Max context lowered to 16k.\n");
         clamped_max_context_length = 16384;
     }
-    if (isGguf && file_format_meta.model_architecture == GGUFArch::ARCH_GLM4 && kcpp_data->n_batch > 16) {
-        printf("GLM-4 is broken on larger batch sizes. Clamping batch size to 16.\n");
-        kcpp_data->n_batch = kcpp_data->n_ubatch = 16;
+
+    #if defined(GGML_USE_VULKAN)
+    if (isGguf && file_format_meta.model_architecture == GGUFArch::ARCH_GLM4 && kcpp_data->n_ubatch > 16) {
+        if(debugmode==1)
+        {
+            printf("GLM-4 is broken on larger batch sizes in Vulkan. Clamp ignored in debug.\n");
+        } else {
+            printf("GLM-4 is broken on larger batch sizes in Vulkan. Clamping ubatch size to 16.\n");
+            kcpp_data->n_ubatch = 16;
+        }
     }
+    #endif
 
     kcpp_data->n_ctx = clamped_max_context_length;
     max_context_limit_at_load = clamped_max_context_length;
