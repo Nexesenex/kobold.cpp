@@ -59,11 +59,11 @@ dry_seq_break_max = 512
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.90105"
-LcppVersion = "b5226"
-EsoboldVersion = "RMv1.8.3+7c"
+KcppVersion = "1.90110"
+LcppVersion = "b5232"
+EsoboldVersion = "RMv1.9.1"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/04/30"
+ReleaseDate = "2025/05/02"
 showdebug = True
 # guimode = False
 kcpp_instance = None #global running instance
@@ -2766,10 +2766,11 @@ def transform_genparams(genparams, api_format):
         presence_penalty = genparams.get('presence_penalty', genparams.get('frequency_penalty', 0.0))
         genparams["presence_penalty"] = tryparsefloat(presence_penalty,0.0)
         # openai allows either a string or a list as a stop sequence
-        if isinstance(genparams.get('stop',[]), list):
-            genparams["stop_sequence"] = genparams.get('stop', [])
-        else:
-            genparams["stop_sequence"] = [genparams.get('stop')]
+        if genparams.get('stop',[]) is not None:
+            if isinstance(genparams.get('stop',[]), list):
+                genparams["stop_sequence"] = genparams.get('stop', [])
+            else:
+                genparams["stop_sequence"] = [genparams.get('stop')]
 
         genparams["sampler_seed"] = tryparseint(genparams.get('seed', -1),-1)
         genparams["mirostat"] = genparams.get('mirostat_mode', 0)
@@ -2964,7 +2965,8 @@ ws ::= | " " | "\n" [ \t]{0,20}
         ollamasysprompt = genparams.get('system', "")
         ollamabodyprompt = f"{detokstr}{user_message_start}{genparams.get('prompt', '')}{assistant_message_start}"
         ollamaopts = genparams.get('options', {})
-        genparams["stop_sequence"] = genparams.get('stop', [])
+        if genparams.get('stop',[]) is not None:
+            genparams["stop_sequence"] = genparams.get('stop', [])
         if "num_predict" in ollamaopts:
             genparams["max_length"] = ollamaopts.get('num_predict', args.defaultgenamt)
         if "num_ctx" in ollamaopts:
@@ -4819,9 +4821,12 @@ def zenity(filetypes=None, initialdir="", initialfile="", **kwargs) -> Tuple[int
     if sys.platform != "linux":
         raise Exception("Zenity GUI is only usable on Linux, attempting to use TK GUI.")
     zenity_bin = shutil.which("yad")
+    using_yad = True
     if not zenity_bin:
         zenity_bin = shutil.which("zenity")
+        using_yad = False
     if not zenity_bin:
+        using_yad = False
         raise Exception("Zenity not present, falling back to TK GUI.")
 
     def zenity_clean(txt: str):
@@ -4850,7 +4855,7 @@ def zenity(filetypes=None, initialdir="", initialfile="", **kwargs) -> Tuple[int
         raise Exception("Zenity not working correctly, falling back to TK GUI.")
 
     # Build args based on keywords
-    args = ['/usr/bin/env', zenity_bin, '--file-selection']
+    args = ['/usr/bin/env', zenity_bin, ('--file' if using_yad else '--file-selection')]
     for k, v in kwargs.items():
         if v is True:
             args.append(f'--{k.replace("_", "-").strip("-")}')
@@ -7492,7 +7497,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
         global maxctx
         maxctx = args.contextsize
 
-    args.defaultgenamt = max(128, min(args.defaultgenamt, 2048))
+    args.defaultgenamt = max(128, min(args.defaultgenamt, 4096))
     args.defaultgenamt = min(args.defaultgenamt, maxctx / 2)
 
     if args.nocertify:
@@ -8176,12 +8181,11 @@ if __name__ == '__main__':
     advparser.add_argument("--exporttemplate", help="Exports the current selected arguments as a .kcppt template file", metavar=('[filename]'), type=str, default="")
     advparser.add_argument("--nomodel", help="Allows you to launch the GUI alone, without selecting any model.", action='store_true')
     advparser.add_argument("--moeexperts", metavar=('[num of experts]'), help="How many experts to use for MoE models (default=follow gguf)", type=int, default=-1)
-
     advparser.add_argument("--normrmseps", metavar=('[norm rms eps]'), help="Override Norm RMS Epsilon value to use for the model. Useful for <2bpw quants mainly. Example of format: 1.95e-05 (default=follow gguf)", type=float, default=-1.0)
     advparser.add_argument("--poslayeroffset", help="Removes or adds a layer to the GPU layers autoloader calculation in case of OOM or under-exploitation.", type=check_range(int,0,10), default=0)
     advparser.add_argument("--neglayeroffset", help="Removes or adds a layer to the GPU layers autoloader calculation in case of OOM or under-exploitation.", type=check_range(int,0,10), default=0)
 
-    advparser.add_argument("--defaultgenamt", help="How many tokens to generate by default, if not specified. Must be smaller than context size. Usually, your frontend GUI will override this.", type=check_range(int,128,2048), default=512)
+    advparser.add_argument("--defaultgenamt", help="How many tokens to generate by default, if not specified. Must be smaller than context size. Usually, your frontend GUI will override this.", type=check_range(int,64,4096), default=512)
     advparser.add_argument("--nobostoken", help="Prevents BOS token from being added at the start of any prompt. Usually NOT recommended for most models.", action='store_true')
     advparser.add_argument("--maxrequestsize", metavar=('[size in MB]'), help="Specify a max request payload size. Any requests to the server larger than this size will be dropped. Do not change if unsure.", type=int, default=32)
 
