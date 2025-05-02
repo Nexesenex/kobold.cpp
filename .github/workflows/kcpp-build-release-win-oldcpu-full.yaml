@@ -62,6 +62,7 @@ jobs:
         id: cuda-toolkit
         with:
           cuda: '11.4.4'
+          use-github-cache: false
 
       - name: Build CUDA
         id: cmake_build
