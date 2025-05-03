@@ -1621,13 +1621,17 @@ def whisper_load_model(model_filename):
 
 def extract_text(genparams):
     global args
-    docData = genparams.get("docData", "")
-    if docData.startswith("data:text"):
-        docData = docData.split(",", 1)[1]
-    else:
-        return ""
-
+    
     try:
+        docData = genparams.get("docData", "")
+        if docData.startswith("data:text"):
+            docData = docData.split(",", 1)[1]
+        elif docData.startswith("data:audio"):
+            genparams["audio_data"] = docData
+            return whisper_generate(genparams)
+        else:
+            return ""
+
         # Add padding if necessary
         padding = len(docData) % 4
         if padding != 0:
@@ -1639,7 +1643,7 @@ def extract_text(genparams):
         decoded_string = decoded_bytes.decode("UTF-8")
         return decoded_string
     except Exception as e:
-        print(f"Error decoding Base64: {str(e)}")
+        print(f"Error extracting text: {str(e)}")
         return ""
 
 def whisper_generate(genparams):

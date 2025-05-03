@@ -26262,10 +26262,21 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			promptUserForLocalFile(async (fileDetails) => {
 				let {file, fileName, ext, content} = fileDetails
-				let extractedText = await this.extractTextFromDocument(content)
-				if (!!extractedText?.text)
+				let extractedText = undefined
+
+				if (content.startsWith("data:image"))
 				{
-					replaceDocumentFromTextDB(fileName, extractedText?.text)
+					let analysisPrompt = "Perform OCR on the provided image."
+					extractedText = await generateAndGetTextFromPrompt(`${createInstructPrompt(analysisPrompt)}${instructendplaceholder}${!!localsettings?.inject_jailbreak_instruct ? localsettings.custom_jailbreak_text : ""}`, undefined, [content.split(",")[1]])	
+				}
+				else
+				{
+					extractedText = (await this.extractTextFromDocument(content))?.text
+				}
+				
+				if (!!extractedText)
+				{
+					replaceDocumentFromTextDB(fileName, extractedText)
 				}
 			})
 		}
