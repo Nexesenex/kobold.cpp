@@ -1619,6 +1619,29 @@ def whisper_load_model(model_filename):
     ret = handle.whisper_load_model(inputs)
     return ret
 
+def extract_text(genparams):
+    global args
+    docData = genparams.get("docData", "")
+    if docData.startswith("data:text"):
+        docData = docData.split(",", 1)[1]
+    else:
+        return ""
+
+    try:
+        # Add padding if necessary
+        padding = len(docData) % 4
+        if padding != 0:
+            docData += '=' * (4 - padding)
+
+        # Decode the Base64 string
+        decoded_bytes = base64.b64decode(docData)
+        # Convert the decoded bytes to a string
+        decoded_string = decoded_bytes.decode("UTF-8")
+        return decoded_string
+    except Exception as e:
+        print(f"Error decoding Base64: {str(e)}")
+        return ""
+
 def whisper_generate(genparams):
     global args
     prompt = genparams.get("prompt", "")
@@ -3807,6 +3830,7 @@ Change Mode<br>
             is_imggen = False
             is_comfyui_imggen = False
             is_transcribe = False
+            is_extract_text = False
             is_tts = False
             is_embeddings = False
 
@@ -3848,6 +3872,9 @@ Change Mode<br>
                 if self.path=="/prompt":
                     is_comfyui_imggen = True
 
+            if self.path.endswith('/api/extra/extractText'):
+                is_extract_text = True
+
             if self.path.endswith('/api/extra/transcribe') or self.path.endswith('/v1/audio/transcriptions'):
                 is_transcribe = True
 
@@ -3857,7 +3884,7 @@ Change Mode<br>
             if self.path.endswith('/api/extra/embeddings') or self.path.endswith('/v1/embeddings'):
                 is_embeddings = True
 
-            if is_imggen or is_transcribe or is_tts or is_embeddings or api_format > 0:
+            if is_imggen or is_transcribe or is_tts or is_embeddings or is_extract_text or api_format > 0:
                 global last_req_time
                 last_req_time = time.time()
 
@@ -3976,6 +4003,19 @@ Change Mode<br>
                     except Exception as ex:
                         utfprint(ex,1)
                         print("Transcribe: The response could not be sent, maybe connection was terminated?")
+                        time.sleep(0.2) #short delay
+                    return
+                elif is_extract_text:
+                    try:
+                        gen = extract_text(genparams)
+                        genresp = (json.dumps({"text":gen}).encode())
+                        self.send_response(200)
+                        self.send_header('content-length', str(len(genresp)))
+                        self.end_headers(content_type='application/json')
+                        self.wfile.write(genresp)
+                    except Exception as ex:
+                        utfprint(ex,1)
+                        print("Extract text: The response could not be sent, maybe connection was terminated?")
                         time.sleep(0.2) #short delay
                     return
                 elif is_tts:

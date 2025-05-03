@@ -21392,6 +21392,12 @@ Current version indicated by LITEVER below.
 				</div>
 
 				<div class="settinglabel" style="padding: 4px;">
+					<div class="justifyleft settingsmall" title="Add document to TextDB">Add document to TextDB <span class="helpicon">?
+						<span class="helptext">Tries to extract the text from the document, adding (or overwriting) an existing document in the TextDB with the same name.</span></span></div>
+					<button title="Add document to TextDB" class="btn btn-primary" onclick="documentParser.addDocumentToTextDB()" style="margin:0px 0 0;">Add document to TextDB</button>
+				</div>
+
+				<div class="settinglabel" style="padding: 4px;">
 					<div class="justifyleft settingsmall" title="Search Includes Context History">Search Includes Context History <span class="helpicon">?
 						<span class="helptext">If enabled, the entire story/chat history is used as a searchable document.</span></span></div>
 					<input title="Search Context History" type="checkbox" id="documentdb_searchhistory" style="margin:0px 0 0;">
@@ -25190,6 +25196,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			documentdb_data += `[DOCUMENT BREAK][${documentName}]${documentContent.trim()}[DOCUMENT BREAK]`
 		}
+		document.getElementById("documentdb_data").value = documentdb_data;
 	}
 
 	let calcImageSizing = (aspect) => {
@@ -26229,5 +26236,40 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}
 
 		window.embeddingSearcher = new EmbeddingSearcher()
+</script>
+<script type="module">
+	class DocumentParser
+	{
+		extractTextFromDocument(content)
+		{
+			let reqOpt = {
+				method: 'POST',
+				headers: get_kobold_header(),
+				body: JSON.stringify({
+					docData: content
+				}),
+			};
+			if (globalabortcontroller) {
+				reqOpt.signal = globalabortcontroller.signal;
+			}
+			let sub_endpt = apply_proxy_url(`${custom_kobold_endpoint}/api/extra/extractText`);
+
+			return fetch(sub_endpt, reqOpt)
+				.then((response) => response.json())
+		}
+
+		addDocumentToTextDB()
+		{
+			promptUserForLocalFile(async (fileDetails) => {
+				let {file, fileName, ext, content} = fileDetails
+				let extractedText = await this.extractTextFromDocument(content)
+				if (!!extractedText?.text)
+				{
+					replaceDocumentFromTextDB(fileName, extractedText?.text)
+				}
+			})
+		}
+	}
+	document.documentParser = new DocumentParser()
 </script>
 </html>
