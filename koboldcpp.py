@@ -2205,40 +2205,35 @@ def sd_load_model(model_filename,vae_filename,lora_filename,t5xxl_filename,clipl
 def sd_comfyui_tranform_params(genparams):
     promptobj = genparams.get('prompt', None)
     if promptobj and isinstance(promptobj, dict):
-        temp = promptobj.get('3', {})
-        temp = temp.get('inputs', {})
-        genparams["seed"] = temp.get("seed", -1)
-        genparams["steps"] = temp.get("steps", 20)
-        genparams["cfg_scale"] = temp.get("cfg", 5)
-        genparams["sampler_name"] = temp.get("sampler_name", "euler")
-        temp = promptobj.get('5', {})
-        temp = temp.get('inputs', {})
-        genparams["width"] = temp.get("width", 512)
-        genparams["height"] = temp.get("height", 512)
-        temp = promptobj.get('6', {})
-        temp = temp.get('inputs', {})
-        genparams["prompt"] = temp.get("text", "")
-        temp = promptobj.get('7', {})
-        temp = temp.get('inputs', {})
-        genparams["negative_prompt"] = temp.get("text", "")
+        for node_id, node_data in promptobj.items():
+            class_type = node_data.get("class_type","")
+            if class_type == "KSampler" or class_type == "KSamplerAdvanced":
+                inp = node_data.get("inputs",{})
 
-        #okay, if the prompt is empty something likely went wrong. try find the prompt node dynamically
-        if genparams.get("prompt","")=="":
-            for node_id, node_data in promptobj.items():
-                class_type = node_data.get("class_type","")
-                if class_type == "KSampler" or class_type == "KSamplerAdvanced":
-                    inp = node_data.get("inputs",{})
-                    pos = inp.get("positive",[])
-                    neg = inp.get("negative",[])
-                    if neg and isinstance(neg, list) and len(neg) > 0:
-                        temp = promptobj.get(str(neg[0]), {})
-                        temp = temp.get('inputs', {})
-                        genparams["negative_prompt"] = temp.get("text", "")
-                    if pos and isinstance(pos, list) and len(pos) > 0:
-                        temp = promptobj.get(str(pos[0]), {})
-                        temp = temp.get('inputs', {})
-                        genparams["prompt"] = temp.get("text", "")
-                        break
+                # sampler settings from this node
+                genparams["seed"] = inp.get("seed", -1)
+                genparams["steps"] = inp.get("steps", 20)
+                genparams["cfg_scale"] = inp.get("cfg", 5)
+                genparams["sampler_name"] = inp.get("sampler_name", "euler")
+
+                pos = inp.get("positive",[]) #positive prompt node
+                neg = inp.get("negative",[]) #negative prompt node
+                imgsize = inp.get("latent_image",[]) #image size node
+
+                if imgsize and isinstance(imgsize, list) and len(imgsize) > 0:
+                    temp = promptobj.get(str(imgsize[0]), {})
+                    temp = temp.get('inputs', {})
+                    genparams["width"] = temp.get("width", 512)
+                    genparams["height"] = temp.get("height", 512)
+                if neg and isinstance(neg, list) and len(neg) > 0:
+                    temp = promptobj.get(str(neg[0]), {})
+                    temp = temp.get('inputs', {})
+                    genparams["negative_prompt"] = temp.get("text", "")
+                if pos and isinstance(pos, list) and len(pos) > 0:
+                    temp = promptobj.get(str(pos[0]), {})
+                    temp = temp.get('inputs', {})
+                    genparams["prompt"] = temp.get("text", "")
+                    break
         if genparams.get("prompt","")=="": #give up, set generic prompt
             genparams["prompt"] = "high quality"
     else:
@@ -2329,6 +2324,33 @@ def whisper_load_model(model_filename):
     inputs = set_backend_props(inputs)
     ret = handle.whisper_load_model(inputs)
     return ret
+
+def extract_text(genparams):
+    global args
+    
+    try:
+        docData = genparams.get("docData", "")
+        if docData.startswith("data:text"):
+            docData = docData.split(",", 1)[1]
+        elif docData.startswith("data:audio"):
+            genparams["audio_data"] = docData
+            return whisper_generate(genparams)
+        else:
+            return ""
+
+        # Add padding if necessary
+        padding = len(docData) % 4
+        if padding != 0:
+            docData += '=' * (4 - padding)
+
+        # Decode the Base64 string
+        decoded_bytes = base64.b64decode(docData)
+        # Convert the decoded bytes to a string
+        decoded_string = decoded_bytes.decode("UTF-8")
+        return decoded_string
+    except Exception as e:
+        print(f"Error extracting text: {str(e)}")
+        return ""
 
 def whisper_generate(genparams):
     global args
@@ -4541,6 +4563,7 @@ Change Mode<br>
             is_imggen = False
             is_comfyui_imggen = False
             is_transcribe = False
+            is_extract_text = False
             is_tts = False
             is_embeddings = False
 
@@ -4582,6 +4605,9 @@ Change Mode<br>
                 if self.path=="/prompt":
                     is_comfyui_imggen = True
 
+            if self.path.endswith('/api/extra/extractText'):
+                is_extract_text = True
+
             if self.path.endswith('/api/extra/transcribe') or self.path.endswith('/v1/audio/transcriptions'):
                 is_transcribe = True
 
@@ -4591,7 +4617,7 @@ Change Mode<br>
             if self.path.endswith('/api/extra/embeddings') or self.path.endswith('/v1/embeddings'):
                 is_embeddings = True
 
-            if is_imggen or is_transcribe or is_tts or is_embeddings or api_format > 0:
+            if is_imggen or is_transcribe or is_tts or is_embeddings or is_extract_text or api_format > 0:
                 global last_req_time
                 last_req_time = time.time()
 
@@ -4710,6 +4736,19 @@ Change Mode<br>
                     except Exception as ex:
                         utfprint(ex,1)
                         print("Transcribe: The response could not be sent, maybe connection was terminated?")
+                        time.sleep(0.2) #short delay
+                    return
+                elif is_extract_text:
+                    try:
+                        gen = extract_text(genparams)
+                        genresp = (json.dumps({"text":gen}).encode())
+                        self.send_response(200)
+                        self.send_header('content-length', str(len(genresp)))
+                        self.end_headers(content_type='application/json')
+                        self.wfile.write(genresp)
+                    except Exception as ex:
+                        utfprint(ex,1)
+                        print("Extract text: The response could not be sent, maybe connection was terminated?")
                         time.sleep(0.2) #short delay
                     return
                 elif is_tts:
@@ -4887,13 +4926,13 @@ def zenity(filetypes=None, initialdir="", initialfile="", **kwargs) -> Tuple[int
             scargs = ['/usr/bin/env', zenity_bin, '--help']
             result = subprocess.run(scargs, env=sc_clean_env, capture_output=True, text=True, encoding="utf-8", timeout=10)
 
-            if result.returncode == 0 and "Usage" in result.stdout:
+            if result.returncode == 0 and "--file" in result.stdout:
                 return True
             else:
-                print(f"Zenity/YAD sanity check failed - ReturnCode={result.returncode}")
+                utfprint(f"Zenity/YAD sanity check failed - ReturnCode={result.returncode}",0)
                 return False
         except FileNotFoundError:
-            print(f"Zenity/YAD sanity check failed - {zenity_bin} not found")
+            utfprint(f"Zenity/YAD sanity check failed - {zenity_bin} not found",0)
             return False
 
     if not zenity_sanity_check(zenity_bin):
