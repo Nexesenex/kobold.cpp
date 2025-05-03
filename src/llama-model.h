@@ -36,6 +36,7 @@ enum llm_type {
     LLM_TYPE_335M,
     LLM_TYPE_410M,
     LLM_TYPE_450M,
+    LLM_TYPE_475M,
     LLM_TYPE_770M,
     LLM_TYPE_780M,
     LLM_TYPE_0_5B,
@@ -394,8 +395,11 @@ struct llama_model {
 
     const struct ggml_tensor * get_tensor(const char * name) const;
 
+    ggml_tensor * get_rope_factors(uint32_t n_ctx_per_seq, int il) const;
+
+    // note: can mutate `cparams`
     // TODO: move this to new llm_arch_model_i interface
-    llama_memory_i * create_memory() const; // TODO: params
+    llama_memory_i * create_memory(const llama_memory_params & params, llama_cparams & cparams) const;
 
     // TODO: move this to new llm_arch_model_i interface
     llm_graph_result_ptr build_graph(

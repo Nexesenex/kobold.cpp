@@ -218,13 +218,11 @@ struct curl_slist_ptr {
 #define CURL_MAX_RETRY 3
 #define CURL_RETRY_DELAY_SECONDS 2
 
-static bool curl_perform_with_retry(const std::string & url, CURL * curl, int max_attempts, int retry_delay_seconds) {
+static bool curl_perform_with_retry(const std::string & url, CURL * curl, int max_attempts, int retry_delay_seconds, const char * method_name) {
     int remaining_attempts = max_attempts;
-    char * method = nullptr;
-    curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_METHOD, &method);
 
     while (remaining_attempts > 0) {
-        LOG_INF("%s: %s %s (attempt %d of %d)...\n", __func__ , method, url.c_str(), max_attempts - remaining_attempts + 1, max_attempts);
+        LOG_INF("%s: %s %s (attempt %d of %d)...\n", __func__ , method_name, url.c_str(), max_attempts - remaining_attempts + 1, max_attempts);
 
         CURLcode res = curl_easy_perform(curl);
         if (res == CURLE_OK) {
@@ -288,13 +286,6 @@ static bool common_download_file_single(const std::string & url, const std::stri
             try {
                 metadata_in >> metadata;
                 LOG_DBG("%s: previous metadata file found %s: %s\n", __func__, metadata_path.c_str(), metadata.dump().c_str());
-                if (metadata.contains("url") && metadata.at("url").is_string()) {
-                    auto previous_url = metadata.at("url").get<std::string>();
-                    if (previous_url != url) {
-                        LOG_ERR("%s: Model URL mismatch: %s != %s\n", __func__, url.c_str(), previous_url.c_str());
-                        return false;
-                    }
-                }
                 if (metadata.contains("etag") && metadata.at("etag").is_string()) {
                     etag = metadata.at("etag");
                 }
@@ -302,10 +293,10 @@ static bool common_download_file_single(const std::string & url, const std::stri
                     last_modified = metadata.at("lastModified");
                 }
             } catch (const nlohmann::json::exception & e) {
-            LOG_ERR("%s: error reading metadata file %s: %s\n", __func__, metadata_path.c_str(), e.what());
-                return false;
+                LOG_ERR("%s: error reading metadata file %s: %s\n", __func__, metadata_path.c_str(), e.what());
             }
         }
+        // if we cannot open the metadata file, we assume that the downloaded file is not valid (etag and last-modified are left empty, so we will download it again)
     } else {
         LOG_INF("%s: no previous model file found %s\n", __func__, path.c_str());
     }
@@ -351,7 +342,7 @@ static bool common_download_file_single(const std::string & url, const std::stri
 
         // we only allow retrying once for HEAD requests
         // this is for the use case of using running offline (no internet), retrying can be annoying
-        bool was_perform_successful = curl_perform_with_retry(url, curl.get(), 1, 0);
+        bool was_perform_successful = curl_perform_with_retry(url, curl.get(), 1, 0, "HEAD");
         if (!was_perform_successful) {
             head_request_ok = false;
         }
@@ -433,7 +424,7 @@ static bool common_download_file_single(const std::string & url, const std::stri
         // start the download
         LOG_INF("%s: trying to download model from %s to %s (server_etag:%s, server_last_modified:%s)...\n", __func__,
             llama_download_hide_password_in_url(url).c_str(), path.c_str(), headers.etag.c_str(), headers.last_modified.c_str());
-        bool was_perform_successful = curl_perform_with_retry(url, curl.get(), CURL_MAX_RETRY, CURL_RETRY_DELAY_SECONDS);
+        bool was_perform_successful = curl_perform_with_retry(url, curl.get(), CURL_MAX_RETRY, CURL_RETRY_DELAY_SECONDS, "GET");
         if (!was_perform_successful) {
             return false;
         }
@@ -1950,6 +1941,23 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         }
     ).set_sparam());
     add_opt(common_arg(
+        {"-jf", "--json-schema-file"}, "FILE",
+        "File containing a JSON schema to constrain generations (https://json-schema.org/), e.g. `{}` for any JSON object\nFor schemas w/ external $refs, use --grammar + example/json_schema_to_grammar.py instead",
+        [](common_params & params, const std::string & value) {
+            std::ifstream file(value);
+            if (!file) {
+                throw std::runtime_error(string_format("error: failed to open file '%s'\n", value.c_str()));
+            }
+            std::string schema;
+            std::copy(
+                std::istreambuf_iterator<char>(file),
+                std::istreambuf_iterator<char>(),
+                std::back_inserter(schema)
+            );
+            params.sampling.grammar = json_schema_to_grammar(json::parse(schema));
+        }
+    ).set_sparam());
+    add_opt(common_arg(
         {"--pooling"}, "{none,mean,cls,last,rank}",
         "pooling type for embeddings, use model default if unspecified",
         [](common_params & params, const std::string & value) {
@@ -2204,14 +2212,14 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
     ).set_examples({LLAMA_EXAMPLE_SERVER}).set_env("LLAMA_ARG_NO_CONT_BATCHING"));
     add_opt(common_arg(
         {"--mmproj"}, "FILE",
-        "path to a multimodal projector file. see examples/llava/README.md",
+        "path to a multimodal projector file. see tools/llava/README.md",
         [](common_params & params, const std::string & value) {
             params.mmproj.path = value;
         }
     ).set_examples(mmproj_examples));
     add_opt(common_arg(
         {"--mmproj-url"}, "URL",
-        "URL to a multimodal projector file. see examples/llava/README.md",
+        "URL to a multimodal projector file. see tools/llava/README.md",
         [](common_params & params, const std::string & value) {
             params.mmproj.url = value;
         }
@@ -2776,7 +2784,10 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
     ).set_examples({LLAMA_EXAMPLE_SERVER}).set_env("LLAMA_ARG_THREADS_HTTP"));
     add_opt(common_arg(
         {"--cache-reuse"}, "N",
-        string_format("min chunk size to attempt reusing from the cache via KV shifting (default: %d)", params.n_cache_reuse),
+        string_format(
+            "min chunk size to attempt reusing from the cache via KV shifting (default: %d)\n"
+            "[(card)](https://ggml.ai/f0.png)", params.n_cache_reuse
+        ),
         [](common_params & params, int value) {
             params.n_cache_reuse = value;
         }

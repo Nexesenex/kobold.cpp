@@ -28,6 +28,7 @@ import socket
 import threading
 import html
 import random
+import hashlib
 import urllib.parse as urlparse
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -52,7 +53,7 @@ logit_bias_max = 512
 dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.90.1"
+KcppVersion = "1.90.2"
 showdebug = True
 kcpp_instance = None #global running instance
 global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None}
@@ -966,11 +967,11 @@ def autoset_gpu_layers(ctxsize, sdquanted, bbs, qkv_level): #shitty algo to dete
         if fsize > (10*1024*1024): #dont bother with models < 10mb
             cs = ctxsize
             mem = gpumem
-            if "-00001-of-000" in fname:
+            if "-00001-of-0000" in fname:
                 match = re.search(r'-(\d{5})-of-(\d{5})\.', fname)
                 if match:
                     total_parts = int(match.group(2))
-                    if total_parts > 1 and total_parts < 99:
+                    if total_parts > 1 and total_parts <= 9:
                         print("Multi-Part GGUF detected. Layer estimates may not be very accurate - recommend setting layers manually.")
                         fsize *= total_parts
             if modelfile_extracted_meta[3] > 1024*1024*1024*5: #sdxl tax
@@ -1498,22 +1499,37 @@ def sd_load_model(model_filename,vae_filename,lora_filename,t5xxl_filename,clipl
 def sd_comfyui_tranform_params(genparams):
     promptobj = genparams.get('prompt', None)
     if promptobj and isinstance(promptobj, dict):
-        temp = promptobj.get('3', {})
-        temp = temp.get('inputs', {})
-        genparams["seed"] = temp.get("seed", -1)
-        genparams["steps"] = temp.get("steps", 20)
-        genparams["cfg_scale"] = temp.get("cfg", 5)
-        genparams["sampler_name"] = temp.get("sampler_name", "euler")
-        temp = promptobj.get('5', {})
-        temp = temp.get('inputs', {})
-        genparams["width"] = temp.get("width", 512)
-        genparams["height"] = temp.get("height", 512)
-        temp = promptobj.get('6', {})
-        temp = temp.get('inputs', {})
-        genparams["prompt"] = temp.get("text", "high quality")
-        temp = promptobj.get('7', {})
-        temp = temp.get('inputs', {})
-        genparams["negative_prompt"] = temp.get("text", "")
+        for node_id, node_data in promptobj.items():
+            class_type = node_data.get("class_type","")
+            if class_type == "KSampler" or class_type == "KSamplerAdvanced":
+                inp = node_data.get("inputs",{})
+
+                # sampler settings from this node
+                genparams["seed"] = inp.get("seed", -1)
+                genparams["steps"] = inp.get("steps", 20)
+                genparams["cfg_scale"] = inp.get("cfg", 5)
+                genparams["sampler_name"] = inp.get("sampler_name", "euler")
+
+                pos = inp.get("positive",[]) #positive prompt node
+                neg = inp.get("negative",[]) #negative prompt node
+                imgsize = inp.get("latent_image",[]) #image size node
+
+                if imgsize and isinstance(imgsize, list) and len(imgsize) > 0:
+                    temp = promptobj.get(str(imgsize[0]), {})
+                    temp = temp.get('inputs', {})
+                    genparams["width"] = temp.get("width", 512)
+                    genparams["height"] = temp.get("height", 512)
+                if neg and isinstance(neg, list) and len(neg) > 0:
+                    temp = promptobj.get(str(neg[0]), {})
+                    temp = temp.get('inputs', {})
+                    genparams["negative_prompt"] = temp.get("text", "")
+                if pos and isinstance(pos, list) and len(pos) > 0:
+                    temp = promptobj.get(str(pos[0]), {})
+                    temp = temp.get('inputs', {})
+                    genparams["prompt"] = temp.get("text", "")
+                    break
+        if genparams.get("prompt","")=="": #give up, set generic prompt
+            genparams["prompt"] = "high quality"
     else:
         print("Warning: ComfyUI Payload Missing!")
     return genparams
@@ -3149,7 +3165,31 @@ Change Mode<br>
         elif self.path=='/history' or self.path=='/api/history' or self.path.startswith('/api/history/') or self.path.startswith('/history/'): #emulate comfyui
             imgdone = (False if lastgeneratedcomfyimg==b'' else True)
             response_body = (json.dumps({"12345678-0000-0000-0000-000000000001":{"prompt":[0,"12345678-0000-0000-0000-000000000001",{"3":{"class_type":"KSampler","inputs":{"cfg":5.0,"denoise":1.0,"latent_image":["5",0],"model":["4",0],"negative":["7",0],"positive":["6",0],"sampler_name":"euler","scheduler":"normal","seed":1,"steps":20}},"4":{"class_type":"CheckpointLoaderSimple","inputs":{"ckpt_name":friendlysdmodelname}},"5":{"class_type":"EmptyLatentImage","inputs":{"batch_size":1,"height":512,"width":512}},"6":{"class_type":"CLIPTextEncode","inputs":{"clip":["4",1],"text":"prompt"}},"7":{"class_type":"CLIPTextEncode","inputs":{"clip":["4",1],"text":""}},"8":{"class_type":"VAEDecode","inputs":{"samples":["3",0],"vae":["4",2]}},"9":{"class_type":"SaveImage","inputs":{"filename_prefix":"kliteimg","images":["8",0]}}},{},["9"]],"outputs":{"9":{"images":[{"filename":"kliteimg_00001_.png","subfolder":"","type":"output"}]}},"status":{"status_str":"success","completed":imgdone,"messages":[["execution_start",{"prompt_id":"12345678-0000-0000-0000-000000000001","timestamp":1}],["execution_cached",{"nodes":[],"prompt_id":"12345678-0000-0000-0000-000000000001","timestamp":1}],["execution_success",{"prompt_id":"12345678-0000-0000-0000-000000000001","timestamp":1}]]},"meta":{"9":{"node_id":"9","display_node":"9","parent_node":None,"real_node_id":"9"}}}}).encode())
-
+        elif self.path.startswith('/ws?clientId') and ('Upgrade' in self.headers and self.headers['Upgrade'].lower() == 'websocket' and
+            'Sec-WebSocket-Key' in self.headers):
+            ws_key = self.headers['Sec-WebSocket-Key']
+            ws_accept = base64.b64encode(hashlib.sha1((ws_key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').encode()).digest()).decode()
+            self.protocol_version = "HTTP/1.1"
+            self.send_response(101) #fake websocket response, Switching Protocols
+            self.send_header('Upgrade', 'websocket')
+            self.send_header('Connection', 'Upgrade')
+            self.send_header('Sec-WebSocket-Accept', ws_accept)
+            self.end_headers()
+            try:
+                # Send a dummy WebSocket text frame: empty string
+                payload = json.dumps({"type": "status", "data": {"status": {"exec_info": {"queue_remaining": 0}}, "sid": "ffff000012345678ffff000012345678"}}).encode("utf-8")
+                header = struct.pack("!BB", 0x81, len(payload))  # FIN + text frame, no mask
+                self.connection.sendall(header + payload)
+                time.sleep(0.1) #short delay before replying
+                # Send close frame with status code 1000 (Normal Closure)
+                close_payload = struct.pack("!H", 1000)
+                close_frame = struct.pack("!BB", 0x88, len(close_payload)) + close_payload
+                self.connection.sendall(close_frame)
+                time.sleep(0.1) #short delay before replying
+            except Exception as e:
+                print(f"WebSocket send error: {e}")
+            self.connection.close()
+            return
         elif self.path.endswith(('/.well-known/serviceinfo')):
             response_body = (json.dumps({"version":"0.2","software":{"name":"KoboldCpp","version":KcppVersion,"repository":"https://github.com/LostRuins/koboldcpp","homepage":"https://github.com/LostRuins/koboldcpp","logo":"https://raw.githubusercontent.com/LostRuins/koboldcpp/refs/heads/concedo/niko.ico"},"api":{"koboldai":{"name":"KoboldAI API","rel_url":"/api","documentation":"https://lite.koboldai.net/koboldcpp_api","version":KcppVersion},"openai":{"name":"OpenAI API","rel_url ":"/v1","documentation":"https://openai.com/documentation/api","version":KcppVersion}}}).encode())
 
@@ -4113,13 +4153,13 @@ def zenity(filetypes=None, initialdir="", initialfile="", **kwargs) -> Tuple[int
             scargs = ['/usr/bin/env', zenity_bin, '--help']
             result = subprocess.run(scargs, env=sc_clean_env, capture_output=True, text=True, encoding="utf-8", timeout=10)
 
-            if result.returncode == 0 and "Usage" in result.stdout:
+            if result.returncode == 0 and "--file" in result.stdout:
                 return True
             else:
-                print(f"Zenity/YAD sanity check failed - ReturnCode={result.returncode}")
+                utfprint(f"Zenity/YAD sanity check failed - ReturnCode={result.returncode}",0)
                 return False
         except FileNotFoundError:
-            print(f"Zenity/YAD sanity check failed - {zenity_bin} not found")
+            utfprint(f"Zenity/YAD sanity check failed - {zenity_bin} not found",0)
             return False
 
     if not zenity_sanity_check(zenity_bin):
@@ -4548,6 +4588,96 @@ def show_gui():
                 button.grid(row=row+1, column=1, columnspan=1, padx=8, stick="nw")
         return label, entry, button
 
+    def model_searcher():
+        searchbox1 = None
+        modelsearch1_var = ctk.StringVar(value="")
+        modelsearch2_var = ctk.StringVar(value="")
+        # Create popup window
+        popup = ctk.CTkToplevel(root)
+        popup.title("Model File Browser")
+        popup.geometry("400x400")
+
+        def confirm_search_model_choice():
+            nonlocal modelsearch1_var, modelsearch2_var, model_var
+            if modelsearch1_var.get()!="" and modelsearch2_var.get()!="":
+                model_var.set(f"https://huggingface.co/{modelsearch1_var.get()}/resolve/main/{modelsearch2_var.get()}")
+            popup.destroy()
+        def fetch_search_quants(a,b,c):
+            nonlocal modelsearch1_var, modelsearch2_var
+            try:
+                if modelsearch1_var.get()=="":
+                    return
+                searchedmodels = []
+                resp = make_url_request(f"https://huggingface.co/api/models/{modelsearch1_var.get()}",None,'GET',{},10)
+                for m in resp["siblings"]:
+                    if ".gguf" in m["rfilename"]:
+                        if "-of-0" in m["rfilename"] and "00001" not in m["rfilename"]:
+                            continue
+                        searchedmodels.append(m["rfilename"])
+                searchbox2.configure(values=searchedmodels)
+                if len(searchedmodels)>0:
+                    quants = ["q4k","q4_k","q4", "q3", "q5", "q6", "q8"] #autopick priority
+                    chosen_model = searchedmodels[0]
+                    found_good = False
+                    for quant in quants:
+                        for filename in searchedmodels:
+                            if quant in filename.lower():
+                                chosen_model = filename
+                                found_good = True
+                                break
+                        if found_good:
+                            break
+                    modelsearch2_var.set(chosen_model)
+                else:
+                    modelsearch2_var.set("")
+            except Exception as e:
+                modelsearch1_var.set("")
+                modelsearch2_var.set("")
+                print(f"Error: {e}")
+
+        def fetch_search_models():
+            from tkinter import messagebox
+            nonlocal searchbox1, modelsearch1_var, modelsearch2_var
+            try:
+                modelsearch1_var.set("")
+                modelsearch2_var.set("")
+                searchedmodels = []
+                search = "GGUF " + model_search.get()
+                urlcode = urlparse.urlencode({"search":search,"limit":10}, doseq=True)
+                resp = make_url_request(f"https://huggingface.co/api/models?{urlcode}",None,'GET',{},10)
+                if len(resp)==0:
+                    messagebox.showinfo("No Results Found", "Search found no results")
+                for m in resp:
+                    searchedmodels.append(m["id"])
+                searchbox1.configure(values=searchedmodels)
+                if len(searchedmodels)>0:
+                    modelsearch1_var.set(searchedmodels[0])
+                else:
+                    modelsearch1_var.set("")
+            except Exception as e:
+                modelsearch1_var.set("")
+                modelsearch2_var.set("")
+                print(f"Error: {e}")
+
+        ctk.CTkLabel(popup, text="Enter Search String:").pack(pady=(10, 0))
+        model_search = ctk.CTkEntry(popup, width=300)
+        model_search.pack(pady=5)
+        model_search.insert(0, "")
+
+        ctk.CTkButton(popup, text="Search Huggingface", command=fetch_search_models).pack(pady=5)
+
+        ctk.CTkLabel(popup, text="Selected Model:").pack(pady=(10, 0))
+        searchbox1 = ctk.CTkComboBox(popup, values=[], width=340, variable=modelsearch1_var, state="readonly")
+        searchbox1.pack(pady=5)
+        ctk.CTkLabel(popup, text="Selected Quant:").pack(pady=(10, 0))
+        searchbox2 = ctk.CTkComboBox(popup, values=[], width=340, variable=modelsearch2_var, state="readonly")
+        searchbox2.pack(pady=5)
+        modelsearch1_var.trace("w", fetch_search_quants)
+
+        ctk.CTkButton(popup, text="Confirm Selection", command=confirm_search_model_choice).pack(pady=5)
+
+        popup.transient(root)
+
     # decided to follow yellowrose's and kalomaze's suggestions, this function will automatically try to determine GPU identifiers
     # run in new thread so it doesnt block. does not return anything, instead overwrites specific values and redraws GUI
     def auto_set_backend_gui(manual_select=False):
@@ -4821,6 +4951,7 @@ def show_gui():
     # load model
     makefileentry(quick_tab, "GGUF Text Model:", "Select GGUF or GGML Model File", model_var, 40, 280, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
     model_var.trace("w", gui_changed_modelfile)
+    ctk.CTkButton(quick_tab, width=70, text = "HF Search", command = model_searcher ).grid(row=41,column=1, stick="sw", padx= 202)
 
     # Hardware Tab
     hardware_tab = tabcontent["Hardware"]
@@ -4915,7 +5046,8 @@ def show_gui():
     # Model Tab
     model_tab = tabcontent["Loaded Files"]
 
-    makefileentry(model_tab, "Text Model:", "Select GGUF or GGML Model File", model_var, 1,width=280,singlerow=True, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
+    makefileentry(model_tab, "Text Model:", "Select GGUF or GGML Model File", model_var, 1,width=205,singlerow=True, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
+    ctk.CTkButton(model_tab, width=70, text = "HF Search", command = model_searcher ).grid(row=1,column=0, stick="nw", padx=370)
     makefileentry(model_tab, "Text Lora:", "Select Lora File",lora_var, 3,width=280,singlerow=True,tooltiptxt="Select an optional GGML Text LoRA adapter to use.\nLeave blank to skip.")
     makefileentry(model_tab, "Lora Base:", "Select Lora Base File", lora_base_var, 5,width=280,singlerow=True,tooltiptxt="Select an optional F16 GGML Text LoRA base file to use.\nLeave blank to skip.")
     makefileentry(model_tab, "Vision mmproj:", "Select Vision mmproj File", mmproj_var, 7,width=280,singlerow=True,tooltiptxt="Select a mmproj file to use for vision models like LLaVA.\nLeave blank to skip.")
@@ -5182,6 +5314,8 @@ def show_gui():
         args.contextsize = int(contextsize_text[context_var.get()])
         if customrope_var.get()==1:
             args.ropeconfig = [float(customrope_scale.get()),float(customrope_base.get())]
+        else:
+            args.ropeconfig = [0.0, 10000.0]
         args.moeexperts = int(moeexperts_var.get()) if moeexperts_var.get()!="" else -1
         args.defaultgenamt = int(defaultgenamt_var.get()) if defaultgenamt_var.get()!="" else 512
         args.nobostoken = (nobostoken_var.get()==1)
@@ -6115,7 +6249,7 @@ def downloader_internal(input_url, output_filename, capture_output, min_file_siz
     return output_filename
 
 
-def download_model_from_url(url, permitted_types=[".gguf",".safetensors", ".ggml", ".bin"], min_file_size=64):
+def download_model_from_url(url, permitted_types=[".gguf",".safetensors", ".ggml", ".bin"], min_file_size=64,handle_multipart=False):
     if url and url!="":
         if url.endswith("?download=true"):
             url = url.replace("?download=true","")
@@ -6126,6 +6260,17 @@ def download_model_from_url(url, permitted_types=[".gguf",".safetensors", ".ggml
                 break
         if ((url.startswith("http://") or url.startswith("https://")) and end_ext_ok):
             dlfile = downloader_internal(url, "auto", False, min_file_size)
+            if handle_multipart and "-00001-of-0000" in url: #handle multipart files up to 9 parts
+                match = re.search(r'-(\d{5})-of-(\d{5})\.', url)
+                if match:
+                    total_parts = int(match.group(2))
+                    if total_parts > 1 and total_parts <= 9:
+                        current_part = 1
+                        base_url = url
+                        for part_num in range(current_part + 1, total_parts + 1):
+                            part_str = f"-{part_num:05d}-of-{total_parts:05d}"
+                            new_url = re.sub(r'-(\d{5})-of-(\d{5})', part_str, base_url)
+                            downloader_internal(new_url, "auto", False, min_file_size)
             return dlfile
     return None
 
@@ -6445,7 +6590,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
 
     # handle model downloads if needed
     if args.model_param and args.model_param!="":
-        dlfile = download_model_from_url(args.model_param,[".gguf",".bin", ".ggml"],min_file_size=500000)
+        dlfile = download_model_from_url(args.model_param,[".gguf",".bin", ".ggml"],min_file_size=500000,handle_multipart=True)
         if dlfile:
             args.model_param = dlfile
         if args.model and isinstance(args.model, list) and len(args.model)>1: #handle multi file downloading
@@ -6525,6 +6670,8 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
 
     if args.debugmode != 1:
         showdebug = False
+    else:
+        showdebug = True
 
     if args.multiplayer:
         has_multiplayer = True
