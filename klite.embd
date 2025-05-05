@@ -24528,6 +24528,24 @@ else
 		return prompt.replaceAll(/\.+/g, ",").replaceAll(/_+/g, " ").replaceAll(/\n+/g, " ")
 	}
 
+	let overwriteWIFromAgent = (uniqueIdentifier, selectionKeys, content) => {
+		let baseWI = {
+			"key": selectionKeys.join(","),
+			"keysecondary": "",
+			"keyanti": "",
+			"content": content,
+			"comment": uniqueIdentifier,
+			"folder": null,
+			"selective": false,
+			"constant": false,
+			"probability": "100",
+			"wigroup": "",
+			"widisabled": false
+		}
+		current_wi = current_wi.filter(wi => wi?.comment !== uniqueIdentifier)
+		current_wi.push(baseWI)
+	}
+
 	let wordCountEnabled = false
 	let getCommands = () => {
 	return [
@@ -24657,6 +24675,33 @@ else
 					}
 					else {
 						addThought(createSysPrompt, `Text was empty - nothing added to history`)
+					}
+				}
+			},
+			{
+				"name": "overwrite_world_information",
+				"description": "Overwrites an entry describing an entity. The information is stored under a unique identifier. This information is included when certain keywords are mentioned.",
+				"args": {
+					"uniqueIdentifier": "<unique identifier (such as a characters name, location etc)>",
+					"text": "<descriptive text which by itself provides all needed information to define the entity>",
+					"keywords": {
+						description: "<keywords to help with searching>",
+						type: "array"
+					}
+				},
+				"enabled": true,
+				"executor": (action) => {
+					let uniqueIdentifier = action?.args?.uniqueIdentifier
+					let keywords = action?.args?.keywords
+					let textToAdd = action?.args?.text
+					if (!!uniqueIdentifier && !!textToAdd) {
+						uniqueIdentifier = uniqueIdentifier.toLowerCase()
+						keywords = !!keywords && Array.isArray(keywords) ? keywords : [uniqueIdentifier]
+						overwriteWIFromAgent(uniqueIdentifier, keywords, textToAdd)
+						addThought(createSysPrompt, `Text has been added to world info: ${uniqueIdentifier}`)
+					}
+					else {
+						addThought(createSysPrompt, `Text was empty - nothing added to world info`)
 					}
 				}
 			},
@@ -25286,7 +25331,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				 "Image generated", "No prompt provided, image not generated", "Text has been spoken", "No text provided, nothing has been said", "System prompt has been overwritten", 
 				 "No system prompt provided, nothing has been overwritten", "Current state has been overwritten", "No state provided, nothing has been overwritten", "Current order of actions has been cleared",
 				  "Current order of actions has been overwritten", "No order of actions provided, nothing has been overwritten", "Error - Empty response instead of action. Ensure all responses are valid JSON.",
-				"Current state format has been overwritten", "No valid state format provided, nothing has been overwritten"]
+				"Current state format has been overwritten", "No valid state format provided, nothing has been overwritten", `Text has been added to world info:`, `Text was empty - nothing added to world info`]
 				combined_chunks = combined_chunks
 				.filter(elem => !listOfExclusions.find(excludedStart => elem.message.trim().indexOf(excludedStart) === 0))
 				.map(elem => {
