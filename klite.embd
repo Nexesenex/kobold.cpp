@@ -24940,7 +24940,14 @@ else
 	}
 
 	let getEnabledCommands = () => {
-		return getCommands().filter(command => !!command?.enabled)
+		let enabledCommands = getCommands().filter(command => !!command?.enabled)
+		let forbiddenAgentCommands = getDocumentFromTextDB('Forbidden agent commands')
+		if (forbiddenAgentCommands !== null)
+		{
+			let commandsToExclude = forbiddenAgentCommands.split("|")
+			enabledCommands = enabledCommands.filter(command => !commandsToExclude.includes(command.name))
+		}
+		return enabledCommands
 	}
 	
 	let toJsonSchema = (obj, currentRef = {}) => {
@@ -25273,7 +25280,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 			if (filterOutActions)
 			{
-				let listOfExclusions = ["Action: {", "History search performed:", "Chain of thought complete", "Stop thinking action confirmed",
+				let listOfExclusions = ["Action: {", "Action (words =", "History search performed:", "Chain of thought complete", "Stop thinking action confirmed",
 				 "Web search results:", "Text has been added to history", "Formula evaluation result:", "Formula evaluation could not be completed as no formula was provided", 
 				 "Text has been added to history", "Text was empty - nothing added to history", "Search string was empty, no search performed", "Word count is", "Image analysed:", 
 				 "Image generated", "No prompt provided, image not generated", "Text has been spoken", "No text provided, nothing has been said", "System prompt has been overwritten", 
@@ -25308,10 +25315,11 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	let getLastActions = (amountOfActions = 10) => {
+		let exclusions = ["Action: {", "Action (words =", "Chain of thought repetition detected - ending", "Chain of thought complete"]
 		return repack_instruct_turns(concat_gametext(true), `{{[INPUT]}}`, `{{[OUTPUT]}}`, `{{[SYSTEM]}}`, true, false).map(msg => {
 			msg.msg = msg.msg.replaceAll("{{[SYSTEM_END]}}", "").replaceAll("{{[INPUT_END]}}", "").replaceAll("{{[OUTPUT_END]}}", "").trim(); 
 			return msg 
-		}).filter(msg => !/^\n*$/.test(msg.msg) && !!msg.msg && msg.msg.indexOf("Chain of thought repetition detected - ending") === -1 && msg.msg.indexOf("Chain of thought complete") === -1).splice(-amountOfActions)
+		}).filter(msg => !/^\n*$/.test(msg.msg) && !!msg.msg && !exclusions.find(exclusion => exclusion.indexOf(msg.msg) !== -1)).splice(-amountOfActions)
 	}
 
 	let getInfoSnippet = (snippet) => {
@@ -25520,12 +25528,13 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		for (let i = 0; i < localsettings.agentCOTMax && endCurrent === false; i++)
 		{
 			clearSuggestions()
-			let validCommands = getEnabledCommands().map(command => command.name)
+			// Ensure valid commands does not include stop thinking right away to ensure an action of some type is taken
+			let validCommands = getEnabledCommands().map(command => command.name).filter(name => i != 0 || name != "stop_thinking")
 
 			let currentOrderOfActions = getDocumentFromTextDB('Order of actions')
 			currentOrderOfActions = !!currentOrderOfActions ? currentOrderOfActions.split(",").filter(act => !!act) : []
 			let nextAction = currentOrderOfActions.splice(i).filter(acts => acts.split("|").find(act => validCommands.includes(act)))
-			nextAction = nextAction.length > 0 ? getCommands().filter(act => nextAction[0].split("|").includes(act.name)) : getEnabledCommands()
+			nextAction = nextAction.length > 0 ? getCommands().filter(act => nextAction[0].split("|").includes(act.name)) : getEnabledCommands().filter(command => validCommands.includes(command.name))
 
 			// Find actions which are identical and have run twice - then remove them from the possible options to run again
 			let duplicateActions = recentActions.filter((elem, pos, arr) => arr.findIndex((elem2) => JSON.stringify(elem) === JSON.stringify(elem2)) !== pos).map(elem => elem?.command?.name)
@@ -25583,12 +25592,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 			let resp = await generateAndGetTextFromPrompt(replace_instruct_placeholders(history), jsonGrammar, [], recentActions.map(JSON.stringify))
 			
-			console.debug(resp)
-			// if (resp == "{}")
-			// {
-			// 	addThought(createSysPrompt, "Empty prompt returned - continuing", true)
-			// 	continue
-			// }
 			try
 			{
 				if (resp.trim() == "")
@@ -25624,11 +25627,11 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					recentActions.push(json)
 					if (wordCountEnabled && !!action?.args?.message && typeof action?.args?.message === "string")
 					{
-						addThought(createAIPrompt, `Action (words = ${action?.args?.message.split(/\s/g).filter(s => s.length > 0).length}): ${JSON.stringify(json)}`)
+						addThought(createAIPrompt, `Action (words = ${action?.args?.message.split(/\s/g).filter(s => s.length > 0).length}): ${JSON.stringify(json)}`, true)
 					}
 					else
 					{
-						addThought(createAIPrompt, `Action: ${JSON.stringify(json)}`)
+						addThought(createAIPrompt, `Action: ${JSON.stringify(json)}`, true)
 					}
 					let isCompleted = false;
 					let command = getCommands().find(command => command.name === action.command.name)
