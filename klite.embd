@@ -21441,11 +21441,13 @@ Current version indicated by LITEVER below.
 
 				<div style="float:right;">
 					<div class="settinglabel"><button type="button" class="btn purplebtn widelbtn" style="padding:4px;margin:2px;margin-top:4px;margin-bottom:4px;font-size:8px" id="wiexport" onclick="wi_group_export()">[Export / Import Group]</button></div>
-					<div class="settinglabel" style="padding: 4px;">
-						<div class="justifyleft settingsmall" title="Toggles all entries in entire group on/off">Toggle Group </div>
-						<input title="Toggle Entire Group" type="checkbox" id="toggle_wi_group" style="margin:0px 0 0;" onchange="toggle_wi_group_enabled()" checked>
+					<div style="float:right;">
+						<div class="settinglabel" style="padding: 4px;">
+							<div class="justifyleft settingsmall" title="Toggles all entries in entire group on/off">Toggle Group </div>
+							<input title="Toggle Entire Group" type="checkbox" id="toggle_wi_group" style="margin:0px 0 0;" onchange="toggle_wi_group_enabled()" checked>
+						</div>
+						<input title="World Info Quick Search" class="settinglabel miniinput" style="margin: 3px; width: 90px;" type="text" placeholder="Quick Search" value="" id="wiquicksearch" oninput="wi_quick_search()">
 					</div>
-					<input title="World Info Quick Search" class="settinglabel miniinput" style="margin: 3px; width: 90px;" type="text" placeholder="Quick Search" value="" id="wiquicksearch" oninput="wi_quick_search()">
 				</div>
 
 				<div class="settinglabel" style="padding: 4px;">
@@ -26468,5 +26470,83 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}
 	}
 	document.documentParser = new DocumentParser()
+</script>
+<script>
+	// Mod to allow WI to be exported / imported from JSON files
+
+	let saveFileGeneric = (fileName, fileContent, mimeType) => {
+		window.URL = window.URL || window.webkitURL;
+		var userAgent = window.navigator.userAgent;
+
+		if (userAgent.match(/AppleWebKit/) && (userAgent.match(/iPad/i) || userAgent.match(/iPhone/i))) {
+			let ststr = fileContent;
+			var file = new Blob([ststr], { type: 'application/octet-stream' });
+			var file2 = new Blob([ststr], { type: mimeType });
+			console.log("Special save handling for iphones")
+			// iPad or iPhone needs an extra download
+			var reader = new FileReader();
+			var reader2 = new FileReader();
+			let datblob = window.URL.createObjectURL(file2);
+			reader.onload = function (e) {
+				reader2.readAsDataURL(file2);
+				reader2.onload = function (e) {
+					msgbox(`<button type="button" class="btn btn-primary" id="ios_save" onclick="savenowfn()">Click to Save</button>
+	<br><h5>Apple devices are known to have issues saving. If the above button does not work, try opening or right-click / long press one of the below links, and select (Save As)</h5><h4><li><a href=` + reader.result + ` class='color_blueurl' target='_blank' download="` + fileName + `">Raw File Data</a></li><li><a href=` + reader2.result + ` class='color_blueurl' target='_blank' download="` + fileName + `">File Data</a></li><li><a href=` + datblob + ` class='color_blueurl' download="` + fileName + `">URL Blob</a></li></h4>`, "Save Story", true)
+				}
+			}
+			reader.readAsDataURL(file);
+		}
+		else {
+			var a = document.getElementById("tempfile");
+			var file = new Blob([fileContent], { type: mimeType });
+			console.log("Normal save handling")
+			if (tempfileurl) {
+				window.URL.revokeObjectURL(tempfileurl);
+			}
+			tempfileurl = window.URL.createObjectURL(file);
+			a.href = tempfileurl;
+			a.target = '_blank';
+			a.download = fileName;
+			setTimeout(function () { a.click() }, 20);
+		}
+	}
+
+	window.addEventListener('load', () => {
+		let createWIButton = (id, text, onClickEvent) => {
+			let button = document.createElement("button")
+			button.id = id
+			button.innerText = text
+			button.onclick = onClickEvent
+			button.classList.add("btn", "purplebtn", "widelbtn")
+			button.style = "padding:4px;margin:2px;margin-top:4px;margin-bottom:4px;font-size:8px"
+			return button
+		}
+
+		let wiButtonHolder = document.getElementById("wiexport").parentElement
+		wiButtonHolder.appendChild(createWIButton("exportWIToFile", "[Export WI group to file]", () => {
+			save_wi()
+			update_wi()
+			saveFileGeneric(`wi_${curr_wi_tab !== "" ? curr_wi_tab : "General"}`, JSON.stringify(pending_wi_obj.filter(wi => wi.wigroup === curr_wi_tab)), 'application/json')
+		}))
+
+		wiButtonHolder.appendChild(createWIButton("importWIFromFile", "[Import WI group from file]", () => {
+			promptUserForLocalFile((fileDetails) => {
+				let {file, fileName, ext, content} = fileDetails
+				try
+				{
+					let wiToAdd = JSON.parse(atob(content.split(",")[1]))
+					let wiGroup = fileName.replace("wi_", "")
+					pending_wi_obj = pending_wi_obj.filter(wi => (wiGroup === "General" ? wi.wigroup !== "" : wi.wigroup !== wiGroup))
+					pending_wi_obj.push(...wiToAdd)
+					update_wi()
+					select_wi_group(wiGroup)
+				}
+				catch(e)
+				{
+					handleError(e)
+				}
+			})
+		}))
+	})
 </script>
 </html>
