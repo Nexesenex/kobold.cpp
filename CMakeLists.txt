@@ -138,7 +138,7 @@ if (LLAMA_CUBLAS)
                  add_compile_definitions(GGML_CUDA_USE_GRAPHS) #try enable cuda graphs on cu12 build
                  set(CMAKE_CUDA_ARCHITECTURES "50;61;70;75") # lowest CUDA 12 standard + lowest for integer intrinsics
             else()
-                 set(CMAKE_CUDA_ARCHITECTURES "37;50;61;70;75") # lowest CUDA 12 standard + lowest for integer intrinsics
+                 set(CMAKE_CUDA_ARCHITECTURES "35;50;61;70;75") # lowest CUDA 12 standard + lowest for integer intrinsics
             endif()
         endif()
     endif()

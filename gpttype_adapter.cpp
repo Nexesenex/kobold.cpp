@@ -98,6 +98,7 @@ static llama_v2_context * llama_ctx_v2 = nullptr;
 static llama_v3_context * llama_ctx_v3 = nullptr;
 static llama_context * llama_ctx_v4 = nullptr;
 static llama_context * draft_ctx = nullptr; //will remain null if speculative is unused
+static llama_context * guidance_ctx = nullptr; //for classifier free guidance, will be null if unused
 
 static clip_ctx * clp_ctx = nullptr; //for llava
 static clip_image_u8 * clp_img_data = nullptr; //most recent image
@@ -134,6 +135,7 @@ static std::string concat_output_reader_copy_poll = ""; //for streaming
 static std::string concat_output_reader_copy_res = ""; //for gen response
 static std::vector<logit_bias> logit_biases;
 static bool add_bos_token = true; // if set to false, mmproj handling breaks. dont disable unless you know what you're doing
+static bool load_guidance = false; //whether to enable cfg for negative prompts
 
 static int delayed_generated_tokens_limit = 0;
 std::deque<std::string> delayed_generated_tokens; //for use with antislop sampling
@@ -1898,6 +1900,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     kcpp_data->use_fastforward = inputs.use_fastforward;
     debugmode = inputs.debugmode;
     draft_ctx = nullptr;
+    guidance_ctx = nullptr;
 
     auto clamped_max_context_length = inputs.max_context_length;
 
@@ -1923,6 +1926,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     kcpp_data->n_ctx = clamped_max_context_length;
     max_context_limit_at_load = clamped_max_context_length;
     add_bos_token = !inputs.no_bos_token;
+    load_guidance = inputs.load_guidance;
 
     if(!add_bos_token)
     {
@@ -2303,6 +2307,10 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         llama_ctx_params.type_k = (inputs.quant_k>1?GGML_TYPE_Q4_0:(inputs.quant_k==1?GGML_TYPE_Q8_0:GGML_TYPE_F16));
         llama_ctx_params.type_v = (inputs.quant_v>1?GGML_TYPE_Q4_0:(inputs.quant_v==1?GGML_TYPE_Q8_0:GGML_TYPE_F16));
         llama_ctx_v4 = llama_init_from_model(llamamodel, llama_ctx_params);
+        if(load_guidance)
+        {
+            guidance_ctx = llama_init_from_model(llamamodel, llama_ctx_params);
+        }
 
         if (llama_ctx_v4 == NULL)
         {
@@ -3449,6 +3457,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 llama_kv_self_seq_rm(draft_ctx, 0, n_past, -1);
             }
         }
+    }
+    if(guidance_ctx)
+    {
+         llama_kv_self_clear(guidance_ctx);
     }
 
     bool blasmode = (embd_inp.size() >= 32 && kcpp_cpu_has_blas() && kcpp_data->n_batch>=32);
