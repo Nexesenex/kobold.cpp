@@ -977,15 +977,12 @@ class TensorNameMap:
             "visual.blocks.{bid}.norm2", # qwen2vl
         ),
 
-        # some namings are messed up because the original llava code swapped fc1 and fc2
-        # we have no better way to fix it, just be careful
-        # new models like pixtral use the correct naming
         MODEL_TENSOR.V_ENC_FFN_UP: (
             "vision_tower.vision_model.encoder.layers.{bid}.mlp.fc1",
             "vpm.encoder.layers.{bid}.mlp.fc1",
-            "model.vision_model.encoder.layers.{bid}.mlp.fc2", # SmolVLM, gemma3 (note: name is swapped)
+            "model.vision_model.encoder.layers.{bid}.mlp.fc1", # SmolVLM, gemma3
             "vision_tower.transformer.layers.{bid}.feed_forward.up_proj", # pixtral
-            "visual.blocks.{bid}.mlp.fc2", # qwen2vl
+            "visual.blocks.{bid}.mlp.fc1", # qwen2vl
             "visual.blocks.{bid}.mlp.up_proj", # qwen2.5vl
         ),
 
@@ -997,9 +994,9 @@ class TensorNameMap:
         MODEL_TENSOR.V_ENC_FFN_DOWN: (
             "vision_tower.vision_model.encoder.layers.{bid}.mlp.fc2",
             "vpm.encoder.layers.{bid}.mlp.fc2",
-            "model.vision_model.encoder.layers.{bid}.mlp.fc1", # SmolVLM, gemma3 (note: name is swapped)
+            "model.vision_model.encoder.layers.{bid}.mlp.fc2", # SmolVLM, gemma3
             "vision_tower.transformer.layers.{bid}.feed_forward.down_proj", # pixtral
-            "visual.blocks.{bid}.mlp.fc1", # qwen2vl
+            "visual.blocks.{bid}.mlp.fc2", # qwen2vl
             "visual.blocks.{bid}.mlp.down_proj", # qwen2.5vl
         ),
 

@@ -51,7 +51,6 @@ models-mnt
 /infill
 /libllama.so
 /llama-bench
-/llava-cli
 /lookahead
 /lookup
 /main

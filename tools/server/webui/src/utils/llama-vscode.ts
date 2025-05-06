@@ -33,6 +33,9 @@ export const useVSCodeContext = (textarea: ChatTextareaApi) => {
           });
         }
         textarea.focus();
+        setTimeout(() => {
+          textarea.refOnSubmit.current?.();
+        }, 10); // wait for setExtraContext to finish
       }
     };
 

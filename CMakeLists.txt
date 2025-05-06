@@ -470,10 +470,10 @@ add_library(common2
             common/common.h
             common/sampling.cpp
             common/sampling.h
-            tools/llava/llava.cpp
-            tools/llava/llava.h
-            tools/llava/clip.cpp
-            tools/llava/clip.h
+            tools/mtmd/llava.cpp
+            tools/mtmd/llava.h
+            tools/mtmd/clip.cpp
+            tools/mtmd/clip.h
             src/unicode.h
             src/unicode.cpp
             src/unicode-data.cpp

@@ -157,6 +157,9 @@ export default function ChatScreen() {
     clearExtraContext();
   };
 
+  // for vscode context
+  textarea.refOnSubmit.current = sendNewMessage;
+
   const handleEditMessage = async (msg: Message, content: string) => {
     if (!viewingChat) return;
     setCurrNodeId(msg.id);

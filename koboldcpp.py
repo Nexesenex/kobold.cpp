@@ -59,7 +59,7 @@ logit_bias_max = 512
 dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.90.2"
+KcppVersion = "1.91"
 showdebug = True
 kcpp_instance = None #global running instance
 global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None}
@@ -199,6 +199,7 @@ class load_model_inputs(ctypes.Structure):
                 ("tensor_split", ctypes.c_float * tensor_split_max),
                 ("quant_k", ctypes.c_int),
                 ("quant_v", ctypes.c_int),
+                ("check_slowness", ctypes.c_bool),
                 ("quiet", ctypes.c_bool),
                 ("debugmode", ctypes.c_int)]
 
@@ -206,6 +207,8 @@ class generation_inputs(ctypes.Structure):
     _fields_ = [("seed", ctypes.c_int),
                 ("prompt", ctypes.c_char_p),
                 ("memory", ctypes.c_char_p),
+                ("negative_prompt", ctypes.c_char_p),
+                ("guidance_scale", ctypes.c_float),
                 ("images", ctypes.c_char_p * images_max),
                 ("max_context_length", ctypes.c_int),
                 ("max_length", ctypes.c_int),
@@ -785,10 +788,11 @@ def get_capabilities():
     has_search = True if args.websearch else False
     has_tts = (ttsmodelpath!="")
     has_embeddings = (embeddingsmodelpath!="")
+    has_guidance = True if args.enableguidance else False
     has_server_saving = args.admin and not (args.admindatadir == "")
     had_admin_with_hf = args.adminallowhf
     admin_type = (2 if args.admin and args.admindir and args.adminpassword else (1 if args.admin and args.admindir else 0))
-    return {"result":"KoboldCpp", "version":KcppVersion, "protected":has_password, "llm":has_llm, "txt2img":has_txt2img,"vision":has_vision,"transcribe":has_whisper,"multiplayer":has_multiplayer,"websearch":has_search,"tts":has_tts, "embeddings":has_embeddings, "savedata":(savedata_obj is not None), "admin": admin_type, "hasServerSaving": has_server_saving, "hasAdminWithHF": had_admin_with_hf}
+    return {"result":"KoboldCpp", "version":KcppVersion, "protected":has_password, "llm":has_llm, "txt2img":has_txt2img,"vision":has_vision,"transcribe":has_whisper,"multiplayer":has_multiplayer,"websearch":has_search,"tts":has_tts, "embeddings":has_embeddings, "savedata":(savedata_obj is not None), "admin": admin_type, "guidance": has_guidance, "hasServerSaving": has_server_saving, "hasAdminWithHF": had_admin_with_hf}
 
 def dump_gguf_metadata(file_path): #if you're gonna copy this into your own project at least credit concedo
     chunk_size = 1024*1024*12  # read first 12mb of file
@@ -1245,6 +1249,7 @@ def load_model(model_filename):
     inputs.load_guidance = args.enableguidance
     inputs.override_kv = args.overridekv.encode("UTF-8") if args.overridekv else "".encode("UTF-8")
     inputs.override_tensors = args.overridetensors.encode("UTF-8") if args.overridetensors else "".encode("UTF-8")
+    inputs.check_slowness = (not args.highpriority and os.name == 'nt' and 'Intel' in platform.processor())
     inputs = set_backend_props(inputs)
     ret = handle.load_model(inputs)
     return ret
@@ -1256,6 +1261,8 @@ def generate(genparams, stream_flag=False):
 
     prompt = genparams.get('prompt', "")
     memory = genparams.get('memory', "")
+    negative_prompt = genparams.get('negative_prompt', "")
+    guidance_scale = tryparsefloat(genparams.get('guidance_scale', 1.0),1.0)
     images = genparams.get('images', [])
     max_context_length = tryparseint(genparams.get('max_context_length', maxctx),maxctx)
     max_length = tryparseint(genparams.get('max_length', args.defaultgenamt),args.defaultgenamt)
@@ -1336,6 +1343,8 @@ def generate(genparams, stream_flag=False):
     inputs = generation_inputs()
     inputs.prompt = prompt.encode("UTF-8")
     inputs.memory = memory.encode("UTF-8")
+    inputs.negative_prompt = negative_prompt.encode("UTF-8")
+    inputs.guidance_scale = guidance_scale
     for n in range(images_max):
         if not images or n >= len(images):
             inputs.images[n] = "".encode("UTF-8")
@@ -6256,60 +6265,6 @@ def setuptunnel(global_memory, has_sd):
         print(str(ex))
         return None
 
-def unload_libs():
-    global handle
-    OS = platform.system()
-    dll_close = None
-    if OS == "Windows":  # pragma: Windows
-        from ctypes import wintypes
-        dll_close = ctypes.windll.kernel32.FreeLibrary
-        dll_close.argtypes = [wintypes.HMODULE]
-        dll_close.restype = ctypes.c_int
-    elif OS == "Darwin":
-        try:
-            try:  # macOS 11 (Big Sur). Possibly also later macOS 10s.
-                stdlib = ctypes.CDLL("libc.dylib")
-            except OSError:
-                stdlib = ctypes.CDLL("libSystem")
-        except OSError:
-            # Older macOSs. Not only is the name inconsistent but it's
-            # not even in PATH.
-            stdlib = ctypes.CDLL("/usr/lib/system/libsystem_c.dylib")
-        dll_close = stdlib.dlclose
-        dll_close.argtypes = [ctypes.c_void_p]
-        dll_close.restype = ctypes.c_int
-    elif OS == "Linux":
-        try:
-            stdlib = ctypes.CDLL("")
-        except OSError:
-            stdlib = ctypes.CDLL("libc.so") # Alpine Linux.
-        dll_close = stdlib.dlclose
-        dll_close.argtypes = [ctypes.c_void_p]
-        dll_close.restype = ctypes.c_int
-    elif sys.platform == "msys":
-        # msys can also use `ctypes.CDLL("kernel32.dll").FreeLibrary()`.
-        stdlib = ctypes.CDLL("msys-2.0.dll")
-        dll_close = stdlib.dlclose
-        dll_close.argtypes = [ctypes.c_void_p]
-        dll_close.restype = ctypes.c_int
-    elif sys.platform == "cygwin":
-        stdlib = ctypes.CDLL("cygwin1.dll")
-        dll_close = stdlib.dlclose
-        dll_close.argtypes = [ctypes.c_void_p]
-        dll_close.restype = ctypes.c_int
-    elif OS == "FreeBSD":
-        # FreeBSD uses `/usr/lib/libc.so.7` where `7` is another version number.
-        # It is not in PATH but using its name instead of its path is somehow the
-        # only way to open it. The name must include the .so.7 suffix.
-        stdlib = ctypes.CDLL("libc.so.7")
-        dll_close = stdlib.close
-
-    if handle and dll_close:
-        print("Unloading Libraries...")
-        dll_close(handle._handle)
-        del handle
-        handle = None
-
 def reload_from_new_args(newargs):
     try:
         args.istemplate = False
@@ -6445,10 +6400,23 @@ def downloader_internal(input_url, output_filename, capture_output, min_file_siz
     dl_success = False
 
     try:
-        if shutil.which("aria2c") is not None:
+        if os.name == 'nt':
+            basepath = os.path.abspath(os.path.dirname(__file__))
+            a2cexe = (os.path.join(basepath, "aria2c-win.exe"))
+            if os.path.exists(a2cexe): #on windows try using embedded a2cexe
+                rc = subprocess.run([
+                        a2cexe, "-x", "16", "-s", "16", "--summary-interval=30", "--console-log-level=error", "--log-level=error",
+                        "--download-result=default", "--allow-overwrite=true", "--file-allocation=none", "--max-tries=3", "-o", output_filename, input_url
+                    ], capture_output=capture_output, text=True, check=True, encoding='utf-8')
+                dl_success = (rc.returncode == 0 and os.path.exists(output_filename) and os.path.getsize(output_filename) > min_file_size)
+    except subprocess.CalledProcessError as e:
+        print(f"aria2c-win failed: {e}")
+
+    try:
+        if not dl_success and shutil.which("aria2c") is not None:
             rc = subprocess.run([
                     "aria2c", "-x", "16", "-s", "16", "--summary-interval=30", "--console-log-level=error", "--log-level=error",
-                    "--download-result=default", "--allow-overwrite=true", "--file-allocation=none", "-o", output_filename, input_url
+                    "--download-result=default", "--allow-overwrite=true", "--file-allocation=none", "--max-tries=3", "-o", output_filename, input_url
                 ], capture_output=capture_output, text=True, check=True, encoding='utf-8')
             dl_success = (rc.returncode == 0 and os.path.exists(output_filename) and os.path.getsize(output_filename) > min_file_size)
     except subprocess.CalledProcessError as e:
@@ -6936,7 +6904,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
             os_used = sys.platform
             process = psutil.Process(os.getpid())  # Set high priority for the python script for the CPU
             oldprio = process.nice()
-            if os_used == "win32":  # Windows (either 32-bit or 64-bit)
+            if os.name == 'nt':  # Windows (either 32-bit or 64-bit)
                 process.nice(psutil.REALTIME_PRIORITY_CLASS)
                 print("High Priority for Windows Set: " + str(oldprio) + " to " + str(process.nice()))
             elif os_used == "linux":  # linux

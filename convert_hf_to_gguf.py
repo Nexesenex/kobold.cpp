@@ -1778,6 +1778,12 @@ class LlamaModel(TextModel):
     model_arch = gguf.MODEL_ARCH.LLAMA
     undo_permute = True
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # fix for SmolVLM2, missing `num_attention_heads` in config.json
+        if self.hf_arch == "VLlama3ForCausalLM":
+            self.hparams["num_attention_heads"] = self.hparams.get("num_attention_heads", 32)
+
     def set_vocab(self):
         try:
             self._set_vocab_sentencepiece()
@@ -2123,6 +2129,9 @@ class DeciModel(TextModel):
             # if n_heads_in_group is not None, then
             # _num_kv_heads[il] is num_attention_head // n_heads_in_group and
             # _num_heads[il] is num_attention_head
+            # ***dummy layer*** for nemotron 253B
+            # if n_heads_in_group is None and ffn_mult is None
+            # then _num_kv_heads[il] is 0 and _num_heads[il] is 0 and _ffn_dims is 0
             for il in range(len(_block_configs)):
                 if _block_configs[il]["attention"]["n_heads_in_group"] is None:
                     if _block_configs[il]["attention"]["replace_with_linear"] is True:
@@ -2134,7 +2143,10 @@ class DeciModel(TextModel):
                 else:
                     self._num_kv_heads.append(self.hparams["num_attention_heads"] // _block_configs[il]["attention"]["n_heads_in_group"])
                     self._num_heads.append(self.hparams["num_attention_heads"])
-                _ffn_multipliers.append(_block_configs[il]["ffn"]["ffn_mult"])
+                if _block_configs[il]["ffn"]["ffn_mult"] is None: # dummy layer
+                    _ffn_multipliers.append(0.0)
+                else:
+                    _ffn_multipliers.append(_block_configs[il]["ffn"]["ffn_mult"])
             assert self.block_count == len(self._num_kv_heads)
             assert self.block_count == len(self._num_heads)
             assert self.block_count == len(_ffn_multipliers)
@@ -2749,6 +2761,13 @@ class Qwen2MoeModel(TextModel):
         if (shared_expert_intermediate_size := self.hparams.get('shared_expert_intermediate_size')) is not None:
             self.gguf_writer.add_expert_shared_feed_forward_length(shared_expert_intermediate_size)
             logger.info(f"gguf: expert shared feed forward length = {shared_expert_intermediate_size}")
+        # YaRN is not enabled by default
+        # To enable it, please refer to this guide: https://huggingface.co/Qwen/Qwen3-30B-A3B#processing-long-texts
+        if self.hparams.get("rope_scaling") is not None and "factor" in self.hparams["rope_scaling"]:
+            if self.hparams["rope_scaling"].get("type") == "yarn":
+                self.gguf_writer.add_rope_scaling_type(gguf.RopeScalingType.YARN)
+                self.gguf_writer.add_rope_scaling_factor(self.hparams["rope_scaling"]["factor"])
+                self.gguf_writer.add_rope_scaling_orig_ctx_len(self.hparams["rope_scaling"]["original_max_position_embeddings"])
 
     _experts: list[dict[str, Tensor]] | None = None
 
@@ -5674,7 +5693,12 @@ class BailingMoeModel(TextModel):
         rope_dim = hparams.get("head_dim") or hparams["hidden_size"] // hparams["num_attention_heads"]
 
         self.gguf_writer.add_rope_dimension_count(rope_dim)
-        self.gguf_writer.add_rope_scaling_type(gguf.RopeScalingType.NONE)
+        if (self.hparams.get("rope_scaling") or {}).get("type") == "yarn" and "factor" in self.hparams["rope_scaling"]:
+            self.gguf_writer.add_rope_scaling_type(gguf.RopeScalingType.YARN)
+            self.gguf_writer.add_rope_scaling_factor(self.hparams["rope_scaling"]["factor"])
+            self.gguf_writer.add_rope_scaling_orig_ctx_len(self.hparams["rope_scaling"]["original_max_position_embeddings"])
+        else:
+            self.gguf_writer.add_rope_scaling_type(gguf.RopeScalingType.NONE)
         self.gguf_writer.add_leading_dense_block_count(hparams["first_k_dense_replace"])
         self.gguf_writer.add_vocab_size(hparams["vocab_size"])
         self.gguf_writer.add_expert_feed_forward_length(hparams["moe_intermediate_size"])
