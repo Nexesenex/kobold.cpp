@@ -3107,7 +3107,8 @@ Current version indicated by LITEVER below.
 	var koboldcpp_has_websearch = false;
 	var koboldcpp_has_savedatafile = false;
 	var koboldcpp_has_server_saving = false;
-	var koboldcpp_has_embeddings = false
+	var koboldcpp_has_embeddings = false;
+	var koboldcpp_has_admin_with_HF = false;
 	var koboldcpp_admin_type = 0; //0 = no admin, 1=has admin, 2=protected admin
 	var lastSearchQuery = "";
 	var lastSearchResults = [];
@@ -6390,6 +6391,9 @@ Current version indicated by LITEVER below.
 		return (custom_kobold_endpoint != "" && koboldcpp_version && koboldcpp_version != "" && compare_version_str(koboldcpp_version, "1.84") >= 0 && koboldcpp_has_embeddings);
 	}
 
+	function is_using_kcpp_with_admin_with_HF() {
+		return (custom_kobold_endpoint != "" && koboldcpp_version && koboldcpp_version != "" && compare_version_str(koboldcpp_version, "1.84") >= 0 && koboldcpp_has_admin_with_HF);
+	}
 
 	function determine_if_ban_eos(input_was_empty) {
 		if(localsettings.eos_ban_mode == 3)
@@ -9872,6 +9876,7 @@ Current version indicated by LITEVER below.
 									koboldcpp_has_savedatafile = (data.savedata?true:false)
 									koboldcpp_has_server_saving = (data.hasServerSaving ? true:false)
 									koboldcpp_has_embeddings = (data.embeddings ? true : false)
+									koboldcpp_has_admin_with_HF = (data.hasAdminWithHF ? true : false)
 									let has_password = (data.protected?true:false);
 									let has_txt2img = (data.txt2img?true:false);
 									let no_txt_model = (mdlname=="inactive");
@@ -10269,6 +10274,16 @@ Current version indicated by LITEVER below.
 	var last_admin_key = "";
 	function display_admin_container()
 	{
+		if (is_using_kcpp_with_admin_with_HF())
+		{
+			document.getElementById("adminmodelfromhf").classList.remove("hidden")
+			document.getElementById("adminmodelfromhflabel").classList.remove("hidden")
+		}
+		else
+		{
+			document.getElementById("adminmodelfromhf").classList.add("hidden")
+			document.getElementById("adminmodelfromhflabel").classList.add("hidden")
+		}
 		mainmenu_untab(false);
 		let fetch_kcpps_configs = function(adminkey)
 		{
@@ -21583,7 +21598,7 @@ Current version indicated by LITEVER below.
 					<div class="justifyleft"><br>TextDB Storage<span class="helpicon">?<span
 						class="helptext">Paste as much raw text data here as you like. E.g. background information, reference documents, etc. This text will populate the database that will be chunked and searched by TextDB. This can be split using "[DOCUMENT BREAK]" to split the overall database into smaller documents, and titles can be added with "[DOCUMENT BREAK][Title of document]This is the content of the document".</span></span></div>
 				</div>
-				<textarea title="Edit TextDB" class="form-control menuinput_multiline" id="documentdb_data" style="height: 120px;"
+				<textarea title="Edit TextDB" class="form-control menuinput_multiline" oninput="estimate_and_show_textDB_usage()" id="documentdb_data" style="height: 120px;"
 					placeholder="Paste as much text data here as you like. This text will populate the database that will be searched by TextDB. This can be split using [DOCUMENT BREAK] to split the overall database into smaller documents, and titles can be added with [DOCUMENT BREAK][Title of document]This is the content of the document."></textarea>
 			</div>
 			<div id="memorycontainerfooter" class="popupfooter">
@@ -23346,7 +23361,11 @@ Current version indicated by LITEVER below.
 					</select>
 					<label for="adminmodeldropdown" id="adminmodeldropdownlabel"></label>
 					<select title="Select New Model" style="padding:4px;" class="form-control" id="adminmodeldropdown">
-					</select>
+					</select>					
+					<label for="adminmodelfromhf" id="adminmodelfromhflabel"></label>
+					<button title="Click to download a new model from HF" style="padding:4px;" class="form-control btn btn-primary" id="adminmodelfromhf">
+						Click to download a new model from HF
+					</button>
 				</div>
 				<br>
 			</div>
@@ -26550,5 +26569,113 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			})
 		}))
 	})
+</script>
+<script type="module">
+	class HFModelSearcher
+	{
+		async searchModelName(searchTerm)
+		{
+			let overallSearchTerm = `GGUF ${searchTerm}`, limit = 10, searchUrl = `https://huggingface.co/api/models?search=${encodeURIComponent(overallSearchTerm)}&limit=${limit};`;
+
+			let modelResults = (await(await fetch(searchUrl)).json()).map(res => res?.id)
+			return modelResults
+		}
+
+		async searchForQuantsFromModel(modelName)
+		{
+			if (!modelName)
+			{
+				return {quantResults: [], priorityQuantResult: null}
+			}
+			let quantUrl = `https://huggingface.co/api/models/${modelName}`
+
+			let quantResults = (await(await fetch(quantUrl)).json())?.siblings?.filter(quant => !!quant?.rfilename && quant.rfilename.indexOf(".gguf") !== -1).map(quant => quant.rfilename)
+
+			let priorityQuantResult = null
+			if (quantResults.length > 0) {
+				priorityQuantResult = quantResults[0]
+				for (let qLevel in ["q4k", "q4_k", "q4", "q3", "q5", "q6", "q8"]) {
+					let foundPriorityResult = quantResults.find(quant => quant.indexOf(qLevel) !== -1)
+					if (!!foundPriorityResult) {
+						priorityQuantResult = foundPriorityResult
+						break
+					}
+				}
+			}
+
+			return {quantResults, priorityQuantResult}
+		}
+
+		getDirectURLForDownload(modelName, quantName)
+		{
+			return `https://huggingface.co/${modelName}/resolve/main/${quantName}`
+		}
+	}
+
+	window.hfModelSearcher = new HFModelSearcher()
+
+	document.getElementById("adminmodelfromhf").onclick = () => {
+		hide_popups()
+
+		let adminHFPopupHTML = `<div class="menutext">
+			<b></b>Warning: The model will be downloaded during the restart. This can make the restart take much longer than expected.<br>
+			<div>
+				<label for="adminhfmodelsearchinput" id="adminhfmodelsearchinputlabel">Model to search for:</label>
+				<span style="display: flex;">
+					<input title="Model to search for" style="padding:4px; padding: 4px; width: calc(100% - 80px);" class="form-control" id="adminhfmodelsearchinput" />
+					<button type="button" style="flex: 1;" class="btn btn-primary" id="adminhfmodelsearch">Search</button>
+				</span>
+				<label for="adminhfmodelname" id="adminhfmodelnamelabel">Model name:</label>
+				<select title="Select model to use" style="padding:4px;" class="form-control" id="adminhfmodelname"></select>
+				<label for="adminhfquantname" id="adminhfquantnamelabel">Quant name:</label>
+				<select title="Select quant to use" style="padding:4px;" class="form-control" id="adminhfquantname"></select>
+			</div>
+			<br>
+		</div>
+		<div class="popupfooter">
+			<button type="button" style="width:auto;" class="btn btn-primary" onclick="trigger_admin_reload()">Download and reload KoboldCpp</button>
+			<button type="button" class="btn btn-primary" onclick="hide_popups()">Cancel</button>
+		</div>`
+		msgbox(adminHFPopupHTML, "Search for model from HuggingFace to download and use", true, true)
+		
+		let selectForModel = document.getElementById("adminhfmodelname"), selectForQuant = document.getElementById("adminhfquantname");
+		document.getElementById("adminhfmodelsearch").onclick = async () => {
+			let searchTerm = document.getElementById("adminhfmodelsearchinput").value
+			let modelResults = await hfModelSearcher.searchModelName(searchTerm);
+			
+			selectForModel.innerHTML = ""
+			modelResults.forEach(modelResult => {
+				selectForModel.appendChild(new Option(modelResult, modelResult))
+			})
+			selectForModel.onchange()
+		}
+
+		selectForModel.onchange = async () => {
+			let modelName = selectForModel.value
+			let {quantResults, priorityQuantResult} = await hfModelSearcher.searchForQuantsFromModel(modelName);
+			
+			selectForQuant.innerHTML = ""
+			quantResults.forEach(quantResult => {
+				selectForQuant.appendChild(new Option(quantResult, quantResult))
+			})
+
+			if (!!priorityQuantResult)
+			{
+				selectForQuant.value = priorityQuantResult
+			}
+
+			selectForQuant.onchange()
+		}
+
+		selectForQuant.onchange = () => {
+			if (!!selectForQuant.value)
+			{
+				let urlToSet = hfModelSearcher.getDirectURLForDownload(selectForModel.value, selectForQuant.value)	
+				let modelDropdown = document.getElementById("adminmodeldropdown")
+				modelDropdown.appendChild(new Option(urlToSet, urlToSet))
+				modelDropdown.value = urlToSet
+			}
+		}
+	}
 </script>
 </html>
