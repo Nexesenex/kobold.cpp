@@ -25380,7 +25380,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 			if (filterOutActions)
 			{
-				let listOfExclusions = ["Action: {", "Action (words =", "History search performed:", "Chain of thought complete", "Stop thinking action confirmed",
+				let listOfExclusions = ["Action taken:", "Action taken (words =", "History search performed:", "Chain of thought complete", "Stop thinking action confirmed",
 				 "Web search results:", "Text has been added to history", "Formula evaluation result:", "Formula evaluation could not be completed as no formula was provided", 
 				 "Text has been added to history", "Text was empty - nothing added to history", "Search string was empty, no search performed", "Word count is", "Image analysed:", 
 				 "Image generated", "No prompt provided, image not generated", "Text has been spoken", "No text provided, nothing has been said", "System prompt has been overwritten", 
@@ -25415,7 +25415,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	let getLastActions = (amountOfActions = 10) => {
-		let exclusions = ["Action: {", "Action (words =", "Chain of thought repetition detected - ending", "Chain of thought complete"]
+		let exclusions = ["Chain of thought repetition detected - ending", "Chain of thought complete"] // "Action: {", "Action (words =", "Action taken: ", "Action taken (words ="
 		return repack_instruct_turns(concat_gametext(true), `{{[INPUT]}}`, `{{[OUTPUT]}}`, `{{[SYSTEM]}}`, true, false).map(msg => {
 			msg.msg = msg.msg.replaceAll("{{[SYSTEM_END]}}", "").replaceAll("{{[INPUT_END]}}", "").replaceAll("{{[OUTPUT_END]}}", "").trim(); 
 			return msg 
@@ -25593,6 +25593,23 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return wistr
 	}
 
+	let actionToText = (action) => {
+		let actionAsText = `Name: ${action.name}\n`
+		if (!!action.args)
+		{
+			let args = Object.keys(action.args).map(key => {
+				let value = action.args[key];
+				return typeof value === "object" ? `\t${key}: ${value.description}` : `\t${key}: ${value}`
+			}).join("\n")
+			actionAsText += `\nArguments:\n${args}`
+		}
+		else 
+		{
+			actionAsText += "\nArguments: None\n"
+		}
+		return actionAsText
+	}
+
 	let recentActions = [], maxActionsInHistory = 20, currentAgentCycle = null, endCurrent = false
 
 	let runAgentCycle = async (initialPrompt = undefined) => {
@@ -25725,14 +25742,15 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 					let action = json
 					recentActions.push(json)
-					if (wordCountEnabled && !!action?.args?.message && typeof action?.args?.message === "string")
+					if (wordCountEnabled && !!action?.command?.args?.message && typeof action?.command?.args?.message === "string")
 					{
-						addThought(createAIPrompt, `Action (words = ${action?.args?.message.split(/\s/g).filter(s => s.length > 0).length}): ${JSON.stringify(json)}`, true)
+						addThought(createAIPrompt, `Action taken (words = ${action?.command?.args?.message.split(/\s/g).filter(s => s.length > 0).length}):\n\n${actionToText(action?.command).trim()}`)
 					}
 					else
 					{
-						addThought(createAIPrompt, `Action: ${JSON.stringify(json)}`, true)
+						addThought(createAIPrompt, `Action taken:\n\n${actionToText(action?.command).trim()}`)
 					}
+
 					let isCompleted = false;
 					let command = getCommands().find(command => command.name === action.command.name)
 					if (!!command && command?.executor !== undefined) {
