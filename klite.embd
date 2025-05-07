@@ -25634,7 +25634,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		})
 
 		let textDBResults = ""
-		debugger
 		if (!!initialPrompt)
 		{
 			addThought(createInstructPrompt, initialPrompt)
