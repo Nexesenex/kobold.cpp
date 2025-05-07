@@ -25633,11 +25633,26 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			}
 		})
 
+		let textDBResults = ""
+		debugger
 		if (!!initialPrompt)
 		{
 			addThought(createInstructPrompt, initialPrompt)
+			if (!!documentdb_enabled)
+			{
+				let contentToSearch = documentdb_data
+				if (!!documentdb_searchhistory)
+				{
+					contentToSearch += `\n\n[DOCUMENT BREAK][Chatlog history]${concat_gametext(true)}[DOCUMENT BREAK]`
+				}
+				let ltmSnippets = await DatabaseMinisearch(contentToSearch, initialPrompt, "");
+				for (let i = 0; i < ltmSnippets.length; ++i) {
+					textDBResults += getInfoSnippet(ltmSnippets[i]);
+				}
+			}
 		}
 
+		
 		let hasAttemptedToCompleteOnce = false
 		let lastThoughtWasBlank = false
 
@@ -25675,7 +25690,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			let max_wi_len = Math.floor(max_allowed_characters * 0.5);
 
 			let history = getInitialAgentPrompt(nextAction, max_mem_len)
-			let wiToInclude = createSysPrompt(getWorldInfoForAgent(truncated_context, max_wi_len))
+			let wiToInclude = createSysPrompt(substring_to_boundary(getWorldInfoForAgent(truncated_context, max_wi_len) + "\n\n" + textDBResults, max_wi_len))
 			let anToInclude = createSysPrompt(substring_to_boundary(current_anotetemplate.replace("<|>", current_anote), max_anote_len))
 			let finalAgentPrompt = getFinalAgentPrompt(currentOrderOfActions)
 
