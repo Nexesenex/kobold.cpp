@@ -1587,6 +1587,15 @@ void sample_guidance(struct llama_context * ctx, struct llama_context * guidance
         scale = 0;
     }
 
+    if(debugmode==1 && !is_quiet)
+    {
+        int topidx1 = std::max_element(mainLogitsPtr, mainLogitsPtr + n_vocab) - mainLogitsPtr;
+        int topidx2 = std::max_element(guidanceLogitsPtr, guidanceLogitsPtr + n_vocab) - guidanceLogitsPtr;
+        printf("\nMain: (id:%d val:%f data:%s) Guided: (id:%d val:%f data:%s)\n", topidx1, mainLogitsPtr[topidx1],
+               FileFormatTokenizeID(topidx1, file_format, true).c_str(), topidx2, guidanceLogitsPtr[topidx2],
+               FileFormatTokenizeID(topidx2, file_format, true).c_str());
+    }
+
     for (int i = 0; i < n_vocab; ++i) {
         float logit_guidance = guidanceLogitsPtr[i];
         float logit_main = mainLogitsPtr[i];
@@ -3449,7 +3458,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         guidance_embd.insert(guidance_embd.begin(), negprompt_tokens.begin(), negprompt_tokens.end());
 
         //eval the guidance prompt
-        printf("Preparing Negative Prompt (%zu tokens)\n", guidance_embd.size());
+        printf("\nPreparing Negative Prompt (%zu tokens)", guidance_embd.size());
         kcpp_embd_batch batch = kcpp_embd_batch(guidance_embd, 0, use_mrope, false);
         auto er = llama_decode(guidance_ctx, batch.batch);
         if(er!=0)
@@ -3653,8 +3662,12 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 if(guidance_ctx && negprompt_tokens.size()>0 && inputs.guidance_scale!=1.0f && embd.size()==1 && startedsampling)
                 {
                     //eval for negative prompt
-                    kcpp_embd_batch batch = kcpp_embd_batch(embd, guidance_n_past, use_mrope, false);
-                    evalres = (evalres && (llama_decode(guidance_ctx, batch.batch)==0));
+                    kcpp_embd_batch gbatch = kcpp_embd_batch(embd, guidance_n_past, use_mrope, false);
+                    auto er = llama_decode(guidance_ctx, gbatch.batch);
+                    if(er!=0)
+                    {
+                        printf("\nGenerate with Negative Prompt Failed! (code:%d)\n",er);
+                    }
                     guidance_n_past += 1;
                 }
                 if(embd.size()!=1 || draft_ctx==nullptr || remaining_tokens<=speculative_chunk_amt || grammar!=nullptr || startedsampling==false) //for large batch, or if no draft model, PP/TG as usual

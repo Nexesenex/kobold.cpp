@@ -154,7 +154,7 @@ KoboldCpp can now also be run on Novita AI, a newer alternative GPU cloud provid
 
 ## Docker
 - The official docker can be found at https://hub.docker.com/r/koboldai/koboldcpp
-- If you're building your own docker, remember to set CUDA_DOCKER_ARCH or enable LLAMA_PORTABLE
+- If you're building your own docker, remember to enable LLAMA_PORTABLE
 
 ## Obtaining a GGUF model
 - KoboldCpp uses GGUF models. They are not included with KoboldCpp, but you can download GGUF files from other places such as [Bartowski's Huggingface](https://huggingface.co/bartowski). Search for "GGUF" on huggingface.co for plenty of compatible models in the `.gguf` format.

@@ -189,19 +189,32 @@ ifdef LLAMA_ADD_CONDA_PATHS
 	CUBLASLD_FLAGS += -Lconda/envs/linux/lib -Lconda/envs/linux/lib/stubs
 endif
 
-ifdef CUDA_DOCKER_ARCH
-	NVCCFLAGS += -Wno-deprecated-gpu-targets -arch=$(CUDA_DOCKER_ARCH)
-else
+
 ifdef LLAMA_PORTABLE
-ifdef LLAMA_COLAB #colab does not need all targets, all-major doesnt work correctly with pascal
-	NVCCFLAGS += -Wno-deprecated-gpu-targets -arch=all-major
+
+ifdef LLAMA_ARCHES_CU11
+	NVCCFLAGS += -Wno-deprecated-gpu-targets \
+	             -gencode arch=compute_35,code=compute_35 \
+	             -gencode arch=compute_50,code=compute_50 \
+	             -gencode arch=compute_61,code=compute_61 \
+	             -gencode arch=compute_70,code=compute_70 \
+	             -gencode arch=compute_75,code=compute_75
+
+else ifdef LLAMA_ARCHES_CU12
+	NVCCFLAGS += -Wno-deprecated-gpu-targets \
+	             -gencode arch=compute_50,code=compute_50 \
+	             -gencode arch=compute_61,code=compute_61 \
+	             -gencode arch=compute_70,code=compute_70 \
+	             -gencode arch=compute_75,code=compute_75 \
+	             -gencode arch=compute_80,code=compute_80
+
 else
 	NVCCFLAGS += -Wno-deprecated-gpu-targets -arch=all
-endif #LLAMA_COLAB
+endif
+
 else
 	NVCCFLAGS += -arch=native
-endif #LLAMA_PORTABLE
-endif # CUDA_DOCKER_ARCH
+endif # LLAMA_PORTABLE
 
 ifdef LLAMA_CUDA_F16
 	NVCCFLAGS += -DGGML_CUDA_F16

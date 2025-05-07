@@ -21,11 +21,18 @@ KCPP_CUDA=$(<conda/envs/linux/cudaver)
 KCPP_CUDAAPPEND=-cuda${KCPP_CUDA//.}$KCPP_APPEND
 
 LLAMA_NOAVX2_FLAG=""
+ARCHES_FLAG=""
 if [ -n "$NOAVX2" ]; then
 	LLAMA_NOAVX2_FLAG="LLAMA_NOAVX2=1"
 fi
+if [ -n "$ARCHES_CU11" ]; then
+	ARCHES_FLAG="LLAMA_ARCHES_CU11=1"
+fi
+if [ -n "$ARCHES_CU12" ]; then
+	ARCHES_FLAG="LLAMA_ARCHES_CU12=1"
+fi
 
-bin/micromamba run -r conda -p conda/envs/linux make -j$(nproc) LLAMA_VULKAN=1 LLAMA_CLBLAST=1 LLAMA_CUBLAS=1 LLAMA_PORTABLE=1 LLAMA_ADD_CONDA_PATHS=1 $LLAMA_NOAVX2_FLAG
+bin/micromamba run -r conda -p conda/envs/linux make -j$(nproc) LLAMA_VULKAN=1 LLAMA_CLBLAST=1 LLAMA_CUBLAS=1 LLAMA_PORTABLE=1 LLAMA_ADD_CONDA_PATHS=1 $LLAMA_NOAVX2_FLAG $ARCHES_FLAG
 if [ $? -ne 0 ]; then
     echo "Error: make failed."
     exit 1
