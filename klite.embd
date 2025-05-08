@@ -26060,6 +26060,18 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			let nextAction = currentOrderOfActions.splice(i).filter(acts => acts.split("|").find(act => validCommands.includes(act)))
 			nextAction = nextAction.length > 0 ? getCommands().filter(act => nextAction[0].split("|").includes(act.name)) : getEnabledCommands().filter(command => validCommands.includes(command.name))
 
+			// Find any actions which have occured more than the max repeats in settings and remove them from the options
+			let actionsOverMaxRepeats = recentActions.map(elem => elem?.command?.name).reduce((o, c) => {
+				let elem = o.find(e => e.name == c)
+				if (elem === undefined) {
+					o.push({name: c, repeats: 1})
+				} else {
+					elem.repeats++
+				}
+				return o
+			}, []).filter(o => o.repeats >= localsettings.agentCOTRepeatsMax).map(o => o.name)
+			nextAction = nextAction.filter(act => !actionsOverMaxRepeats.includes(act.name))
+
 			// Find actions which are identical and have run twice - then remove them from the possible options to run again
 			let duplicateActions = recentActions.filter((elem, pos, arr) => arr.findIndex((elem2) => JSON.stringify(elem) === JSON.stringify(elem2)) !== pos).map(elem => elem?.command?.name)
 			nextAction = nextAction.filter(act => !duplicateActions.includes(act.name))
@@ -26222,12 +26234,15 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		document.getElementById("agentHideCOT").checked = localsettings.agentHideCOT;
 		document.getElementById("agentCOTMax").value = localsettings.agentCOTMax;
 		document.getElementById("agentCOTMaxnumeric").value = localsettings.agentCOTMax;
+		document.getElementById("agentCOTRepeatsMax").value = localsettings.agentCOTRepeatsMax;
+		document.getElementById("agentCOTRepeatsMaxnumeric").value = localsettings.agentCOTRepeatsMax;
 	}
 
 	confirm_settings = () => {
 		localsettings.agentBehaviour = (document.getElementById("agentBehaviour").checked ? true : false);
 		localsettings.agentHideCOT = (document.getElementById("agentHideCOT").checked ? true : false);
 		localsettings.agentCOTMax = document.getElementById("agentCOTMax").value;
+		localsettings.agentCOTRepeatsMax = document.getElementById("agentCOTRepeatsMax").value;
 		originalConfirmSettings()
 	}
 
@@ -26424,7 +26439,11 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		if (localsettings?.agentCOTMax == undefined)
 		{
 			localsettings.agentCOTMax = 5
-		}		
+		}
+		if (localsettings?.agentCOTRepeatsMax == undefined)
+		{
+			localsettings.agentCOTRepeatsMax = 1
+		}
 
 		let createSettingElemBool = (inputElemId, labelTitle, labelText) => {
 			let settingLabelElem = document.createElement("div")
@@ -26518,6 +26537,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		lastSettingContainer.append(settingLabelElem)
 
 		settingLabelElem = createSettingElemRange("agentCOTMax", "Maximum agent actions", "Defines the maximum number of actions the agent can take without a user input", 1, 20, 1, 5)
+		lastSettingContainer.append(settingLabelElem)
+
+		settingLabelElem = createSettingElemRange("agentCOTRepeatsMax", "Maximum repeated agent actions of a type", "Defines the maximum number of actions the agent can take of the same type without a user input", 1, 20, 1, 1)
 		lastSettingContainer.append(settingLabelElem)
 
 		createStopThinkingButton()
