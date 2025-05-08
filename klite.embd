@@ -7364,6 +7364,44 @@ Current version indicated by LITEVER below.
 			console.log("ERROR ALT GREETING NOT FOUND");
 		}
 	}
+
+	function replaceDocumentFromTextDB(documentName, documentContent) {
+		if (documentdb_data.indexOf(`[DOCUMENT BREAK][${documentName}]`) !== -1) {
+			regex = `\(\\[DOCUMENT BREAK\\]\\[${documentName}\\]\)\(.*?\)\(\\[DOCUMENT BREAK\\]\)`
+			documentdb_data = documentdb_data.replace(new RegExp(regex, "s"), `$1${documentContent.trim()}$3`)
+		}
+		else {
+			documentdb_data += `[DOCUMENT BREAK][${documentName}]${documentContent.trim()}[DOCUMENT BREAK]`
+		}
+		document.getElementById("documentdb_data").value = documentdb_data;
+	}
+
+	function importLorebookAsTextDB(lorebook) {						
+		if (!!lorebook?.entries)
+		{
+			let outputText = Object.values(lorebook.entries)
+				.map(loreEntry => {
+					let {name, comment, content} = loreEntry;
+					let keys = [...new Set([...loreEntry.key, ...loreEntry.keys, ...loreEntry.keysecondary])];
+					let description = `### Name: ${name}`
+					if (comment !== name) {
+						description += `\n(Description: ${comment})`
+					}
+					if (keys.length > 0)
+					{
+						description += `\n(Alternative names: ${keys.join(",")})`
+					}
+					description += `\nDetails: ${content}`
+					return description
+				});
+			replaceDocumentFromTextDB(lorebook?.name, outputText.join("\n\n"))
+			return true
+		}
+		else
+		{
+			return false
+		}
+	}
 	function load_tavern_obj(obj)
 	{
 		let selectedgreeting = "";
@@ -7437,33 +7475,15 @@ Current version indicated by LITEVER below.
 			if(combinedmem.trim()=="" && greeting=="" && obj.entries)
 			{
 				msgboxYesNo("Import World Info / Lorebook into TextDB instead of overwriting existing World Info?\n\nYes = TextDB Used\nNo = World Info Used\n\nIf unsure, select 'No'.","Import World Info / Lorebook Mode", ()=>{
-					let importLorebookAsTextDB = (lorebook) => {						
-						if (!!lorebook?.entries)
-						{
-							let outputText = Object.values(lorebook.entries)
-								.map(loreEntry => {
-									let {name, comment, content} = loreEntry;
-									let keys = [...new Set([...loreEntry.key, ...loreEntry.keys, ...loreEntry.keysecondary])];
-									let description = `### Name: ${name}`
-									if (comment !== name) {
-										description += `\n(Description: ${comment})`
-									}
-									if (keys.length > 0)
-									{
-										description += `\n(Alternative names: ${keys.join(",")})`
-									}
-									description += `\nDetails: ${content}`
-									return description
-								});
-							documentdb_data += `[DOCUMENT BREAK][${lorebook?.name}]${outputText.join("\n\n")}`;
-							msgbox(`Lorebook "${lorebook?.name}" loaded into TextDB`)
-						}
-						else
-						{
-							msgbox(`No entries found for ${lorebook?.name}`)
-						}
+					let importSuccessful = importLorebookAsTextDB(obj)
+					if (importSuccessful)
+					{
+						msgbox(`Lorebook "${lorebook?.name}" loaded into TextDB`) 
 					}
-					importLorebookAsTextDB(obj)
+					else
+					{
+						msgbox(`No entries found for ${lorebook?.name}`)
+					}
 				},()=>{
 					current_wi = load_tavern_wi(obj,chatopponent,myname);
 				});
@@ -19905,6 +19925,9 @@ Current version indicated by LITEVER below.
 		document.getElementById("documentdb_numresults").value = documentdb_numresults
 		document.getElementById("documentdb_searchrange").value = documentdb_searchrange;
 		document.getElementById("documentdb_chunksize").value = documentdb_chunksize;
+		document.getElementById("documentdb_numresults_slide").value = documentdb_numresults
+		document.getElementById("documentdb_searchrange_slide").value = documentdb_searchrange;
+		document.getElementById("documentdb_chunksize_slide").value = documentdb_chunksize;
 		document.getElementById("documentdb_data").value = documentdb_data;
 		document.getElementById("documentdb_useEmbeddings").checked = documentdb_useEmbeddings;
 		if(is_using_kcpp_with_embeddings())
@@ -21932,11 +21955,11 @@ Current version indicated by LITEVER below.
 						<input title="Number of Search Results" inputmode="numeric" class="justifyright flex-push-right settingsmall" id="documentdb_numresults" oninput="
 						document.getElementById('documentdb_numresults_slide').value = this.value; estimate_and_show_textDB_usage();">
 					</div>
-					<div><input title="Number of Search Results Slider" type="range" min="1" max="5" step="1" id="documentdb_numresults_slide" oninput="
+					<div><input title="Number of Search Results Slider" type="range" min="1" max="10" step="1" id="documentdb_numresults_slide" oninput="
 						document.getElementById('documentdb_numresults').value = this.value; estimate_and_show_textDB_usage();"></div>
 					<div class="settingminmax">
 						<div class="justifyleft">1</div>
-						<div class="justifyright">5</div>
+						<div class="justifyright">10</div>
 					</div>
 				</div>
 
@@ -25815,19 +25838,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return !!match ? match[2].trim() : null
 	}
 
-	let replaceDocumentFromTextDB = (documentName, documentContent) => {
-		if (documentdb_data.indexOf(`[DOCUMENT BREAK][${documentName}]`) !== -1)
-		{
-			regex = `\(\\[DOCUMENT BREAK\\]\\[${documentName}\\]\)\(.*?\)\(\\[DOCUMENT BREAK\\]\)`
-			documentdb_data = documentdb_data.replace(new RegExp(regex, "s"), `$1${documentContent.trim()}$3`)
-		}
-		else
-		{
-			documentdb_data += `[DOCUMENT BREAK][${documentName}]${documentContent.trim()}[DOCUMENT BREAK]`
-		}
-		document.getElementById("documentdb_data").value = documentdb_data;
-	}
-
 	let calcImageSizing = (aspect) => {
 		let { iwidth, iheight } = getImageSizing()
 		let sizing = [iheight, iwidth];
@@ -26916,6 +26926,17 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 		addDocumentToTextDB()
 		{
+			let tryImportLorebookAsTextDB = (b64) => {
+				try
+				{
+					let obj = JSON.parse(atob(b64.split(",")[1]))
+					return importLorebookAsTextDB(obj)
+				}
+				catch (e)
+				{
+					return false
+				}
+			}
 			promptUserForLocalFile(async (fileDetails) => {
 				let {file, fileName, ext, content} = fileDetails
 				let extractedText = undefined
@@ -26924,6 +26945,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				{
 					let analysisPrompt = "Perform OCR on the provided image."
 					extractedText = await generateAndGetTextFromPrompt(`${createInstructPrompt(analysisPrompt)}${instructendplaceholder}${!!localsettings?.inject_jailbreak_instruct ? localsettings.custom_jailbreak_text : ""}`, undefined, [content.split(",")[1]])	
+				}
+				else if (content.startsWith("data:application/json") && tryImportLorebookAsTextDB(content))
+				{
+					return
 				}
 				else
 				{
