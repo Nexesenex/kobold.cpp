@@ -67,6 +67,7 @@ struct load_model_inputs
     const float norm_rms_eps = -1.0f;
 
     const bool no_bos_token = false;
+    const bool load_guidance = false;
     const char * override_kv = nullptr;
     const char * override_tensors = nullptr;
     const bool flash_attention = false;
@@ -75,6 +76,7 @@ struct load_model_inputs
     const int quant_v = 0;
     const int draft_quant_k = -1;
     const int draft_quant_v = -1;
+    const bool check_slowness = false;
     const bool quiet = false;
     const int debugmode = 0;
 };
@@ -83,6 +85,8 @@ struct generation_inputs
     const int seed = 0;
     const char * prompt = nullptr;
     const char * memory = nullptr;
+    const char * negative_prompt = nullptr;
+    const float guidance_scale = 1;
     const char * images[images_max] = {};
     const int max_context_length = 0;
     const int max_length = 0;

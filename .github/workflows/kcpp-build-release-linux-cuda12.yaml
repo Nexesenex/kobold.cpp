@@ -11,6 +11,7 @@ on:
 env:
   BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
   KCPP_CUDA: 12.1.0
+  ARCHES_CU12: 1
 
 jobs:
   linux:

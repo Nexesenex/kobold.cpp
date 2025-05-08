@@ -317,15 +317,16 @@ if (LLAMA_CUBLAS)
         # 61 == integer CUDA intrinsics
         # 70 == (assumed) compute capability at which unrolling a loop in mul_mat_q kernels is faster
         # 75 == int8 tensor cores
+        # 80 == Ampere, asynchronous data loading, faster tensor core instructions
         if (LLAMA_CUDA_F16 OR LLAMA_CUDA_DMMV_F16)
-            set(CMAKE_CUDA_ARCHITECTURES "60;61;70;75") # needed for f16 CUDA intrinsics
+            set(CMAKE_CUDA_ARCHITECTURES "60-virtual;61-virtual;70-virtual;75-virtual;80-virtual") # needed for f16 CUDA intrinsics
         else()
             message("CUDA Toolkit Version: ${CUDAToolkit_VERSION}")
             if(CUDAToolkit_VERSION VERSION_GREATER 12)
                  add_compile_definitions(GGML_CUDA_USE_GRAPHS) #try enable cuda graphs on cu12 build
-                 set(CMAKE_CUDA_ARCHITECTURES "50;52;60;61;75") # lowest CUDA 12 standard + lowest for integer intrinsics
+                 set(CMAKE_CUDA_ARCHITECTURES "50-virtual;61-virtual;70-virtual;75-virtual;80-virtual") # lowest CUDA 12 standard + lowest for integer intrinsics
             else()
-                 set(CMAKE_CUDA_ARCHITECTURES "37;50;61;70;75") # lowest CUDA 12 standard + lowest for integer intrinsics
+                 set(CMAKE_CUDA_ARCHITECTURES "35-virtual;50-virtual;61-virtual;70-virtual;75-virtual") # lowest CUDA 12 standard + lowest for integer intrinsics
             endif()
         endif()
     endif()
@@ -847,10 +848,10 @@ add_library(common2
             common/common.h
             common/sampling.cpp
             common/sampling.h
-            tools/llava/llava.cpp
-            tools/llava/llava.h
-            tools/llava/clip.cpp
-            tools/llava/clip.h
+            tools/mtmd/llava.cpp
+            tools/mtmd/llava.h
+            tools/mtmd/clip.cpp
+            tools/mtmd/clip.h
             src/unicode.h
             src/unicode.cpp
             src/unicode-data.cpp

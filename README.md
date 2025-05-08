@@ -291,7 +291,7 @@ KoboldCpp can now also be run on Novita AI, a newer alternative GPU cloud provid
 
 ## Docker
 - The official docker can be found at https://hub.docker.com/r/koboldai/koboldcpp
-- If you're building your own docker, remember to set CUDA_DOCKER_ARCH or enable LLAMA_PORTABLE
+- If you're building your own docker, remember to enable LLAMA_PORTABLE
 
 ## Obtaining a GGUF model
 - KoboldCpp uses GGUF models. They are not included with KoboldCpp, but you can download GGUF files from other places such as [Bartowski's Huggingface](https://huggingface.co/bartowski). Search for "GGUF" on huggingface.co for plenty of compatible models in the `.gguf` format.
@@ -460,6 +460,11 @@ It offers the following functionalities:
 - Config reloading (Cedo's implementation) enhanced with an option to select a text model to override the config (useful to switch between models using a generic "8B" or "12B" config without needing one for each model).  There is also helper text in Lite to show you the current config and model in use, along with a waiting mechanism to only reload when it's ready.
 
 ![411112504-e4d6936f-234f-40d8-8bfe-578c4332089d](https://github.com/user-attachments/assets/de7d4105-ffdd-40c3-bc0e-26041b6ded36)
+- Support for downloading models from HF through the UI (based on Cedo's implementation for the launcher) - To use this please tick the box under the admin tab in the launcher, and also ensure you run the exe from the directory where you store your models.
+
+![e5c0d32a-d68f-4c8a-87f7-bdfade892c4f](https://github.com/user-attachments/assets/e5c0d32a-d68f-4c8a-87f7-bdfade892c4f)
+![bda67a48-bc40-4815-8628-873c3136a415](https://github.com/user-attachments/assets/bda67a48-bc40-4815-8628-873c3136a415)
+
 - Save / load from server - with or without admin password: It is possible to store saves, scenarios, character cards, lorebooks etc.  The difference with the main KCPP is this option integrates with the scenerio search, offers the ability to upload multiple types of content and does not limit the amount of save uploaded.  Both options can be used together if desired.
 
 ![413011334-de6d3101-5621-4c47-a45b-d71f1b436cce](https://github.com/user-attachments/assets/098f64c6-9f6e-4951-b4a9-b4b458ddb7d8)
@@ -473,6 +478,10 @@ It offers the following functionalities:
 ![418190669-f839ed18-0fb9-4319-82d8-03952c5d3f20](https://github.com/user-attachments/assets/2ee0c202-8f68-44d6-aa6f-18ae35f33857)
 
 - Agent thinking (based on prompts from this cool project [here](https://github.com/Wladastic/mini_autogpt))
+- Improvements to TextDB, such as VectorDB (embedding) support and document support (including upload of text documents, PDFs (SevenOf9 wrote the parser), OCR using the vision model loaded, and transcription from audio)
+- Export / Import of WI groups from files
+
+![8d3e3a9d-08e0-4caf-9ad8-c2d806fec7e0](https://github.com/user-attachments/assets/8d3e3a9d-08e0-4caf-9ad8-c2d806fec7e0)
 
 ## Agent thinking mode (experimental)
 
@@ -482,6 +491,8 @@ The currently supported options include:
 - Sending messages / Asking for additional user input (including AI suggested options like a text adventure)
 
 ![2025-04-01 19_57_17-KoboldAI Lite — LibreWolf](https://github.com/user-attachments/assets/c46ce852-8d04-4451-a27e-7eb2cd1ab462)
+
+![c46ce852-8d04-4451-a27e-7eb2cd1ab462](https://github.com/user-attachments/assets/c46ce852-8d04-4451-a27e-7eb2cd1ab462)
 
 - Searching the web
 

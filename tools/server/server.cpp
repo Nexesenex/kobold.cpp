@@ -146,6 +146,7 @@ struct slot_params {
             {"top_k",                     sampling.top_k},
             {"top_p",                     sampling.top_p},
             {"min_p",                     sampling.min_p},
+            {"top_n_sigma",               sampling.top_n_sigma},
             {"xtc_probability",           sampling.xtc_probability},
             {"xtc_threshold",             sampling.xtc_threshold},
             {"typical_p",                 sampling.typ_p},
@@ -248,6 +249,7 @@ struct server_task {
         params.sampling.top_k              = json_value(data, "top_k",              defaults.sampling.top_k);
         params.sampling.top_p              = json_value(data, "top_p",              defaults.sampling.top_p);
         params.sampling.min_p              = json_value(data, "min_p",              defaults.sampling.min_p);
+        params.sampling.top_n_sigma        = json_value(data, "top_n_sigma",        defaults.sampling.top_n_sigma);
         params.sampling.xtc_probability    = json_value(data, "xtc_probability",    defaults.sampling.xtc_probability);
         params.sampling.xtc_threshold      = json_value(data, "xtc_threshold",      defaults.sampling.xtc_threshold);
         params.sampling.typ_p              = json_value(data, "typical_p",          defaults.sampling.typ_p);
@@ -3212,7 +3214,14 @@ struct server_context {
                 batch.logits   + i,
             };
 
-            const int ret = llama_decode(ctx, batch_view);
+            int ret = 0;
+
+            if (params_base.embedding || params_base.reranking) {
+                ret = llama_encode(ctx, batch_view);
+            } else {
+                ret = llama_decode(ctx, batch_view);
+            }
+
             metrics.on_decoded(slots);
 
             if (ret != 0) {
@@ -3941,7 +3950,7 @@ int main(int argc, char ** argv) {
     const auto handle_completions_impl = [&ctx_server, &res_error, &res_ok](
             server_task_type type,
             json & data,
-            std::function<bool()> is_connection_closed,
+            const std::function<bool()> & is_connection_closed,
             httplib::Response & res,
             oaicompat_type oaicompat) {
         GGML_ASSERT(type == SERVER_TASK_TYPE_COMPLETION || type == SERVER_TASK_TYPE_INFILL);

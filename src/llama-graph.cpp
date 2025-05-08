@@ -782,7 +782,7 @@ ggml_tensor * llm_graph_context::build_ffn(
             } break;
     }
 
-    if (type_gate == LLM_FFN_PAR) {
+    if (gate && type_gate == LLM_FFN_PAR) {
         cur = ggml_mul(ctx0, cur, tmp);
         cb(cur, "ffn_gate_par", il);
     }

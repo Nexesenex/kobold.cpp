@@ -22,3 +22,5 @@ dependencies:
   - tk=*=xft_*
   - pip:
     - customtkinter
+    - pdfplumber
+    - multiprocess
