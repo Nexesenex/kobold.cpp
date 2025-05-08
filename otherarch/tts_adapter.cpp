@@ -533,7 +533,6 @@ bool ttstype_load_model(const tts_load_model_inputs inputs)
     tts_model_params.n_gpu_layers = inputs.gpulayers; //offload if possible
     tts_model_params.split_mode = llama_split_mode::LLAMA_SPLIT_MODE_LAYER;
     tts_ctx_params.n_ctx = 8192;
-    tts_ctx_params.logits_all = false;
     tts_ctx_params.offload_kqv = true;
     tts_ctx_params.n_batch = 8192;
     tts_ctx_params.n_ubatch = 512;

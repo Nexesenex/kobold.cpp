@@ -3703,11 +3703,11 @@ Change Mode<br>
                     if not title or title=="":
                         title = "Untitled Save"
                     storybody = incoming_story.get('data', None) #should be a compressed string
-                    if slotid >= 0 and slotid < net_save_slots:  # we shall provide 4 network save slots
+                    if slotid >= 0 and slotid < net_save_slots:  # we shall provide some fixed network save slots
                         saveneeded = False
                         if storybody and storybody!="":
                             storybody = str(storybody)
-                            if len(storybody) > (1024*1024*8): #limit story to 8mb
+                            if len(storybody) > (1024*1024*10): #limit each story to 10mb
                                 response_code = 400
                                 response_body = (json.dumps({"success":False, "error":"Story is too long!"}).encode())
                             else:

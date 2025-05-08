@@ -136,7 +136,6 @@ bool embeddingstype_load_model(const embeddings_load_model_inputs inputs)
     ctx_params.embeddings = true;
     ctx_params.n_ubatch = ctx_params.n_ubatch = max_batchsize; //max size, must fit
     ctx_params.n_ctx = max_batchsize;
-    ctx_params.logits_all = false;
     ctx_params.offload_kqv = true;
     ctx_params.n_threads = nthreads;
     ctx_params.n_threads_batch = nthreads;

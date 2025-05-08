@@ -559,7 +559,6 @@ static void speculative_decoding_setup(std::string spec_model_filename, const ll
     draft_model_params.use_mlock = base_model_params.use_mlock;
     draft_model_params.n_gpu_layers = draft_gpulayers; //layers offload the speculative model.
     draft_ctx_params.n_ctx = base_ctx_params.n_ctx;
-    draft_ctx_params.logits_all = false;
     draft_ctx_params.offload_kqv = base_ctx_params.offload_kqv;
     draft_model_params.main_gpu = base_model_params.main_gpu;
     draft_model_params.split_mode = llama_split_mode::LLAMA_SPLIT_MODE_LAYER;
@@ -2147,7 +2146,6 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         }
 
         llama_ctx_params.offload_kqv = !inputs.low_vram;
-        llama_ctx_params.logits_all = false;
         model_params.use_mmap = inputs.use_mmap;
         model_params.use_mlock = inputs.use_mlock;
         model_params.n_gpu_layers = inputs.gpulayers;

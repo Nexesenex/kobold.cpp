@@ -1284,7 +1284,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         [](common_params & params) {
             params.use_color = true;
         }
-    ).set_examples({LLAMA_EXAMPLE_MAIN, LLAMA_EXAMPLE_INFILL, LLAMA_EXAMPLE_SPECULATIVE, LLAMA_EXAMPLE_LOOKUP}));
+    ).set_examples({LLAMA_EXAMPLE_MAIN, LLAMA_EXAMPLE_SPECULATIVE, LLAMA_EXAMPLE_LOOKUP}));
     add_opt(common_arg(
         {"-t", "--threads"}, "N",
         string_format("number of threads to use during generation (default: %d)", params.cpuparams.n_threads),
@@ -1417,7 +1417,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
     add_opt(common_arg(
         {"-n", "--predict", "--n-predict"}, "N",
         string_format(
-            ex == LLAMA_EXAMPLE_MAIN || ex == LLAMA_EXAMPLE_INFILL
+            ex == LLAMA_EXAMPLE_MAIN
                 ? "number of tokens to predict (default: %d, -1 = infinity, -2 = until context filled)"
                 : "number of tokens to predict (default: %d, -1 = infinity)",
             params.n_predict),
@@ -1656,7 +1656,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
             params.input_prefix = value;
             params.enable_chat_template = false;
         }
-    ).set_examples({LLAMA_EXAMPLE_MAIN, LLAMA_EXAMPLE_INFILL}));
+    ).set_examples({LLAMA_EXAMPLE_MAIN}));
     add_opt(common_arg(
         {"--in-suffix"}, "STRING",
         "string to suffix after user inputs with (default: empty)",
@@ -1664,7 +1664,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
             params.input_suffix = value;
             params.enable_chat_template = false;
         }
-    ).set_examples({LLAMA_EXAMPLE_MAIN, LLAMA_EXAMPLE_INFILL}));
+    ).set_examples({LLAMA_EXAMPLE_MAIN}));
     add_opt(common_arg(
         {"--no-warmup"},
         "skip warming up the model with an empty run",
@@ -1681,7 +1681,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         [](common_params & params) {
             params.spm_infill = true;
         }
-    ).set_examples({LLAMA_EXAMPLE_SERVER, LLAMA_EXAMPLE_INFILL}));
+    ).set_examples({LLAMA_EXAMPLE_SERVER}));
     add_opt(common_arg(
         {"--samplers"}, "SAMPLERS",
         string_format("samplers that will be used for generation in the order, separated by \';\'\n(default: %s)", sampler_type_names.c_str()),
@@ -2098,13 +2098,6 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
             params.cache_type_v = kv_cache_type_from_str(value);
         }
     ).set_env("LLAMA_ARG_CACHE_TYPE_V"));
-    add_opt(common_arg(
-        {"--perplexity", "--all-logits"},
-        string_format("return logits for all tokens in the batch (default: %s)", params.logits_all ? "true" : "false"),
-        [](common_params & params) {
-            params.logits_all = true;
-        }
-    ).set_examples({LLAMA_EXAMPLE_PERPLEXITY}));
     add_opt(common_arg(
         {"--hellaswag"},
         "compute HellaSwag score over random tasks from datafile supplied with -f",
@@ -2893,7 +2886,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         [](common_params & params) {
             params.simple_io = true;
         }
-    ).set_examples({LLAMA_EXAMPLE_MAIN, LLAMA_EXAMPLE_INFILL}));
+    ).set_examples({LLAMA_EXAMPLE_MAIN}));
     add_opt(common_arg(
         {"--positive-file"}, "FNAME",
         string_format("positive prompts file, one prompt per line (default: '%s')", params.cvector_positive_file.c_str()),
