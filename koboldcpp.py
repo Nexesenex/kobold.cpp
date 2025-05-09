@@ -36,7 +36,6 @@ from typing import Tuple
 
 # PDF extraction logic
 import pdfplumber
-from multiprocess import Pool, cpu_count
 import logging
 import io
 
@@ -1801,6 +1800,8 @@ def getTextFromPDFEncapsulated(decoded_bytes):
         return [process_page(args) for args in pages]
 
     def run_parallel(pages):
+        from multiprocessing import Pool, cpu_count
+
         # Parallel execution based on either the number of pages or number of CPU cores
         num_cores = min(cpu_count(), len(pages))
         print(f"Started processing PDF with {num_cores} cores...")
