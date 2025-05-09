@@ -25943,8 +25943,18 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	let getFinalAgentPrompt = (currentOrderOfActions) => {
-		let basePrompt = createSysPrompt(`Current state: ${getDocumentFromTextDB('State')}${currentOrderOfActions.length > 0 ? `\n\nOrder of actions: ${currentOrderOfActions.join(" -> ")}` : ""}`)
-		return basePrompt
+		let state = getDocumentFromTextDB('State')
+		let prompt = []
+		if (state != null)
+		{
+			prompt.push(`Current state: ${state}`)
+		}
+		if (currentOrderOfActions.length > 0)
+		{
+			prompt.push(`Order of actions: ${currentOrderOfActions.join(" -> ")}`)
+		}
+		let basePrompt = prompt.join("\n\n")
+		return basePrompt.length > 0 ? createSysPrompt(basePrompt) : ""
 	}
 
 	/**
@@ -26168,7 +26178,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 			let history = getInitialAgentPrompt(nextAction, max_mem_len)
 			let wiToInclude = createSysPrompt(substring_to_boundary(getWorldInfoForAgent(truncated_context, max_wi_len) + "\n\n" + textDBResults, max_wi_len))
-			let anToInclude = createSysPrompt(substring_to_boundary(current_anotetemplate.replace("<|>", current_anote), max_anote_len))
+			let anToInclude = !!current_anote ? createSysPrompt(substring_to_boundary(current_anotetemplate.replace("<|>", current_anote), max_anote_len)) : ""
 			let finalAgentPrompt = getFinalAgentPrompt(currentOrderOfActions)
 
 			let cotAsText = "", maxLengthOfCot = max_allowed_characters - history.length - wiToInclude.length - anToInclude.length - finalAgentPrompt.length
