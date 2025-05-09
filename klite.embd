@@ -25598,28 +25598,32 @@ else
 			
 			elem.properties.command.properties.name["pattern"] = `^${command.name}$`
 			for (arg in command.args) {
-				if (typeof command.args[arg] === "object" && !!command.args[arg]?.format)
+				if (!command.args[arg]?.skip)
 				{
-					let formatToUse = toJsonSchema(JSON.parse(command.args[arg]?.format))
-					args.properties[arg] = formatToUse
-				}
-				else if (typeof command.args[arg] === "object" && !!command.args[arg]?.type && !command.args[arg]?.skip) {
-					args.properties[arg] = {
-						type: command.args[arg].type
-					}
-					if (!!command.args[arg]?.enum)
+					if (typeof command.args[arg] === "object" && !!command.args[arg]?.format)
 					{
-						args.properties[arg].enum = command.args[arg]?.enum
+						let formatToUse = toJsonSchema(JSON.parse(command.args[arg]?.format))
+						args.properties[arg] = formatToUse
 					}
-					if (!!command.args[arg]?.pattern)
-					{
-						args.properties[arg].pattern = command.args[arg]?.pattern
-					}
-				} else {
-					args.properties[arg] = {
-						type: "string"
+					else if (typeof command.args[arg] === "object" && !!command.args[arg]?.type) {
+						args.properties[arg] = {
+							type: command.args[arg].type
+						}
+						if (!!command.args[arg]?.enum)
+						{
+							args.properties[arg].enum = command.args[arg]?.enum
+						}
+						if (!!command.args[arg]?.pattern)
+						{
+							args.properties[arg].pattern = command.args[arg]?.pattern
+						}
+					} else {
+						args.properties[arg] = {
+							type: "string"
+						}
 					}
 				}
+				
 				args.required.push(arg)
 			}
 			return elem
