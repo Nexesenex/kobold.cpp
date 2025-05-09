@@ -25893,6 +25893,32 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return output.filter(text => text.length > 0)
 	}
 
+	let listOfExclusions = ["Action taken:", "Action taken (words =", "History search performed:", "Chain of thought complete", "Stop thinking action confirmed",
+				 "Web search results:", "Text has been added to history", "Formula evaluation result:", "Formula evaluation could not be completed as no formula was provided", 
+				 "Text has been added to history", "Text was empty - nothing added to history", "Search string was empty, no search performed", "Word count is", "Image analysed:", 
+				 "Image generated", "No prompt provided, image not generated", "Text has been spoken", "No text provided, nothing has been said", "System prompt has been overwritten", 
+				 "No system prompt provided, nothing has been overwritten", "Current state has been overwritten", "No state provided, nothing has been overwritten", "Current order of actions has been cleared",
+				  "Current order of actions has been overwritten", "No order of actions provided, nothing has been overwritten", "Error - Empty response instead of action. Ensure all responses are valid JSON.",
+				"Current state format has been overwritten", "No valid state format provided, nothing has been overwritten", `Text has been added to world info:`, `Text was empty - nothing added to world info`, `Chain of thought had an exception`]
+
+	let hideAgentModeCotForAestheticMode = (container = document) => {
+		[...container.querySelectorAll("end_of_context_koboldlite_internal > div")]
+			.filter(elem => listOfExclusions.find(excludedStart => elem.innerText.trim().indexOf(excludedStart) === 0))
+			.forEach(elem => elem.style.display = "none")
+	}
+
+	let originalRenderAestheticUI = render_aesthetic_ui
+
+	render_aesthetic_ui = (input, isPreview) => {
+		let aestheticHTML = document.createElement("div")
+		aestheticHTML.innerHTML = originalRenderAestheticUI(input, isPreview)
+		if (isAgentModeEnabledAndSetCorrectly() && !!localsettings?.agentHideCOT)
+		{
+			hideAgentModeCotForAestheticMode(aestheticHTML)
+		}
+		return aestheticHTML.innerHTML
+	}
+
 	var loadingNewGame = true
 	let originalRepackInstructTurns = repack_instruct_turns, cotOverrideRepack = false;
 
@@ -25945,22 +25971,15 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 			if (filterOutActions)
 			{
-				let listOfExclusions = ["Action taken:", "Action taken (words =", "History search performed:", "Chain of thought complete", "Stop thinking action confirmed",
-				 "Web search results:", "Text has been added to history", "Formula evaluation result:", "Formula evaluation could not be completed as no formula was provided", 
-				 "Text has been added to history", "Text was empty - nothing added to history", "Search string was empty, no search performed", "Word count is", "Image analysed:", 
-				 "Image generated", "No prompt provided, image not generated", "Text has been spoken", "No text provided, nothing has been said", "System prompt has been overwritten", 
-				 "No system prompt provided, nothing has been overwritten", "Current state has been overwritten", "No state provided, nothing has been overwritten", "Current order of actions has been cleared",
-				  "Current order of actions has been overwritten", "No order of actions provided, nothing has been overwritten", "Error - Empty response instead of action. Ensure all responses are valid JSON.",
-				"Current state format has been overwritten", "No valid state format provided, nothing has been overwritten", `Text has been added to world info:`, `Text was empty - nothing added to world info`, `Chain of thought had an exception`]
 				combined_chunks = combined_chunks
-				.filter(elem => !listOfExclusions.find(excludedStart => elem.message.trim().indexOf(excludedStart) === 0))
-				.map(elem => {
-					if (elem.message.indexOf("Request for user input:") === 0)
-					{
-						elem.message = elem.message.replace("Request for user input:", "").trim()
-					}
-					return elem
-				})
+					.filter(elem => !listOfExclusions.find(excludedStart => elem.message.trim().indexOf(excludedStart) === 0))
+					.map(elem => {
+						if (elem.message.indexOf("Request for user input:") === 0)
+						{
+							elem.message = elem.message.replace("Request for user input:", "").trim()
+						}
+						return elem
+					})
 			}
 			
 			return combined_chunks.map(elem => {
