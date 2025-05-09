@@ -25016,6 +25016,10 @@ else
 		return arr[Math.floor(Math.random() * arr.length)]
 	}
 
+	let getChatOpponentRandomly = () => {
+		return getRandomElemFromArray(localsettings.chatopponent.split("||$||"))
+	}
+
 	let wordCountEnabled = false
 	let getCommands = () => {
 	return [
@@ -25023,10 +25027,16 @@ else
 			"name": "ask_user",
 			"description": "Ask the user for input. Optionally, suggested responses can be provided to the user as well.",
 			"args": {
-				"message": "<message that awaits user input>",
+				"message": "<message that prompts the user for input>",
 				"suggestionsToPickFrom": {
 				description: "<suggestions the user can pick from as an array of strings>",
-				type: "array"
+				type: "array",
+				},
+				"whoToSendMessageAs": {
+					description: "<who to write the response as>",
+					pattern: (localsettings.inject_chatnames_instruct ? `^${getChatOpponentRandomly()}$` : undefined),
+					type: "string",
+					skip: !localsettings.inject_chatnames_instruct
 				}
 			},
 			"enabled": true,
@@ -25040,7 +25050,8 @@ else
 						// Do not care about an error here, it's a nice to have if the suggestions show
 					}
 				}
-				addThought(createSysPrompt, `Request for user input: ` + action?.args?.message)
+				let prompt = localsettings.inject_chatnames_instruct ? `Request for user input by ${action?.args?.whoToSendMessageAs}: ${action?.args?.message}` : `Request for user input: ${action?.args?.message}`
+				addThought(createSysPrompt, prompt)
 				return true
 			}
 			},
@@ -25048,11 +25059,17 @@ else
 			"name": "send_message",
 			"description": "Send a message to the user without waiting for their response. Does not return anything.",
 			"args": {
-				"message": "<message to send>"
+				"message": "<message to send>",
+				"whoToSendMessageAs": {
+					description: "<who to write the response as>",
+					pattern: (localsettings.inject_chatnames_instruct ? `^${getChatOpponentRandomly()}$` : undefined),
+					type: "string",
+					skip: !localsettings.inject_chatnames_instruct
+				}
 			},
 			"enabled": true,
 			"executor": (action) => {
-				addThought(createAIPrompt, action?.args?.message)
+				addThought(createAIPrompt, localsettings.inject_chatnames_instruct ? `${action?.args?.whoToSendMessageAs}: ${action?.args?.message}` : action?.args?.message)
 			}
 			},
 			{
@@ -25586,13 +25603,17 @@ else
 					let formatToUse = toJsonSchema(JSON.parse(command.args[arg]?.format))
 					args.properties[arg] = formatToUse
 				}
-				else if (typeof command.args[arg] === "object" && !!command.args[arg]?.type) {
+				else if (typeof command.args[arg] === "object" && !!command.args[arg]?.type && !command.args[arg]?.skip) {
 					args.properties[arg] = {
 						type: command.args[arg].type
 					}
 					if (!!command.args[arg]?.enum)
 					{
 						args.properties[arg].enum = command.args[arg]?.enum
+					}
+					if (!!command.args[arg]?.pattern)
+					{
+						args.properties[arg].pattern = command.args[arg]?.pattern
 					}
 				} else {
 					args.properties[arg] = {
@@ -26112,6 +26133,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		let textDBResults = ""
 		if (!!initialPrompt)
 		{
+			initialPrompt = (localsettings.inject_chatnames_instruct ? `${localsettings.chatname}: ${initialPrompt}` : initialPrompt)
 			addThought(createInstructPrompt, initialPrompt)
 			if (!!documentdb_enabled)
 			{
