@@ -25007,6 +25007,15 @@ else
 		current_wi.push(baseWI)
 	}
 
+	let getTableNamesFromTextDB = () => {
+		matcher = new RegExp("\\[DOCUMENT BREAK\\]\\[Table:\([^\\]]*?\)\\].*?\\[DOCUMENT BREAK\\]", "gmis")
+		return [...documentdb_data.matchAll(matcher)].map(a => a[1])
+	}
+
+	let getRandomElemFromArray = (arr) => {
+		return arr[Math.floor(Math.random() * arr.length)]
+	}
+
 	let wordCountEnabled = false
 	let getCommands = () => {
 	return [
@@ -25095,6 +25104,37 @@ else
 					}
 					else {
 						addThought(createSysPrompt, `Could not roll dice as the format was incorrect`)
+					}
+				}
+			},
+			{
+			"name": "get_random_terms_from_table",
+			"description": "Gets random terms from a user defined table",
+			"args": {
+				"numOfTerms": {
+				description: "<number of terms to get>",
+				type: "integer"
+				},
+				"tableToUse": {
+				description: "<number of table to get terms from>",
+				type: "string",
+				enum: getTableNamesFromTextDB()
+				}
+			},
+			"enabled": getTableNamesFromTextDB().length > 0,
+				"executor": (action) => {
+					let numOfTerms = action?.args?.numOfTerms
+					let tableToUse = action?.args?.tableToUse
+					if (!!numOfTerms && !!tableToUse) {
+						let results = []
+						let tableElems = getDocumentFromTextDB(`Table:${tableToUse}`).split("\n").map(c => c.trim()).filter(c => c.length > 0)
+						for (let roll = 0; roll < numOfTerms; roll++) {
+							results.push(getRandomElemFromArray(tableElems))
+						}
+						addThought(createSysPrompt, `Got ${numOfTerms} terms from ${tableToUse}: ${results.join(", ")}`)
+					}
+					else {
+						addThought(createSysPrompt, `Could not get terms as the format was incorrect`)
 					}
 				}
 			},
@@ -25825,7 +25865,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				 "Image generated", "No prompt provided, image not generated", "Text has been spoken", "No text provided, nothing has been said", "System prompt has been overwritten", 
 				 "No system prompt provided, nothing has been overwritten", "Current state has been overwritten", "No state provided, nothing has been overwritten", "Current order of actions has been cleared",
 				  "Current order of actions has been overwritten", "No order of actions provided, nothing has been overwritten", "Error - Empty response instead of action. Ensure all responses are valid JSON.",
-				"Current state format has been overwritten", "No valid state format provided, nothing has been overwritten", `Text has been added to world info:`, `Text was empty - nothing added to world info`]
+				"Current state format has been overwritten", "No valid state format provided, nothing has been overwritten", `Text has been added to world info:`, `Text was empty - nothing added to world info`, `Chain of thought had an exception`]
 				combined_chunks = combined_chunks
 				.filter(elem => !listOfExclusions.find(excludedStart => elem.message.trim().indexOf(excludedStart) === 0))
 				.map(elem => {
@@ -26599,10 +26639,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	let facts = ["Tunnel Networks: Kobolds live in sprawling tunnel networks. Cyberpunk kobolds augment these with networked sensor arrays and automated defense turrets, all controlled by a central AI 'Warren Mind'.", "Dragon Devotion: Traditional kobolds worship dragons. Cyberpunk kobolds see dragons as powerful data-lords, hoarding information (and sometimes physical hardware) – they try to curry favor by providing useful tech.", "Trap Masters: Known for their traps, cyberpunk kobolds use electrified grids, laser tripwires, and robotic spiders alongside traditional pits and snares.", "AI Spirits: Each Kobold warband will often have several 'spirit' units - small AI cores housed in scavenged drones or robotic shells that act as scouts, messengers, or even shock troops.", "Scale Colors & Clan: Kobold scale color signifies clan. In the cyberpunk age, this is displayed through LED patterns woven into their scales, showing allegiance and status.", "Scavenging Prowess: Kobolds are master scavengers. They can find usable components in almost any pile of junk, creating surprisingly effective cybernetic enhancements for themselves and their spirits.", "Weak but Numerous: Kobolds rely on being numerous to overcome larger foes. Cyberpunk kobolds compensate with swarms of micro-drones and coordinated attacks directed by their Warren Mind.", "Pack Tactics: Critical to kobold survival, pack tactics are amplified via networked comms between kobolds and their spirit units.", "Rune Tech: Traditional runes have been merged with circuit boards. These 'rune-circuits' provide low-level magical effects powered by salvaged energy cells.", "The Warren Mind: The central AI controlling a kobold warren isn't always sophisticated. Often it's built from cobbled-together parts, resulting in quirky personalities and unpredictable behavior."];
 </script>
 <script>
-	let getRandomElemFromArray = (arr) => {
-		return arr[Math.floor(Math.random() * arr.length)]
-	}
-
 	document.getElementById("btnsend").onmouseover = () => {
 		document.getElementById("input_text").placeholder = `Enter text here\nOr enjoy this fact: ${getRandomElemFromArray(facts)}`;
 		document.getElementById("btnsend").style.backgroundImage = `url("${getRandomElemFromArray(icons)}")`; 
