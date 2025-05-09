@@ -25027,16 +25027,16 @@ else
 			"name": "ask_user",
 			"description": "Ask the user for input. Optionally, suggested responses can be provided to the user as well.",
 			"args": {
+				"whoToSendMessageAs": {
+					description: "<whose perspective is the response written from>",
+					pattern: (localsettings.inject_chatnames_instruct ? `^${getChatOpponentRandomly()}$` : undefined),
+					type: "string",
+					skip: !localsettings.inject_chatnames_instruct
+				},
 				"message": "<message that prompts the user for input>",
 				"suggestionsToPickFrom": {
 				description: "<suggestions the user can pick from as an array of strings>",
 				type: "array",
-				},
-				"whoToSendMessageAs": {
-					description: "<who to write the response as>",
-					pattern: (localsettings.inject_chatnames_instruct ? `^${getChatOpponentRandomly()}$` : undefined),
-					type: "string",
-					skip: !localsettings.inject_chatnames_instruct
 				}
 			},
 			"enabled": true,
@@ -25059,13 +25059,13 @@ else
 			"name": "send_message",
 			"description": "Send a message to the user without waiting for their response. Does not return anything.",
 			"args": {
-				"message": "<message to send>",
 				"whoToSendMessageAs": {
-					description: "<who to write the response as>",
+					description: "<whose perspective is the response written from>",
 					pattern: (localsettings.inject_chatnames_instruct ? `^${getChatOpponentRandomly()}$` : undefined),
 					type: "string",
 					skip: !localsettings.inject_chatnames_instruct
-				}
+				},
+				"message": "<message to send>",
 			},
 			"enabled": true,
 			"executor": (action) => {
