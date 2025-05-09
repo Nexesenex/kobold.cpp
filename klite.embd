@@ -25096,7 +25096,7 @@ else
 				},
 				"message": "<message that prompts the user for input>",
 				"suggestionsToPickFrom": {
-				description: "<suggestions the user can pick from as an array of strings>",
+				description: "<suggestions written from the user's perspective which they can pick from for their next action>",
 				type: "array",
 				}
 			},
