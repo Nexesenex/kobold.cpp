@@ -25951,20 +25951,16 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			if (loadingNewGame)
 			{
 				loadingNewGame = false
+				let suggestionsRegex = new RegExp(`suggestionsToPickFrom: (\\[.*?\\])`, "gm")
 				for (let i = combined_chunks.length - 1; i >= 0 && i >= combined_chunks.length - 4; i--) {
 					let elem = combined_chunks[i]
-					if (elem.message.indexOf("Action: ") === 0) {
-						let actionJson = elem.message.replace("Action:", "").trim()
-						try {
-							let actionObj = JSON.parse(actionJson.replaceAll("&quot;", `"`))
-							if (actionObj?.command?.name === "ask_user" && Array.isArray(actionObj?.command?.args?.suggestionsToPickFrom)) {
-								setSuggestions(actionObj?.command?.args?.suggestionsToPickFrom.map(String))
-								break
-							}
-						}
-						catch (e) {
-							// Suppress errors
-						}
+					try {
+						let suggestions = JSON.parse([...elem.message.matchAll(suggestionsRegex)][0][1].replaceAll("&quot;", `"`))
+						setSuggestions(suggestions)
+						break
+					}
+					catch (e) {
+						// Suppress errors
 					}
 				}
 			}
@@ -26180,7 +26176,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			let args = Object.keys(action.args).map(key => {
 				let value = action.args[key];
-				return typeof value === "object" ? `\t${key}: ${value.description}` : `\t${key}: ${value}`
+				return typeof value === "object" ? `\t${key}: ${JSON.stringify(value)}` : `\t${key}: ${value}`
 			}).join("\n")
 			actionAsText += `\nArguments:\n${args}`
 		}
