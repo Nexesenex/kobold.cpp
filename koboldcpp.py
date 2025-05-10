@@ -36,7 +36,6 @@ from typing import Tuple
 
 # PDF extraction logic
 import pdfplumber
-from multiprocess import Pool, cpu_count
 import logging
 import io
 
@@ -2439,106 +2438,114 @@ def getTextFromPDFEncapsulated(decoded_bytes):
             bottom = max(0, min(bottom, page_height))
             return (x0, top, x1, bottom)
 
-        page_number, pdf_path, text_settings = args
+        page_number, pdf, text_settings = args
 
-        with pdfplumber.open(pdf_path) as pdf:
-            page = pdf.pages[page_number]
-            page_output = f"Page {page_number + 1}\n"
-            page_width = page.width
-            page_height = page.height
+        page = pdf.pages[page_number]
+        page_output = f"Page {page_number + 1}\n"
+        page_width = page.width
+        page_height = page.height
 
-            filtered_page = page
-            table_bbox_list = []
-            table_json_outputs = []
+        filtered_page = page
+        table_bbox_list = []
+        table_json_outputs = []
 
-            # Table extraction
-            for table in page.find_tables():
-                bbox = clamp_bbox(table.bbox, page_width, page_height)
-                table_bbox_list.append(bbox)
+        # Table extraction
+        for table in page.find_tables():
+            bbox = clamp_bbox(table.bbox, page_width, page_height)
+            table_bbox_list.append(bbox)
 
-                if not page.crop(bbox).chars:
-                    continue
+            if not page.crop(bbox).chars:
+                continue
 
-                filtered_page = filtered_page.filter(
-                    lambda obj: get_bbox_overlap(obj_to_bbox(obj), bbox) is None
-                )
+            filtered_page = filtered_page.filter(
+                lambda obj: get_bbox_overlap(obj_to_bbox(obj), bbox) is None
+            )
 
-                table_data = table.extract()
-                if table_data and len(table_data) >= 1:
-                    headers = safe_join(table_data[0])
-                    rows = [safe_join(row) for row in table_data[1:]]
-                    json_table = [dict(zip(headers, row)) for row in rows]
-                    table_json_outputs.append(json.dumps(json_table, indent=1, ensure_ascii=False))
+            table_data = table.extract()
+            if table_data and len(table_data) >= 1:
+                headers = safe_join(table_data[0])
+                rows = [safe_join(row) for row in table_data[1:]]
+                json_table = [dict(zip(headers, row)) for row in rows]
+                table_json_outputs.append(json.dumps(json_table, indent=1, ensure_ascii=False))
 
-            # Text extraction based on bounding boxes
-            chars_outside_tables = [
-                word for word in page.extract_words(**TEXT_EXTRACTION_SETTINGS)
-                if not any(
-                    bbox[0] <= float(word['x0']) <= bbox[2] and
-                    bbox[1] <= float(word['top']) <= bbox[3]
-                    for bbox in table_bbox_list
-                )
-            ]
+        # Text extraction based on bounding boxes
+        chars_outside_tables = [
+            word for word in page.extract_words(**TEXT_EXTRACTION_SETTINGS)
+            if not any(
+                bbox[0] <= float(word['x0']) <= bbox[2] and
+                bbox[1] <= float(word['top']) <= bbox[3]
+                for bbox in table_bbox_list
+            )
+        ]
 
-            current_y = None
-            line = []
-            text_content = ""
+        current_y = None
+        line = []
+        text_content = ""
 
-            for word in chars_outside_tables:
-                if current_y is None or abs(word['top'] - current_y) > 10:
-                    if line:
-                        text_content += " ".join(line) + "\n"
-                    line = [word['text']]
-                    current_y = word['top']
-                else:
-                    line.append(word['text'])
-            if line:
-                text_content += " ".join(line) + "\n"
+        for word in chars_outside_tables:
+            if current_y is None or abs(word['top'] - current_y) > 10:
+                if line:
+                    text_content += " ".join(line) + "\n"
+                line = [word['text']]
+                current_y = word['top']
+            else:
+                line.append(word['text'])
+        if line:
+            text_content += " ".join(line) + "\n"
 
-            page_output += text_content.strip() + "\n"
+        page_output += text_content.strip() + "\n"
 
-            for idx, table in enumerate(table_json_outputs, start=1):
-                page_output += f'"table {idx}":\n{table}\n'
+        for idx, table in enumerate(table_json_outputs, start=1):
+            page_output += f'"table {idx}":\n{table}\n'
 
-            return page_number, page_output
+        return page_number, page_output
 
     def run_serial(pages):
         # Seroa; execution
         return [process_page(args) for args in pages]
 
     def run_parallel(pages):
+        from multiprocessing import cpu_count
+
         # Parallel execution based on either the number of pages or number of CPU cores
         num_cores = min(cpu_count(), len(pages))
         print(f"Started processing PDF with {num_cores} cores...")
-        with Pool(num_cores) as pool:
-            return pool.map(process_page, pages)
+        with ThreadPoolExecutor(max_workers=5) as exe:
+            return exe.map(process_page, pages)
+            # exe.submit(cube,2)
+            
+            # Maps the method 'cube' with a list of values.
+            
+        # with Pool(num_cores) as pool:
+        #     return pool.map(process_page, pages)
 
     decoded_bytes = io.BytesIO(decoded_bytes)  
     with pdfplumber.open(decoded_bytes) as pdf:
         num_pages = len(pdf.pages)
 
-    TEXT_EXTRACTION_SETTINGS = {
-        "x_tolerance": 2,
-        "y_tolerance": 5,
-        "keep_blank_chars": False,
-        "use_text_flow": True
-    }
+        TEXT_EXTRACTION_SETTINGS = {
+            "x_tolerance": 2,
+            "y_tolerance": 5,
+            "keep_blank_chars": False,
+            "use_text_flow": True
+        }
 
-    # Number of pages before multithreading should be used
-    PARALLEL_THRESHOLD = 8
+        # Number of pages before multithreading should be used
+        PARALLEL_THRESHOLD = 8
 
-    pages = [(i, decoded_bytes, TEXT_EXTRACTION_SETTINGS) for i in range(num_pages)]
+        pages = [(i, pdf, TEXT_EXTRACTION_SETTINGS) for i in range(num_pages)]
 
-    if num_pages <= PARALLEL_THRESHOLD:
-        results = run_serial(pages)
-    else:
-        results = run_parallel(pages)
+        if num_pages <= PARALLEL_THRESHOLD:
+            results = run_serial(pages)
+        else:
+            results = run_parallel(pages)
 
-    # Sorting results by their page number
-    sorted_results = sorted(results, key=lambda x: x[0])
-    final_output = "\n".join(page_output for _, page_output in sorted_results)
-    
-    return final_output
+        # Sorting results by their page number
+        sorted_results = sorted(results, key=lambda x: x[0])
+        final_output = "\n".join(page_output for _, page_output in sorted_results)
+        
+        return final_output
+    return ""
 
 def whisper_generate(genparams):
     global args

@@ -3367,7 +3367,7 @@ Current version indicated by LITEVER below.
 	let allTagsValid = () => {
 		let placeholders = !!instructstartplaceholder && !!instructstartplaceholder_end && !!instructsysplaceholder && !!instructsysplaceholder_end && !!instructendplaceholder && !!instructendplaceholder_end
 		let tags = !!localsettings.instruct_starttag && !!localsettings.instruct_endtag && !!localsettings.instruct_systag
-		// && !!localsettings.instruct_starttag_end && !!localsettings.instruct_endtag_end && !!localsettings.instruct_systag_end
+		&& !!localsettings.instruct_starttag_end && !!localsettings.instruct_endtag_end && !!localsettings.instruct_systag_end
 		return placeholders && tags
 	}
 
@@ -7458,6 +7458,44 @@ Current version indicated by LITEVER below.
 			console.log("ERROR ALT GREETING NOT FOUND");
 		}
 	}
+
+	function replaceDocumentFromTextDB(documentName, documentContent) {
+		if (documentdb_data.indexOf(`[DOCUMENT BREAK][${documentName}]`) !== -1) {
+			regex = `\(\\[DOCUMENT BREAK\\]\\[${documentName}\\]\)\(.*?\)\(\\[DOCUMENT BREAK\\]\)`
+			documentdb_data = documentdb_data.replace(new RegExp(regex, "s"), `$1${documentContent.trim()}$3`)
+		}
+		else {
+			documentdb_data += `[DOCUMENT BREAK][${documentName}]${documentContent.trim()}[DOCUMENT BREAK]`
+		}
+		document.getElementById("documentdb_data").value = documentdb_data;
+	}
+
+	function importLorebookAsTextDB(lorebook) {						
+		if (!!lorebook?.entries)
+		{
+			let outputText = Object.values(lorebook.entries)
+				.map(loreEntry => {
+					let {name, comment, content} = loreEntry;
+					let keys = [...new Set([...loreEntry.key, ...loreEntry.keys, ...loreEntry.keysecondary])];
+					let description = `### Name: ${name}`
+					if (comment !== name) {
+						description += `\n(Description: ${comment})`
+					}
+					if (keys.length > 0)
+					{
+						description += `\n(Alternative names: ${keys.join(",")})`
+					}
+					description += `\nDetails: ${content}`
+					return description
+				});
+			replaceDocumentFromTextDB(lorebook?.name, outputText.join("\n\n"))
+			return true
+		}
+		else
+		{
+			return false
+		}
+	}
 	function load_tavern_obj(obj)
 	{
 		let selectedgreeting = "";
@@ -7531,33 +7569,15 @@ Current version indicated by LITEVER below.
 			if(combinedmem.trim()=="" && greeting=="" && obj.entries)
 			{
 				msgboxYesNo("Import World Info / Lorebook into TextDB instead of overwriting existing World Info?\n\nYes = TextDB Used\nNo = World Info Used\n\nIf unsure, select 'No'.","Import World Info / Lorebook Mode", ()=>{
-					let importLorebookAsTextDB = (lorebook) => {						
-						if (!!lorebook?.entries)
-						{
-							let outputText = Object.values(lorebook.entries)
-								.map(loreEntry => {
-									let {name, comment, content} = loreEntry;
-									let keys = [...new Set([...loreEntry.key, ...loreEntry.keys, ...loreEntry.keysecondary])];
-									let description = `### Name: ${name}`
-									if (comment !== name) {
-										description += `\n(Description: ${comment})`
-									}
-									if (keys.length > 0)
-									{
-										description += `\n(Alternative names: ${keys.join(",")})`
-									}
-									description += `\nDetails: ${content}`
-									return description
-								});
-							documentdb_data += `[DOCUMENT BREAK][${lorebook?.name}]${outputText.join("\n\n")}`;
-							msgbox(`Lorebook "${lorebook?.name}" loaded into TextDB`)
-						}
-						else
-						{
-							msgbox(`No entries found for ${lorebook?.name}`)
-						}
+					let importSuccessful = importLorebookAsTextDB(obj)
+					if (importSuccessful)
+					{
+						msgbox(`Lorebook "${lorebook?.name}" loaded into TextDB`) 
 					}
-					importLorebookAsTextDB(obj)
+					else
+					{
+						msgbox(`No entries found for ${lorebook?.name}`)
+					}
 				},()=>{
 					current_wi = load_tavern_wi(obj,chatopponent,myname);
 				});
@@ -20055,6 +20075,9 @@ Current version indicated by LITEVER below.
 		document.getElementById("documentdb_numresults").value = documentdb_numresults
 		document.getElementById("documentdb_searchrange").value = documentdb_searchrange;
 		document.getElementById("documentdb_chunksize").value = documentdb_chunksize;
+		document.getElementById("documentdb_numresults_slide").value = documentdb_numresults
+		document.getElementById("documentdb_searchrange_slide").value = documentdb_searchrange;
+		document.getElementById("documentdb_chunksize_slide").value = documentdb_chunksize;
 		document.getElementById("documentdb_data").value = documentdb_data;
 		document.getElementById("documentdb_useEmbeddings").checked = documentdb_useEmbeddings;
 		if(is_using_kcpp_with_embeddings())
@@ -22086,11 +22109,11 @@ Current version indicated by LITEVER below.
 						<input title="Number of Search Results" inputmode="numeric" class="justifyright flex-push-right settingsmall" id="documentdb_numresults" oninput="
 						document.getElementById('documentdb_numresults_slide').value = this.value; estimate_and_show_textDB_usage();">
 					</div>
-					<div><input title="Number of Search Results Slider" type="range" min="1" max="5" step="1" id="documentdb_numresults_slide" oninput="
+					<div><input title="Number of Search Results Slider" type="range" min="1" max="10" step="1" id="documentdb_numresults_slide" oninput="
 						document.getElementById('documentdb_numresults').value = this.value; estimate_and_show_textDB_usage();"></div>
 					<div class="settingminmax">
 						<div class="justifyleft">1</div>
-						<div class="justifyright">5</div>
+						<div class="justifyright">10</div>
 					</div>
 				</div>
 
@@ -25138,6 +25161,19 @@ else
 		current_wi.push(baseWI)
 	}
 
+	let getTableNamesFromTextDB = () => {
+		matcher = new RegExp("\\[DOCUMENT BREAK\\]\\[Table:\([^\\]]*?\)\\].*?\\[DOCUMENT BREAK\\]", "gmis")
+		return [...documentdb_data.matchAll(matcher)].map(a => a[1])
+	}
+
+	let getRandomElemFromArray = (arr) => {
+		return arr[Math.floor(Math.random() * arr.length)]
+	}
+
+	let getChatOpponentRandomly = () => {
+		return getRandomElemFromArray(localsettings.chatopponent.split("||$||"))
+	}
+
 	let wordCountEnabled = false
 	let getCommands = () => {
 	return [
@@ -25145,10 +25181,16 @@ else
 			"name": "ask_user",
 			"description": "Ask the user for input. Optionally, suggested responses can be provided to the user as well.",
 			"args": {
-				"message": "<message that awaits user input>",
+				"whoToSendMessageAs": {
+					description: "<whose perspective is the response written from>",
+					pattern: (localsettings.inject_chatnames_instruct ? `^${getChatOpponentRandomly()}$` : undefined),
+					type: "string",
+					skip: !localsettings.inject_chatnames_instruct
+				},
+				"message": "<message that prompts the user for input>",
 				"suggestionsToPickFrom": {
-				description: "<suggestions the user can pick from as an array of strings>",
-				type: "array"
+				description: "<suggestions written from the user's perspective which they can pick from for their next action>",
+				type: "array",
 				}
 			},
 			"enabled": true,
@@ -25162,7 +25204,8 @@ else
 						// Do not care about an error here, it's a nice to have if the suggestions show
 					}
 				}
-				addThought(createSysPrompt, `Request for user input: ` + action?.args?.message)
+				let prompt = localsettings.inject_chatnames_instruct ? `Request for user input by ${action?.args?.whoToSendMessageAs}: ${action?.args?.message}` : `Request for user input: ${action?.args?.message}`
+				addThought(createSysPrompt, prompt)
 				return true
 			}
 			},
@@ -25170,11 +25213,17 @@ else
 			"name": "send_message",
 			"description": "Send a message to the user without waiting for their response. Does not return anything.",
 			"args": {
-				"message": "<message to send>"
+				"whoToSendMessageAs": {
+					description: "<whose perspective is the response written from>",
+					pattern: (localsettings.inject_chatnames_instruct ? `^${getChatOpponentRandomly()}$` : undefined),
+					type: "string",
+					skip: !localsettings.inject_chatnames_instruct
+				},
+				"message": "<message to send>",
 			},
 			"enabled": true,
 			"executor": (action) => {
-				addThought(createAIPrompt, action?.args?.message)
+				addThought(createAIPrompt, localsettings.inject_chatnames_instruct ? `${action?.args?.whoToSendMessageAs}: ${action?.args?.message}` : action?.args?.message)
 			}
 			},
 			{
@@ -25226,6 +25275,37 @@ else
 					}
 					else {
 						addThought(createSysPrompt, `Could not roll dice as the format was incorrect`)
+					}
+				}
+			},
+			{
+			"name": "get_random_terms_from_table",
+			"description": "Gets random terms from a user defined table",
+			"args": {
+				"numOfTerms": {
+				description: "<number of terms to get>",
+				type: "integer"
+				},
+				"tableToUse": {
+				description: "<number of table to get terms from>",
+				type: "string",
+				enum: getTableNamesFromTextDB()
+				}
+			},
+			"enabled": getTableNamesFromTextDB().length > 0,
+				"executor": (action) => {
+					let numOfTerms = action?.args?.numOfTerms
+					let tableToUse = action?.args?.tableToUse
+					if (!!numOfTerms && !!tableToUse) {
+						let results = []
+						let tableElems = getDocumentFromTextDB(`Table:${tableToUse}`).split("\n").map(c => c.trim()).filter(c => c.length > 0)
+						for (let roll = 0; roll < numOfTerms; roll++) {
+							results.push(getRandomElemFromArray(tableElems))
+						}
+						addThought(createSysPrompt, `Got ${numOfTerms} terms from ${tableToUse}: ${results.join(", ")}`)
+					}
+					else {
+						addThought(createSysPrompt, `Could not get terms as the format was incorrect`)
 					}
 				}
 			},
@@ -25496,15 +25576,48 @@ else
 				"aspect": {
 					type: "string",
 					description: "<aspect ratio - must be \"landscape\", \"portrait\" or \"square\">"
+				},
+				"use_another_image_as_source": {
+					description: "<if the user wished to generate a new image based on one they provide, set this to true>",
+					type: "boolean"
 				}
 			},
 			"enabled": localsettings.generate_images_mode == 2, // Only enabled if local endpoint exists / is in use
-				"executor": (action) => {
+				"executor": async (action) => {
 					let prompt = action?.args?.prompt
 					let aspect = action?.args?.aspect
 					if (!!prompt) {
-						generate_new_image(preparePromptForImageGen(prompt), undefined, calcImageSizing(aspect))
-						addThought(createSysPrompt, `Image generated`)
+						if (!!action?.args?.use_another_image_as_source)
+						{
+							waitingFori2iSelection = true
+							addThought(createSysPrompt, `Please click an image as a source for img2img generation`, true)
+
+							let waitForI2ILoop = () => {
+								return new Promise((resolve, reject) => {
+									let intervalId = setInterval(() => {
+										if (waitingFori2iSelection === false || endCurrent) {
+											clearInterval(intervalId)
+											resolve()
+										}
+									}, 1000)
+								})
+							}
+							await waitForI2ILoop()
+							if (!!i2i64) {
+								generate_new_image(preparePromptForImageGen(prompt), i2i64, calcImageSizing(aspect))
+								addThought(createSysPrompt, `Image generated`)
+							}
+							else {
+								addThought(createSysPrompt, `User did not select an image - no image generated`)
+							}
+							i2i64 = undefined;
+							waitingFori2iSelection = false;	
+						}
+						else
+						{
+							generate_new_image(preparePromptForImageGen(prompt), undefined, calcImageSizing(aspect))
+							addThought(createSysPrompt, `Image generated`)
+						}
 					}
 					else {
 						addThought(createSysPrompt, `No prompt provided, image not generated`)
@@ -25521,7 +25634,7 @@ else
 					description: "<aspect ratio - must be \"landscape\", \"portrait\" or \"square\">"
 				}
 			},
-			"enabled": localsettings.generate_images_mode == 2, // Only enabled if local endpoint exists / is in use
+			"enabled": false, // localsettings.generate_images_mode == 2, // Only enabled if local endpoint exists / is in use
 				"executor": async (action) => {
 					let i2iPrompt = action?.args?.prompt
 					if (!!i2iPrompt) {
@@ -25639,24 +25752,32 @@ else
 			
 			elem.properties.command.properties.name["pattern"] = `^${command.name}$`
 			for (arg in command.args) {
-				if (typeof command.args[arg] === "object" && !!command.args[arg]?.format)
+				if (!command.args[arg]?.skip)
 				{
-					let formatToUse = toJsonSchema(JSON.parse(command.args[arg]?.format))
-					args.properties[arg] = formatToUse
-				}
-				else if (typeof command.args[arg] === "object" && !!command.args[arg]?.type) {
-					args.properties[arg] = {
-						type: command.args[arg].type
-					}
-					if (!!command.args[arg]?.enum)
+					if (typeof command.args[arg] === "object" && !!command.args[arg]?.format)
 					{
-						args.properties[arg].enum = command.args[arg]?.enum
+						let formatToUse = toJsonSchema(JSON.parse(command.args[arg]?.format))
+						args.properties[arg] = formatToUse
 					}
-				} else {
-					args.properties[arg] = {
-						type: "string"
+					else if (typeof command.args[arg] === "object" && !!command.args[arg]?.type) {
+						args.properties[arg] = {
+							type: command.args[arg].type
+						}
+						if (!!command.args[arg]?.enum)
+						{
+							args.properties[arg].enum = command.args[arg]?.enum
+						}
+						if (!!command.args[arg]?.pattern)
+						{
+							args.properties[arg].pattern = command.args[arg]?.pattern
+						}
+					} else {
+						args.properties[arg] = {
+							type: "string"
+						}
 					}
 				}
+				
 				args.required.push(arg)
 			}
 			return elem
@@ -25865,6 +25986,32 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return output.filter(text => text.length > 0)
 	}
 
+	let listOfExclusions = ["Action taken:", "Action taken (words =", "History search performed:", "Chain of thought complete", "Stop thinking action confirmed",
+				 "Web search results:", "Text has been added to history", "Formula evaluation result:", "Formula evaluation could not be completed as no formula was provided", 
+				 "Text has been added to history", "Text was empty - nothing added to history", "Search string was empty, no search performed", "Word count is", "Image analysed:", 
+				 "Image generated", "No prompt provided, image not generated", "Text has been spoken", "No text provided, nothing has been said", "System prompt has been overwritten", 
+				 "No system prompt provided, nothing has been overwritten", "Current state has been overwritten", "No state provided, nothing has been overwritten", "Current order of actions has been cleared",
+				  "Current order of actions has been overwritten", "No order of actions provided, nothing has been overwritten", "Error - Empty response instead of action. Ensure all responses are valid JSON.",
+				"Current state format has been overwritten", "No valid state format provided, nothing has been overwritten", `Text has been added to world info:`, `Text was empty - nothing added to world info`, `Chain of thought had an exception`]
+
+	let hideAgentModeCotForAestheticMode = (container = document) => {
+		[...container.querySelectorAll("end_of_context_koboldlite_internal > div")]
+			.filter(elem => listOfExclusions.find(excludedStart => elem.innerText.trim().indexOf(excludedStart) === 0))
+			.forEach(elem => elem.style.display = "none")
+	}
+
+	let originalRenderAestheticUI = render_aesthetic_ui
+
+	render_aesthetic_ui = (input, isPreview) => {
+		let aestheticHTML = document.createElement("div")
+		aestheticHTML.innerHTML = originalRenderAestheticUI(input, isPreview)
+		if (isAgentModeEnabledAndSetCorrectly() && !!localsettings?.agentHideCOT)
+		{
+			hideAgentModeCotForAestheticMode(aestheticHTML)
+		}
+		return aestheticHTML.innerHTML
+	}
+
 	var loadingNewGame = true
 	let originalRepackInstructTurns = repack_instruct_turns, cotOverrideRepack = false;
 
@@ -25897,42 +26044,31 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			if (loadingNewGame)
 			{
 				loadingNewGame = false
+				let suggestionsRegex = new RegExp(`suggestionsToPickFrom: (\\[.*?\\])`, "gm")
 				for (let i = combined_chunks.length - 1; i >= 0 && i >= combined_chunks.length - 4; i--) {
 					let elem = combined_chunks[i]
-					if (elem.message.indexOf("Action: ") === 0) {
-						let actionJson = elem.message.replace("Action:", "").trim()
-						try {
-							let actionObj = JSON.parse(actionJson.replaceAll("&quot;", `"`))
-							if (actionObj?.command?.name === "ask_user" && Array.isArray(actionObj?.command?.args?.suggestionsToPickFrom)) {
-								setSuggestions(actionObj?.command?.args?.suggestionsToPickFrom.map(String))
-								break
-							}
-						}
-						catch (e) {
-							// Suppress errors
-						}
+					try {
+						let suggestions = JSON.parse([...elem.message.matchAll(suggestionsRegex)][0][1].replaceAll("&quot;", `"`))
+						setSuggestions(suggestions)
+						break
+					}
+					catch (e) {
+						// Suppress errors
 					}
 				}
 			}
 
 			if (filterOutActions)
 			{
-				let listOfExclusions = ["Action taken:", "Action taken (words =", "History search performed:", "Chain of thought complete", "Stop thinking action confirmed",
-				 "Web search results:", "Text has been added to history", "Formula evaluation result:", "Formula evaluation could not be completed as no formula was provided", 
-				 "Text has been added to history", "Text was empty - nothing added to history", "Search string was empty, no search performed", "Word count is", "Image analysed:", 
-				 "Image generated", "No prompt provided, image not generated", "Text has been spoken", "No text provided, nothing has been said", "System prompt has been overwritten", 
-				 "No system prompt provided, nothing has been overwritten", "Current state has been overwritten", "No state provided, nothing has been overwritten", "Current order of actions has been cleared",
-				  "Current order of actions has been overwritten", "No order of actions provided, nothing has been overwritten", "Error - Empty response instead of action. Ensure all responses are valid JSON.",
-				"Current state format has been overwritten", "No valid state format provided, nothing has been overwritten", `Text has been added to world info:`, `Text was empty - nothing added to world info`]
 				combined_chunks = combined_chunks
-				.filter(elem => !listOfExclusions.find(excludedStart => elem.message.trim().indexOf(excludedStart) === 0))
-				.map(elem => {
-					if (elem.message.indexOf("Request for user input:") === 0)
-					{
-						elem.message = elem.message.replace("Request for user input:", "").trim()
-					}
-					return elem
-				})
+					.filter(elem => !listOfExclusions.find(excludedStart => elem.message.trim().indexOf(excludedStart) === 0))
+					.map(elem => {
+						if (elem.message.indexOf("Request for user input:") === 0)
+						{
+							elem.message = elem.message.replace("Request for user input:", "").trim()
+						}
+						return elem
+					})
 			}
 			
 			return combined_chunks.map(elem => {
@@ -25969,19 +26105,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return !!match ? match[2].trim() : null
 	}
 
-	let replaceDocumentFromTextDB = (documentName, documentContent) => {
-		if (documentdb_data.indexOf(`[DOCUMENT BREAK][${documentName}]`) !== -1)
-		{
-			regex = `\(\\[DOCUMENT BREAK\\]\\[${documentName}\\]\)\(.*?\)\(\\[DOCUMENT BREAK\\]\)`
-			documentdb_data = documentdb_data.replace(new RegExp(regex, "s"), `$1${documentContent.trim()}$3`)
-		}
-		else
-		{
-			documentdb_data += `[DOCUMENT BREAK][${documentName}]${documentContent.trim()}[DOCUMENT BREAK]`
-		}
-		document.getElementById("documentdb_data").value = documentdb_data;
-	}
-
 	let calcImageSizing = (aspect) => {
 		let { iwidth, iheight } = getImageSizing()
 		let sizing = [iheight, iwidth];
@@ -26014,8 +26137,18 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	let getFinalAgentPrompt = (currentOrderOfActions) => {
-		let basePrompt = createSysPrompt(`Current state: ${getDocumentFromTextDB('State')}${currentOrderOfActions.length > 0 ? `\n\nOrder of actions: ${currentOrderOfActions.join(" -> ")}` : ""}`)
-		return basePrompt
+		let state = getDocumentFromTextDB('State')
+		let prompt = []
+		if (state != null)
+		{
+			prompt.push(`Current state: ${state}`)
+		}
+		if (currentOrderOfActions.length > 0)
+		{
+			prompt.push(`Order of actions: ${currentOrderOfActions.join(" -> ")}`)
+		}
+		let basePrompt = prompt.join("\n\n")
+		return basePrompt.length > 0 ? createSysPrompt(basePrompt) : ""
 	}
 
 	/**
@@ -26136,7 +26269,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			let args = Object.keys(action.args).map(key => {
 				let value = action.args[key];
-				return typeof value === "object" ? `\t${key}: ${value.description}` : `\t${key}: ${value}`
+				return typeof value === "object" ? `\t${key}: ${JSON.stringify(value)}` : `\t${key}: ${value}`
 			}).join("\n")
 			actionAsText += `\nArguments:\n${args}`
 		}
@@ -26173,6 +26306,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		let textDBResults = ""
 		if (!!initialPrompt)
 		{
+			initialPrompt = (localsettings.inject_chatnames_instruct ? `${localsettings.chatname}: ${initialPrompt}` : initialPrompt)
 			addThought(createInstructPrompt, initialPrompt)
 			if (!!documentdb_enabled)
 			{
@@ -26204,6 +26338,18 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			let nextAction = currentOrderOfActions.splice(i).filter(acts => acts.split("|").find(act => validCommands.includes(act)))
 			nextAction = nextAction.length > 0 ? getCommands().filter(act => nextAction[0].split("|").includes(act.name)) : getEnabledCommands().filter(command => validCommands.includes(command.name))
 
+			// Find any actions which have occured more than the max repeats in settings and remove them from the options
+			let actionsOverMaxRepeats = recentActions.map(elem => elem?.command?.name).reduce((o, c) => {
+				let elem = o.find(e => e.name == c)
+				if (elem === undefined) {
+					o.push({name: c, repeats: 1})
+				} else {
+					elem.repeats++
+				}
+				return o
+			}, []).filter(o => o.repeats >= localsettings.agentCOTRepeatsMax).map(o => o.name)
+			nextAction = nextAction.filter(act => !actionsOverMaxRepeats.includes(act.name))
+
 			// Find actions which are identical and have run twice - then remove them from the possible options to run again
 			let duplicateActions = recentActions.filter((elem, pos, arr) => arr.findIndex((elem2) => JSON.stringify(elem) === JSON.stringify(elem2)) !== pos).map(elem => elem?.command?.name)
 			nextAction = nextAction.filter(act => !duplicateActions.includes(act.name))
@@ -26227,7 +26373,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 			let history = getInitialAgentPrompt(nextAction, max_mem_len)
 			let wiToInclude = createSysPrompt(substring_to_boundary(getWorldInfoForAgent(truncated_context, max_wi_len) + "\n\n" + textDBResults, max_wi_len))
-			let anToInclude = createSysPrompt(substring_to_boundary(current_anotetemplate.replace("<|>", current_anote), max_anote_len))
+			let anToInclude = !!current_anote ? createSysPrompt(substring_to_boundary(current_anotetemplate.replace("<|>", current_anote), max_anote_len)) : ""
 			let finalAgentPrompt = getFinalAgentPrompt(currentOrderOfActions)
 
 			let cotAsText = "", maxLengthOfCot = max_allowed_characters - history.length - wiToInclude.length - anToInclude.length - finalAgentPrompt.length
@@ -26366,12 +26512,15 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		document.getElementById("agentHideCOT").checked = localsettings.agentHideCOT;
 		document.getElementById("agentCOTMax").value = localsettings.agentCOTMax;
 		document.getElementById("agentCOTMaxnumeric").value = localsettings.agentCOTMax;
+		document.getElementById("agentCOTRepeatsMax").value = localsettings.agentCOTRepeatsMax;
+		document.getElementById("agentCOTRepeatsMaxnumeric").value = localsettings.agentCOTRepeatsMax;
 	}
 
 	confirm_settings = () => {
 		localsettings.agentBehaviour = (document.getElementById("agentBehaviour").checked ? true : false);
 		localsettings.agentHideCOT = (document.getElementById("agentHideCOT").checked ? true : false);
 		localsettings.agentCOTMax = document.getElementById("agentCOTMax").value;
+		localsettings.agentCOTRepeatsMax = document.getElementById("agentCOTRepeatsMax").value;
 		originalConfirmSettings()
 	}
 
@@ -26568,7 +26717,11 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		if (localsettings?.agentCOTMax == undefined)
 		{
 			localsettings.agentCOTMax = 5
-		}		
+		}
+		if (localsettings?.agentCOTRepeatsMax == undefined)
+		{
+			localsettings.agentCOTRepeatsMax = 1
+		}
 
 		let createSettingElemBool = (inputElemId, labelTitle, labelText) => {
 			let settingLabelElem = document.createElement("div")
@@ -26664,6 +26817,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		settingLabelElem = createSettingElemRange("agentCOTMax", "Maximum agent actions", "Defines the maximum number of actions the agent can take without a user input", 1, 20, 1, 5)
 		lastSettingContainer.append(settingLabelElem)
 
+		settingLabelElem = createSettingElemRange("agentCOTRepeatsMax", "Maximum repeated agent actions of a type", "Defines the maximum number of actions the agent can take of the same type without a user input", 1, 20, 1, 1)
+		lastSettingContainer.append(settingLabelElem)
+
 		createStopThinkingButton()
 	})
 
@@ -26688,10 +26844,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	let facts = ["Tunnel Networks: Kobolds live in sprawling tunnel networks. Cyberpunk kobolds augment these with networked sensor arrays and automated defense turrets, all controlled by a central AI 'Warren Mind'.", "Dragon Devotion: Traditional kobolds worship dragons. Cyberpunk kobolds see dragons as powerful data-lords, hoarding information (and sometimes physical hardware) – they try to curry favor by providing useful tech.", "Trap Masters: Known for their traps, cyberpunk kobolds use electrified grids, laser tripwires, and robotic spiders alongside traditional pits and snares.", "AI Spirits: Each Kobold warband will often have several 'spirit' units - small AI cores housed in scavenged drones or robotic shells that act as scouts, messengers, or even shock troops.", "Scale Colors & Clan: Kobold scale color signifies clan. In the cyberpunk age, this is displayed through LED patterns woven into their scales, showing allegiance and status.", "Scavenging Prowess: Kobolds are master scavengers. They can find usable components in almost any pile of junk, creating surprisingly effective cybernetic enhancements for themselves and their spirits.", "Weak but Numerous: Kobolds rely on being numerous to overcome larger foes. Cyberpunk kobolds compensate with swarms of micro-drones and coordinated attacks directed by their Warren Mind.", "Pack Tactics: Critical to kobold survival, pack tactics are amplified via networked comms between kobolds and their spirit units.", "Rune Tech: Traditional runes have been merged with circuit boards. These 'rune-circuits' provide low-level magical effects powered by salvaged energy cells.", "The Warren Mind: The central AI controlling a kobold warren isn't always sophisticated. Often it's built from cobbled-together parts, resulting in quirky personalities and unpredictable behavior."];
 </script>
 <script>
-	let getRandomElemFromArray = (arr) => {
-		return arr[Math.floor(Math.random() * arr.length)]
-	}
-
 	document.getElementById("btnsend").onmouseover = () => {
 		document.getElementById("input_text").placeholder = `Enter text here\nOr enjoy this fact: ${getRandomElemFromArray(facts)}`;
 		document.getElementById("btnsend").style.backgroundImage = `url("${getRandomElemFromArray(icons)}")`; 
@@ -27070,6 +27222,17 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 		addDocumentToTextDB()
 		{
+			let tryImportLorebookAsTextDB = (b64) => {
+				try
+				{
+					let obj = JSON.parse(atob(b64.split(",")[1]))
+					return importLorebookAsTextDB(obj)
+				}
+				catch (e)
+				{
+					return false
+				}
+			}
 			promptUserForLocalFile(async (fileDetails) => {
 				let {file, fileName, ext, content} = fileDetails
 				let extractedText = undefined
@@ -27078,6 +27241,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				{
 					let analysisPrompt = "Perform OCR on the provided image."
 					extractedText = await generateAndGetTextFromPrompt(`${createInstructPrompt(analysisPrompt)}${instructendplaceholder}${!!localsettings?.inject_jailbreak_instruct ? localsettings.custom_jailbreak_text : ""}`, undefined, [content.split(",")[1]])	
+				}
+				else if (content.startsWith("data:application/json") && tryImportLorebookAsTextDB(content))
+				{
+					return
 				}
 				else
 				{
