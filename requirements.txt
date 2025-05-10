@@ -7,3 +7,6 @@ protobuf>=5.29.3
 psutil>=6.1.1
 pdfplumber>=0.11.6
 multiprocess>=0.70.18
+expecttest>=0.3.0
+onnx>=1.17.0
+onnxscript>=0.2.5
