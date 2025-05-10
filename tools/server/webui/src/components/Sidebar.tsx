@@ -7,6 +7,7 @@ import {
   ArrowDownTrayIcon,
   EllipsisVerticalIcon,
   PencilIcon,
+  PencilSquareIcon,
   TrashIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
@@ -76,15 +77,19 @@ export default function Sidebar() {
             })}
             onClick={() => navigate('/')}
           >
-            + New conversation
+            <PencilSquareIcon className="w-5 h-5" />
+            New conversation
           </div>
 
           {/* list of conversations */}
-          {groupedConv.map((group) => (
-            <div>
+          {groupedConv.map((group, i) => (
+            <div key={i}>
               {/* group name (by date) */}
               {group.title ? (
-                <b className="block text-xs px-2 mb-2 mt-6">{group.title}</b>
+                // we use btn class here to make sure that the padding/margin are aligned with the other items
+                <b className="btn btn-ghost btn-xs bg-none btn-disabled block text-xs text-base-content text-start px-2 mb-0 mt-6 font-bold">
+                  {group.title}
+                </b>
               ) : (
                 <div className="h-2" />
               )}
