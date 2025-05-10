@@ -6483,6 +6483,10 @@ Current version indicated by LITEVER below.
 		return (custom_kobold_endpoint != "" && koboldcpp_version && koboldcpp_version != "" && compare_version_str(koboldcpp_version, "1.84") >= 0 && koboldcpp_has_admin_with_HF);
 	}
 
+	function is_using_kcpp_with_server_saving() {
+		return (custom_kobold_endpoint != "" && koboldcpp_version && koboldcpp_version != "" && compare_version_str(koboldcpp_version, "1.84") >= 0 && koboldcpp_has_server_saving);
+	}
+
 	function determine_if_ban_eos(input_was_empty) {
 		if(localsettings.eos_ban_mode == 3)
 		{
@@ -24349,10 +24353,6 @@ else
 	// password = "SaveOurSouls"; e = encrypt(password, "Hello world"); decrypt(password, e)
 </script>
 <script>
-	function is_using_kcpp_with_server_saving() {
-		return (custom_kobold_endpoint != "" && koboldcpp_version && koboldcpp_version != "" && compare_version_str(koboldcpp_version, "1.84") >= 0 && koboldcpp_has_server_saving);
-	}
-
 	let serverSavesPopup = document.getElementById("serverSaves");
 	let serverSavingPopup = document.getElementById("serverSavingPopup");
 	let serverSavingTypePopup = document.getElementById("serverSavingTypePopup");
