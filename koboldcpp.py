@@ -1631,7 +1631,7 @@ def extract_text(genparams):
         docData = genparams.get("docData", "")
         if docData.startswith("data:text"):
             docData = docData.split(",", 1)[1]
-        if docData.startswith("data:application/pdf"):
+        elif docData.startswith("data:application/pdf"):
             docData = docData.split(",", 1)[1]
             return extract_text_from_pdf(docData)
         elif docData.startswith("data:audio"):
