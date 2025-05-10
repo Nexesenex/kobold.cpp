@@ -1998,8 +1998,7 @@ def generate(genparams, stream_flag=False):
     xtc_probability = tryparsefloat(genparams.get('xtc_probability', 0),0)
     sampler_order = genparams.get('sampler_order', [6, 0, 1, 3, 4, 2, 5])
     seed = tryparseint(genparams.get('sampler_seed', -1),-1)
-    stop_sequence = (genparams.get('stop_sequence', []) if genparams.get('stop_sequence', []) is not None else [])
-    stop_sequence = stop_sequence[:stop_token_max]
+    stop_sequence = genparams.get('stop_sequence', [])
     ban_eos_token = genparams.get('ban_eos_token', False)
     stream_sse = stream_flag
     grammar = genparams.get('grammar', '')
@@ -2023,25 +2022,6 @@ def generate(genparams, stream_flag=False):
     banned_tokens = genparams.get('banned_tokens', banned_strings)
     bypass_eos_token = genparams.get('bypass_eos', False)
     custom_token_bans = genparams.get('custom_token_bans', '')
-    replace_instruct_placeholders = genparams.get('replace_instruct_placeholders', False)
-    if replace_instruct_placeholders:
-        adapter_obj = {} if chatcompl_adapter is None else chatcompl_adapter
-        system_message_start = adapter_obj.get("system_start", "\n### Instruction:\n")
-        user_message_start = adapter_obj.get("user_start", "\n### Instruction:\n")
-        user_message_end = adapter_obj.get("user_end", "")
-        assistant_message_start = adapter_obj.get("assistant_start", "\n### Response:\n")
-        assistant_message_end = adapter_obj.get("assistant_end", "")
-        prompt = prompt.replace("{{[INPUT]}}", assistant_message_end + user_message_start)
-        prompt = prompt.replace("{{[OUTPUT]}}", user_message_end + assistant_message_start)
-        prompt = prompt.replace("{{[SYSTEM]}}", system_message_start)
-        memory = memory.replace("{{[INPUT]}}", assistant_message_end + user_message_start)
-        memory = memory.replace("{{[OUTPUT]}}", user_message_end + assistant_message_start)
-        memory = memory.replace("{{[SYSTEM]}}", system_message_start)
-        for i in range(len(stop_sequence)):
-            if stop_sequence[i] == "{{[INPUT]}}":
-                stop_sequence[i] = user_message_start
-            elif stop_sequence[i] == "{{[OUTPUT]}}":
-                stop_sequence[i] = assistant_message_start
 
     for tok in custom_token_bans.split(','):
         tok = tok.strip()  # Remove leading/trailing whitespace
@@ -3225,6 +3205,34 @@ ws ::= | " " | "\n" [ \t]{0,20}
         genparams["ollamasysprompt"] = ollamasysprompt
         genparams["ollamabodyprompt"] = ollamabodyprompt
         genparams["prompt"] = ollamasysprompt + ollamabodyprompt
+
+    #final transformations (universal template replace)
+    replace_instruct_placeholders = genparams.get('replace_instruct_placeholders', False)
+    stop_sequence = (genparams.get('stop_sequence', []) if genparams.get('stop_sequence', []) is not None else [])
+    stop_sequence = stop_sequence[:stop_token_max]
+    if replace_instruct_placeholders:
+        prompt = genparams.get('prompt', "")
+        memory = genparams.get('memory', "")
+        adapter_obj = {} if chatcompl_adapter is None else chatcompl_adapter
+        system_message_start = adapter_obj.get("system_start", "\n### Instruction:\n")
+        user_message_start = adapter_obj.get("user_start", "\n### Instruction:\n")
+        user_message_end = adapter_obj.get("user_end", "")
+        assistant_message_start = adapter_obj.get("assistant_start", "\n### Response:\n")
+        assistant_message_end = adapter_obj.get("assistant_end", "")
+        prompt = prompt.replace("{{[INPUT]}}", assistant_message_end + user_message_start)
+        prompt = prompt.replace("{{[OUTPUT]}}", user_message_end + assistant_message_start)
+        prompt = prompt.replace("{{[SYSTEM]}}", system_message_start)
+        memory = memory.replace("{{[INPUT]}}", assistant_message_end + user_message_start)
+        memory = memory.replace("{{[OUTPUT]}}", user_message_end + assistant_message_start)
+        memory = memory.replace("{{[SYSTEM]}}", system_message_start)
+        for i in range(len(stop_sequence)):
+            if stop_sequence[i] == "{{[INPUT]}}":
+                stop_sequence[i] = user_message_start
+            elif stop_sequence[i] == "{{[OUTPUT]}}":
+                stop_sequence[i] = assistant_message_start
+        genparams["prompt"] = prompt
+        genparams["memory"] = memory
+    genparams["stop_sequence"] = stop_sequence
     return genparams
 
 def LaunchWebbrowser(target_url, failedmsg):
@@ -5677,18 +5685,28 @@ def show_gui():
 
         def fetch_search_models():
             from tkinter import messagebox
-            nonlocal searchbox1, modelsearch1_var, modelsearch2_var
+            nonlocal searchbox1, searchbox2, modelsearch1_var, modelsearch2_var
             try:
                 modelsearch1_var.set("")
                 modelsearch2_var.set("")
+                searchbox1.configure(values=[])
+                searchbox2.configure(values=[])
                 searchedmodels = []
-                search = "GGUF " + model_search.get()
-                urlcode = urlparse.urlencode({"search":search,"limit":10}, doseq=True)
+                searchbase = model_search.get()
+                if searchbase.strip()=="":
+                    return
+                urlcode = urlparse.urlencode({"search":( "GGUF " + searchbase),"limit":10}, doseq=True)
+                urlcode2 = urlparse.urlencode({"search":searchbase,"limit":6}, doseq=True)
                 resp = make_url_request(f"https://huggingface.co/api/models?{urlcode}",None,'GET',{},10)
-                if len(resp)==0:
-                    messagebox.showinfo("No Results Found", "Search found no results")
                 for m in resp:
                     searchedmodels.append(m["id"])
+                if len(resp)<=3: #too few results, repeat search without GGUF in the string
+                    resp2 = make_url_request(f"https://huggingface.co/api/models?{urlcode2}",None,'GET',{},10)
+                    for m in resp2:
+                        searchedmodels.append(m["id"])
+
+                if len(searchedmodels)==0:
+                    messagebox.showinfo("No Results Found", "Search found no results")
                 searchbox1.configure(values=searchedmodels)
                 if len(searchedmodels)>0:
                     modelsearch1_var.set(searchedmodels[0])
