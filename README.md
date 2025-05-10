@@ -33,7 +33,7 @@ It offers the following functionalities:
 
 ## Agent thinking mode (experimental)
 
-An attempt to replicate tool usage / agent logic in Lite.  Essentially, the AI is provided the user input and a list of tools that it can use.  Should work on all UI modes for instruct.
+An attempt to replicate tool usage / agent logic in Lite.  Essentially, the AI is provided the user input and a list of tools that it can use.  Should work on all UI modes for instruct, along with supporting chat names.
 
 The currently supported options include:
 - Sending messages / Asking for additional user input (including AI suggested options like a text adventure)
@@ -59,6 +59,18 @@ The currently supported options include:
 - Supports system prompts, both using and setting it automatically
 - Supports setting a "state" parameter which is always inserted at the end of the text.  It is also possible to define the format that the response must use (i.e. {health: 10, mana: 20...})
 - Support enforcing a specific action order (i.e. the agent can be set to always roll a dice, then send a response)
+- Support for manually preventing the agent from taking specific actions:
+
+```
+[DOCUMENT BREAK][Forbidden agent commands]ask_user|roll_dice[DOCUMENT BREAK]
+```
+
+- Support for randomly selecting elements from a list of items.  The lists can be defined in the TextDB with:
+
+```
+[DOCUMENT BREAK][Table:Genres]Action Fantasy
+Horror[DOCUMENT BREAK]
+```
 
 Using this function requires the following conditions to be met:
 - Use an instruct model
@@ -75,6 +87,8 @@ Using this function requires the following conditions to be met:
 
 ![image](https://github.com/user-attachments/assets/41ec4f1c-5698-4ef3-ba7c-6998cbc1d8f3)
 
+- Upload document support (including upload of text documents, lorebooks, PDFs (SevenOf9 wrote the parser), OCR using the vision model loaded, and transcription from audio)
+- Export / Import of WI groups from files
 
 ## Running the fork
 
