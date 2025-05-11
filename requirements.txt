@@ -3,10 +3,13 @@ sentencepiece>=0.2.0
 transformers>=4.51.3
 gguf~=0.13.0
 customtkinter>=5.2.2
-protobuf>=5.29.3
+protobuf>=4.21.12
 psutil>=6.1.1
 pdfplumber>=0.11.6
-multiprocess>=0.70.18
+multiprocess>=0.70.16
 expecttest>=0.3.0
 onnx>=1.17.0
 onnxscript>=0.2.5
+pdfminer.six==20250327
+Pillow>=9.1
+pypdfium2>=4.18.0
