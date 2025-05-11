@@ -6572,6 +6572,10 @@ Current version indicated by LITEVER below.
 		return (custom_kobold_endpoint != "" && koboldcpp_version && koboldcpp_version != "" && compare_version_str(koboldcpp_version, "1.84") >= 0 && koboldcpp_has_admin_with_HF);
 	}
 
+	function is_using_kcpp_with_server_saving() {
+		return (custom_kobold_endpoint != "" && koboldcpp_version && koboldcpp_version != "" && compare_version_str(koboldcpp_version, "1.84") >= 0 && koboldcpp_has_server_saving);
+	}
+
 	function determine_if_ban_eos(input_was_empty) {
 		if(localsettings.eos_ban_mode == 3)
 		{
@@ -24442,10 +24446,6 @@ else
 	// password = "SaveOurSouls"; e = encrypt(password, "Hello world"); decrypt(password, e)
 </script>
 <script>
-	function is_using_kcpp_with_server_saving() {
-		return (custom_kobold_endpoint != "" && koboldcpp_version && koboldcpp_version != "" && compare_version_str(koboldcpp_version, "1.84") >= 0 && koboldcpp_has_server_saving);
-	}
-
 	let serverSavesPopup = document.getElementById("serverSaves");
 	let serverSavingPopup = document.getElementById("serverSavingPopup");
 	let serverSavingTypePopup = document.getElementById("serverSavingTypePopup");
@@ -26047,10 +26047,32 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			{
 				loadingNewGame = false
 				let suggestionsRegex = new RegExp(`suggestionsToPickFrom: (\\[.*?\\])`, "gm")
+				
+				let decodeEntities = (function() {
+					// this prevents any overhead from creating the object each time
+					let element = document.createElement('div');
+
+					function decodeHTMLEntities (str) {
+						if(str && typeof str === 'string') {
+						// strip script/html tags
+						str = str.replace(/<script[^>]*>([\S\s]*?)<\/script>/gmi, '');
+						str = str.replace(/<\/?\w(?:[^"'>]|"[^"]*"|'[^']*')*>/gmi, '');
+						element.innerHTML = str;
+						str = element.textContent;
+						element.textContent = '';
+						}
+
+						return str;
+					}
+
+					return decodeHTMLEntities;
+				})();
+
 				for (let i = combined_chunks.length - 1; i >= 0 && i >= combined_chunks.length - 4; i--) {
 					let elem = combined_chunks[i]
 					try {
-						let suggestions = JSON.parse([...elem.message.matchAll(suggestionsRegex)][0][1].replaceAll("&quot;", `"`))
+						let cleanedText = decodeEntities(elem.message)
+						let suggestions = JSON.parse([...cleanedText.matchAll(suggestionsRegex)][0][1].replaceAll("&quot;", `"`))
 						setSuggestions(suggestions)
 						break
 					}
