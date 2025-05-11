@@ -821,18 +821,24 @@ def string_contains_or_overlaps_sequence_substring(inputstr, sequences):
     return False
 
 def truncate_long_json(data, max_length):
+    def truncate_middle(s, max_length):
+        if len(s) <= max_length or max_length < 5:
+            return s
+        half = (max_length - 3) // 2
+        return s[:half] + "..." + s[-half:]
+
     if isinstance(data, dict):
         new_data = {}
         for key, value in data.items():
             if isinstance(value, str):
-                new_data[key] = value[:max_length] + "..." if len(value) > max_length else value
+                new_data[key] = truncate_middle(value, max_length)
             else:
                 new_data[key] = truncate_long_json(value, max_length)
         return new_data
     elif isinstance(data, list):
         return [truncate_long_json(item, max_length) for item in data]
     elif isinstance(data, str):
-        return data[:max_length] + "..." if len(data) > max_length else data
+        return truncate_middle(data, max_length)
     else:
         return data
 
@@ -2788,6 +2794,10 @@ def parse_last_logprobs(lastlogprobs):
 
 def transform_genparams(genparams, api_format):
     global chatcompl_adapter, maxctx
+
+    if api_format < 0: #not text gen, do nothing
+        return
+
     #api format 1=basic,2=kai,3=oai,4=oai-chat,5=interrogate,6=ollama,7=ollamachat
     #alias all nonstandard alternative names for rep pen.
     rp1 = float(genparams.get('repeat_penalty', 1.0))
@@ -3560,10 +3570,8 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
         await asyncio.sleep(0.05)
 
 
-    async def handle_request(self, raw_genparams, api_format, stream_flag):
+    async def handle_request(self, genparams, api_format, stream_flag):
         tasks = []
-
-        genparams = transform_genparams(raw_genparams, api_format)
 
         try:
             if stream_flag:
@@ -4686,6 +4694,12 @@ Change Mode<br>
                 trunc_len = 8000
                 if args.debugmode >= 1:
                     trunc_len = 16000
+                    printablegenparams_raw = truncate_long_json(genparams,trunc_len)
+                    utfprint("\nReceived Raw Input: " + json.dumps(printablegenparams_raw),1)
+
+                # transform genparams (only used for text gen) first
+                genparams = transform_genparams(genparams, api_format)
+
                 printablegenparams = truncate_long_json(genparams,trunc_len)
                 utfprint("\nInput: " + json.dumps(printablegenparams),1)
 

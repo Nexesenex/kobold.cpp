@@ -15,6 +15,7 @@
 #include "gguf.h"
 
 #include <chrono>
+#include <filesystem>
 
 static auto bench_timer = std::chrono::high_resolution_clock().now();
 
@@ -86,7 +87,12 @@ void print_tok_vec(std::vector<float> &embd)
  {
     std::vector<char> f_buf(1024*1024);
 
-    auto fin = std::ifstream(fname, std::ios::binary);
+    #ifdef _WIN32
+        std::filesystem::path fpath = std::filesystem::u8path(fname);
+    #else
+        std::filesystem::path fpath = std::filesystem::path(fname);
+    #endif
+    auto fin = std::ifstream(fpath, std::ios::binary);
     fin.rdbuf()->pubsetbuf(f_buf.data(), f_buf.size());
     if (!fin) {
         fprintf(stderr, "%s: failed to open '%s'\n", __func__, fname.c_str());

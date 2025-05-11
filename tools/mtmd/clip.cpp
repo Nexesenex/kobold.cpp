@@ -44,6 +44,7 @@
 #include <array>
 #include <numeric>
 #include <functional>
+#include <filesystem>
 
 struct clip_logger_state g_logger_state = {GGML_LOG_LEVEL_CONT, clip_log_callback_default, NULL};
 
@@ -2107,7 +2108,12 @@ struct clip_model_loader {
         {
             std::vector<uint8_t> read_buf;
 
-            auto fin = std::ifstream(fname, std::ios::binary);
+            #ifdef _WIN32
+            std::filesystem::path fpath = std::filesystem::u8path(fname);
+            #else
+                std::filesystem::path fpath = std::filesystem::path(fname);
+            #endif
+            auto fin = std::ifstream(fpath, std::ios::binary);
             if (!fin) {
                 throw std::runtime_error(string_format("%s: failed to open %s\n", __func__, fname.c_str()));
             }
