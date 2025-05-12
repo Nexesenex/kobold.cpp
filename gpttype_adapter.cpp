@@ -2343,6 +2343,21 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             fprintf(stderr, "%s: error: failed to load model '%s'\n", __func__, kcpp_data->model_filename.c_str());
             return ModelLoadResult::FAIL;
         }
+
+        //we use a threadpool, greatly speeds up qwen3moe tg
+        ggml_threadpool_params threadpool1_params, threadpool2_params;
+        ggml_threadpool_params_init(&threadpool1_params,kcpp_data->n_threads);
+        ggml_threadpool_params_init(&threadpool2_params,kcpp_data->n_blasthreads);
+
+        printf("Threadpool set to %d threads and %d blasthreads...\n", kcpp_data->n_threads,kcpp_data->n_blasthreads);
+        struct ggml_threadpool * threadpool1 = ggml_threadpool_new(&threadpool1_params);
+        struct ggml_threadpool * threadpool2 = ggml_threadpool_new(&threadpool2_params);
+        if (!threadpool1 || !threadpool2) {
+            fprintf(stderr, "%s: error: failed to create threadpool.\n", __func__);
+            return ModelLoadResult::FAIL;
+        }
+        llama_attach_threadpool(llama_ctx_v4, threadpool1, threadpool2);
+
         if (lora_filename != "")
         {
             printf("\nAttempting to apply LORA adapter: %s\n", lora_filename.c_str());
