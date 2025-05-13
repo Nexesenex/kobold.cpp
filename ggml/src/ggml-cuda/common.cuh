@@ -281,7 +281,6 @@ static __device__ void no_device_code(
     printf("%s:%d: ERROR: CUDA kernel %s has no device code compatible with CUDA arch %d. ggml-cuda.cu was compiled for: %s\n",
            file_name, line, function_name, arch, arch_list);
 #endif // defined(GGML_USE_HIP) && defined(__HIP_PLATFORM_AMD__)
-    __trap();
 
     GGML_UNUSED(no_device_code); // suppress unused function warning
 
