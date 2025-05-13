@@ -438,6 +438,7 @@ target_include_directories(ggml PUBLIC . ./ggml/include ./ggml/src ./ggml/src/gg
 target_compile_features(ggml PUBLIC c_std_11) # don't bump
 target_link_libraries(ggml PUBLIC Threads::Threads ${LLAMA_EXTRA_LIBS})
 set_target_properties(ggml PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_compile_options(ggml PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-use_fast_math -extended-lambda>)
 
 add_library(ggml_v1
             otherarch/ggml_v1.c

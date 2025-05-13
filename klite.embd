@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 239;
+	const LITEVER = 241;
 	const urlParams = new URLSearchParams(window.location.search);
 	var localflag = urlParams.get('local'); //this will be replaced automatically in embedded kcpp
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -64,6 +64,7 @@ Current version indicated by LITEVER below.
 		--img_save_mono:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAAnQAAAJ0Bj3LnbgAAADxQTFRFV1dXYWFh5eXl09PT2tram5ubnp6ejY2Nra2tysrKrKysvb29lpaWW1tbcnJy3d3dAAAAX19fXFxcXl5eL2vTkwAAABR0Uk5T//////////////////T//wDUHUizGkTXAAAAgUlEQVR4nI3QURKDIAxF0RcCAlUqlP3vtaRYq4jW+5kzMAHkRERWSRbAU2uXXjFGyLwBhCKgDoj0ocgJIJ0BboFiZr0HGj6NkqMt1LDtEuxUM7VpBfOoLWD+A881XvqBWt+xB38BbvjWAPuSK40NaEl+xN+96ngi9bcKyCmEI4T8BipnCJv9iKHqAAAAAElFTkSuQmCC");
 		--img_load:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAAnQAAAJ0Bj3LnbgAAADxQTFRF8MQZKbmZ8p0fAAAA8bIc8MIa8MQZq7NIKrmY7cQa0sIs8d2BebRn87wcLL+aJrmZ//8AdbhpAP//c69phZ/jMwAAABR0Uk5T//3/AP+y8v6kbP///xcZUAGrAUn40tQBAAAAp0lEQVR4nHWSiw6DIAwAy1peojLd///rKm3ZZOOiCXLpBRIhB2CCf+JeXUr1RAECATGQ+WN3TFUBKsJmJu0ijOCZo5m7EJzVRrE2c3ZBhoiXCXoYsYm4qejbUSbWo94HXCfZALXF0kVWQVAKP6Xo/hK0RHZcmVnAa+lzketYESBb6dvwPmxDqdX49TiWlIw/JeG6+ViCVsJZCWclnJVwVkLwfwau/+INBncEwpxiohQAAAAASUVORK5CYII=");
 		--img_delete:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAAnQAAAJ0Bj3LnbgAAADxQTFRF////AAAA////////////////////////////////////////////////////////////////////////npt1BAAAABR0Uk5T/wB3M/ryVkUE3GQ8bhvOlb+s6oPyVnGNAAAAt0lEQVR4nHWR2RaDIBBDGXZlVf//X8sMsQtt88BxuJpIUDTVrBLZhg1F0WutL/XUNUYfB/Dqh/Z/wA9AbLVIrIjMlySc6FyNHMC2gg2grqAC9BV0gIOHs4+z2y55B0DjvELJuUDFLYDzUsCfNAApKs/ustQFkFHP0C6PGkAmxz4j536HgdQYplWwUuEEAeF7xmkDgOGbSxyVo+EvEkCZzT0XZT7AmwpAXEEEWOutdANT7WvbVo6gB7iKBNvL+guBAAAAAElFTkSuQmCC");
+		--img_delete_mono:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAAnQAAAJ0Bj3LnbgAAADxQTFRF2NjYAAAAnZ2dRUVFbGxsg4ODg4ODjIyMXl5ejY2Nd3d3iIiIsrKyfn5+ycnJe3t7kJCQhYWFj4+PpqamFCC2sAAAABR0Uk5T/wD///6X/0j///tu/7z/3gaFJ5RWfO2aAAAAw0lEQVR4nIXQ2xaEIAgFUEA0b2mX///XgaJZ5jzMeVJ2CxLAOytbVisAbsV7fxJYSG6+bAIlEVGDb5pc0/7AlFQEUFtNuVohLj+5hiNymGOQYUo26DP0f7DquzKHWhNnfek6QHYuhhCdyxOwE5G64wG8LIRUtC6t2mmw64X0cxd1a+QHqOGGUAV2g5IAUrxbRT2XAa7hfA//whIApBOT/EHU87PEI+sMptaIdcYLXjs8DDZ+A28G2OtYrx0fWDoP6ToCP5HeB/Sxx091AAAAAElFTkSuQmCC");
 		--img_download:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAOxAAADsQBlSsOGwAAADxQTFRFAAAA////////////+f783ffv/v//3ffv3ffv5Pnz8fz56vr16/r23ffv9v377/v4////3vfw5Pny3ffvbBfD6AAAABR0Uk5TAP+TRfsGWm8m6uDv0U/LfyiIepVDO0gQAAAAbElEQVR4nNWPuQ6AIBAFF+S+j///V0FjWJTEwsqpyEzxFoBXKGnQvwcuQw9B8kkLIRzrgbn2ROGQFwwFbYe3GgUfR4gejyRqzg1D0+2q2gszdb6ql9x2bH54AFW0Lmrxc1BSPvw2gQKZ+BQW7MaRAtfJQ2l0AAAAAElFTkSuQmCC");
 		--img_mic:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAkAgMAAACcbnALAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAOxAAADsQBlSsOGwAAAAxQTFRFAQEB/f39W1tbsrKyhr4L4QAAAAR0Uk5TBv+O8t7TK14AAACVSURBVHicY2BAAatgDK7/C6As3dAKKGtqaByEwXQ1NLyBtizuJiCr6QGQxXsIyGouQGU5AVmNIBZ3EpDVCVLHXTA1NIwXxGKO2Boap3oAZFycduiLrWADpzfta7oGtsP0AQN3DMRrdau2QjzHFBoaCnEBw9bQKKh/maY1wIJjGgM6i+n/9f8Yrt///x9Ui9aqFQzIAACxbkd5KhPnwgAAAABJRU5ErkJggg==");
 		--img_mic_live:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAkAgMAAACcbnALAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAOxAAADsQBlSsOGwAAAAxQTFRFAAAAHvoBSldJTaRCcSDH5wAAAAR0Uk5TBv1875jbENYAAACVSURBVHicY2BAAatgDO7/D6As3dAKKGtqaBiEwXQ1NLyBtizuJiCrCeQG3kNAVnMBkMUKZgWAWE5AViOIxZ0EZHWC1HEWAFm8CUAWc8TW0DjVAyDj4oCu3wo28HrX/0XXwXaYPtDgj4F4LXzVVYjnmENDQw9APLc3tA7qX6brDbDgmMaAzsLq+v///0O1rFoFD0owAADWKEefP5UQnwAAAABJRU5ErkJggg==");
@@ -2145,7 +2146,7 @@ Current version indicated by LITEVER below.
 		color: #3bf723;
 	}
 	.color_lightgreen {
-		color: #b6ffa6;
+		color: #6db95e;
 	}
 	.color_offwhite {
 		color: #bedae9;
@@ -3054,6 +3055,7 @@ Current version indicated by LITEVER below.
 	const ALLTALK_ID = 1001;
 	const OAI_TTS_ID = 1002;
 	const KCPP_TTS_ID = 1003;
+	const POLLINATIONS_TTS_ID = 1004;
 	const HD_RES_PX = 768;
 	const VHD_RES_PX = 960;
 	const NO_HD_RES_PX = 512;
@@ -3163,6 +3165,7 @@ Current version indicated by LITEVER below.
 	var last_request_str = "No Requests Available"; //full context of last submitted request
 	var last_response_obj = null;
 	var lastcheckgenkey = ""; //for checking polled-streaming unique id when generating in kcpp
+	var kai_poll_recoverykey = ""; //for recovering a lost polled streaming in case of disconnect.
 	var globalabortcontroller = null;
 	var passed_ai_warning_local = false;
 	var welcome = "";
@@ -3223,6 +3226,7 @@ Current version indicated by LITEVER below.
 		saved_xtts_url: default_xtts_base,
 		saved_alltalk_url: default_alltalk_base,
 		prev_custom_endpoint_type: 0, //show a reconnect box to custom endpoint if needed. 0 is horde, otherwise its dropdown value+1
+		prev_custom_endpoint_model: "", //we may not be able to match, but set it if we do
 		generate_images_mode: (localflag?0:1), //0=off, 1=horde, 2=a1111, 3=dalle, 4=comfy, 5=pollinations
 
 		autoscroll: true, //automatically scroll to bottom on render
@@ -3268,7 +3272,7 @@ Current version indicated by LITEVER below.
 		image_styles: "",
 		image_negprompt: "",
 		grammar:"",
-		tokenstreammode: (localflag?2:0), //0=off,1=pollstream,2=sse
+		tokenstreammode: 2, //0=off,1=pollstream,2=sse
 		generate_images_model: "stable_diffusion", //"" is disabled and "*" is all, anything else is the model name pulled from stable horde
 		img_gen_from_instruct: true,
 		img_autogen: false,
@@ -3367,7 +3371,7 @@ Current version indicated by LITEVER below.
 	let allTagsValid = () => {
 		let placeholders = !!instructstartplaceholder && !!instructstartplaceholder_end && !!instructsysplaceholder && !!instructsysplaceholder_end && !!instructendplaceholder && !!instructendplaceholder_end
 		let tags = !!localsettings.instruct_starttag && !!localsettings.instruct_endtag && !!localsettings.instruct_systag
-		// && !!localsettings.instruct_starttag_end && !!localsettings.instruct_endtag_end && !!localsettings.instruct_systag_end
+		&& !!localsettings.instruct_starttag_end && !!localsettings.instruct_endtag_end && !!localsettings.instruct_systag_end
 		return placeholders && tags
 	}
 
@@ -4076,10 +4080,22 @@ Current version indicated by LITEVER below.
 
 				//offer to reconnect
 				let pending_eptype = localsettings.prev_custom_endpoint_type;
+				let pending_custmodel = localsettings.prev_custom_endpoint_model;
 				if(!localflag && pending_eptype>0)
 				{
 					msgboxYesNo("Reconnect to previous custom endpoint?","Custom Endpoint Reconnect",()=>{
 						document.getElementById("customapidropdown").value = (pending_eptype).toString();
+						if(pending_custmodel)
+						{
+							let dropdown = get_custom_ep_model_dropdown();
+							if(dropdown)
+							{
+								const hasValue = Array.from(dropdown.options).some(option => option.value === pending_custmodel);
+								if (hasValue) {
+									dropdown.value = pending_custmodel;
+								}
+							}
+						}
 						display_endpoint_container();
 					},null);
 				}
@@ -4165,12 +4181,6 @@ Current version indicated by LITEVER below.
 		});
 	}
 
-	const tokenstreaming = urlParams.get('streaming');
-	if(tokenstreaming)
-	{
-		localsettings.tokenstreammode = 1;
-	}
-
 	//toggle genimg btn
 	update_genimg_button_visiblility();
 	update_websearch_button_visibility();
@@ -4222,7 +4232,7 @@ Current version indicated by LITEVER below.
 	function get_instruct_starttag(doTrim=true)
 	{
 		let instag = localsettings.instruct_starttag;
-		if(instag=="{{[INPUT]}}" && !(custom_kobold_endpoint != "" && is_using_kcpp_with_autotags()) && localsettings.placeholder_tags)
+		if(instag=="{{[INPUT]}}" && !(custom_kobold_endpoint != "" && is_using_kcpp_with_autotags()))
 		{
 			instag = "\n### Instruction:\n"; //backend not compatible with auto
 		}
@@ -4235,7 +4245,7 @@ Current version indicated by LITEVER below.
 	function get_instruct_endtag(doTrim=true)
 	{
 		let instag = localsettings.instruct_endtag;
-		if(instag=="{{[OUTPUT]}}" && !(custom_kobold_endpoint != "" && is_using_kcpp_with_autotags()) && localsettings.placeholder_tags)
+		if(instag=="{{[OUTPUT]}}" && !(custom_kobold_endpoint != "" && is_using_kcpp_with_autotags()))
 		{
 			instag = "\n### Response:\n"; //backend not compatible with auto
 		}
@@ -4248,7 +4258,7 @@ Current version indicated by LITEVER below.
 	function get_instruct_systag(doTrim=true)
 	{
 		let instag = localsettings.instruct_systag;
-		if(instag=="{{[SYSTEM]}}" && !(custom_kobold_endpoint != "" && is_using_kcpp_with_autotags()) && localsettings.placeholder_tags)
+		if(instag=="{{[SYSTEM]}}" && !(custom_kobold_endpoint != "" && is_using_kcpp_with_autotags()))
 		{
 			instag = ""; //backend not compatible with auto
 		}
@@ -4972,6 +4982,33 @@ Current version indicated by LITEVER below.
 			console.log("AbortController Not Supported: " + e);
 		}
 	}
+	function show_last_incomplete_kai_syncpoll_request()
+	{
+		if(kai_poll_recoverykey=="")
+		{
+			return;
+		}
+		hide_msgbox();
+		fetch(custom_kobold_endpoint + koboldcpp_check_endpoint, {
+			method: 'POST',
+			headers: get_kobold_header(),
+			body: JSON.stringify({
+			"genkey": kai_poll_recoverykey
+			}),
+		})
+		.then((response) => response.json())
+		.then((data) => {
+			//makes sure a delayed response doesnt arrive late and mess up
+			if (data && data.results != null && data.results.length > 0 && data.results[0].text) {
+				let recovered = data.results[0].text;
+				msgbox(recovered,"Recovered Last Response");
+			}
+		})
+		.catch((error) => {
+			console.error('Error:', error);
+		});
+		kai_poll_recoverykey = "";
+	}
 	function kobold_api_sync_req(sub_endpt,submit_payload,trackedgenid)
 	{
 		let reqOpt = {
@@ -5012,6 +5049,7 @@ Current version indicated by LITEVER below.
 						//offer to abort
 						msgboxYesNo("Attempt to abort existing request?","Send Abort Command?",()=>{
 							lastcheckgenkey = "";
+							kai_poll_recoverykey = "";
 							abort_generation();
 						},null);
 					}
@@ -5023,8 +5061,17 @@ Current version indicated by LITEVER below.
 			console.error('Error:', error);
 			if(error.name!="AbortError") //aborts are silent
 			{
+				if(synchro_pending_stream!="" && lastcheckgenkey!="")
+				{
+					kai_poll_recoverykey = lastcheckgenkey;
+				}
 				flush_streaming_text();
-				msgbox("Error while submitting prompt: " + error);
+				if(kai_poll_recoverykey!="")
+				{
+					msgbox(`Error while submitting prompt: ${error}<br><br><a href="#" onclick="show_last_incomplete_kai_syncpoll_request()" class="color_blueurl">Click Here</a> to attempt to recover the last response. This is not guaranteed to work.`,"Error Encountered",true);
+				}else{
+					msgbox("Error while submitting prompt: " + error);
+				}
 			}
 			clear_poll_flags();
 			render_gametext();
@@ -5199,7 +5246,7 @@ Current version indicated by LITEVER below.
 					let tmp = data.candidates[0].content.parts[x].text;
 					if(data.candidates[0].content.parts[x].thought)
 					{
-						tmp = `<think>${tmp}</think>\n`;
+						tmp = `<think>${tmp}</think>`;
 					}
 					synchro_polled_response += tmp;
 				}
@@ -5351,7 +5398,7 @@ Current version indicated by LITEVER below.
 										}
 										if(!event.data.candidates[0].content.parts[x].thought && gemini_was_thinking)
 										{
-											synchro_pending_stream = `<think>${synchro_pending_stream}</think>\n`;
+											synchro_pending_stream = `<think>${synchro_pending_stream}</think>`;
 											gemini_was_thinking = false;
 										}
 										synchro_pending_stream += event.data.candidates[0].content.parts[x].text;
@@ -5569,6 +5616,14 @@ Current version indicated by LITEVER below.
 			return input;
 		};
 		const formatMarkdown = (md) => {
+			let append_spcetg = false;
+			if(md.trim().startsWith("%SpcEtg%")) //this can cause issues matching start of response, so we note it down and remove it first
+			{
+				let idxof = md.indexOf("%SpcEtg%");
+				md = md.substring(idxof+8);
+				append_spcetg = true;
+			}
+
 			md = md.replace(/^###### (.*?)\s*#*$/gm, "<h6>$1</h6>")
 			.replace(/^##### (.*?)\s*#*$/gm, "<h5>$1</h5>")
 			.replace(/^#### (.*?)\s*#*$/gm, "<h4>$1</h4>")
@@ -5625,6 +5680,11 @@ Current version indicated by LITEVER below.
 			.replace(/^((?:\|[^|\r\n]*[^|\r\n\s]\s*)+\|(?:\r?\n|\r|))+/gm,
 				(matchedTable) => convertMarkdownTableToHtml(matchedTable))
 			.replace(/  \n/g, "\n<br/>");
+			if(append_spcetg)
+			{
+				append_spcetg = false;
+				md = `%SpcEtg%${md}`;
+			}
 			md = replaceTabbedCodeblocks(md);
 			md = md.replace(/<\/code\><\/pre\>\n<pre\><code\>/g, "\n");
 			if(renderLatex)
@@ -6214,7 +6274,7 @@ Current version indicated by LITEVER below.
 			height: req_payload.params.height,
 			nologo: true,
 			private: true,
-			referrer: "KoboldAiLite"
+			referrer: "koboldai"
 		});
 
 		let gen_endpoint = `${pollinations_img_endpoint}/${encodeURIComponent(prompt)}?${pollinations_params.toString()}`;
@@ -6344,6 +6404,10 @@ Current version indicated by LITEVER below.
 		if(localsettings.saved_dalle_model!="gpt-image-1")
 		{
 			dalle_payload["response_format"] = "b64_json";
+		}
+		else
+		{
+			dalle_payload["quality"] = "medium";
 		}
 
 		//remove all null fields
@@ -6476,6 +6540,10 @@ Current version indicated by LITEVER below.
 
 	function is_using_kcpp_with_admin_with_HF() {
 		return (custom_kobold_endpoint != "" && koboldcpp_version && koboldcpp_version != "" && compare_version_str(koboldcpp_version, "1.84") >= 0 && koboldcpp_has_admin_with_HF);
+	}
+
+	function is_using_kcpp_with_server_saving() {
+		return (custom_kobold_endpoint != "" && koboldcpp_version && koboldcpp_version != "" && compare_version_str(koboldcpp_version, "1.84") >= 0 && koboldcpp_has_server_saving);
 	}
 
 	function determine_if_ban_eos(input_was_empty) {
@@ -7364,6 +7432,44 @@ Current version indicated by LITEVER below.
 			console.log("ERROR ALT GREETING NOT FOUND");
 		}
 	}
+
+	function replaceDocumentFromTextDB(documentName, documentContent) {
+		if (documentdb_data.indexOf(`[DOCUMENT BREAK][${documentName}]`) !== -1) {
+			regex = `\(\\[DOCUMENT BREAK\\]\\[${documentName}\\]\)\(.*?\)\(\\[DOCUMENT BREAK\\]\)`
+			documentdb_data = documentdb_data.replace(new RegExp(regex, "s"), `$1${documentContent.trim()}$3`)
+		}
+		else {
+			documentdb_data += `[DOCUMENT BREAK][${documentName}]${documentContent.trim()}[DOCUMENT BREAK]`
+		}
+		document.getElementById("documentdb_data").value = documentdb_data;
+	}
+
+	function importLorebookAsTextDB(lorebook) {						
+		if (!!lorebook?.entries)
+		{
+			let outputText = Object.values(lorebook.entries)
+				.map(loreEntry => {
+					let {name, comment, content} = loreEntry;
+					let keys = [...new Set([...loreEntry.key, ...loreEntry.keys, ...loreEntry.keysecondary])];
+					let description = `### Name: ${name}`
+					if (comment !== name) {
+						description += `\n(Description: ${comment})`
+					}
+					if (keys.length > 0)
+					{
+						description += `\n(Alternative names: ${keys.join(",")})`
+					}
+					description += `\nDetails: ${content}`
+					return description
+				});
+			replaceDocumentFromTextDB(lorebook?.name, outputText.join("\n\n"))
+			return true
+		}
+		else
+		{
+			return false
+		}
+	}
 	function load_tavern_obj(obj)
 	{
 		let selectedgreeting = "";
@@ -7437,33 +7543,15 @@ Current version indicated by LITEVER below.
 			if(combinedmem.trim()=="" && greeting=="" && obj.entries)
 			{
 				msgboxYesNo("Import World Info / Lorebook into TextDB instead of overwriting existing World Info?\n\nYes = TextDB Used\nNo = World Info Used\n\nIf unsure, select 'No'.","Import World Info / Lorebook Mode", ()=>{
-					let importLorebookAsTextDB = (lorebook) => {						
-						if (!!lorebook?.entries)
-						{
-							let outputText = Object.values(lorebook.entries)
-								.map(loreEntry => {
-									let {name, comment, content} = loreEntry;
-									let keys = [...new Set([...loreEntry.key, ...loreEntry.keys, ...loreEntry.keysecondary])];
-									let description = `### Name: ${name}`
-									if (comment !== name) {
-										description += `\n(Description: ${comment})`
-									}
-									if (keys.length > 0)
-									{
-										description += `\n(Alternative names: ${keys.join(",")})`
-									}
-									description += `\nDetails: ${content}`
-									return description
-								});
-							documentdb_data += `[DOCUMENT BREAK][${lorebook?.name}]${outputText.join("\n\n")}`;
-							msgbox(`Lorebook "${lorebook?.name}" loaded into TextDB`)
-						}
-						else
-						{
-							msgbox(`No entries found for ${lorebook?.name}`)
-						}
+					let importSuccessful = importLorebookAsTextDB(obj)
+					if (importSuccessful)
+					{
+						msgbox(`Lorebook "${lorebook?.name}" loaded into TextDB`) 
 					}
-					importLorebookAsTextDB(obj)
+					else
+					{
+						msgbox(`No entries found for ${lorebook?.name}`)
+					}
 				},()=>{
 					current_wi = load_tavern_wi(obj,chatopponent,myname);
 				});
@@ -7499,6 +7587,10 @@ Current version indicated by LITEVER below.
 				if(obj.character_book && obj.character_book.entries && obj.character_book.entries.length>0)
 				{
 					current_wi = load_tavern_wi(obj.character_book,chatopponent,myname);
+				}
+				else if (obj.data && obj.data.character_book && obj.data.character_book.entries && obj.data.character_book.entries.length > 0)
+				{
+					current_wi = load_tavern_wi(obj.data.character_book, chatopponent, myname);
 				}
 				else if(obj.entries && obj.entries.length>0)
 				{
@@ -7689,10 +7781,14 @@ Current version indicated by LITEVER below.
 			temp_scenario.memory = combinedmem;
 
 			//since cai format has no wi, try to grab it from tavern format
+			let myname = ((localsettings.chatname && localsettings.chatname!="")?localsettings.chatname:"User");
 			if(obj.character_book && obj.character_book.entries && obj.character_book.entries.length>0)
 			{
-				let myname = ((localsettings.chatname && localsettings.chatname!="")?localsettings.chatname:"User");
 				temp_scenario.worldinfo = load_tavern_wi(obj.character_book,chatopponent,myname);
+			}
+			else if (obj.data && obj.data.character_book && obj.data.character_book.entries && obj.data.character_book.entries.length > 0)
+			{
+				temp_scenario.worldinfo = load_tavern_wi(obj.data.character_book, chatopponent, myname);
 			}
 			preview_temp_scenario();
 		}
@@ -9285,13 +9381,25 @@ Current version indicated by LITEVER below.
 		}
 	}
 
-	function get_oai_model_dropdown()
+	function get_custom_ep_model_dropdown(ep_id=null) //if desired id not provided, use dynamic val
 	{
-		let ddval = document.getElementById("customapidropdown").value;
+		let ddval = (ep_id?ep_id.toString():document.getElementById("customapidropdown").value);
 		switch(ddval)
 		{
+			case "0": //horde
+				return document.getElementById("custom_oai_model"); //just return oai
+			case "1": //kai
+				return document.getElementById("custom_oai_model"); //just return oai
+			case "2":
+				return document.getElementById("custom_oai_model");
 			case "3":
 				return document.getElementById("custom_openrouter_model");
+			case "4":
+				return document.getElementById("custom_claude_model");
+			case "5":
+				return document.getElementById("custom_gemini_model");
+			case "6":
+				return document.getElementById("custom_cohere_model");
 			case "7":
 				return document.getElementById("custom_mistralai_model");
 			case "8":
@@ -9301,7 +9409,7 @@ Current version indicated by LITEVER below.
 			case "10":
 				return document.getElementById("custom_pollinations_model");
 			default:
-				return document.getElementById("custom_oai_model");
+				return document.getElementById("custom_oai_model"); //just return oai
 		}
 	}
 	function ep_should_always_use_chat_completions()
@@ -9314,7 +9422,7 @@ Current version indicated by LITEVER below.
 	{
 		inputBox("Enter custom model name","Custom Model Name",localsettings.saved_oai_custommodel,"", ()=>{
 			let coai = getInputBoxValue().trim();
-			let dropdown = get_oai_model_dropdown();
+			let dropdown = get_custom_ep_model_dropdown();
 			var mdlopt = dropdown.querySelector('option.custom_model_option');
 			if(coai!="")
 			{
@@ -9328,7 +9436,7 @@ Current version indicated by LITEVER below.
 	}
 	function oai_model_change(autotoggle_check = false)
 	{
-		let dropdown = get_oai_model_dropdown();
+		let dropdown = get_custom_ep_model_dropdown();
 		let non_completions = (dropdown.value.includes("davinci-002") || dropdown.value.includes("text-davinci-003") || dropdown.value.includes("text-davinci-002")
 		|| dropdown.value.includes("text-davinci-001") || dropdown.value.includes("gpt-3.5-turbo-instruct") || dropdown.value == "davinci");
 		if(autotoggle_check)
@@ -9490,7 +9598,7 @@ Current version indicated by LITEVER below.
 		}
 
 		let isOpenrouter = (document.getElementById("customapidropdown").value==3);
-		let dropdown = get_oai_model_dropdown();
+		let dropdown = get_custom_ep_model_dropdown();
 		fetch((desired_oai_ep + oai_models_endpoint), {
 			method: 'GET',
 			headers: oaiheaders,
@@ -10214,7 +10322,7 @@ Current version indicated by LITEVER below.
 				}
 				localsettings.saved_oai_role = document.getElementById("oairoledropdown").value;
 				localsettings.saved_oai_jailbreak2 = document.getElementById("jailbreakprompttext2").value;
-				let dropdown = get_oai_model_dropdown();
+				let dropdown = get_custom_ep_model_dropdown();
 				custom_oai_model = dropdown.value.trim();
 				localsettings.saved_oai_custommodel = custom_oai_model;
 				selected_models = [{ "performance": 100.0, "queued": 0.0, "eta": 0, "name": custom_oai_model, "count": 1 }];
@@ -11555,13 +11663,13 @@ Current version indicated by LITEVER below.
 		document.getElementById("voice_typing_mode").disabled = !is_using_kcpp_with_whisper();
 		document.getElementById("grammar_retain_state").disabled = document.getElementById("setgrammar").disabled;
 
-		if(custom_kobold_endpoint!="")
+		if(custom_kobold_endpoint=="" && custom_oai_key=="" && custom_gemini_key=="")
 		{
-			document.getElementById("tokenstreaminglabel").classList.remove("color_red");
+			document.getElementById("tokenstreaminglabel").classList.add("color_red");
 		}
 		else
 		{
-			document.getElementById("tokenstreaminglabel").classList.add("color_red");
+			document.getElementById("tokenstreaminglabel").classList.remove("color_red");
 		}
 		document.getElementById("generate_images_model").value = localsettings.generate_images_model;
 		if(document.getElementById("generate_images_mode").value == 0 || document.getElementById("generate_images_mode").value != localsettings.generate_images_mode) {
@@ -11626,6 +11734,7 @@ Current version indicated by LITEVER below.
 		ttshtml += "<option value=\"1001\">AllTalk API Server</option>";
 		ttshtml += "<option value=\"1002\">OpenAI-Compat. API Server</option>";
 		ttshtml += "<option value=\"1003\">KoboldCpp TTS API</option>";
+		ttshtml += "<option value=\"1004\">PollinationsAI TTS API</option>";
 
 		if ('speechSynthesis' in window) {
 			let voices = window.speechSynthesis.getVoices();
@@ -13164,12 +13273,12 @@ Current version indicated by LITEVER below.
 			if(matches.length > 0)
 			{
 				let matchiter = 0;
-				inputtxt = inputtxt.replace(/%ExpandBtn%/g, function (m) {
+				inputtxt = inputtxt.replace(/%ExpandBtn%(?:\n{0,2})?/g, function (m) {
 					let curr = matches[matchiter];
-					let expandedhtml = `<span><button type="button" title="Show Thoughts" class="btn btn-primary" style="font-size:12px;padding:2px 2px;" onclick="toggle_hide_thinking(this)">Show Thoughts (${curr.length} characters)</button><span class="color_lightgreen hidden"><br>${escape_html(curr)}\n</span></span>`;
+					let expandedhtml = `<span><button type="button" title="Show Thoughts" class="btn btn-primary" style="font-size:12px;padding:2px 2px;" onclick="toggle_hide_thinking(this)">Show Thoughts (${curr.length} characters)</button><span class="color_lightgreen hidden"><br>${escape_html(curr)}</span><br></span>`;
 					if(!curr || curr.trim()=="")
 					{
-						expandedhtml = `<span><button type="button" title="No Thoughts" class="btn btn-primary" style="font-size:12px;padding:2px 2px;" onclick="">No Thoughts</button></span>`;
+						expandedhtml = `<span><button type="button" title="No Thoughts" class="btn btn-primary" style="font-size:12px;padding:2px 2px;" onclick="">No Thoughts</button><br></span>`;
 					}
 					++matchiter;
 					return expandedhtml;
@@ -13652,7 +13761,7 @@ Current version indicated by LITEVER below.
 		let ssval = document.getElementById("ttsselect").value;
 		let speakprompt = "Enter phrase to speak.";
 
-		if(ssval==XTTS_ID || ssval==ALLTALK_ID || ssval==OAI_TTS_ID || ssval==KCPP_TTS_ID)
+		if(ssval==XTTS_ID || ssval==ALLTALK_ID || ssval==OAI_TTS_ID || ssval==KCPP_TTS_ID || ssval==POLLINATIONS_TTS_ID)
 		{
 			speakprompt = `Enter phrase to speak.<br><div><input type="checkbox" id="downloadtts" title="Add Endpoint Version Number"><div class="box-label">Download as .wav file</div></div>`;
 		}
@@ -13836,11 +13945,12 @@ Current version indicated by LITEVER below.
 			}
 		}
 
-		if(ssval==XTTS_ID || ssval==ALLTALK_ID || ssval==OAI_TTS_ID || ssval==KCPP_TTS_ID) //xtts api server
+		if(ssval==XTTS_ID || ssval==ALLTALK_ID || ssval==OAI_TTS_ID || ssval==KCPP_TTS_ID || ssval==POLLINATIONS_TTS_ID) //xtts api server
 		{
 			let is_xtts = (ssval==XTTS_ID);
 			let is_oai_tts = (ssval==OAI_TTS_ID);
 			let is_kcpp_tts = (ssval==KCPP_TTS_ID);
+			let is_pollinations_tts = (ssval==POLLINATIONS_TTS_ID);
 			const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 			let audiofile_ref = null;
 
@@ -13908,6 +14018,48 @@ Current version indicated by LITEVER below.
 					};
 				}).catch((error) => {
 					console.log("XTTS Speak Error: " + error);
+				});
+			}
+			else if(is_pollinations_tts)
+			{
+				const pollinations_params = new URLSearchParams({
+					model:"openai-audio",
+					voice:"nova",
+					private: true,
+					referrer: "koboldai"
+				});
+				const speechprompt = `Please narrate the following text:\n\n${text}`;
+
+				let gen_endpoint = `${pollinations_text_endpoint}/${encodeURIComponent(speechprompt)}?${pollinations_params.toString()}`;
+
+				fetch(gen_endpoint, {
+					method: 'GET',
+				})
+				.then(response => response.arrayBuffer())
+				.then(data => {
+					audiofile_ref = data.slice(0);
+					return audioContext.decodeAudioData(data);
+				})
+				.then(decodedData => {
+					if(do_download)
+					{
+						tts_download(audiofile_ref);
+					}
+					const playSound = audioContext.createBufferSource();
+					playSound.buffer = decodedData;
+					playSound.connect(audioContext.destination);
+					xtts_is_playing = true;
+					update_submit_button(false);
+					playSound.start(audioContext.currentTime);
+					playSound.onended = function() {
+						setTimeout(() => {
+							xtts_is_playing = false;
+							update_submit_button(false);
+							console.log("Audio finished playing");
+						},300);
+					};
+				}).catch((error) => {
+					console.log("Pollinations Speak Error: " + error);
 				});
 			}
 			else if(xtts_is_connected)
@@ -14289,7 +14441,7 @@ Current version indicated by LITEVER below.
 		{
 			let newgenlc = newgen.toLowerCase().trim();
 			if (newgenlc.startsWith("draw ") ||
-				newgenlc.match(/\b(?:draw (?:a|an)\b)|(?:draw me (?:a|an)\b)|(?:(?:draw|show me|generate|create|make|illustrate|visualize|produce|give me)(?:\s\w+){0,4}\s(?:image|picture|drawing|photo))/))
+				newgenlc.match(/\b(?:draw (?:a|an)\b)|(?:draw me (?:a|an)\b)|(?:(?:draw|show me|generate|create|make|illustrate|visualize|produce|give me)(?:\s\w+){0,4}\s(?:image\b|picture\b|drawing\b|photo))/))
 			{
 				img_gen_trigger_prompt = newgen;
 				doNotGenerate = true;
@@ -14592,6 +14744,10 @@ Current version indicated by LITEVER below.
 							coarr = coarr.map(x=>x.trim());
 							let co = coarr[Math.floor(Math.random()*coarr.length)];
 							pending_context_preinjection += co + ":";
+							if(localsettings.inject_jailbreak_instruct || (localsettings.think_injected!=0 && localsettings.start_thinking_tag!=""))
+							{
+								pending_context_preinjection += " ";
+							}
 						}
 						if(localsettings.think_injected==1 && localsettings.start_thinking_tag!="")
 						{
@@ -14953,9 +15109,11 @@ Current version indicated by LITEVER below.
 			if((custom_kobold_endpoint != "" && is_using_kcpp_with_streaming()))
 			{
 				lastcheckgenkey = "KCPP"+(Math.floor(1000 + Math.random() * 9000)).toString();
+				kai_poll_recoverykey = "";
 				submit_payload.params.genkey = lastcheckgenkey;
 			}else{
 				lastcheckgenkey = "";
+				kai_poll_recoverykey = "";
 			}
 
 			//v2 api specific fields
@@ -15420,10 +15578,11 @@ Current version indicated by LITEVER below.
 				{
 					targetep = pollinations_text_endpoint;
 					oai_payload.private = true;
-					oai_payload.referrer = "KoboldAiLite";
+					oai_payload.referrer = "koboldai";
+					oai_payload.seed = Math.floor(Math.random() * 99999999);
 				}
 
-				if(is_browser_supports_sse() && document.getElementById("oaistreaming").checked)
+				if(is_browser_supports_sse() && localsettings.tokenstreammode!=0)
 				{
 					oai_payload.stream = true;
 					oai_api_stream_sse(targetep,oai_payload,oaiheaders);
@@ -15567,7 +15726,7 @@ Current version indicated by LITEVER below.
 								}
 								if(data.content[i].thinking)
 								{
-									comp += `<think>${data.content[i].thinking}</think>\n\n`; //for claudev3
+									comp += `<think>${data.content[i].thinking}</think>`; //for claudev3
 								}
 							}
 							if(comp!="")
@@ -15721,7 +15880,7 @@ Current version indicated by LITEVER below.
 				last_response_obj = null;
 
 				let geminiheaders = { 'Content-Type': 'application/json' };
-				if(is_browser_supports_sse() && document.getElementById("geministreaming").checked)
+				if(is_browser_supports_sse() && localsettings.tokenstreammode!=0)
 				{
 					let targetep = default_gemini_base + mdlname + default_gemini_stream_suffix + custom_gemini_key;
 					oai_api_stream_sse(targetep,payload,geminiheaders);
@@ -16526,7 +16685,7 @@ Current version indicated by LITEVER below.
 		gentxt = trim_extra_stop_seqs(gentxt,false);
 
 		//fix alpaca leakage
-		if(localsettings.fix_alpaca_leak && (localsettings.opmode == 2 || localsettings.opmode == 3 || localsettings.opmode == 4) && get_instruct_starttag(true).toLowerCase().includes("### instruction"))
+		if(localsettings.fix_alpaca_leak && (localsettings.opmode == 2 || localsettings.opmode == 3 || localsettings.opmode == 4) && (get_instruct_starttag(true)=="{{[INPUT]}}" || get_instruct_starttag(true).toLowerCase().includes("### instruction")))
 		{
 			let matches = gentxt.match(/\n### (instruction|response)\n|\n### ([^\s]+?):\n/gi);
 			for(let m in matches)
@@ -16668,42 +16827,44 @@ Current version indicated by LITEVER below.
 		{
 			let st = get_instruct_starttag(true);
 			let et = get_instruct_endtag(true);
-			let stet_et = "";
+			let stripping_arr = [];
+			if(st!="")
+			{
+				stripping_arr.push(st);
+			}
+			if(et!="")
+			{
+				stripping_arr.push(et);
+			}
+			if(st=="{{[INPUT]}}" || et=="{{[OUTPUT]}}")
+			{
+				stripping_arr.push("### Instruction:");
+				stripping_arr.push("### Response:");
+			}
 			if(localsettings.separate_end_tags && get_instruct_endtag_end(true))
 			{
-				stet_et = get_instruct_endtag_end(true);
+				let stet_et = get_instruct_endtag_end(true);
+				if(stet_et!="")
+				{
+					stripping_arr.push(stet_et);
+				}
 			}
 
 			//sometimes the OAI type endpoints get confused and repeat the instruct tag, so trim it
-			let earlymatch = gentxt.indexOf(et);
-			if(earlymatch==0)
+			for(let i=0;i<stripping_arr.length;++i)
 			{
-				gentxt = gentxt.substring(et.length);
-			}
+				let curtag = stripping_arr[i];
+				let earlymatch = gentxt.indexOf(curtag);
+				if(earlymatch==0)
+				{
+					gentxt = gentxt.substring(curtag.length);
+				}
 
-			let found = gentxt.indexOf(st);
-			let splitresponse = [];
-			if (found != -1) //if found, truncate to it
-			{
-				splitresponse = gentxt.split(st);
-				gentxt = splitresponse[0];
-			}
-
-			found = gentxt.indexOf(et);
-			splitresponse = [];
-			if (found != -1) //if found, truncate to it
-			{
-				splitresponse = gentxt.split(et);
-				gentxt = splitresponse[0];
-			}
-
-			if(stet_et && stet_et!="")
-			{
-				found = gentxt.indexOf(stet_et);
-				splitresponse = [];
+				let found = gentxt.indexOf(curtag);
+				let splitresponse = [];
 				if (found != -1) //if found, truncate to it
 				{
-					splitresponse = gentxt.split(stet_et);
+					splitresponse = gentxt.split(curtag);
 					gentxt = splitresponse[0];
 				}
 			}
@@ -16752,7 +16913,7 @@ Current version indicated by LITEVER below.
 
 		let gentxtspeak = gentxt;
 		if (pending_context_preinjection != "") {
-			if(gentxt!="" && gentxt[0]!=" " && (localsettings.opmode==3 || (localsettings.opmode==4 && localsettings.inject_chatnames_instruct)))
+			if(gentxt!="" && gentxt[0]!=" " && (localsettings.opmode==3 || (localsettings.opmode==4 && localsettings.inject_chatnames_instruct && !localsettings.inject_jailbreak_instruct && localsettings.think_injected==0)))
 			{
 				//if the response doesnt come with a space, add one in chat
 				gentxt = " " +gentxt;
@@ -19796,6 +19957,7 @@ Current version indicated by LITEVER below.
 	function update_prev_custom_endpoint_type()
 	{
 		localsettings.prev_custom_endpoint_type = 0;
+		localsettings.prev_custom_endpoint_model = "";
 		if (custom_kobold_endpoint != "") {
 			localsettings.prev_custom_endpoint_type = 1;
 		}
@@ -19832,6 +19994,14 @@ Current version indicated by LITEVER below.
 			localsettings.prev_custom_endpoint_type = 6;
 		}
 
+		if(localsettings.prev_custom_endpoint_type!=0 && localsettings.prev_custom_endpoint_type!=1)
+		{
+			let dropdown = get_custom_ep_model_dropdown(localsettings.prev_custom_endpoint_type);
+			if(dropdown && dropdown.value)
+			{
+				localsettings.prev_custom_endpoint_model = dropdown.value;
+			}
+		}
 	}
 
 	function autosave() {
@@ -19905,6 +20075,9 @@ Current version indicated by LITEVER below.
 		document.getElementById("documentdb_numresults").value = documentdb_numresults
 		document.getElementById("documentdb_searchrange").value = documentdb_searchrange;
 		document.getElementById("documentdb_chunksize").value = documentdb_chunksize;
+		document.getElementById("documentdb_numresults_slide").value = documentdb_numresults
+		document.getElementById("documentdb_searchrange_slide").value = documentdb_searchrange;
+		document.getElementById("documentdb_chunksize_slide").value = documentdb_chunksize;
 		document.getElementById("documentdb_data").value = documentdb_data;
 		document.getElementById("documentdb_useEmbeddings").checked = documentdb_useEmbeddings;
 		if(is_using_kcpp_with_embeddings())
@@ -21764,7 +21937,7 @@ Current version indicated by LITEVER below.
 					<div style="padding:2px;font-size:14px;margin-left:8px;font-weight:600;line-height:1.1;margin-top:12px">Quick Slot Load</div>
 					<hr style="margin-top:4px;margin-bottom:6px" />
 					<div class="corpoleftpanelitemsinner" id="corpoleftpanelitemsinner"></div>
-					<div style="margin-top: auto; margin-bottom:2px; width: 230px;"><div onclick="quicksave()" class="corpo_leftpanel_btn" type="button" style="width:110px;padding-left: 44px;display:inline-block;background-image: var(--img_save_mono);">Save</div><div onclick="quickdelete()" class="corpo_leftpanel_btn red" type="button" style="width:110px;padding-left: 44px;display:inline-block;background-image: var(--img_delete);">Delete</div></div>
+					<div style="margin-top: auto; margin-bottom:2px; width: 230px;"><div onclick="quicksave()" class="corpo_leftpanel_btn" type="button" style="width:110px;padding-left: 44px;display:inline-block;background-image: var(--img_save_mono);">Save</div><div onclick="quickdelete()" class="corpo_leftpanel_btn red" type="button" style="width:110px;padding-left: 44px;display:inline-block;background-image: var(--img_delete_mono);">Delete</div></div>
 					</div>
 				</div>
 				<button title="Show Corpo Side Panel" class="corpo_leftpanel_open mainnav" onclick="show_corpo_leftpanel(true)"><div class="corpo_arrow_right"></div></button>
@@ -21932,11 +22105,11 @@ Current version indicated by LITEVER below.
 						<input title="Number of Search Results" inputmode="numeric" class="justifyright flex-push-right settingsmall" id="documentdb_numresults" oninput="
 						document.getElementById('documentdb_numresults_slide').value = this.value; estimate_and_show_textDB_usage();">
 					</div>
-					<div><input title="Number of Search Results Slider" type="range" min="1" max="5" step="1" id="documentdb_numresults_slide" oninput="
+					<div><input title="Number of Search Results Slider" type="range" min="1" max="10" step="1" id="documentdb_numresults_slide" oninput="
 						document.getElementById('documentdb_numresults').value = this.value; estimate_and_show_textDB_usage();"></div>
 					<div class="settingminmax">
 						<div class="justifyleft">1</div>
-						<div class="justifyright">5</div>
+						<div class="justifyright">10</div>
 					</div>
 				</div>
 
@@ -23471,7 +23644,7 @@ Current version indicated by LITEVER below.
 			<div id="oaicustom" class="menutext hidden">
 				<span id="oaidesc">
 				Entering your OpenAI API key will allow you to use KoboldAI Lite with their API.<br><br>
-				Note that KoboldAI Lite takes no responsibility for your usage or consequences of this feature. Your API key is used directly with the OpenAI API and is not transmitted to us.<br>Only Temperature, Top-P and Repetition Penalty samplers are used.<br><br>
+				Note that KoboldAI Lite takes no responsibility for your usage or consequences of this feature. Your API key is used directly with the OpenAI API and is not transmitted to us. Note that connecting will reset any custom DALL-E based or custom OpenAI based TTS endpoint urls to this new address.<br>Only Temperature, Top-P and Repetition Penalty samplers are used.<br><br>
 				<span class="color_green" style="font-weight: bold;">Please input OpenAI API URL and Key.</span><br><br>
 				</span>
 				<span id="openrouterdesc" class="hidden">
@@ -23511,9 +23684,19 @@ Current version indicated by LITEVER below.
 					<option value="gpt-4">gpt-4</option>
 					<option value="gpt-4-turbo">gpt-4-turbo</option>
 					<option value="gpt-4o">gpt-4o</option>
+					<option value="gpt-4o-mini">gpt-4o-mini</option>
 					<option value="gpt-4-32k">gpt-4-32k</option>
+					<option value="gpt-4.1">gpt-4.1</option>
+					<option value="gpt-4.1-mini">gpt-4.1-mini</option>
+					<option value="gpt-4.1-nano">gpt-4.1-nano</option>
+					<option value="gpt-4.5-preview">gpt-4.5-preview</option>
+					<option value="chatgpt-4o-latest">chatgpt-4o-latest</option>
 					<option value="o1-mini">o1-mini</option>
+					<option value="o1">o1</option>
 					<option value="o1-preview">o1-preview</option>
+					<option value="o3-mini">o3-mini</option>
+					<option value="o3">o3</option>
+					<option value="o4-mini">o4-mini</option>
 					<option style="display:none;" class="custom_model_option" value="custom">[Custom]</option>
 				</select>
 				<select title="OpenRouter AI Model Selection" style="padding:4px;display:inline;width:calc(100% - 220px)" class="form-control hidden" id="custom_openrouter_model" onchange="oai_model_change(true)">
@@ -23533,7 +23716,10 @@ Current version indicated by LITEVER below.
 					<option value="mistral-tiny">mistral-tiny</option>
 					<option value="mistral-small">mistral-small</option>
 					<option value="mistral-medium-latest">mistral-medium-latest</option>
+					<option value="mistral-large-2407">mistral-large-2407</option>
 					<option value="mistral-large-latest">mistral-large-latest</option>
+					<option value="ministral-3b-latest">ministral-3b-latest</option>
+					<option value="ministral-8b-latest">ministral-8b-latest</option>
 					<option value="pixtral-12b-latest">pixtral-12b-latest</option>
 					<option value="pixtral-large-latest">pixtral-large-latest</option>
 					<option value="codestral-latest">codestral-latest</option>
@@ -23577,6 +23763,7 @@ Current version indicated by LITEVER below.
 					<option value="rtist">rtist</option>
 					<option value="searchgpt">searchgpt</option>
 					<option value="unity">unity</option>
+					<option value="bidara">bidara</option>
 					<option style="display:none;" class="custom_model_option" value="custom">[Custom]</option>
 				</select>
 				<button type="button" class="btn btn-primary" style="display:inline;width:105px;" id="oaifetchlist" onclick="oai_fetch_models()">Fetch List</button>
@@ -23588,13 +23775,12 @@ Current version indicated by LITEVER below.
 				<div style="display:inline-flex">
 					<div><input type="checkbox" id="oaiaddversion" title="Add Endpoint Version Number" onchange="" checked>
 					<div class="box-label">Add Ver. Num</div></div>
-					<div><input type="checkbox" id="oaistreaming" title="Enable SSE Streaming" onchange="">
-					<div class="box-label">Streaming</div></div>
 					<div><input type="checkbox" id="useoaichatcompl" title="Use ChatCompletions API" onchange="toggleoaichatcompl()">
 					<div class="box-label">Chat-Completions API</div></div>
 					<div><input type="checkbox" id="useoainonstandard" title="Send Non-Standard Fields">
 					<div class="box-label">Non-Standard Fields</div></div>
 				</div>
+				<div class="todoremove color_yellow">Looking for the Streaming Toggle? It's now in Advanced Settings -> Streaming!</div>
 				<span id="useoaichatcomplbox" class="hidden" onload="toggleoaichatcompl();">
 					<br>
 					Main Message Role:
@@ -23690,6 +23876,11 @@ Current version indicated by LITEVER below.
 					<option value="gemini-2.0-flash">gemini-2.0-flash</option>
 					<option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
 					<option value="gemini-2.0-pro-exp">gemini-2.0-pro-exp</option>
+					<option value="gemini-2.5-flash-preview-04-17">gemini-2.5-flash-preview-04-17</option>
+					<option value="gemini-2.5-pro-preview-05-06">gemini-2.5-pro-preview-05-06</option>
+					<option value="gemma-3-1b-it">gemma-3-1b-it</option>
+					<option value="gemma-3-4b-it">gemma-3-4b-it</option>
+					<option value="gemma-3-12b-it">gemma-3-12b-it</option>
 					<option value="gemma-3-27b-it">gemma-3-27b-it</option>
 				</select>
 				<button type="button" class="btn btn-primary" style="display:inline;width:105px;" id="geminifetchlist" onclick="gemini_fetch_models()">Fetch List</button>
@@ -23725,15 +23916,13 @@ Current version indicated by LITEVER below.
 						<input type="checkbox" title="Allow Gemini Thinking" id="usegeminithink" checked>
 						<div class="box-label">Allow Thinking</div>
 					</div>
-					<div><input type="checkbox" id="geministreaming" title="Enable SSE Streaming" onchange="">
-						<div class="box-label">Streaming</div>
-					</div>
 				</div>
+				<div class="todoremove color_yellow">Looking for the Streaming Toggle? It's now in Advanced Settings -> Streaming!</div>
 			</div>
 			<div id="coherecustom" class="menutext hidden">
 				Uses Cohere's models through their own API.<br><br>
 				Note that KoboldAI Lite takes no responsibility for your usage or consequences of this feature. Your API key is used directly with the Cohere API and is not transmitted to us.<br><br>
-				<select  title="Cohere AI Model Selection" style="padding:4px;" class="form-control" id="custom_cohere_model">
+				<select title="Cohere AI Model Selection" style="padding:4px;" class="form-control" id="custom_cohere_model">
 					<option value="command" selected="selected">command</option>
 					<option value="command-r">command-r</option>
 					<option value="command-r-plus">command-r-plus</option>
@@ -24263,10 +24452,6 @@ else
 	// password = "SaveOurSouls"; e = encrypt(password, "Hello world"); decrypt(password, e)
 </script>
 <script>
-	function is_using_kcpp_with_server_saving() {
-		return (custom_kobold_endpoint != "" && koboldcpp_version && koboldcpp_version != "" && compare_version_str(koboldcpp_version, "1.84") >= 0 && koboldcpp_has_server_saving);
-	}
-
 	let serverSavesPopup = document.getElementById("serverSaves");
 	let serverSavingPopup = document.getElementById("serverSavingPopup");
 	let serverSavingTypePopup = document.getElementById("serverSavingTypePopup");
@@ -24984,6 +25169,19 @@ else
 		current_wi.push(baseWI)
 	}
 
+	let getTableNamesFromTextDB = () => {
+		matcher = new RegExp("\\[DOCUMENT BREAK\\]\\[Table:\([^\\]]*?\)\\].*?\\[DOCUMENT BREAK\\]", "gmis")
+		return [...documentdb_data.matchAll(matcher)].map(a => a[1])
+	}
+
+	let getRandomElemFromArray = (arr) => {
+		return arr[Math.floor(Math.random() * arr.length)]
+	}
+
+	let getChatOpponentRandomly = () => {
+		return getRandomElemFromArray(localsettings.chatopponent.split("||$||"))
+	}
+
 	let wordCountEnabled = false
 	let getCommands = () => {
 	return [
@@ -24991,10 +25189,16 @@ else
 			"name": "ask_user",
 			"description": "Ask the user for input. Optionally, suggested responses can be provided to the user as well.",
 			"args": {
-				"message": "<message that awaits user input>",
+				"whoToSendMessageAs": {
+					description: "<whose perspective is the response written from>",
+					pattern: (localsettings.inject_chatnames_instruct ? `^${getChatOpponentRandomly()}$` : undefined),
+					type: "string",
+					skip: !localsettings.inject_chatnames_instruct
+				},
+				"message": "<message that prompts the user for input>",
 				"suggestionsToPickFrom": {
-				description: "<suggestions the user can pick from as an array of strings>",
-				type: "array"
+				description: "<suggestions written from the user's perspective which they can pick from for their next action>",
+				type: "array",
 				}
 			},
 			"enabled": true,
@@ -25008,7 +25212,8 @@ else
 						// Do not care about an error here, it's a nice to have if the suggestions show
 					}
 				}
-				addThought(createSysPrompt, `Request for user input: ` + action?.args?.message)
+				let prompt = localsettings.inject_chatnames_instruct ? `Request for user input by ${action?.args?.whoToSendMessageAs}: ${action?.args?.message}` : `Request for user input: ${action?.args?.message}`
+				addThought(createSysPrompt, prompt)
 				return true
 			}
 			},
@@ -25016,11 +25221,17 @@ else
 			"name": "send_message",
 			"description": "Send a message to the user without waiting for their response. Does not return anything.",
 			"args": {
-				"message": "<message to send>"
+				"whoToSendMessageAs": {
+					description: "<whose perspective is the response written from>",
+					pattern: (localsettings.inject_chatnames_instruct ? `^${getChatOpponentRandomly()}$` : undefined),
+					type: "string",
+					skip: !localsettings.inject_chatnames_instruct
+				},
+				"message": "<message to send>",
 			},
 			"enabled": true,
 			"executor": (action) => {
-				addThought(createAIPrompt, action?.args?.message)
+				addThought(createAIPrompt, localsettings.inject_chatnames_instruct ? `${action?.args?.whoToSendMessageAs}: ${action?.args?.message}` : action?.args?.message)
 			}
 			},
 			{
@@ -25072,6 +25283,37 @@ else
 					}
 					else {
 						addThought(createSysPrompt, `Could not roll dice as the format was incorrect`)
+					}
+				}
+			},
+			{
+			"name": "get_random_terms_from_table",
+			"description": "Gets random terms from a user defined table",
+			"args": {
+				"numOfTerms": {
+				description: "<number of terms to get>",
+				type: "integer"
+				},
+				"tableToUse": {
+				description: "<number of table to get terms from>",
+				type: "string",
+				enum: getTableNamesFromTextDB()
+				}
+			},
+			"enabled": getTableNamesFromTextDB().length > 0,
+				"executor": (action) => {
+					let numOfTerms = action?.args?.numOfTerms
+					let tableToUse = action?.args?.tableToUse
+					if (!!numOfTerms && !!tableToUse) {
+						let results = []
+						let tableElems = getDocumentFromTextDB(`Table:${tableToUse}`).split("\n").map(c => c.trim()).filter(c => c.length > 0)
+						for (let roll = 0; roll < numOfTerms; roll++) {
+							results.push(getRandomElemFromArray(tableElems))
+						}
+						addThought(createSysPrompt, `Got ${numOfTerms} terms from ${tableToUse}: ${results.join(", ")}`)
+					}
+					else {
+						addThought(createSysPrompt, `Could not get terms as the format was incorrect`)
 					}
 				}
 			},
@@ -25342,15 +25584,48 @@ else
 				"aspect": {
 					type: "string",
 					description: "<aspect ratio - must be \"landscape\", \"portrait\" or \"square\">"
+				},
+				"use_another_image_as_source": {
+					description: "<if the user wished to generate a new image based on one they provide, set this to true>",
+					type: "boolean"
 				}
 			},
 			"enabled": localsettings.generate_images_mode == 2, // Only enabled if local endpoint exists / is in use
-				"executor": (action) => {
+				"executor": async (action) => {
 					let prompt = action?.args?.prompt
 					let aspect = action?.args?.aspect
 					if (!!prompt) {
-						generate_new_image(preparePromptForImageGen(prompt), undefined, calcImageSizing(aspect))
-						addThought(createSysPrompt, `Image generated`)
+						if (!!action?.args?.use_another_image_as_source)
+						{
+							waitingFori2iSelection = true
+							addThought(createSysPrompt, `Please click an image as a source for img2img generation`, true)
+
+							let waitForI2ILoop = () => {
+								return new Promise((resolve, reject) => {
+									let intervalId = setInterval(() => {
+										if (waitingFori2iSelection === false || endCurrent) {
+											clearInterval(intervalId)
+											resolve()
+										}
+									}, 1000)
+								})
+							}
+							await waitForI2ILoop()
+							if (!!i2i64) {
+								generate_new_image(preparePromptForImageGen(prompt), i2i64, calcImageSizing(aspect))
+								addThought(createSysPrompt, `Image generated`)
+							}
+							else {
+								addThought(createSysPrompt, `User did not select an image - no image generated`)
+							}
+							i2i64 = undefined;
+							waitingFori2iSelection = false;	
+						}
+						else
+						{
+							generate_new_image(preparePromptForImageGen(prompt), undefined, calcImageSizing(aspect))
+							addThought(createSysPrompt, `Image generated`)
+						}
 					}
 					else {
 						addThought(createSysPrompt, `No prompt provided, image not generated`)
@@ -25367,7 +25642,7 @@ else
 					description: "<aspect ratio - must be \"landscape\", \"portrait\" or \"square\">"
 				}
 			},
-			"enabled": localsettings.generate_images_mode == 2, // Only enabled if local endpoint exists / is in use
+			"enabled": false, // localsettings.generate_images_mode == 2, // Only enabled if local endpoint exists / is in use
 				"executor": async (action) => {
 					let i2iPrompt = action?.args?.prompt
 					if (!!i2iPrompt) {
@@ -25485,24 +25760,32 @@ else
 			
 			elem.properties.command.properties.name["pattern"] = `^${command.name}$`
 			for (arg in command.args) {
-				if (typeof command.args[arg] === "object" && !!command.args[arg]?.format)
+				if (!command.args[arg]?.skip)
 				{
-					let formatToUse = toJsonSchema(JSON.parse(command.args[arg]?.format))
-					args.properties[arg] = formatToUse
-				}
-				else if (typeof command.args[arg] === "object" && !!command.args[arg]?.type) {
-					args.properties[arg] = {
-						type: command.args[arg].type
-					}
-					if (!!command.args[arg]?.enum)
+					if (typeof command.args[arg] === "object" && !!command.args[arg]?.format)
 					{
-						args.properties[arg].enum = command.args[arg]?.enum
+						let formatToUse = toJsonSchema(JSON.parse(command.args[arg]?.format))
+						args.properties[arg] = formatToUse
 					}
-				} else {
-					args.properties[arg] = {
-						type: "string"
+					else if (typeof command.args[arg] === "object" && !!command.args[arg]?.type) {
+						args.properties[arg] = {
+							type: command.args[arg].type
+						}
+						if (!!command.args[arg]?.enum)
+						{
+							args.properties[arg].enum = command.args[arg]?.enum
+						}
+						if (!!command.args[arg]?.pattern)
+						{
+							args.properties[arg].pattern = command.args[arg]?.pattern
+						}
+					} else {
+						args.properties[arg] = {
+							type: "string"
+						}
 					}
 				}
+				
 				args.required.push(arg)
 			}
 			return elem
@@ -25711,6 +25994,32 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return output.filter(text => text.length > 0)
 	}
 
+	let listOfExclusions = ["Action taken:", "Action taken (words =", "History search performed:", "Chain of thought complete", "Stop thinking action confirmed",
+				 "Web search results:", "Text has been added to history", "Formula evaluation result:", "Formula evaluation could not be completed as no formula was provided", 
+				 "Text has been added to history", "Text was empty - nothing added to history", "Search string was empty, no search performed", "Word count is", "Image analysed:", 
+				 "Image generated", "No prompt provided, image not generated", "Text has been spoken", "No text provided, nothing has been said", "System prompt has been overwritten", 
+				 "No system prompt provided, nothing has been overwritten", "Current state has been overwritten", "No state provided, nothing has been overwritten", "Current order of actions has been cleared",
+				  "Current order of actions has been overwritten", "No order of actions provided, nothing has been overwritten", "Error - Empty response instead of action. Ensure all responses are valid JSON.",
+				"Current state format has been overwritten", "No valid state format provided, nothing has been overwritten", `Text has been added to world info:`, `Text was empty - nothing added to world info`, `Chain of thought had an exception`]
+
+	let hideAgentModeCotForAestheticMode = (container = document) => {
+		[...container.querySelectorAll("end_of_context_koboldlite_internal > div")]
+			.filter(elem => listOfExclusions.find(excludedStart => elem.innerText.trim().indexOf(excludedStart) === 0))
+			.forEach(elem => elem.style.display = "none")
+	}
+
+	let originalRenderAestheticUI = render_aesthetic_ui
+
+	render_aesthetic_ui = (input, isPreview) => {
+		let aestheticHTML = document.createElement("div")
+		aestheticHTML.innerHTML = originalRenderAestheticUI(input, isPreview)
+		if (isAgentModeEnabledAndSetCorrectly() && !!localsettings?.agentHideCOT)
+		{
+			hideAgentModeCotForAestheticMode(aestheticHTML)
+		}
+		return aestheticHTML.innerHTML
+	}
+
 	var loadingNewGame = true
 	let originalRepackInstructTurns = repack_instruct_turns, cotOverrideRepack = false;
 
@@ -25743,42 +26052,53 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			if (loadingNewGame)
 			{
 				loadingNewGame = false
+				let suggestionsRegex = new RegExp(`suggestionsToPickFrom: (\\[.*?\\])`, "gm")
+				
+				let decodeEntities = (function() {
+					// this prevents any overhead from creating the object each time
+					let element = document.createElement('div');
+
+					function decodeHTMLEntities (str) {
+						if(str && typeof str === 'string') {
+						// strip script/html tags
+						str = str.replace(/<script[^>]*>([\S\s]*?)<\/script>/gmi, '');
+						str = str.replace(/<\/?\w(?:[^"'>]|"[^"]*"|'[^']*')*>/gmi, '');
+						element.innerHTML = str;
+						str = element.textContent;
+						element.textContent = '';
+						}
+
+						return str;
+					}
+
+					return decodeHTMLEntities;
+				})();
+
 				for (let i = combined_chunks.length - 1; i >= 0 && i >= combined_chunks.length - 4; i--) {
 					let elem = combined_chunks[i]
-					if (elem.message.indexOf("Action: ") === 0) {
-						let actionJson = elem.message.replace("Action:", "").trim()
-						try {
-							let actionObj = JSON.parse(actionJson.replaceAll("&quot;", `"`))
-							if (actionObj?.command?.name === "ask_user" && Array.isArray(actionObj?.command?.args?.suggestionsToPickFrom)) {
-								setSuggestions(actionObj?.command?.args?.suggestionsToPickFrom.map(String))
-								break
-							}
-						}
-						catch (e) {
-							// Suppress errors
-						}
+					try {
+						let cleanedText = decodeEntities(elem.message)
+						let suggestions = JSON.parse([...cleanedText.matchAll(suggestionsRegex)][0][1].replaceAll("&quot;", `"`))
+						setSuggestions(suggestions)
+						break
+					}
+					catch (e) {
+						// Suppress errors
 					}
 				}
 			}
 
 			if (filterOutActions)
 			{
-				let listOfExclusions = ["Action taken:", "Action taken (words =", "History search performed:", "Chain of thought complete", "Stop thinking action confirmed",
-				 "Web search results:", "Text has been added to history", "Formula evaluation result:", "Formula evaluation could not be completed as no formula was provided", 
-				 "Text has been added to history", "Text was empty - nothing added to history", "Search string was empty, no search performed", "Word count is", "Image analysed:", 
-				 "Image generated", "No prompt provided, image not generated", "Text has been spoken", "No text provided, nothing has been said", "System prompt has been overwritten", 
-				 "No system prompt provided, nothing has been overwritten", "Current state has been overwritten", "No state provided, nothing has been overwritten", "Current order of actions has been cleared",
-				  "Current order of actions has been overwritten", "No order of actions provided, nothing has been overwritten", "Error - Empty response instead of action. Ensure all responses are valid JSON.",
-				"Current state format has been overwritten", "No valid state format provided, nothing has been overwritten", `Text has been added to world info:`, `Text was empty - nothing added to world info`]
 				combined_chunks = combined_chunks
-				.filter(elem => !listOfExclusions.find(excludedStart => elem.message.trim().indexOf(excludedStart) === 0))
-				.map(elem => {
-					if (elem.message.indexOf("Request for user input:") === 0)
-					{
-						elem.message = elem.message.replace("Request for user input:", "").trim()
-					}
-					return elem
-				})
+					.filter(elem => !listOfExclusions.find(excludedStart => elem.message.trim().indexOf(excludedStart) === 0))
+					.map(elem => {
+						if (elem.message.indexOf("Request for user input:") === 0)
+						{
+							elem.message = elem.message.replace("Request for user input:", "").trim()
+						}
+						return elem
+					})
 			}
 			
 			return combined_chunks.map(elem => {
@@ -25815,19 +26135,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return !!match ? match[2].trim() : null
 	}
 
-	let replaceDocumentFromTextDB = (documentName, documentContent) => {
-		if (documentdb_data.indexOf(`[DOCUMENT BREAK][${documentName}]`) !== -1)
-		{
-			regex = `\(\\[DOCUMENT BREAK\\]\\[${documentName}\\]\)\(.*?\)\(\\[DOCUMENT BREAK\\]\)`
-			documentdb_data = documentdb_data.replace(new RegExp(regex, "s"), `$1${documentContent.trim()}$3`)
-		}
-		else
-		{
-			documentdb_data += `[DOCUMENT BREAK][${documentName}]${documentContent.trim()}[DOCUMENT BREAK]`
-		}
-		document.getElementById("documentdb_data").value = documentdb_data;
-	}
-
 	let calcImageSizing = (aspect) => {
 		let { iwidth, iheight } = getImageSizing()
 		let sizing = [iheight, iwidth];
@@ -25860,8 +26167,18 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	let getFinalAgentPrompt = (currentOrderOfActions) => {
-		let basePrompt = createSysPrompt(`Current state: ${getDocumentFromTextDB('State')}${currentOrderOfActions.length > 0 ? `\n\nOrder of actions: ${currentOrderOfActions.join(" -> ")}` : ""}`)
-		return basePrompt
+		let state = getDocumentFromTextDB('State')
+		let prompt = []
+		if (state != null)
+		{
+			prompt.push(`Current state: ${state}`)
+		}
+		if (currentOrderOfActions.length > 0)
+		{
+			prompt.push(`Order of actions: ${currentOrderOfActions.join(" -> ")}`)
+		}
+		let basePrompt = prompt.join("\n\n")
+		return basePrompt.length > 0 ? createSysPrompt(basePrompt) : ""
 	}
 
 	/**
@@ -25982,7 +26299,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			let args = Object.keys(action.args).map(key => {
 				let value = action.args[key];
-				return typeof value === "object" ? `\t${key}: ${value.description}` : `\t${key}: ${value}`
+				return typeof value === "object" ? `\t${key}: ${JSON.stringify(value)}` : `\t${key}: ${value}`
 			}).join("\n")
 			actionAsText += `\nArguments:\n${args}`
 		}
@@ -26019,6 +26336,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		let textDBResults = ""
 		if (!!initialPrompt)
 		{
+			initialPrompt = (localsettings.inject_chatnames_instruct ? `${localsettings.chatname}: ${initialPrompt}` : initialPrompt)
 			addThought(createInstructPrompt, initialPrompt)
 			if (!!documentdb_enabled)
 			{
@@ -26050,6 +26368,18 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			let nextAction = currentOrderOfActions.splice(i).filter(acts => acts.split("|").find(act => validCommands.includes(act)))
 			nextAction = nextAction.length > 0 ? getCommands().filter(act => nextAction[0].split("|").includes(act.name)) : getEnabledCommands().filter(command => validCommands.includes(command.name))
 
+			// Find any actions which have occured more than the max repeats in settings and remove them from the options
+			let actionsOverMaxRepeats = recentActions.map(elem => elem?.command?.name).reduce((o, c) => {
+				let elem = o.find(e => e.name == c)
+				if (elem === undefined) {
+					o.push({name: c, repeats: 1})
+				} else {
+					elem.repeats++
+				}
+				return o
+			}, []).filter(o => o.repeats >= localsettings.agentCOTRepeatsMax).map(o => o.name)
+			nextAction = nextAction.filter(act => !actionsOverMaxRepeats.includes(act.name))
+
 			// Find actions which are identical and have run twice - then remove them from the possible options to run again
 			let duplicateActions = recentActions.filter((elem, pos, arr) => arr.findIndex((elem2) => JSON.stringify(elem) === JSON.stringify(elem2)) !== pos).map(elem => elem?.command?.name)
 			nextAction = nextAction.filter(act => !duplicateActions.includes(act.name))
@@ -26073,7 +26403,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 			let history = getInitialAgentPrompt(nextAction, max_mem_len)
 			let wiToInclude = createSysPrompt(substring_to_boundary(getWorldInfoForAgent(truncated_context, max_wi_len) + "\n\n" + textDBResults, max_wi_len))
-			let anToInclude = createSysPrompt(substring_to_boundary(current_anotetemplate.replace("<|>", current_anote), max_anote_len))
+			let anToInclude = !!current_anote ? createSysPrompt(substring_to_boundary(current_anotetemplate.replace("<|>", current_anote), max_anote_len)) : ""
 			let finalAgentPrompt = getFinalAgentPrompt(currentOrderOfActions)
 
 			let cotAsText = "", maxLengthOfCot = max_allowed_characters - history.length - wiToInclude.length - anToInclude.length - finalAgentPrompt.length
@@ -26212,12 +26542,15 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		document.getElementById("agentHideCOT").checked = localsettings.agentHideCOT;
 		document.getElementById("agentCOTMax").value = localsettings.agentCOTMax;
 		document.getElementById("agentCOTMaxnumeric").value = localsettings.agentCOTMax;
+		document.getElementById("agentCOTRepeatsMax").value = localsettings.agentCOTRepeatsMax;
+		document.getElementById("agentCOTRepeatsMaxnumeric").value = localsettings.agentCOTRepeatsMax;
 	}
 
 	confirm_settings = () => {
 		localsettings.agentBehaviour = (document.getElementById("agentBehaviour").checked ? true : false);
 		localsettings.agentHideCOT = (document.getElementById("agentHideCOT").checked ? true : false);
 		localsettings.agentCOTMax = document.getElementById("agentCOTMax").value;
+		localsettings.agentCOTRepeatsMax = document.getElementById("agentCOTRepeatsMax").value;
 		originalConfirmSettings()
 	}
 
@@ -26414,7 +26747,11 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		if (localsettings?.agentCOTMax == undefined)
 		{
 			localsettings.agentCOTMax = 5
-		}		
+		}
+		if (localsettings?.agentCOTRepeatsMax == undefined)
+		{
+			localsettings.agentCOTRepeatsMax = 1
+		}
 
 		let createSettingElemBool = (inputElemId, labelTitle, labelText) => {
 			let settingLabelElem = document.createElement("div")
@@ -26510,6 +26847,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		settingLabelElem = createSettingElemRange("agentCOTMax", "Maximum agent actions", "Defines the maximum number of actions the agent can take without a user input", 1, 20, 1, 5)
 		lastSettingContainer.append(settingLabelElem)
 
+		settingLabelElem = createSettingElemRange("agentCOTRepeatsMax", "Maximum repeated agent actions of a type", "Defines the maximum number of actions the agent can take of the same type without a user input", 1, 20, 1, 1)
+		lastSettingContainer.append(settingLabelElem)
+
 		createStopThinkingButton()
 	})
 
@@ -26534,10 +26874,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	let facts = ["Tunnel Networks: Kobolds live in sprawling tunnel networks. Cyberpunk kobolds augment these with networked sensor arrays and automated defense turrets, all controlled by a central AI 'Warren Mind'.", "Dragon Devotion: Traditional kobolds worship dragons. Cyberpunk kobolds see dragons as powerful data-lords, hoarding information (and sometimes physical hardware) – they try to curry favor by providing useful tech.", "Trap Masters: Known for their traps, cyberpunk kobolds use electrified grids, laser tripwires, and robotic spiders alongside traditional pits and snares.", "AI Spirits: Each Kobold warband will often have several 'spirit' units - small AI cores housed in scavenged drones or robotic shells that act as scouts, messengers, or even shock troops.", "Scale Colors & Clan: Kobold scale color signifies clan. In the cyberpunk age, this is displayed through LED patterns woven into their scales, showing allegiance and status.", "Scavenging Prowess: Kobolds are master scavengers. They can find usable components in almost any pile of junk, creating surprisingly effective cybernetic enhancements for themselves and their spirits.", "Weak but Numerous: Kobolds rely on being numerous to overcome larger foes. Cyberpunk kobolds compensate with swarms of micro-drones and coordinated attacks directed by their Warren Mind.", "Pack Tactics: Critical to kobold survival, pack tactics are amplified via networked comms between kobolds and their spirit units.", "Rune Tech: Traditional runes have been merged with circuit boards. These 'rune-circuits' provide low-level magical effects powered by salvaged energy cells.", "The Warren Mind: The central AI controlling a kobold warren isn't always sophisticated. Often it's built from cobbled-together parts, resulting in quirky personalities and unpredictable behavior."];
 </script>
 <script>
-	let getRandomElemFromArray = (arr) => {
-		return arr[Math.floor(Math.random() * arr.length)]
-	}
-
 	document.getElementById("btnsend").onmouseover = () => {
 		document.getElementById("input_text").placeholder = `Enter text here\nOr enjoy this fact: ${getRandomElemFromArray(facts)}`;
 		document.getElementById("btnsend").style.backgroundImage = `url("${getRandomElemFromArray(icons)}")`; 
@@ -26916,6 +27252,17 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 		addDocumentToTextDB()
 		{
+			let tryImportLorebookAsTextDB = (b64) => {
+				try
+				{
+					let obj = JSON.parse(atob(b64.split(",")[1]))
+					return importLorebookAsTextDB(obj)
+				}
+				catch (e)
+				{
+					return false
+				}
+			}
 			promptUserForLocalFile(async (fileDetails) => {
 				let {file, fileName, ext, content} = fileDetails
 				let extractedText = undefined
@@ -26924,6 +27271,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				{
 					let analysisPrompt = "Perform OCR on the provided image."
 					extractedText = await generateAndGetTextFromPrompt(`${createInstructPrompt(analysisPrompt)}${instructendplaceholder}${!!localsettings?.inject_jailbreak_instruct ? localsettings.custom_jailbreak_text : ""}`, undefined, [content.split(",")[1]])	
+				}
+				else if (content.startsWith("data:application/json") && tryImportLorebookAsTextDB(content))
+				{
+					return
 				}
 				else
 				{
