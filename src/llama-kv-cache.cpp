@@ -373,7 +373,7 @@ bool llama_kv_cache_unified::update(llama_context & lctx) {
             printf("\nWARNING: The current KV cache / model configuration does not support K-shift");
         } else {
 
-        LLAMA_LOG_DEBUG("%s: applying K-shift\n", __func__);
+        //LLAMA_LOG_DEBUG("%s: applying K-shift\n", __func__);
 
         // apply K-shift if needed
         if (hparams.rope_type != LLAMA_ROPE_TYPE_NONE) {
