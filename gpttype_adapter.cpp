@@ -40,8 +40,8 @@
 #include "neox_v2.cpp"
 #include "neox_v3.cpp"
 #include "mpt_v3.cpp"
-#include "tools/llava/clip.h"
-#include "tools/llava/llava.h"
+#include "tools/mtmd/clip.h"
+#include "tools/mtmd/llava.h"
 #include "common/common.h"
 
 // #include "experimental/emphasis.h"
@@ -100,6 +100,7 @@ static llama_v2_context * llama_ctx_v2 = nullptr;
 static llama_v3_context * llama_ctx_v3 = nullptr;
 static llama_context * llama_ctx_v4 = nullptr;
 static llama_context * draft_ctx = nullptr; //will remain null if speculative is unused
+static llama_context * guidance_ctx = nullptr; //for classifier free guidance, will be null if unused
 
 static clip_ctx * clp_ctx = nullptr; //for llava
 static clip_image_u8 * clp_img_data = nullptr; //most recent image
@@ -136,6 +137,8 @@ static std::string concat_output_reader_copy_poll = ""; //for streaming
 static std::string concat_output_reader_copy_res = ""; //for gen response
 static std::vector<logit_bias> logit_biases;
 static bool add_bos_token = true; // if set to false, mmproj handling breaks. dont disable unless you know what you're doing
+static bool load_guidance = false; //whether to enable cfg for negative prompts
+static bool check_slowness = false; //will display a suggestion to use highpriority if slow
 
 static int delayed_generated_tokens_limit = 0;
 std::deque<std::string> delayed_generated_tokens; //for use with antislop sampling
@@ -558,7 +561,6 @@ static void speculative_decoding_setup(std::string spec_model_filename, const ll
     draft_model_params.use_mlock = base_model_params.use_mlock;
     draft_model_params.n_gpu_layers = draft_gpulayers; //layers offload the speculative model.
     draft_ctx_params.n_ctx = base_ctx_params.n_ctx;
-    draft_ctx_params.logits_all = false;
     draft_ctx_params.offload_kqv = base_ctx_params.offload_kqv;
     draft_model_params.main_gpu = base_model_params.main_gpu;
     draft_model_params.split_mode = llama_split_mode::LLAMA_SPLIT_MODE_LAYER;
@@ -1659,6 +1661,31 @@ void sample_grammar(FileFormat file_format, int32_t n_vocab, llama_token_data_ar
 
 }
 
+void sample_guidance(struct llama_context * ctx, struct llama_context * guidance_ctx, int n_vocab, float scale)
+{
+    float * guidanceLogitsPtr = llama_get_logits(guidance_ctx);
+    float * mainLogitsPtr = llama_get_logits(ctx);
+
+    if (scale < 0) {
+        scale = 0;
+    }
+
+    if(debugmode==1 && !is_quiet)
+    {
+        int topidx1 = std::max_element(mainLogitsPtr, mainLogitsPtr + n_vocab) - mainLogitsPtr;
+        int topidx2 = std::max_element(guidanceLogitsPtr, guidanceLogitsPtr + n_vocab) - guidanceLogitsPtr;
+        printf("\nMain: (id:%d val:%f data:%s) Guided: (id:%d val:%f data:%s)\n", topidx1, mainLogitsPtr[topidx1],
+               FileFormatTokenizeID(topidx1, file_format, true).c_str(), topidx2, guidanceLogitsPtr[topidx2],
+               FileFormatTokenizeID(topidx2, file_format, true).c_str());
+    }
+
+    for (int i = 0; i < n_vocab; ++i) {
+        float logit_guidance = guidanceLogitsPtr[i];
+        float logit_main = mainLogitsPtr[i];
+        mainLogitsPtr[i] = scale * (logit_main-logit_guidance) + logit_guidance;
+    }
+}
+
 int SampleLogits(const float * logits, int n_ctx, int n_vocab, int rep_pen_range, float rep_pen, float rep_pen_slope, float presence_penalty, float top_k, float top_a, float top_p, float min_p, float typical_p, float tfs, float nsigma, float temp, std::mt19937 & rng,
 int mirostat, float mirostat_tau, float mirostat_eta, float dry_multiplier, float dry_base, int dry_allowed_length, int dry_penalty_last_n, float xtc_threshold, float xtc_probability,
 const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dynatemp_range, float dynatemp_exponent, float smoothing_factor)
@@ -2037,6 +2064,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     kcpp_data->use_fastforward = inputs.use_fastforward;
     debugmode = inputs.debugmode;
     draft_ctx = nullptr;
+    guidance_ctx = nullptr;
 
     auto clamped_max_context_length = inputs.max_context_length;
 
@@ -2062,6 +2090,8 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     kcpp_data->n_ctx = clamped_max_context_length;
     max_context_limit_at_load = clamped_max_context_length;
     add_bos_token = !inputs.no_bos_token;
+    load_guidance = inputs.load_guidance;
+    check_slowness = inputs.check_slowness;
 
     if(!add_bos_token)
     {
@@ -2261,7 +2291,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         auto er = llama_v3_eval(llama_ctx_v3, tmp.data(), tmp.size(), 0, kcpp_data->n_threads);
         if(er!=0)
         {
-            printf("\nLLAMA EVAL returned nonzero!\n");
+            printf("\nModel Warmup Failed! (code:%d)\n",er);
         }
         return ModelLoadResult::SUCCESS;
     }
@@ -2278,7 +2308,6 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         }
 
         llama_ctx_params.offload_kqv = !inputs.low_vram;
-        llama_ctx_params.logits_all = false;
         model_params.use_mmap = inputs.use_mmap;
         model_params.use_mlock = inputs.use_mlock;
         model_params.n_gpu_layers = inputs.gpulayers;
@@ -2301,8 +2330,9 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         #if defined(GGML_USE_CUDA)
         if(cu_parseinfo_maindevice>0)
         {
-            printf("CUBLAS: Set main device to %d\n",cu_parseinfo_maindevice);
+            printf("CUDA: Set main device to %d\n",cu_parseinfo_maindevice);
         }
+        printf("CUDA MMQ: %s\n",(inputs.use_mmq?"True":"False"));
         ggml_cuda_set_mul_mat_q(inputs.use_mmq);
 
         if (inputs.use_mmq == true)
@@ -2542,12 +2572,31 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         // llama_ctx_params.type_v = (inputs.quant_v>1?GGML_TYPE_Q4_0:(inputs.quant_v==1?GGML_TYPE_Q8_0:GGML_TYPE_F16));
 
         llama_ctx_v4 = llama_init_from_model(llamamodel, llama_ctx_params);
+        if(load_guidance)
+        {
+            guidance_ctx = llama_init_from_model(llamamodel, llama_ctx_params);
+        }
 
         if (llama_ctx_v4 == NULL)
         {
             fprintf(stderr, "%s: error: failed to load model '%s'\n", __func__, kcpp_data->model_filename.c_str());
             return ModelLoadResult::FAIL;
         }
+
+        //we use a threadpool, greatly speeds up qwen3moe tg
+        ggml_threadpool_params threadpool1_params, threadpool2_params;
+        ggml_threadpool_params_init(&threadpool1_params,kcpp_data->n_threads);
+        ggml_threadpool_params_init(&threadpool2_params,kcpp_data->n_blasthreads);
+
+        printf("Threadpool set to %d threads and %d blasthreads...\n", kcpp_data->n_threads,kcpp_data->n_blasthreads);
+        struct ggml_threadpool * threadpool1 = ggml_threadpool_new(&threadpool1_params);
+        struct ggml_threadpool * threadpool2 = ggml_threadpool_new(&threadpool2_params);
+        if (!threadpool1 || !threadpool2) {
+            fprintf(stderr, "%s: error: failed to create threadpool.\n", __func__);
+            return ModelLoadResult::FAIL;
+        }
+        llama_attach_threadpool(llama_ctx_v4, threadpool1, threadpool2);
+
         if (lora_filename != "")
         {
             printf("\nAttempting to apply LORA adapter: %s\n", lora_filename.c_str());
@@ -2623,6 +2672,13 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             printf("\nThis architecture has explicitly disabled the BOS token - if you need it, you must add it manually.\n");
             add_bos_token = false;
         }
+        if (file_format == FileFormat::GGUF_GENERIC && file_format_meta.model_architecture == GGUFArch::ARCH_GLM4) {
+            std::string temp = gpttype_get_chat_template();
+            if (temp.find("[gMASK]<sop>") != std::string::npos) {
+                printf("GLM-4 special BOS handling used.\n");
+                add_bos_token = false;
+            }
+        }
 
         //warmup at least 33 tokens to trigger batch
         std::vector<int> tmp;
@@ -2633,11 +2689,15 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         auto er = llama_decode(llama_ctx_v4, llama_batch_get_one(tmp.data(), tmp.size()));
         if(er!=0)
         {
-            printf("\nLLAMA EVAL returned nonzero: %d\n",er);
+            printf("\nModel Warmup Failed! (code:%d)\n",er);
         }
         tmp = {1};
         llama_kv_self_clear(llama_ctx_v4);
         er = llama_decode(llama_ctx_v4, llama_batch_get_one(tmp.data(), tmp.size()));
+        if(er!=0)
+        {
+            printf("\nModel Warmup Failed! (code:%d)\n",er);
+        }
         return ModelLoadResult::SUCCESS;
     }
     else if (file_format == FileFormat::RWKV_1 || file_format==FileFormat::RWKV_2)
@@ -3602,6 +3662,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     }
 
     std::string addedmemory = inputs.memory;
+    std::string negative_prompt = inputs.negative_prompt;
 
     //clear previous run llava embd memory, just-in-time free
     for(int i=0;i<llava_images.size();++i)
@@ -3730,7 +3791,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 if (kcpp_data->prompt.rfind("<sop>", 0) == 0) {  //check startswith
                     kcpp_data->prompt.erase(0, 5);
                 }
-                addedmemory = "<sop>";
+                addedmemory = "[gMASK]<sop>";
             } else {
                 if (addedmemory.rfind("[gMASK]", 0) == 0) {  //check startswith
                     addedmemory.erase(0, 7);
@@ -3738,7 +3799,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 if (addedmemory.rfind("<sop>", 0) == 0) {  //check startswith
                     addedmemory.erase(0, 5);
                 }
-                addedmemory = "<sop>" + addedmemory;
+                addedmemory = "[gMASK]<sop>" + addedmemory;
             }
         }
     }
@@ -3788,6 +3849,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     std::vector<int> embd_inp_mem; //for storing added memory
     std::vector<int> llava_sep; //to separate between different llava images
     std::vector<int> llava_intro; //to separate between different llava images
+    std::vector<int> guidance_embd; //holds the guidance prompt
     bool llava_embds_built = false;
 
     int32_t nctx = kcpp_data->n_ctx;
@@ -3862,18 +3924,31 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         }
     }
 
+    std::vector<int> negprompt_tokens;
+    int guidance_n_past = 0;
+    if(guidance_ctx)
+    {
+        llama_kv_self_clear(guidance_ctx);
+        //prepare negative prompt
+        if(negative_prompt!="" && inputs.guidance_scale!=1.0f)
+        {
+            TokenizeString(negative_prompt+"\n", negprompt_tokens, file_format, add_bos_token);
+        }
+    }
+
     //added special memory, overwrite if needed
-    if(embd_inp_mem.size()>0)
+    if (embd_inp_mem.size() + negprompt_tokens.size() > 0)
     {
         //remove bos token from prompt, it'll be taken from memory
         std::vector<int> bos;
         TokenizeString("", bos, file_format, add_bos_token);
-        if (bos.size()>0 && !embd_inp.empty() && bos[0]==embd_inp[0]) {
+
+        if (bos.size()>0 && !embd_inp.empty() && bos[0]==embd_inp[0]) { //strip away bos if exists
             embd_inp.erase(embd_inp.begin());
         }
 
         //shorten memory if needed
-        if (embd_inp_mem.size() + kcpp_data->n_predict + 4 > nctx)
+        if (embd_inp_mem.size() > 0 && embd_inp_mem.size() + kcpp_data->n_predict + 4 > nctx)
         {
             int offset = embd_inp_mem.size() - nctx + kcpp_data->n_predict + 4;
             embd_inp_mem = std::vector<int>(embd_inp_mem.begin() + offset, embd_inp_mem.end());
@@ -3885,7 +3960,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         }
 
         //shorten main prompt by trimming the front if needed
-        int addmemtokens = embd_inp_mem.size();
+        int addmemtokens = embd_inp_mem.size() + negprompt_tokens.size() + 1;
         int totalsize = (addmemtokens + embd_inp.size() + kcpp_data->n_predict);
         if(totalsize > nctx)
         {
@@ -3899,6 +3974,34 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
         //stick memory to front of prompt
         embd_inp.insert(embd_inp.begin(), embd_inp_mem.begin(), embd_inp_mem.end());
+        if(add_bos_token && embd_inp.size()>0 && bos.size()>0 && bos[0]!=embd_inp[0])
+        {
+            embd_inp.insert(embd_inp.begin(), bos[0]);  //insert bos at front, if added
+        }
+    }
+
+    //prepare negative prompt
+    if(guidance_ctx && negprompt_tokens.size()>0 && inputs.guidance_scale!=1.0f)
+    {
+        guidance_embd = embd_inp; //clone main prompt
+        std::vector<int> bos;
+        TokenizeString("", bos, file_format, add_bos_token);
+        if (bos.size()>0 && !guidance_embd.empty() && bos[0]==guidance_embd[0]) {
+            guidance_embd.erase(guidance_embd.begin());
+        }
+
+        // Insert at the beginning of everything. size is already handled
+        guidance_embd.insert(guidance_embd.begin(), negprompt_tokens.begin(), negprompt_tokens.end());
+
+        //eval the guidance prompt
+        printf("\nPreparing Negative Prompt (%zu tokens)", guidance_embd.size());
+        kcpp_embd_batch batch = kcpp_embd_batch(guidance_embd, 0, use_mrope, false);
+        auto er = llama_decode(guidance_ctx, batch.batch);
+        if(er!=0)
+        {
+            printf("\nProcess Negative Prompt Failed! (code:%d)\n",er);
+        }
+        guidance_n_past += guidance_embd.size();
     }
 
     //determine how much npast we have to rewind from the current state
@@ -4097,6 +4200,17 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
             }
             else if(file_format == FileFormat::GGUF_GENERIC)
             {
+                if(guidance_ctx && negprompt_tokens.size()>0 && inputs.guidance_scale!=1.0f && embd.size()==1 && startedsampling)
+                {
+                    //eval for negative prompt
+                    kcpp_embd_batch gbatch = kcpp_embd_batch(embd, guidance_n_past, use_mrope, false);
+                    auto er = llama_decode(guidance_ctx, gbatch.batch);
+                    if(er!=0)
+                    {
+                        printf("\nGenerate with Negative Prompt Failed! (code:%d)\n",er);
+                    }
+                    guidance_n_past += 1;
+                }
                 if(embd.size()!=1 || draft_ctx==nullptr || remaining_tokens<=speculative_chunk_amt || grammar!=nullptr || startedsampling==false) //for large batch, or if no draft model, PP/TG as usual
                 {
                     draft_used = false;
@@ -4359,6 +4473,12 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
                 }
 
+                if(file_format == FileFormat::GGUF_GENERIC && guidance_ctx && negprompt_tokens.size()>0 && inputs.guidance_scale!=1.0f)
+                {
+                    sample_guidance(llama_ctx_v4, guidance_ctx, n_vocab, inputs.guidance_scale);
+                }
+
+                //handle token bans
                 if (!inputs.allow_eos_token && !inputs.bypass_eos_token)
                 {
                     // set the logit of the eos token to very low to avoid sampling it
@@ -4776,6 +4896,14 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     if(debugmode==1 && !is_quiet && (draft_successes+draft_failures)>0)
     {
         printf("\n(Draft Results - Success:%d, Failure:%d)",draft_successes,draft_failures);
+    }
+    if(check_slowness && ts2<2.0f)
+    {
+        check_slowness = false;
+        if(!is_quiet)
+        {
+            printf("\n======\nNote: Your generation speed appears rather slow. You can try relaunching KoboldCpp with the high priority toggle (or --highpriority) to see if it helps.\n======\n");
+        }
     }
     fflush(stdout);
     output.status = 1;

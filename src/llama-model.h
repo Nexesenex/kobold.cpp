@@ -76,6 +76,7 @@ enum llm_type {
     LLM_TYPE_236B,
     LLM_TYPE_290B,
     LLM_TYPE_314B,
+    LLM_TYPE_405B,
     LLM_TYPE_671B,
     LLM_TYPE_SMALL,
     LLM_TYPE_MEDIUM,
@@ -94,6 +95,8 @@ enum llm_type {
     LLM_TYPE_30B_A3B,
     LLM_TYPE_235B_A22B,
 };
+
+std::string llama_rope_scaling_type_name(llama_rope_scaling_type rope_scaling_type);
 
 struct llama_layer_posnet {
     // resnet

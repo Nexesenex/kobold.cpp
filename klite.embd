@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 235;
+	const LITEVER = 241;
 	const urlParams = new URLSearchParams(window.location.search);
 	var localflag = urlParams.get('local'); //this will be replaced automatically in embedded kcpp
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -27,7 +27,7 @@ Current version indicated by LITEVER below.
 	<link rel="manifest" href="manifest.json" />
 	<meta name="apple-mobile-web-app-capable" content="yes">
 	<meta name="mobile-web-app-capable" content="yes">
-	<meta name="description" content="KoboldAI Lite">
+	<meta name="description" content="KoboldAI Lite - A powerful tool for interacting with AI directly in your browser. Chat with AI assistants, roleplay, write stories and play interactive text adventure games.">
 
 	<!-- Favicon -->
 	<link rel="icon" id="fvico" type="image/png" sizes="32x32" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAEtQTFRFAAAA+XJ0l09PsVdXcTw842hqw2hmTi4vMCQlb2eUgWtl+tGpBAMDEw4NPCkoFw8PJBgXt5WBVkxW4Nvf7Lia3Z+MpJnAZ05HnJOTYIS/NAAAABl0Uk5TAv////v//vT9//3/Nna08qf+///////a/hkcROQAAAGUSURBVHiclZLRcoQgDEULBAKoIKjI/39pL4i7nbUPbcYZwJyES5Kvr3/YvIx1nn9zL4G4EwuTXX7xs4QFGEklOT6SBENERguhsWHFD2AVRhL8IEgawY8b5L4fYtg+TSl8+NMEu4G2P34Q67r6I+37dLyBfU/4PY/sInG2MR8vIHG01h9mHfq1hUUQtwYcLEcp+ltmwqutdy5HMwAfc8ExKtVSLEZZW13Jxb4Azq7UHFnFrtGItLliS1UDYOfctm3JhEtlEH5zzpZNDsC63AB1VysY3gqC3C2ytsNW6Q3IjCt91Qr9QK8MiFL4nUEpEyNLYmodxYo3RquVHWUmbbRu0QCbKWwNfil5zYeENrRRqtZrGEQYqdtW8FWHLl4bgZDLFLZdbS/UzP2AEGTufkt3xWSvwzJeh4GxHWD5qlgXOZ/n2ULuC/od4Pk8x9xhCekD0Bqd/DmXgbpEumRgrMPn1K6ecs4pJc/V0nE+x35KtfTJTJufpvPTD2DyNZ3e4wP3zDCHevg+yYvf09PfkHuK7/Vv9g2CjBTdqv3bFgAAAABJRU5ErkJggg==" />
@@ -57,11 +57,14 @@ Current version indicated by LITEVER below.
 		--img_paper:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACBVGfHAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAAnQAAAJ0Bj3LnbgAAAB5QTFRF+OmvAAAA89Ze14Rw2cCY1k8/8eGhmEQ/+uqj87Jse3RL9AAAAAp0Uk5T/wD49//9of8rH/vnQeUAAAEOSURBVHicXdG9asMwFAXggx1COmoJ8VgNptkKcmqyGaKSB0i127RkLiTgNV2CVxMo9G177rVSm2ow0se5Vz/Gbdub6YBz2//w0sV59s0wbs5X806X1j4JFN4Bx45La9eE7OM1PANIBHKCuW7CAYgkkIWgEaWeYN5DjHA0AthIZF8ILAgrpBJJ21N1hyGCXXvGA2EJibxJQaVwgUQKlNIkj5AePNKyrWAJtYS952dH6AlpJaQViW3AXc/shlnZFoRHAhd6hpkjrLGEl7lShFKuphXgA0B23WtF+UmwCjy1VijUw70H4iPeH0KaIMl/DKZjIf/lWo/QCJjVSAMYUoSvCH80gjHdEZibCQjJJuYXZ+xAP6Rjil4AAAAASUVORK5CYII=");
 		--img_dice:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAAnQAAAJ0Bj3LnbgAAAGlQTFRF2gA3AAAArgAs9O7ptwAu2gI45Fp63y5a8+rm8t3czgA0xgAy3RtM7bG74Txk53qSsQAttQAurwAs8dLU6Yyf3tfT5WmFsAAs2gA3wqqrsBM6uhxD2gA32wA22gA30hdGsiRHt1Rq2gA3GZfQSAAAACN0Uk5T/wD//////////////////3QL3f////+22v///3AK+v///7M1XKlYAAABCElEQVR4nKWT63rCIAyG2xCggD1bD1On7v4vcgnForWVZ8++P22SF5JAyPKEsjy/nA/f2VwOALqmZeDy8xZlWSRk3xJwXowTQQA0BBzY2ujNa5gcPgsBnH/XF6aWMSxrU/Q7TkIA470QotAR0AU5+usEeFuoCCjhV+C0g2FHFYGKbcNVjEBW0xbb5xq2tEHNjQRAalU9xclRKU0OfABr+jsgVVkq+QFQ1I5RH4CS2yv/AyRTJIucKZ7kilzqqDFxWXacB7d63acRALsyMMMtAGgXR244fgUAwC0M7XC8wwh09MHrbOzt6cbr/dg3/APobIw6hCB+OO0+GPgQTPJPL2+bDhYVHm9Cv52hDBGSdP+eAAAAAElFTkSuQmCC");
 		--img_chat:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAA7AAAAOwBeShxvQAAADxQTFRFkcPmAAAAkcPmstXukL/ltNbueJGic4aTibLQkcPmvtzwpM7qmazZkcPm5vL5ps/ruNnw0uf1udD/////pH/0JgAAABR0Uk5T/wBl/xH0////Qrz8Bltj6diDAgFfSBG4AAAAzklEQVR4nL3TQQ6EIAwF0BYLSBFl9P53HUFhVKru5i/QpC+2CRWQOOpLIo9YAqQ9tJmqAJbqAFyBFuugK+hk0P0b9Mb05/MCjLUGwOZzexeBuQe9senjdmth2xbykEoFR89gJfQClHsD4eGyMlDAMmCkHYziPvixAhzjvlO+K9FxXShXAOKcB/VMJTPWegaYgP/gLwOVegVTqishO9i2+Bbw/h+Eth7g0LkOdog7AWoBnQDS5RvpuvGcZcjZ4JIWBuXkbvgAkMILWOdx6fEFbukIF0RE9j4AAAAASUVORK5CYII=");
+		--img_chat_mono:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAA7AAAAOwBeShxvQAAADxQTFRFu7u7AAAAu7u70NDQurq60dHRjY2Ng4ODu7u7rKys19fXxsbG7+/vubm5u7u709PTyMjI4+Pj3Nzc////jB2o5QAAABR0Uk5T/wBl/xH0//9C/7z8YwZb2OmDAgHH4NesAAAAzklEQVR4nL3Tyw6EIAwF0BbLw6Lg6P//6wgKo1J1N3eBJj2xTaiAxFFfEnnAEiDtoc1UBbBUB+AKtFgHXUEng+7foDemP58XYKw1ADaf27sIzD3ojU0ft1sL27aQh1QqOHoGK6EXoNwbCA+XlYEClgEj7WAQ98EPFeAQ953yXYmO60K5AhDnPKhnKpmx1jPABPwHfxmp1CuYUl0J2cG2xbeA9/8gtPUAh851sEPcCVAL6ASQLt9I143nLGPOBpe0MCgnd8MHgBRewDqPS48vawEIEy7Qd5cAAAAASUVORK5CYII=");
 		--img_compass:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAA7AAAAOwBeShxvQAAADxQTFRF/7VV/+J5AAAA8/P11Ob1l8jt/39K+chs/9tn/8Bd/+J48eTO/9x0/9Zv99ugiHp0/5MKWVFO/6k53KWUcJJTdwAAABR0Uk5T/v8A//////8Zydn/klf///v/bf9A3eYXAAABMUlEQVR4nG2T2RaDIAwFUwEBWdz+/18LuSypNS8enTGQQGgZ4VKMW4kYHb9fnnxaaOC4fUZsxbmoxHFRx5/f2BJRkY4Dgts+f2F9AU0Q3Aol9Qyd56DUvisVMlw6Dt5D5wVDKArzusdaBfaXlZqCUrlyiksRnORKt6dioRRCSND5CK1Z8Au5vn5Y1yy4zkhBaSRYS9yh85YiURwF3CtHbhwpPHGN/FuAsN7gOjwF1bhpAtYg7tnO5Wdww8Z+nn+CapyFswtiibJN5sbIJaQQGjdyk7PMWr8RRisziU7zj0OwaBRaPTkU0ep5WPo3+mGN437wedxIYS2+n7vkvl4YvnLl3Qb0Z1TICRZcWvg2Q8B1A8dkJXqNtHTh3cCE9tHzT+zB5/Am/4aFUAe4OT66+fULsfQP1birKzkAAAAASUVORK5CYII=");
 		--img_websearch:url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAN1wAADdcBQiibeAAAAEtQTFRFAAAA////////////////////////////////////////////////////////////////////////////////////////////////g5kLBwAAABl0Uk5TAP8Ds+QtpRpgIn35Ud7vnMFxhNZFkswMPA2JIJgAAAFISURBVHicvZPbjsQgCIb5PdVT1dpW+/5PutTZncwp6V4NSasGBD4BoruI6E1LqRkfBb1LX2bcZV76i1r4dCoS1hW3nX/y0uW4aBbUiiWPg3xwMjU+Fxgy2DZedhS+0aa7Xp23MXeaQ+9BUV/5CKg/C7b2nKFxEwpRgZs4iPLs9aa3QKVtJA8Zo8TA2agCdgRIkIIyrJXhl7LYiExCIk30FdFakHbUtXO6k9MPO6H1gDxOdgvPiYoURMTu4alh0gN0wcKMLkNHVA0cFZuG6QxpB6eDqSXYdaYeyrIqL5MQao6p5R0Dc22lthx2jqZMlvwjfpZc9lbayHIPYdsTjjNaslx39hu53jYkPww2JE4siTPamVjgOveAYwL0MBAMeX4D+RftBq+/89D/KfdVw1y33HXTXrb99eB8Gr36OsBPw6vehnd4+Tj+P8K7EihG+ntRAAAAAElFTkSuQmCC');
 		--img_save:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAAnQAAAJ0Bj3LnbgAAADxQTFRFQlFtSVp52uHyws7lztbmjpmuUdjlu8TZeIminqi9WvH/rrjNVMbYxuT0Xm2HAAAAR1h3RVVyR1ZyR1h2eZplWQAAABR0Uk5T////////////////////ANT0HUjqAr+PAAAAgUlEQVR4nI3Q2RaDIAxF0RuCDNUWKP//ryXFWkUczmP2ghVAjkTklOQAvLT28R1CgMwbQCoC6oBIH4ocAOIR4BYoZtZboOHbKHlaQw3rTsFNNVObFjCP2gzmGvhZ47k/qOUdW7An4IdfDbAt+dLYgJbkR+zdq/YnYn+rhBxT2kPKH1FvCKEBnt/sAAAAAElFTkSuQmCC");
+		--img_save_mono:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAAnQAAAJ0Bj3LnbgAAADxQTFRFV1dXYWFh5eXl09PT2tram5ubnp6ejY2Nra2tysrKrKysvb29lpaWW1tbcnJy3d3dAAAAX19fXFxcXl5eL2vTkwAAABR0Uk5T//////////////////T//wDUHUizGkTXAAAAgUlEQVR4nI3QURKDIAxF0RcCAlUqlP3vtaRYq4jW+5kzMAHkRERWSRbAU2uXXjFGyLwBhCKgDoj0ocgJIJ0BboFiZr0HGj6NkqMt1LDtEuxUM7VpBfOoLWD+A881XvqBWt+xB38BbvjWAPuSK40NaEl+xN+96ngi9bcKyCmEI4T8BipnCJv9iKHqAAAAAElFTkSuQmCC");
 		--img_load:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAAnQAAAJ0Bj3LnbgAAADxQTFRF8MQZKbmZ8p0fAAAA8bIc8MIa8MQZq7NIKrmY7cQa0sIs8d2BebRn87wcLL+aJrmZ//8AdbhpAP//c69phZ/jMwAAABR0Uk5T//3/AP+y8v6kbP///xcZUAGrAUn40tQBAAAAp0lEQVR4nHWSiw6DIAwAy1peojLd///rKm3ZZOOiCXLpBRIhB2CCf+JeXUr1RAECATGQ+WN3TFUBKsJmJu0ijOCZo5m7EJzVRrE2c3ZBhoiXCXoYsYm4qejbUSbWo94HXCfZALXF0kVWQVAKP6Xo/hK0RHZcmVnAa+lzketYESBb6dvwPmxDqdX49TiWlIw/JeG6+ViCVsJZCWclnJVwVkLwfwau/+INBncEwpxiohQAAAAASUVORK5CYII=");
 		--img_delete:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAAnQAAAJ0Bj3LnbgAAADxQTFRF////AAAA////////////////////////////////////////////////////////////////////////npt1BAAAABR0Uk5T/wB3M/ryVkUE3GQ8bhvOlb+s6oPyVnGNAAAAt0lEQVR4nHWR2RaDIBBDGXZlVf//X8sMsQtt88BxuJpIUDTVrBLZhg1F0WutL/XUNUYfB/Dqh/Z/wA9AbLVIrIjMlySc6FyNHMC2gg2grqAC9BV0gIOHs4+z2y55B0DjvELJuUDFLYDzUsCfNAApKs/ustQFkFHP0C6PGkAmxz4j536HgdQYplWwUuEEAeF7xmkDgOGbSxyVo+EvEkCZzT0XZT7AmwpAXEEEWOutdANT7WvbVo6gB7iKBNvL+guBAAAAAElFTkSuQmCC");
+		--img_delete_mono:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAAnQAAAJ0Bj3LnbgAAADxQTFRF2NjYAAAAnZ2dRUVFbGxsg4ODg4ODjIyMXl5ejY2Nd3d3iIiIsrKyfn5+ycnJe3t7kJCQhYWFj4+PpqamFCC2sAAAABR0Uk5T/wD///6X/0j///tu/7z/3gaFJ5RWfO2aAAAAw0lEQVR4nIXQ2xaEIAgFUEA0b2mX///XgaJZ5jzMeVJ2CxLAOytbVisAbsV7fxJYSG6+bAIlEVGDb5pc0/7AlFQEUFtNuVohLj+5hiNymGOQYUo26DP0f7DquzKHWhNnfek6QHYuhhCdyxOwE5G64wG8LIRUtC6t2mmw64X0cxd1a+QHqOGGUAV2g5IAUrxbRT2XAa7hfA//whIApBOT/EHU87PEI+sMptaIdcYLXjs8DDZ+A28G2OtYrx0fWDoP6ToCP5HeB/Sxx091AAAAAElFTkSuQmCC");
 		--img_download:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAOxAAADsQBlSsOGwAAADxQTFRFAAAA////////////+f783ffv/v//3ffv3ffv5Pnz8fz56vr16/r23ffv9v377/v4////3vfw5Pny3ffvbBfD6AAAABR0Uk5TAP+TRfsGWm8m6uDv0U/LfyiIepVDO0gQAAAAbElEQVR4nNWPuQ6AIBAFF+S+j///V0FjWJTEwsqpyEzxFoBXKGnQvwcuQw9B8kkLIRzrgbn2ROGQFwwFbYe3GgUfR4gejyRqzg1D0+2q2gszdb6ql9x2bH54AFW0Lmrxc1BSPvw2gQKZ+BQW7MaRAtfJQ2l0AAAAAElFTkSuQmCC");
 		--img_mic:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAkAgMAAACcbnALAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAOxAAADsQBlSsOGwAAAAxQTFRFAQEB/f39W1tbsrKyhr4L4QAAAAR0Uk5TBv+O8t7TK14AAACVSURBVHicY2BAAatgDK7/C6As3dAKKGtqaByEwXQ1NLyBtizuJiCr6QGQxXsIyGouQGU5AVmNIBZ3EpDVCVLHXTA1NIwXxGKO2Boap3oAZFycduiLrWADpzfta7oGtsP0AQN3DMRrdau2QjzHFBoaCnEBw9bQKKh/maY1wIJjGgM6i+n/9f8Yrt///x9Ui9aqFQzIAACxbkd5KhPnwgAAAABJRU5ErkJggg==");
 		--img_mic_live:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAkAgMAAACcbnALAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAOxAAADsQBlSsOGwAAAAxQTFRFAAAAHvoBSldJTaRCcSDH5wAAAAR0Uk5TBv1875jbENYAAACVSURBVHicY2BAAatgDO7/D6As3dAKKGtqaBiEwXQ1NLyBtizuJiCrCeQG3kNAVnMBkMUKZgWAWE5AViOIxZ0EZHWC1HEWAFm8CUAWc8TW0DjVAyDj4oCu3wo28HrX/0XXwXaYPtDgj4F4LXzVVYjnmENDQw9APLc3tA7qX6brDbDgmMaAzsLq+v///0O1rFoFD0owAADWKEefP5UQnwAAAABJRU5ErkJggg==");
@@ -1886,6 +1889,27 @@ Current version indicated by LITEVER below.
 		flex-direction: column;
 		margin-top: 16px;
 		padding: 2px;
+		height: calc(100% - 20px);
+	}
+	.corpoleftpanelitemsinner
+	{
+		display: flex;
+		flex-direction: column;
+		padding: 2px;
+		overflow-y: auto;
+		overflow-x: hidden;
+		text-overflow: ellipsis;
+		display: inline-block;
+		margin: 2px;
+		margin-top: 4px;
+		margin-bottom: 4px;
+	}
+	.corpoleftpanelitemstopper
+	{
+		display: flex;
+		flex-direction: column;
+		padding: 2px;
+		display: inline-block;
 	}
 	.corpo_leftpanel_btn
 	{
@@ -1901,12 +1925,19 @@ Current version indicated by LITEVER below.
 		background-size: 24px;
 		overflow: hidden;
     	text-overflow: ellipsis;
-		display: inline-block;
 		white-space: nowrap;
 		user-select: none;
+		width: 100%;
 	}
 	.corpo_leftpanel_btn:hover {
 		background: #9dcef5;
+		background-repeat: no-repeat;
+    	background-position: 8px;
+		background-size: 24px;
+	}
+	.corpo_leftpanel_btn.red:hover {
+		color: #000000;
+		background: #f5767f;
 		background-repeat: no-repeat;
     	background-position: 8px;
 		background-size: 24px;
@@ -1918,6 +1949,14 @@ Current version indicated by LITEVER below.
 	{
 		color: #76a8ee;
 		background: #454545;
+		background-repeat: no-repeat;
+    	background-position: 8px;
+		background-size: 24px;
+	}
+	body.darkmode .corpo_leftpanel_btn.red:hover
+	{
+		color: #000000;
+		background: #f5767f;
 		background-repeat: no-repeat;
     	background-position: 8px;
 		background-size: 24px;
@@ -2105,7 +2144,7 @@ Current version indicated by LITEVER below.
 		color: #3bf723;
 	}
 	.color_lightgreen {
-		color: #b6ffa6;
+		color: #6db95e;
 	}
 	.color_offwhite {
 		color: #bedae9;
@@ -2991,6 +3030,10 @@ Current version indicated by LITEVER below.
 	const alltalk_voices_endpoint = "/api/voices";
 	const alltalk_rvc_voices_endpoint = "/api/rvcvoices";
 
+	const pollinations_img_endpoint = "https://image.pollinations.ai/prompt";
+	const pollinations_text_endpoint = "https://text.pollinations.ai/openai";
+	const dummy_pollinations_key = "kobo";
+
 	//support for quick news updates
 	const horde_news_endpoint = "https://hordenews.concedo.workers.dev"
 
@@ -3010,7 +3053,7 @@ Current version indicated by LITEVER below.
 	const ALLTALK_ID = 1001;
 	const OAI_TTS_ID = 1002;
 	const KCPP_TTS_ID = 1003;
-
+	const POLLINATIONS_TTS_ID = 1004;
 	const HD_RES_PX = 768;
 	const VHD_RES_PX = 960;
 	const NO_HD_RES_PX = 512;
@@ -3082,7 +3125,8 @@ Current version indicated by LITEVER below.
 	var uses_cors_proxy = false; //we start off attempting a direct connection. switch to proxy if that fails
 	var synchro_polled_response = null;
 	var last_stop_reason = ""; //update stop reason if known
-	var synchro_pending_stream = ""; //used for token pseduo streaming for kobold api only
+	var synchro_pending_stream = ""; //used for storing incomplete streaming text
+	var gemini_was_thinking = false; //used as a switch to determine when thinking ends, to wrap output in tags
 	var waiting_for_tool_call = 0; //0=not waiting, 1=autosummary, 2=websearchsummary
 	var oaiemulatecompletionscontent = "";
 	var italics_regex = new RegExp(/\*(\S[^*]+\S)\*/g); //the fallback regex
@@ -3090,6 +3134,7 @@ Current version indicated by LITEVER below.
 	var temp_scenario = null;
 	var last_token_budget = ""; //to display token limits
 	var last_known_filename = "saved_story.json";
+	var last_used_saveslot = -1; //used for corpo mode quicksave
 	var backup_localmodeport = 5001; //sometimes we reattempt a different port, this stores a backup
 	var localmodeport = 5001;
 	var localmodehost = "localhost";
@@ -3105,7 +3150,8 @@ Current version indicated by LITEVER below.
 	var koboldcpp_has_websearch = false;
 	var koboldcpp_has_savedatafile = false;
 	var koboldcpp_has_server_saving = false;
-	var koboldcpp_has_embeddings = false
+	var koboldcpp_has_embeddings = false;
+	var koboldcpp_has_admin_with_HF = false;
 	var koboldcpp_admin_type = 0; //0 = no admin, 1=has admin, 2=protected admin
 	var lastSearchQuery = "";
 	var lastSearchResults = [];
@@ -3120,6 +3166,7 @@ Current version indicated by LITEVER below.
 	var last_request_str = "No Requests Available"; //full context of last submitted request
 	var last_response_obj = null;
 	var lastcheckgenkey = ""; //for checking polled-streaming unique id when generating in kcpp
+	var kai_poll_recoverykey = ""; //for recovering a lost polled streaming in case of disconnect.
 	var globalabortcontroller = null;
 	var passed_ai_warning_local = false;
 	var welcome = "";
@@ -3131,6 +3178,7 @@ Current version indicated by LITEVER below.
 	let voiceprerecorder = null, voicerecorder = null, voice_is_speaking = false, voice_speaking_counter = 0;
 	let preaudiobuffers = [], preaudioblobs = []; //will store 2 preblobs at a time
 	var koboldcpp_has_tts = false;
+	var koboldcpp_has_guidance = false;
 	var no_escape_html = false;
 	var timetaken_timestamp = performance.now();
 	var bg_silence = null;
@@ -3157,6 +3205,7 @@ Current version indicated by LITEVER below.
 		saved_openrouter_key: "",
 		saved_mistralai_key: "",
 		saved_featherless_key: "",
+		saved_pollinations_key: "", //this is a dummy key and isnt needed
 		saved_grok_key:"",
 		saved_claude_key: "", //do not ever share this in save files!
 		saved_claude_addr: default_claude_base, //do not ever share this in save files!
@@ -3178,7 +3227,8 @@ Current version indicated by LITEVER below.
 		saved_xtts_url: default_xtts_base,
 		saved_alltalk_url: default_alltalk_base,
 		prev_custom_endpoint_type: 0, //show a reconnect box to custom endpoint if needed. 0 is horde, otherwise its dropdown value+1
-		generate_images_mode: (localflag?0:1), //0=off, 1=horde, 2=a1111, 3=dalle, 4=comfy
+		prev_custom_endpoint_model: "", //we may not be able to match, but set it if we do
+		generate_images_mode: (localflag?0:1), //0=off, 1=horde, 2=a1111, 3=dalle, 4=comfy, 5=pollinations
 
 		autoscroll: true, //automatically scroll to bottom on render
 		printer_view: false, //automatically scroll to bottom on render
@@ -3195,9 +3245,9 @@ Current version indicated by LITEVER below.
 		chat_context_mod: true, //extra injection for chat mode
 		chatname: "User", //name to use in chat
 		chatopponent: defaultchatopponent,
-		instruct_starttag: "\\n### Instruction:\\n",
-		instruct_endtag: "\\n### Response:\\n",
-		instruct_systag: "",
+		instruct_starttag: "{{[INPUT]}}",
+		instruct_endtag: "{{[OUTPUT]}}",
+		instruct_systag: "{{[SYSTEM]}}",
 		instruct_starttag_end: "",
 		instruct_endtag_end: "",
 		instruct_systag_end: "",
@@ -3223,7 +3273,7 @@ Current version indicated by LITEVER below.
 		image_styles: "",
 		image_negprompt: "",
 		grammar:"",
-		tokenstreammode: (localflag?2:0), //0=off,1=pollstream,2=sse
+		tokenstreammode: 2, //0=off,1=pollstream,2=sse
 		generate_images_model: "stable_diffusion", //"" is disabled and "*" is all, anything else is the model name pulled from stable horde
 		img_gen_from_instruct: true,
 		img_autogen: false,
@@ -3253,6 +3303,8 @@ Current version indicated by LITEVER below.
 		inject_chatnames_instruct: false,
 		inject_jailbreak_instruct: false,
 		custom_jailbreak_text: "Sure, I will help with that:\\n\\n",
+		guidance_prompt: "",
+		guidance_scale: 1.0,
 		separate_end_tags: false,
 		idle_responses: 0,
 		idle_duration: 60,
@@ -3320,7 +3372,7 @@ Current version indicated by LITEVER below.
 	let allTagsValid = () => {
 		let placeholders = !!instructstartplaceholder && !!instructstartplaceholder_end && !!instructsysplaceholder && !!instructsysplaceholder_end && !!instructendplaceholder && !!instructendplaceholder_end
 		let tags = !!localsettings.instruct_starttag && !!localsettings.instruct_endtag && !!localsettings.instruct_systag
-		// && !!localsettings.instruct_starttag_end && !!localsettings.instruct_endtag_end && !!localsettings.instruct_systag_end
+		&& !!localsettings.instruct_starttag_end && !!localsettings.instruct_endtag_end && !!localsettings.instruct_systag_end
 		return placeholders && tags
 	}
 
@@ -3357,6 +3409,15 @@ Current version indicated by LITEVER below.
 
 	const instructpresets = [
 	{
+		"name":"KoboldCppAutomatic",
+		"user":"{{[INPUT]}}",
+		"user_end":"",
+		"assistant":"{{[OUTPUT]}}",
+		"assistant_end":"",
+		"system":"{{[SYSTEM]}}",
+		"system_end":"",
+	},
+	{
 		"name":"Alpaca",
 		"user":"\\n### Instruction:\\n",
 		"user_end":"",
@@ -3384,6 +3445,15 @@ Current version indicated by LITEVER below.
 		"system_end":"<|END_OF_TURN_TOKEN|>",
 	},
 	{
+		"name":"Deepseek V2.5",
+		"user":"<｜User｜>",
+		"user_end":"<｜end▁of▁sentence｜>",
+		"assistant":"<｜Assistant｜>",
+		"assistant_end":"<｜end▁of▁sentence｜>",
+		"system":"",
+		"system_end":"",
+	},
+	{
 		"name":"Gemma 2 & 3",
 		"user":"<start_of_turn>user\\n",
 		"user_end":"<end_of_turn>\\n",
@@ -3391,6 +3461,15 @@ Current version indicated by LITEVER below.
 		"assistant_end":"<end_of_turn>\\n",
 		"system":"<start_of_turn>user\\n",
 		"system_end":"<end_of_turn>\\n",
+	},
+	{
+		"name":"GLM-4",
+		"user":"<|user|>\\n",
+		"user_end":"",
+		"assistant":"<|assistant|>\\n",
+		"assistant_end":"",
+		"system":"<|system|>\\n",
+		"system_end":"",
 	},
 	{
 		"name":"Llama 2 Chat",
@@ -4092,10 +4171,22 @@ Current version indicated by LITEVER below.
 
 				//offer to reconnect
 				let pending_eptype = localsettings.prev_custom_endpoint_type;
+				let pending_custmodel = localsettings.prev_custom_endpoint_model;
 				if(!localflag && pending_eptype>0)
 				{
 					msgboxYesNo("Reconnect to previous custom endpoint?","Custom Endpoint Reconnect",()=>{
 						document.getElementById("customapidropdown").value = (pending_eptype).toString();
+						if(pending_custmodel)
+						{
+							let dropdown = get_custom_ep_model_dropdown();
+							if(dropdown)
+							{
+								const hasValue = Array.from(dropdown.options).some(option => option.value === pending_custmodel);
+								if (hasValue) {
+									dropdown.value = pending_custmodel;
+								}
+							}
+						}
 						display_endpoint_container();
 					},null);
 				}
@@ -4181,12 +4272,6 @@ Current version indicated by LITEVER below.
 		});
 	}
 
-	const tokenstreaming = urlParams.get('streaming');
-	if(tokenstreaming)
-	{
-		localsettings.tokenstreammode = 1;
-	}
-
 	//toggle genimg btn
 	update_genimg_button_visiblility();
 	update_websearch_button_visibility();
@@ -4237,50 +4322,68 @@ Current version indicated by LITEVER below.
 	}
 	function get_instruct_starttag(doTrim=true)
 	{
+		let instag = localsettings.instruct_starttag;
+		if(instag=="{{[INPUT]}}" && !(custom_kobold_endpoint != "" && is_using_kcpp_with_autotags()))
+		{
+			instag = "\n### Instruction:\n"; //backend not compatible with auto
+		}
 		if(doTrim){
-			return replaceAll(localsettings.instruct_starttag, "\\n", "\n").trim();
+			return replaceAll(instag, "\\n", "\n").trim();
 		} else {
-			return replaceAll(localsettings.instruct_starttag, "\\n", "\n");
+			return replaceAll(instag, "\\n", "\n");
 		}
 	}
 	function get_instruct_endtag(doTrim=true)
 	{
+		let instag = localsettings.instruct_endtag;
+		if(instag=="{{[OUTPUT]}}" && !(custom_kobold_endpoint != "" && is_using_kcpp_with_autotags()))
+		{
+			instag = "\n### Response:\n"; //backend not compatible with auto
+		}
 		if(doTrim){
-			return replaceAll(localsettings.instruct_endtag, "\\n", "\n").trim();
+			return replaceAll(instag, "\\n", "\n").trim();
 		} else {
-			return replaceAll(localsettings.instruct_endtag, "\\n", "\n");
+			return replaceAll(instag, "\\n", "\n");
 		}
 	}
 	function get_instruct_systag(doTrim=true)
 	{
+		let instag = localsettings.instruct_systag;
+		if(instag=="{{[SYSTEM]}}" && !(custom_kobold_endpoint != "" && is_using_kcpp_with_autotags()))
+		{
+			instag = ""; //backend not compatible with auto
+		}
 		if(doTrim){
-			return replaceAll(localsettings.instruct_systag, "\\n", "\n").trim();
+			return replaceAll(instag, "\\n", "\n").trim();
 		} else {
-			return replaceAll(localsettings.instruct_systag, "\\n", "\n");
+			return replaceAll(instag, "\\n", "\n");
 		}
 	}
 	function get_instruct_starttag_end(doTrim=true)
 	{
+		let instag = localsettings.instruct_starttag_end;
 		if(doTrim){
-			return replaceAll(localsettings.instruct_starttag_end, "\\n", "\n").trim();
+			return replaceAll(instag, "\\n", "\n").trim();
 		} else {
-			return replaceAll(localsettings.instruct_starttag_end, "\\n", "\n");
+			return replaceAll(instag, "\\n", "\n");
 		}
 	}
 	function get_instruct_endtag_end(doTrim=true)
 	{
+		let instag = localsettings.instruct_endtag_end;
 		if(doTrim){
-			return replaceAll(localsettings.instruct_endtag_end, "\\n", "\n").trim();
+			return replaceAll(instag, "\\n", "\n").trim();
 		} else {
-			return replaceAll(localsettings.instruct_endtag_end, "\\n", "\n");
+			return replaceAll(instag, "\\n", "\n");
 		}
 	}
 	function get_instruct_systag_end(doTrim=true)
 	{
+		let instag = localsettings.instruct_systag_end;
 		if(doTrim){
-			return replaceAll(localsettings.instruct_systag_end, "\\n", "\n").trim();
+			return replaceAll(instag, "\\n", "\n").trim();
 		} else {
-			return replaceAll(localsettings.instruct_systag_end, "\\n", "\n");
+			return replaceAll(instag, "\\n", "\n");
 		}
 	}
 	function get_instruct_latest_end(doTrim=true)
@@ -4290,36 +4393,21 @@ Current version indicated by LITEVER below.
 		let strA = instructstartplaceholder;
 		let strB = instructendplaceholder;
 		let strC = instructsysplaceholder;
-		if(!localsettings.placeholder_tags)
-		{
-			strA = get_instruct_starttag(true);
-			strB = get_instruct_endtag(true);
-			strC = get_instruct_systag(true);
-		}
 		let lastA = strA?truncated_context.lastIndexOf(strA):-1;
 		let lastB = strB?truncated_context.lastIndexOf(strB):-1;
 		let lastC = strC?truncated_context.lastIndexOf(strC):-1;
 
 		const maxIndex = Math.max(lastA, lastB, lastC);
-		if(localsettings.placeholder_tags)
-		{
-			if (maxIndex === -1) return "";
-			if (maxIndex === lastA) return instructstartplaceholder_end;
-			if (maxIndex === lastB) return instructendplaceholder_end;
-			return instructsysplaceholder_end;
-		}
-		else
-		{
-			if (maxIndex === -1) return "";
-			if (maxIndex === lastA) return get_instruct_starttag_end(doTrim);
-			if (maxIndex === lastB) return get_instruct_endtag_end(doTrim);
-			return get_instruct_systag_end(doTrim);
-		}
+
+		if (maxIndex === -1) return "";
+		if (maxIndex === lastA) return instructstartplaceholder_end;
+		if (maxIndex === lastB) return instructendplaceholder_end;
+		return instructsysplaceholder_end;
+
 	}
 
-	function replace_search_placeholders(text) {
-
-		// Remove any instruct tags as needed to ensure a more accurate search
+	function remove_all_instruct_tags(text)
+	{
 		text = replaceAll(text, get_instruct_starttag(false), "");
 		text = replaceAll(text, get_instruct_endtag(false), "");
 		text = replaceAll(text, get_instruct_systag(false), "");
@@ -4329,6 +4417,12 @@ Current version indicated by LITEVER below.
 		text = text.replace(/\{\{\[INPUT\]\}\}/g, "").replace(/\{\{\[OUTPUT\]\}\}/g, "");
 		text = text.replace(/\{\{\[INPUT_END\]\}\}/g, "").replace(/\{\{\[OUTPUT_END\]\}\}/g, "");
 		text = text.replace(/\{\{\[SYSTEM\]\}\}/g, "").replace(/\{\{\[SYSTEM_END\]\}\}/g, "");
+		return text;
+	}
+	function replace_search_placeholders(text) {
+
+		// Remove any instruct tags as needed to ensure a more accurate search
+		text = remove_all_instruct_tags(text);
 
 		// Replace {{user}} and other placeholders
 		text = replace_placeholders(text);
@@ -4384,10 +4478,9 @@ Current version indicated by LITEVER below.
 	//if alwaysreplace, then settings are not considered, otherwise checks settings
 	function replace_placeholders(inputtxt, escape=false, alwaysreplace=false)
 	{
-		//only do this for chat and instruct modes
+		inputtxt = replace_instruct_placeholders(inputtxt);
 		if(alwaysreplace || localsettings.placeholder_tags)
 		{
-			inputtxt = replace_instruct_placeholders(inputtxt);
 			inputtxt = replace_noninstruct_placeholders(inputtxt,escape);
 		}
 		return inputtxt;
@@ -4980,6 +5073,33 @@ Current version indicated by LITEVER below.
 			console.log("AbortController Not Supported: " + e);
 		}
 	}
+	function show_last_incomplete_kai_syncpoll_request()
+	{
+		if(kai_poll_recoverykey=="")
+		{
+			return;
+		}
+		hide_msgbox();
+		fetch(custom_kobold_endpoint + koboldcpp_check_endpoint, {
+			method: 'POST',
+			headers: get_kobold_header(),
+			body: JSON.stringify({
+			"genkey": kai_poll_recoverykey
+			}),
+		})
+		.then((response) => response.json())
+		.then((data) => {
+			//makes sure a delayed response doesnt arrive late and mess up
+			if (data && data.results != null && data.results.length > 0 && data.results[0].text) {
+				let recovered = data.results[0].text;
+				msgbox(recovered,"Recovered Last Response");
+			}
+		})
+		.catch((error) => {
+			console.error('Error:', error);
+		});
+		kai_poll_recoverykey = "";
+	}
 	function kobold_api_sync_req(sub_endpt,submit_payload,trackedgenid)
 	{
 		let reqOpt = {
@@ -5020,6 +5140,7 @@ Current version indicated by LITEVER below.
 						//offer to abort
 						msgboxYesNo("Attempt to abort existing request?","Send Abort Command?",()=>{
 							lastcheckgenkey = "";
+							kai_poll_recoverykey = "";
 							abort_generation();
 						},null);
 					}
@@ -5031,8 +5152,17 @@ Current version indicated by LITEVER below.
 			console.error('Error:', error);
 			if(error.name!="AbortError") //aborts are silent
 			{
+				if(synchro_pending_stream!="" && lastcheckgenkey!="")
+				{
+					kai_poll_recoverykey = lastcheckgenkey;
+				}
 				flush_streaming_text();
-				msgbox("Error while submitting prompt: " + error);
+				if(kai_poll_recoverykey!="")
+				{
+					msgbox(`Error while submitting prompt: ${error}<br><br><a href="#" onclick="show_last_incomplete_kai_syncpoll_request()" class="color_blueurl">Click Here</a> to attempt to recover the last response. This is not guaranteed to work.`,"Error Encountered",true);
+				}else{
+					msgbox("Error while submitting prompt: " + error);
+				}
 			}
 			clear_poll_flags();
 			render_gametext();
@@ -5197,7 +5327,20 @@ Current version indicated by LITEVER below.
 			if (custom_gemini_key != "" && data.candidates != null && data.candidates.length>0 && data.candidates[0].output && data.candidates[0].output != "") {
 				synchro_polled_response = data.candidates[0].output;
 			}else if (custom_gemini_key != "" && data.candidates != null && data.candidates.length>0 && data.candidates[0].content && data.candidates[0].content.parts != null && data.candidates[0].content.parts.length>0) {
-				synchro_polled_response = data.candidates[0].content.parts[0].text;
+				synchro_polled_response = "";
+				for(let x=0;x<data.candidates[0].content.parts.length;++x)
+				{
+					if(!data.candidates[0].content.parts[x].text)
+					{
+						continue;
+					}
+					let tmp = data.candidates[0].content.parts[x].text;
+					if(data.candidates[0].content.parts[x].thought)
+					{
+						tmp = `<think>${tmp}</think>`;
+					}
+					synchro_polled_response += tmp;
+				}
 				//try to handle the stripping of spaces
 				if(localsettings.opmode==1 && gametext_arr.length>0 && synchro_polled_response!="")
 				{
@@ -5238,6 +5381,10 @@ Current version indicated by LITEVER below.
 				}
 				else if (dch.message) {
 					synchro_polled_response = dch.message.content;
+					if(dch.message.content==null && dch.message.reasoning_content!=null && dch.message.reasoning_content!="") //vllm compat
+					{
+						synchro_polled_response = dch.message.reasoning_content;
+					}
 
 					if(oaiemulatecompletionscontent!="" && synchro_polled_response!="" && synchro_polled_response.startsWith(oaiemulatecompletionscontent))
 					{
@@ -5275,6 +5422,7 @@ Current version indicated by LITEVER below.
 	function oai_api_stream_sse(sub_endpt,submit_payload,submit_headers)
 	{
 		synchro_pending_stream = "";
+		gemini_was_thinking = false;
 		let reqOpt =
 		{method: 'POST',
 		headers: submit_headers,
@@ -5327,9 +5475,25 @@ Current version indicated by LITEVER below.
 						for (let event of chunk) {
 							//for gemini
 							if (event.data && event.data.candidates && event.data.candidates.length>0) {
-								if(event.data.candidates[0].content && event.data.candidates[0].content.parts && event.data.candidates[0].content.parts.length>0 && event.data.candidates[0].content.parts[0].text)
+								if(event.data.candidates[0].content && event.data.candidates[0].content.parts && event.data.candidates[0].content.parts.length>0)
 								{
-									synchro_pending_stream += event.data.candidates[0].content.parts[0].text;
+									for(let x=0;x<event.data.candidates[0].content.parts.length;++x)
+									{
+										if(event.data.candidates[0].content.parts[x].thought)
+										{
+											gemini_was_thinking = true;
+										}
+										if(!event.data.candidates[0].content.parts[x].text)
+										{
+											continue;
+										}
+										if(!event.data.candidates[0].content.parts[x].thought && gemini_was_thinking)
+										{
+											synchro_pending_stream = `<think>${synchro_pending_stream}</think>`;
+											gemini_was_thinking = false;
+										}
+										synchro_pending_stream += event.data.candidates[0].content.parts[x].text;
+									}
 								}
 								continue;
 							}
@@ -5342,6 +5506,9 @@ Current version indicated by LITEVER below.
 								}else if(event.data.choices[0].delta && event.data.choices[0].delta.content)
 								{
 									synchro_pending_stream += event.data.choices[0].delta.content;
+								}else if(event.data.choices[0].delta && !event.data.choices[0].delta.content && event.data.choices[0].delta.reasoning_content!=null&& event.data.choices[0].delta.reasoning_content!="")
+								{
+									synchro_pending_stream += event.data.choices[0].delta.reasoning_content;
 								}
 
 								//mistral prefill interception
@@ -5379,6 +5546,7 @@ Current version indicated by LITEVER below.
 						synchro_polled_response = cleanup_story_completion(synchro_polled_response);
 					}
 					synchro_pending_stream = "";
+					gemini_was_thinking = false;
 					poll_pending_response();
 					//handle gen failures
 					if(resp.status==503)
@@ -5539,6 +5707,14 @@ Current version indicated by LITEVER below.
 			return input;
 		};
 		const formatMarkdown = (md) => {
+			let append_spcetg = false;
+			if(md.trim().startsWith("%SpcEtg%")) //this can cause issues matching start of response, so we note it down and remove it first
+			{
+				let idxof = md.indexOf("%SpcEtg%");
+				md = md.substring(idxof+8);
+				append_spcetg = true;
+			}
+
 			md = md.replace(/^###### (.*?)\s*#*$/gm, "<h6>$1</h6>")
 			.replace(/^##### (.*?)\s*#*$/gm, "<h5>$1</h5>")
 			.replace(/^#### (.*?)\s*#*$/gm, "<h4>$1</h4>")
@@ -5595,6 +5771,11 @@ Current version indicated by LITEVER below.
 			.replace(/^((?:\|[^|\r\n]*[^|\r\n\s]\s*)+\|(?:\r?\n|\r|))+/gm,
 				(matchedTable) => convertMarkdownTableToHtml(matchedTable))
 			.replace(/  \n/g, "\n<br/>");
+			if(append_spcetg)
+			{
+				append_spcetg = false;
+				md = `%SpcEtg%${md}`;
+			}
 			md = replaceTabbedCodeblocks(md);
 			md = md.replace(/<\/code\><\/pre\>\n<pre\><code\>/g, "\n");
 			if(renderLatex)
@@ -6171,6 +6352,65 @@ Current version indicated by LITEVER below.
 		},false);
 	}
 
+	function generate_pollinations_image(req_payload)
+	{
+		let splits = req_payload.prompt.split("###");
+		let prompt = splits[0].trim();
+		let negprompt = (splits.length > 1 ? splits[1] : "");
+
+		const pollinations_params = new URLSearchParams({
+			model:req_payload.models[0],
+			seed:Math.floor(Math.random() * 99999999),
+			width: req_payload.params.width,
+			height: req_payload.params.height,
+			nologo: true,
+			private: true,
+			referrer: "koboldai"
+		});
+
+		let gen_endpoint = `${pollinations_img_endpoint}/${encodeURIComponent(prompt)}?${pollinations_params.toString()}`;
+
+		console.log(gen_endpoint);
+		let imgid = "PollAIimg"+(Math.floor(10000 + Math.random() * 90000)).toString();
+		let nimgtag = "[<|p|" + imgid + "|p|>]";
+		if (localsettings.img_newturn) {
+			if(localsettings.opmode == 4)
+			{
+				nimgtag = wrap_newgen_instruct_format(nimgtag,false);
+			}
+			else if(localsettings.opmode == 3)
+			{
+				nimgtag = wrap_newgen_chat_format(nimgtag);
+			}
+		}
+		gametext_arr.push(nimgtag);
+		image_db[imgid] = { done: false, queue: "Generating", result: "", prompt:prompt, poll_category:0 };
+		image_db[imgid].aspect = (req_payload.params.width>=req_payload.params.height*2?5:(req_payload.params.height>=req_payload.params.width*2?4:(req_payload.params.width>req_payload.params.height?2:(req_payload.params.width<req_payload.params.height?1:0))));
+		image_db[imgid].imsource = 0; //0=generated,1=uploaded
+
+		fetch(gen_endpoint, {
+			method: 'GET',
+		})
+		.then((response) => {
+			return response.blob(); // Convert the response into a Blob
+		})
+		.then((finalimg) => {
+			const reader = new FileReader();
+			reader.onloadend = () => {
+				let origImg = reader.result;
+				let imgres = localsettings.img_allowhd?(localsettings.img_aspect==0?NO_HD_RES_PX:HD_RES_PX):NO_HD_RES_PX;
+				compressImage(origImg, (newDataUri) => {
+					image_db[imgid].done = true;
+					image_db[imgid].result = newDataUri;
+				}, false, imgres);
+			};
+			reader.readAsDataURL(finalimg);
+		}).catch((error) => {
+			console.log("Generation Error: " + error);
+			msgbox("Image Generation Failed!\n\nCould not generate image with Pollinations.ai, maybe you are rate limited. Try again later.\n");
+		});
+	}
+
 	function set_horde_key()
 	{
 		inputBox("Enter AI Horde API Key.\n\nThe same key is used for image and text generation in AI Horde.","AI Horde API Key",localsettings.my_api_key,"Input AI Horde API Key", ()=>{
@@ -6255,6 +6495,10 @@ Current version indicated by LITEVER below.
 		if(localsettings.saved_dalle_model!="gpt-image-1")
 		{
 			dalle_payload["response_format"] = "b64_json";
+		}
+		else
+		{
+			dalle_payload["quality"] = "medium";
 		}
 
 		//remove all null fields
@@ -6368,6 +6612,14 @@ Current version indicated by LITEVER below.
 	{
 		return (custom_kobold_endpoint!="" && koboldcpp_version && koboldcpp_version!="" && compare_version_str(koboldcpp_version, "1.83") >= 0 && koboldcpp_admin_type>0);
 	}
+	function is_using_kcpp_with_autotags()
+	{
+		return (custom_kobold_endpoint!="" && koboldcpp_version && koboldcpp_version!="" && compare_version_str(koboldcpp_version, "1.88") >= 0);
+	}
+	function is_using_kcpp_with_guidance()
+	{
+		return (custom_kobold_endpoint!="" && koboldcpp_version && koboldcpp_version!="" && compare_version_str(koboldcpp_version, "1.90") >= 0 && koboldcpp_has_guidance);
+	}
 	function is_using_web_lite()
 	{
 		return (window.location.hostname.includes("koboldai.net") || window.location.hostname.includes("lostruins.github.io"));
@@ -6377,6 +6629,13 @@ Current version indicated by LITEVER below.
 		return (custom_kobold_endpoint != "" && koboldcpp_version && koboldcpp_version != "" && compare_version_str(koboldcpp_version, "1.84") >= 0 && koboldcpp_has_embeddings);
 	}
 
+	function is_using_kcpp_with_admin_with_HF() {
+		return (custom_kobold_endpoint != "" && koboldcpp_version && koboldcpp_version != "" && compare_version_str(koboldcpp_version, "1.84") >= 0 && koboldcpp_has_admin_with_HF);
+	}
+
+	function is_using_kcpp_with_server_saving() {
+		return (custom_kobold_endpoint != "" && koboldcpp_version && koboldcpp_version != "" && compare_version_str(koboldcpp_version, "1.84") >= 0 && koboldcpp_has_server_saving);
+	}
 
 	function determine_if_ban_eos(input_was_empty) {
 		if(localsettings.eos_ban_mode == 3)
@@ -6678,6 +6937,7 @@ Current version indicated by LITEVER below.
 			new_save_storyobj.savedsettings.saved_grok_key = "";
 			new_save_storyobj.savedsettings.saved_palm_key = "";
 			new_save_storyobj.savedsettings.saved_cohere_key = "";
+			new_save_storyobj.savedsettings.saved_pollinations_key = "";
 
 			new_save_storyobj.savedsettings.modelhashes = [];
 
@@ -7071,6 +7331,7 @@ Current version indicated by LITEVER below.
 					let tmp_or1 = localsettings.saved_openrouter_key;
 					let tmp_mai = localsettings.saved_mistralai_key;
 					let tmp_fai = localsettings.saved_featherless_key;
+					let tmp_pol = localsettings.saved_pollinations_key;
 					let tmp_grok = localsettings.saved_grok_key;
 					let tmp_claude1 = localsettings.saved_claude_key;
 					let tmp_claude2 = localsettings.saved_claude_addr;
@@ -7126,6 +7387,7 @@ Current version indicated by LITEVER below.
 					localsettings.saved_openrouter_key = tmp_or1;
 					localsettings.saved_mistralai_key = tmp_mai;
 					localsettings.saved_featherless_key = tmp_fai;
+					localsettings.saved_pollinations_key = tmp_pol;
 					localsettings.saved_grok_key = tmp_grok;
 					localsettings.saved_claude_key = tmp_claude1;
 					localsettings.saved_claude_addr = tmp_claude2;
@@ -7261,6 +7523,44 @@ Current version indicated by LITEVER below.
 			console.log("ERROR ALT GREETING NOT FOUND");
 		}
 	}
+
+	function replaceDocumentFromTextDB(documentName, documentContent) {
+		if (documentdb_data.indexOf(`[DOCUMENT BREAK][${documentName}]`) !== -1) {
+			regex = `\(\\[DOCUMENT BREAK\\]\\[${documentName}\\]\)\(.*?\)\(\\[DOCUMENT BREAK\\]\)`
+			documentdb_data = documentdb_data.replace(new RegExp(regex, "s"), `$1${documentContent.trim()}$3`)
+		}
+		else {
+			documentdb_data += `[DOCUMENT BREAK][${documentName}]${documentContent.trim()}[DOCUMENT BREAK]`
+		}
+		document.getElementById("documentdb_data").value = documentdb_data;
+	}
+
+	function importLorebookAsTextDB(lorebook) {						
+		if (!!lorebook?.entries)
+		{
+			let outputText = Object.values(lorebook.entries)
+				.map(loreEntry => {
+					let {name, comment, content} = loreEntry;
+					let keys = [...new Set([...loreEntry.key, ...loreEntry.keys, ...loreEntry.keysecondary])];
+					let description = `### Name: ${name}`
+					if (comment !== name) {
+						description += `\n(Description: ${comment})`
+					}
+					if (keys.length > 0)
+					{
+						description += `\n(Alternative names: ${keys.join(",")})`
+					}
+					description += `\nDetails: ${content}`
+					return description
+				});
+			replaceDocumentFromTextDB(lorebook?.name, outputText.join("\n\n"))
+			return true
+		}
+		else
+		{
+			return false
+		}
+	}
 	function load_tavern_obj(obj)
 	{
 		let selectedgreeting = "";
@@ -7334,33 +7634,15 @@ Current version indicated by LITEVER below.
 			if(combinedmem.trim()=="" && greeting=="" && obj.entries)
 			{
 				msgboxYesNo("Import World Info / Lorebook into TextDB instead of overwriting existing World Info?\n\nYes = TextDB Used\nNo = World Info Used\n\nIf unsure, select 'No'.","Import World Info / Lorebook Mode", ()=>{
-					let importLorebookAsTextDB = (lorebook) => {						
-						if (!!lorebook?.entries)
-						{
-							let outputText = Object.values(lorebook.entries)
-								.map(loreEntry => {
-									let {name, comment, content} = loreEntry;
-									let keys = [...new Set([...loreEntry.key, ...loreEntry.keys, ...loreEntry.keysecondary])];
-									let description = `### Name: ${name}`
-									if (comment !== name) {
-										description += `\n(Description: ${comment})`
-									}
-									if (keys.length > 0)
-									{
-										description += `\n(Alternative names: ${keys.join(",")})`
-									}
-									description += `\nDetails: ${content}`
-									return description
-								});
-							documentdb_data += `[DOCUMENT BREAK][${lorebook?.name}]${outputText.join("\n\n")}`;
-							msgbox(`Lorebook "${lorebook?.name}" loaded into TextDB`)
-						}
-						else
-						{
-							msgbox(`No entries found for ${lorebook?.name}`)
-						}
+					let importSuccessful = importLorebookAsTextDB(obj)
+					if (importSuccessful)
+					{
+						msgbox(`Lorebook "${lorebook?.name}" loaded into TextDB`) 
 					}
-					importLorebookAsTextDB(obj)
+					else
+					{
+						msgbox(`No entries found for ${lorebook?.name}`)
+					}
 				},()=>{
 					current_wi = load_tavern_wi(obj,chatopponent,myname);
 				});
@@ -7379,7 +7661,10 @@ Current version indicated by LITEVER below.
 				if(usechatmode)
 				{
 					localsettings.opmode = 3;
-					localsettings.gui_type_chat = 2;
+					if(localsettings.gui_type_chat!=3)
+					{
+						localsettings.gui_type_chat = 2;
+					}
 					gametext_arr.push("\n"+chatopponent+": "+greeting);
 				}
 				else
@@ -7393,6 +7678,10 @@ Current version indicated by LITEVER below.
 				if(obj.character_book && obj.character_book.entries && obj.character_book.entries.length>0)
 				{
 					current_wi = load_tavern_wi(obj.character_book,chatopponent,myname);
+				}
+				else if (obj.data && obj.data.character_book && obj.data.character_book.entries && obj.data.character_book.entries.length > 0)
+				{
+					current_wi = load_tavern_wi(obj.data.character_book, chatopponent, myname);
 				}
 				else if(obj.entries && obj.entries.length>0)
 				{
@@ -7441,7 +7730,10 @@ Current version indicated by LITEVER below.
 		gametext_arr.push("\n"+chatopponent+": "+greeting);
 		current_memory = memory + scenario + examplemsg + "\n***";
 		localsettings.opmode = 3;
-		localsettings.gui_type_chat = 2;
+		if(localsettings.gui_type_chat!=3)
+		{
+			localsettings.gui_type_chat = 2;
+		}
 		update_for_sidepanel();
 		render_gametext(true);
 		sync_multiplayer(true);
@@ -7580,10 +7872,14 @@ Current version indicated by LITEVER below.
 			temp_scenario.memory = combinedmem;
 
 			//since cai format has no wi, try to grab it from tavern format
+			let myname = ((localsettings.chatname && localsettings.chatname!="")?localsettings.chatname:"User");
 			if(obj.character_book && obj.character_book.entries && obj.character_book.entries.length>0)
 			{
-				let myname = ((localsettings.chatname && localsettings.chatname!="")?localsettings.chatname:"User");
 				temp_scenario.worldinfo = load_tavern_wi(obj.character_book,chatopponent,myname);
+			}
+			else if (obj.data && obj.data.character_book && obj.data.character_book.entries && obj.data.character_book.entries.length > 0)
+			{
+				temp_scenario.worldinfo = load_tavern_wi(obj.data.character_book, chatopponent, myname);
 			}
 			preview_temp_scenario();
 		}
@@ -7759,7 +8055,10 @@ Current version indicated by LITEVER below.
 				current_memory = combinedmem;
 			}
 			localsettings.opmode = 3;
-			localsettings.gui_type_chat = 2;
+			if(localsettings.gui_type_chat!=3)
+			{
+				localsettings.gui_type_chat = 2;
+			}
 			localsettings.chatopponent = chatopponent;
 			update_for_sidepanel();
 			render_gametext();
@@ -7855,9 +8154,12 @@ Current version indicated by LITEVER below.
 			}
 		}
 		if (temp_scenario.opmode == 3) {
-			if (temp_scenario.gui_type===1) { localsettings.gui_type_chat = 1; }
-			else if(temp_scenario.gui_type===2) { localsettings.gui_type_chat = 2; }
-			else if(temp_scenario.gui_type===0) { localsettings.gui_type_chat = 0; }
+			if(localsettings.gui_type_chat!=3)
+			{
+				if (temp_scenario.gui_type===1) { localsettings.gui_type_chat = 1; }
+				else if(temp_scenario.gui_type===2) { localsettings.gui_type_chat = 2; }
+				else if(temp_scenario.gui_type===0) { localsettings.gui_type_chat = 0; }
+			}
 
 			if (temp_scenario.multiline_replies===true) { localsettings.multiline_replies = true; }
 			else if(temp_scenario.multiline_replies===false) { localsettings.multiline_replies = false; }
@@ -8818,7 +9120,7 @@ Current version indicated by LITEVER below.
 
 	function expand_tokens_section(targetid)
 	{
-		let tablist = ["expandregexreplace","expandthinking","expandtokenbans","expandlogitbias","expandplaceholdertags"];
+		let tablist = ["expandregexreplace","expandthinking","expandtokenbans","expandlogitbias","expandplaceholdertags","expandguidance"];
 
 		for(let i=0;i<tablist.length;++i)
 		{
@@ -9170,34 +9472,48 @@ Current version indicated by LITEVER below.
 		}
 	}
 
-	function get_oai_model_dropdown()
+	function get_custom_ep_model_dropdown(ep_id=null) //if desired id not provided, use dynamic val
 	{
-		let ddval = document.getElementById("customapidropdown").value;
+		let ddval = (ep_id?ep_id.toString():document.getElementById("customapidropdown").value);
 		switch(ddval)
 		{
+			case "0": //horde
+				return document.getElementById("custom_oai_model"); //just return oai
+			case "1": //kai
+				return document.getElementById("custom_oai_model"); //just return oai
+			case "2":
+				return document.getElementById("custom_oai_model");
 			case "3":
 				return document.getElementById("custom_openrouter_model");
+			case "4":
+				return document.getElementById("custom_claude_model");
+			case "5":
+				return document.getElementById("custom_gemini_model");
+			case "6":
+				return document.getElementById("custom_cohere_model");
 			case "7":
 				return document.getElementById("custom_mistralai_model");
 			case "8":
 				return document.getElementById("custom_featherless_model");
 			case "9":
 				return document.getElementById("custom_grok_model");
+			case "10":
+				return document.getElementById("custom_pollinations_model");
 			default:
-				return document.getElementById("custom_oai_model");
+				return document.getElementById("custom_oai_model"); //just return oai
 		}
 	}
 	function ep_should_always_use_chat_completions()
 	{
 		let epchoice = document.getElementById("customapidropdown").value;
-		return (epchoice==7);
+		return (epchoice==7 || epchoice==10);
 	}
 
 	function select_custom_oai_model()
 	{
 		inputBox("Enter custom model name","Custom Model Name",localsettings.saved_oai_custommodel,"", ()=>{
 			let coai = getInputBoxValue().trim();
-			let dropdown = get_oai_model_dropdown();
+			let dropdown = get_custom_ep_model_dropdown();
 			var mdlopt = dropdown.querySelector('option.custom_model_option');
 			if(coai!="")
 			{
@@ -9211,7 +9527,7 @@ Current version indicated by LITEVER below.
 	}
 	function oai_model_change(autotoggle_check = false)
 	{
-		let dropdown = get_oai_model_dropdown();
+		let dropdown = get_custom_ep_model_dropdown();
 		let non_completions = (dropdown.value.includes("davinci-002") || dropdown.value.includes("text-davinci-003") || dropdown.value.includes("text-davinci-002")
 		|| dropdown.value.includes("text-davinci-001") || dropdown.value.includes("gpt-3.5-turbo-instruct") || dropdown.value == "davinci");
 		if(autotoggle_check)
@@ -9373,7 +9689,7 @@ Current version indicated by LITEVER below.
 		}
 
 		let isOpenrouter = (document.getElementById("customapidropdown").value==3);
-		let dropdown = get_oai_model_dropdown();
+		let dropdown = get_custom_ep_model_dropdown();
 		fetch((desired_oai_ep + oai_models_endpoint), {
 			method: 'GET',
 			headers: oaiheaders,
@@ -9499,6 +9815,7 @@ Current version indicated by LITEVER below.
 		document.getElementById("custom_mistralai_model").classList.add("hidden");
 		document.getElementById("custom_featherless_model").classList.add("hidden");
 		document.getElementById("custom_grok_model").classList.add("hidden");
+		document.getElementById("custom_pollinations_model").classList.add("hidden");
 		document.getElementById("hordeloadmodelcontainer").classList.add("hidden");
 		document.getElementById("coherecustom").classList.add("hidden");
 
@@ -9516,14 +9833,17 @@ Current version indicated by LITEVER below.
 				document.getElementById("customkoboldkey").value = localsettings.saved_kai_key;
 			}
 		}
-		else if(epchoice==2 || epchoice==3 || epchoice==7 || epchoice==8 || epchoice==9)
+		else if(epchoice==2 || epchoice==3 || epchoice==7 || epchoice==8 || epchoice==9 || epchoice==10)
 		{
 			document.getElementById("oaicustom").classList.remove("hidden");
+			document.getElementById("custom_oai_endpoint").classList.add("hidden");
+			document.getElementById("custom_oai_key").classList.remove("hidden");
 			document.getElementById("openrouterdesc").classList.add("hidden");
 			document.getElementById("mistralaidesc").classList.add("hidden");
 			document.getElementById("featherlessdesc").classList.add("hidden");
 			document.getElementById("grokdesc").classList.add("hidden");
 			document.getElementById("oaidesc").classList.add("hidden");
+			document.getElementById("pollinationsdesc").classList.add("hidden");
 			document.getElementById("openrouterproviderbox").classList.add("hidden");
 			if(epchoice==2)
 			{
@@ -9542,7 +9862,6 @@ Current version indicated by LITEVER below.
 			{
 				document.getElementById("custom_mistralai_model").classList.remove("hidden");
 				document.getElementById("mistralaidesc").classList.remove("hidden");
-				document.getElementById("custom_oai_endpoint").classList.add("hidden");
 				document.getElementById("custom_oai_key").value = localsettings.saved_mistralai_key;
 				document.getElementById("custom_oai_endpoint").value = default_mistralai_base;
 			}
@@ -9550,7 +9869,6 @@ Current version indicated by LITEVER below.
 			{
 				document.getElementById("custom_featherless_model").classList.remove("hidden");
 				document.getElementById("featherlessdesc").classList.remove("hidden");
-				document.getElementById("custom_oai_endpoint").classList.add("hidden");
 				document.getElementById("custom_oai_key").value = localsettings.saved_featherless_key;
 				document.getElementById("custom_oai_endpoint").value = default_featherless_base;
 				try_fetch_oai_models_auto();
@@ -9559,9 +9877,16 @@ Current version indicated by LITEVER below.
 			{
 				document.getElementById("custom_grok_model").classList.remove("hidden");
 				document.getElementById("grokdesc").classList.remove("hidden");
-				document.getElementById("custom_oai_endpoint").classList.add("hidden");
 				document.getElementById("custom_oai_key").value = localsettings.saved_grok_key;
 				document.getElementById("custom_oai_endpoint").value = default_grok_base;
+			}
+			else if(epchoice==10)
+			{
+				document.getElementById("custom_pollinations_model").classList.remove("hidden");
+				document.getElementById("pollinationsdesc").classList.remove("hidden");
+				document.getElementById("custom_oai_key").value = dummy_pollinations_key;
+				document.getElementById("custom_oai_endpoint").value = pollinations_text_endpoint;
+				document.getElementById("custom_oai_key").classList.add("hidden");
 			}
 			else //openrouter supports autofetch
 			{
@@ -9569,7 +9894,6 @@ Current version indicated by LITEVER below.
 				document.getElementById("custom_openrouter_model").classList.remove("hidden");
 				document.getElementById("openrouterproviderbox").classList.remove("hidden");
 				document.getElementById("custom_oai_endpoint").value = default_openrouter_base;
-				document.getElementById("custom_oai_endpoint").classList.add("hidden");
 				document.getElementById("custom_oai_key").value = localsettings.saved_openrouter_key;
 				if(!openrouter_fetch_attempted)
 				{
@@ -9660,7 +9984,7 @@ Current version indicated by LITEVER below.
 			let is_local = is_local_url(desired_oai_ep);
 			desired_oai_ep = (is_local?"http://":"https://") + desired_oai_ep;
 		}
-		if (document.getElementById("oaiaddversion").checked)
+		if (document.getElementById("oaiaddversion").checked && !desired_oai_ep.toLowerCase().includes("text.pollinations.ai"))
 		{
 			//fix incorrect paths
 			if(desired_oai_ep!="" && desired_oai_ep.toLowerCase().endsWith("/chat/completions")) {
@@ -9843,9 +10167,11 @@ Current version indicated by LITEVER below.
 									koboldcpp_has_websearch = (data.websearch?true:false);
 									koboldcpp_has_tts = (data.tts?true:false);
 									koboldcpp_admin_type = (data.admin?data.admin:0);
-									koboldcpp_has_savedatafile = (data.savedata?true:false)
+									koboldcpp_has_savedatafile = (data.savedata?true:false);
+									koboldcpp_has_guidance = (data.guidance?true:false);
 									koboldcpp_has_server_saving = (data.hasServerSaving ? true:false)
 									koboldcpp_has_embeddings = (data.embeddings ? true : false)
+									koboldcpp_has_admin_with_HF = (data.hasAdminWithHF ? true : false)
 									let has_password = (data.protected?true:false);
 									let has_txt2img = (data.txt2img?true:false);
 									let no_txt_model = (mdlname=="inactive");
@@ -10032,7 +10358,7 @@ Current version indicated by LITEVER below.
 				});
 			}
 		}
-		else if(epchoice==2 || epchoice==3 || epchoice==7 || epchoice==8 || epchoice==9) //connect to OAI / OpenRouter / MistralAI / Featherless / Grok Endpoint
+		else if(epchoice==2 || epchoice==3 || epchoice==7 || epchoice==8 || epchoice==9 || epchoice==10) //connect to OAI / OpenRouter / MistralAI / Featherless / Grok Endpoint
 		{
 			let desired_oai_key = document.getElementById("custom_oai_key").value.trim();
 			let desired_oai_ep = document.getElementById("custom_oai_endpoint").value.trim();
@@ -10072,6 +10398,10 @@ Current version indicated by LITEVER below.
 				{
 					localsettings.saved_grok_key = custom_oai_key;
 				}
+				else if(epchoice==10)
+				{
+					localsettings.saved_pollinations_key = dummy_pollinations_key; //placeholder key, not actually used
+				}
 				else
 				{
 					localsettings.saved_openrouter_key = custom_oai_key;
@@ -10083,7 +10413,7 @@ Current version indicated by LITEVER below.
 				}
 				localsettings.saved_oai_role = document.getElementById("oairoledropdown").value;
 				localsettings.saved_oai_jailbreak2 = document.getElementById("jailbreakprompttext2").value;
-				let dropdown = get_oai_model_dropdown();
+				let dropdown = get_custom_ep_model_dropdown();
 				custom_oai_model = dropdown.value.trim();
 				localsettings.saved_oai_custommodel = custom_oai_model;
 				selected_models = [{ "performance": 100.0, "queued": 0.0, "eta": 0, "name": custom_oai_model, "count": 1 }];
@@ -10239,6 +10569,16 @@ Current version indicated by LITEVER below.
 	var last_admin_key = "";
 	function display_admin_container()
 	{
+		if (is_using_kcpp_with_admin_with_HF())
+		{
+			document.getElementById("adminmodelfromhf").classList.remove("hidden")
+			document.getElementById("adminmodelfromhflabel").classList.remove("hidden")
+		}
+		else
+		{
+			document.getElementById("adminmodelfromhf").classList.add("hidden")
+			document.getElementById("adminmodelfromhflabel").classList.add("hidden")
+		}
 		mainmenu_untab(false);
 		let fetch_kcpps_configs = function(adminkey)
 		{
@@ -10448,6 +10788,27 @@ Current version indicated by LITEVER below.
 			document.getElementById("saveslotselecteddropdown").innerHTML = choices;
 		}
 	}
+	function find_unused_saveslot(onDoneCallback)
+	{
+		let slotpromises = [];
+		for(let i=0;i<SAVE_SLOTS;++i)
+		{
+			slotpromises.push(indexeddb_load("slot_"+i+"_meta",""));
+		}
+		Promise.all(slotpromises).then(slotlabels=>
+		{
+			let esid = -1;
+			for(let i=0;i<slotlabels.length;++i)
+			{
+				if(slotlabels[i]=="")
+				{
+					esid = i;
+					break;
+				}
+			}
+			onDoneCallback(esid);
+		});
+	}
 	function display_saveloadcontainer()
 	{
 		mainmenu_untab(true);
@@ -10488,7 +10849,43 @@ Current version indicated by LITEVER below.
 			});
 		}
 	}
-	function save_to_slot(slot,islocal)
+	function quicksave()
+	{
+		if(last_used_saveslot==-1)
+		{
+			if(!safe_to_overwrite())
+			{
+				find_unused_saveslot((slot)=>{
+					if(slot!=-1)
+					{
+						save_to_slot(slot,true,false);
+					}else
+					{
+						msgbox("Unable to Save - No Available New Slots.","Storage Slots Full");
+					}
+				});
+			}
+			else
+			{
+				msgbox("Nothing to save - Current session is empty.","Not Saved");
+			}
+		}
+		else
+		{
+			save_to_slot(last_used_saveslot,true,false);
+		}
+	}
+	function quickdelete()
+	{
+		if(last_used_saveslot!=-1)
+		{
+			delete_from_slot(last_used_saveslot,true,false);
+		}else
+		{
+			msgbox("Nothing to delete - Select a slot first.","No Action Taken");
+		}
+	}
+	function save_to_slot(slot,islocal,showcontainer)
 	{
 		let defaultsavename = (localsettings.opmode==1?"Untitled Story":(localsettings.opmode==2?"Untitled Adventure":(localsettings.opmode==3?"Untitled Chat":"Untitled Instruct")));
 		let savename = defaultsavename + " " + new Date().toLocaleString();
@@ -10508,8 +10905,19 @@ Current version indicated by LITEVER below.
 							userinput = defaultsavename;
 						}
 						indexeddb_save("slot_" + slot + "_data", newcompressedstory)
-						indexeddb_save("slot_" + slot + "_meta", userinput).then(()=>{display_saveloadcontainer()});
+						indexeddb_save("slot_" + slot + "_meta", userinput).then(()=>{
+							if(showcontainer)
+							{
+								display_saveloadcontainer();
+							}
+							else
+							{
+								saveloadchangeslot(true);
+								populate_corpo_leftpanel();
+							}
+						});
 					});
+					last_used_saveslot = slot;
 				}
 
 				if (testslot) {
@@ -10528,6 +10936,7 @@ Current version indicated by LITEVER below.
 			}
 			const slotwrite = function () {
 				warn_unsaved = false;
+				last_used_saveslot = -1;
 				inputBox("Enter a label for this Server Storage Slot data", "Enter a label", savename, defaultsavename, () => {
 					let userinput = getInputBoxValue();
 					if (userinput.trim() == "") {
@@ -10575,7 +10984,7 @@ Current version indicated by LITEVER below.
 			}
 		}
 	}
-	function load_from_slot(slot,islocal)
+	function load_from_slot(slot,islocal,switch_to_corpo)
 	{
 		const proceed_load_from_slot = function() {
 			if(islocal)
@@ -10585,11 +10994,21 @@ Current version indicated by LITEVER below.
 					{
 						hide_popups();
 						import_compressed_story(loadedstorycompressed,false);
+						last_used_saveslot = slot;
+						if(switch_to_corpo)
+						{
+							localsettings.gui_type_chat = 3;
+							localsettings.gui_type_story = 3;
+							localsettings.gui_type_adventure = 3;
+							localsettings.gui_type_instruct = 3;
+							render_gametext(false,false);
+						}
 					}else{
 						msgbox("Unable to load story from browser storage","Browser Storage Load Failed");
 					}
 				});
 			} else {
+				last_used_saveslot = -1;
 				fetch(custom_kobold_endpoint + koboldcpp_savedata_load_endpoint, {
 				method: 'POST', // or 'PUT'
 				headers: get_kobold_header(),
@@ -10673,15 +11092,32 @@ Current version indicated by LITEVER below.
 			});
 		}
 	}
-	function delete_from_slot(slot,islocal)
+	function delete_from_slot(slot,islocal,showcontainer)
 	{
 		let slotnumshown = (parseInt(slot)+1);
 		if (islocal) {
+			let postdel = function(){
+				if(showcontainer)
+				{
+					display_saveloadcontainer();
+				}
+				else
+				{
+					saveloadchangeslot(true);
+					populate_corpo_leftpanel();
+				}
+			};
 			msgboxYesNo("Delete story in Browser Storage Slot " + slotnumshown + "?", "Delete Browser Storage Slot " + slotnumshown, () => {
 				indexeddb_save("slot_" + slot + "_data", "");
-				indexeddb_save("slot_" + slot + "_meta", "").then(() => { display_saveloadcontainer() });
+				indexeddb_save("slot_" + slot + "_meta", "").then(() => {
+					postdel();
+					if(slot==last_used_saveslot)
+					{
+						last_used_saveslot = -1;
+					}
+				});
 			}, () => {
-				display_saveloadcontainer();
+				postdel();
 			});
 		} else {
 			msgboxYesNo("Delete story in Server Storage Slot " + slotnumshown + "?", "Delete Server Storage Slot " + slotnumshown, () => {
@@ -10725,14 +11161,14 @@ Current version indicated by LITEVER below.
 		let selectedslot = document.getElementById("saveslotselecteddropdown").value;
 		let selectedlocation = document.getElementById("saveslotlocationdropdown").value;
 		let islocal = (selectedlocation=="1");
-		save_to_slot(selectedslot,islocal);
+		save_to_slot(selectedslot,islocal,true);
 	}
 	function load_from_curr_slot()
 	{
 		let selectedslot = document.getElementById("saveslotselecteddropdown").value;
 		let selectedlocation = document.getElementById("saveslotlocationdropdown").value;
 		let islocal = (selectedlocation=="1");
-		load_from_slot(selectedslot,islocal);
+		load_from_slot(selectedslot,islocal,false);
 	}
 	function download_from_curr_slot()
 	{
@@ -10746,7 +11182,7 @@ Current version indicated by LITEVER below.
 		let selectedslot = document.getElementById("saveslotselecteddropdown").value;
 		let selectedlocation = document.getElementById("saveslotlocationdropdown").value;
 		let islocal = (selectedlocation=="1");
-		delete_from_slot(selectedslot,islocal);
+		delete_from_slot(selectedslot,islocal,true);
 	}
 
 	var cached_model_list = null;
@@ -11318,13 +11754,13 @@ Current version indicated by LITEVER below.
 		document.getElementById("voice_typing_mode").disabled = !is_using_kcpp_with_whisper();
 		document.getElementById("grammar_retain_state").disabled = document.getElementById("setgrammar").disabled;
 
-		if(custom_kobold_endpoint!="")
+		if(custom_kobold_endpoint=="" && custom_oai_key=="" && custom_gemini_key=="")
 		{
-			document.getElementById("tokenstreaminglabel").classList.remove("color_red");
+			document.getElementById("tokenstreaminglabel").classList.add("color_red");
 		}
 		else
 		{
-			document.getElementById("tokenstreaminglabel").classList.add("color_red");
+			document.getElementById("tokenstreaminglabel").classList.remove("color_red");
 		}
 		document.getElementById("generate_images_model").value = localsettings.generate_images_model;
 		if(document.getElementById("generate_images_mode").value == 0 || document.getElementById("generate_images_mode").value != localsettings.generate_images_mode) {
@@ -11389,6 +11825,7 @@ Current version indicated by LITEVER below.
 		ttshtml += "<option value=\"1001\">AllTalk API Server</option>";
 		ttshtml += "<option value=\"1002\">OpenAI-Compat. API Server</option>";
 		ttshtml += "<option value=\"1003\">KoboldCpp TTS API</option>";
+		ttshtml += "<option value=\"1004\">PollinationsAI TTS API</option>";
 
 		if ('speechSynthesis' in window) {
 			let voices = window.speechSynthesis.getVoices();
@@ -11450,14 +11887,23 @@ Current version indicated by LITEVER below.
 				document.getElementById("newlogitbiasstringtogglesection").classList.add("hidden");
 				document.getElementById("newlogitbiasstringtoggle").checked = false;
 			}
+			if(is_using_kcpp_with_guidance())
+			{
+				document.getElementById("noguidance").classList.add("hidden");
+			}else{
+				document.getElementById("noguidance").classList.remove("hidden");
+			}
 		}
 		else
 		{
 			document.getElementById("nologitbias").classList.remove("hidden");
 			document.getElementById("notokenbans").classList.remove("hidden");
+			document.getElementById("noguidance").classList.remove("hidden");
 			document.getElementById("newlogitbiasstringtogglesection").classList.add("hidden");
 			document.getElementById("newlogitbiasstringtoggle").checked = false;
 		}
+		document.getElementById("guidance_scale").value = localsettings.guidance_scale;
+		document.getElementById("guidance_prompt").value = localsettings.guidance_prompt;
 		toggle_logit_bias_string();
 		populate_placeholder_tags();
 		populate_regex_replacers();
@@ -11752,11 +12198,11 @@ Current version indicated by LITEVER below.
 		localsettings.instruct_sysprompt = document.getElementById("instruct_sysprompt").value;
 		localsettings.instruct_sysprompt = replaceAll(localsettings.instruct_sysprompt, "\\n", "\n");
 		if (localsettings.instruct_starttag == null || localsettings.instruct_starttag == "") {
-			localsettings.instruct_starttag = "\\n### Instruction:\\n";
+			localsettings.instruct_starttag = "{{[INPUT]}}";
 		}
 		localsettings.instruct_endtag = document.getElementById("instruct_endtag").value;
 		if (localsettings.instruct_endtag == null || localsettings.instruct_endtag == "") {
-			localsettings.instruct_endtag = "\\n### Response:\\n";
+			localsettings.instruct_endtag = "{{[OUTPUT]}}";
 		}
 		localsettings.instruct_starttag_end = document.getElementById("instruct_starttag_end").value;
 		localsettings.instruct_endtag_end = document.getElementById("instruct_endtag_end").value;
@@ -11846,7 +12292,8 @@ Current version indicated by LITEVER below.
 		localsettings.xtc_threshold = parseFloat(document.getElementById("xtc_threshold").value);
 		localsettings.xtc_probability = parseFloat(document.getElementById("xtc_probability").value);
 		localsettings.token_count_multiplier = parseInt(document.getElementById("token_count_multiplier").value);
-
+		localsettings.guidance_scale = parseFloat(document.getElementById("guidance_scale").value);
+		localsettings.guidance_prompt = document.getElementById("guidance_prompt").value;
 
 		localsettings.extrastopseq = document.getElementById("extrastopseq").value;
 		localsettings.tokenbans = document.getElementById("tokenbans").value;
@@ -12189,6 +12636,7 @@ Current version indicated by LITEVER below.
 		document.getElementById("generate_images_dalle_container").classList.add("hidden");
 		document.getElementById("generate_images_local_model_container").classList.add("hidden");
 		document.getElementById("generate_images_comfy_container").classList.add("hidden");
+		document.getElementById("generate_images_pollinations_container").classList.add("hidden");
 		if(document.getElementById("generate_images_mode").value==1){
 			document.getElementById("generate_images_model_container").classList.remove("hidden");
 			if(!image_models_fetched)
@@ -12207,6 +12655,9 @@ Current version indicated by LITEVER below.
 		}else if(document.getElementById("generate_images_mode").value==4){
 			document.getElementById("generate_images_comfy_container").classList.remove("hidden");
 			connect_to_comfyui(silent);
+		}else if(document.getElementById("generate_images_mode").value==5)
+		{
+			document.getElementById("generate_images_pollinations_container").classList.remove("hidden");
 		}
 	}
 
@@ -12255,6 +12706,12 @@ Current version indicated by LITEVER below.
 				if(selval=="0" || selval=="2" || selval=="3") //do not save any other value
 				{
 					localsettings.gui_type_instruct = selval;
+					if(selval=="3")
+					{
+						localsettings.gui_type_chat = selval;
+						localsettings.gui_type_story = selval;
+						localsettings.gui_type_adventure = selval;
+					}
 					render_gametext(true);
 				}
 			}
@@ -12264,7 +12721,9 @@ Current version indicated by LITEVER below.
 
 	function toggle_include_chatnames()
 	{
-		if (document.getElementById("inject_chatnames_instruct").checked) {
+		if (document.getElementById('opmode').value == 3) {
+			document.getElementById('chatnamessection').classList.remove('hidden');
+		} else if (document.getElementById('opmode').value == 4 && document.getElementById("inject_chatnames_instruct").checked) {
 			document.getElementById('chatnamessection').classList.remove('hidden');
 		} else {
 			document.getElementById('chatnamessection').classList.add('hidden');
@@ -12292,16 +12751,17 @@ Current version indicated by LITEVER below.
 		if (document.getElementById('opmode').value == 1) {
 			document.getElementById('gui_type').value = localsettings.gui_type_story;
 			document.getElementById('uipicker_aesthetic').classList.remove('hidden');
+			document.getElementById('uipicker_corpo').classList.remove('hidden');
 		}
 		if (document.getElementById('opmode').value == 2) {
 			document.getElementById('gui_type').value = localsettings.gui_type_adventure;
 			document.getElementById('uipicker_aesthetic').classList.remove('hidden');
+			document.getElementById('uipicker_corpo').classList.remove('hidden');
 		}
 		if (document.getElementById('opmode').value == 3) {
 			document.getElementById('gui_type').value = localsettings.gui_type_chat;
 			document.getElementById('uipicker_messenger').classList.remove('hidden');
 			document.getElementById('uipicker_aesthetic').classList.remove('hidden');
-			document.getElementById('chatnamessection').classList.remove('hidden');
 			document.getElementById('uipicker_corpo').classList.remove('hidden');
 		}
 		if (document.getElementById('opmode').value == 4) {
@@ -12309,8 +12769,8 @@ Current version indicated by LITEVER below.
 			document.getElementById('uipicker_aesthetic').classList.remove('hidden');
 			document.getElementById('uipicker_corpo').classList.remove('hidden');
 			document.getElementById('instructtagsection').classList.remove('hidden');
-			toggle_include_chatnames();
 		}
+		toggle_include_chatnames();
 
 		//deselect invalid
 
@@ -12382,8 +12842,10 @@ Current version indicated by LITEVER below.
 	}
 
 	function estimate_and_show_textDB_usage() {
-		let snippetEstimate =  Number(document.getElementById("documentdb_chunksize").value) *1.5 * Number(document.getElementById("documentdb_numresults").value);
-		document.getElementById("documentdb_snippetestimate").innerText = `Estimate of context usage ${snippetEstimate / 3} tokens (${snippetEstimate} characters)`;
+		let currentChunkSize = Number(document.getElementById("documentdb_chunksize").value)
+		let snippetEstimate = currentChunkSize * 1.5 * Number(document.getElementById("documentdb_numresults").value);
+		let numberOfChunks = Math.ceil(document.getElementById("documentdb_data").value.length / (currentChunkSize - (Math.min(currentChunkSize * 0.5, 500))))
+		document.getElementById("documentdb_snippetestimate").innerText = `Estimate of context usage: ${snippetEstimate / 3} tokens (${snippetEstimate} characters). Total chunks: ${numberOfChunks}.`;
 	}
 
 	function confirm_memory() {
@@ -12710,6 +13172,7 @@ Current version indicated by LITEVER below.
 		synchro_polled_response = null;
 		last_stop_reason = "";
 		synchro_pending_stream = "";
+		gemini_was_thinking = false;
 		waiting_for_tool_call = 0;
 		horde_poll_nearly_completed = false;
 		oaiemulatecompletionscontent = "";
@@ -12731,6 +13194,7 @@ Current version indicated by LITEVER below.
 		synchro_polled_response = null;
 		last_stop_reason = "";
 		synchro_pending_stream = "";
+		gemini_was_thinking = false;
 		waiting_for_tool_call = 0;
 		oaiemulatecompletionscontent = "";
 		last_reply_was_empty = false;
@@ -12773,6 +13237,7 @@ Current version indicated by LITEVER below.
 			documentdb_useEmbeddings = false;
 		}
 		warn_unsaved = false;
+		last_used_saveslot = -1;
 		show_corpo_leftpanel(false);
 		update_toggle_lightmode(false); //load theme but dont save or toggle it
 		render_gametext(save); //necessary to trigger an autosave to wipe out current story in case they exit browser after newgame.
@@ -12899,12 +13364,12 @@ Current version indicated by LITEVER below.
 			if(matches.length > 0)
 			{
 				let matchiter = 0;
-				inputtxt = inputtxt.replace(/%ExpandBtn%/g, function (m) {
+				inputtxt = inputtxt.replace(/%ExpandBtn%(?:\n{0,2})?/g, function (m) {
 					let curr = matches[matchiter];
-					let expandedhtml = `<span><button type="button" title="Show Thoughts" class="btn btn-primary" style="font-size:12px;padding:2px 2px;" onclick="toggle_hide_thinking(this)">Show Thoughts (${curr.length} characters)</button><span class="color_lightgreen hidden"><br>${escape_html(curr)}\n</span></span>`;
+					let expandedhtml = `<span><button type="button" title="Show Thoughts" class="btn btn-primary" style="font-size:12px;padding:2px 2px;" onclick="toggle_hide_thinking(this)">Show Thoughts (${curr.length} characters)</button><span class="color_lightgreen hidden"><br>${escape_html(curr)}</span><br></span>`;
 					if(!curr || curr.trim()=="")
 					{
-						expandedhtml = `<span><button type="button" title="No Thoughts" class="btn btn-primary" style="font-size:12px;padding:2px 2px;" onclick="">No Thoughts</button></span>`;
+						expandedhtml = `<span><button type="button" title="No Thoughts" class="btn btn-primary" style="font-size:12px;padding:2px 2px;" onclick="">No Thoughts</button><br></span>`;
 					}
 					++matchiter;
 					return expandedhtml;
@@ -13387,7 +13852,7 @@ Current version indicated by LITEVER below.
 		let ssval = document.getElementById("ttsselect").value;
 		let speakprompt = "Enter phrase to speak.";
 
-		if(ssval==XTTS_ID || ssval==ALLTALK_ID || ssval==OAI_TTS_ID || ssval==KCPP_TTS_ID)
+		if(ssval==XTTS_ID || ssval==ALLTALK_ID || ssval==OAI_TTS_ID || ssval==KCPP_TTS_ID || ssval==POLLINATIONS_TTS_ID)
 		{
 			speakprompt = `Enter phrase to speak.<br><div><input type="checkbox" id="downloadtts" title="Add Endpoint Version Number"><div class="box-label">Download as .wav file</div></div>`;
 		}
@@ -13571,11 +14036,12 @@ Current version indicated by LITEVER below.
 			}
 		}
 
-		if(ssval==XTTS_ID || ssval==ALLTALK_ID || ssval==OAI_TTS_ID || ssval==KCPP_TTS_ID) //xtts api server
+		if(ssval==XTTS_ID || ssval==ALLTALK_ID || ssval==OAI_TTS_ID || ssval==KCPP_TTS_ID || ssval==POLLINATIONS_TTS_ID) //xtts api server
 		{
 			let is_xtts = (ssval==XTTS_ID);
 			let is_oai_tts = (ssval==OAI_TTS_ID);
 			let is_kcpp_tts = (ssval==KCPP_TTS_ID);
+			let is_pollinations_tts = (ssval==POLLINATIONS_TTS_ID);
 			const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 			let audiofile_ref = null;
 
@@ -13643,6 +14109,48 @@ Current version indicated by LITEVER below.
 					};
 				}).catch((error) => {
 					console.log("XTTS Speak Error: " + error);
+				});
+			}
+			else if(is_pollinations_tts)
+			{
+				const pollinations_params = new URLSearchParams({
+					model:"openai-audio",
+					voice:"nova",
+					private: true,
+					referrer: "koboldai"
+				});
+				const speechprompt = `Please narrate the following text:\n\n${text}`;
+
+				let gen_endpoint = `${pollinations_text_endpoint}/${encodeURIComponent(speechprompt)}?${pollinations_params.toString()}`;
+
+				fetch(gen_endpoint, {
+					method: 'GET',
+				})
+				.then(response => response.arrayBuffer())
+				.then(data => {
+					audiofile_ref = data.slice(0);
+					return audioContext.decodeAudioData(data);
+				})
+				.then(decodedData => {
+					if(do_download)
+					{
+						tts_download(audiofile_ref);
+					}
+					const playSound = audioContext.createBufferSource();
+					playSound.buffer = decodedData;
+					playSound.connect(audioContext.destination);
+					xtts_is_playing = true;
+					update_submit_button(false);
+					playSound.start(audioContext.currentTime);
+					playSound.onended = function() {
+						setTimeout(() => {
+							xtts_is_playing = false;
+							update_submit_button(false);
+							console.log("Audio finished playing");
+						},300);
+					};
+				}).catch((error) => {
+					console.log("Pollinations Speak Error: " + error);
 				});
 			}
 			else if(xtts_is_connected)
@@ -13946,11 +14454,6 @@ Current version indicated by LITEVER below.
 		let ist = instructstartplaceholder;
 		let iet = instructendplaceholder;
 		let iste = instructstartplaceholder_end;
-		if (!localsettings.placeholder_tags) {
-			ist = get_instruct_starttag(false);
-			iet = get_instruct_endtag(false);
-			iste = get_instruct_starttag_end(false);
-		}
 		let prev_et = get_instruct_latest_end(false);
 
 		if(newgen != "")
@@ -14029,7 +14532,7 @@ Current version indicated by LITEVER below.
 		{
 			let newgenlc = newgen.toLowerCase().trim();
 			if (newgenlc.startsWith("draw ") ||
-				newgenlc.match(/\b(?:draw (?:a|an)\b)|(?:draw me (?:a|an)\b)|(?:(?:draw|show me|generate|create|make|illustrate|visualize|produce|give me)(?:\s\w+){0,4}\s(?:image|picture|drawing|photo))/))
+				newgenlc.match(/\b(?:draw (?:a|an)\b)|(?:draw me (?:a|an)\b)|(?:(?:draw|show me|generate|create|make|illustrate|visualize|produce|give me)(?:\s\w+){0,4}\s(?:image\b|picture\b|drawing\b|photo))/))
 			{
 				img_gen_trigger_prompt = newgen;
 				doNotGenerate = true;
@@ -14175,7 +14678,7 @@ Current version indicated by LITEVER below.
 				}
 				else if(localsettings.strip_thinking_mode==1) //strip except recent
 				{
-					let endmatcher = (localsettings.placeholder_tags ? instructendplaceholder : get_instruct_endtag(true));
+					let endmatcher = instructendplaceholder;
 					let lastInstructIdx = truncated_context.lastIndexOf(endmatcher);
 					if (lastInstructIdx !== -1) {
 						let beforePart = truncated_context.slice(0, lastInstructIdx); // Split into two parts
@@ -14317,7 +14820,7 @@ Current version indicated by LITEVER below.
 			{
 				if (pending_context_preinjection == "" && truncated_context != "")
 				{
-					let endmatcher = (localsettings.placeholder_tags ? instructendplaceholder : get_instruct_endtag(false));
+					let endmatcher = instructendplaceholder;
 					if (truncated_context.toLowerCase().trim().endsWith(endmatcher.toLowerCase().trim())) {
 						if (localsettings.inject_timestamps) {
 							pending_context_preinjection += "[" + (new Date().toLocaleTimeString([], { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })) + "]";
@@ -14332,6 +14835,10 @@ Current version indicated by LITEVER below.
 							coarr = coarr.map(x=>x.trim());
 							let co = coarr[Math.floor(Math.random()*coarr.length)];
 							pending_context_preinjection += co + ":";
+							if(localsettings.inject_jailbreak_instruct || (localsettings.think_injected!=0 && localsettings.start_thinking_tag!=""))
+							{
+								pending_context_preinjection += " ";
+							}
 						}
 						if(localsettings.think_injected==1 && localsettings.start_thinking_tag!="")
 						{
@@ -14693,9 +15200,11 @@ Current version indicated by LITEVER below.
 			if((custom_kobold_endpoint != "" && is_using_kcpp_with_streaming()))
 			{
 				lastcheckgenkey = "KCPP"+(Math.floor(1000 + Math.random() * 9000)).toString();
+				kai_poll_recoverykey = "";
 				submit_payload.params.genkey = lastcheckgenkey;
 			}else{
 				lastcheckgenkey = "";
+				kai_poll_recoverykey = "";
 			}
 
 			//v2 api specific fields
@@ -14893,7 +15402,7 @@ Current version indicated by LITEVER below.
 			submit_payload.params.logprobs = localsettings.request_logprobs;
 			let st = get_instruct_starttag(true);
 			let et = get_instruct_endtag(true);
-			if(st=="{{[INPUT]}}" && et=="{{[OUTPUT]}}")
+			if(st=="{{[INPUT]}}" || et=="{{[OUTPUT]}}")
 			{
 				submit_payload.params.replace_instruct_placeholders = true;
 			}
@@ -14920,6 +15429,12 @@ Current version indicated by LITEVER below.
 			submit_payload.params.logit_bias = JSON.parse(JSON.stringify(localsettings.logitbiasdict));
 		}
 
+		if(custom_kobold_endpoint != "" && is_using_kcpp_with_guidance() && localsettings.guidance_scale != 1 && localsettings.guidance_prompt!="")
+		{
+			submit_payload.params.guidance_scale = localsettings.guidance_scale;
+			submit_payload.params.negative_prompt = localsettings.guidance_prompt;
+		}
+
 		start_time_taken(); //timestamp start request
 
 		if (is_using_custom_ep()) {
@@ -14931,6 +15446,7 @@ Current version indicated by LITEVER below.
 			synchro_polled_response = null;
 			last_stop_reason = "";
 			synchro_pending_stream = "";
+			gemini_was_thinking = false;
 
 			//if this is set, we don't use horde, use the custom endpoint instead
 			if (custom_kobold_endpoint != "") //handle for kai
@@ -15101,6 +15617,14 @@ Current version indicated by LITEVER below.
 						oai_payload.messages.push({ "role": "assistant", "content": mainoaibody, "prefix":true });
 						oaiemulatecompletionscontent = mainoaibody;
 					}
+
+					if(targetep.toLowerCase().includes("text.pollinations.ai"))
+					{
+						if(localsettings.opmode==1)
+						{
+							oai_payload.messages.unshift({ "role": "system", "content": "Please continue this story directly from where it stopped. Just respond with a direct partial continuation of the story immediately from the latest word." });
+						}
+					}
 				}
 				else
 				{
@@ -15140,7 +15664,16 @@ Current version indicated by LITEVER below.
 					}
 				}
 
-				if(is_browser_supports_sse() && document.getElementById("oaistreaming").checked)
+				//pollinations always uses the exact same url for text gen regardless
+				if(targetep.toLowerCase().includes("text.pollinations.ai"))
+				{
+					targetep = pollinations_text_endpoint;
+					oai_payload.private = true;
+					oai_payload.referrer = "koboldai";
+					oai_payload.seed = Math.floor(Math.random() * 99999999);
+				}
+
+				if(is_browser_supports_sse() && localsettings.tokenstreammode!=0)
 				{
 					oai_payload.stream = true;
 					oai_api_stream_sse(targetep,oai_payload,oaiheaders);
@@ -15284,7 +15817,7 @@ Current version indicated by LITEVER below.
 								}
 								if(data.content[i].thinking)
 								{
-									comp += `<think>${data.content[i].thinking}</think>\n\n`; //for claudev3
+									comp += `<think>${data.content[i].thinking}</think>`; //for claudev3
 								}
 							}
 							if(comp!="")
@@ -15391,6 +15924,14 @@ Current version indicated by LITEVER below.
 					payload["tools"] = [{"google_search": {}}];
 				}
 
+				if(mdlname.includes("gemini-2.5"))
+				{
+					if(!document.getElementById("usegeminithink").checked)
+					{
+						payload["generationConfig"]["thinkingConfig"] = {"thinkingBudget": 0};
+					}
+				}
+
 				let sentrole = document.getElementById("geminiroledropdown").value;
 				if(sentrole!="")
 				{
@@ -15430,7 +15971,7 @@ Current version indicated by LITEVER below.
 				last_response_obj = null;
 
 				let geminiheaders = { 'Content-Type': 'application/json' };
-				if(is_browser_supports_sse() && document.getElementById("geministreaming").checked)
+				if(is_browser_supports_sse() && localsettings.tokenstreammode!=0)
 				{
 					let targetep = default_gemini_base + mdlname + default_gemini_stream_suffix + custom_gemini_key;
 					oai_api_stream_sse(targetep,payload,geminiheaders);
@@ -15892,6 +16433,12 @@ Current version indicated by LITEVER below.
 			genimg_payload.models = [desired_model];
 			generate_comfy_image(genimg_payload);
 		}
+		else if(localsettings.generate_images_mode==5) //pollinations
+		{
+			let desired_model = document.getElementById("generate_images_pollinations_model").value;
+			genimg_payload.models = [desired_model];
+			generate_pollinations_image(genimg_payload);
+		}
 	}
 
 	function interrogate_new_image(base64img, imghash, use_horde=true)
@@ -16229,7 +16776,7 @@ Current version indicated by LITEVER below.
 		gentxt = trim_extra_stop_seqs(gentxt,false);
 
 		//fix alpaca leakage
-		if(localsettings.fix_alpaca_leak && (localsettings.opmode == 2 || localsettings.opmode == 3 || localsettings.opmode == 4) && get_instruct_starttag(true).toLowerCase().includes("### instruction"))
+		if(localsettings.fix_alpaca_leak && (localsettings.opmode == 2 || localsettings.opmode == 3 || localsettings.opmode == 4) && (get_instruct_starttag(true)=="{{[INPUT]}}" || get_instruct_starttag(true).toLowerCase().includes("### instruction")))
 		{
 			let matches = gentxt.match(/\n### (instruction|response)\n|\n### ([^\s]+?):\n/gi);
 			for(let m in matches)
@@ -16371,42 +16918,44 @@ Current version indicated by LITEVER below.
 		{
 			let st = get_instruct_starttag(true);
 			let et = get_instruct_endtag(true);
-			let stet_et = "";
+			let stripping_arr = [];
+			if(st!="")
+			{
+				stripping_arr.push(st);
+			}
+			if(et!="")
+			{
+				stripping_arr.push(et);
+			}
+			if(st=="{{[INPUT]}}" || et=="{{[OUTPUT]}}")
+			{
+				stripping_arr.push("### Instruction:");
+				stripping_arr.push("### Response:");
+			}
 			if(localsettings.separate_end_tags && get_instruct_endtag_end(true))
 			{
-				stet_et = get_instruct_endtag_end(true);
+				let stet_et = get_instruct_endtag_end(true);
+				if(stet_et!="")
+				{
+					stripping_arr.push(stet_et);
+				}
 			}
 
 			//sometimes the OAI type endpoints get confused and repeat the instruct tag, so trim it
-			let earlymatch = gentxt.indexOf(et);
-			if(earlymatch==0)
+			for(let i=0;i<stripping_arr.length;++i)
 			{
-				gentxt = gentxt.substring(et.length);
-			}
+				let curtag = stripping_arr[i];
+				let earlymatch = gentxt.indexOf(curtag);
+				if(earlymatch==0)
+				{
+					gentxt = gentxt.substring(curtag.length);
+				}
 
-			let found = gentxt.indexOf(st);
-			let splitresponse = [];
-			if (found != -1) //if found, truncate to it
-			{
-				splitresponse = gentxt.split(st);
-				gentxt = splitresponse[0];
-			}
-
-			found = gentxt.indexOf(et);
-			splitresponse = [];
-			if (found != -1) //if found, truncate to it
-			{
-				splitresponse = gentxt.split(et);
-				gentxt = splitresponse[0];
-			}
-
-			if(stet_et && stet_et!="")
-			{
-				found = gentxt.indexOf(stet_et);
-				splitresponse = [];
+				let found = gentxt.indexOf(curtag);
+				let splitresponse = [];
 				if (found != -1) //if found, truncate to it
 				{
-					splitresponse = gentxt.split(stet_et);
+					splitresponse = gentxt.split(curtag);
 					gentxt = splitresponse[0];
 				}
 			}
@@ -16455,7 +17004,7 @@ Current version indicated by LITEVER below.
 
 		let gentxtspeak = gentxt;
 		if (pending_context_preinjection != "") {
-			if(gentxt!="" && gentxt[0]!=" " && localsettings.opmode==3)
+			if(gentxt!="" && gentxt[0]!=" " && (localsettings.opmode==3 || (localsettings.opmode==4 && localsettings.inject_chatnames_instruct && !localsettings.inject_jailbreak_instruct && localsettings.think_injected==0)))
 			{
 				//if the response doesnt come with a space, add one in chat
 				gentxt = " " +gentxt;
@@ -16474,6 +17023,13 @@ Current version indicated by LITEVER below.
 			if(localsettings.narrate_both_sides && !localsettings.narrate_only_dialog)
 			{
 				gentxtspeak = gentxt;
+			}
+
+			//remove thinking from tts if hidden
+			if((localsettings.thinking_action==1 || localsettings.thinking_action==2) && localsettings.thinking_pattern!="") //removal of cot
+			{
+				let pat = new RegExp(localsettings.thinking_pattern, "gmi");
+				gentxtspeak = gentxtspeak.replace(pat, '');
 			}
 
 			tts_speak(gentxtspeak);
@@ -16861,11 +17417,8 @@ Current version indicated by LITEVER below.
 				{
 					if(!localsettings.allow_continue_chat)
 					{
-						if (!localsettings.placeholder_tags) {
-							pending_context_preinjection =  get_instruct_endtag(false);
-						} else {
-							pending_context_preinjection =  instructendplaceholder;
-						}
+						pending_context_preinjection =  instructendplaceholder;
+
 						if(localsettings.inject_timestamps)
 						{
 							pending_context_preinjection += "["+(new Date().toLocaleTimeString([], {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'}))+"]";
@@ -17950,9 +18503,8 @@ Current version indicated by LITEVER below.
 		}
 	}
 
-	function render_gametext(save = true)
+	function render_gametext(save=true, force_scroll=true)
 	{
-
 		document.getElementById("gametext").contentEditable = (document.getElementById("allowediting").checked && pending_response_id=="");
 		let inEditMode = (document.getElementById("allowediting").checked ? true : false);
 
@@ -17987,6 +18539,7 @@ Current version indicated by LITEVER below.
 		{
 			document.getElementById("inputrow").classList.remove("show_mode");
 		}
+		populate_corpo_leftpanel_topper();
 
 		if (gametext_arr.length == 0 && synchro_pending_stream=="" && pending_response_id=="") {
 
@@ -18482,7 +19035,7 @@ Current version indicated by LITEVER below.
 			autosave();
 		}
 
-		handle_autoscroll(true);
+		handle_autoscroll(force_scroll);
 
 		if(localsettings.printer_view)
 		{
@@ -18636,6 +19189,68 @@ Current version indicated by LITEVER below.
 		return turns;
 	}
 
+	function repack_adventure_history(input)
+	{
+		const regex = /\n\n> .+?\n/g;
+		const result = [];
+		let lastIndex = 0;
+		let match;
+		while ((match = regex.exec(input)) !== null) {
+			const start = match.index;
+			const end = regex.lastIndex;
+
+			if (start > lastIndex) {
+				// Opponent's turn (text before this match)
+				result.push({
+					msg: input.slice(lastIndex, start).trim(),
+					myturn: false
+				});
+			}
+
+			// My turn
+			let mymsg = match[0].trim();
+			if(mymsg.startsWith("> "))
+			{
+				mymsg = mymsg.substring(2);
+			}
+			result.push({
+				msg: mymsg,
+				myturn: true
+			});
+
+			lastIndex = end;
+		}
+
+		// Any remaining text after last match is opponent's turn
+		if (lastIndex < input.length) {
+			result.push({
+				msg: input.slice(lastIndex).trim(),
+				myturn: false
+			});
+		}
+
+		// Filter out empty messages
+		return result.filter(t => t.msg.length > 0);
+	}
+
+	function repack_story_history(input)
+	{
+		let arr = input.split("\n\n");
+		let result = [];
+		for(let i=0;i<arr.length;++i)
+		{
+			if(arr[i].trim()=="")
+			{
+				continue;
+			}
+			result.push({
+				msg: arr[i],
+				myturn: false
+			});
+		}
+		return result;
+	}
+
 	function corpo_chunk_prev()
 	{
 		let incomplete_resp = (synchro_pending_stream != "" || pending_response_id != "");
@@ -18668,6 +19283,14 @@ Current version indicated by LITEVER below.
 		{
 			chatunits = repack_chat_history(currctx);
 		}
+		else if(localsettings.opmode==2)
+		{
+			chatunits = repack_adventure_history(currctx);
+		}
+		else if(localsettings.opmode==1)
+		{
+			chatunits = repack_story_history(currctx);
+		}
 		else
 		{
 			chatunits = repack_instruct_history(currctx);
@@ -18686,24 +19309,41 @@ Current version indicated by LITEVER below.
 					gametext_arr.push(chunk);
 				}
 			}
+			else if(localsettings.opmode==2) //adventure mode
+			{
+				for(let i=0;i<=idx;++i)
+				{
+					let cont = chatunits[i].msg;
+					if(chatunits[i].myturn)
+					{
+						cont = `\n\n> ${cont}\n\n`;
+					}
+					gametext_arr.push(cont);
+
+				}
+			}
+			else if(localsettings.opmode==1) //story mode
+			{
+				for(let i=0;i<=idx;++i)
+				{
+					let cont = chatunits[i].msg;
+					if(i!=idx)
+					{
+						cont = `${cont}\n\n`;
+					}
+					gametext_arr.push(cont);
+				}
+			}
 			else
 			{
-				let st = get_instruct_starttag(false);
-				let et = get_instruct_endtag(false);
+
 				let ste = "";
 				let ete = "";
+				let st = instructstartplaceholder;
+				let et = instructendplaceholder;
 				if (localsettings.separate_end_tags) {
-					ste = get_instruct_starttag_end(false);
-					ete = get_instruct_endtag_end(false);
-				}
-				if(localsettings.placeholder_tags)
-				{
-					st = instructstartplaceholder;
-					et = instructendplaceholder;
-					if (localsettings.separate_end_tags) {
-						ste = instructstartplaceholder_end;
-						ete = instructendplaceholder_end;
-					}
+					ste = instructstartplaceholder_end;
+					ete = instructendplaceholder_end;
 				}
 
 				for(let i=0;i<=idx;++i)
@@ -18735,7 +19375,7 @@ Current version indicated by LITEVER below.
 		if (incomplete_resp) { return; }
 
 		corpo_editing_turn = idx;
-		render_gametext(false);
+		render_gametext(false,false);
 	}
 	function corpo_edit_chunk_delete()
 	{
@@ -18758,6 +19398,14 @@ Current version indicated by LITEVER below.
 		if(localsettings.opmode==3)
 		{
 			chatunits = repack_chat_history(currctx);
+		}
+		else if(localsettings.opmode==2)
+		{
+			chatunits = repack_adventure_history(currctx);
+		}
+		else if(localsettings.opmode==1)
+		{
+			chatunits = repack_story_history(currctx);
 		}
 		else
 		{
@@ -18793,24 +19441,46 @@ Current version indicated by LITEVER below.
 					}
 				}
 			}
+			else if(localsettings.opmode==2) //adventure mode
+			{
+				for(let i=0;i<chatunits.length;++i)
+				{
+					let cont = (i==idx?newtxt:chatunits[i].msg);
+					if(cont!="")
+					{
+						let chunk = cont;
+						if(chatunits[i].myturn)
+						{
+							chunk = `\n\n> ${chunk}\n\n`;
+						}
+						gametext_arr.push(chunk);
+					}
+				}
+			}
+			else if(localsettings.opmode==1) //story mode
+			{
+				for(let i=0;i<chatunits.length;++i)
+				{
+					let cont = (i==idx?newtxt:chatunits[i].msg);
+					if(cont!="")
+					{
+						if(i<chatunits.length-1)
+						{
+							cont = `${cont}\n\n`;
+						}
+						gametext_arr.push(cont);
+					}
+				}
+			}
 			else //instruct and the rest
 			{
-				let st = get_instruct_starttag(false);
-				let et = get_instruct_endtag(false);
 				let ste = "";
 				let ete = "";
+				let st = instructstartplaceholder;
+				let et = instructendplaceholder;
 				if (localsettings.separate_end_tags) {
-					ste = get_instruct_starttag_end(false);
-					ete = get_instruct_endtag_end(false);
-				}
-				if(localsettings.placeholder_tags)
-				{
-					st = instructstartplaceholder;
-					et = instructendplaceholder;
-					if (localsettings.separate_end_tags) {
-						ste = instructstartplaceholder_end;
-						ete = instructendplaceholder_end;
-					}
+					ste = instructstartplaceholder_end;
+					ete = instructendplaceholder_end;
 				}
 
 				let finalturnai = false;
@@ -18834,7 +19504,7 @@ Current version indicated by LITEVER below.
 		}
 
 		corpo_editing_turn = -1;
-		render_gametext(needsave);
+		render_gametext(needsave,false);
 	}
 
 	var cosmetic_corpo_ai_nick = "KoboldAI";
@@ -18868,6 +19538,14 @@ Current version indicated by LITEVER below.
 		if(localsettings.opmode==3) //chat mode
 		{
 			chatunits = repack_chat_history(input);
+		}
+		else if(localsettings.opmode==2)
+		{
+			chatunits = repack_adventure_history(input);
+		}
+		else if(localsettings.opmode==1)
+		{
+			chatunits = repack_story_history(input);
 		}
 		else
 		{
@@ -18936,7 +19614,7 @@ Current version indicated by LITEVER below.
 			{
 				namepart = curr.name;
 			}
-			else if(localsettings.inject_chatnames_instruct && localsettings.instruct_has_markdown)
+			else if(localsettings.opmode==4 && localsettings.inject_chatnames_instruct && localsettings.instruct_has_markdown)
 			{
 				let validprefixes = [];
 				if(curr.myturn)
@@ -19007,13 +19685,19 @@ Current version indicated by LITEVER below.
 				(curr.myturn ? `` : `<button title="Retry Chunk" onclick="corpo_retry_chunk(${i})" class="corpo_hover_btn" type="button" style="background-image: var(--img_corpo_retry);"></button>`)
 				+ `</div>`);
 
-			newbodystr += `<div class="corpostyleitem">
-				<div><img ${(curr.myturn ? "" : `onclick="corpo_click_avatar()"`)} src="${(curr.myturn ? human_square : niko_square)}" class="corpoavatar"/></div>
+			newbodystr += `<div class="corpostyleitem">`;
+
+			if(localsettings.opmode==1)
+			{
+				newbodystr += `<div style="width:100%">`;
+			}
+			else {
+				newbodystr += `<div><img ${(curr.myturn ? "" : `onclick="corpo_click_avatar()"`)} src="${(curr.myturn ? human_square : niko_square)}" class="corpoavatar"/></div>
 				<div style="width:100%">
-				<div class="corpostyleitemheading">`+ namepart + `</div>
-				`+ bodypart + chunkbtns + `
-				</div>
-				</div>`;
+				<div class="corpostyleitemheading">`+ namepart + `</div>`;
+			}
+
+			newbodystr += bodypart + chunkbtns + `</div></div>`;
 		}
 		if(incomplete_resp)
 		{
@@ -19023,13 +19707,22 @@ Current version indicated by LITEVER below.
 			{
 				namepart = "";
 			}
-			newbodystr += `<div class="corpostyleitem">
-			<div><img src="`+niko_square+`" class="corpoavatar"/></div>
-			<div>
-				<div class="corpostyleitemheading">`+namepart+`</div>
+			newbodystr += `<div class="corpostyleitem">`;
+
+			if (localsettings.opmode == 1) {
+				newbodystr += `
+				<div>
+				<div class="corpostyleitemcontent"><p><span class="pending_text">`+ futuretext + `</span></p></div>
+				</div>`;
+			}
+			else {
+				newbodystr += `<div><img src="` + niko_square + `" class="corpoavatar"/></div>
+				<div>
+				<div class="corpostyleitemheading">`+ namepart +`</div>
 				<div class="corpostyleitemcontent"><p><span class="pending_text">`+ futuretext +`</span></p></div>
-			</div>
-			</div>`;
+				</div>`;
+			}
+			newbodystr += `</div>`;
 		}
 
 		return newbodystr;
@@ -19053,6 +19746,24 @@ Current version indicated by LITEVER below.
 		}
 	}
 
+	function populate_corpo_leftpanel_topper()
+	{
+		let panel = document.getElementById('corpoleftpanelitemstopper');
+		let panelitems = `<div onclick="btn_memory()" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_gear); padding-left: 44px;">Context</div>
+		<div onclick="btn_editmode()" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_corpo_edit); padding-left: 44px;">Raw Editor</div>
+		<div onclick="update_toggle_lightmode(true)" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_corpo_theme); padding-left: 44px;">Light / Dark Theme</div>`;
+
+		if(localsettings.opmode==3||localsettings.opmode==4)
+		{
+			panelitems += `<div onclick="show_groupchat_select()" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_chat_mono); padding-left: 44px;">Chat Select</div>`;
+		}
+		else if(localsettings.opmode==2)
+		{
+			let amode = (localsettings.adventure_switch_mode==0?"Story Mode":(localsettings.adventure_switch_mode==1?"Action Mode":"Dice Mode"))
+			panelitems += `<div onclick="btn_adventure_mode()" class="corpo_leftpanel_btn" type="button" >Adventure: ${amode}</div>`;
+		}
+		panel.innerHTML = panelitems;
+	}
 	function populate_corpo_leftpanel()
 	{
 		let slotpromises = [];
@@ -19062,22 +19773,16 @@ Current version indicated by LITEVER below.
 		}
 		Promise.all(slotpromises).then(slotlabels=>
 		{
-			let panel = document.getElementById('corpoleftpanelitems');
-			let panelitems = `
-			<div onclick="btn_memory()" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_gear); padding-left: 44px;">Context</div>
-			<div onclick="btn_editmode()" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_corpo_edit); padding-left: 44px;">Raw Editor</div>
-			<div onclick="update_toggle_lightmode(true)" class="corpo_leftpanel_btn" type="button" style="background-image: var(--img_corpo_theme); padding-left: 44px;">Light / Dark Theme</div>
-			<div style="padding:2px;font-size:14px;margin-left:8px;font-weight:600;line-height:1.1;margin-top:22px">Quick Slot Load</div>
-			<hr style="margin-top:4px;margin-bottom:6px" />
-			`;
-
+			let panel = document.getElementById('corpoleftpanelitemsinner');
+			let panelitems = ``;
+			populate_corpo_leftpanel_topper();
 			for(let i=0;i<slotlabels.length;++i)
 			{
 				let testslot = slotlabels[i];
 				let entry = "";
 				if(testslot)
 				{
-					entry = `<div onclick="load_from_slot(`+i+`, true)" class="corpo_leftpanel_btn" type="button">`+testslot+`</div>`;
+					entry = `<div onclick="load_from_slot(`+i+`, true, true)" class="corpo_leftpanel_btn" type="button">`+testslot+`</div>`;
 				}
 				panelitems += entry;
 			}
@@ -19343,6 +20048,7 @@ Current version indicated by LITEVER below.
 	function update_prev_custom_endpoint_type()
 	{
 		localsettings.prev_custom_endpoint_type = 0;
+		localsettings.prev_custom_endpoint_model = "";
 		if (custom_kobold_endpoint != "") {
 			localsettings.prev_custom_endpoint_type = 1;
 		}
@@ -19361,6 +20067,9 @@ Current version indicated by LITEVER below.
 			}else if(custom_oai_endpoint.toLowerCase().includes("api.x.ai"))
 			{
 				localsettings.prev_custom_endpoint_type = 9;
+			}else if(custom_oai_endpoint.toLowerCase().includes("text.pollinations.ai"))
+			{
+				localsettings.prev_custom_endpoint_type = 10;
 			}
 		}
 		else if(custom_claude_key!="")
@@ -19376,6 +20085,14 @@ Current version indicated by LITEVER below.
 			localsettings.prev_custom_endpoint_type = 6;
 		}
 
+		if(localsettings.prev_custom_endpoint_type!=0 && localsettings.prev_custom_endpoint_type!=1)
+		{
+			let dropdown = get_custom_ep_model_dropdown(localsettings.prev_custom_endpoint_type);
+			if(dropdown && dropdown.value)
+			{
+				localsettings.prev_custom_endpoint_model = dropdown.value;
+			}
+		}
 	}
 
 	function autosave() {
@@ -19449,6 +20166,9 @@ Current version indicated by LITEVER below.
 		document.getElementById("documentdb_numresults").value = documentdb_numresults
 		document.getElementById("documentdb_searchrange").value = documentdb_searchrange;
 		document.getElementById("documentdb_chunksize").value = documentdb_chunksize;
+		document.getElementById("documentdb_numresults_slide").value = documentdb_numresults
+		document.getElementById("documentdb_searchrange_slide").value = documentdb_searchrange;
+		document.getElementById("documentdb_chunksize_slide").value = documentdb_chunksize;
 		document.getElementById("documentdb_data").value = documentdb_data;
 		document.getElementById("documentdb_useEmbeddings").checked = documentdb_useEmbeddings;
 		if(is_using_kcpp_with_embeddings())
@@ -20143,12 +20863,7 @@ Current version indicated by LITEVER below.
 					}
 
 					//append instruction for instruct mode
-					if (!localsettings.placeholder_tags) {
-						txt =  get_instruct_endtag(false) + userinput;
-					}
-					else {
-						txt = instructendplaceholder + userinput;
-					}
+					txt = instructendplaceholder + userinput;
 
 					gametext_arr.push(txt);
 					render_gametext();
@@ -21308,9 +22023,13 @@ Current version indicated by LITEVER below.
 			<div class="corpostyle">
 				<div id="corpo_leftpannel" class="corpoleftpanel">
 					<button title="Hide Corpo Side Panel" class="corpo_leftpanel_close mainnav" onclick="show_corpo_leftpanel(false)">&times;</button>
-					<p id="corpoleftpanelitems" class="corpoleftpanelitems">
-
-					</p>
+					<div id="corpoleftpanelitems" class="corpoleftpanelitems">
+					<div class="corpoleftpanelitemstopper" id="corpoleftpanelitemstopper"></div>
+					<div style="padding:2px;font-size:14px;margin-left:8px;font-weight:600;line-height:1.1;margin-top:12px">Quick Slot Load</div>
+					<hr style="margin-top:4px;margin-bottom:6px" />
+					<div class="corpoleftpanelitemsinner" id="corpoleftpanelitemsinner"></div>
+					<div style="margin-top: auto; margin-bottom:2px; width: 230px;"><div onclick="quicksave()" class="corpo_leftpanel_btn" type="button" style="width:110px;padding-left: 44px;display:inline-block;background-image: var(--img_save_mono);">Save</div><div onclick="quickdelete()" class="corpo_leftpanel_btn red" type="button" style="width:110px;padding-left: 44px;display:inline-block;background-image: var(--img_delete_mono);">Delete</div></div>
+					</div>
 				</div>
 				<button title="Show Corpo Side Panel" class="corpo_leftpanel_open mainnav" onclick="show_corpo_leftpanel(true)"><div class="corpo_arrow_right"></div></button>
 				<div class="corporightpanel">
@@ -21403,11 +22122,13 @@ Current version indicated by LITEVER below.
 
 				<div style="float:right;">
 					<div class="settinglabel"><button type="button" class="btn purplebtn widelbtn" style="padding:4px;margin:2px;margin-top:4px;margin-bottom:4px;font-size:8px" id="wiexport" onclick="wi_group_export()">[Export / Import Group]</button></div>
-					<div class="settinglabel" style="padding: 4px;">
-						<div class="justifyleft settingsmall" title="Toggles all entries in entire group on/off">Toggle Group </div>
-						<input title="Toggle Entire Group" type="checkbox" id="toggle_wi_group" style="margin:0px 0 0;" onchange="toggle_wi_group_enabled()" checked>
+					<div style="float:right;">
+						<div class="settinglabel" style="padding: 4px;">
+							<div class="justifyleft settingsmall" title="Toggles all entries in entire group on/off">Toggle Group </div>
+							<input title="Toggle Entire Group" type="checkbox" id="toggle_wi_group" style="margin:0px 0 0;" onchange="toggle_wi_group_enabled()" checked>
+						</div>
+						<input title="World Info Quick Search" class="settinglabel miniinput" style="margin: 3px; width: 90px;" type="text" placeholder="Quick Search" value="" id="wiquicksearch" oninput="wi_quick_search()">
 					</div>
-					<input title="World Info Quick Search" class="settinglabel miniinput" style="margin: 3px; width: 90px;" type="text" placeholder="Quick Search" value="" id="wiquicksearch" oninput="wi_quick_search()">
 				</div>
 
 				<div class="settinglabel" style="padding: 4px;">
@@ -21479,11 +22200,11 @@ Current version indicated by LITEVER below.
 						<input title="Number of Search Results" inputmode="numeric" class="justifyright flex-push-right settingsmall" id="documentdb_numresults" oninput="
 						document.getElementById('documentdb_numresults_slide').value = this.value; estimate_and_show_textDB_usage();">
 					</div>
-					<div><input title="Number of Search Results Slider" type="range" min="1" max="5" step="1" id="documentdb_numresults_slide" oninput="
+					<div><input title="Number of Search Results Slider" type="range" min="1" max="10" step="1" id="documentdb_numresults_slide" oninput="
 						document.getElementById('documentdb_numresults').value = this.value; estimate_and_show_textDB_usage();"></div>
 					<div class="settingminmax">
 						<div class="justifyleft">1</div>
-						<div class="justifyright">5</div>
+						<div class="justifyright">10</div>
 					</div>
 				</div>
 
@@ -21545,7 +22266,7 @@ Current version indicated by LITEVER below.
 					<div class="justifyleft"><br>TextDB Storage<span class="helpicon">?<span
 						class="helptext">Paste as much raw text data here as you like. E.g. background information, reference documents, etc. This text will populate the database that will be chunked and searched by TextDB. This can be split using "[DOCUMENT BREAK]" to split the overall database into smaller documents, and titles can be added with "[DOCUMENT BREAK][Title of document]This is the content of the document".</span></span></div>
 				</div>
-				<textarea title="Edit TextDB" class="form-control menuinput_multiline" id="documentdb_data" style="height: 120px;"
+				<textarea title="Edit TextDB" class="form-control menuinput_multiline" oninput="estimate_and_show_textDB_usage()" id="documentdb_data" style="height: 120px;"
 					placeholder="Paste as much text data here as you like. This text will populate the database that will be searched by TextDB. This can be split using [DOCUMENT BREAK] to split the overall database into smaller documents, and titles can be added with [DOCUMENT BREAK][Title of document]This is the content of the document."></textarea>
 			</div>
 			<div id="memorycontainerfooter" class="popupfooter">
@@ -22076,6 +22797,7 @@ Current version indicated by LITEVER below.
 								<option value="2">KCPP / Forge / A1111</option>
 								<option value="3">OpenAI DALL-E</option>
 								<option value="4">ComfyUI</option>
+								<option value="5">Pollinations.ai</option>
 							</select>
 							<div id="generate_images_model_container" class="hidden">
 								<select class="form-control" id="generate_images_model" style="font-size: 12px;height:20px;padding:2px;margin:0px 0 0;" onblur="validate_sd_model()" title="Stable Diffusion Model Selection">
@@ -22113,6 +22835,13 @@ Current version indicated by LITEVER below.
 								<td><button type="button" class="btn btn-primary" style="width:100%; padding:2px 3px;margin-top:2px;font-size:11px;" onclick="set_dalle_key()">Set Key</button></td>
 								<td><button type="button" class="btn btn-primary" style="width:100%; padding:2px 3px;margin-top:2px;font-size:11px;" onclick="set_dalle_model()">Model</button></td>
 								</tr></table>
+							</div>
+							<div id="generate_images_pollinations_container" class="settinglabel hidden">
+								<select title="Select Image Model" class="form-control" id="generate_images_pollinations_model" style="height:20px;padding:0;margin:0px 0 0; width:calc(100% - 30px)">
+									<option value="flux" selected>flux</option>
+									<option value="turbo">turbo</option>
+								</select>
+								<button type="button" class="btn btn-primary" onclick="set_comfy_endpoint()" style="height: 20px; padding: 0px 2px; margin: 0px 0px 0px 3px;">⚙️</button>
 							</div>
 
 							<div>
@@ -22450,6 +23179,17 @@ Current version indicated by LITEVER below.
 						</div>
 						<table id="placeholder_replace_table" class="settinglabel" style="text-align: center; border-spacing: 3px 2px; border-collapse: separate;">
 						</table>
+					</div>
+					<div style="padding:3px;" class="justifyleft settinglabel">Classifier-Free Guidance <span class="helpicon">?<span
+						class="helptext">Functions as a negative prompt when Guidance Scale is above 1.</span></span>
+						<button type="button" title="Classifier-Free Guidance" class="btn btn-primary" style="font-size:12px;padding:2px 2px;" onclick="expand_tokens_section('expandguidance')">Expand Section</button>
+					</div>
+					<div id="expandguidance" class="hidden">
+						<div class="color_red hidden" id="noguidance">Classifier-Free Guidance may be unavailable.</div>
+						<div style="color:#ffffff;">Classifier-Free Guidance prompt functions as a negative prompt when Guidance Scale is above 1, and a positive prompt at Guidance Scale is above 1. Disabled if scale is exactly 1 or CFG prompt is blank.</em><br></div>
+						<div style="display: flex; column-gap: 4px; margin-top: 4px; margin-bottom: 4px;">
+						<input class="form-control menuinput_inline" type="text" placeholder="Enter CFG Prompt" value="" id="guidance_prompt">
+						<div style="padding:1px" class="settinglabel">Scale<br>(0-5): </div><input class="form-control menuinput_inline" style="margin-left:4px;width:70px;" inputmode="numeric" placeholder="(Off)" value="" id="guidance_scale"></div>
 					</div>
 					</div>
 				</div>
@@ -22942,6 +23682,7 @@ Current version indicated by LITEVER below.
 				<option value="7">MistralAI API</option>
 				<option value="8">Featherless API</option>
 				<option value="9">Grok API</option>
+				<option value="10">PollinationsAI API</option>
 			</select>
 			</div>
 
@@ -22998,7 +23739,7 @@ Current version indicated by LITEVER below.
 			<div id="oaicustom" class="menutext hidden">
 				<span id="oaidesc">
 				Entering your OpenAI API key will allow you to use KoboldAI Lite with their API.<br><br>
-				Note that KoboldAI Lite takes no responsibility for your usage or consequences of this feature. Your API key is used directly with the OpenAI API and is not transmitted to us.<br>Only Temperature, Top-P and Repetition Penalty samplers are used.<br><br>
+				Note that KoboldAI Lite takes no responsibility for your usage or consequences of this feature. Your API key is used directly with the OpenAI API and is not transmitted to us. Note that connecting will reset any custom DALL-E based or custom OpenAI based TTS endpoint urls to this new address.<br>Only Temperature, Top-P and Repetition Penalty samplers are used.<br><br>
 				<span class="color_green" style="font-weight: bold;">Please input OpenAI API URL and Key.</span><br><br>
 				</span>
 				<span id="openrouterdesc" class="hidden">
@@ -23021,6 +23762,11 @@ Current version indicated by LITEVER below.
 				Note that KoboldAI Lite takes no responsibility for your usage or consequences of this feature. Your API key is used directly with the Grok API and is not transmitted to us.<br>Only Temperature, Top-P, Top-K, Min-P and Repetition Penalty samplers are used.<br><br>
 				<span class="color_green" style="font-weight: bold;">Please input Grok Key.</span><br><br>
 				</span>
+				<span id="pollinationsdesc" class="hidden">
+				Pollinations.ai API is free to use without any key required.<br><br>
+				Note that KoboldAI Lite takes no responsibility for your usage or consequences of this feature. This service is ad driven, ads may appear in the output.<br>Only Temperature, Top-P, Top-K and Repetition Penalty samplers are used.<br><br>
+				<span class="color_green" style="font-weight: bold;">No Key Required.</span><br><br>
+				</span>
 
 				<input class="form-control" type="text" id="custom_oai_endpoint" placeholder="OpenAI API URL" value="" onblur="try_fetch_oai_models_auto()">
 				<input class="form-control" type="password" id="custom_oai_key" placeholder="API Key (Required)" value="" onfocus="focus_api_keys()" onblur="blur_api_keys()"><br>
@@ -23033,9 +23779,19 @@ Current version indicated by LITEVER below.
 					<option value="gpt-4">gpt-4</option>
 					<option value="gpt-4-turbo">gpt-4-turbo</option>
 					<option value="gpt-4o">gpt-4o</option>
+					<option value="gpt-4o-mini">gpt-4o-mini</option>
 					<option value="gpt-4-32k">gpt-4-32k</option>
+					<option value="gpt-4.1">gpt-4.1</option>
+					<option value="gpt-4.1-mini">gpt-4.1-mini</option>
+					<option value="gpt-4.1-nano">gpt-4.1-nano</option>
+					<option value="gpt-4.5-preview">gpt-4.5-preview</option>
+					<option value="chatgpt-4o-latest">chatgpt-4o-latest</option>
 					<option value="o1-mini">o1-mini</option>
+					<option value="o1">o1</option>
 					<option value="o1-preview">o1-preview</option>
+					<option value="o3-mini">o3-mini</option>
+					<option value="o3">o3</option>
+					<option value="o4-mini">o4-mini</option>
 					<option style="display:none;" class="custom_model_option" value="custom">[Custom]</option>
 				</select>
 				<select title="OpenRouter AI Model Selection" style="padding:4px;display:inline;width:calc(100% - 220px)" class="form-control hidden" id="custom_openrouter_model" onchange="oai_model_change(true)">
@@ -23055,7 +23811,10 @@ Current version indicated by LITEVER below.
 					<option value="mistral-tiny">mistral-tiny</option>
 					<option value="mistral-small">mistral-small</option>
 					<option value="mistral-medium-latest">mistral-medium-latest</option>
+					<option value="mistral-large-2407">mistral-large-2407</option>
 					<option value="mistral-large-latest">mistral-large-latest</option>
+					<option value="ministral-3b-latest">ministral-3b-latest</option>
+					<option value="ministral-8b-latest">ministral-8b-latest</option>
 					<option value="pixtral-12b-latest">pixtral-12b-latest</option>
 					<option value="pixtral-large-latest">pixtral-large-latest</option>
 					<option value="codestral-latest">codestral-latest</option>
@@ -23080,6 +23839,28 @@ Current version indicated by LITEVER below.
 					<option value="grok-3">grok-3</option>
 					<option style="display:none;" class="custom_model_option" value="custom">[Custom]</option>
 				</select>
+				<select title="Pollinations AI Model Selection" style="padding:4px;display:inline;width:calc(100% - 220px)" class="form-control hidden" id="custom_pollinations_model" onchange="oai_model_change(true)">
+					<option value="deepseek">deepseek</option>
+					<option value="deepseek-reasoning">deepseek-reasoning</option>
+					<option value="evil">evil</option>
+					<option value="hormoz">hormoz</option>
+					<option value="llama">llama</option>
+					<option value="llama-vision">llama-vision</option>
+					<option value="llamascout">llamascout</option>
+					<option value="midijourney">midijourney</option>
+					<option value="mirexa">mirexa</option>
+					<option value="mistral">mistral</option>
+					<option value="openai">openai</option>
+					<option value="openai-fast">openai-fast</option>
+					<option value="openai-large">openai-large</option>
+					<option value="phi">phi</option>
+					<option value="qwen-coder">qwen-coder</option>
+					<option value="rtist">rtist</option>
+					<option value="searchgpt">searchgpt</option>
+					<option value="unity">unity</option>
+					<option value="bidara">bidara</option>
+					<option style="display:none;" class="custom_model_option" value="custom">[Custom]</option>
+				</select>
 				<button type="button" class="btn btn-primary" style="display:inline;width:105px;" id="oaifetchlist" onclick="oai_fetch_models()">Fetch List</button>
 				<button type="button" class="btn btn-primary" style="display:inline;width:105px;" id="oaiusecustom" onclick="select_custom_oai_model()">Use Custom</button>
 				<div class="hidden" id="oaiemulatecompletionsbox">
@@ -23089,13 +23870,12 @@ Current version indicated by LITEVER below.
 				<div style="display:inline-flex">
 					<div><input type="checkbox" id="oaiaddversion" title="Add Endpoint Version Number" onchange="" checked>
 					<div class="box-label">Add Ver. Num</div></div>
-					<div><input type="checkbox" id="oaistreaming" title="Enable SSE Streaming" onchange="">
-					<div class="box-label">Streaming</div></div>
 					<div><input type="checkbox" id="useoaichatcompl" title="Use ChatCompletions API" onchange="toggleoaichatcompl()">
 					<div class="box-label">Chat-Completions API</div></div>
 					<div><input type="checkbox" id="useoainonstandard" title="Send Non-Standard Fields">
 					<div class="box-label">Non-Standard Fields</div></div>
 				</div>
+				<div class="todoremove color_yellow">Looking for the Streaming Toggle? It's now in Advanced Settings -> Streaming!</div>
 				<span id="useoaichatcomplbox" class="hidden" onload="toggleoaichatcompl();">
 					<br>
 					Main Message Role:
@@ -23191,6 +23971,11 @@ Current version indicated by LITEVER below.
 					<option value="gemini-2.0-flash">gemini-2.0-flash</option>
 					<option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
 					<option value="gemini-2.0-pro-exp">gemini-2.0-pro-exp</option>
+					<option value="gemini-2.5-flash-preview-04-17">gemini-2.5-flash-preview-04-17</option>
+					<option value="gemini-2.5-pro-preview-05-06">gemini-2.5-pro-preview-05-06</option>
+					<option value="gemma-3-1b-it">gemma-3-1b-it</option>
+					<option value="gemma-3-4b-it">gemma-3-4b-it</option>
+					<option value="gemma-3-12b-it">gemma-3-12b-it</option>
 					<option value="gemma-3-27b-it">gemma-3-27b-it</option>
 				</select>
 				<button type="button" class="btn btn-primary" style="display:inline;width:105px;" id="geminifetchlist" onclick="gemini_fetch_models()">Fetch List</button>
@@ -23222,15 +24007,17 @@ Current version indicated by LITEVER below.
 						<input type="checkbox" title="Use Gemini WebSearch" id="usegeminiweb">
 						<div class="box-label">Use WebSearch</div>
 					</div>
-					<div><input type="checkbox" id="geministreaming" title="Enable SSE Streaming" onchange="">
-						<div class="box-label">Streaming</div>
+					<div>
+						<input type="checkbox" title="Allow Gemini Thinking" id="usegeminithink" checked>
+						<div class="box-label">Allow Thinking</div>
 					</div>
 				</div>
+				<div class="todoremove color_yellow">Looking for the Streaming Toggle? It's now in Advanced Settings -> Streaming!</div>
 			</div>
 			<div id="coherecustom" class="menutext hidden">
 				Uses Cohere's models through their own API.<br><br>
 				Note that KoboldAI Lite takes no responsibility for your usage or consequences of this feature. Your API key is used directly with the Cohere API and is not transmitted to us.<br><br>
-				<select  title="Cohere AI Model Selection" style="padding:4px;" class="form-control" id="custom_cohere_model">
+				<select title="Cohere AI Model Selection" style="padding:4px;" class="form-control" id="custom_cohere_model">
 					<option value="command" selected="selected">command</option>
 					<option value="command-r">command-r</option>
 					<option value="command-r-plus">command-r-plus</option>
@@ -23273,7 +24060,11 @@ Current version indicated by LITEVER below.
 					</select>
 					<label for="adminmodeldropdown" id="adminmodeldropdownlabel"></label>
 					<select title="Select New Model" style="padding:4px;" class="form-control" id="adminmodeldropdown">
-					</select>
+					</select>					
+					<label for="adminmodelfromhf" id="adminmodelfromhflabel"></label>
+					<button title="Click to download a new model from HF" style="padding:4px;" class="form-control btn btn-primary" id="adminmodelfromhf">
+						Click to download a new model from HF
+					</button>
 				</div>
 				<br>
 			</div>
@@ -23756,10 +24547,6 @@ else
 	// password = "SaveOurSouls"; e = encrypt(password, "Hello world"); decrypt(password, e)
 </script>
 <script>
-	function is_using_kcpp_with_server_saving() {
-		return (custom_kobold_endpoint != "" && koboldcpp_version && koboldcpp_version != "" && compare_version_str(koboldcpp_version, "1.84") >= 0 && koboldcpp_has_server_saving);
-	}
-
 	let serverSavesPopup = document.getElementById("serverSaves");
 	let serverSavingPopup = document.getElementById("serverSavingPopup");
 	let serverSavingTypePopup = document.getElementById("serverSavingTypePopup");
@@ -24459,6 +25246,37 @@ else
 		return prompt.replaceAll(/\.+/g, ",").replaceAll(/_+/g, " ").replaceAll(/\n+/g, " ")
 	}
 
+	let overwriteWIFromAgent = (uniqueIdentifier, selectionKeys, content) => {
+		let baseWI = {
+			"key": selectionKeys.join(","),
+			"keysecondary": "",
+			"keyanti": "",
+			"content": content,
+			"comment": uniqueIdentifier,
+			"folder": null,
+			"selective": false,
+			"constant": false,
+			"probability": "100",
+			"wigroup": "",
+			"widisabled": false
+		}
+		current_wi = current_wi.filter(wi => wi?.comment !== uniqueIdentifier)
+		current_wi.push(baseWI)
+	}
+
+	let getTableNamesFromTextDB = () => {
+		matcher = new RegExp("\\[DOCUMENT BREAK\\]\\[Table:\([^\\]]*?\)\\].*?\\[DOCUMENT BREAK\\]", "gmis")
+		return [...documentdb_data.matchAll(matcher)].map(a => a[1])
+	}
+
+	let getRandomElemFromArray = (arr) => {
+		return arr[Math.floor(Math.random() * arr.length)]
+	}
+
+	let getChatOpponentRandomly = () => {
+		return getRandomElemFromArray(localsettings.chatopponent.split("||$||"))
+	}
+
 	let wordCountEnabled = false
 	let getCommands = () => {
 	return [
@@ -24466,10 +25284,16 @@ else
 			"name": "ask_user",
 			"description": "Ask the user for input. Optionally, suggested responses can be provided to the user as well.",
 			"args": {
-				"message": "<message that awaits user input>",
+				"whoToSendMessageAs": {
+					description: "<whose perspective is the response written from>",
+					pattern: (localsettings.inject_chatnames_instruct ? `^${getChatOpponentRandomly()}$` : undefined),
+					type: "string",
+					skip: !localsettings.inject_chatnames_instruct
+				},
+				"message": "<message that prompts the user for input>",
 				"suggestionsToPickFrom": {
-				description: "<suggestions the user can pick from as an array of strings>",
-				type: "array"
+				description: "<suggestions written from the user's perspective which they can pick from for their next action>",
+				type: "array",
 				}
 			},
 			"enabled": true,
@@ -24483,7 +25307,8 @@ else
 						// Do not care about an error here, it's a nice to have if the suggestions show
 					}
 				}
-				addThought(createSysPrompt, `Request for user input: ` + action?.args?.message)
+				let prompt = localsettings.inject_chatnames_instruct ? `Request for user input by ${action?.args?.whoToSendMessageAs}: ${action?.args?.message}` : `Request for user input: ${action?.args?.message}`
+				addThought(createSysPrompt, prompt)
 				return true
 			}
 			},
@@ -24491,11 +25316,17 @@ else
 			"name": "send_message",
 			"description": "Send a message to the user without waiting for their response. Does not return anything.",
 			"args": {
-				"message": "<message to send>"
+				"whoToSendMessageAs": {
+					description: "<whose perspective is the response written from>",
+					pattern: (localsettings.inject_chatnames_instruct ? `^${getChatOpponentRandomly()}$` : undefined),
+					type: "string",
+					skip: !localsettings.inject_chatnames_instruct
+				},
+				"message": "<message to send>",
 			},
 			"enabled": true,
 			"executor": (action) => {
-				addThought(createAIPrompt, action?.args?.message)
+				addThought(createAIPrompt, localsettings.inject_chatnames_instruct ? `${action?.args?.whoToSendMessageAs}: ${action?.args?.message}` : action?.args?.message)
 			}
 			},
 			{
@@ -24551,6 +25382,37 @@ else
 				}
 			},
 			{
+			"name": "get_random_terms_from_table",
+			"description": "Gets random terms from a user defined table",
+			"args": {
+				"numOfTerms": {
+				description: "<number of terms to get>",
+				type: "integer"
+				},
+				"tableToUse": {
+				description: "<number of table to get terms from>",
+				type: "string",
+				enum: getTableNamesFromTextDB()
+				}
+			},
+			"enabled": getTableNamesFromTextDB().length > 0,
+				"executor": (action) => {
+					let numOfTerms = action?.args?.numOfTerms
+					let tableToUse = action?.args?.tableToUse
+					if (!!numOfTerms && !!tableToUse) {
+						let results = []
+						let tableElems = getDocumentFromTextDB(`Table:${tableToUse}`).split("\n").map(c => c.trim()).filter(c => c.length > 0)
+						for (let roll = 0; roll < numOfTerms; roll++) {
+							results.push(getRandomElemFromArray(tableElems))
+						}
+						addThought(createSysPrompt, `Got ${numOfTerms} terms from ${tableToUse}: ${results.join(", ")}`)
+					}
+					else {
+						addThought(createSysPrompt, `Could not get terms as the format was incorrect`)
+					}
+				}
+			},
+			{
 			"name": "evaluate_formula",
 			"description": "Evaluates a mathematical formula and returns the result.",
 			"args": {
@@ -24588,6 +25450,33 @@ else
 					}
 					else {
 						addThought(createSysPrompt, `Text was empty - nothing added to history`)
+					}
+				}
+			},
+			{
+				"name": "overwrite_world_information",
+				"description": "Overwrites an entry describing an entity. The information is stored under a unique identifier. This information is included when certain keywords are mentioned.",
+				"args": {
+					"uniqueIdentifier": "<unique identifier (such as a characters name, location etc)>",
+					"text": "<descriptive text which by itself provides all needed information to define the entity>",
+					"keywords": {
+						description: "<keywords to help with searching>",
+						type: "array"
+					}
+				},
+				"enabled": true,
+				"executor": (action) => {
+					let uniqueIdentifier = action?.args?.uniqueIdentifier
+					let keywords = action?.args?.keywords
+					let textToAdd = action?.args?.text
+					if (!!uniqueIdentifier && !!textToAdd) {
+						uniqueIdentifier = uniqueIdentifier.toLowerCase()
+						keywords = !!keywords && Array.isArray(keywords) ? keywords : [uniqueIdentifier]
+						overwriteWIFromAgent(uniqueIdentifier, keywords, textToAdd)
+						addThought(createSysPrompt, `Text has been added to world info: ${uniqueIdentifier}`)
+					}
+					else {
+						addThought(createSysPrompt, `Text was empty - nothing added to world info`)
 					}
 				}
 			},
@@ -24790,15 +25679,48 @@ else
 				"aspect": {
 					type: "string",
 					description: "<aspect ratio - must be \"landscape\", \"portrait\" or \"square\">"
+				},
+				"use_another_image_as_source": {
+					description: "<if the user wished to generate a new image based on one they provide, set this to true>",
+					type: "boolean"
 				}
 			},
 			"enabled": localsettings.generate_images_mode == 2, // Only enabled if local endpoint exists / is in use
-				"executor": (action) => {
+				"executor": async (action) => {
 					let prompt = action?.args?.prompt
 					let aspect = action?.args?.aspect
 					if (!!prompt) {
-						generate_new_image(preparePromptForImageGen(prompt), undefined, calcImageSizing(aspect))
-						addThought(createSysPrompt, `Image generated`)
+						if (!!action?.args?.use_another_image_as_source)
+						{
+							waitingFori2iSelection = true
+							addThought(createSysPrompt, `Please click an image as a source for img2img generation`, true)
+
+							let waitForI2ILoop = () => {
+								return new Promise((resolve, reject) => {
+									let intervalId = setInterval(() => {
+										if (waitingFori2iSelection === false || endCurrent) {
+											clearInterval(intervalId)
+											resolve()
+										}
+									}, 1000)
+								})
+							}
+							await waitForI2ILoop()
+							if (!!i2i64) {
+								generate_new_image(preparePromptForImageGen(prompt), i2i64, calcImageSizing(aspect))
+								addThought(createSysPrompt, `Image generated`)
+							}
+							else {
+								addThought(createSysPrompt, `User did not select an image - no image generated`)
+							}
+							i2i64 = undefined;
+							waitingFori2iSelection = false;	
+						}
+						else
+						{
+							generate_new_image(preparePromptForImageGen(prompt), undefined, calcImageSizing(aspect))
+							addThought(createSysPrompt, `Image generated`)
+						}
 					}
 					else {
 						addThought(createSysPrompt, `No prompt provided, image not generated`)
@@ -24815,7 +25737,7 @@ else
 					description: "<aspect ratio - must be \"landscape\", \"portrait\" or \"square\">"
 				}
 			},
-			"enabled": localsettings.generate_images_mode == 2, // Only enabled if local endpoint exists / is in use
+			"enabled": false, // localsettings.generate_images_mode == 2, // Only enabled if local endpoint exists / is in use
 				"executor": async (action) => {
 					let i2iPrompt = action?.args?.prompt
 					if (!!i2iPrompt) {
@@ -24871,7 +25793,14 @@ else
 	}
 
 	let getEnabledCommands = () => {
-		return getCommands().filter(command => !!command?.enabled)
+		let enabledCommands = getCommands().filter(command => !!command?.enabled)
+		let forbiddenAgentCommands = getDocumentFromTextDB('Forbidden agent commands')
+		if (forbiddenAgentCommands !== null)
+		{
+			let commandsToExclude = forbiddenAgentCommands.split("|")
+			enabledCommands = enabledCommands.filter(command => !commandsToExclude.includes(command.name))
+		}
+		return enabledCommands
 	}
 	
 	let toJsonSchema = (obj, currentRef = {}) => {
@@ -24926,24 +25855,32 @@ else
 			
 			elem.properties.command.properties.name["pattern"] = `^${command.name}$`
 			for (arg in command.args) {
-				if (typeof command.args[arg] === "object" && !!command.args[arg]?.format)
+				if (!command.args[arg]?.skip)
 				{
-					let formatToUse = toJsonSchema(JSON.parse(command.args[arg]?.format))
-					args.properties[arg] = formatToUse
-				}
-				else if (typeof command.args[arg] === "object" && !!command.args[arg]?.type) {
-					args.properties[arg] = {
-						type: command.args[arg].type
-					}
-					if (!!command.args[arg]?.enum)
+					if (typeof command.args[arg] === "object" && !!command.args[arg]?.format)
 					{
-						args.properties[arg].enum = command.args[arg]?.enum
+						let formatToUse = toJsonSchema(JSON.parse(command.args[arg]?.format))
+						args.properties[arg] = formatToUse
 					}
-				} else {
-					args.properties[arg] = {
-						type: "string"
+					else if (typeof command.args[arg] === "object" && !!command.args[arg]?.type) {
+						args.properties[arg] = {
+							type: command.args[arg].type
+						}
+						if (!!command.args[arg]?.enum)
+						{
+							args.properties[arg].enum = command.args[arg]?.enum
+						}
+						if (!!command.args[arg]?.pattern)
+						{
+							args.properties[arg].pattern = command.args[arg]?.pattern
+						}
+					} else {
+						args.properties[arg] = {
+							type: "string"
+						}
 					}
 				}
+				
 				args.required.push(arg)
 			}
 			return elem
@@ -25152,6 +26089,32 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return output.filter(text => text.length > 0)
 	}
 
+	let listOfExclusions = ["Action taken:", "Action taken (words =", "History search performed:", "Chain of thought complete", "Stop thinking action confirmed",
+				 "Web search results:", "Text has been added to history", "Formula evaluation result:", "Formula evaluation could not be completed as no formula was provided", 
+				 "Text has been added to history", "Text was empty - nothing added to history", "Search string was empty, no search performed", "Word count is", "Image analysed:", 
+				 "Image generated", "No prompt provided, image not generated", "Text has been spoken", "No text provided, nothing has been said", "System prompt has been overwritten", 
+				 "No system prompt provided, nothing has been overwritten", "Current state has been overwritten", "No state provided, nothing has been overwritten", "Current order of actions has been cleared",
+				  "Current order of actions has been overwritten", "No order of actions provided, nothing has been overwritten", "Error - Empty response instead of action. Ensure all responses are valid JSON.",
+				"Current state format has been overwritten", "No valid state format provided, nothing has been overwritten", `Text has been added to world info:`, `Text was empty - nothing added to world info`, `Chain of thought had an exception`]
+
+	let hideAgentModeCotForAestheticMode = (container = document) => {
+		[...container.querySelectorAll("end_of_context_koboldlite_internal > div")]
+			.filter(elem => listOfExclusions.find(excludedStart => elem.innerText.trim().indexOf(excludedStart) === 0))
+			.forEach(elem => elem.style.display = "none")
+	}
+
+	let originalRenderAestheticUI = render_aesthetic_ui
+
+	render_aesthetic_ui = (input, isPreview) => {
+		let aestheticHTML = document.createElement("div")
+		aestheticHTML.innerHTML = originalRenderAestheticUI(input, isPreview)
+		if (isAgentModeEnabledAndSetCorrectly() && !!localsettings?.agentHideCOT)
+		{
+			hideAgentModeCotForAestheticMode(aestheticHTML)
+		}
+		return aestheticHTML.innerHTML
+	}
+
 	var loadingNewGame = true
 	let originalRepackInstructTurns = repack_instruct_turns, cotOverrideRepack = false;
 
@@ -25184,42 +26147,53 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			if (loadingNewGame)
 			{
 				loadingNewGame = false
+				let suggestionsRegex = new RegExp(`suggestionsToPickFrom: (\\[.*?\\])`, "gm")
+				
+				let decodeEntities = (function() {
+					// this prevents any overhead from creating the object each time
+					let element = document.createElement('div');
+
+					function decodeHTMLEntities (str) {
+						if(str && typeof str === 'string') {
+						// strip script/html tags
+						str = str.replace(/<script[^>]*>([\S\s]*?)<\/script>/gmi, '');
+						str = str.replace(/<\/?\w(?:[^"'>]|"[^"]*"|'[^']*')*>/gmi, '');
+						element.innerHTML = str;
+						str = element.textContent;
+						element.textContent = '';
+						}
+
+						return str;
+					}
+
+					return decodeHTMLEntities;
+				})();
+
 				for (let i = combined_chunks.length - 1; i >= 0 && i >= combined_chunks.length - 4; i--) {
 					let elem = combined_chunks[i]
-					if (elem.message.indexOf("Action: ") === 0) {
-						let actionJson = elem.message.replace("Action:", "").trim()
-						try {
-							let actionObj = JSON.parse(actionJson.replaceAll("&quot;", `"`))
-							if (actionObj?.command?.name === "ask_user" && Array.isArray(actionObj?.command?.args?.suggestionsToPickFrom)) {
-								setSuggestions(actionObj?.command?.args?.suggestionsToPickFrom.map(String))
-								break
-							}
-						}
-						catch (e) {
-							// Suppress errors
-						}
+					try {
+						let cleanedText = decodeEntities(elem.message)
+						let suggestions = JSON.parse([...cleanedText.matchAll(suggestionsRegex)][0][1].replaceAll("&quot;", `"`))
+						setSuggestions(suggestions)
+						break
+					}
+					catch (e) {
+						// Suppress errors
 					}
 				}
 			}
 
 			if (filterOutActions)
 			{
-				let listOfExclusions = ["Action: {", "History search performed:", "Chain of thought complete", "Stop thinking action confirmed",
-				 "Web search results:", "Text has been added to history", "Formula evaluation result:", "Formula evaluation could not be completed as no formula was provided", 
-				 "Text has been added to history", "Text was empty - nothing added to history", "Search string was empty, no search performed", "Word count is", "Image analysed:", 
-				 "Image generated", "No prompt provided, image not generated", "Text has been spoken", "No text provided, nothing has been said", "System prompt has been overwritten", 
-				 "No system prompt provided, nothing has been overwritten", "Current state has been overwritten", "No state provided, nothing has been overwritten", "Current order of actions has been cleared",
-				  "Current order of actions has been overwritten", "No order of actions provided, nothing has been overwritten", "Error - Empty response instead of action. Ensure all responses are valid JSON.",
-				"Current state format has been overwritten", "No valid state format provided, nothing has been overwritten"]
 				combined_chunks = combined_chunks
-				.filter(elem => !listOfExclusions.find(excludedStart => elem.message.trim().indexOf(excludedStart) === 0))
-				.map(elem => {
-					if (elem.message.indexOf("Request for user input:") === 0)
-					{
-						elem.message = elem.message.replace("Request for user input:", "").trim()
-					}
-					return elem
-				})
+					.filter(elem => !listOfExclusions.find(excludedStart => elem.message.trim().indexOf(excludedStart) === 0))
+					.map(elem => {
+						if (elem.message.indexOf("Request for user input:") === 0)
+						{
+							elem.message = elem.message.replace("Request for user input:", "").trim()
+						}
+						return elem
+					})
 			}
 			
 			return combined_chunks.map(elem => {
@@ -25239,10 +26213,11 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	let getLastActions = (amountOfActions = 10) => {
+		let exclusions = ["Chain of thought repetition detected - ending", "Chain of thought complete"] // "Action: {", "Action (words =", "Action taken: ", "Action taken (words ="
 		return repack_instruct_turns(concat_gametext(true), `{{[INPUT]}}`, `{{[OUTPUT]}}`, `{{[SYSTEM]}}`, true, false).map(msg => {
 			msg.msg = msg.msg.replaceAll("{{[SYSTEM_END]}}", "").replaceAll("{{[INPUT_END]}}", "").replaceAll("{{[OUTPUT_END]}}", "").trim(); 
 			return msg 
-		}).filter(msg => !/^\n*$/.test(msg.msg) && !!msg.msg && msg.msg.indexOf("Chain of thought repetition detected - ending") === -1 && msg.msg.indexOf("Chain of thought complete") === -1).splice(-amountOfActions)
+		}).filter(msg => !/^\n*$/.test(msg.msg) && !!msg.msg && !exclusions.find(exclusion => exclusion.indexOf(msg.msg) !== -1)).splice(-amountOfActions)
 	}
 
 	let getInfoSnippet = (snippet) => {
@@ -25253,19 +26228,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		regex = `\(\\[DOCUMENT BREAK\\]\\[${documentName}\\]\)\(.*?\)\(\\[DOCUMENT BREAK\\]\)`
 		let match = documentdb_data.match(new RegExp(regex, "s"))
 		return !!match ? match[2].trim() : null
-	}
-
-	let replaceDocumentFromTextDB = (documentName, documentContent) => {
-		if (documentdb_data.indexOf(`[DOCUMENT BREAK][${documentName}]`) !== -1)
-		{
-			regex = `\(\\[DOCUMENT BREAK\\]\\[${documentName}\\]\)\(.*?\)\(\\[DOCUMENT BREAK\\]\)`
-			documentdb_data = documentdb_data.replace(new RegExp(regex, "s"), `$1${documentContent.trim()}$3`)
-		}
-		else
-		{
-			documentdb_data += `[DOCUMENT BREAK][${documentName}]${documentContent.trim()}[DOCUMENT BREAK]`
-		}
-		document.getElementById("documentdb_data").value = documentdb_data;
 	}
 
 	let calcImageSizing = (aspect) => {
@@ -25300,8 +26262,18 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	let getFinalAgentPrompt = (currentOrderOfActions) => {
-		let basePrompt = createSysPrompt(`Current state: ${getDocumentFromTextDB('State')}${currentOrderOfActions.length > 0 ? `\n\nOrder of actions: ${currentOrderOfActions.join(" -> ")}` : ""}`)
-		return basePrompt
+		let state = getDocumentFromTextDB('State')
+		let prompt = []
+		if (state != null)
+		{
+			prompt.push(`Current state: ${state}`)
+		}
+		if (currentOrderOfActions.length > 0)
+		{
+			prompt.push(`Order of actions: ${currentOrderOfActions.join(" -> ")}`)
+		}
+		let basePrompt = prompt.join("\n\n")
+		return basePrompt.length > 0 ? createSysPrompt(basePrompt) : ""
 	}
 
 	/**
@@ -25416,6 +26388,23 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return wistr
 	}
 
+	let actionToText = (action) => {
+		let actionAsText = `Name: ${action.name}\n`
+		if (!!action.args)
+		{
+			let args = Object.keys(action.args).map(key => {
+				let value = action.args[key];
+				return typeof value === "object" ? `\t${key}: ${JSON.stringify(value)}` : `\t${key}: ${value}`
+			}).join("\n")
+			actionAsText += `\nArguments:\n${args}`
+		}
+		else 
+		{
+			actionAsText += "\nArguments: None\n"
+		}
+		return actionAsText
+	}
+
 	let recentActions = [], maxActionsInHistory = 20, currentAgentCycle = null, endCurrent = false
 
 	let runAgentCycle = async (initialPrompt = undefined) => {
@@ -25439,11 +26428,26 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			}
 		})
 
+		let textDBResults = ""
 		if (!!initialPrompt)
 		{
+			initialPrompt = (localsettings.inject_chatnames_instruct ? `${localsettings.chatname}: ${initialPrompt}` : initialPrompt)
 			addThought(createInstructPrompt, initialPrompt)
+			if (!!documentdb_enabled)
+			{
+				let contentToSearch = documentdb_data
+				if (!!documentdb_searchhistory)
+				{
+					contentToSearch += `\n\n[DOCUMENT BREAK][Chatlog history]${concat_gametext(true)}[DOCUMENT BREAK]`
+				}
+				let ltmSnippets = await DatabaseMinisearch(contentToSearch, initialPrompt, "");
+				for (let i = 0; i < ltmSnippets.length; ++i) {
+					textDBResults += getInfoSnippet(ltmSnippets[i]);
+				}
+			}
 		}
 
+		
 		let hasAttemptedToCompleteOnce = false
 		let lastThoughtWasBlank = false
 
@@ -25451,12 +26455,25 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		for (let i = 0; i < localsettings.agentCOTMax && endCurrent === false; i++)
 		{
 			clearSuggestions()
-			let validCommands = getEnabledCommands().map(command => command.name)
+			// Ensure valid commands does not include stop thinking right away to ensure an action of some type is taken
+			let validCommands = getEnabledCommands().map(command => command.name).filter(name => i != 0 || name != "stop_thinking")
 
 			let currentOrderOfActions = getDocumentFromTextDB('Order of actions')
 			currentOrderOfActions = !!currentOrderOfActions ? currentOrderOfActions.split(",").filter(act => !!act) : []
 			let nextAction = currentOrderOfActions.splice(i).filter(acts => acts.split("|").find(act => validCommands.includes(act)))
-			nextAction = nextAction.length > 0 ? getCommands().filter(act => nextAction[0].split("|").includes(act.name)) : getEnabledCommands()
+			nextAction = nextAction.length > 0 ? getCommands().filter(act => nextAction[0].split("|").includes(act.name)) : getEnabledCommands().filter(command => validCommands.includes(command.name))
+
+			// Find any actions which have occured more than the max repeats in settings and remove them from the options
+			let actionsOverMaxRepeats = recentActions.map(elem => elem?.command?.name).reduce((o, c) => {
+				let elem = o.find(e => e.name == c)
+				if (elem === undefined) {
+					o.push({name: c, repeats: 1})
+				} else {
+					elem.repeats++
+				}
+				return o
+			}, []).filter(o => o.repeats >= localsettings.agentCOTRepeatsMax).map(o => o.name)
+			nextAction = nextAction.filter(act => !actionsOverMaxRepeats.includes(act.name))
 
 			// Find actions which are identical and have run twice - then remove them from the possible options to run again
 			let duplicateActions = recentActions.filter((elem, pos, arr) => arr.findIndex((elem2) => JSON.stringify(elem) === JSON.stringify(elem2)) !== pos).map(elem => elem?.command?.name)
@@ -25480,8 +26497,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			let max_wi_len = Math.floor(max_allowed_characters * 0.5);
 
 			let history = getInitialAgentPrompt(nextAction, max_mem_len)
-			let wiToInclude = createSysPrompt(getWorldInfoForAgent(truncated_context, max_wi_len))
-			let anToInclude = createSysPrompt(substring_to_boundary(current_anotetemplate.replace("<|>", current_anote), max_anote_len))
+			let wiToInclude = createSysPrompt(substring_to_boundary(getWorldInfoForAgent(truncated_context, max_wi_len) + "\n\n" + textDBResults, max_wi_len))
+			let anToInclude = !!current_anote ? createSysPrompt(substring_to_boundary(current_anotetemplate.replace("<|>", current_anote), max_anote_len)) : ""
 			let finalAgentPrompt = getFinalAgentPrompt(currentOrderOfActions)
 
 			let cotAsText = "", maxLengthOfCot = max_allowed_characters - history.length - wiToInclude.length - anToInclude.length - finalAgentPrompt.length
@@ -25514,12 +26531,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 			let resp = await generateAndGetTextFromPrompt(replace_instruct_placeholders(history), jsonGrammar, [], recentActions.map(JSON.stringify))
 			
-			console.debug(resp)
-			// if (resp == "{}")
-			// {
-			// 	addThought(createSysPrompt, "Empty prompt returned - continuing", true)
-			// 	continue
-			// }
 			try
 			{
 				if (resp.trim() == "")
@@ -25553,14 +26564,15 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 					let action = json
 					recentActions.push(json)
-					if (wordCountEnabled && !!action?.args?.message && typeof action?.args?.message === "string")
+					if (wordCountEnabled && !!action?.command?.args?.message && typeof action?.command?.args?.message === "string")
 					{
-						addThought(createAIPrompt, `Action (words = ${action?.args?.message.split(/\s/g).filter(s => s.length > 0).length}): ${JSON.stringify(json)}`)
+						addThought(createAIPrompt, `Action taken (words = ${action?.command?.args?.message.split(/\s/g).filter(s => s.length > 0).length}):\n\n${actionToText(action?.command).trim()}`)
 					}
 					else
 					{
-						addThought(createAIPrompt, `Action: ${JSON.stringify(json)}`)
+						addThought(createAIPrompt, `Action taken:\n\n${actionToText(action?.command).trim()}`)
 					}
+
 					let isCompleted = false;
 					let command = getCommands().find(command => command.name === action.command.name)
 					if (!!command && command?.executor !== undefined) {
@@ -25625,12 +26637,15 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		document.getElementById("agentHideCOT").checked = localsettings.agentHideCOT;
 		document.getElementById("agentCOTMax").value = localsettings.agentCOTMax;
 		document.getElementById("agentCOTMaxnumeric").value = localsettings.agentCOTMax;
+		document.getElementById("agentCOTRepeatsMax").value = localsettings.agentCOTRepeatsMax;
+		document.getElementById("agentCOTRepeatsMaxnumeric").value = localsettings.agentCOTRepeatsMax;
 	}
 
 	confirm_settings = () => {
 		localsettings.agentBehaviour = (document.getElementById("agentBehaviour").checked ? true : false);
 		localsettings.agentHideCOT = (document.getElementById("agentHideCOT").checked ? true : false);
 		localsettings.agentCOTMax = document.getElementById("agentCOTMax").value;
+		localsettings.agentCOTRepeatsMax = document.getElementById("agentCOTRepeatsMax").value;
 		originalConfirmSettings()
 	}
 
@@ -25827,7 +26842,11 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		if (localsettings?.agentCOTMax == undefined)
 		{
 			localsettings.agentCOTMax = 5
-		}		
+		}
+		if (localsettings?.agentCOTRepeatsMax == undefined)
+		{
+			localsettings.agentCOTRepeatsMax = 1
+		}
 
 		let createSettingElemBool = (inputElemId, labelTitle, labelText) => {
 			let settingLabelElem = document.createElement("div")
@@ -25923,6 +26942,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		settingLabelElem = createSettingElemRange("agentCOTMax", "Maximum agent actions", "Defines the maximum number of actions the agent can take without a user input", 1, 20, 1, 5)
 		lastSettingContainer.append(settingLabelElem)
 
+		settingLabelElem = createSettingElemRange("agentCOTRepeatsMax", "Maximum repeated agent actions of a type", "Defines the maximum number of actions the agent can take of the same type without a user input", 1, 20, 1, 1)
+		lastSettingContainer.append(settingLabelElem)
+
 		createStopThinkingButton()
 	})
 
@@ -25947,10 +26969,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	let facts = ["Tunnel Networks: Kobolds live in sprawling tunnel networks. Cyberpunk kobolds augment these with networked sensor arrays and automated defense turrets, all controlled by a central AI 'Warren Mind'.", "Dragon Devotion: Traditional kobolds worship dragons. Cyberpunk kobolds see dragons as powerful data-lords, hoarding information (and sometimes physical hardware) – they try to curry favor by providing useful tech.", "Trap Masters: Known for their traps, cyberpunk kobolds use electrified grids, laser tripwires, and robotic spiders alongside traditional pits and snares.", "AI Spirits: Each Kobold warband will often have several 'spirit' units - small AI cores housed in scavenged drones or robotic shells that act as scouts, messengers, or even shock troops.", "Scale Colors & Clan: Kobold scale color signifies clan. In the cyberpunk age, this is displayed through LED patterns woven into their scales, showing allegiance and status.", "Scavenging Prowess: Kobolds are master scavengers. They can find usable components in almost any pile of junk, creating surprisingly effective cybernetic enhancements for themselves and their spirits.", "Weak but Numerous: Kobolds rely on being numerous to overcome larger foes. Cyberpunk kobolds compensate with swarms of micro-drones and coordinated attacks directed by their Warren Mind.", "Pack Tactics: Critical to kobold survival, pack tactics are amplified via networked comms between kobolds and their spirit units.", "Rune Tech: Traditional runes have been merged with circuit boards. These 'rune-circuits' provide low-level magical effects powered by salvaged energy cells.", "The Warren Mind: The central AI controlling a kobold warren isn't always sophisticated. Often it's built from cobbled-together parts, resulting in quirky personalities and unpredictable behavior."];
 </script>
 <script>
-	let getRandomElemFromArray = (arr) => {
-		return arr[Math.floor(Math.random() * arr.length)]
-	}
-
 	document.getElementById("btnsend").onmouseover = () => {
 		document.getElementById("input_text").placeholder = `Enter text here\nOr enjoy this fact: ${getRandomElemFromArray(facts)}`;
 		document.getElementById("btnsend").style.backgroundImage = `url("${getRandomElemFromArray(icons)}")`; 
@@ -26329,6 +27347,17 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 		addDocumentToTextDB()
 		{
+			let tryImportLorebookAsTextDB = (b64) => {
+				try
+				{
+					let obj = JSON.parse(atob(b64.split(",")[1]))
+					return importLorebookAsTextDB(obj)
+				}
+				catch (e)
+				{
+					return false
+				}
+			}
 			promptUserForLocalFile(async (fileDetails) => {
 				let {file, fileName, ext, content} = fileDetails
 				let extractedText = undefined
@@ -26337,6 +27366,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				{
 					let analysisPrompt = "Perform OCR on the provided image."
 					extractedText = await generateAndGetTextFromPrompt(`${createInstructPrompt(analysisPrompt)}${instructendplaceholder}${!!localsettings?.inject_jailbreak_instruct ? localsettings.custom_jailbreak_text : ""}`, undefined, [content.split(",")[1]])	
+				}
+				else if (content.startsWith("data:application/json") && tryImportLorebookAsTextDB(content))
+				{
+					return
 				}
 				else
 				{
@@ -26351,5 +27384,191 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}
 	}
 	document.documentParser = new DocumentParser()
+</script>
+<script>
+	// Mod to allow WI to be exported / imported from JSON files
+
+	let saveFileGeneric = (fileName, fileContent, mimeType) => {
+		window.URL = window.URL || window.webkitURL;
+		var userAgent = window.navigator.userAgent;
+
+		if (userAgent.match(/AppleWebKit/) && (userAgent.match(/iPad/i) || userAgent.match(/iPhone/i))) {
+			let ststr = fileContent;
+			var file = new Blob([ststr], { type: 'application/octet-stream' });
+			var file2 = new Blob([ststr], { type: mimeType });
+			console.log("Special save handling for iphones")
+			// iPad or iPhone needs an extra download
+			var reader = new FileReader();
+			var reader2 = new FileReader();
+			let datblob = window.URL.createObjectURL(file2);
+			reader.onload = function (e) {
+				reader2.readAsDataURL(file2);
+				reader2.onload = function (e) {
+					msgbox(`<button type="button" class="btn btn-primary" id="ios_save" onclick="savenowfn()">Click to Save</button>
+	<br><h5>Apple devices are known to have issues saving. If the above button does not work, try opening or right-click / long press one of the below links, and select (Save As)</h5><h4><li><a href=` + reader.result + ` class='color_blueurl' target='_blank' download="` + fileName + `">Raw File Data</a></li><li><a href=` + reader2.result + ` class='color_blueurl' target='_blank' download="` + fileName + `">File Data</a></li><li><a href=` + datblob + ` class='color_blueurl' download="` + fileName + `">URL Blob</a></li></h4>`, "Save Story", true)
+				}
+			}
+			reader.readAsDataURL(file);
+		}
+		else {
+			var a = document.getElementById("tempfile");
+			var file = new Blob([fileContent], { type: mimeType });
+			console.log("Normal save handling")
+			if (tempfileurl) {
+				window.URL.revokeObjectURL(tempfileurl);
+			}
+			tempfileurl = window.URL.createObjectURL(file);
+			a.href = tempfileurl;
+			a.target = '_blank';
+			a.download = fileName;
+			setTimeout(function () { a.click() }, 20);
+		}
+	}
+
+	window.addEventListener('load', () => {
+		let createWIButton = (id, text, onClickEvent) => {
+			let button = document.createElement("button")
+			button.id = id
+			button.innerText = text
+			button.onclick = onClickEvent
+			button.classList.add("btn", "purplebtn", "widelbtn")
+			button.style = "padding:4px;margin:2px;margin-top:4px;margin-bottom:4px;font-size:8px"
+			return button
+		}
+
+		let wiButtonHolder = document.getElementById("wiexport").parentElement
+		wiButtonHolder.appendChild(createWIButton("exportWIToFile", "[Export WI group to file]", () => {
+			save_wi()
+			update_wi()
+			saveFileGeneric(`wi_${curr_wi_tab !== "" ? curr_wi_tab : "General"}`, JSON.stringify(pending_wi_obj.filter(wi => wi.wigroup === curr_wi_tab)), 'application/json')
+		}))
+
+		wiButtonHolder.appendChild(createWIButton("importWIFromFile", "[Import WI group from file]", () => {
+			promptUserForLocalFile((fileDetails) => {
+				let {file, fileName, ext, content} = fileDetails
+				try
+				{
+					let wiToAdd = JSON.parse(atob(content.split(",")[1]))
+					let wiGroup = fileName.replace("wi_", "")
+					pending_wi_obj = pending_wi_obj.filter(wi => (wiGroup === "General" ? wi.wigroup !== "" : wi.wigroup !== wiGroup))
+					pending_wi_obj.push(...wiToAdd)
+					update_wi()
+					select_wi_group(wiGroup)
+				}
+				catch(e)
+				{
+					handleError(e)
+				}
+			})
+		}))
+	})
+</script>
+<script type="module">
+	class HFModelSearcher
+	{
+		async searchModelName(searchTerm)
+		{
+			let overallSearchTerm = `GGUF ${searchTerm}`, limit = 10, searchUrl = `https://huggingface.co/api/models?search=${encodeURIComponent(overallSearchTerm)}&limit=${limit};`;
+
+			let modelResults = (await(await fetch(searchUrl)).json()).map(res => res?.id)
+			return modelResults
+		}
+
+		async searchForQuantsFromModel(modelName)
+		{
+			if (!modelName)
+			{
+				return {quantResults: [], priorityQuantResult: null}
+			}
+			let quantUrl = `https://huggingface.co/api/models/${modelName}`
+
+			let quantResults = (await(await fetch(quantUrl)).json())?.siblings?.filter(quant => !!quant?.rfilename && quant.rfilename.indexOf(".gguf") !== -1).map(quant => quant.rfilename)
+
+			let priorityQuantResult = null
+			if (quantResults.length > 0) {
+				priorityQuantResult = quantResults[0]
+				for (let qLevel in ["q4k", "q4_k", "q4", "q3", "q5", "q6", "q8"]) {
+					let foundPriorityResult = quantResults.find(quant => quant.indexOf(qLevel) !== -1)
+					if (!!foundPriorityResult) {
+						priorityQuantResult = foundPriorityResult
+						break
+					}
+				}
+			}
+
+			return {quantResults, priorityQuantResult}
+		}
+
+		getDirectURLForDownload(modelName, quantName)
+		{
+			return `https://huggingface.co/${modelName}/resolve/main/${quantName}`
+		}
+	}
+
+	window.hfModelSearcher = new HFModelSearcher()
+
+	document.getElementById("adminmodelfromhf").onclick = () => {
+		hide_popups()
+
+		let adminHFPopupHTML = `<div class="menutext">
+			<b></b>Warning: The model will be downloaded during the restart. This can make the restart take much longer than expected.<br>
+			<div>
+				<label for="adminhfmodelsearchinput" id="adminhfmodelsearchinputlabel">Model to search for:</label>
+				<span style="display: flex;">
+					<input title="Model to search for" style="padding:4px; padding: 4px; width: calc(100% - 80px);" class="form-control" id="adminhfmodelsearchinput" />
+					<button type="button" style="flex: 1;" class="btn btn-primary" id="adminhfmodelsearch">Search</button>
+				</span>
+				<label for="adminhfmodelname" id="adminhfmodelnamelabel">Model name:</label>
+				<select title="Select model to use" style="padding:4px;" class="form-control" id="adminhfmodelname"></select>
+				<label for="adminhfquantname" id="adminhfquantnamelabel">Quant name:</label>
+				<select title="Select quant to use" style="padding:4px;" class="form-control" id="adminhfquantname"></select>
+			</div>
+			<br>
+		</div>
+		<div class="popupfooter">
+			<button type="button" style="width:auto;" class="btn btn-primary" onclick="trigger_admin_reload()">Download and reload KoboldCpp</button>
+			<button type="button" class="btn btn-primary" onclick="hide_popups()">Cancel</button>
+		</div>`
+		msgbox(adminHFPopupHTML, "Search for model from HuggingFace to download and use", true, true)
+		
+		let selectForModel = document.getElementById("adminhfmodelname"), selectForQuant = document.getElementById("adminhfquantname");
+		document.getElementById("adminhfmodelsearch").onclick = async () => {
+			let searchTerm = document.getElementById("adminhfmodelsearchinput").value
+			let modelResults = await hfModelSearcher.searchModelName(searchTerm);
+			
+			selectForModel.innerHTML = ""
+			modelResults.forEach(modelResult => {
+				selectForModel.appendChild(new Option(modelResult, modelResult))
+			})
+			selectForModel.onchange()
+		}
+
+		selectForModel.onchange = async () => {
+			let modelName = selectForModel.value
+			let {quantResults, priorityQuantResult} = await hfModelSearcher.searchForQuantsFromModel(modelName);
+			
+			selectForQuant.innerHTML = ""
+			quantResults.forEach(quantResult => {
+				selectForQuant.appendChild(new Option(quantResult, quantResult))
+			})
+
+			if (!!priorityQuantResult)
+			{
+				selectForQuant.value = priorityQuantResult
+			}
+
+			selectForQuant.onchange()
+		}
+
+		selectForQuant.onchange = () => {
+			if (!!selectForQuant.value)
+			{
+				let urlToSet = hfModelSearcher.getDirectURLForDownload(selectForModel.value, selectForQuant.value)	
+				let modelDropdown = document.getElementById("adminmodeldropdown")
+				modelDropdown.appendChild(new Option(urlToSet, urlToSet))
+				modelDropdown.value = urlToSet
+			}
+		}
+	}
 </script>
 </html>

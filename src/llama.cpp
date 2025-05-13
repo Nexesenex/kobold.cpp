@@ -13,6 +13,7 @@ static bool old_mixtral_warning_showed = false;
 #include "llama-sampling.cpp"
 #include "llama-kv-cache.cpp"
 #include "llama-model-loader.cpp"
+#include "llama-model-saver.cpp"
 #include "llama-model.cpp"
 #include "llama-quant.cpp"
 #include "llama-hparams.cpp"
@@ -281,6 +282,13 @@ struct llama_model * llama_model_load_from_splits(
     return llama_model_load_from_file_impl(splits.front(), splits, params);
 }
 
+void llama_model_save_to_file(const struct llama_model * model, const char * path_model) {
+    llama_model_saver ms(*model);
+    ms.add_kv_from_model();
+    ms.add_tensors_from_model();
+    ms.save(path_model);
+}
+
 //
 // chat templates
 //
@@ -366,3 +374,4 @@ const char * llama_print_system_info(void) {
 
     return s.c_str();
 }
+

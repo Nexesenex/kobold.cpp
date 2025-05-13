@@ -226,7 +226,7 @@ static ggml_cuda_device_info ggml_cuda_init() {
 //#else
 //    GGML_LOG_INFO("%s: GGML_CUDA_FORCE_CUBLAS: no\n", __func__);
 //#endif // GGML_CUDA_FORCE_CUBLAS
-    GGML_LOG_INFO("---\nInitializing CUDA/HIP, please wait, the following step may take a few minutes for first launch...\n---\n", __func__, info.device_count);
+    GGML_LOG_INFO("---\nInitializing CUDA/HIP, please wait, the following step may take a few minutes (only for first launch)...\nJust a moment, Please Be Patient...\n---\n");
     GGML_LOG_INFO("%s: found %d " GGML_CUDA_NAME " devices:\n", __func__, info.device_count);
     for (int id = 0; id < info.device_count; ++id) {
         int device_vmm = 0;
@@ -3484,14 +3484,14 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
             return false;
 #endif // FLASH_ATTN_AVAILABLE
             if (op->src[1]->ne[0] != op->src[2]->ne[0]) {
-                // different head sizes of K and V are not supported yet
-                return false;
+                const int cc = ggml_cuda_info().devices[dev_ctx->device].cc;
+                if (!new_mma_available(cc) || cc < GGML_CUDA_CC_AMPERE) {
+                    return false;
+                }
+                const int gqa_ratio = op->src[0]->ne[2] / op->src[1]->ne[2];
+                return op->src[1]->ne[0] == 576 && op->src[2]->ne[0] == 512 && op->src[3] && gqa_ratio % 16 == 0;
             }
             if (op->src[0]->ne[0] == 192) {
-                return false;
-            }
-            if (op->src[0]->ne[0] == 576) {
-                // DeepSeek MLA
                 return false;
             }
             if (op->src[0]->ne[3] != 1) {

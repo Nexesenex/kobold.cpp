@@ -234,25 +234,38 @@ ifdef LLAMA_CUBLAS
 	CUBLAS_OBJS += $(patsubst %.cu,%.o,$(filter-out ggml/src/ggml-cuda/ggml-cuda.cu, $(wildcard ggml/src/ggml-cuda/*.cu)))
 	CUBLAS_OBJS += $(OBJS_CUDA_TEMP_INST)
 	NVCC      = nvcc
-	NVCCFLAGS = --forward-unknown-to-host-compiler -use_fast_math
+	NVCCFLAGS = --forward-unknown-to-host-compiler -use_fast_math -extended-lambda
 
 ifdef LLAMA_ADD_CONDA_PATHS
 	CUBLASLD_FLAGS += -Lconda/envs/linux/lib -Lconda/envs/linux/lib/stubs
 endif
 
-ifdef CUDA_DOCKER_ARCH
-	NVCCFLAGS += -Wno-deprecated-gpu-targets -arch=$(CUDA_DOCKER_ARCH)
-else
+
 ifdef LLAMA_PORTABLE
-ifdef LLAMA_COLAB #colab does not need all targets, all-major doesnt work correctly with pascal
-	NVCCFLAGS += -Wno-deprecated-gpu-targets -arch=all-major
+
+ifdef LLAMA_ARCHES_CU11
+	NVCCFLAGS += -Wno-deprecated-gpu-targets \
+	             -gencode arch=compute_35,code=compute_35 \
+	             -gencode arch=compute_50,code=compute_50 \
+	             -gencode arch=compute_61,code=compute_61 \
+	             -gencode arch=compute_70,code=compute_70 \
+	             -gencode arch=compute_75,code=compute_75
+
+else ifdef LLAMA_ARCHES_CU12
+	NVCCFLAGS += -Wno-deprecated-gpu-targets \
+	             -gencode arch=compute_50,code=compute_50 \
+	             -gencode arch=compute_61,code=compute_61 \
+	             -gencode arch=compute_70,code=compute_70 \
+	             -gencode arch=compute_75,code=compute_75 \
+	             -gencode arch=compute_80,code=compute_80
+
 else
 	NVCCFLAGS += -Wno-deprecated-gpu-targets -arch=all
-endif #LLAMA_COLAB
+endif
+
 else
 	NVCCFLAGS += -arch=native
-endif #LLAMA_PORTABLE
-endif # CUDA_DOCKER_ARCH
+endif # LLAMA_PORTABLE
 
 ifdef LLAMA_CUDA_FORCE_DMMV
 	NVCCFLAGS += -DGGML_CUDA_FORCE_DMMV
@@ -584,7 +597,7 @@ sgemm_failsafe.o: ggml/src/ggml-cpu/llamafile/sgemm.cpp ggml/src/ggml-cpu/llamaf
 #there's no intrinsics or special gpu ops used here, so we can have a universal object
 ggml-alloc.o: ggml/src/ggml-alloc.c ggml/include/ggml.h ggml/include/ggml-alloc.h
 	$(CC)  $(CFLAGS) -c $< -o $@
-llava.o: tools/llava/llava.cpp tools/llava/llava.h
+llava.o: tools/mtmd/llava.cpp tools/mtmd/llava.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 unicode.o: src/unicode.cpp src/unicode.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -614,11 +627,11 @@ ggml-backend-reg_vulkan.o: ggml/src/ggml-backend-reg.cpp ggml/src/ggml-backend-i
 	$(CXX)  $(CXXFLAGS) $(VULKAN_FLAGS) -c $< -o $@
 ggml-backend-reg_cublas.o: ggml/src/ggml-backend-reg.cpp ggml/src/ggml-backend-impl.h ggml/include/ggml.h ggml/include/ggml-backend.h ggml/include/ggml-cpu.h
 	$(CXX)  $(CXXFLAGS) $(CUBLAS_FLAGS) $(HIPFLAGS) -c $< -o $@
-llavaclip_default.o: tools/llava/clip.cpp tools/llava/clip.h
+llavaclip_default.o: tools/mtmd/clip.cpp tools/mtmd/clip.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
-llavaclip_cublas.o: tools/llava/clip.cpp tools/llava/clip.h
+llavaclip_cublas.o: tools/mtmd/clip.cpp tools/mtmd/clip.h
 	$(CXX) $(CXXFLAGS) $(CUBLAS_FLAGS) $(HIPFLAGS) -c $< -o $@
-llavaclip_vulkan.o: tools/llava/clip.cpp tools/llava/clip.h
+llavaclip_vulkan.o: tools/mtmd/clip.cpp tools/mtmd/clip.h
 	$(CXX) $(CXXFLAGS) $(VULKAN_FLAGS) -c $< -o $@
 
 #this is only used for accelerate
@@ -727,7 +740,7 @@ gpttype_adapter_vulkan_noavx2.o: $(GPTTYPE_ADAPTER)
 	$(CXX) $(CXXFLAGS) $(FAILSAFE_FLAGS) $(VULKAN_FLAGS) -c $< -o $@
 
 clean:
-	rm -vf *.o main ttsmain sdmain whispermain quantize_gguf quantize_clip quantize_gpt2 quantize_gptj quantize_neox quantize_mpt vulkan-shaders-gen vulkan-shaders-gen-noext gguf-split gguf-split.exe vulkan-shaders-gen.exe vulkan-shaders-gen-noext.exe main.exe ttsmain.exe sdmain.exe whispermain.exe quantize_clip.exe quantize_gguf.exe quantize_gptj.exe quantize_gpt2.exe quantize_neox.exe quantize_mpt.exe koboldcpp_default.dll koboldcpp_failsafe.dll koboldcpp_noavx2.dll koboldcpp_clblast.dll koboldcpp_clblast_noavx2.dll koboldcpp_clblast_failsafe.dll koboldcpp_cublas.dll koboldcpp_hipblas.dll koboldcpp_vulkan.dll koboldcpp_vulkan_noavx2.dll koboldcpp_default.so koboldcpp_failsafe.so koboldcpp_noavx2.so koboldcpp_clblast.so koboldcpp_clblast_noavx2.so koboldcpp_clblast_failsafe.so koboldcpp_cublas.so koboldcpp_hipblas.so koboldcpp_vulkan.so koboldcpp_vulkan_noavx2.so ggml/src/ggml-vulkan-shaders.cpp ggml/src/ggml-vulkan-shaders.hpp ggml/src/ggml-vulkan-shaders-noext.cpp ggml/src/ggml-vulkan-shaders-noext.hpp
+	rm -vf *.o main ttsmain sdmain whispermain quantize_gguf quantize_clip quantize_gpt2 quantize_gptj quantize_neox quantize_mpt vulkan-shaders-gen vulkan-shaders-gen-noext gguf-split mtmd-cli mainvk mainvk.exe mtmd-cli.exe gguf-split.exe vulkan-shaders-gen.exe vulkan-shaders-gen-noext.exe main.exe ttsmain.exe sdmain.exe whispermain.exe quantize_clip.exe quantize_gguf.exe quantize_gptj.exe quantize_gpt2.exe quantize_neox.exe quantize_mpt.exe koboldcpp_default.dll koboldcpp_failsafe.dll koboldcpp_noavx2.dll koboldcpp_clblast.dll koboldcpp_clblast_noavx2.dll koboldcpp_clblast_failsafe.dll koboldcpp_cublas.dll koboldcpp_hipblas.dll koboldcpp_vulkan.dll koboldcpp_vulkan_noavx2.dll koboldcpp_default.so koboldcpp_failsafe.so koboldcpp_noavx2.so koboldcpp_clblast.so koboldcpp_clblast_noavx2.so koboldcpp_clblast_failsafe.so koboldcpp_cublas.so koboldcpp_hipblas.so koboldcpp_vulkan.so koboldcpp_vulkan_noavx2.so ggml/src/ggml-vulkan-shaders.cpp ggml/src/ggml-vulkan-shaders.hpp ggml/src/ggml-vulkan-shaders-noext.cpp ggml/src/ggml-vulkan-shaders-noext.hpp
 	rm -vrf ggml/src/ggml-cuda/*.o
 	rm -vrf ggml/src/ggml-cuda/template-instances/*.o
 
@@ -747,8 +760,10 @@ ttsmain: tools/tts/tts.cpp common/arg.cpp build-info.h ggml.o ggml-cpu.o ggml-op
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 gguf-split: tools/gguf-split/gguf-split.cpp ggml.o ggml-cpu.o ggml-ops.o ggml-vec.o ggml-binops.o ggml-unops.o llama.o build-info.h llavaclip_default.o llava.o ggml-backend_default.o ggml-backend-reg_default.o $(OBJS_FULL) $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
-mtmd-cli: tools/llava/mtmd-cli.cpp tools/llava/mtmd.cpp common/arg.cpp build-info.h ggml.o ggml-cpu.o ggml-ops.o ggml-vec.o ggml-binops.o ggml-unops.o llama.o console.o llavaclip_default.o llava.o ggml-backend_default.o ggml-backend-reg_default.o $(OBJS_FULL) $(OBJS)
+mtmd-cli: tools/mtmd/mtmd-cli.cpp tools/mtmd/mtmd.cpp common/arg.cpp build-info.h ggml.o ggml-cpu.o ggml-ops.o ggml-vec.o ggml-binops.o ggml-unops.o llama.o console.o llavaclip_default.o llava.o ggml-backend_default.o ggml-backend-reg_default.o $(OBJS_FULL) $(OBJS)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
+mainvk: tools/main/main.cpp common/arg.cpp build-info.h ggml_v4_vulkan.o ggml-cpu.o ggml-ops.o ggml-vec.o ggml-binops.o ggml-unops.o llama.o console.o llavaclip_vulkan.o llava.o ggml-backend_vulkan.o ggml-backend-reg_vulkan.o ggml-vulkan.o $(OBJS_FULL) $(OBJS) lib/vulkan-1.lib
+	$(CXX) $(CXXFLAGS) -DGGML_USE_VULKAN -DSD_USE_VULKAN $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 
 ggml/src/ggml-vulkan-shaders.cpp:
 ifdef VULKAN_BUILD
@@ -897,7 +912,7 @@ quantize_neox: otherarch/tools/neox_quantize.cpp otherarch/tools/common-ggml.cpp
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 quantize_mpt: otherarch/tools/mpt_quantize.cpp otherarch/tools/common-ggml.cpp ggml_v3.o ggml.o ggml-cpu.o ggml-ops.o ggml-vec.o ggml-binops.o ggml-unops.o llama.o llavaclip_default.o llava.o ggml-backend_default.o ggml-backend-reg_default.o $(OBJS_FULL)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
-quantize_clip: tools/llava/clip.cpp tools/llava/clip.h tools/quantclip.cpp ggml_v3.o ggml.o ggml-cpu.o ggml-ops.o ggml-vec.o ggml-binops.o ggml-unops.o llama.o ggml-backend_default.o ggml-backend-reg_default.o $(OBJS_FULL)
+quantize_clip: tools/mtmd/clip.cpp tools/mtmd/clip.h tools/quantclip.cpp ggml_v3.o ggml.o ggml-cpu.o ggml-ops.o ggml-vec.o ggml-binops.o ggml-unops.o llama.o ggml-backend_default.o ggml-backend-reg_default.o $(OBJS_FULL)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
 #window simple clinfo

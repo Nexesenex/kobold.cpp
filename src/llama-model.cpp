@@ -85,6 +85,7 @@ const char * llm_type_name(llm_type type) {
         case LLM_TYPE_236B:          return "236B";
         case LLM_TYPE_290B:          return "290B";
         case LLM_TYPE_314B:          return "314B";
+        case LLM_TYPE_405B:          return "405B";
         case LLM_TYPE_671B:          return "671B";
         case LLM_TYPE_SMALL:         return "0.1B";
         case LLM_TYPE_MEDIUM:        return "0.4B";
@@ -120,6 +121,10 @@ static const std::map<llama_rope_scaling_type, const char *> LLAMA_ROPE_SCALING_
     { LLAMA_ROPE_SCALING_TYPE_YARN,       "yarn"       },
     { LLAMA_ROPE_SCALING_TYPE_LONGROPE,   "longrope"   },
 };
+
+std::string llama_rope_scaling_type_name(llama_rope_scaling_type rope_scaling_type) {
+    return LLAMA_ROPE_SCALING_TYPES.at(rope_scaling_type);
+}
 
 static llama_rope_scaling_type llama_rope_scaling_type_from_string(const std::string & name) {
     for (const auto & kv : LLAMA_ROPE_SCALING_TYPES) {
@@ -303,6 +308,10 @@ static buft_list_t make_cpu_buft_list(const std::vector<ggml_backend_dev_t> & de
     // add extra buffer types, only if no GPU device is present
     // ref: https://github.com/ggml-org/llama.cpp/issues/12481#issuecomment-2743136094
     auto * cpu_dev = ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU);
+    if (cpu_dev == nullptr) {
+        throw std::runtime_error(format("%s: no CPU backend found", __func__));
+    }
+
     auto * cpu_reg = ggml_backend_dev_backend_reg(cpu_dev);
     auto ggml_backend_dev_get_extra_bufts_fn = (ggml_backend_dev_get_extra_bufts_t)
         ggml_backend_reg_get_proc_address(cpu_reg, "ggml_backend_dev_get_extra_bufts");
@@ -587,6 +596,7 @@ void llama_model::load_hparams(llama_model_loader & ml) {
                 switch (hparams.n_layer) {
                     case 32: type = LLM_TYPE_7B; break;
                     case 80: type = LLM_TYPE_70B; break;
+                    case 162: type = LLM_TYPE_405B; break;
                     default: type = LLM_TYPE_UNKNOWN;
                 }
             } break;
@@ -1494,6 +1504,10 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
     clblast_offload_fallback_layers = n_gpu_layers;
     i_gpu_start = std::max((int64_t) hparams.n_layer, (int64_t) 0);
     #endif
+    
+    if (cpu_dev == nullptr) {
+        throw std::runtime_error(format("%s: no CPU backend found", __func__));
+    }
     const int act_gpu_layers = devices.empty() ? 0 : std::min(n_gpu_layers, (int)n_layer + 1);
     auto get_layer_buft_list = [&](int il) -> llama_model::impl::layer_dev {
         const bool is_swa = il < (int) hparams.n_layer && hparams.is_swa(il);
@@ -1664,8 +1678,11 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
                 for (const auto * overrides = ml.tensor_buft_overrides; overrides->pattern != nullptr; ++overrides) {
                     std::regex pattern(overrides->pattern);
                     if (std::regex_search(tensor_name, pattern)) {
-                        LLAMA_LOG_DEBUG("tensor %s buffer type overriden to %s\n", tensor_name.c_str(), ggml_backend_buft_name(overrides->buft));
                         buft = overrides->buft;
+                        LLAMA_LOG_DEBUG("tensor %s (%zu MiB %s) buffer type overridden to %s\n",
+                                tensor_name.c_str(),
+                                ggml_nbytes(t_meta) / 1024 / 1024, ggml_type_name(t_meta->type),
+                                ggml_backend_buft_name(buft));
                         break;
                     }
                 }
@@ -1682,6 +1699,9 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
             auto * buft_dev = ggml_backend_buft_get_device(buft);
             if (ml.use_mmap && buft_dev && buft == ggml_backend_dev_host_buffer_type(buft_dev)) {
                 auto * cpu_dev = ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU);
+                if (!cpu_dev) {
+                    throw std::runtime_error("no CPU backend found");
+                }
                 buft = ggml_backend_dev_buffer_type(cpu_dev);
             }
 
@@ -1905,7 +1925,9 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
                         layer.bv = create_tensor(tn(LLM_TENSOR_ATTN_V,   "bias", i), {n_embd_gqa}, TENSOR_NOT_REQUIRED);
                         layer.bo = create_tensor(tn(LLM_TENSOR_ATTN_OUT, "bias", i), {n_embd},     TENSOR_NOT_REQUIRED);
 
-                        layer.ffn_norm = create_tensor(tn(LLM_TENSOR_FFN_NORM, "weight", i), {n_embd}, 0);
+                        if (n_ff > 0) {
+                            layer.ffn_norm = create_tensor(tn(LLM_TENSOR_FFN_NORM, "weight", i), {n_embd}, 0);
+                        }
 
                         if (hparams.rope_scaling_type_train == LLAMA_ROPE_SCALING_TYPE_LONGROPE) {
                             layer.rope_long  = create_tensor(tn(LLM_TENSOR_ROPE_FACTORS_LONG,  "weight", i), {n_rot/2}, TENSOR_NOT_REQUIRED | (i != 0 ? TENSOR_DUPLICATED : 0));
@@ -1915,9 +1937,11 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
                             layer.rope_freqs = create_tensor(tn(LLM_TENSOR_ROPE_FREQS, "weight", i), {n_rot/2}, TENSOR_NOT_REQUIRED | (i != 0 ? TENSOR_DUPLICATED : 0));
                         }
 
-                        layer.ffn_gate = create_tensor(tn(LLM_TENSOR_FFN_GATE, "weight", i), {n_embd,   n_ff}, 0);
-                        layer.ffn_down = create_tensor(tn(LLM_TENSOR_FFN_DOWN, "weight", i), {  n_ff, n_embd}, 0);
-                        layer.ffn_up   = create_tensor(tn(LLM_TENSOR_FFN_UP,   "weight", i), {n_embd,   n_ff}, 0);
+                        if (n_ff > 0) {
+                            layer.ffn_gate = create_tensor(tn(LLM_TENSOR_FFN_GATE, "weight", i), {n_embd,   n_ff}, 0);
+                            layer.ffn_down = create_tensor(tn(LLM_TENSOR_FFN_DOWN, "weight", i), {  n_ff, n_embd}, 0);
+                            layer.ffn_up   = create_tensor(tn(LLM_TENSOR_FFN_UP,   "weight", i), {n_embd,   n_ff}, 0);
+                        }
 
                         // optional MLP bias
                         layer.ffn_gate_b = create_tensor(tn(LLM_TENSOR_FFN_GATE, "bias", i), {n_ff}, TENSOR_NOT_REQUIRED);
@@ -3599,7 +3623,11 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
 
                     // output
                     output_norm   = create_tensor(tn(LLM_TENSOR_OUTPUT_NORM, "weight"), {n_embd}, 0);
-                    output        = create_tensor(tn(LLM_TENSOR_OUTPUT,      "weight"), {n_embd, n_vocab}, 0);
+                    output        = create_tensor(tn(LLM_TENSOR_OUTPUT,      "weight"), {n_embd, n_vocab}, TENSOR_NOT_REQUIRED);
+                    // if output is NULL, init from the input tok embed
+                    if (output == NULL) {
+                        output = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), {n_embd, n_vocab}, TENSOR_DUPLICATED);
+                    }
 
                     for (int i = 0; i < n_layer; ++i) {
                         auto & layer = layers[i];
@@ -4205,6 +4233,9 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
         if (!dev) {
             // FIXME: workaround for CPU backend buft having a NULL device
             dev = ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU);
+            if (!dev) {
+                throw std::runtime_error(format("%s: no CPU backend found", __func__));
+            }
         }
         ggml_backend_dev_props props;
         ggml_backend_dev_get_props(dev, &props);
@@ -4334,7 +4365,7 @@ uint64_t llama_model::n_elements() const {
 }
 
 void llama_model::print_info() const {
-    const char * rope_scaling_type = LLAMA_ROPE_SCALING_TYPES.at(hparams.rope_scaling_type_train);
+    const std::string rope_scaling_type = llama_rope_scaling_type_name(hparams.rope_scaling_type_train);
 
     auto print_f = [](const std::function<uint32_t(uint32_t)> & f, uint32_t n) {
         bool is_var = false;
@@ -4395,7 +4426,7 @@ void llama_model::print_info() const {
         LLAMA_LOG_INFO("%s: causal attn      = %d\n",     __func__, hparams.causal_attn);
         LLAMA_LOG_INFO("%s: pooling type     = %d\n",     __func__, hparams.pooling_type);
         LLAMA_LOG_INFO("%s: rope type        = %d\n",     __func__, hparams.rope_type);
-        LLAMA_LOG_INFO("%s: rope scaling     = %s\n",     __func__, rope_scaling_type);
+        LLAMA_LOG_INFO("%s: rope scaling     = %s\n",     __func__, rope_scaling_type.c_str());
         LLAMA_LOG_INFO("%s: freq_base_train  = %.1f\n",   __func__, hparams.rope_freq_base_train);
         LLAMA_LOG_INFO("%s: freq_scale_train = %g\n",     __func__, hparams.rope_freq_scale_train);
         LLAMA_LOG_INFO("%s: n_ctx_orig_yarn  = %u\n",     __func__, hparams.n_ctx_orig_yarn);
@@ -4808,6 +4839,7 @@ struct llm_build_deci : public llm_graph_context {
             ggml_tensor * inpSA = inpL;
             const int64_t n_head_kv = hparams.n_head_kv(il);
             const int64_t n_head    = hparams.n_head(il);
+            const int64_t n_ff      = hparams.n_ff(il);
 
             if (n_head == 0) {
                 // attention-free layer of Llama-3_1-Nemotron-51B
@@ -4881,6 +4913,11 @@ struct llm_build_deci : public llm_graph_context {
                 ggml_tensor * inp_out_ids = build_inp_out_ids();
                 cur   = ggml_get_rows(ctx0,   cur, inp_out_ids);
                 inpSA = ggml_get_rows(ctx0, inpSA, inp_out_ids);
+            }
+
+            // FFN-free layer of Llama-3_1-Nemotron-Ultra-253B
+            if (n_ff == 0) {
+                continue;
             }
 
             // For Granite architecture
@@ -12937,6 +12974,13 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params, 
     llama_memory_i * res;
 
     switch (arch) {
+        case LLM_ARCH_BERT:
+        case LLM_ARCH_JINA_BERT_V2:
+        case LLM_ARCH_NOMIC_BERT:
+        case LLM_ARCH_NOMIC_BERT_MOE:
+            {
+                res = nullptr;
+            } break;
         case LLM_ARCH_MAMBA:
         case LLM_ARCH_RWKV6:
         case LLM_ARCH_RWKV6QWEN2:
@@ -13465,6 +13509,14 @@ const char * llama_model_chat_template(const llama_model * model, const char * n
         : LLM_KV(model->arch)(LLM_KV_TOKENIZER_CHAT_TEMPLATE);
     const auto & it = model->gguf_kv.find(key);
     if (it == model->gguf_kv.end()) {
+        // one-off fix for very popular models (so we are not flooded with issues)
+        // do not extend this list unless absolutely necessary
+        // Mistral-Small-2503 does not have built-in chat template
+        llama_vocab_pre_type pre_type = model->vocab.get_pre_type();
+        if (pre_type == LLAMA_VOCAB_PRE_TYPE_TEKKEN && model->layers.size() == 40) {
+            return "mistral-v7-tekken";
+        }
+
         return nullptr;
     }
 
