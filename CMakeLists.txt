@@ -88,6 +88,8 @@ option(LLAMA_CUDA_ENABLE_UNIFIED_MEMORY      "llama: enable to avoid OOM in Full
 option(GGML_IQK_MUL_MAT                     "ggml: use optimized iqk matrix multiplications"    OFF)
 option(GGML_USE_LLAMA_CPP_MAINLINE          "ggml: use Llama CPP mainline MatMul           "    OFF)
 
+option(GGML_CUDA_IQK_FORCE_BF16             "ggml: use bf16 Cublas for quants w/o MMQ kernels"  OFF)
+
 option(GGML_CCACHE                          "ggml: use ccache if available"                     OFF)
 
 set   (GGML_CUDA_COMPRESSION_MODE "size" CACHE STRING
@@ -188,7 +190,11 @@ if (LLAMA_CUBLAS)
         endif()
         add_compile_definitions(K_QUANTS_PER_ITERATION=${LLAMA_CUDA_KQUANTS_ITER})
         add_compile_definitions(GGML_CUDA_PEER_MAX_BATCH_SIZE=${LLAMA_CUDA_PEER_MAX_BATCH_SIZE})
-        
+
+        if (GGML_CUDA_IQK_FORCE_BF16)
+            add_compile_definitions(GGML_CUDA_IQK_FORCE_BF16)
+        endif()
+
         if (GGML_CUDA_USE_GRAPHS)
             add_compile_definitions(GGML_CUDA_USE_GRAPHS)
         endif()
