@@ -7,6 +7,7 @@ void ggml_cuda_op_mul_mat_q(
     const int64_t src1_padded_row_size, cudaStream_t stream) {
 
     const int64_t ne00 = src0->ne[0];
+    const int64_t nb01 = src0->nb[1];
 
     const int64_t ne10 = src1->ne[0];
     const int64_t ne11 = src1->ne[1];
@@ -15,7 +16,6 @@ void ggml_cuda_op_mul_mat_q(
     const int64_t ne0 = dst->ne[0];
 
     const int64_t row_diff = row_high - row_low;
-    const int64_t stride00 = ne00 / ggml_blck_size(src0->type);
 
     int id = ggml_cuda_get_device();
     const int cc = ggml_cuda_info().devices[id].cc;
@@ -29,7 +29,7 @@ void ggml_cuda_op_mul_mat_q(
     // There are multiple parallel CUDA streams for src1_ncols != ne11 which would introduce a race condition for this buffer.
     const bool use_stream_k = GGML_CUDA_CC_IS_NVIDIA(cc) &&
         ggml_cuda_highest_compiled_arch(cc) >= GGML_CUDA_CC_VOLTA && src1_ncols == ne11;
-    const mmq_args args = {src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, stride00, src1_padded_row_size, src1_ncols, ne11, nrows_dst, use_stream_k};
+    const mmq_args args = {src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, nb01, src1_padded_row_size, src1_ncols, ne11, nrows_dst};;
 
     switch (src0->type) {
         case GGML_TYPE_Q4_0:
@@ -92,6 +92,27 @@ void ggml_cuda_op_mul_mat_q(
         case GGML_TYPE_IQ4_NL:
             mul_mat_q_case<GGML_TYPE_IQ4_NL>(ctx, args, stream);
             break;
+        // case GGML_TYPE_IQ4_KS:
+            // mul_mat_q_case<GGML_TYPE_IQ4_KS>(ctx, args, stream);
+            // break;
+        // case GGML_TYPE_IQ2_KS:
+            // mul_mat_q_case<GGML_TYPE_IQ2_KS>(ctx, args, stream);
+            // break;
+        case GGML_TYPE_IQ2_K:
+            mul_mat_q_case<GGML_TYPE_IQ2_K>(ctx, args, stream);
+            break;
+        case GGML_TYPE_IQ3_K:
+            mul_mat_q_case<GGML_TYPE_IQ3_K>(ctx, args, stream);
+            break;
+        case GGML_TYPE_IQ4_K:
+            mul_mat_q_case<GGML_TYPE_IQ4_K>(ctx, args, stream);
+            break;
+        case GGML_TYPE_IQ5_K:
+            mul_mat_q_case<GGML_TYPE_IQ5_K>(ctx, args, stream);
+            break;
+        case GGML_TYPE_IQ6_K:
+            mul_mat_q_case<GGML_TYPE_IQ6_K>(ctx, args, stream);
+            break;
         default:
             GGML_ABORT("fatal error");
             break;
@@ -132,6 +153,13 @@ bool ggml_cuda_should_use_mmq(enum ggml_type type, int cc, int64_t ne11) {
         case GGML_TYPE_IQ1_S:
         case GGML_TYPE_IQ4_XS:
         case GGML_TYPE_IQ4_NL:
+        // case GGML_TYPE_IQ4_KS:
+        // case GGML_TYPE_IQ2_KS:
+        case GGML_TYPE_IQ2_K:
+        case GGML_TYPE_IQ3_K:
+        case GGML_TYPE_IQ4_K:
+        case GGML_TYPE_IQ5_K:
+        case GGML_TYPE_IQ6_K:
             mmq_supported = true;
             break;
         default:
