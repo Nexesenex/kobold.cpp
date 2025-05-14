@@ -1330,6 +1330,22 @@ static void convert_to_bf16_cuda(const void * __restrict__ vx, nv_bfloat16 * __r
 
 to_bf16_cuda_t ggml_get_to_bf16_cuda(ggml_type type) {
     switch (type) {
+        case GGML_TYPE_IQ2_KS:
+            return dequantize_row_iq2_ks_cuda<nv_bfloat16>;
+        case GGML_TYPE_IQ2_K:
+            return dequantize_row_iq2_k_cuda<nv_bfloat16>;
+        case GGML_TYPE_IQ3_K:
+            return dequantize_row_iq3_k_cuda<nv_bfloat16>;
+        case GGML_TYPE_IQ4_KSS:
+            return dequantize_row_iq4_kss_cuda<nv_bfloat16>;
+        case GGML_TYPE_IQ4_KS:
+            return dequantize_row_iq4_ks_cuda<nv_bfloat16>;
+        case GGML_TYPE_IQ4_K:
+            return dequantize_row_iq4_k_cuda<nv_bfloat16>;
+        case GGML_TYPE_IQ5_K:
+            return dequantize_row_iq5_k_cuda<nv_bfloat16>;
+        case GGML_TYPE_IQ6_K:
+            return dequantize_row_iq6_k_cuda<nv_bfloat16>;
         case GGML_TYPE_F32:
             return convert_unary_cuda<float>;
         case GGML_TYPE_F16:
@@ -1395,21 +1411,21 @@ to_fp16_cuda_t ggml_get_to_fp16_cuda(ggml_type type) {
         case GGML_TYPE_IQ4_XS:
             return dequantize_row_iq4_xs_cuda;
         case GGML_TYPE_IQ2_KS:
-            return dequantize_row_iq2_ks_cuda<nv_bfloat16>;
+            return dequantize_row_iq2_ks_cuda;
         case GGML_TYPE_IQ2_K:
-            return dequantize_row_iq2_k_cuda<nv_bfloat16>;
+            return dequantize_row_iq2_k_cuda;
         case GGML_TYPE_IQ3_K:
-            return dequantize_row_iq3_k_cuda<nv_bfloat16>;
+            return dequantize_row_iq3_k_cuda;
         case GGML_TYPE_IQ4_KSS:
-            return dequantize_row_iq4_kss_cuda<nv_bfloat16>;
+            return dequantize_row_iq4_kss_cuda;
         case GGML_TYPE_IQ4_KS:
-            return dequantize_row_iq4_ks_cuda<nv_bfloat16>;
+            return dequantize_row_iq4_ks_cuda;
         case GGML_TYPE_IQ4_K:
-            return dequantize_row_iq4_k_cuda<nv_bfloat16>;
+            return dequantize_row_iq4_k_cuda;
         case GGML_TYPE_IQ5_K:
-            return dequantize_row_iq5_k_cuda<nv_bfloat16>;
+            return dequantize_row_iq5_k_cuda;
         case GGML_TYPE_IQ6_K:
-            return dequantize_row_iq6_k_cuda<nv_bfloat16>;
+            return dequantize_row_iq6_k_cuda;
         case GGML_TYPE_IQ3_S:
             return dequantize_row_iq3_s_cuda;
         case GGML_TYPE_F32:
