@@ -4135,14 +4135,16 @@ Change Mode<br>
                 trunc_len = 8000
                 if args.debugmode >= 1:
                     trunc_len = 16000
-                    printablegenparams_raw = truncate_long_json(genparams,trunc_len)
-                    utfprint("\nReceived Raw Input: " + json.dumps(printablegenparams_raw),1)
+
+                printablegenparams_raw = truncate_long_json(genparams,trunc_len)
+                utfprint("\nInput: " + json.dumps(printablegenparams_raw),1)
 
                 # transform genparams (only used for text gen) first
                 genparams = transform_genparams(genparams, api_format)
 
-                printablegenparams = truncate_long_json(genparams,trunc_len)
-                utfprint("\nInput: " + json.dumps(printablegenparams),1)
+                if args.debugmode >= 1:
+                    printablegenparams = truncate_long_json(genparams,trunc_len)
+                    utfprint("\nAdapted Input: " + json.dumps(printablegenparams),1)
 
                 if args.foreground:
                     bring_terminal_to_foreground()
