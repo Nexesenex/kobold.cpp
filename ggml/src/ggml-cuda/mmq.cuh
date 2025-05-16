@@ -2463,7 +2463,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
 
 // template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinline__ void load_tiles_iq4_ks(
     // const char * __restrict__ x, int * __restrict__ x_tile, const int & kbx0, const int & i_max, const int & stride) {
-// #ifdef INT8_MMA_AVAILABLE
+// #ifdef NEW_MMA_AVAILABLE
     // int   * x_qs = (int   *)  x_tile;
     // float * x_df = (float *) (x_qs + WARP_SIZE*2);
 // #else
@@ -2484,7 +2484,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
         // const int aux_q4 = get_int_b4(bxi->qs, kqsx);
         // const int2 v = get_int_from_table_16(aux_q4, values);
         // const int k0 = 8 * (threadIdx.x / 4) + threadIdx.x % 4;
-// #ifdef INT8_MMA_AVAILABLE
+// #ifdef NEW_MMA_AVAILABLE
         // x_qs[i*MMQ_MMA_TILE_X_K_Q8_0 + k0 + 0] = v.x;
         // x_qs[i*MMQ_MMA_TILE_X_K_Q8_0 + k0 + 4] = v.y;
 // #else
@@ -2501,7 +2501,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
         // const float * dptr = (const float *)(x + i*stride);
         // const block_iq4_ks * bxi = (const block_iq4_ks *)(dptr + 1) + kbx0;
         // const int ls = (bxi->scales[threadIdx.x % 8] & 254) - 127;
-// #ifdef INT8_MMA_AVAILABLE
+// #ifdef NEW_MMA_AVAILABLE
         // x_df[i*MMQ_MMA_TILE_X_K_Q8_0 + threadIdx.x % 8] = dptr[0] * ls;
 // #else
         // x_df[i*(WARP_SIZE/4) + i/4   + threadIdx.x % 8] = dptr[0] * ls;
@@ -2512,7 +2512,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
 // template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinline__ void load_tiles_iq2_ks(
     // const char * __restrict__ x, int * __restrict__ x_tile, const int & kbx0, const int & i_max, const int & stride) {
 
-// #ifdef INT8_MMA_AVAILABLE
+// #ifdef NEW_MMA_AVAILABLE
     // int   * x_qs = (int   *)  x_tile;
     // float * x_df = (float *) (x_qs + WARP_SIZE*2);
 // #else
@@ -2550,7 +2550,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
         // const char4 val2  = make_char4(values[aux8[ 8]], values[aux8[ 9]], values[aux8[10]], values[aux8[11]]);
         // const char4 val3  = make_char4(values[aux8[12]], values[aux8[13]], values[aux8[14]], values[aux8[15]]);
 
-// #ifdef INT8_MMA_AVAILABLE
+// #ifdef NEW_MMA_AVAILABLE
         // x_qs[i*MMQ_MMA_TILE_X_K_Q8_0 + kqsx%8 + 32*(kqsx/8) +  0] = *(const int *)&val0;
         // x_qs[i*MMQ_MMA_TILE_X_K_Q8_0 + kqsx%8 + 32*(kqsx/8) +  8] = *(const int *)&val1;
         // x_qs[i*MMQ_MMA_TILE_X_K_Q8_0 + kqsx%8 + 32*(kqsx/8) + 16] = *(const int *)&val2;
@@ -2577,7 +2577,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
         // const int ls1 = ((bxi->scales[threadIdx.x % 4] >> 0) & 0xf) | ((bxi->extra >> (4 + 2*(threadIdx.x % 4))) & 0x10);
         // const int ls2 = ((bxi->scales[threadIdx.x % 4] >> 4) & 0xf) | ((bxi->extra >> (5 + 2*(threadIdx.x % 4))) & 0x10);
 
-// #ifdef INT8_MMA_AVAILABLE
+// #ifdef NEW_MMA_AVAILABLE
         // x_df[i*MMQ_MMA_TILE_X_K_Q8_0 + 2*(threadIdx.x % 4) + 0] = d * (ls1 - 16);
         // x_df[i*MMQ_MMA_TILE_X_K_Q8_0 + 2*(threadIdx.x % 4) + 1] = d * (ls2 - 16);
 // #else
@@ -2590,7 +2590,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
 template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinline__ void load_tiles_iq2_k(
     const char * __restrict__ x, int * __restrict__ x_tile, const int & kbx0, const int & i_max, const int & stride) {
 
-#ifdef INT8_MMA_AVAILABLE
+#ifdef NEW_MMA_AVAILABLE
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + WARP_SIZE*2);
 #else
@@ -2635,7 +2635,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
             const char4 val2  = make_char4(values[aux8[ 8]], values[aux8[ 9]], values[aux8[10]], values[aux8[11]]);
             const char4 val3  = make_char4(values[aux8[12]], values[aux8[13]], values[aux8[14]], values[aux8[15]]);
 
-#ifdef INT8_MMA_AVAILABLE
+#ifdef NEW_MMA_AVAILABLE
             x_qs[i*MMQ_MMA_TILE_X_K_Q3_K + kqsx + 32*l +  0] = *(const int *)&val0;
             x_qs[i*MMQ_MMA_TILE_X_K_Q3_K + kqsx + 32*l +  8] = *(const int *)&val1;
             x_qs[i*MMQ_MMA_TILE_X_K_Q3_K + kqsx + 32*l + 16] = *(const int *)&val2;
@@ -2648,7 +2648,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
 #endif // INT8_MMA_AVAILABLE
         }
 
-#ifdef INT8_MMA_AVAILABLE
+#ifdef NEW_MMA_AVAILABLE
         x_df[i*MMQ_MMA_TILE_X_K_Q3_K               + 2*kqsx+0] = d * (((bxi->scales[kqsx] >> 0) & 0xf) - 8);
         x_df[i*MMQ_MMA_TILE_X_K_Q3_K               + 2*kqsx+1] = d * (((bxi->scales[kqsx] >> 4) & 0xf) - 8);
 #else
@@ -2661,7 +2661,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
 template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinline__ void load_tiles_iq3_k(
     const char * __restrict__ x, int * __restrict__ x_tile, const int & kbx0, const int & i_max, const int & stride) {
 
-#ifdef INT8_MMA_AVAILABLE
+#ifdef NEW_MMA_AVAILABLE
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + WARP_SIZE*2);
 #else
@@ -2708,7 +2708,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
             const char4 val2  = make_char4(values[aux8[ 8]], values[aux8[ 9]], values[aux8[10]], values[aux8[11]]);
             const char4 val3  = make_char4(values[aux8[12]], values[aux8[13]], values[aux8[14]], values[aux8[15]]);
 
-#ifdef INT8_MMA_AVAILABLE
+#ifdef NEW_MMA_AVAILABLE
             x_qs[i*MMQ_MMA_TILE_X_K_Q3_K + kqsx + 32*l +  0] = *(const int *)&val0;
             x_qs[i*MMQ_MMA_TILE_X_K_Q3_K + kqsx + 32*l +  8] = *(const int *)&val1;
             x_qs[i*MMQ_MMA_TILE_X_K_Q3_K + kqsx + 32*l + 16] = *(const int *)&val2;
@@ -2722,7 +2722,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
         }
 
         uint16_t sh = bxi->scales_h >> 2*kqsx;
-#ifdef INT8_MMA_AVAILABLE
+#ifdef NEW_MMA_AVAILABLE
         x_df[i*MMQ_MMA_TILE_X_K_Q3_K               + 2*kqsx+0] = d * ((2*((bxi->scales_l[kqsx] >> 0) & 0xf) + 1) * (sh & 1 ? -1 : 1));
         x_df[i*MMQ_MMA_TILE_X_K_Q3_K               + 2*kqsx+1] = d * ((2*((bxi->scales_l[kqsx] >> 4) & 0xf) + 1) * (sh & 2 ? -1 : 1));
 #else
@@ -2735,7 +2735,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
 template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinline__ void load_tiles_iq4_k(
     const char * __restrict__ x, int * __restrict__ x_tile, const int & kbx0, const int & i_max, const int & stride) {
 
-#ifdef INT8_MMA_AVAILABLE
+#ifdef NEW_MMA_AVAILABLE
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + WARP_SIZE*2);
 #else
@@ -2773,7 +2773,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
             const char4 val0  = make_char4(values_l[aux8[0]], values_l[aux8[1]], values_l[aux8[2]], values_l[aux8[3]]);
             const char4 val1  = make_char4(values_h[aux8[4]], values_h[aux8[5]], values_h[aux8[6]], values_h[aux8[7]]);
 
-#ifdef INT8_MMA_AVAILABLE
+#ifdef NEW_MMA_AVAILABLE
             x_qs[i*MMQ_MMA_TILE_X_K_Q3_K + 8*kqsx + l + 0] = *(const int *)&val0;
             x_qs[i*MMQ_MMA_TILE_X_K_Q3_K + 8*kqsx + l + 4] = *(const int *)&val1;
 #else
@@ -2788,7 +2788,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
 
         const float d = bxi->d;
 
-#ifdef INT8_MMA_AVAILABLE
+#ifdef NEW_MMA_AVAILABLE
         x_df[i*MMQ_MMA_TILE_X_K_Q3_K               + 2*kqsx+0] = d * ls1;
         x_df[i*MMQ_MMA_TILE_X_K_Q3_K               + 2*kqsx+1] = d * ls2;
 #else
@@ -2801,7 +2801,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
 template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinline__ void load_tiles_iq5_k(
     const char * __restrict__ x, int * __restrict__ x_tile, const int & kbx0, const int & i_max, const int & stride) {
 
-#ifdef INT8_MMA_AVAILABLE
+#ifdef NEW_MMA_AVAILABLE
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + WARP_SIZE*2);
 #else
@@ -2844,7 +2844,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
             const char4 val0  = make_char4(values[aux8[0]], values[aux8[1]], values[aux8[2]], values[aux8[3]]);
             const char4 val1  = make_char4(values[aux8[4]], values[aux8[5]], values[aux8[6]], values[aux8[7]]);
 
-#ifdef INT8_MMA_AVAILABLE
+#ifdef NEW_MMA_AVAILABLE
             x_qs[i*MMQ_MMA_TILE_X_K_Q3_K + kqsx + 16*l + 0] = *(const int *)&val0;
             x_qs[i*MMQ_MMA_TILE_X_K_Q3_K + kqsx + 16*l + 8] = *(const int *)&val1;
 #else
@@ -2859,7 +2859,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
 
         const float d = bxi->d;
 
-#ifdef INT8_MMA_AVAILABLE
+#ifdef NEW_MMA_AVAILABLE
         x_df[i*MMQ_MMA_TILE_X_K_Q3_K               + 2*kqsx+0] = d * ls1;
         x_df[i*MMQ_MMA_TILE_X_K_Q3_K               + 2*kqsx+1] = d * ls2;
 #else
@@ -2872,7 +2872,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
 template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinline__ void load_tiles_iq6_k(
     const char * __restrict__ x, int * __restrict__ x_tile, const int & kbx0, const int & i_max, const int & stride) {
 
-#ifdef INT8_MMA_AVAILABLE
+#ifdef NEW_MMA_AVAILABLE
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + WARP_SIZE*2);
 #else
@@ -2917,7 +2917,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
             const char4 val0  = make_char4(values[aux8[0]], values[aux8[1]], values[aux8[2]], values[aux8[3]]);
             const char4 val1  = make_char4(values[aux8[4]], values[aux8[5]], values[aux8[6]], values[aux8[7]]);
 
-#ifdef INT8_MMA_AVAILABLE
+#ifdef NEW_MMA_AVAILABLE
             x_qs[i*MMQ_MMA_TILE_X_K_Q3_K + kqsx + 16*l + 0] = *(const int *)&val0;
             x_qs[i*MMQ_MMA_TILE_X_K_Q3_K + kqsx + 16*l + 8] = *(const int *)&val1;
 #else
@@ -2927,7 +2927,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
         }
 
 
-#ifdef INT8_MMA_AVAILABLE
+#ifdef NEW_MMA_AVAILABLE
         x_df[i*MMQ_MMA_TILE_X_K_Q3_K               + 2*kqsx+0] = d * bxi->scales[2*kqsx+0];
         x_df[i*MMQ_MMA_TILE_X_K_Q3_K               + 2*kqsx+1] = d * bxi->scales[2*kqsx+1];
 #else
