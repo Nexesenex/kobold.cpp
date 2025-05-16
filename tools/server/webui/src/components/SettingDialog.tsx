@@ -100,6 +100,16 @@ const SETTING_SECTIONS: SettingSection[] = [
             key,
           }) as SettingFieldInput
       ),
+      {
+        type: SettingInputType.SHORT_INPUT,
+        label: 'Paste length to file',
+        key: 'pasteLongTextToFileLen',
+      },
+      {
+        type: SettingInputType.CHECKBOX,
+        label: 'Parse PDF as image instead of text',
+        key: 'pdfAsImage',
+      },
     ],
   },
   {
@@ -452,10 +462,10 @@ function SettingsModalLongInput({
   label?: string;
 }) {
   return (
-    <label className="form-control mb-2">
-      <div className="label inline">{label || configKey}</div>
+    <label className="form-control">
+      <div className="label inline text-sm">{label || configKey}</div>
       <textarea
-        className="textarea textarea-bordered h-24"
+        className="textarea textarea-bordered h-24 mb-2"
         placeholder={`Default: ${CONFIG_DEFAULT[configKey] || 'none'}`}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -482,9 +492,7 @@ function SettingsModalShortInput({
     <>
       {/* on mobile, we simply show the help message here */}
       {helpMsg && (
-        <div className="block md:hidden mb-1">
-          <b>{label || configKey}</b>
-          <br />
+        <div className="block mb-1 opacity-75">
           <p className="text-xs">{helpMsg}</p>
         </div>
       )}
@@ -493,11 +501,6 @@ function SettingsModalShortInput({
           <div tabIndex={0} role="button" className="font-bold hidden md:block">
             {label || configKey}
           </div>
-          {helpMsg && (
-            <div className="dropdown-content menu bg-base-100 rounded-box z-10 w-64 p-2 shadow mt-4">
-              {helpMsg}
-            </div>
-          )}
         </div>
         <input
           type="text"

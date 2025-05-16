@@ -2363,14 +2363,6 @@ struct clip_model_loader {
     }
 };
 
-// read and create ggml_context containing the tensors and their data
-struct clip_ctx * clip_model_load(const char * fname, const int verbosity) {
-    return clip_init(fname, clip_context_params{
-        /* use_gpu */   true,
-        /* verbosity */ static_cast<ggml_log_level>(verbosity),
-    });
-}
-
 struct clip_ctx * clip_init(const char * fname, struct clip_context_params ctx_params) {
     g_logger_state.verbosity_thold = ctx_params.verbosity;
     clip_ctx * ctx_clip = nullptr;
@@ -3226,19 +3218,6 @@ size_t get_clip_image_grid_size(const struct clip_ctx * ctx) {
     return ctx->vision_model.hparams.image_grid_pinpoints.size();
 }
 
-// deprecated
-int clip_n_patches(const struct clip_ctx * ctx) {
-    clip_image_f32 img;
-    img.nx = ctx->vision_model.hparams.image_size;
-    img.ny = ctx->vision_model.hparams.image_size;
-    return clip_n_output_tokens(ctx, &img);
-}
-
-// deprecated
-int clip_n_patches_by_img(const struct clip_ctx * ctx, struct clip_image_f32 * img) {
-    return clip_n_output_tokens(ctx, img);
-}
-
 int clip_n_output_tokens_x(const struct clip_ctx * ctx, struct clip_image_f32 * img) {
     const auto & params = ctx->vision_model.hparams;
     const int n_total = clip_n_output_tokens(ctx, img);
@@ -3762,6 +3741,11 @@ bool clip_model_quantize(const char * fname_inp, const char * fname_out, const i
     for (int i = 0; i < n_tensors; ++i) {
         const char * name = gguf_get_tensor_name(ctx_src, i);
         ggml_tensor * cur = ggml_get_tensor(ctx_data, name);
+        if(cur==nullptr)
+        {
+            printf("\nSkipped missing %s tensor!\n",name);
+            continue;
+        }
         gguf_add_tensor(ctx_out, cur);
     }
 
@@ -3783,6 +3767,11 @@ bool clip_model_quantize(const char * fname_inp, const char * fname_out, const i
     for (int i = 0; i < n_tensors; ++i) {
         const std::string name = gguf_get_tensor_name(ctx_src, i);
         ggml_tensor * cur = ggml_get_tensor(ctx_data, name.c_str());
+        if(cur==nullptr)
+        {
+            printf("\nSkipped missing %s tensor!\n",name.c_str());
+            continue;
+        }
 
         enum ggml_type new_type;
         void * new_data;
