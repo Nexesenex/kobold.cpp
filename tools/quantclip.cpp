@@ -1,7 +1,7 @@
 #include "ggml.h"
 #include "common.h"
-#include "clip.h"
-#include "llava.h"
+#include "mtmd/clip.h"
+#include "mtmd/llava.h"
 #include "llama.h"
 
 #include "base64.hpp"

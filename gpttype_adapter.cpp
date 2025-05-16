@@ -1942,8 +1942,8 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         {
             printf("GLM-4 is broken on larger batch sizes in Vulkan. Clamp ignored in debug.\n");
         } else {
-            printf("GLM-4 is broken on larger batch sizes in Vulkan. Clamping ubatch size to 16.\n");
-            kcpp_data->n_ubatch = 16;
+            printf("GLM-4 is broken on larger batch sizes in Vulkan. Clamping ubatch size to 8.\n");
+            kcpp_data->n_ubatch = 8;
         }
     }
     #endif
@@ -2391,7 +2391,10 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
                 set_clip_uses_gpu(false);
                 printf("Clip forced to use CPU!\n");
             }
-            clp_ctx = clip_model_load(mmproj_filename.c_str(), /*verbosity=*/ 1);
+            clp_ctx = clip_init(mmproj_filename.c_str(), clip_context_params{
+                /* use_gpu */   true,
+                /* verbosity */ static_cast<ggml_log_level>(1),
+            });
             if(clp_ctx == nullptr) {
                 fprintf(stderr, "%s: error: failed to load mmproj model!\n", __func__);
                 return ModelLoadResult::FAIL;
@@ -2440,6 +2443,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
                 add_bos_token = false;
             }
         }
+        printf("Starting model warm up, please wait a moment...\n");
 
         //warmup at least 33 tokens to trigger batch
         std::vector<int> tmp;
