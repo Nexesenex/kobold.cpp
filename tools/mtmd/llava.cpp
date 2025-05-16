@@ -347,7 +347,7 @@ static bool encode_image_with_clip(clip_ctx * ctx_clip, int n_threads, const cli
     }
     else if (clip_is_pixtral(ctx_clip)){
         clip_image_f32 * img_res = clip_image_f32_get_img(img_res_v.get(), 0);
-        *n_img_pos = clip_n_patches_by_img(ctx_clip, img_res);
+        *n_img_pos = clip_n_output_tokens(ctx_clip, img_res);
         bool encoded = clip_image_encode(ctx_clip, n_threads, img_res, image_embd); // image_embd shape is 576 x 4096
         if (!encoded) {
             LOG_ERR("Unable to encode image\n");

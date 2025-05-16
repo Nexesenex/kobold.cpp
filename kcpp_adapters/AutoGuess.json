@@ -82,11 +82,11 @@
     "search": ["[/INST]", "[SYSTEM_PROMPT]"],
     "name": "Mistral V7 (with system prompt)",
     "adapter": {
-        "system_start": "[SYSTEM_PROMPT] ",
+        "system_start": "[SYSTEM_PROMPT]",
         "system_end": "[/SYSTEM_PROMPT]",
-        "user_start": "[INST] ",
-        "user_end": "[/INST]",
-        "assistant_start": " ",
+        "user_start": "[INST]",
+        "user_end": "",
+        "assistant_start": "[/INST]",
         "assistant_end": "</s>"
     }
 }, {
@@ -94,10 +94,10 @@
     "name": "Mistral V3",
     "adapter": {
         "system_start": "[INST] ",
-        "system_end": "[/INST] ",
+        "system_end": "[/INST]",
         "user_start": "[INST] ",
-        "user_end": "[/INST] ",
-        "assistant_start": "",
+        "user_end": "",
+        "assistant_start": "[/INST]",
         "assistant_end": "</s>"
     }
 }, {
@@ -107,8 +107,8 @@
         "system_start": "[INST]",
         "system_end": "[/INST]\n",
         "user_start": "[INST]",
-        "user_end": "[/INST]\n",
-        "assistant_start": "",
+        "user_end": "",
+        "assistant_start": "[/INST]\n",
         "assistant_end": "</s>"
     }
 }, {

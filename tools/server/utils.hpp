@@ -643,6 +643,18 @@ static json oaicompat_completion_params_parse(
         throw std::runtime_error("Expected 'messages' to be an array");
     }
     for (auto & msg : messages) {
+        std::string role = json_value(msg, "role", std::string());
+        if (role != "assistant" && !msg.contains("content")) {
+            throw std::runtime_error("All non-assistant messages must contain 'content'");
+        }
+        if (role == "assistant") {
+            if (!msg.contains("content") && !msg.contains("tool_calls")) {
+                throw std::runtime_error("Assistant message must contain either 'content' or 'tool_calls'!");
+            }
+            if (!msg.contains("content")) {
+                continue; // avoid errors with no content
+            }
+        }
         json & content = msg.at("content");
         if (content.is_string() || content.is_null()) {
             continue;
@@ -1153,7 +1165,7 @@ public:
         tokens.clear();
     }
 
-    void resize(size_t n) {
+    void keep_first(size_t n) {
         GGML_ASSERT(n <= tokens.size());
         if (has_mtmd) {
             // we throw an error if we try to remove a token in the middle of an image

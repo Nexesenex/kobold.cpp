@@ -84,7 +84,7 @@ fullwhispermodelpath = "" #if empty, it's not initialized
 ttsmodelpath = "" #if empty, not initialized
 embeddingsmodelpath = "" #if empty, not initialized
 maxctx = 4096
-maxhordectx = 4096
+maxhordectx = 0 #set to whatever maxctx is if 0
 maxhordelen = 512
 modelbusy = threading.Lock()
 requestsinqueue = 0
@@ -3840,7 +3840,7 @@ Change Mode<br>
             response_body = (json.dumps({"value": maxhordelen}).encode())
 
         elif self.path.endswith(('/api/v1/config/max_context_length', '/api/latest/config/max_context_length')):
-            response_body = (json.dumps({"value": min(maxctx,maxhordectx)}).encode())
+            response_body = (json.dumps({"value": min(maxctx,(maxctx if maxhordectx==0 else maxhordectx))}).encode())
 
         elif self.path.endswith(('/api/v1/config/soft_prompt', '/api/latest/config/soft_prompt')):
             response_body = (json.dumps({"value":""}).encode())
@@ -4698,14 +4698,16 @@ Change Mode<br>
                 trunc_len = 8000
                 if args.debugmode >= 1:
                     trunc_len = 16000
-                    printablegenparams_raw = truncate_long_json(genparams,trunc_len)
-                    utfprint("\nReceived Raw Input: " + json.dumps(printablegenparams_raw),1)
+
+                printablegenparams_raw = truncate_long_json(genparams,trunc_len)
+                utfprint("\nInput: " + json.dumps(printablegenparams_raw),1)
 
                 # transform genparams (only used for text gen) first
                 genparams = transform_genparams(genparams, api_format)
 
-                printablegenparams = truncate_long_json(genparams,trunc_len)
-                utfprint("\nInput: " + json.dumps(printablegenparams),1)
+                if args.debugmode >= 1:
+                    printablegenparams = truncate_long_json(genparams,trunc_len)
+                    utfprint("\nAdapted Input: " + json.dumps(printablegenparams),1)
 
                 if args.foreground:
                     bring_terminal_to_foreground()
@@ -6059,8 +6061,8 @@ def show_gui():
     makelabel(horde_tab, "Horde:", 18,0,"Settings for embedded AI Horde worker").grid(pady=10)
 
     horde_name_entry,  horde_name_label = makelabelentry(horde_tab, "Horde Model Name:", horde_name_var, 20, 180,tooltip="The model name to be displayed on the AI Horde.")
-    horde_gen_entry,  horde_gen_label = makelabelentry(horde_tab, "Gen. Length:", horde_gen_var, 21, 50,tooltip="The maximum amount to generate per request \nthat this worker will accept jobs for.")
-    horde_context_entry,  horde_context_label = makelabelentry(horde_tab, "Max Context:",horde_context_var, 22, 50,tooltip="The maximum context length \nthat this worker will accept jobs for.")
+    horde_gen_entry,  horde_gen_label = makelabelentry(horde_tab, "Gen. Length:", horde_gen_var, 21, 50,tooltip="The maximum amount to generate per request that this worker will accept jobs for.")
+    horde_context_entry,  horde_context_label = makelabelentry(horde_tab, "Max Context:",horde_context_var, 22, 50,tooltip="The maximum context length that this worker will accept jobs for.\nIf 0, matches main context limit.")
     horde_apikey_entry,  horde_apikey_label = makelabelentry(horde_tab, "API Key (If Embedded Worker):",horde_apikey_var, 23, 180,tooltip="Your AI Horde API Key that you have registered.")
     horde_workername_entry,  horde_workername_label = makelabelentry(horde_tab, "Horde Worker Name:",horde_workername_var, 24, 180,tooltip="Your worker's name to be displayed.")
 
@@ -6870,7 +6872,7 @@ def run_horde_worker(args, api_key, worker_name):
             "name": worker_name,
             "models": [friendlymodelname],
             "max_length": maxhordelen,
-            "max_context_length": min(maxctx,maxhordectx),
+            "max_context_length": min(maxctx,(maxctx if maxhordectx==0 else maxhordectx)),
             "priority_usernames": [],
             "softprompts": [],
             "bridge_agent": BRIDGE_AGENT,
@@ -7669,7 +7671,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
             args.debugmode = -1
     if args.hordegenlen and args.hordegenlen > 0:
         maxhordelen = int(args.hordegenlen)
-    if args.hordemaxctx and args.hordemaxctx > 0:
+    if args.hordemaxctx and args.hordemaxctx >= 0:
         maxhordectx = int(args.hordemaxctx)
 
     if args.debugmode != 1:
@@ -8432,7 +8434,7 @@ if __name__ == '__main__':
     hordeparsergroup.add_argument("--hordemodelname", metavar=('[name]'), help="Sets your AI Horde display model name.", default="")
     hordeparsergroup.add_argument("--hordeworkername", metavar=('[name]'), help="Sets your AI Horde worker name.", default="")
     hordeparsergroup.add_argument("--hordekey", metavar=('[apikey]'), help="Sets your AI Horde API key.", default="")
-    hordeparsergroup.add_argument("--hordemaxctx", metavar=('[amount]'), help="Sets the maximum context length your worker will accept from an AI Horde job.", type=int, default=0)
+    hordeparsergroup.add_argument("--hordemaxctx", metavar=('[amount]'), help="Sets the maximum context length your worker will accept from an AI Horde job. If 0, matches main context limit.", type=int, default=0)
     hordeparsergroup.add_argument("--hordegenlen", metavar=('[amount]'), help="Sets the maximum number of tokens your worker will generate from an AI horde job.", type=int, default=0)
 
     sdparsergroup = parser.add_argument_group('Image Generation Commands')
