@@ -29,7 +29,7 @@ void ggml_cuda_op_mul_mat_q(
     // There are multiple parallel CUDA streams for src1_ncols != ne11 which would introduce a race condition for this buffer.
     const bool use_stream_k = GGML_CUDA_CC_IS_NVIDIA(cc) &&
         ggml_cuda_highest_compiled_arch(cc) >= GGML_CUDA_CC_VOLTA && src1_ncols == ne11;
-    const mmq_args args = {src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, nb01, src1_padded_row_size, src1_ncols, ne11, nrows_dst};;
+    const mmq_args args = {src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, nb01, src1_padded_row_size, src1_ncols, ne11, nrows_dst, use_stream_k};
 
     switch (src0->type) {
         case GGML_TYPE_Q4_0:
@@ -98,6 +98,9 @@ void ggml_cuda_op_mul_mat_q(
         // case GGML_TYPE_IQ2_KS:
             // mul_mat_q_case<GGML_TYPE_IQ2_KS>(ctx, args, stream);
             // break;
+        // case GGML_TYPE_IQ5_KS:
+            // mul_mat_q_case<GGML_TYPE_IQ5_KS>(ctx, args, stream);
+            // break;
         case GGML_TYPE_IQ2_K:
             mul_mat_q_case<GGML_TYPE_IQ2_K>(ctx, args, stream);
             break;
@@ -155,6 +158,7 @@ bool ggml_cuda_should_use_mmq(enum ggml_type type, int cc, int64_t ne11) {
         case GGML_TYPE_IQ4_NL:
         // case GGML_TYPE_IQ4_KS:
         // case GGML_TYPE_IQ2_KS:
+        // case GGML_TYPE_IQ5_KS:
         case GGML_TYPE_IQ2_K:
         case GGML_TYPE_IQ3_K:
         case GGML_TYPE_IQ4_K:

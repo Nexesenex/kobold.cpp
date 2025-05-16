@@ -787,6 +787,9 @@ else ()
     add_library(ggml
 				ggml/src/ggml.c
                 ggml/src/iqk_croco/iqk_quantize_croco.cpp
+                ggml/src/iqk_croco/iqk_quantize_croco.h
+                ggml/src/iqk_croco/iqk_config_croco.h
+                ggml/src/iqk_croco/iqk_common_croco.h
 				ggml/include/ggml.h
 				ggml/src/ggml-cpu/ggml-cpu.c
 				ggml/include/ggml-cpu.h

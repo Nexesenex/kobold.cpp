@@ -518,12 +518,9 @@ static void llama_model_quantize_impl(const std::string & fname_inp, const std::
         case LLAMA_FTYPE_MOSTLY_IQ2_XXS: default_type = GGML_TYPE_IQ2_XXS; break;
         case LLAMA_FTYPE_MOSTLY_IQ2_XS:  default_type = GGML_TYPE_IQ2_XS;  break;
         case LLAMA_FTYPE_MOSTLY_IQ2_KS:  default_type = GGML_TYPE_IQ2_KS;  break;
-        case LLAMA_FTYPE_MOSTLY_IQ2_KT:  default_type = GGML_TYPE_IQ2_KT;  break;
         case LLAMA_FTYPE_MOSTLY_IQ2_S:   default_type = GGML_TYPE_IQ2_XS;  break;
         case LLAMA_FTYPE_MOSTLY_IQ2_M:   default_type = GGML_TYPE_IQ2_S;   break;
         case LLAMA_FTYPE_MOSTLY_IQ3_XXS: default_type = GGML_TYPE_IQ3_XXS; break;
-        case LLAMA_FTYPE_MOSTLY_IQ3_KT:  default_type = GGML_TYPE_IQ3_KT;  break;
-        case LLAMA_FTYPE_MOSTLY_IQ4_KT:  default_type = GGML_TYPE_IQ4_KT;  break;
         case LLAMA_FTYPE_MOSTLY_IQ1_S:   default_type = GGML_TYPE_IQ1_S;   break;
         case LLAMA_FTYPE_MOSTLY_IQ1_M:   default_type = GGML_TYPE_IQ1_M;   break;
         case LLAMA_FTYPE_MOSTLY_IQ1_BN:  default_type = GGML_TYPE_IQ1_BN;  break;
@@ -531,6 +528,7 @@ static void llama_model_quantize_impl(const std::string & fname_inp, const std::
         case LLAMA_FTYPE_MOSTLY_IQ4_NL:  default_type = GGML_TYPE_IQ4_NL;  break;
         case LLAMA_FTYPE_MOSTLY_IQ4_XS:  default_type = GGML_TYPE_IQ4_XS;  break;
         case LLAMA_FTYPE_MOSTLY_IQ4_KS:  default_type = GGML_TYPE_IQ4_KS;  break;
+        case LLAMA_FTYPE_MOSTLY_IQ5_KS:  default_type = GGML_TYPE_IQ5_KS;  break;
         case LLAMA_FTYPE_MOSTLY_IQ4_KSS: default_type = GGML_TYPE_IQ4_KSS; break;
         case LLAMA_FTYPE_MOSTLY_IQ2_K:   default_type = GGML_TYPE_IQ2_K;   break;
         case LLAMA_FTYPE_MOSTLY_IQ3_K:   default_type = GGML_TYPE_IQ3_K;   break;
@@ -540,6 +538,9 @@ static void llama_model_quantize_impl(const std::string & fname_inp, const std::
         case LLAMA_FTYPE_MOSTLY_IQ6_K:   default_type = GGML_TYPE_IQ6_K;   break;
         case LLAMA_FTYPE_MOSTLY_IQ3_S:   default_type = GGML_TYPE_IQ3_S;   break;
         case LLAMA_FTYPE_MOSTLY_IQ3_M:   default_type = GGML_TYPE_IQ3_S;   break;
+        case LLAMA_FTYPE_MOSTLY_IQ2_KT:  default_type = GGML_TYPE_IQ2_KT;  break;
+        case LLAMA_FTYPE_MOSTLY_IQ3_KT:  default_type = GGML_TYPE_IQ3_KT;  break;
+        case LLAMA_FTYPE_MOSTLY_IQ4_KT:  default_type = GGML_TYPE_IQ4_KT;  break;
 
         default: throw std::runtime_error(format("invalid output file type %d\n", ftype));
     }
