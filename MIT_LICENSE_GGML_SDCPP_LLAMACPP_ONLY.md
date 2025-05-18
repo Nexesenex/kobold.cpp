@@ -22,5 +22,13 @@ SOFTWARE.
 
 ===================================
 
-Note that the above license applies ONLY to the GGML library and llama.cpp by ggerganov which are licensed under the MIT License
-KoboldAI Lite by Concedo and the provided python ctypes bindings in koboldcpp dlls are licensed under the AGPL v3.0 License
+Note that the above MIT license applies ONLY to the GGML library, the UNMODIFIED stable-diffusion.cpp portions and llama.cpp portions which are licensed under the MIT License
+
+KoboldAI Lite and the rest of KoboldCpp python and C++ code are licensed under the AGPL v3.0 License
+
+- Llama.cpp source repo is at https://github.com/ggml-org/llama.cpp (MIT)
+- Stable-diffusion.cpp source repo is at https://github.com/leejet/stable-diffusion.cpp (MIT)
+- KoboldCpp source repo is at https://github.com/LostRuins/koboldcpp (AGPL)
+- KoboldAI Lite source repo is at https://github.com/LostRuins/lite.koboldai.net (AGPL)
+
+For any further enquiries, contact @concedo on discord, or LostRuins on github.

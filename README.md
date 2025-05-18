@@ -415,9 +415,14 @@ and it will install everything required. Alternatively, you can download the abo
 - Since v1.75, openblas has been deprecated and removed in favor of the native CPU implementation.
 
 ## License
-- The original GGML library and llama.cpp by ggerganov are licensed under the MIT License
+- The original GGML library, stable-diffusion.cpp and llama.cpp by ggerganov are licensed under the MIT License
 - However, KoboldAI Lite is licensed under the AGPL v3.0 License
 - KoboldCpp code and other files are also under the AGPL v3.0 License unless otherwise stated
+- Llama.cpp source repo is at https://github.com/ggml-org/llama.cpp (MIT)
+- Stable-diffusion.cpp source repo is at https://github.com/leejet/stable-diffusion.cpp (MIT)
+- KoboldCpp source repo is at https://github.com/LostRuins/koboldcpp (AGPL)
+- KoboldAI Lite source repo is at https://github.com/LostRuins/lite.koboldai.net (AGPL)
+- For any further enquiries, contact @concedo on discord, or LostRuins on github.
 
 ## Notes
 - If you wish, after building the koboldcpp libraries with `make`, you can rebuild the exe yourself with pyinstaller by using `make_pyinstaller.bat`
