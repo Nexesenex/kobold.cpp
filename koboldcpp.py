@@ -35,7 +35,6 @@ from datetime import datetime, timezone
 from typing import Tuple
 
 # PDF extraction logic
-import pdfplumber
 import logging
 import io
 
@@ -1679,12 +1678,13 @@ def extract_text_from_pdf(docData):
 
 # PDF extraction code by sevenof9
 def getTextFromPDFEncapsulated(decoded_bytes):
+    import pdfplumber
+
     """
     Processes a page based on the page number, content and text settings being passed in.
     Returns the page number and the text content
     """
     def process_page(args):
-        import pdfplumber
         import json
         from pdfplumber.utils import get_bbox_overlap, obj_to_bbox
 
