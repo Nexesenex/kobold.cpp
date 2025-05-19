@@ -25780,10 +25780,10 @@ else
 				}
 			},
 			{
-			"name": "overwrite_system_prompt",
-			"description": "Overwrites the existing system prompt with a new set of instructions. Only use this when explicitly requested by the user, use memory in general.",
+			"name": "overwrite_setting_overview",
+			"description": "Overwrites the existing setting overview with a new set of instructions. Only use this when explicitly requested by the user.",
 			"args": {
-				"text": "<new system prompt>"
+				"text": "<new overview about the setting>"
 			},
 			"enabled": true,
 				"executor": (action) => {
@@ -25791,10 +25791,10 @@ else
 					if (!!systemPrompt) {
 						// localsettings.instruct_sysprompt = systemPrompt
 						current_memory = `{{[SYSTEM]}}${systemPrompt}{{[SYSTEM_END]}}`
-						addThought(createSysPrompt, `System prompt has been overwritten`)
+						addThought(createSysPrompt, `Setting overview has been overwritten`)
 					}
 					else {
-						addThought(createSysPrompt, `No system prompt provided, nothing has been overwritten`)
+						addThought(createSysPrompt, `No setting overview provided, nothing has been overwritten`)
 					}
 				}
 			},
@@ -26391,8 +26391,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	let listOfExclusions = ["Action taken:", "Action taken (words =", "History search performed:", "Chain of thought complete", "Stop thinking action confirmed",
 				 "Web search results:", "Text has been added to history", "Formula evaluation result:", "Formula evaluation could not be completed as no formula was provided", 
 				 "Text has been added to history", "Text was empty - nothing added to history", "Search string was empty, no search performed", "Word count is", "Image analysed:", 
-				 "Image generated", "No prompt provided, image not generated", "Text has been spoken", "No text provided, nothing has been said", "System prompt has been overwritten", 
-				 "No system prompt provided, nothing has been overwritten", "Current state has been overwritten", "No state provided, nothing has been overwritten", "Current order of actions has been cleared",
+				 "Image generated", "No prompt provided, image not generated", "Text has been spoken", "No text provided, nothing has been said", "Setting overview has been overwritten", 
+				 "No setting overview provided, nothing has been overwritten", "Current state has been overwritten", "No state provided, nothing has been overwritten", "Current order of actions has been cleared",
 				  "Current order of actions has been overwritten", "No order of actions provided, nothing has been overwritten", "Error - Empty response instead of action. Ensure all responses are valid JSON.",
 				"Current state format has been overwritten", "No valid state format provided, nothing has been overwritten", `Text has been added to world info:`, `Text was empty - nothing added to world info`, `Chain of thought had an exception`]
 
@@ -26557,7 +26557,12 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	let getInitialAgentPrompt = (commands = getEnabledCommands(), max_mem_len) => {
-		return substring_to_boundary(current_memory, max_mem_len) + createSysPrompt(actionPrompt(commands))
+		let prompt = createSysPrompt(`System prompt:\n\n${actionPrompt(commands)}`) 
+		if (!!current_memory)
+		{
+			prompt += createSysPrompt(`Setting overview:\n\n${substring_to_boundary(current_memory, max_mem_len)}`)
+		}
+		return prompt
 	}
 
 	let getFinalAgentPrompt = (currentOrderOfActions) => {
