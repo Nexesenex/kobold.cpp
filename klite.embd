@@ -27752,7 +27752,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					pending_wi_obj = pending_wi_obj.filter(wi => (wiGroup === "General" ? wi.wigroup !== "" : wi.wigroup !== wiGroup))
 					pending_wi_obj.push(...wiToAdd)
 					update_wi()
-					select_wi_group(wiGroup)
+					select_wi_group(wiGroup === "General" ? "" : wiGroup)
 				}
 				catch(e)
 				{
