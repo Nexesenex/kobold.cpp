@@ -335,14 +335,22 @@ export default function SettingDialog({
   };
 
   return (
-    <dialog className={classNames({ modal: true, 'modal-open': show })}>
+    <dialog
+      className={classNames({ modal: true, 'modal-open': show })}
+      aria-label="Settings dialog"
+    >
       <div className="modal-box w-11/12 max-w-3xl">
         <h3 className="text-lg font-bold mb-6">Settings</h3>
         <div className="flex flex-col md:flex-row h-[calc(90vh-12rem)]">
           {/* Left panel, showing sections - Desktop version */}
-          <div className="hidden md:flex flex-col items-stretch pr-4 mr-4 border-r-2 border-base-200">
+          <div
+            className="hidden md:flex flex-col items-stretch pr-4 mr-4 border-r-2 border-base-200"
+            role="complementary"
+            aria-description="Settings sections"
+            tabIndex={0}
+          >
             {SETTING_SECTIONS.map((section, idx) => (
-              <div
+              <button
                 key={idx}
                 className={classNames({
                   'btn btn-ghost justify-start font-normal w-44 mb-1': true,
@@ -352,12 +360,16 @@ export default function SettingDialog({
                 dir="auto"
               >
                 {section.title}
-              </div>
+              </button>
             ))}
           </div>
 
           {/* Left panel, showing sections - Mobile version */}
-          <div className="md:hidden flex flex-row gap-2 mb-4">
+          {/* This menu is skipped on a11y, otherwise it's repeated the desktop version */}
+          <div
+            className="md:hidden flex flex-row gap-2 mb-4"
+            aria-disabled={true}
+          >
             <details className="dropdown">
               <summary className="btn bt-sm w-full m-1">
                 {SETTING_SECTIONS[sectionIdx].title}

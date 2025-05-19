@@ -61,11 +61,11 @@ dry_seq_break_max = 512
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.92025"
-LcppVersion = "b5401"
+KcppVersion = "1.92045"
+LcppVersion = "b5415"
 EsoboldVersion = "RMv1.101"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/05/16"
+ReleaseDate = "2025/05/18"
 showdebug = True
 # guimode = False
 kcpp_instance = None #global running instance
@@ -3709,7 +3709,7 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
             updated_query_string = urlparse.urlencode(parsed_dict, doseq=True)
             updated_path = parsed_url._replace(query=updated_query_string).geturl()
             self.path = updated_path
-            time.sleep(0.3) #short delay
+            time.sleep(0.5) #short delay
             self.send_response(302)
             self.send_header("location", self.path)
             self.end_headers(content_type='text/html')
@@ -8004,8 +8004,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
 
             patches = [{"find":"Sorry, KoboldAI Lite requires Javascript to function.","replace":"Sorry, KoboldAI Lite requires Javascript to function.<br>You can use <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp/Croco.Cpp NoScript mode</a> instead."},
                        {"find":"var localflag = urlParams.get('local');","replace":"var localflag = true;"},
-                       {"find":"<p id=\"tempgtloadtxt\">Loading...</p>","replace":"<p id=\"tempgtloadtxt\">Loading...<br>(If load fails, try <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp/Croco.Cpp NoScript mode</a> instead.)</p>"}]
-
+                       {"find":"<p id=\"tempgtloadtxt\">Loading...</p>","replace":"<p id=\"tempgtloadtxt\">Loading...<br>(If load fails, try <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp/Croco.Cpp NoScript mode</a> instead, or adding /noscript at this url.)</p>"}]
             embedded_kailite = embedded_kailite.decode("UTF-8","ignore")
             for p in patches:
                 embedded_kailite = embedded_kailite.replace(p["find"], p["replace"])
