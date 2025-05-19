@@ -1778,6 +1778,7 @@ def getTextFromPDFEncapsulated(decoded_bytes):
         for idx, table in enumerate(table_json_outputs, start=1):
             page_output += f'"table {idx}":\n{table}\n'
 
+        print(f"Finished processing PDF page {page_number}")
         return page_number, page_output
 
     def run_serial(pages):
@@ -1789,7 +1790,7 @@ def getTextFromPDFEncapsulated(decoded_bytes):
 
         # Parallel execution based on either the number of pages or number of CPU cores
         num_cores = min(cpu_count(), len(pages))
-        print(f"Started processing PDF with {num_cores} cores...")
+        print(f"Started processing PDF document with {len(pages)} using {num_cores} cores...")
         with ThreadPoolExecutor(max_workers=5) as exe:
             return exe.map(process_page, pages)
             # exe.submit(cube,2)
@@ -1824,6 +1825,8 @@ def getTextFromPDFEncapsulated(decoded_bytes):
         sorted_results = sorted(results, key=lambda x: x[0])
         final_output = "\n".join(page_output for _, page_output in sorted_results)
         
+        print(f"Finished processing PDF")
+
         return final_output
     return ""
 
