@@ -2470,7 +2470,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + WARP_SIZE*2);
 #else
-    constexpr tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_IQ4_XS, mmq_y);
+    constexpr tile_x_sizes txs = MMQ_DP4A_TXS_Q8_0;
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + txs.qs);
 #endif // INT8_MMA_AVAILABLE
@@ -2693,7 +2693,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + WARP_SIZE*2);
 #else
-    constexpr tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_IQ4_XS, mmq_y);
+    constexpr tile_x_sizes txs = MMQ_DP4A_TXS_Q8_0;
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + txs.qs);
 #endif // INT8_MMA_AVAILABLE
@@ -2888,7 +2888,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + WARP_SIZE*2);
 #else
-    constexpr tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_IQ5_KS, mmq_y);
+    constexpr tile_x_sizes txs = MMQ_DP4A_TXS_Q8_0;
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + txs.qs);
 #endif // INT8_MMA_AVAILABLE
@@ -3740,9 +3740,9 @@ extern DECL_MMQ_CASE(GGML_TYPE_IQ3_S);
 extern DECL_MMQ_CASE(GGML_TYPE_IQ1_S);
 extern DECL_MMQ_CASE(GGML_TYPE_IQ4_NL);
 extern DECL_MMQ_CASE(GGML_TYPE_IQ4_XS);
-// extern DECL_MMQ_CASE(GGML_TYPE_IQ4_KS);
-// extern DECL_MMQ_CASE(GGML_TYPE_IQ2_KS);
-// extern DECL_MMQ_CASE(GGML_TYPE_IQ5_KS);
+extern DECL_MMQ_CASE(GGML_TYPE_IQ4_KS);
+extern DECL_MMQ_CASE(GGML_TYPE_IQ2_KS);
+extern DECL_MMQ_CASE(GGML_TYPE_IQ5_KS);
 extern DECL_MMQ_CASE(GGML_TYPE_IQ2_K);
 extern DECL_MMQ_CASE(GGML_TYPE_IQ3_K);
 extern DECL_MMQ_CASE(GGML_TYPE_IQ4_K);
