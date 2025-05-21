@@ -5019,8 +5019,8 @@ Current version indicated by LITEVER below.
 		console.log("Not a RISU card.");
 		return null;
 	}
-
-	function generate_compressed_story(save_images,export_settings,export_aesthetic_settings) {
+	
+	function generate_compressed_story(save_images,export_settings,export_aesthetic_settings, shouldCompress = false) {
 		//encode the current story into a sharable url
 		//a tiny json format which gets compressed by LZMA then b64url
 
@@ -5028,7 +5028,7 @@ Current version indicated by LITEVER below.
 		let storyjson = JSON.stringify(story);
 		console.log("Exporting story: ", story);
 
-		var cstoryjson = buf_to_b64(lz_c.compress(storyjson, 1));
+		var cstoryjson = shouldCompress && localsettings.disableSaveCompressionLocally ? storyjson : buf_to_b64(lz_c.compress(storyjson, 1));
 		return cstoryjson;
 	}
 	function autosave_compressed_story(save_images,export_settings,export_aesthetic_settings) {
@@ -5044,9 +5044,9 @@ Current version indicated by LITEVER below.
 		}
 		console.log("Autosave Start: ", story);
 		(function retry_autosave(json) {
-			lz_c.compress(json, 1, function(res) {
-				let compressedstory = buf_to_b64(res);
-				indexeddb_save("story",compressedstory).then(()=>{
+			if (localsettings.disableSaveCompressionLocally)
+			{
+				indexeddb_save("story", json).then(()=>{
 					console.log("Autosave Done");
 					let newer = pending_storyjson_autosave;
 					if (newer && newer !== json) {
@@ -5056,11 +5056,38 @@ Current version indicated by LITEVER below.
 						pending_storyjson_autosave = null;
 					}
 				});
-			});
+			}
+			else
+			{
+				lz_c.compress(json, 1, function(res) {
+					let compressedstory = buf_to_b64(res);
+					indexeddb_save("story",compressedstory).then(()=>{
+						console.log("Autosave Done");
+						let newer = pending_storyjson_autosave;
+						if (newer && newer !== json) {
+							console.log("Updating Autosave");
+							retry_autosave(newer);
+						}else{
+							pending_storyjson_autosave = null;
+						}
+					});
+				});
+			}
 		})(storyjson);
 	}
 	function decompress_story(cstoryjson) //decompress story from LZMA to json object
 	{
+		try {
+			if (cstoryjson == null || cstoryjson == "") {
+				return null;
+			} else {
+				return JSON.parse(cstoryjson);
+			}
+		}
+		catch (e) {
+			// Surpress and try loading with the decompression logic
+		}
+
 		var story = null;
 		try
 		{
@@ -11152,7 +11179,7 @@ Current version indicated by LITEVER below.
 		let defaultsavename = (localsettings.opmode==1?"Untitled Story":(localsettings.opmode==2?"Untitled Adventure":(localsettings.opmode==3?"Untitled Chat":"Untitled Instruct")));
 		let savename = defaultsavename + " " + new Date().toLocaleString();
 		let slotnumshown = (parseInt(slot)+1);
-		let newcompressedstory = generate_compressed_story(true, true, true);
+		let newcompressedstory = generate_compressed_story(true, true, true, true);
 		if(islocal)
 		{
 			indexeddb_load("slot_"+slot+"_meta","").then(testslot=>{
@@ -26810,7 +26837,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	let currentOrderOfActionsOverall = [], currentOrderOfActionDescriptionsOverall = []
-	let recentActions = [], maxActionsInHistory = 20, currentAgentCycle = null, endCurrent = false
+	let recentActions = [], maxActionsInHistory = 1000, currentAgentCycle = null, endCurrent = false
 
 	let runAgentCycle = async (initialPrompt = undefined) => {
 		endCurrent = false
@@ -27061,6 +27088,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			{
 				console.log(i)
 				addThought(createSysPrompt, `Chain of thought had an exception: ${e}`)
+				if (resp === null || resp.indexOf("evaluate_formula") === -1)
+				{
+					break	
+				}
 			}
 		}
 		currentAgentCycle = null
@@ -27078,6 +27109,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		document.getElementById("agentCOTMaxnumeric").value = localsettings.agentCOTMax;
 		document.getElementById("agentCOTRepeatsMax").value = localsettings.agentCOTRepeatsMax;
 		document.getElementById("agentCOTRepeatsMaxnumeric").value = localsettings.agentCOTRepeatsMax;
+		document.getElementById("disableSaveCompressionLocally").checked = localsettings.disableSaveCompressionLocally;
 	}
 
 	confirm_settings = () => {
@@ -27085,6 +27117,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		localsettings.agentHideCOT = (document.getElementById("agentHideCOT").checked ? true : false);
 		localsettings.agentCOTMax = document.getElementById("agentCOTMax").value;
 		localsettings.agentCOTRepeatsMax = document.getElementById("agentCOTRepeatsMax").value;
+		localsettings.disableSaveCompressionLocally = (document.getElementById("disableSaveCompressionLocally").checked ? true : false);
 		originalConfirmSettings()
 	}
 
@@ -27286,6 +27319,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			localsettings.agentCOTRepeatsMax = 1
 		}
+		if (localsettings?.disableSaveCompressionLocally == undefined) 
+		{
+			localsettings.disableSaveCompressionLocally = true
+		}
 
 		let createSettingElemBool = (inputElemId, labelTitle, labelText) => {
 			let settingLabelElem = document.createElement("div")
@@ -27381,7 +27418,13 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		settingLabelElem = createSettingElemRange("agentCOTMax", "Maximum agent actions", "Defines the maximum number of actions the agent can take without a user input", 1, 20, 1, 5)
 		lastSettingContainer.append(settingLabelElem)
 
+		// Hidden as this is no longer is in use for now
 		settingLabelElem = createSettingElemRange("agentCOTRepeatsMax", "Maximum repeated agent actions of a type", "Defines the maximum number of actions the agent can take of the same type without a user input", 1, 20, 1, 1)
+		settingLabelElem.style.display = "none"
+		lastSettingContainer.append(settingLabelElem)
+
+		lastSettingContainer = document.querySelector("#settingsmenuadvanced > .settingitem:nth-last-child(-n+2)")
+		settingLabelElem = createSettingElemBool("disableSaveCompressionLocally", "Disables save compression locally", "Disables save compression locally - Improves load / autosave performance with larger saves. The save compression is left enabled for sharing saves or uploading to the main server)")
 		lastSettingContainer.append(settingLabelElem)
 
 		createStopThinkingButton()
