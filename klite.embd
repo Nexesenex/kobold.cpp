@@ -25875,10 +25875,10 @@ else
 				}
 			},
 			{
-			"name": "overwrite_system_prompt",
-			"description": "Overwrites the existing system prompt with a new set of instructions. Only use this when explicitly requested by the user, use memory in general.",
+			"name": "overwrite_setting_overview",
+			"description": "Overwrites the existing setting overview with a new set of instructions. Only use this when explicitly requested by the user.",
 			"args": {
-				"text": "<new system prompt>"
+				"text": "<new overview about the setting>"
 			},
 			"enabled": true,
 				"executor": (action) => {
@@ -25886,10 +25886,10 @@ else
 					if (!!systemPrompt) {
 						// localsettings.instruct_sysprompt = systemPrompt
 						current_memory = `{{[SYSTEM]}}${systemPrompt}{{[SYSTEM_END]}}`
-						addThought(createSysPrompt, `System prompt has been overwritten`)
+						addThought(createSysPrompt, `Setting overview has been overwritten`)
 					}
 					else {
-						addThought(createSysPrompt, `No system prompt provided, nothing has been overwritten`)
+						addThought(createSysPrompt, `No setting overview provided, nothing has been overwritten`)
 					}
 				}
 			},
@@ -26486,8 +26486,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	let listOfExclusions = ["Action taken:", "Action taken (words =", "History search performed:", "Chain of thought complete", "Stop thinking action confirmed",
 				 "Web search results:", "Text has been added to history", "Formula evaluation result:", "Formula evaluation could not be completed as no formula was provided", 
 				 "Text has been added to history", "Text was empty - nothing added to history", "Search string was empty, no search performed", "Word count is", "Image analysed:", 
-				 "Image generated", "No prompt provided, image not generated", "Text has been spoken", "No text provided, nothing has been said", "System prompt has been overwritten", 
-				 "No system prompt provided, nothing has been overwritten", "Current state has been overwritten", "No state provided, nothing has been overwritten", "Current order of actions has been cleared",
+				 "Image generated", "No prompt provided, image not generated", "Text has been spoken", "No text provided, nothing has been said", "Setting overview has been overwritten", 
+				 "No setting overview provided, nothing has been overwritten", "Current state has been overwritten", "No state provided, nothing has been overwritten", "Current order of actions has been cleared",
 				  "Current order of actions has been overwritten", "No order of actions provided, nothing has been overwritten", "Error - Empty response instead of action. Ensure all responses are valid JSON.",
 				"Current state format has been overwritten", "No valid state format provided, nothing has been overwritten", `Text has been added to world info:`, `Text was empty - nothing added to world info`, `Chain of thought had an exception`]
 
@@ -26652,7 +26652,12 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	let getInitialAgentPrompt = (commands = getEnabledCommands(), max_mem_len) => {
-		return substring_to_boundary(current_memory, max_mem_len) + createSysPrompt(actionPrompt(commands))
+		let prompt = createSysPrompt(`System prompt:\n\n${actionPrompt(commands)}`) 
+		if (!!current_memory)
+		{
+			prompt += createSysPrompt(`Setting overview:\n\n${substring_to_boundary(current_memory, max_mem_len)}`)
+		}
+		return prompt
 	}
 
 	let getFinalAgentPrompt = (currentOrderOfActions) => {
@@ -27847,7 +27852,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					pending_wi_obj = pending_wi_obj.filter(wi => (wiGroup === "General" ? wi.wigroup !== "" : wi.wigroup !== wiGroup))
 					pending_wi_obj.push(...wiToAdd)
 					update_wi()
-					select_wi_group(wiGroup)
+					select_wi_group(wiGroup === "General" ? "" : wiGroup)
 				}
 				catch(e)
 				{
@@ -27874,17 +27879,20 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			{
 				return {quantResults: [], priorityQuantResult: null}
 			}
-			let quantUrl = `https://huggingface.co/api/models/${modelName}`
+			let quantUrl = `https://huggingface.co/api/models/${modelName}/tree/main?recursive=true`
 
-			let quantResults = (await(await fetch(quantUrl)).json())?.siblings?.filter(quant => !!quant?.rfilename && quant.rfilename.indexOf(".gguf") !== -1).map(quant => quant.rfilename)
+			let quantResults = (await(await fetch(quantUrl)).json())?.filter(quant => !!quant?.path && quant.path.indexOf(".gguf") !== -1).map(quant => {
+				let {path, size} = quant
+				return { path, size }
+			})
 
 			let priorityQuantResult = null
 			if (quantResults.length > 0) {
-				priorityQuantResult = quantResults[0]
+				priorityQuantResult = quantResults[0].path
 				for (let qLevel in ["q4k", "q4_k", "q4", "q3", "q5", "q6", "q8"]) {
-					let foundPriorityResult = quantResults.find(quant => quant.indexOf(qLevel) !== -1)
+					let foundPriorityResult = quantResults.find(quant => quant.path.indexOf(qLevel) !== -1)
 					if (!!foundPriorityResult) {
-						priorityQuantResult = foundPriorityResult
+						priorityQuantResult = foundPriorityResult.path
 						break
 					}
 				}
@@ -27943,7 +27951,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			
 			selectForQuant.innerHTML = ""
 			quantResults.forEach(quantResult => {
-				selectForQuant.appendChild(new Option(quantResult, quantResult))
+				selectForQuant.appendChild(new Option(`${quantResult.path}: ${Math.ceil(quantResult.size / 1024 / 1024)} MBs`, quantResult.path))
 			})
 
 			if (!!priorityQuantResult)
