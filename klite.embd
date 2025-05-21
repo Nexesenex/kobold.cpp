@@ -3412,6 +3412,7 @@ Current version indicated by LITEVER below.
 		let placeholders = !!instructstartplaceholder && !!instructstartplaceholder_end && !!instructsysplaceholder && !!instructsysplaceholder_end && !!instructendplaceholder && !!instructendplaceholder_end
 		let tags = !!localsettings.instruct_starttag && !!localsettings.instruct_endtag && !!localsettings.instruct_systag
 		&& !!localsettings.instruct_starttag_end && !!localsettings.instruct_endtag_end && !!localsettings.instruct_systag_end
+		&& !!get_instruct_systag(false) && !!get_instruct_systag(true)
 		return placeholders && tags
 	}
 
@@ -25585,7 +25586,7 @@ else
 			"selective": false,
 			"constant": false,
 			"probability": "100",
-			"wigroup": "",
+			"wigroup": "Agent",
 			"widisabled": false
 		}
 		current_wi = current_wi.filter(wi => wi?.comment !== uniqueIdentifier)
@@ -26001,15 +26002,15 @@ else
 			},
 			{
 			"name": "generate_image",
-			"description": "Generates an image using AI based on a prompt. Be specific in the prompt about physical characteristics and settings as names of people may not be known.",
+			"description": "Generates or modifies an image using AI based on a prompt. Be specific in the prompt about physical characteristics and settings as names of people may not be known.",
 			"args": {
 				"prompt": "<prompt to generate image with>",
 				"aspect": {
 					type: "string",
 					description: "<aspect ratio - must be \"landscape\", \"portrait\" or \"square\">"
 				},
-				"use_another_image_as_source": {
-					description: "<if the user wished to generate a new image based on one they provide, set this to true>",
+				"modify_existing_image": {
+					description: "<set this to true to modify an existing image with the prompt>",
 					type: "boolean"
 				}
 			},
@@ -26018,7 +26019,7 @@ else
 					let prompt = action?.args?.prompt
 					let aspect = action?.args?.aspect
 					if (!!prompt) {
-						if (!!action?.args?.use_another_image_as_source)
+						if (!!action?.args?.modify_existing_image)
 						{
 							waitingFori2iSelection = true
 							addThought(createSysPrompt, `Please click an image as a source for img2img generation`, true)
@@ -26135,8 +26136,12 @@ else
 		return [
 			{
 				"name": "plan_actions",
-				"description": "Defines a list of actions to respond to a user instruction",
+				"description": "Defines a list of actions to respond to a user instruction.",
 				"args": {
+					"responsePlanOverview": {
+						type: "string",
+						description: "<short overview of what the user asked for, planned actions and why the order makes sense - this must be specific to the last user instruction>"
+					},
 					"orderOfActions": {
 						type: "array",
 						description: "<array of actions needed to complete the instruction and their objectives>",
