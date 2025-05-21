@@ -26961,9 +26961,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			if (i === 0)
 			{
 				let planningPrompt = "The last action from the user is the instruction. If you need to ask the user for a response, the action ask_user must be used and be put as the final action in the order. Produces a list of actions to respond to this instruction."
-				// if (localsettings.inject_chatnames_instruct) {
-				// 	planningPrompt += ` You must respond as ${localsettings.chatopponent} when using the send_message or ask_user actions.`
-				// }
+				if (localsettings.inject_chatnames_instruct) {
+					planningPrompt += ` You must respond as ${localsettings.chatopponent} when using the send_message or ask_user actions.`
+				}
 				promptOverview = planningPrompt
 			}
 			
