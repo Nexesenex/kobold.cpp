@@ -5,6 +5,8 @@ pyinstaller --noconfirm --onefile --clean --console --collect-all customtkinter 
 --add-data "./kcpp_adapters:./kcpp_adapters" \
 --add-data "./koboldcpp.py:." \
 --add-data "./json_to_gbnf.py:." \
+--add-data "./LICENSE.md:."  \
+--add-data "./MIT_LICENSE_GGML_SDCPP_LLAMACPP_ONLY.md:." \
 --add-data "./klite.embd:." \
 --add-data "./kcpp_docs.embd:." \
 --add-data "./kcpp_sdui.embd:." \

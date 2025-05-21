@@ -35,7 +35,6 @@ from datetime import datetime, timezone
 from typing import Tuple
 
 # PDF extraction logic
-import pdfplumber
 import logging
 import io
 
@@ -1679,12 +1678,13 @@ def extract_text_from_pdf(docData):
 
 # PDF extraction code by sevenof9
 def getTextFromPDFEncapsulated(decoded_bytes):
+    import pdfplumber
+
     """
     Processes a page based on the page number, content and text settings being passed in.
     Returns the page number and the text content
     """
     def process_page(args):
-        import pdfplumber
         import json
         from pdfplumber.utils import get_bbox_overlap, obj_to_bbox
 
@@ -1778,6 +1778,7 @@ def getTextFromPDFEncapsulated(decoded_bytes):
         for idx, table in enumerate(table_json_outputs, start=1):
             page_output += f'"table {idx}":\n{table}\n'
 
+        print(f"Finished processing PDF page {page_number}")
         return page_number, page_output
 
     def run_serial(pages):
@@ -1789,7 +1790,7 @@ def getTextFromPDFEncapsulated(decoded_bytes):
 
         # Parallel execution based on either the number of pages or number of CPU cores
         num_cores = min(cpu_count(), len(pages))
-        print(f"Started processing PDF with {num_cores} cores...")
+        print(f"Started processing PDF document with {len(pages)} using {num_cores} cores...")
         with ThreadPoolExecutor(max_workers=5) as exe:
             return exe.map(process_page, pages)
             # exe.submit(cube,2)
@@ -1824,6 +1825,8 @@ def getTextFromPDFEncapsulated(decoded_bytes):
         sorted_results = sorted(results, key=lambda x: x[0])
         final_output = "\n".join(page_output for _, page_output in sorted_results)
         
+        print(f"Finished processing PDF")
+
         return final_output
     return ""
 
@@ -2505,21 +2508,47 @@ ws ::= | " " | "\n" [ \t]{0,20}
         memory = genparams.get('memory', "")
         adapter_obj = {} if chatcompl_adapter is None else chatcompl_adapter
         system_message_start = adapter_obj.get("system_start", "\n### Instruction:\n")
+        system_message_end = adapter_obj.get("system_end", "")
         user_message_start = adapter_obj.get("user_start", "\n### Instruction:\n")
         user_message_end = adapter_obj.get("user_end", "")
         assistant_message_start = adapter_obj.get("assistant_start", "\n### Response:\n")
         assistant_message_end = adapter_obj.get("assistant_end", "")
-        prompt = prompt.replace("{{[INPUT]}}", assistant_message_end + user_message_start)
-        prompt = prompt.replace("{{[OUTPUT]}}", user_message_end + assistant_message_start)
-        prompt = prompt.replace("{{[SYSTEM]}}", system_message_start)
-        memory = memory.replace("{{[INPUT]}}", assistant_message_end + user_message_start)
-        memory = memory.replace("{{[OUTPUT]}}", user_message_end + assistant_message_start)
-        memory = memory.replace("{{[SYSTEM]}}", system_message_start)
+        if "{{[INPUT_END]}}" in prompt or "{{[OUTPUT_END]}}" in prompt:
+            prompt = prompt.replace("{{[INPUT]}}", user_message_start)
+            prompt = prompt.replace("{{[OUTPUT]}}", assistant_message_start)
+            prompt = prompt.replace("{{[SYSTEM]}}", system_message_start)
+            prompt = prompt.replace("{{[INPUT_END]}}", user_message_end)
+            prompt = prompt.replace("{{[OUTPUT_END]}}", assistant_message_end)
+            prompt = prompt.replace("{{[SYSTEM_END]}}", system_message_end)
+            memory = memory.replace("{{[INPUT]}}", assistant_message_end + user_message_start)
+            memory = memory.replace("{{[OUTPUT]}}", user_message_end + assistant_message_start)
+            memory = memory.replace("{{[SYSTEM]}}", system_message_start)
+            memory = memory.replace("{{[INPUT_END]}}", user_message_end)
+            memory = memory.replace("{{[OUTPUT_END]}}", assistant_message_end)
+            memory = memory.replace("{{[SYSTEM_END]}}", system_message_end)
+        else:
+            prompt = prompt.replace("{{[INPUT]}}", assistant_message_end + user_message_start)
+            prompt = prompt.replace("{{[OUTPUT]}}", user_message_end + assistant_message_start)
+            prompt = prompt.replace("{{[SYSTEM]}}", system_message_start)
+            prompt = prompt.replace("{{[INPUT_END]}}", "")
+            prompt = prompt.replace("{{[OUTPUT_END]}}", "")
+            prompt = prompt.replace("{{[SYSTEM_END]}}", "")
+            memory = memory.replace("{{[INPUT]}}", assistant_message_end + user_message_start)
+            memory = memory.replace("{{[OUTPUT]}}", user_message_end + assistant_message_start)
+            memory = memory.replace("{{[SYSTEM]}}", system_message_start)
+            memory = memory.replace("{{[INPUT_END]}}", "")
+            memory = memory.replace("{{[OUTPUT_END]}}", "")
+            memory = memory.replace("{{[SYSTEM_END]}}", "")
         for i in range(len(stop_sequence)):
             if stop_sequence[i] == "{{[INPUT]}}":
                 stop_sequence[i] = user_message_start
             elif stop_sequence[i] == "{{[OUTPUT]}}":
                 stop_sequence[i] = assistant_message_start
+            elif stop_sequence[i] == "{{[INPUT_END]}}":
+                stop_sequence[i] = (user_message_end if user_message_end.strip()!="" else "")
+            elif stop_sequence[i] == "{{[OUTPUT_END]}}":
+                stop_sequence[i] = (assistant_message_end if assistant_message_end.strip()!="" else "")
+        stop_sequence = list(filter(None, stop_sequence))
         genparams["prompt"] = prompt
         genparams["memory"] = memory
     genparams["stop_sequence"] = stop_sequence
@@ -3155,7 +3184,7 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
             updated_query_string = urlparse.urlencode(parsed_dict, doseq=True)
             updated_path = parsed_url._replace(query=updated_query_string).geturl()
             self.path = updated_path
-            time.sleep(0.3) #short delay
+            time.sleep(0.5) #short delay
             self.send_response(302)
             self.send_header("location", self.path)
             self.end_headers(content_type='text/html')
@@ -4858,30 +4887,44 @@ def show_gui():
 
     def model_searcher():
         searchbox1 = None
+        searchbox2 = None
         modelsearch1_var = ctk.StringVar(value="")
         modelsearch2_var = ctk.StringVar(value="")
+        fileinfotxt_var = ctk.StringVar(value="")
         # Create popup window
         popup = ctk.CTkToplevel(root)
         popup.title("Model File Browser")
         popup.geometry("400x400")
+        searchedmodels = []
+        searchedsizes = []
 
         def confirm_search_model_choice():
-            nonlocal modelsearch1_var, modelsearch2_var, model_var
+            nonlocal modelsearch1_var, modelsearch2_var, model_var, fileinfotxt_var
             if modelsearch1_var.get()!="" and modelsearch2_var.get()!="":
                 model_var.set(f"https://huggingface.co/{modelsearch1_var.get()}/resolve/main/{modelsearch2_var.get()}")
             popup.destroy()
+        def update_search_quant_file_size(a,b,c):
+            nonlocal modelsearch1_var, modelsearch2_var, fileinfotxt_var, searchedmodels, searchedsizes, searchbox2
+            try:
+                selected_index = searchbox2.cget("values").index(modelsearch2_var.get())
+                pickedsize = searchedsizes[selected_index]
+                fileinfotxt_var.set(f"Size: {round(pickedsize/1024/1024/1024,2)} GB")
+            except Exception:
+                fileinfotxt_var.set("")
         def fetch_search_quants(a,b,c):
-            nonlocal modelsearch1_var, modelsearch2_var
+            nonlocal modelsearch1_var, modelsearch2_var, fileinfotxt_var, searchedmodels, searchedsizes
             try:
                 if modelsearch1_var.get()=="":
                     return
                 searchedmodels = []
-                resp = make_url_request(f"https://huggingface.co/api/models/{modelsearch1_var.get()}",None,'GET',{},10)
-                for m in resp["siblings"]:
-                    if ".gguf" in m["rfilename"]:
-                        if "-of-0" in m["rfilename"] and "00001" not in m["rfilename"]:
+                searchedsizes = []
+                resp = make_url_request(f"https://huggingface.co/api/models/{modelsearch1_var.get()}/tree/main?recursive=true",None,'GET',{},10)
+                for m in resp:
+                    if m["type"]=="file" and ".gguf" in m["path"]:
+                        if "-of-0" in m["path"] and "00001" not in m["path"]:
                             continue
-                        searchedmodels.append(m["rfilename"])
+                        searchedmodels.append(m["path"])
+                        searchedsizes.append(m["size"])
                 searchbox2.configure(values=searchedmodels)
                 if len(searchedmodels)>0:
                     quants = ["q4k","q4_k","q4", "q3", "q5", "q6", "q8"] #autopick priority
@@ -4896,19 +4939,23 @@ def show_gui():
                         if found_good:
                             break
                     modelsearch2_var.set(chosen_model)
+                    update_search_quant_file_size(1,1,1)
                 else:
                     modelsearch2_var.set("")
+                    fileinfotxt_var.set("")
             except Exception as e:
                 modelsearch1_var.set("")
                 modelsearch2_var.set("")
+                fileinfotxt_var.set("")
                 print(f"Error: {e}")
 
         def fetch_search_models():
             from tkinter import messagebox
-            nonlocal searchbox1, searchbox2, modelsearch1_var, modelsearch2_var
+            nonlocal searchbox1, searchbox2, modelsearch1_var, modelsearch2_var, fileinfotxt_var
             try:
                 modelsearch1_var.set("")
                 modelsearch2_var.set("")
+                fileinfotxt_var.set("")
                 searchbox1.configure(values=[])
                 searchbox2.configure(values=[])
                 searchedmodels = []
@@ -4935,6 +4982,7 @@ def show_gui():
             except Exception as e:
                 modelsearch1_var.set("")
                 modelsearch2_var.set("")
+                fileinfotxt_var.set("")
                 print(f"Error: {e}")
 
         ctk.CTkLabel(popup, text="Enter Search String:").pack(pady=(10, 0))
@@ -4951,7 +4999,8 @@ def show_gui():
         searchbox2 = ctk.CTkComboBox(popup, values=[], width=340, variable=modelsearch2_var, state="readonly")
         searchbox2.pack(pady=5)
         modelsearch1_var.trace("w", fetch_search_quants)
-
+        modelsearch2_var.trace("w", update_search_quant_file_size)
+        ctk.CTkLabel(popup, text="", textvariable=fileinfotxt_var, text_color="#ffff00").pack(pady=(10, 0))
         ctk.CTkButton(popup, text="Confirm Selection", command=confirm_search_model_choice).pack(pady=5)
 
         popup.transient(root)
@@ -5681,7 +5730,7 @@ def show_gui():
     def import_vars(dict):
         global importvars_in_progress
         importvars_in_progress = True
-        dict = convert_outdated_args(dict)
+        dict = convert_invalid_args(dict)
 
         if "threads" in dict:
             threads_var.set(dict["threads"])
@@ -6182,7 +6231,7 @@ def run_horde_worker(args, api_key, worker_name):
     time.sleep(3)
     sys.exit(2)
 
-def convert_outdated_args(args):
+def convert_invalid_args(args):
     dict = args
     if isinstance(args, argparse.Namespace):
         dict = vars(args)
@@ -6207,6 +6256,8 @@ def convert_outdated_args(args):
         dict["usecpu"] = True
     if "failsafe" in dict and dict["failsafe"]: #failsafe implies noavx2
         dict["noavx2"] = True
+    if "skiplauncher" in dict and dict["skiplauncher"]:
+        dict["showgui"] = False
     if ("model_param" not in dict or not dict["model_param"]) and ("model" in dict):
         model_value = dict["model"] #may be null, empty/non-empty string, empty/non empty array
         if isinstance(model_value, str) and model_value:  # Non-empty string
@@ -6536,7 +6587,7 @@ def main(launch_args, default_args):
     if (args.nomodel or args.benchmark or args.launch or args.admin) and args.cli:
         exit_with_error(1, "Error: --cli cannot be combined with --launch, --nomodel, --admin or --benchmark")
 
-    args = convert_outdated_args(args)
+    args = convert_invalid_args(args)
 
     temp_hide_print = (args.model_param and (args.prompt and not args.cli) and not args.benchmark and not (args.debugmode >= 1))
 
@@ -6581,7 +6632,7 @@ def main(launch_args, default_args):
         else:
             exitcounter = 999
             exit_with_error(2,"Specified kcpp config file invalid or not found.")
-    args = convert_outdated_args(args)
+    args = convert_invalid_args(args)
 
     #positional handling for kcpps files (drag and drop)
     if args.model_param and args.model_param!="" and (args.model_param.lower().endswith('.kcpps') or args.model_param.lower().endswith('.kcppt') or args.model_param.lower().endswith('.kcpps?download=true') or args.model_param.lower().endswith('.kcppt?download=true')):
@@ -7199,7 +7250,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
             # patch it with extra stuff
             patches = [{"find":"Sorry, KoboldAI Lite requires Javascript to function.","replace":"Sorry, KoboldAI Lite requires Javascript to function.<br>You can use <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp NoScript mode</a> instead."},
                        {"find":"var localflag = urlParams.get('local');","replace":"var localflag = true;"},
-                       {"find":"<p id=\"tempgtloadtxt\">Loading...</p>","replace":"<p id=\"tempgtloadtxt\">Loading...<br>(If load fails, try <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp NoScript mode</a> instead.)</p>"}]
+                       {"find":"<p id=\"tempgtloadtxt\">Loading...</p>","replace":"<p id=\"tempgtloadtxt\">Loading...<br>(If load fails, try <a class=\"color_blueurl\" href=\"/noscript\">KoboldCpp NoScript mode</a> instead, or adding /noscript at this url.)</p>"}]
             embedded_kailite = embedded_kailite.decode("UTF-8","ignore")
             for p in patches:
                 embedded_kailite = embedded_kailite.replace(p["find"], p["replace"])
@@ -7527,7 +7578,7 @@ if __name__ == '__main__':
     advparser.add_argument("--developerMode", help="Enables developer utilities, such as hot reloading of Kobold Lite.", default=False, type=bool)
     compatgroup2 = parser.add_mutually_exclusive_group()
     compatgroup2.add_argument("--showgui", help="Always show the GUI instead of launching the model right away when loading settings from a .kcpps file.", action='store_true')
-    compatgroup2.add_argument("--skiplauncher", help="Doesn't display or use the GUI launcher.", action='store_true')
+    compatgroup2.add_argument("--skiplauncher", help="Doesn't display or use the GUI launcher. Overrides showgui.", action='store_true')
 
     hordeparsergroup = parser.add_argument_group('Horde Worker Commands')
     hordeparsergroup.add_argument("--hordemodelname", metavar=('[name]'), help="Sets your AI Horde display model name.", default="")
