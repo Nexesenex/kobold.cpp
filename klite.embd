@@ -25608,7 +25608,7 @@ else
 				}
 				let prompt = localsettings.inject_chatnames_instruct ? `Request for user input by ${action?.args?.whoToSendMessageAs}: ${action?.args?.message}` : `Request for user input: ${action?.args?.message}`
 				addThought(createSysPrompt, prompt)
-				return true
+				return currentOrderOfActionsOverall.length === 0
 			}
 			},
 			{
@@ -25632,7 +25632,7 @@ else
 			"name": "stop_thinking",
 			"description": "Ends the current chain of thought. Can only be used after a \"send_message\" action.",
 			"args": null,
-			"enabled": true,
+			"enabled": false,
 				"executor": (action) => {
 					addThought(createSysPrompt, `Stop thinking action confirmed`)
 					return true
@@ -25738,7 +25738,7 @@ else
 				type: "array"
 				}
 			},
-			"enabled": true,
+			"enabled": documentdb_enabled,
 				"executor": (action) => {
 					let textToAdd = action?.args?.text
 					let keywords = action?.args?.keywords
@@ -25859,7 +25859,7 @@ else
 				type: "array"
 				}
 			},
-			"enabled": true,
+			"enabled": false,
 				"executor": (action) => {
 					let orderOfActions = action?.args?.orderOfActions
 					if (!!orderOfActions && Array.isArray(orderOfActions)) {
@@ -26101,6 +26101,45 @@ else
 		}
 		return enabledCommands
 	}
+
+	let getReasoningCommand = () => {
+		return [
+			{
+				"name": "plan_actions",
+				"description": "Defines a list of actions to respond to a user instruction",
+				"args": {
+					"orderOfActions": {
+						type: "array",
+						description: "<array of actions needed to complete the instruction and their objectives>",
+						format: {
+							type: "array",
+							items: {
+								type: "object",
+								properties: {
+									action: {
+										type: "string",
+										enum: getEnabledCommands().map(c => c.name)
+									},
+									objective: {
+										type: "string"
+									}
+								},
+								required: ["action", "objective"]
+							},
+							minItems: 1,
+							maxItems: Number(localsettings.agentCOTMax)
+						}
+					}
+				},
+				"enabled": true,
+				"executor": (action) => {
+					currentOrderOfActionsOverall = action?.args?.orderOfActions.map(act => act.action)
+					currentOrderOfActionDescriptionsOverall = action?.args?.orderOfActions.map(act => act.objective)
+					return false
+				}
+			}
+		]
+	}
 	
 	let toJsonSchema = (obj, currentRef = {}) => {
 		switch (typeof obj) {
@@ -26158,20 +26197,39 @@ else
 				{
 					if (typeof command.args[arg] === "object" && !!command.args[arg]?.format)
 					{
-						let formatToUse = toJsonSchema(JSON.parse(command.args[arg]?.format))
+						let formatToUse = typeof command.args[arg]?.format === "string" ? toJsonSchema(JSON.parse(command.args[arg]?.format)) : command.args[arg]?.format
 						args.properties[arg] = formatToUse
 					}
 					else if (typeof command.args[arg] === "object" && !!command.args[arg]?.type) {
 						args.properties[arg] = {
 							type: command.args[arg].type
 						}
+
+						let propsToEdit = args.properties[arg]
+						if (command.args[arg].type === "array")
+						{
+							args.properties[arg].items = {
+								"type": "string"
+							}
+							propsToEdit = args.properties[arg].items
+							
+							if (!!command.args[arg]?.itemType)
+							{
+								propsToEdit.type = command.args[arg]?.itemType
+							}
+							if (!!command.args[arg]?.uniqueItems)
+							{
+								args.properties[arg].pattern = command.args[arg]?.uniqueItems
+							}
+						}
+						
 						if (!!command.args[arg]?.enum)
 						{
-							args.properties[arg].enum = command.args[arg]?.enum
+							propsToEdit.enum = command.args[arg]?.enum
 						}
 						if (!!command.args[arg]?.pattern)
 						{
-							args.properties[arg].pattern = command.args[arg]?.pattern
+							propsToEdit.pattern = command.args[arg]?.pattern
 						}
 					} else {
 						args.properties[arg] = {
@@ -26512,11 +26570,11 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	let getLastActions = (amountOfActions = 10) => {
-		let exclusions = ["Chain of thought repetition detected - ending", "Chain of thought complete"] // "Action: {", "Action (words =", "Action taken: ", "Action taken (words ="
+		let exclusions = ["Chain of thought repetition detected - ending", "Chain of thought complete", "plan_actions", "Action: {", "Action (words =", "Action taken: ", "Action taken (words ="] // "Action: {", "Action (words =", "Action taken: ", "Action taken (words ="
 		return repack_instruct_turns(concat_gametext(true), `{{[INPUT]}}`, `{{[OUTPUT]}}`, `{{[SYSTEM]}}`, true, false).map(msg => {
 			msg.msg = msg.msg.replaceAll("{{[SYSTEM_END]}}", "").replaceAll("{{[INPUT_END]}}", "").replaceAll("{{[OUTPUT_END]}}", "").trim(); 
 			return msg 
-		}).filter(msg => !/^\n*$/.test(msg.msg) && !!msg.msg && !exclusions.find(exclusion => exclusion.indexOf(msg.msg) !== -1)).splice(-amountOfActions)
+		}).filter(msg => !/^\n*$/.test(msg.msg) && !!msg.msg && !exclusions.find(exclusion => msg.msg.indexOf(exclusion) !== -1)).splice(-amountOfActions)
 	}
 
 	let getInfoSnippet = (snippet) => {
@@ -26557,7 +26615,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	let getInitialAgentPrompt = (commands = getEnabledCommands(), max_mem_len) => {
-		let prompt = createSysPrompt(`System prompt:\n\n${actionPrompt(commands)}`) 
+		prompt = ""
 		if (!!current_memory)
 		{
 			prompt += createSysPrompt(`Setting overview:\n\n${substring_to_boundary(current_memory, max_mem_len)}`)
@@ -26565,9 +26623,17 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return prompt
 	}
 
-	let getFinalAgentPrompt = (currentOrderOfActions) => {
+	let getFinalAgentPrompt = (commands, currentOrderOfActions, objectiveForCurrentAction, initialPrompt) => {
 		let state = getDocumentFromTextDB('State')
 		let prompt = []
+		if (!!initialPrompt)
+		{
+			prompt.push(`Last user instruction: ${initialPrompt}`)
+		}
+		if (!!objectiveForCurrentAction)
+		{
+			prompt.push(`Objective for current action: ${objectiveForCurrentAction}`)
+		}		
 		if (state != null)
 		{
 			prompt.push(`Current state: ${state}`)
@@ -26577,7 +26643,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			prompt.push(`Order of actions: ${currentOrderOfActions.join(" -> ")}`)
 		}
 		let basePrompt = prompt.join("\n\n")
-		return basePrompt.length > 0 ? createSysPrompt(basePrompt) : ""
+		return createSysPrompt(`System prompt:\n\n${actionPrompt(!!commands.find(c => c.name === "plan_actions") ? getEnabledCommands() : commands)}`) + (basePrompt.length > 0 ? createSysPrompt(basePrompt) : "")
 	}
 
 	/**
@@ -26709,6 +26775,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return actionAsText
 	}
 
+	let currentOrderOfActionsOverall = [], currentOrderOfActionDescriptionsOverall = []
 	let recentActions = [], maxActionsInHistory = 20, currentAgentCycle = null, endCurrent = false
 
 	let runAgentCycle = async (initialPrompt = undefined) => {
@@ -26717,6 +26784,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		// render_gametext()
 		currentChainOfThought = []
 		recentActions = []
+		currentOrderOfActionsOverall = []
+		currentOrderOfActionDescriptionsOverall = []
+		
 		getLastActions(maxActionsInHistory).forEach(action => {
 			switch(action.source)
 			{
@@ -26756,33 +26826,55 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		let lastThoughtWasBlank = false
 
 		Array(...document.getElementsByClassName("stopThinking")).forEach(elem => elem.classList.remove("hidden"))
-		for (let i = 0; i < localsettings.agentCOTMax && endCurrent === false; i++)
+
+		currentOrderOfActionsOverall = getDocumentFromTextDB('Order of actions')
+		currentOrderOfActionsOverall = !!currentOrderOfActionsOverall ? currentOrderOfActionsOverall.split(",").filter(act => !!act) : []
+		currentOrderOfActionDescriptions = []
+
+		for (let i = 0; i < Number(localsettings.agentCOTMax) + 1 && (currentOrderOfActionsOverall.length === 0 || i < currentOrderOfActionsOverall.length + 1) && endCurrent === false; i++)
 		{
 			clearSuggestions()
-			// Ensure valid commands does not include stop thinking right away to ensure an action of some type is taken
+
+			let nextAction = []
 			let validCommands = getEnabledCommands().map(command => command.name).filter(name => i != 0 || name != "stop_thinking")
+			if (i == 0)
+			{
+				nextAction = getReasoningCommand()
+			}
+			else
+			{
+				// Ensure valid commands does not include stop thinking right away to ensure an action of some type is taken
+				nextAction = JSON.parse(JSON.stringify(currentOrderOfActionsOverall)).splice(i - 1).filter(acts => acts.split("|").find(act => validCommands.includes(act)))
+				nextAction = nextAction.length > 0 ? getCommands().filter(act => nextAction[0].split("|").includes(act.name)) : getEnabledCommands().filter(command => validCommands.includes(command.name))
 
-			let currentOrderOfActions = getDocumentFromTextDB('Order of actions')
-			currentOrderOfActions = !!currentOrderOfActions ? currentOrderOfActions.split(",").filter(act => !!act) : []
-			let nextAction = currentOrderOfActions.splice(i).filter(acts => acts.split("|").find(act => validCommands.includes(act)))
-			nextAction = nextAction.length > 0 ? getCommands().filter(act => nextAction[0].split("|").includes(act.name)) : getEnabledCommands().filter(command => validCommands.includes(command.name))
-
-			// Find any actions which have occured more than the max repeats in settings and remove them from the options
-			let actionsOverMaxRepeats = recentActions.map(elem => elem?.command?.name).reduce((o, c) => {
-				let elem = o.find(e => e.name == c)
-				if (elem === undefined) {
-					o.push({name: c, repeats: 1})
-				} else {
-					elem.repeats++
+				// Find any actions which have occured more than the max repeats in settings and remove them from the options
+				if (currentOrderOfActionsOverall.length === 0)
+				{
+					let actionsOverMaxRepeats = recentActions.map(elem => elem?.command?.name).reduce((o, c) => {
+						let elem = o.find(e => e.name == c)
+						if (elem === undefined) {
+							o.push({name: c, repeats: 1})
+						} else {
+							elem.repeats++
+						}
+						return o
+					}, []).filter(o => o.repeats >= localsettings.agentCOTRepeatsMax).map(o => o.name)
+					nextAction = nextAction.filter(act => !actionsOverMaxRepeats.includes(act.name))
 				}
-				return o
-			}, []).filter(o => o.repeats >= localsettings.agentCOTRepeatsMax).map(o => o.name)
-			nextAction = nextAction.filter(act => !actionsOverMaxRepeats.includes(act.name))
+			}
+
 
 			// Find actions which are identical and have run twice - then remove them from the possible options to run again
 			let duplicateActions = recentActions.filter((elem, pos, arr) => arr.findIndex((elem2) => JSON.stringify(elem) === JSON.stringify(elem2)) !== pos).map(elem => elem?.command?.name)
 			nextAction = nextAction.filter(act => !duplicateActions.includes(act.name))
 
+			// If no actions present, end cycle
+			if (nextAction.length === 0)
+			{
+				isCompleted = true
+				hasAttemptedToCompleteOnce = true
+				continue
+			}
 			let jsonGrammar = await getCommandsGNBF(nextAction)
 
 			currentChainOfThought = currentChainOfThought.splice(-maxActionsInHistory)
@@ -26803,7 +26895,18 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			let history = getInitialAgentPrompt(nextAction, max_mem_len)
 			let wiToInclude = createSysPrompt(substring_to_boundary(getWorldInfoForAgent(truncated_context, max_wi_len) + "\n\n" + textDBResults, max_wi_len))
 			let anToInclude = !!current_anote ? createSysPrompt(substring_to_boundary(current_anotetemplate.replace("<|>", current_anote), max_anote_len)) : ""
-			let finalAgentPrompt = getFinalAgentPrompt(currentOrderOfActions)
+
+			let promptOverview = currentOrderOfActionDescriptionsOverall.length > 0 ? currentOrderOfActionDescriptionsOverall[i - 1] : null
+			if (i === 0)
+			{
+				let planningPrompt = "The last action from the user is the instruction. If you need to ask the user for a response, the action ask_user must be used and be put as the final action in the order. Produces a list of actions to respond to this instruction."
+				// if (localsettings.inject_chatnames_instruct) {
+				// 	planningPrompt += ` You must respond as ${localsettings.chatopponent} when using the send_message or ask_user actions.`
+				// }
+				promptOverview = planningPrompt
+			}
+			
+			let finalAgentPrompt = getFinalAgentPrompt(nextAction, currentOrderOfActionsOverall, promptOverview, initialPrompt)
 
 			let cotAsText = "", maxLengthOfCot = max_allowed_characters - history.length - wiToInclude.length - anToInclude.length - finalAgentPrompt.length
 			for (let j = currentChainOfThought.length - 1; j >= 0; j--) {
@@ -26846,18 +26949,15 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				let json;
 				if (resp.indexOf("stop_thinking") !== -1)
 				{
-					json = {
-						command: {
-							name: "stop_thinking",
-							args: null
-						}
-					}
+					isCompleted = true
+					hasAttemptedToCompleteOnce = true
+					continue
 				}
 				else
 				{
 					json = JSON.parse(resp)
 				}
-				if (!!json?.command && !!json.command?.name && validCommands.includes(json.command.name))
+				if (!!json?.command && !!json.command?.name && (json.command.name === "plan_actions" || validCommands.includes(json.command.name)))
 				{
 					// If message has been sent before, skip processing it again and let the agent try again
 					if (recentActions.find((elem) => JSON.stringify(elem) === JSON.stringify(json)) !== undefined)
@@ -26878,7 +26978,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					}
 
 					let isCompleted = false;
-					let command = getCommands().find(command => command.name === action.command.name)
+					let command = [...getReasoningCommand(), ...getCommands()].find(command => command.name === action.command.name)
 					if (!!command && command?.executor !== undefined) {
 						let res = await command.executor(action.command)
 						if (res === true) {
@@ -26925,6 +27025,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			}
 			catch (e)
 			{
+				console.log(i)
 				addThought(createSysPrompt, `Chain of thought had an exception: ${e}`)
 			}
 		}
