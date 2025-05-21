@@ -583,6 +583,7 @@ static void speculative_decoding_setup(std::string spec_model_filename, const ll
     draft_ctx_params.flash_attn = base_ctx_params.flash_attn;
     draft_ctx_params.type_k = base_ctx_params.type_k;
     draft_ctx_params.type_v = base_ctx_params.type_v;
+    draft_ctx_params.swa_full = base_ctx_params.swa_full;
 
     llama_model * draftmodel = llama_model_load_from_file(spec_model_filename.c_str(), draft_model_params);
     draft_ctx = llama_init_from_model(draftmodel, draft_ctx_params);
@@ -1923,6 +1924,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     kcpp_data->use_smartcontext = inputs.use_smartcontext;
     kcpp_data->use_contextshift = inputs.use_contextshift;
     kcpp_data->use_fastforward = inputs.use_fastforward;
+    kcpp_data->swa_full = (inputs.use_fastforward || inputs.use_contextshift)?true:false;
     debugmode = inputs.debugmode;
     draft_ctx = nullptr;
     guidance_ctx = nullptr;
@@ -1935,18 +1937,6 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         printf("Warning: Only GGUF models can use max context above 16k. Max context lowered to 16k.\n");
         clamped_max_context_length = 16384;
     }
-
-    #if defined(GGML_USE_VULKAN)
-    if (isGguf && file_format_meta.model_architecture == GGUFArch::ARCH_GLM4 && kcpp_data->n_ubatch > 16) {
-        if(debugmode==1)
-        {
-            printf("GLM-4 is broken on larger batch sizes in Vulkan. Clamp ignored in debug.\n");
-        } else {
-            printf("GLM-4 is broken on larger batch sizes in Vulkan. Clamping ubatch size to 8.\n");
-            kcpp_data->n_ubatch = 8;
-        }
-    }
-    #endif
 
     kcpp_data->n_ctx = clamped_max_context_length;
     max_context_limit_at_load = clamped_max_context_length;
@@ -2330,6 +2320,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         }
 
         llama_ctx_params.flash_attn = kcpp_data->flash_attn;
+        llama_ctx_params.swa_full = kcpp_data->swa_full;
         llama_ctx_params.type_k = (inputs.quant_k>1?GGML_TYPE_Q4_0:(inputs.quant_k==1?GGML_TYPE_Q8_0:GGML_TYPE_F16));
         llama_ctx_params.type_v = (inputs.quant_v>1?GGML_TYPE_Q4_0:(inputs.quant_v==1?GGML_TYPE_Q8_0:GGML_TYPE_F16));
         llama_ctx_v4 = llama_init_from_model(llamamodel, llama_ctx_params);
@@ -2439,7 +2430,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         if (file_format == FileFormat::GGUF_GENERIC && file_format_meta.model_architecture == GGUFArch::ARCH_GLM4) {
             std::string temp = gpttype_get_chat_template();
             if (temp.find("[gMASK]<sop>") != std::string::npos) {
-                printf("GLM-4 special BOS handling used.\n");
+                printf("GLM-4 will have no automatic BOS token.\n");
                 add_bos_token = false;
             }
         }
@@ -3258,30 +3249,6 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                     }
                 }
                 printf("\nFound a total of %zu restart heads, %d trivial, %d non-trivial.\n", dry_sequence_breakers.size(), trivial, non_trivial);
-            }
-        }
-    }
-
-    //need to add a cursed hack to get coherency for GLM4, by ensuring injection for both sop and gmask
-    if (file_format == FileFormat::GGUF_GENERIC && file_format_meta.model_architecture == GGUFArch::ARCH_GLM4) {
-        std::string temp = gpttype_get_chat_template();
-        if (temp.find("[gMASK]<sop>") != std::string::npos) {
-            if (addedmemory == "") {
-                if (kcpp_data->prompt.rfind("[gMASK]", 0) == 0) {  //check startswith
-                    kcpp_data->prompt.erase(0, 7);
-                }
-                if (kcpp_data->prompt.rfind("<sop>", 0) == 0) {  //check startswith
-                    kcpp_data->prompt.erase(0, 5);
-                }
-                addedmemory = "[gMASK]<sop>";
-            } else {
-                if (addedmemory.rfind("[gMASK]", 0) == 0) {  //check startswith
-                    addedmemory.erase(0, 7);
-                }
-                if (addedmemory.rfind("<sop>", 0) == 0) {  //check startswith
-                    addedmemory.erase(0, 5);
-                }
-                addedmemory = "[gMASK]<sop>" + addedmemory;
             }
         }
     }

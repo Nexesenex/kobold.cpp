@@ -56,6 +56,7 @@ struct kcpp_params {
     bool use_smartcontext            = false;
     bool use_contextshift            = false;
     bool use_fastforward             = false;
+    bool swa_full                    = true;
 };
 
 // default hparams (GPT-J 6B)

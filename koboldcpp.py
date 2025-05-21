@@ -1574,6 +1574,8 @@ def sd_generate(genparams):
     width = tryparseint(genparams.get("width", 512),512)
     height = tryparseint(genparams.get("height", 512),512)
     seed = tryparseint(genparams.get("seed", -1),-1)
+    if seed < 0:
+        seed = random.randint(100000, 999999)
     sample_method = genparams.get("sampler_name", "k_euler_a")
     clip_skip = tryparseint(genparams.get("clip_skip", -1),-1)
 
@@ -2289,7 +2291,7 @@ def transform_genparams(genparams, api_format):
         if api_format==4 or api_format==7: #handle ollama chat here too
             # translate openai chat completion messages format into one big string.
             messages_array = genparams.get('messages', [])
-            messages_string = "" #chat start no longer needed, handled internally
+            messages_string = adapter_obj.get("chat_start", "")
             system_message_start = adapter_obj.get("system_start", "\n### Instruction:\n")
             system_message_end = adapter_obj.get("system_end", "")
             user_message_start = adapter_obj.get("user_start", "\n### Instruction:\n")
@@ -5112,8 +5114,8 @@ def show_gui():
             except Exception:
                 pass
         else:
-            quick_gpuname_label.configure(text="")
-            gpuname_label.configure(text="")
+            quick_gpuname_label.configure(text="(dGPUs only, tensor split sets ratio)")
+            gpuname_label.configure(text="(dGPUs only, tensor split sets ratio)")
 
     gpu_choice_var.trace("w", changed_gpu_choice_var)
     gpulayers_var.trace("w", changed_gpulayers_estimate)

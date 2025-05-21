@@ -149,7 +149,7 @@ bool embeddingstype_load_model(const embeddings_load_model_inputs inputs)
     }
 
     std::vector<int> tmp = {1, 2, 3, 4};
-    llama_kv_cache_clear(embeddings_ctx);
+    llama_kv_self_clear(embeddings_ctx);
     auto er = llama_decode(embeddings_ctx, llama_batch_get_one(tmp.data(), tmp.size()));
     if(er!=0)
     {
@@ -190,7 +190,7 @@ embeddings_generation_outputs embeddingstype_generate(const embeddings_generatio
     double timetaken = 0;
     timer_start();
 
-    llama_kv_cache_clear(embeddings_ctx);
+    llama_kv_self_clear(embeddings_ctx);
     std::string prompt = inputs.prompt;
 
     // max batch size
