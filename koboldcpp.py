@@ -3004,7 +3004,7 @@ def transform_genparams(genparams, api_format):
         if api_format==4 or api_format==7: #handle ollama chat here too
             # translate openai chat completion messages format into one big string.
             messages_array = genparams.get('messages', [])
-            messages_string = "" #chat start no longer needed, handled internally
+            messages_string = adapter_obj.get("chat_start", "")
             system_message_start = adapter_obj.get("system_start", "\n### Instruction:\n")
             system_message_end = adapter_obj.get("system_end", "")
             user_message_start = adapter_obj.get("user_start", "\n### Instruction:\n")
@@ -5914,8 +5914,8 @@ def show_gui():
             except Exception:
                 pass
         else:
-            quick_gpuname_label.configure(text="")
-            gpuname_label.configure(text="")
+            quick_gpuname_label.configure(text="(dGPUs only, tensor split sets ratio)")
+            gpuname_label.configure(text="(dGPUs only, tensor split sets ratio)")
 
     gpu_choice_var.trace("w", changed_gpu_choice_var)
     gpulayers_var.trace("w", changed_gpulayers_estimate)

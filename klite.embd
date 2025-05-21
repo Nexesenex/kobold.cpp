@@ -1891,6 +1891,23 @@ Current version indicated by LITEVER below.
 	{
 		background-color: #161616;
 	}
+	.corpoendeditbutton {
+      position: fixed;
+      top: 75px;
+      right: 25px;
+	  width: 40px;
+      padding: 8px 6px;
+      background-color: #de5b5b;
+      color: white;
+      border-radius: 24px;
+	  opacity: 0.65;
+      cursor: pointer;
+      box-shadow: 1 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .corpoendeditbutton:hover {
+      background-color: #f67676;
+    }
 	.corpoleftpanelitems
 	{
 		display: flex;
@@ -13658,6 +13675,11 @@ Current version indicated by LITEVER below.
 		}
 		render_gametext(false);
 	}
+	function exit_editmode()
+	{
+		document.getElementById("allowediting").checked = false;
+		toggle_editable();
+	}
 
 	function toggle_hide_thinking(button) {
 		// Get the parent div of the button
@@ -19025,9 +19047,11 @@ Current version indicated by LITEVER below.
 				}
 				if (localsettings.separate_end_tags) {
 					if (get_instruct_endtag_end(true)) {
+						fulltxt = replaceAll(fulltxt, get_instruct_endtag_end(false), ``);
 						fulltxt = replaceAll(fulltxt, get_instruct_endtag_end(true), ``);
 					}
 					if (get_instruct_starttag_end(true)) {
+						fulltxt = replaceAll(fulltxt, get_instruct_starttag_end(false), ``);
 						fulltxt = replaceAll(fulltxt, get_instruct_starttag_end(true), ``);
 					}
 					if (get_instruct_systag_end(true)) {
@@ -19035,52 +19059,34 @@ Current version indicated by LITEVER below.
 					}
 				}
 
-				if(localsettings.instruct_has_markdown && synchro_pending_stream=="")
-				{
-					//if a list has a starttag on the same line, add a newline before it
-					fulltxt = fulltxt.replace(/(\n[-*] .+?)(%SpcStg%)/g, "$1\n$2");
-					let codeblockcount = (fulltxt.match(/```/g) || []).length;
-					if(codeblockcount>0 && codeblockcount%2!=0 )
-					{
-						fulltxt += "```"; //force end code block
-					}
-					fulltxt = simpleMarkdown(fulltxt,localsettings.instruct_has_latex);
-				}
-
-				let instruct_turns = repack_instruct_turns(fulltxt, `%SpcStg%`,`%SpcEtg%`,`%SpcSyg%`, true);
+				let instruct_turns = repack_instruct_turns(fulltxt, `%SpcStg%`,`%SpcEtg%`, true);
 				fulltxt = "";
 				for(let i=0;i<instruct_turns.length;++i)
 				{
 					let curr = instruct_turns[i];
-					if (curr?.source !== undefined)
+					let currmsg = curr.msg;
+					if(localsettings.instruct_has_markdown && (synchro_pending_stream==""||(i+1)<instruct_turns.length))
 					{
-						switch (curr?.source)
+						//if a list has a starttag on the same line, add a newline before it
+						currmsg = currmsg.replace(/(\n[-*] .+?)(%SpcStg%)/g, "$1\n$2");
+						let codeblockcount = (currmsg.match(/```/g) || []).length;
+						if(codeblockcount>0 && codeblockcount%2!=0 )
 						{
-							case "human":
-								fulltxt += `<hr style="margin-top: 12px; margin-bottom: 12px;"><span class="color_cyan"><img src="${human_square}" style="height:38px;width:auto;padding:3px 6px 3px 3px;border-radius: 8%;"/>${curr.msg}</span>`;	
-								break
-							case "ai":
-								fulltxt += `<hr style="margin-top: 12px; margin-bottom: 12px;"><span class="color_cyan"><img src="${niko_square}" style="height:38px;width:auto;padding:3px 6px 3px 3px;border-radius: 8%;"/>${curr.msg}</span>`
-								break
-							case "system":
-							default:
-								fulltxt += `<hr style="margin-top: 12px; margin-bottom: 12px;"><span class="color_cyan"><img src="${favivon_normal}" style="height:38px;width:auto;padding:3px 6px 3px 3px;border-radius: 8%;"/>${curr.msg}</span>`
-								break
+							currmsg += "```"; //force end code block
 						}
+						currmsg = simpleMarkdown(currmsg,localsettings.instruct_has_latex);
+					}
+
+					if(curr.myturn)
+					{
+						fulltxt += `<hr style="margin-top: 12px; margin-bottom: 12px;"><span class="color_cyan"><img src="${human_square}" style="height:38px;width:auto;padding:3px 6px 3px 3px;border-radius: 8%;"/>${currmsg}</span>`;
 					}
 					else
 					{
-						if(curr.myturn)
-						{
-							fulltxt += `<hr style="margin-top: 12px; margin-bottom: 12px;"><span class="color_cyan"><img src="${human_square}" style="height:38px;width:auto;padding:3px 6px 3px 3px;border-radius: 8%;"/>${curr.msg}</span>`;
-						}
-						else
-						{
-							if (i == 0) {
-								fulltxt += `${curr.msg}`;
-							} else {
-								fulltxt += `<hr style="margin-top: 12px; margin-bottom: 12px;"><img src="${niko_square}" style="height:38px;width:auto;padding:3px 6px 3px 3px;border-radius: 8%;"/>${curr.msg}</span>`;
-							}
+						if (i == 0) {
+							fulltxt += `${currmsg}`;
+						} else {
+							fulltxt += `<hr style="margin-top: 12px; margin-bottom: 12px;"><img src="${niko_square}" style="height:38px;width:auto;padding:3px 6px 3px 3px;border-radius: 8%;"/>${currmsg}</span>`;
 						}
 					}
 				}
@@ -19404,6 +19410,12 @@ Current version indicated by LITEVER below.
 			document.getElementById("enhancedchatinterface").classList.add("hidden");
 			document.getElementById("corpointerface").classList.add("hidden");
 			document.getElementById("normalinterface").classList.remove("hidden");
+		}
+
+		if (inEditMode && isCorpoUiStyle) {
+			document.getElementById("corpoendedit").classList.remove("hidden");
+		} else {
+			document.getElementById("corpoendedit").classList.add("hidden");
 		}
 
 		update_submit_button(true); //full update for submit button, otherwise just text when not generating
@@ -20160,7 +20172,7 @@ Current version indicated by LITEVER below.
 
 	function show_corpo_leftpanel(open)
 	{
-		let panel = document.getElementById('corpo_leftpannel');
+		let panel = document.getElementById('corpo_leftpanel');
 		if(open)
 		{
 			panel.classList.add('open');
@@ -22362,9 +22374,10 @@ Current version indicated by LITEVER below.
 			</div>
 		</div>
 
+		<button title="Exit Edit Mode" id="corpoendedit" class="corpoendeditbutton hidden" onclick="exit_editmode()">X</button>
 		<div id="corpointerface" class="hidden">
 			<div class="corpostyle">
-				<div id="corpo_leftpannel" class="corpoleftpanel">
+				<div id="corpo_leftpanel" class="corpoleftpanel">
 					<button title="Hide Corpo Side Panel" class="corpo_leftpanel_close mainnav" onclick="show_corpo_leftpanel(false)">&times;</button>
 					<div id="corpoleftpanelitems" class="corpoleftpanelitems">
 					<div class="corpoleftpanelitemstopper" id="corpoleftpanelitemstopper"></div>
