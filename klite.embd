@@ -25356,7 +25356,7 @@ else
 
 	let callbackAfterReload = (callback) => {
 		let startTime = Date.now(), intervalId = setInterval(async () => {
-			if (await fetch("/api/admin/health").then(c => c.text()).catch(e => {/*Ignore error*/}) === "true") {
+			if (await fetch(custom_kobold_endpoint + "/api/admin/health").then(c => c.text()).catch(e => {/*Ignore error*/}) === "true") {
 				clearInterval(intervalId);
 				if (typeof callback === "function") {
 					callback(Date.now() - startTime)
