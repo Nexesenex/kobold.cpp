@@ -2379,7 +2379,7 @@ def extract_text(genparams):
 
 # PDF extraction code by sevenof9
 def getTextFromPDFEncapsulated(decoded_bytes):
-    import pdfplumber
+    # import pdfplumber
 
     """
     Processes a page based on the page number, content and text settings being passed in.
@@ -2387,7 +2387,7 @@ def getTextFromPDFEncapsulated(decoded_bytes):
     """
     def process_page(args):
         import json
-        from pdfplumber.utils import get_bbox_overlap, obj_to_bbox
+        # from pdfplumber.utils import get_bbox_overlap, obj_to_bbox
 
         # Ensure logging is only at error level (as this could be running in multiple threads)
         for logger_name in [
@@ -2501,9 +2501,9 @@ def getTextFromPDFEncapsulated(decoded_bytes):
         # with Pool(num_cores) as pool:
         #     return pool.map(process_page, pages)
 
-    decoded_bytes = io.BytesIO(decoded_bytes)  
-    with pdfplumber.open(decoded_bytes) as pdf:
-        num_pages = len(pdf.pages)
+    # decoded_bytes = io.BytesIO(decoded_bytes)  
+    # with pdfplumber.open(decoded_bytes) as pdf:
+        # num_pages = len(pdf.pages)
 
         TEXT_EXTRACTION_SETTINGS = {
             "x_tolerance": 2,
