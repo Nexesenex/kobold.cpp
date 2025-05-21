@@ -2281,6 +2281,8 @@ def sd_generate(genparams):
     width = tryparseint(genparams.get("width", 512),512)
     height = tryparseint(genparams.get("height", 512),512)
     seed = tryparseint(genparams.get("seed", -1),-1)
+    if seed < 0:
+        seed = random.randint(100000, 999999)
     sample_method = genparams.get("sampler_name", "k_euler_a")
     clip_skip = tryparseint(genparams.get("clip_skip", -1),-1)
 
