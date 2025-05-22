@@ -301,6 +301,7 @@ static std::string get_image_params(const SDParams& params) {
     parameter_string += "Seed: " + std::to_string(params.seed) + " | ";
     parameter_string += "Size: " + std::to_string(params.width) + "x" + std::to_string(params.height) + " | ";
     parameter_string += "Sampler: " + std::to_string((int)sd_params->sample_method) + " | ";
+    parameter_string += "Clip skip: " + std::to_string((int)sd_params->clip_skip) + " | ";
     parameter_string += "Model: " + sdmodelfilename + " | ";
     parameter_string += "Version: KoboldCpp";
     return parameter_string;
@@ -408,6 +409,10 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
     else if(sampler=="lcm"||sampler=="k_lcm")
     {
         sd_params->sample_method = sample_method_t::LCM;
+    }
+    else if(sampler=="ddim")
+    {
+        sd_params->sample_method = sample_method_t::DDIM_TRAILING;
     }
     else if(sampler=="dpm++ 2m karras" || sampler=="dpm++ 2m" || sampler=="k_dpmpp_2m")
     {

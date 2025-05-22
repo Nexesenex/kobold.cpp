@@ -559,7 +559,7 @@ bool ttstype_load_model(const tts_load_model_inputs inputs)
     }
 
     std::vector<int> tmp = {1, 2, 3, 4};
-    llama_kv_cache_clear(ttc_ctx);
+    llama_kv_self_clear(ttc_ctx);
     auto er = llama_decode(ttc_ctx, llama_batch_get_one(tmp.data(), tmp.size()));
     if(er!=0)
     {
@@ -618,8 +618,8 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
     const std::string sampletext = (custom_speaker_text=="")?process_text("but that is what it is",ttsver):process_text(custom_speaker_text,ttsver);
 
     // process prompt and generate voice codes
-    llama_kv_cache_clear(ttc_ctx);
-    llama_kv_cache_clear(cts_ctx);
+    llama_kv_self_clear(ttc_ctx);
+    llama_kv_self_clear(cts_ctx);
     std::vector<llama_token> prompt_inp;
     prompt_init(prompt_inp, ttcvocab);
 
@@ -817,7 +817,7 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
             }
         }
         guide_tokens.clear();
-        llama_kv_cache_clear(ttc_ctx);
+        llama_kv_self_clear(ttc_ctx);
         prompt_init(prompt_inp, ttcvocab);
         next_token_uses_guide_token = true;
     }

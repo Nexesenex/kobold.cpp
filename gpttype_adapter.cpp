@@ -583,6 +583,7 @@ static void speculative_decoding_setup(std::string spec_model_filename, const ll
     draft_ctx_params.flash_attn = base_ctx_params.flash_attn;
     draft_ctx_params.type_k = base_ctx_params.type_k;
     draft_ctx_params.type_v = base_ctx_params.type_v;
+    draft_ctx_params.swa_full = base_ctx_params.swa_full;
 
     llama_model * draftmodel = llama_model_load_from_file(spec_model_filename.c_str(), draft_model_params);
     draft_ctx = llama_init_from_model(draftmodel, draft_ctx_params);
@@ -1606,6 +1607,9 @@ int SampleLogits(const float * logits, int n_ctx, int n_vocab, int rep_pen_range
 int mirostat, float mirostat_tau, float mirostat_eta, float dry_multiplier, float dry_base, int dry_allowed_length, int dry_penalty_last_n, float xtc_threshold, float xtc_probability,
 const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dynatemp_range, float dynatemp_exponent, float smoothing_factor)
 {
+    // printf("SampleLogits called with: n_ctx=%d, n_vocab=%d, rep_pen_range=%d, rep_pen=%f, rep_pen_slope=%f, presence_penalty=%f, top_k=%f, top_a=%f, top_p=%f, min_p=%f, typical_p=%f, tfs=%f, nsigma=%f, temp=%f, mirostat=%d, mirostat_tau=%f, mirostat_eta=%f, dry_multiplier=%f, dry_base=%f, dry_allowed_length=%d, dry_penalty_last_n=%d, xtc_threshold=%f, xtc_probability=%f, sampler_order_size=%zu, dynatemp_range=%f, dynatemp_exponent=%f, smoothing_factor=%f\n",
+    // n_ctx, n_vocab, rep_pen_range, rep_pen, rep_pen_slope, presence_penalty, top_k, top_a, top_p, min_p, typical_p, tfs, nsigma, temp, mirostat, mirostat_tau, mirostat_eta, dry_multiplier, dry_base, dry_allowed_length, dry_penalty_last_n, xtc_threshold, xtc_probability, sampler_order.size(), dynatemp_range, dynatemp_exponent, smoothing_factor);
+
     int id = 0;
     std::vector<llama_token_data> candidates;
     candidates.reserve(n_vocab);
@@ -1923,6 +1927,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     kcpp_data->use_smartcontext = inputs.use_smartcontext;
     kcpp_data->use_contextshift = inputs.use_contextshift;
     kcpp_data->use_fastforward = inputs.use_fastforward;
+    kcpp_data->swa_full = (inputs.use_fastforward || inputs.use_contextshift)?true:false;
     debugmode = inputs.debugmode;
     draft_ctx = nullptr;
     guidance_ctx = nullptr;
@@ -1935,18 +1940,6 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         printf("Warning: Only GGUF models can use max context above 16k. Max context lowered to 16k.\n");
         clamped_max_context_length = 16384;
     }
-
-    #if defined(GGML_USE_VULKAN)
-    if (isGguf && file_format_meta.model_architecture == GGUFArch::ARCH_GLM4 && kcpp_data->n_ubatch > 16) {
-        if(debugmode==1)
-        {
-            printf("GLM-4 is broken on larger batch sizes in Vulkan. Clamp ignored in debug.\n");
-        } else {
-            printf("GLM-4 is broken on larger batch sizes in Vulkan. Clamping ubatch size to 8.\n");
-            kcpp_data->n_ubatch = 8;
-        }
-    }
-    #endif
 
     kcpp_data->n_ctx = clamped_max_context_length;
     max_context_limit_at_load = clamped_max_context_length;
@@ -2330,6 +2323,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         }
 
         llama_ctx_params.flash_attn = kcpp_data->flash_attn;
+        llama_ctx_params.swa_full = kcpp_data->swa_full;
         llama_ctx_params.type_k = (inputs.quant_k>1?GGML_TYPE_Q4_0:(inputs.quant_k==1?GGML_TYPE_Q8_0:GGML_TYPE_F16));
         llama_ctx_params.type_v = (inputs.quant_v>1?GGML_TYPE_Q4_0:(inputs.quant_v==1?GGML_TYPE_Q8_0:GGML_TYPE_F16));
         llama_ctx_v4 = llama_init_from_model(llamamodel, llama_ctx_params);
@@ -2439,7 +2433,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         if (file_format == FileFormat::GGUF_GENERIC && file_format_meta.model_architecture == GGUFArch::ARCH_GLM4) {
             std::string temp = gpttype_get_chat_template();
             if (temp.find("[gMASK]<sop>") != std::string::npos) {
-                printf("GLM-4 special BOS handling used.\n");
+                printf("GLM-4 will have no automatic BOS token.\n");
                 add_bos_token = false;
             }
         }
@@ -3262,26 +3256,33 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         }
     }
 
-    //need to add a cursed hack to get coherency for GLM4, by ensuring injection for both sop and gmask
+    //need to add a cursed hack to improve coherency for GLM4, by ensuring injection for gmask, sop and an extra space
+    //any complaints please direct them to henky
     if (file_format == FileFormat::GGUF_GENERIC && file_format_meta.model_architecture == GGUFArch::ARCH_GLM4) {
         std::string temp = gpttype_get_chat_template();
         if (temp.find("[gMASK]<sop>") != std::string::npos) {
             if (addedmemory == "") {
-                if (kcpp_data->prompt.rfind("[gMASK]", 0) == 0) {  //check startswith
+                if (!kcpp_data->prompt.empty() && kcpp_data->prompt.rfind("[gMASK]", 0) == 0) {  //check startswith
                     kcpp_data->prompt.erase(0, 7);
                 }
-                if (kcpp_data->prompt.rfind("<sop>", 0) == 0) {  //check startswith
+                if (!kcpp_data->prompt.empty() && kcpp_data->prompt.rfind("<sop>", 0) == 0) {  //check startswith
                     kcpp_data->prompt.erase(0, 5);
                 }
-                addedmemory = "[gMASK]<sop>";
+                if (!kcpp_data->prompt.empty() && kcpp_data->prompt[0] == ' ') {  // check for leading space
+                    kcpp_data->prompt.erase(0, 1);
+                }
+                addedmemory = "[gMASK]<sop> ";
             } else {
-                if (addedmemory.rfind("[gMASK]", 0) == 0) {  //check startswith
+                if (!addedmemory.empty() && addedmemory.rfind("[gMASK]", 0) == 0) {  //check startswith
                     addedmemory.erase(0, 7);
                 }
-                if (addedmemory.rfind("<sop>", 0) == 0) {  //check startswith
+                if (!addedmemory.empty() && addedmemory.rfind("<sop>", 0) == 0) {  //check startswith
                     addedmemory.erase(0, 5);
                 }
-                addedmemory = "[gMASK]<sop>" + addedmemory;
+                if (!addedmemory.empty() && addedmemory[0] == ' ') {  // check for leading space
+                    addedmemory.erase(0, 1);
+                }
+                addedmemory = "[gMASK]<sop> " + addedmemory;
             }
         }
     }
@@ -3498,7 +3499,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     if (debugmode==1 && !is_quiet)
     {
         std::string outstr = "";
-        printf("\n\n[Debug: Dump Raw Input Tokens]\n");
+        printf("\n\n[Debug: Dump %d Raw Input Tokens]\n",embd_inp.size());
         outstr += get_tok_vec_str(embd_inp);
         printf("%s\n", RemoveBell(outstr).c_str());
     }
@@ -3645,7 +3646,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     if (debugmode==1 && !is_quiet)
     {
         std::string outstr = "";
-        // printf("\n[Debug: Dump Forwarded Input Tokens, format: %d]\n", file_format);
+        // printf("\n[Debug: Dump Forwarded Input Tokens]\n");
         // outstr += get_tok_vec_str(embd_inp);
         outstr += "\n\n[Debug: n_past="+std::to_string(n_past)+" Context Size = " + std::to_string(current_context_tokens.size()) + "]\n";
         outstr += get_tok_vec_str(current_context_tokens);
