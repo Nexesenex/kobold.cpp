@@ -464,9 +464,10 @@ void print_tok_vec(std::vector<float> &embd)
 
     //fast forward the past based on identical tokens, stop once a divergence is noted
     int embd_inp_len = embd_inp.size();
+    int cur_ctx_len = current_context_tokens.size();
     bool fastforwardok = true;
 
-    for (int i = 0; i < current_context_tokens.size(); ++i)
+    for (int i = 0; i < cur_ctx_len; ++i)
     {
         if (current_context_tokens[i] == embd_inp[i])
         {
@@ -497,6 +498,10 @@ void print_tok_vec(std::vector<float> &embd)
         else
         {
             if ((i + 2) >= embd_inp_len)
+            {
+                break;
+            }
+            if ((i + 2) >= cur_ctx_len)
             {
                 break;
             }

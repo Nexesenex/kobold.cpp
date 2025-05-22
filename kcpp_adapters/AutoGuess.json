@@ -115,7 +115,6 @@
     "search": ["[gMASK]<sop>"],
     "name": "GLM-4",
     "adapter": {
-        "chat_start": "[gMASK]<sop>",
         "system_start": "<|system|>\n",
         "system_end": "",
         "user_start": "<|user|>\n",
