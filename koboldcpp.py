@@ -1673,7 +1673,7 @@ def extract_text_from_pdf(docData):
         # Decode the Base64 string
         decoded_bytes = base64.b64decode(docData)
 
-        return getTextFromPDFEncapsulated(decoded_bytes)
+        return getTextFromPDFEncapsulatedPyMuPdf(decoded_bytes)
     except Exception as e:
         print(f"Error extracting text: {str(e)}")
         return ""
@@ -1793,7 +1793,7 @@ def getTextFromPDFEncapsulated(decoded_bytes):
         # Parallel execution based on either the number of pages or number of CPU cores
         num_cores = min(cpu_count(), len(pages))
         print(f"Started processing PDF document with {len(pages)} using {num_cores} cores...")
-        with ThreadPoolExecutor(max_workers=5) as exe:
+        with ThreadPoolExecutor(max_workers=num_cores) as exe:
             return exe.map(process_page, pages)
             # exe.submit(cube,2)
             
@@ -1983,12 +1983,16 @@ def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
                 return data[:-1], footnote
         return data, None
 
-    def extract_page(doc, page_number):
+    def extract_page(doc, pageTables, page_number):
         page = doc[page_number]
         label = page.get_label() or str(page_number + 1)
         textpage = page.get_textpage()
         tables_block = []
-        tables = page.find_tables()
+
+        # tables_block = page.get_text("dict")["blocks"]
+        # table_rects = []
+
+        tables = pageTables[page_number] # page.find_tables()
         table_rects = []
         if tables and tables.tables:
             for table in tables.tables:
@@ -2030,10 +2034,11 @@ def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
         gc.collect()
         return f"Page {label}", blocks
 
-    def process_pages(doc, start_page, end_page):
+    def process_pages(args):
+        (doc, pageTables, start_page, end_page) = args
         results = []
         for i in range(start_page, end_page):
-            results.append(extract_page(doc, i))
+            results.append(extract_page(doc, pageTables, i))
         return results
 
     # Get bytes as a readable form
@@ -2042,28 +2047,31 @@ def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
     # Processing logic
     with fitz.open("pdf", decoded_bytes) as doc:
         total_pages = len(doc)
+        print(f"Start processing PDF with {total_pages}")
         results = []
+        pageTables = []
+        for i in tqdm(range(total_pages), desc="Extracting tables"):
+            pageTables.append(doc[i].find_tables()) # {} 
+    
         if total_pages > parallel_threshold:
             num_cores = min(multiprocessing.cpu_count(), os.cpu_count() or 1)
             chunk_size = max(1, min(total_pages // (num_cores * 2), 20))
             chunks = []
             for i in range(0, total_pages, chunk_size):
                 end = min(i + chunk_size, total_pages)
-                chunks.append((doc, i, end))
-            # with ThreadPoolExecutor(max_workers=num_cores) as exe:
-            import multiprocessing
-            from threading import current_thread
-            t = current_thread().isDaemon()
-            with multiprocessing.Pool(processes=num_cores) as pool:
+                chunks.append((doc, pageTables, i, end))
+            with ThreadPoolExecutor(max_workers=num_cores) as exe:
                 with tqdm(total=total_pages, desc="Processing pages") as pbar:
-                    for chunk_results in pool.starmap(process_pages, chunks):
-                    # for chunk_results in exe.map(process_pages, chunks):
+                    # for chunk_results in pool.starmap(process_pages, chunks):
+                    for chunk_results in exe.map(process_pages, chunks):
                         results.extend(chunk_results)
                         pbar.update(len(chunk_results))
         else:
             for i in tqdm(range(total_pages), desc="Processing pages"):
-                results.append(extract_page(doc, i))
+                results.append(extract_page(doc, pageTables, i))
         result_dict = dict(results)
+        
+        print(f"Finish processing PDF with {total_pages}")
         return result_dict
     return None
 
