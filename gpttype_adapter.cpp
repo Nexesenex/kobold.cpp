@@ -1607,6 +1607,9 @@ int SampleLogits(const float * logits, int n_ctx, int n_vocab, int rep_pen_range
 int mirostat, float mirostat_tau, float mirostat_eta, float dry_multiplier, float dry_base, int dry_allowed_length, int dry_penalty_last_n, float xtc_threshold, float xtc_probability,
 const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dynatemp_range, float dynatemp_exponent, float smoothing_factor)
 {
+    // printf("SampleLogits called with: n_ctx=%d, n_vocab=%d, rep_pen_range=%d, rep_pen=%f, rep_pen_slope=%f, presence_penalty=%f, top_k=%f, top_a=%f, top_p=%f, min_p=%f, typical_p=%f, tfs=%f, nsigma=%f, temp=%f, mirostat=%d, mirostat_tau=%f, mirostat_eta=%f, dry_multiplier=%f, dry_base=%f, dry_allowed_length=%d, dry_penalty_last_n=%d, xtc_threshold=%f, xtc_probability=%f, sampler_order_size=%zu, dynatemp_range=%f, dynatemp_exponent=%f, smoothing_factor=%f\n",
+    // n_ctx, n_vocab, rep_pen_range, rep_pen, rep_pen_slope, presence_penalty, top_k, top_a, top_p, min_p, typical_p, tfs, nsigma, temp, mirostat, mirostat_tau, mirostat_eta, dry_multiplier, dry_base, dry_allowed_length, dry_penalty_last_n, xtc_threshold, xtc_probability, sampler_order.size(), dynatemp_range, dynatemp_exponent, smoothing_factor);
+
     int id = 0;
     std::vector<llama_token_data> candidates;
     candidates.reserve(n_vocab);
@@ -3253,6 +3256,37 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         }
     }
 
+    //need to add a cursed hack to improve coherency for GLM4, by ensuring injection for gmask, sop and an extra space
+    //any complaints please direct them to henky
+    if (file_format == FileFormat::GGUF_GENERIC && file_format_meta.model_architecture == GGUFArch::ARCH_GLM4) {
+        std::string temp = gpttype_get_chat_template();
+        if (temp.find("[gMASK]<sop>") != std::string::npos) {
+            if (addedmemory == "") {
+                if (!kcpp_data->prompt.empty() && kcpp_data->prompt.rfind("[gMASK]", 0) == 0) {  //check startswith
+                    kcpp_data->prompt.erase(0, 7);
+                }
+                if (!kcpp_data->prompt.empty() && kcpp_data->prompt.rfind("<sop>", 0) == 0) {  //check startswith
+                    kcpp_data->prompt.erase(0, 5);
+                }
+                if (!kcpp_data->prompt.empty() && kcpp_data->prompt[0] == ' ') {  // check for leading space
+                    kcpp_data->prompt.erase(0, 1);
+                }
+                addedmemory = "[gMASK]<sop> ";
+            } else {
+                if (!addedmemory.empty() && addedmemory.rfind("[gMASK]", 0) == 0) {  //check startswith
+                    addedmemory.erase(0, 7);
+                }
+                if (!addedmemory.empty() && addedmemory.rfind("<sop>", 0) == 0) {  //check startswith
+                    addedmemory.erase(0, 5);
+                }
+                if (!addedmemory.empty() && addedmemory[0] == ' ') {  // check for leading space
+                    addedmemory.erase(0, 1);
+                }
+                addedmemory = "[gMASK]<sop> " + addedmemory;
+            }
+        }
+    }
+
     bool stream_sse = inputs.stream_sse;
     bool allow_regular_prints = (!is_quiet && debugmode!=-1);
 
@@ -3465,7 +3499,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     if (debugmode==1 && !is_quiet)
     {
         std::string outstr = "";
-        printf("\n\n[Debug: Dump Raw Input Tokens]\n");
+        printf("\n\n[Debug: Dump %d Raw Input Tokens]\n",embd_inp.size());
         outstr += get_tok_vec_str(embd_inp);
         printf("%s\n", RemoveBell(outstr).c_str());
     }
@@ -3612,7 +3646,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     if (debugmode==1 && !is_quiet)
     {
         std::string outstr = "";
-        // printf("\n[Debug: Dump Forwarded Input Tokens, format: %d]\n", file_format);
+        // printf("\n[Debug: Dump Forwarded Input Tokens]\n");
         // outstr += get_tok_vec_str(embd_inp);
         outstr += "\n\n[Debug: n_past="+std::to_string(n_past)+" Context Size = " + std::to_string(current_context_tokens.size()) + "]\n";
         outstr += get_tok_vec_str(current_context_tokens);

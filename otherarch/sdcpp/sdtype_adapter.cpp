@@ -410,6 +410,10 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
     {
         sd_params->sample_method = sample_method_t::LCM;
     }
+    else if(sampler=="ddim")
+    {
+        sd_params->sample_method = sample_method_t::DDIM_TRAILING;
+    }
     else if(sampler=="dpm++ 2m karras" || sampler=="dpm++ 2m" || sampler=="k_dpmpp_2m")
     {
         sd_params->sample_method = sample_method_t::DPMPP2M;
