@@ -1992,7 +1992,7 @@ def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
         # tables_block = page.get_text("dict")["blocks"]
         # table_rects = []
 
-        tables = pageTables[page_number] # page.find_tables()
+        tables = page.find_tables() # pageTables[page_number]
         table_rects = []
         if tables and tables.tables:
             for table in tables.tables:
@@ -2050,10 +2050,10 @@ def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
         print(f"Start processing PDF with {total_pages}")
         results = []
         pageTables = []
-        for i in tqdm(range(total_pages), desc="Extracting tables"):
-            pageTables.append(doc[i].find_tables()) # {} 
+        # for i in tqdm(range(total_pages), desc="Extracting tables"):
+        #     pageTables.append({}) # {} 
     
-        if total_pages > parallel_threshold:
+        if total_pages > parallel_threshold and True is False:
             num_cores = min(multiprocessing.cpu_count(), os.cpu_count() or 1)
             chunk_size = max(1, min(total_pages // (num_cores * 2), 20))
             chunks = []
