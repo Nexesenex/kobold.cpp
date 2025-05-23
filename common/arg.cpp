@@ -1454,7 +1454,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         [](common_params & params) {
             params.swa_full = true;
         }
-    ).set_env("LLAMA_ARG_SWA_FULL"));
+    ));
     add_opt(common_arg(
         {"--no-context-shift"},
         string_format("disables context shift on infinite text generation (default: %s)", params.ctx_shift ? "disabled" : "enabled"),
@@ -2067,6 +2067,13 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
             params.grp_attn_w = value;
         }
     ).set_env("LLAMA_ARG_GRP_ATTN_W").set_examples({LLAMA_EXAMPLE_MAIN}));
+    add_opt(common_arg(
+        {"-dkvc", "--dump-kv-cache"},
+        "verbose print of the KV cache",
+        [](common_params & params) {
+            params.dump_kv_cache = true;
+        }
+    ));
     add_opt(common_arg(
         {"-nkvo", "--no-kv-offload"},
         "disable KV offload",
