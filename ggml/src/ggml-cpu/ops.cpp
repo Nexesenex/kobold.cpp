@@ -1340,6 +1340,9 @@ void ggml_compute_forward_add(
         case GGML_TYPE_Q8_K_R8:
         case GGML_TYPE_Q8_KV:
         case GGML_TYPE_BF16_R16:
+        case GGML_TYPE_IQ2_KT:
+        case GGML_TYPE_IQ3_KT:
+        case GGML_TYPE_IQ4_KT:
         case GGML_TYPE_Q2_K:
         case GGML_TYPE_Q3_K:
         case GGML_TYPE_Q4_K:
@@ -1359,9 +1362,6 @@ void ggml_compute_forward_add(
             {
                 ggml_compute_forward_add_q_f32(params, dst);
             } break;
-        case GGML_TYPE_IQ2_KT:
-        case GGML_TYPE_IQ3_KT:
-        case GGML_TYPE_IQ4_KT: break;
         default:
             {
                 GGML_ABORT("fatal error");

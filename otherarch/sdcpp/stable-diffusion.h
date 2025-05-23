@@ -122,7 +122,11 @@ enum sd_type_t {
     SD_TYPE_Q8_K128  = 150,
     SD_TYPE_Q8_KV    = 151,
     SD_TYPE_IQ5_KS   = 152,
-    SD_TYPE_IQ3_KS   = 195,
+    SD_TYPE_IQ2_KT   = 153,
+    SD_TYPE_IQ3_KT   = 154,
+    SD_TYPE_IQ4_KT   = 155,
+
+    SD_TYPE_IQ3_KS   = 196,
 
     SD_TYPE_Q4_0_R8   = 202,
     SD_TYPE_Q5_0_R4   = 206,
@@ -153,9 +157,6 @@ enum sd_type_t {
     SD_TYPE_Q8_KV_R8  = 398,
     SD_TYPE_Q8_K_R8   = 399,
 
-    SD_TYPE_IQ2_KT    = 947,
-    SD_TYPE_IQ3_KT    = 948,
-    SD_TYPE_IQ4_KT    = 949,
     SD_TYPE_COUNT,
 };
 

@@ -421,6 +421,10 @@ extern "C" {
         GGML_TYPE_Q8_K128 = 150,
         GGML_TYPE_Q8_KV   = 151,
         GGML_TYPE_IQ5_KS  = 152,
+        GGML_TYPE_IQ2_KT  = 153,
+        GGML_TYPE_IQ3_KT  = 154,
+        GGML_TYPE_IQ4_KT  = 155,
+
         GGML_TYPE_IQ3_KS  = 195,
 
         GGML_TYPE_Q4_0_R8   = 202,
@@ -451,10 +455,6 @@ extern "C" {
         GGML_TYPE_IQ5_KS_R4 = 352,
         GGML_TYPE_Q8_KV_R8  = 398,
         GGML_TYPE_Q8_K_R8   = 399,
-
-        GGML_TYPE_IQ2_KT    = 947,
-        GGML_TYPE_IQ3_KT    = 948,
-        GGML_TYPE_IQ4_KT    = 949,
 
         GGML_TYPE_COUNT,
     };
@@ -510,7 +510,11 @@ extern "C" {
         GGML_FTYPE_MOSTLY_IQ4_KSS = 139, // except 1d tensors
         GGML_FTYPE_MOSTLY_Q8_KV   = 140, // except 1d tensors
         GGML_FTYPE_MOSTLY_IQ5_KS  = 141, // except 1d tensors
-        GGML_FTYPE_MOSTLY_IQ3_KS  = 188, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_KT  = 142, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ3_KT  = 143, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ4_KT  = 144, // except 1d tensors
+
+        GGML_FTYPE_MOSTLY_IQ3_KS  = 185, // except 1d tensors
                                          //
         GGML_FTYPE_MOSTLY_Q4_0_R8   = 202, // except 1d tensors
         GGML_FTYPE_MOSTLY_Q8_0_R8   = 207, // except 1d tensors
@@ -541,9 +545,6 @@ extern "C" {
         GGML_FTYPE_MOSTLY_Q8_KV_R8  = 398, // except 1d tensors
         GGML_FTYPE_MOSTLY_Q8_K_R8   = 399, // except 1d tensors
 
-        GGML_FTYPE_MOSTLY_IQ2_KT    = 947, // except 1d tensors
-        GGML_FTYPE_MOSTLY_IQ3_KT    = 948, // except 1d tensors
-        GGML_FTYPE_MOSTLY_IQ4_KT    = 949, // except 1d tensors
     };
 
     // available tensor operations:
