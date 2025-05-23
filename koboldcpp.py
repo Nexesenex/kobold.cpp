@@ -1905,12 +1905,11 @@ def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
                 s0 = line[i - 1]
                 s1 = line[i]
                 delta = s1["size"] * 0.1
-                if s0["bbox"].x1 + delta < s1["bbox"].x0 or (
-                    s0["flags"],
-                    s0["char_flags"],
-                    s0["size"],
-                ) != (s1["flags"], s1["char_flags"], s1["size"]):
-                    continue
+                try:
+                    if s0["bbox"].x1 + delta < s1["bbox"].x0 or (s0["flags"], s0["char_flags"], s0["size"],) != (s1["flags"], s1["char_flags"], s1["size"]):
+                        continue
+                except Exception:
+                    print("Could not check char flags in bbox for similarity")
                 
                 dashHandler = False
                 try:
@@ -2013,7 +2012,11 @@ def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
 
     def format_span(s):
         txt = s["text"]
-        bold = (s["flags"] & 16) or (s["char_flags"] & 8)
+        bold = False
+        try:
+            bold = (s["flags"] & 16) or (s["char_flags"] & 8)
+        except Exception:
+            print("Could not check for bold state on page")
         italic = s["flags"] & 2
         if bold and italic:
             txt = f"***{txt}***"
