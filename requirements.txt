@@ -8,3 +8,4 @@ psutil>=5.9.4
 darkdetect>=0.8.0
 pdfplumber>=0.11.6
 PyMuPdf>=1.26.0
+tqdm>=4.67.1
