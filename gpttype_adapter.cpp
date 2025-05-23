@@ -1927,7 +1927,11 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     kcpp_data->use_smartcontext = inputs.use_smartcontext;
     kcpp_data->use_contextshift = inputs.use_contextshift;
     kcpp_data->use_fastforward = inputs.use_fastforward;
-    kcpp_data->swa_full = (inputs.use_fastforward || inputs.use_contextshift)?true:false;
+    kcpp_data->swa_full = !inputs.swa_support;//(inputs.use_fastforward || inputs.use_contextshift)?true:false;
+    if(!kcpp_data->swa_full)
+    {
+        printf("\n!!!!!!!!!!!!!!!!!!!\nExperimental FLAG - SWA SUPPORT IS ENABLED!\n!!!!!!!!!!!!!!!!!!!\n");
+    }
     debugmode = inputs.debugmode;
     draft_ctx = nullptr;
     guidance_ctx = nullptr;

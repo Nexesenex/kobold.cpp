@@ -70,6 +70,7 @@ struct load_model_inputs
     const int quant_k = 0;
     const int quant_v = 0;
     const bool check_slowness = false;
+    const bool swa_support = false;
     const bool quiet = false;
     const int debugmode = 0;
 };
