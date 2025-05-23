@@ -2345,11 +2345,9 @@ def extract_text(genparams):
         docData = genparams.get("docData", "")
         if docData.startswith("data:text"):
             docData = docData.split(",", 1)[1]
-
-        # elif docData.startswith("data:application/pdf"):
-            # docData = docData.split(",", 1)[1]
-            # return extract_text_from_pdf(docData)
-
+        elif docData.startswith("data:application/pdf"):
+            docData = docData.split(",", 1)[1]
+            return extract_text_from_pdf(docData)
         elif docData.startswith("data:audio"):
             genparams["audio_data"] = docData
             return whisper_generate(genparams)
@@ -2964,11 +2962,8 @@ def tts_prepare_voice_json(jsonstr):
             for c in codes:
                 codestr += f"<|{c}|>"
 
-            # processed += f"{word}<|t_{duration:.2f}|><|code_start|>{codestr}<|code_end|>\n"
+            processed += f"{word}<|t_{duration:.2f}|><|code_start|>{codestr}<|code_end|>\n"
         # return {"phrase":txt.strip()+".","voice":processed.strip()}
-
-            processed += f"{word}<t_{duration:.2f}><|code_start|>{codestr}<|code_end|>\n"
-        return {"phrase":txt,"voice":processed}
 
     except Exception:
         return None
