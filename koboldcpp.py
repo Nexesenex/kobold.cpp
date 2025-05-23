@@ -1911,14 +1911,16 @@ def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
                     if s0["bbox"].x1 + delta < s1["bbox"].x0 or (s0["flags"], s0["char_flags"], s0["size"],) != (s1["flags"], s1["char_flags"], s1["size"]):
                         continue
                 except Exception:
-                    print("Could not check char flags in bbox for similarity")
+                    pass
+                    # print("Could not check char flags in bbox for similarity")
                 
                 dashHandler = False
                 try:
                     if s0["text"].endswith("-") and s1["text"] and s1["text"][0].isalpha():
                         dashHandler = True
                 except Exception:
-                    print(f"Failed to check opacity for dash handler on page")
+                    pass
+                    # print(f"Failed to check opacity for dash handler on page")
 
                 if dashHandler:
                     s0["text"] = s0["text"][:-1] + s1["text"]
@@ -1949,7 +1951,8 @@ def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
                         if s["alpha"] == 0 and ignore_invisible:
                             continue
                     except Exception:
-                        print(f"Failed to check opacity for text on page")
+                        pass
+                        # print(f"Failed to check opacity for text on page")
                     if abs(sbbox & clip) < abs(sbbox) * 0.8:
                         continue
                     if s["flags"] & 1 == 1:
@@ -2018,7 +2021,8 @@ def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
         try:
             bold = (s["flags"] & 16) or (s["char_flags"] & 8)
         except Exception:
-            print("Could not check for bold state on page")
+            pass
+            # print("Could not check for bold state on page")
         italic = s["flags"] & 2
         if bold and italic:
             txt = f"***{txt}***"
