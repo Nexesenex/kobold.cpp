@@ -2370,13 +2370,35 @@ def extract_text(genparams):
         print(f"Error extracting text: {str(e)}")
         return ""
 
+def extract_text_from_pdf(docData):
+    import traceback
+    global args
+    
+    decoded_bytes = None
+    try:
+        # Add padding if necessary
+        padding = len(docData) % 4
+        if padding != 0:
+            docData += '=' * (4 - padding)
 
         # Decode the Base64 string
         decoded_bytes = base64.b64decode(docData)
+    except Exception as e:
+        print(f"Error decoding text from PDF: {str(e)}")
+        print(traceback.format_exc())
+        return ""
 
+    try:
         return getTextFromPDFEncapsulatedPyMuPdf(decoded_bytes)
     except Exception as e:
-        print(f"Error extracting text: {str(e)}")
+        print(f"Error extracting text with PyMuPdf: {str(e)}")
+        print(traceback.format_exc())
+    
+    try:
+        return getTextFromPDFEncapsulated(decoded_bytes)
+    except Exception as e:
+        print(f"Error extracting text with PdfPlumber: {str(e)}")
+        print(traceback.format_exc())
         return ""
 
 # PDF extraction code by sevenof9
@@ -2480,28 +2502,50 @@ def getTextFromPDFEncapsulated(decoded_bytes):
 
         for idx, table in enumerate(table_json_outputs, start=1):
             page_output += f'"table {idx}":\n{table}\n'
-
-        print(f"Finished processing PDF page {page_number}")
         return page_number, page_output
 
+    def process_pages(pagesArgs):
+        pageOutputs = []
+        for i in range(0, len(pagesArgs)):
+            pageOutputs.append(process_page(pagesArgs[i]))
+        return pageOutputs
+
     def run_serial(pages):
-        # Seroa; execution
-        return [process_page(args) for args in pages]
+        from tqdm.auto import tqdm
+        results = []
+        for i in tqdm(range(len(pages)), desc="Processing pages"):
+            results.append(process_page(pages[i]))
+        return results
+        # return [process_page(args) for args in pages]
 
     def run_parallel(pages):
         from multiprocessing import cpu_count
+        from tqdm.auto import tqdm
 
         # Parallel execution based on either the number of pages or number of CPU cores
         num_cores = min(cpu_count(), len(pages))
         print(f"Started processing PDF document with {len(pages)} using {num_cores} cores...")
+
+        total_pages = len(pages)
+        num_cores = min(multiprocessing.cpu_count(), os.cpu_count() or 1)
+        chunk_size = max(1, min(total_pages // (num_cores * 8), 20))
+        chunks = []
+        for i in range(0, total_pages, chunk_size):
+            end = min(i + chunk_size, total_pages)
+            chunk = []
+            for pageNo in range(i, end):
+                chunk.append(pages[pageNo])
+            chunks.append(chunk)
+        results = []
         with ThreadPoolExecutor(max_workers=num_cores) as exe:
-            return exe.map(process_page, pages)
-            # exe.submit(cube,2)
-            
-            # Maps the method 'cube' with a list of values.
-            
-        # with Pool(num_cores) as pool:
-        #     return pool.map(process_page, pages)
+            with tqdm(total=total_pages, desc="Processing pages") as pbar:
+                for chunk_results in exe.map(process_pages, chunks):
+                    results.extend(chunk_results)
+                    pbar.update(len(chunk_results))
+        return results
+
+        # with ThreadPoolExecutor(max_workers=num_cores) as exe:
+        #     return exe.map(process_page, pages)
 
     decoded_bytes = io.BytesIO(decoded_bytes)  
     with pdfplumber.open(decoded_bytes) as pdf:
@@ -2515,7 +2559,7 @@ def getTextFromPDFEncapsulated(decoded_bytes):
         }
 
         # Number of pages before multithreading should be used
-        PARALLEL_THRESHOLD = 8
+        PARALLEL_THRESHOLD = 14
 
         pages = [(i, pdf, TEXT_EXTRACTION_SETTINGS) for i in range(num_pages)]
 
@@ -2570,16 +2614,26 @@ def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
                 s0 = line[i - 1]
                 s1 = line[i]
                 delta = s1["size"] * 0.1
-                if s0["bbox"].x1 + delta < s1["bbox"].x0 or (
-                    s0["flags"],
-                    s0["char_flags"],
-                    s0["size"],
-                ) != (s1["flags"], s1["char_flags"], s1["size"]):
-                    continue
-                if s0["text"].endswith("-") and s1["text"] and s1["text"][0].isalpha():
+                try:
+                    if s0["bbox"].x1 + delta < s1["bbox"].x0 or (s0["flags"], s0["char_flags"], s0["size"],) != (s1["flags"], s1["char_flags"], s1["size"]):
+                        continue
+                except Exception:
+                    pass
+                    # print("Could not check char flags in bbox for similarity")
+                
+                dashHandler = False
+                try:
+                    if s0["text"].endswith("-") and s1["text"] and s1["text"][0].isalpha():
+                        dashHandler = True
+                except Exception:
+                    pass
+                    # print(f"Failed to check opacity for dash handler on page")
+
+                if dashHandler:
                     s0["text"] = s0["text"][:-1] + s1["text"]
                 else:
                     s0["text"] += s1["text"]
+
                 s0["bbox"] |= s1["bbox"]
                 del line[i]
                 line[i - 1] = s0
@@ -2600,8 +2654,12 @@ def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
                     sbbox = fitz.Rect(s["bbox"])
                     if is_white(s["text"]):
                         continue
-                    if s["alpha"] == 0 and ignore_invisible:
-                        continue
+                    try:
+                        if s["alpha"] == 0 and ignore_invisible:
+                            continue
+                    except Exception:
+                        pass
+                        # print(f"Failed to check opacity for text on page")
                     if abs(sbbox & clip) < abs(sbbox) * 0.8:
                         continue
                     if s["flags"] & 1 == 1:
@@ -2666,7 +2724,12 @@ def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
 
     def format_span(s):
         txt = s["text"]
-        bold = (s["flags"] & 16) or (s["char_flags"] & 8)
+        bold = False
+        try:
+            bold = (s["flags"] & 16) or (s["char_flags"] & 8)
+        except Exception:
+            pass
+            # print("Could not check for bold state on page")
         italic = s["flags"] & 2
         if bold and italic:
             txt = f"***{txt}***"
@@ -2693,7 +2756,7 @@ def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
         # tables_block = page.get_text("dict")["blocks"]
         # table_rects = []
 
-        tables = page.find_tables() # pageTables[page_number]
+        tables = {} # page.find_tables() # pageTables[page_number]
         table_rects = []
         if tables and tables.tables:
             for table in tables.tables:
@@ -2754,9 +2817,9 @@ def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
         # for i in tqdm(range(total_pages), desc="Extracting tables"):
         #     pageTables.append({}) # {} 
     
-        if total_pages > parallel_threshold and True is False:
+        if total_pages > parallel_threshold: # and True is False
             num_cores = min(multiprocessing.cpu_count(), os.cpu_count() or 1)
-            chunk_size = max(1, min(total_pages // (num_cores * 2), 20))
+            chunk_size = max(1, min(total_pages // (num_cores * 8), 20))
             chunks = []
             for i in range(0, total_pages, chunk_size):
                 end = min(i + chunk_size, total_pages)
