@@ -1,6 +1,5 @@
 #include "llama-batch.h"
 
-#include <cassert>
 #include <cstring>
 #include <algorithm>
 
@@ -282,10 +281,9 @@ llama_batch_allocr::llama_batch_allocr(struct llama_batch in_batch, llama_pos p0
     batch = in_batch;
     GGML_ASSERT(batch.n_tokens > 0);
     if (!batch.pos) {
-        assert(p0 >= 0);
         pos.resize(batch.n_tokens);
         for (int32_t i = 0; i < batch.n_tokens; i++) {
-            pos[i] = p0 + i;
+            pos[i] = i + p0;
         }
         batch.pos = pos.data();
     }
