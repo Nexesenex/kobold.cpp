@@ -96,7 +96,7 @@ if (LLAMA_CUBLAS)
 
         add_compile_definitions(GGML_USE_LLAMAFILE)
         add_compile_definitions(GGML_USE_CUDA)
-        add_compile_definitions(SD_USE_CUBLAS)
+        add_compile_definitions(SD_USE_CUDA)
 
         if (LLAMA_CUDA_F16 OR LLAMA_CUDA_DMMV_F16)
             add_compile_definitions(GGML_CUDA_F16)
@@ -177,7 +177,7 @@ if (LLAMA_HIPBLAS)
         list(APPEND GGML_SOURCES_ROCM ${SRCS})
         file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/mmq*.cu")
         list(APPEND GGML_SOURCES_ROCM ${SRCS})
-        add_compile_definitions(GGML_USE_HIP GGML_USE_CUDA SD_USE_CUBLAS)
+        add_compile_definitions(GGML_USE_HIP GGML_USE_CUDA SD_USE_CUDA)
         add_library(ggml-rocm ${GGML_SOURCES_CUDA})
 
         file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu")
