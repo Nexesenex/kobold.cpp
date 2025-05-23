@@ -95,3 +95,5 @@ bool clip_is_pixtral(const struct clip_ctx * ctx);
 void set_clip_uses_gpu(bool usegpu);
 
 bool clip_encode_float_image (struct clip_ctx * ctx, int n_threads, float * img, int h, int w, float * vec);
+
+bool clip_model_quantize(const char * fname_inp, const char * fname_out, const int itype) ;

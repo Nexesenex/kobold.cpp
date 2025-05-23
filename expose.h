@@ -77,6 +77,7 @@ struct load_model_inputs
     const int draft_quant_k = -1;
     const int draft_quant_v = -1;
     const bool check_slowness = false;
+    const bool swa_support = false;
     const bool quiet = false;
     const int debugmode = 0;
 };

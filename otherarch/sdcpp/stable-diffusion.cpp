@@ -161,7 +161,7 @@ public:
                         bool diffusion_flash_attn) {
         use_tiny_autoencoder = taesd_path.size() > 0;
         std::string taesd_path_fixed = taesd_path;
-#ifdef SD_USE_CUBLAS
+#ifdef SD_USE_CUDA
         LOG_DEBUG("Using CUDA backend");
         backend = ggml_backend_cuda_init(0);
 #endif

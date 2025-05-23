@@ -170,9 +170,9 @@ if (LLAMA_CUBLAS)
         enable_language(CUDA)
 
         add_compile_definitions(GGML_USE_LLAMAFILE)
+        add_compile_definitions(GGML_USE_CUBLAS)
         add_compile_definitions(GGML_USE_CUDA)
-        add_compile_definitions(SD_USE_CUBLAS)
-		
+
 		if (CUDAToolkit_VERSION VERSION_GREATER_EQUAL "12.8")
 			# Options are:
 			# - none (not recommended)
@@ -181,6 +181,9 @@ if (LLAMA_CUBLAS)
 			# - size
 			list(APPEND CUDA_FLAGS -compress-mode=${GGML_CUDA_COMPRESSION_MODE})
 		endif()
+
+        add_compile_definitions(SD_USE_CUBLAS)
+        add_compile_definitions(SD_USE_CUDA)
 
         add_compile_definitions(GGML_CUDA_DMMV_X=${LLAMA_CUDA_DMMV_X})
         add_compile_definitions(GGML_CUDA_DMMV_Y=${LLAMA_CUDA_DMMV_Y})
@@ -376,7 +379,7 @@ if (LLAMA_HIPBLAS)
         list(APPEND GGML_SOURCES_ROCM ${SRCS})
         file(GLOB SRCS "ggml/src/ggml-cuda/template-instances/mmq*.cu")
         list(APPEND GGML_SOURCES_ROCM ${SRCS})
-        add_compile_definitions(GGML_USE_HIP GGML_USE_CUDA SD_USE_CUBLAS)
+        add_compile_definitions(GGML_USE_HIP GGML_USE_CUDA SD_USE_CUDA)
         add_library(ggml-rocm ${GGML_SOURCES_CUDA})
         if (LLAMA_CUDA_FORCE_DMMV)
             target_compile_definitions(ggml-rocm PUBLIC GGML_CUDA_FORCE_DMMV)
