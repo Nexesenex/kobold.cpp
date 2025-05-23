@@ -27566,7 +27566,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 	img.esobold {
 		background-image: var(--img_esobold);
-		background-size: cover;
+		background-size: contain;
+		background-repeat: round;
 		height: 500px !important;
 		aspect-ratio: 1;
 		border-radius: 250px;
@@ -27581,7 +27582,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	document.getElementById("btnsend").onmouseover = () => {
 		document.getElementById("input_text").placeholder = `Enter text here\nOr enjoy this fact: ${getRandomElemFromArray(facts)}`;
 		document.getElementById("btnsend").style.backgroundImage = `url("${getRandomElemFromArray(icons)}")`; 
-		document.getElementById("btnsend").style.backgroundSize = "cover"
+		document.getElementById("btnsend").style.backgroundSize = "contain"
+		document.getElementById("btnsend").style.backgroundPosition = "center"
+		document.getElementById("btnsend").style.backgroundRepeat = "no-repeat"
 	}
 
 	window.addEventListener('load', () => {
