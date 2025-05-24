@@ -1060,7 +1060,7 @@ struct llm_tokenizer_ugm_session {
         }
 
         // initialize score_sum to -FLT_MAX so it will be always lower than sums of token scores
-        std::vector<struct best_tokenization> tokenization_results(input_len + 1, {vocab.token_unk(), 0, -FLT_MAX});
+        std::vector<struct best_tokenization> tokenization_results(input_len + 1, {vocab.token_unk(), 0, -DBL_MAX});
         // at the beginning tokenization score is zero
         tokenization_results[0] = { vocab.token_unk(), 0, 0 };
 
@@ -1092,7 +1092,7 @@ struct llm_tokenizer_ugm_session {
                     const double challenger_score = current_best.score_sum + token_score;
                     struct best_tokenization & current_champ = tokenization_results[prefix_offset];
                     if (challenger_score > current_champ.score_sum) {
-                        struct best_tokenization challenger = { token_id, input_offset, (float) challenger_score };
+                        struct best_tokenization challenger = { token_id, input_offset, challenger_score };
                         current_champ = challenger;
                     }
                 }
@@ -1106,7 +1106,7 @@ struct llm_tokenizer_ugm_session {
                 prefix_offset = input_offset + n_utf8_code_units;
                 struct best_tokenization & current_champ = tokenization_results[prefix_offset];
                 if (challenger_score > current_champ.score_sum) {
-                    struct best_tokenization challenger = { vocab.token_unk(), input_offset, (float) challenger_score };
+                    struct best_tokenization challenger = { vocab.token_unk(), input_offset, challenger_score };
                     current_champ = challenger;
                 }
             }
@@ -1232,7 +1232,7 @@ private:
     struct best_tokenization {
         llama_token token_id;
         size_t input_offset;
-        float score_sum;
+        double score_sum;
     };
 
     struct normalization_result normalize_prefix(const std::string & input, size_t input_offset) {
@@ -1538,6 +1538,7 @@ struct llama_vocab::impl {
     bool is_user_defined(llama_token id) const;
     bool is_unused      (llama_token id) const;
     bool is_eog         (llama_token id) const;
+    std::set<int> get_eogs() const;
 
     uint8_t token_to_byte(llama_token id) const;
 
@@ -2396,6 +2397,10 @@ bool llama_vocab::impl::is_eog(llama_token id) const {
     return id != LLAMA_TOKEN_NULL && special_eog_ids.count(id) > 0;
 }
 
+std::set<int> llama_vocab::impl::get_eogs() const {
+    return special_eog_ids;
+}
+
 uint8_t llama_vocab::impl::token_to_byte(llama_token id) const {
     GGML_ASSERT(get_type() != LLAMA_VOCAB_TYPE_NONE);
     GGML_ASSERT(is_byte(id));
@@ -3119,6 +3124,10 @@ bool llama_vocab::is_unused(llama_token id) const {
 
 bool llama_vocab::is_eog(llama_token id) const {
     return pimpl->is_eog(id);
+}
+
+std::set<int> llama_vocab::get_eogs() const {
+    return pimpl->get_eogs();
 }
 
 uint8_t llama_vocab::token_to_byte(llama_token id) const {

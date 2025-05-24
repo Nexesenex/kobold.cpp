@@ -551,6 +551,7 @@ bool ttstype_load_model(const tts_load_model_inputs inputs)
     llama_model * ctsmodel = llama_model_load_from_file(modelfile_cts.c_str(), tts_model_params);
 
     tts_ctx_params.embeddings = true; //this requires embeddings instead
+    tts_ctx_params.n_ubatch = tts_ctx_params.n_batch;
     cts_ctx = llama_init_from_model(ctsmodel, tts_ctx_params);
 
     if (cts_ctx == nullptr) {
@@ -948,7 +949,7 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
     kcpp_embd_batch codebatch = kcpp_embd_batch(codes,0,false,true);
     printf("\nRunning Vocoder (%d AudioTokens)", codes.size());
 
-    if (llama_decode(cts_ctx, codebatch.batch) != 0) {
+    if (llama_encode(cts_ctx, codebatch.batch) != 0) {
         printf("\nError: TTS vocoder generation failed!\n");
         output.data = "";
         output.status = 0;

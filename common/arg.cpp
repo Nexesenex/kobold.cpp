@@ -40,7 +40,7 @@
 using json = nlohmann::ordered_json;
 
 std::initializer_list<enum llama_example> mmproj_examples = {
-    LLAMA_EXAMPLE_LLAVA,
+    LLAMA_EXAMPLE_MTMD,
     LLAMA_EXAMPLE_SERVER,
 };
 
@@ -2234,12 +2234,12 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         }
     ).set_examples(mmproj_examples).set_env("LLAMA_ARG_NO_MMPROJ_OFFLOAD"));
     add_opt(common_arg(
-        {"--image"}, "FILE",
-        "path to an image file. use with multimodal models. Specify multiple times for batching",
+        {"--image", "--audio"}, "FILE",
+        "path to an image or audio file. use with multimodal models, can be repeated if you have multiple files\n",
         [](common_params & params, const std::string & value) {
             params.image.emplace_back(value);
         }
-    ).set_examples({LLAMA_EXAMPLE_LLAVA}));
+    ).set_examples({LLAMA_EXAMPLE_MTMD}));
     if (llama_supports_rpc()) {
         add_opt(common_arg(
             {"--rpc"}, "SERVERS",
@@ -2869,7 +2869,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         [](common_params & params, const std::string & value) {
             params.chat_template = value;
         }
-    ).set_examples({LLAMA_EXAMPLE_MAIN, LLAMA_EXAMPLE_SERVER, LLAMA_EXAMPLE_LLAVA}).set_env("LLAMA_ARG_CHAT_TEMPLATE"));
+    ).set_examples({LLAMA_EXAMPLE_MAIN, LLAMA_EXAMPLE_SERVER, LLAMA_EXAMPLE_MTMD}).set_env("LLAMA_ARG_CHAT_TEMPLATE"));
     add_opt(common_arg(
         {"--chat-template-file"}, "JINJA_TEMPLATE_FILE",
         string_format(

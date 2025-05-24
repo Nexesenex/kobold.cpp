@@ -96,4 +96,10 @@ void set_clip_uses_gpu(bool usegpu);
 
 bool clip_encode_float_image (struct clip_ctx * ctx, int n_threads, float * img, int h, int w, float * vec);
 
+// use by audio input
+void clip_image_f32_batch_add_mel(struct clip_image_f32_batch * batch, int n_mel, int n_frames, float * mel);
+
+bool clip_has_vision_encoder(const struct clip_ctx * ctx);
+bool clip_has_audio_encoder(const struct clip_ctx * ctx);
+
 bool clip_model_quantize(const char * fname_inp, const char * fname_out, const int itype) ;

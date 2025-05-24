@@ -4,7 +4,9 @@ llama.cpp supports multimodal input via `libmtmd`. Currently, there are 2 tools 
 - [llama-mtmd-cli](../tools/mtmd/README.md)
 - [llama-server](../tools/server/README.md) via OpenAI-compatible `/chat/completions` API
 
-To enable it, can use use one of the 2 methods below:
+Currently, we support **image** and **audio** input. Audio is highly experimental and may have reduced quality.
+
+To enable it, you can use one of the 2 methods below:
 
 - Use `-hf` option with a supported model (see a list of pre-quantized model below)
     - To load a model using `-hf` while disabling multimodal, use `--no-mmproj`
@@ -36,6 +38,8 @@ These are ready-to-use models, most of them come with `Q4_K_M` quantization by d
 Replaces the `(tool_name)` with the name of binary you want to use. For example, `llama-mtmd-cli` or `llama-server`
 
 NOTE: some models may require large context window, for example: `-c 8192`
+
+**Vision models**:
 
 ```sh
 # Gemma 3
@@ -77,4 +81,12 @@ NOTE: some models may require large context window, for example: `-c 8192`
 
 # Llama 4 Scout
 (tool_name) -hf ggml-org/Llama-4-Scout-17B-16E-Instruct-GGUF
+```
+
+**Audio models**:
+
+```sh
+# Ultravox 0.5
+(tool_name) -hf ggml-org/ultravox-v0_5-llama-3_2-1b-GGUF
+(tool_name) -hf ggml-org/ultravox-v0_5-llama-3_1-8b-GGUF
 ```

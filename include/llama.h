@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <set>
 
 #ifdef LLAMA_SHARED
 #    if defined(_WIN32) && !defined(__MINGW32__)
