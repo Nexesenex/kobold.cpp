@@ -26069,14 +26069,14 @@ else
 			"name": "generate_image",
 			"description": "Generates or modifies an image using AI based on a prompt. Be specific in the prompt about physical characteristics and settings as names of people may not be known.",
 			"args": {
+				"use_existing_image": {
+					description: "<set this to true to use an existing image as a starting point. The user will select which image to use. (img2img)>",
+					type: "boolean"
+				},
 				"prompt": "<prompt to generate image with>",
 				"aspect": {
 					type: "string",
 					description: "<aspect ratio - must be \"landscape\", \"portrait\" or \"square\">"
-				},
-				"modify_existing_image": {
-					description: "<set this to true to modify an existing image with the prompt>",
-					type: "boolean"
 				}
 			},
 			"enabled": localsettings.generate_images_mode == 2, // Only enabled if local endpoint exists / is in use
@@ -26084,7 +26084,7 @@ else
 					let prompt = action?.args?.prompt
 					let aspect = action?.args?.aspect
 					if (!!prompt) {
-						if (!!action?.args?.modify_existing_image)
+						if (!!action?.args?.use_existing_image)
 						{
 							waitingFori2iSelection = true
 							addThought(createSysPrompt, `Please click an image as a source for img2img generation`, true)
@@ -26669,7 +26669,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	let getLastActions = (amountOfActions = 10) => {
-		let exclusions = ["Chain of thought repetition detected - ending", "Chain of thought complete", "plan_actions", "Action: {", "Action (words =", "Action taken: ", "Action taken (words ="] // "Action: {", "Action (words =", "Action taken: ", "Action taken (words ="
+		let exclusions = ["Chain of thought repetition detected - ending", "Chain of thought complete", "plan_actions"] 
+		// , "Action: {", "Action (words =", "Action taken: ", "Action taken (words ="
+		// "Action: {", "Action (words =", "Action taken: ", "Action taken (words ="
 		return repack_instruct_turns(concat_gametext(true), `{{[INPUT]}}`, `{{[OUTPUT]}}`, `{{[SYSTEM]}}`, true, false).map(msg => {
 			msg.msg = msg.msg.replaceAll("{{[SYSTEM_END]}}", "").replaceAll("{{[INPUT_END]}}", "").replaceAll("{{[OUTPUT_END]}}", "").trim(); 
 			return msg 
