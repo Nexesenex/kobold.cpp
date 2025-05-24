@@ -103,7 +103,6 @@ class __Quant(ABC):
         _type_traits[qtype] = cls
 
     @classmethod
-
     def init_grid(cls):
         if cls.grid is not None or cls.grid_hex is None:
             return

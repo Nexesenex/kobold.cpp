@@ -29,7 +29,7 @@ set(LLAMA_GPROF OFF)
 set(LLAMA_SANITIZE_THREAD OFF)
 set(LLAMA_SANITIZE_ADDRESS OFF)
 set(LLAMA_SANITIZE_UNDEFINED OFF)
-set(LLAMA_SCHED_MAX_COPIES  "2" CACHE STRING "llama: max input copies for pipeline parallelism")
+
 
 # instruction set specific
 option(LLAMA_AVX                    "llama: enable AVX"                                     ON)
@@ -79,7 +79,6 @@ set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_LIBRARIES 0)
 set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_OBJECTS 0)
 
 add_compile_definitions(LOG_DISABLE_LOGS)
-add_compile_definitions(GGML_SCHED_MAX_COPIES=${LLAMA_SCHED_MAX_COPIES})
 
 file(GLOB GGML_SOURCES_CUDA "ggml/src/ggml-cuda/*.cu")
 list(APPEND GGML_SOURCES_CUDA "ggml/src/ggml-cuda.cu")

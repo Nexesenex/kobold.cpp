@@ -2426,6 +2426,7 @@ static vk_submission ggml_vk_begin_submission(vk_device& device, vk_queue& q, bo
 }
 
 
+
 static void ggml_vk_dispatch_pipeline(ggml_backend_vk_context* ctx, vk_context& subctx, vk_pipeline& pipeline, std::initializer_list<vk::DescriptorBufferInfo> const& descriptor_buffer_infos, size_t push_constant_size, const void* push_constants, std::array<uint32_t, 3> elements) {
     const uint32_t wg0 = CEIL_DIV(elements[0], pipeline->wg_denoms[0]);
     const uint32_t wg1 = CEIL_DIV(elements[1], pipeline->wg_denoms[1]);
@@ -4052,7 +4053,7 @@ static vk_pipeline ggml_vk_op_get_pipeline(ggml_backend_vk_context * ctx, const 
     case GGML_OP_ROPE:
         {
             const int mode = ((const int32_t *) dst->op_params)[2];
-            const bool is_neox = mode & 2;
+            const bool is_neox = mode & GGML_ROPE_TYPE_NEOX;
 
             if (is_neox) {
                 if (src0->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F32) {
