@@ -1887,7 +1887,6 @@ def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
     # Global PDF variables
     CLEAN_PATTERN = re.compile(r"[^\u0000-\uFFFF]", re.DOTALL)
     WHITE = set(string.whitespace)
-    parallel_threshold = 14
 
     # Functions for text extraction
     def clean_text(text):
@@ -2107,11 +2106,14 @@ def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
         print(f"Start processing PDF with {total_pages}")
         results = []
         pageTables = []
+
         # for i in tqdm(range(total_pages), desc="Extracting tables"):
         #     pageTables.append({}) # {} 
     
-        if total_pages > parallel_threshold: # and True is False
-            num_cores = min(multiprocessing.cpu_count(), os.cpu_count() or 1)
+        num_cores = os.cpu_count()
+        if (num_cores is None):
+            num_cores = 1
+        if total_pages > num_cores: # and True is False
             chunk_size = max(1, min(total_pages // (num_cores * 8), 20))
             chunks = []
             for i in range(0, total_pages, chunk_size):
@@ -2137,9 +2139,6 @@ def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
 def getTextFromPDFJsonEncapsulatedPyMuPdf(pages):
     import json
     import textwrap
-
-    # Globals
-    PAGE_BREAK = "[[PAGE_BREAK]]"
 
     def col_widths(rows):
         w = []
@@ -2183,7 +2182,7 @@ def getTextFromPDFJsonEncapsulatedPyMuPdf(pages):
         lines = []
         for page_key in sorted(pages, key=lambda k: int(k.split()[1])):
             page_no = page_key.split()[1]
-            lines.append(f"{PAGE_BREAK}\n-------- Page {page_no} --------\n")
+            lines.append(f"\n[PAGE BREAK][{page_no}]\n")
             for blk in pages[page_key]:
                 if blk.get("type") == "paragraph":
                     para = blk["text"].rstrip()
