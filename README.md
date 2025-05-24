@@ -26,7 +26,7 @@ It offers the following functionalities:
 ![418190669-f839ed18-0fb9-4319-82d8-03952c5d3f20](https://github.com/user-attachments/assets/2ee0c202-8f68-44d6-aa6f-18ae35f33857)
 
 - Agent thinking (based on prompts from this cool project [here](https://github.com/Wladastic/mini_autogpt))
-- Improvements to TextDB, such as VectorDB (embedding) support and document support (including upload of text documents, PDFs (SevenOf9 wrote the parser), OCR using the vision model loaded, and transcription from audio)
+- Improvements to TextDB, such as VectorDB (embedding) support and document support (including upload of text documents, PDFs (Vic49 / SevenOf9 wrote the parser), OCR using the vision model loaded, and transcription from audio)
 - Export / Import of WI groups from files
 
 ![8d3e3a9d-08e0-4caf-9ad8-c2d806fec7e0](https://github.com/user-attachments/assets/8d3e3a9d-08e0-4caf-9ad8-c2d806fec7e0)
@@ -87,7 +87,7 @@ Using this function requires the following conditions to be met:
 
 ![image](https://github.com/user-attachments/assets/41ec4f1c-5698-4ef3-ba7c-6998cbc1d8f3)
 
-- Upload document support (including upload of text documents, lorebooks, PDFs (SevenOf9 wrote the parser), OCR using the vision model loaded, and transcription from audio)
+- Upload document support (including upload of text documents, lorebooks, PDFs (Vic49 / SevenOf9 wrote the parser), OCR using the vision model loaded, and transcription from audio)
 - Export / Import of WI groups from files
 
 ## Running the fork
