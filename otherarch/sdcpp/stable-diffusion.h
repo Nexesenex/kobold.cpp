@@ -122,6 +122,9 @@ enum sd_type_t {
     SD_TYPE_Q8_K128  = 150,
     SD_TYPE_Q8_KV    = 151,
     SD_TYPE_IQ5_KS   = 152,
+    SD_TYPE_IQ2_KT   = 153,
+    SD_TYPE_IQ3_KT   = 154,
+    SD_TYPE_IQ4_KT   = 155,
     SD_TYPE_IQ3_KS   = 195,
 
     SD_TYPE_Q4_0_R8   = 202,
