@@ -35,6 +35,7 @@ static __global__ void gelu_f32(const float * x, float * dst, const int k) {
 
 static __global__ void gelu_erf_f32(const float * x, float * dst, int k) {
     const float SQRT_2_INV = 0.70710678118654752440084436210484f;
+    const int i = blockDim.x*blockIdx.x + threadIdx.x;
 
     if (i >= k) {
         return;
