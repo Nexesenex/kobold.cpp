@@ -7,6 +7,10 @@
 #include <cstring>
 #include <future>
 
+#if defined(GGML_USE_CLBLAST)
+#  include "ggml_v3b-opencl.h"
+#endif
+
 static const size_t kiB = 1024;
 static const size_t MiB = 1024*kiB;
 static const size_t GiB = 1024*MiB;
@@ -34,6 +38,7 @@ static std::string llama_model_ftype_name(llama_ftype ftype) {
         case LLAMA_FTYPE_MOSTLY_Q4_1:     return "Q4_1";
         case LLAMA_FTYPE_MOSTLY_Q5_0:     return "Q5_0";
         case LLAMA_FTYPE_MOSTLY_Q5_1:     return "Q5_1";
+        case LLAMA_FTYPE_MOSTLY_Q6_0:     return "Q6_0";
         case LLAMA_FTYPE_MOSTLY_Q8_0:     return "Q8_0";
         case LLAMA_FTYPE_MOSTLY_Q2_K:     return "Q2_K - Medium";
         case LLAMA_FTYPE_MOSTLY_Q2_K_S:   return "Q2_K - Small";
@@ -57,10 +62,27 @@ static std::string llama_model_ftype_name(llama_ftype ftype) {
         case LLAMA_FTYPE_MOSTLY_IQ1_M:    return "IQ1_M - 1.75 bpw";
         case LLAMA_FTYPE_MOSTLY_IQ4_NL:   return "IQ4_NL - 4.5 bpw";
         case LLAMA_FTYPE_MOSTLY_IQ4_XS:   return "IQ4_XS - 4.25 bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ4_KS:   return "IQ4_KS - 4.25 bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ4_KSS:  return "IQ4_KSS - 4.0 bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ2_KS:   return "IQ2_KS - 2.1875 bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ2_KT:   return "IQ2_KT - 2.125 bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ2_K:    return "IQ2_K - 2.375 bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ3_K:    return "IQ3_K - 3.4325 bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ3_KS:   return "IQ3_K - 3.25 bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ3_KL:   return "IQ3_KL - 4 bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ3_KT:   return "IQ3_KT - 3.125 bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ4_KT:   return "IQ4_KT - 4.0 bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ4_K:    return "IQ4_K - 4.5 bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ5_K:    return "IQ5_K - 5.5 bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ5_KS:   return "IQ5_KS - 5.25 bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ6_K:    return "IQ6_K - 6.6 bpw";
+        case LLAMA_FTYPE_MOSTLY_IQ1_BN:   return "IQ1_BN - 1.625 bpw Bitnet";
+        case LLAMA_FTYPE_MOSTLY_IQ2_BN:   return "IQ2_BN - 2.00 bpw Bitnet";
         case LLAMA_FTYPE_MOSTLY_IQ3_S:    return "IQ3_S - 3.4375 bpw";
         case LLAMA_FTYPE_MOSTLY_IQ3_M:    return "IQ3_S mix - 3.66 bpw";
 
         default: return "unknown, may not work";
+
     }
 }
 
@@ -582,6 +604,7 @@ llama_model_loader::llama_model_loader(
 
     // determine file type based on the number of tensors for each quantization and print meta data
     // TODO: make optional
+    // if(false) //disable this log for now
     {
         std::map<enum ggml_type, uint32_t> n_type;
 
@@ -617,6 +640,7 @@ llama_model_loader::llama_model_loader(
             case GGML_TYPE_Q4_1:    ftype = LLAMA_FTYPE_MOSTLY_Q4_1;    break;
             case GGML_TYPE_Q5_0:    ftype = LLAMA_FTYPE_MOSTLY_Q5_0;    break;
             case GGML_TYPE_Q5_1:    ftype = LLAMA_FTYPE_MOSTLY_Q5_1;    break;
+            case GGML_TYPE_Q6_0:    ftype = LLAMA_FTYPE_MOSTLY_Q6_0;    break;
             case GGML_TYPE_Q8_0:    ftype = LLAMA_FTYPE_MOSTLY_Q8_0;    break;
             case GGML_TYPE_Q2_K:    ftype = LLAMA_FTYPE_MOSTLY_Q2_K;    break;
             case GGML_TYPE_Q3_K:    ftype = LLAMA_FTYPE_MOSTLY_Q3_K_M;  break;
@@ -631,8 +655,23 @@ llama_model_loader::llama_model_loader(
             case GGML_TYPE_IQ3_XXS: ftype = LLAMA_FTYPE_MOSTLY_IQ3_XXS; break;
             case GGML_TYPE_IQ1_S:   ftype = LLAMA_FTYPE_MOSTLY_IQ1_S;   break;
             case GGML_TYPE_IQ1_M:   ftype = LLAMA_FTYPE_MOSTLY_IQ1_M;   break;
+            case GGML_TYPE_IQ1_BN:  ftype = LLAMA_FTYPE_MOSTLY_IQ1_BN;  break;
+            case GGML_TYPE_IQ2_BN:  ftype = LLAMA_FTYPE_MOSTLY_IQ2_BN;  break;
             case GGML_TYPE_IQ4_NL:  ftype = LLAMA_FTYPE_MOSTLY_IQ4_NL;  break;
             case GGML_TYPE_IQ4_XS:  ftype = LLAMA_FTYPE_MOSTLY_IQ4_XS;  break;
+            case GGML_TYPE_IQ4_KS:  ftype = LLAMA_FTYPE_MOSTLY_IQ4_KS;  break;
+            case GGML_TYPE_IQ4_KSS: ftype = LLAMA_FTYPE_MOSTLY_IQ4_KSS; break;
+            case GGML_TYPE_IQ2_KS:  ftype = LLAMA_FTYPE_MOSTLY_IQ2_KS;  break;
+            case GGML_TYPE_IQ3_KS:  ftype = LLAMA_FTYPE_MOSTLY_IQ3_KS;  break;
+            case GGML_TYPE_IQ2_KT:  ftype = LLAMA_FTYPE_MOSTLY_IQ2_KT;  break;
+            case GGML_TYPE_IQ2_K:   ftype = LLAMA_FTYPE_MOSTLY_IQ2_K;   break;
+            case GGML_TYPE_IQ3_K:   ftype = LLAMA_FTYPE_MOSTLY_IQ3_K;   break;
+            case GGML_TYPE_IQ3_KT:  ftype = LLAMA_FTYPE_MOSTLY_IQ3_KT;  break;
+            case GGML_TYPE_IQ4_KT:  ftype = LLAMA_FTYPE_MOSTLY_IQ4_KT;  break;
+            case GGML_TYPE_IQ4_K:   ftype = LLAMA_FTYPE_MOSTLY_IQ4_K;   break;
+            case GGML_TYPE_IQ5_K:   ftype = LLAMA_FTYPE_MOSTLY_IQ5_K;   break;
+            case GGML_TYPE_IQ5_KS:  ftype = LLAMA_FTYPE_MOSTLY_IQ5_KS;  break;
+            case GGML_TYPE_IQ6_K:   ftype = LLAMA_FTYPE_MOSTLY_IQ6_K;   break;
             case GGML_TYPE_IQ3_S:   ftype = LLAMA_FTYPE_MOSTLY_IQ3_S;   break;
             default:
                 {
@@ -890,6 +929,24 @@ void llama_model_loader::load_data_for(struct ggml_tensor * cur) const {
     }
 }
 
+static int clblast_offload_fallback_layers = 0;
+static int layer_name_to_number(std::string inputString)
+{
+    size_t firstDotPosition = inputString.find('.');
+    int converted = -1;
+
+    if (firstDotPosition != std::string::npos) {
+        size_t secondDotPosition = inputString.find('.', firstDotPosition + 1);
+        if (secondDotPosition != std::string::npos) {
+            std::string numbersPortion = inputString.substr(firstDotPosition + 1, secondDotPosition - firstDotPosition - 1);
+            try{converted = std::stoi(numbersPortion);}
+            catch (const std::invalid_argument& e) {}
+            catch (const std::out_of_range& e) {}
+        }
+    }
+    return converted;
+}
+
 bool llama_model_loader::load_all_data(
         struct ggml_context * ctx,
         llama_buf_map & bufs,
@@ -1073,6 +1130,18 @@ bool llama_model_loader::load_all_data(
                 }
             }
         }
+
+        #if defined(GGML_USE_CLBLAST)
+        int layernum = layer_name_to_number(cur->name);
+        bool shouldoffload = (layernum>=0 && clblast_offload_fallback_layers>layernum);
+        if(shouldoffload)
+        {
+            cur->clblast_offload_gpu = true;
+            ggml_cl_transform_tensor(cur->data, cur);
+        }else{
+            cur->clblast_offload_gpu = false;
+        }
+        #endif
 
         size_done += n_size;
     }

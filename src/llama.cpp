@@ -1,11 +1,25 @@
-#include "llama-impl.h"
+static bool old_mixtral_warning_showed = false;
 
-#include "llama-chat.h"
-#include "llama-mmap.h"
-#include "llama-vocab.h"
-#include "llama-model-loader.h"
-#include "llama-model-saver.h"
-#include "llama-model.h"
+// we do what we must because we can
+#include "llama-impl.cpp"
+#include "llama-chat.cpp"
+#include "llama-mmap.cpp"
+#include "llama-context.cpp"
+#include "llama-adapter.cpp"
+#include "llama-arch.cpp"
+#include "llama-batch.cpp"
+#include "llama-vocab.cpp"
+#include "llama-grammar.cpp"
+#include "llama-sampling.cpp"
+#include "llama-kv-cache.cpp"
+#include "llama-model-loader.cpp"
+#include "llama-model-saver.cpp"
+#include "llama-model.cpp"
+#include "llama-quant.cpp"
+#include "llama-hparams.cpp"
+#include "llama-graph.cpp"
+#include "llama-io.cpp"
+#include "llama-memory.cpp"
 
 #include "ggml.h"
 #include "ggml-backend.h"
@@ -16,6 +30,16 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <functional>
+#include <numeric>
+#include <type_traits>
+#include <iostream>
+
+#ifdef GGML_USE_CUDA
+#  include "ggml-cuda.h"
+#elif defined(GGML_USE_CLBLAST)
+#  include "ggml_v3b-opencl.h"
+#endif
 
 #if defined(_MSC_VER)
 #pragma warning(disable: 4244 4267) // possible loss of data
@@ -46,8 +70,12 @@ bool llama_supports_mlock(void) {
 }
 
 bool llama_supports_gpu_offload(void) {
+    #if defined(GGML_USE_CLBLAST)
+        return true;
+    #else
     return ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_GPU) != nullptr ||
            llama_supports_rpc();
+    #endif
 }
 
 bool llama_supports_rpc(void) {

@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <unordered_map>
 
 struct LLM_KV;
 struct llama_model_loader;
@@ -39,6 +40,7 @@ struct llama_vocab {
     bool is_user_defined(llama_token id) const;
     bool is_unused      (llama_token id) const;
     bool is_eog         (llama_token id) const;
+    std::set<int> get_eogs() const;
 
     uint8_t     token_to_byte(llama_token id) const;
     llama_token byte_to_token(uint8_t ch)     const;
@@ -124,6 +126,10 @@ struct llama_vocab {
                                       bool   special) const;
 
     void print_info() const;
+
+    void set_eos_bos(llama_token eos, llama_token bos);
+    const std::unordered_map<std::string, llama_token> & get_token_to_id() const;
+    const std::vector<token_data> & get_id_to_token() const;
 
 private:
     struct impl;

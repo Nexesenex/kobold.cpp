@@ -20,6 +20,11 @@
 #include <regex>
 #include <sstream>
 #include <stdexcept>
+#include <iostream>
+
+#if defined(GGML_USE_CLBLAST)
+#  include "ggml_v3b-opencl.h"
+#endif
 
 const char * llm_type_name(llm_type type) {
     switch (type) {
@@ -1457,7 +1462,7 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
 
     const int n_layer = hparams.n_layer;
 
-    const bool use_mmap_buffer = true;
+    bool use_mmap_buffer = true;
 
     LLAMA_LOG_INFO("%s: loading model tensors, this can take a while... (mmap = %s)\n", __func__, ml.use_mmap ? "true" : "false");
 
@@ -1497,20 +1502,27 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
     }
 
     ggml_backend_dev_t cpu_dev = ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU);
+    int i_gpu_start = std::max((int) hparams.n_layer - n_gpu_layers, (int) 0);
+
+    #if defined(GGML_USE_CLBLAST)
+    printf("\nOpenCL GPU Offload Fallback...\n");
+    clblast_offload_fallback_layers = n_gpu_layers;
+    i_gpu_start = std::max((int64_t) hparams.n_layer, (int64_t) 0);
+    #endif
+
     if (cpu_dev == nullptr) {
         throw std::runtime_error(format("%s: no CPU backend found", __func__));
     }
-    const int i_gpu_start = std::max((int) hparams.n_layer - n_gpu_layers, (int) 0);
     const int act_gpu_layers = devices.empty() ? 0 : std::min(n_gpu_layers, (int)n_layer + 1);
     auto get_layer_buft_list = [&](int il) -> llama_model::impl::layer_dev {
         const bool is_swa = il < (int) hparams.n_layer && hparams.is_swa(il);
         if (il < i_gpu_start || (il - i_gpu_start) >= act_gpu_layers) {
-            LLAMA_LOG_DEBUG("load_tensors: layer %3d assigned to device %s, is_swa = %d\n", il, ggml_backend_dev_name(cpu_dev), is_swa);
+            // LLAMA_LOG_DEBUG("load_tensors: layer %3d assigned to device %s, is_swa = %d\n", il, ggml_backend_dev_name(cpu_dev), is_swa);
             return {cpu_dev, &pimpl->cpu_buft_list};
         }
         const int layer_gpu = std::upper_bound(splits.begin(), splits.begin() + n_devices(), float(il - i_gpu_start)/act_gpu_layers) - splits.begin();
         auto * dev = devices.at(layer_gpu);
-        LLAMA_LOG_DEBUG("load_tensors: layer %3d assigned to device %s, is_swa = %d\n", il, ggml_backend_dev_name(dev), is_swa);
+        // LLAMA_LOG_DEBUG("load_tensors: layer %3d assigned to device %s, is_swa = %d\n", il, ggml_backend_dev_name(dev), is_swa);
         return {dev, &pimpl->gpu_buft_list.at(dev)};
     };
 
@@ -1561,6 +1573,9 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
 
     // create tensors for the weights
     {
+        //this is a very dirty kcpp hack that attempts to reuse the most recently use ctx for old mixtral models
+        ggml_context * last_used_ctx = nullptr;
+
         // note: cast to int64_t since we will use these for the tensor dimensions
         const int64_t n_head        = hparams.n_head();
         const int64_t n_head_kv     = hparams.n_head_kv();
@@ -1583,6 +1598,7 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
         }
 
         int n_moved_tensors = 0;
+        int n_total_tensors = 0;
         ggml_tensor * first_moved_tensor = nullptr;
         ggml_backend_buffer_type_t first_moved_from_buft = nullptr;
         ggml_backend_buffer_type_t first_moved_to_buft = nullptr;
@@ -1703,6 +1719,7 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
                 }
             }
 
+            n_total_tensors++;
             ggml_context * ctx = ctx_for_buft(buft);
 
             // if duplicated, check if the original tensor was allocated in the same buffer type context and avoid creating a new one
@@ -1712,6 +1729,7 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
                     return t;
                 }
             }
+            last_used_ctx = ctx; //this caches the last ctx which should match the buft we want for this layer. kobo forgive me.
             return ml.create_tensor(ctx, tn, ne, flags);
         };
 
@@ -1775,15 +1793,55 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
                         } else {
                             layer.ffn_gate_inp  = create_tensor(tn(LLM_TENSOR_FFN_GATE_INP,  "weight", i), {n_embd, n_expert}, 0);
                             layer.ffn_gate_exps = create_tensor(tn(LLM_TENSOR_FFN_GATE_EXPS, "weight", i), {n_embd,   n_ff, n_expert}, TENSOR_NOT_REQUIRED);
-                            layer.ffn_down_exps = create_tensor(tn(LLM_TENSOR_FFN_DOWN_EXPS, "weight", i), {  n_ff, n_embd, n_expert}, 0);
-                            layer.ffn_up_exps   = create_tensor(tn(LLM_TENSOR_FFN_UP_EXPS,   "weight", i), {n_embd,   n_ff, n_expert}, 0);
 
-                            // For Granite MoE Shared
+                            if (layer.ffn_gate_exps) {
+                                layer.ffn_down_exps = create_tensor(tn(LLM_TENSOR_FFN_DOWN_EXPS, "weight", i), {  n_ff, n_embd, n_expert}, 0);
+                                layer.ffn_up_exps   = create_tensor(tn(LLM_TENSOR_FFN_UP_EXPS,   "weight", i), {n_embd,   n_ff, n_expert}, 0);
+                            } else {
+                                // merge split expert into a single tensor for compatibility with older MIXTRAL models
+                                // requires disabling mmap
+                                //slaren removed this in #10026, but i think its useful to keep.
+                                use_mmap_buffer = false;
+                                ml.use_mmap = false;
+                                if(!old_mixtral_warning_showed)
+                                {
+                                    std::cout << "\n!!!!!!\nWARNING: Using extremely outdated MoE quant. Please update it!\nAttempting to apply hacky kcpp fallback, using last ctx:" << last_used_ctx << "\n";
+                                    old_mixtral_warning_showed = true;
+                                }
+                                ggml_context * ctx_split = last_used_ctx;
+                                // for(auto it = ctx_map.cbegin(); it != ctx_map.cend(); ++it)
+                                // {
+                                //     std::cout << "\nName: " << ggml_backend_buft_name(it->first) << " Addr: " << it->second << "\n";
+                                //     ctx_split = it->second;
+                                // }
+
+                                ggml_type type_gate = ml.require_tensor_meta(tn(LLM_TENSOR_FFN_GATE_EXP, "weight", i, 0).str().c_str())->type;
+                                ggml_type type_down = ml.require_tensor_meta(tn(LLM_TENSOR_FFN_DOWN_EXP, "weight", i, 0).str().c_str())->type;
+                                ggml_type type_up   = ml.require_tensor_meta(tn(LLM_TENSOR_FFN_UP_EXP,   "weight", i, 0).str().c_str())->type;
+
+                                layer.ffn_gate_exps = ggml_new_tensor_3d(ctx_split, type_gate, n_embd,   n_ff, n_expert);
+                                layer.ffn_down_exps = ggml_new_tensor_3d(ctx_split, type_down,   n_ff, n_embd, n_expert);
+                                layer.ffn_up_exps   = ggml_new_tensor_3d(ctx_split, type_up,   n_embd,   n_ff, n_expert);
+
+                                ggml_set_name(layer.ffn_gate_exps, tn(LLM_TENSOR_FFN_GATE_EXPS, "weight", i).str().c_str());
+                                ggml_set_name(layer.ffn_down_exps, tn(LLM_TENSOR_FFN_DOWN_EXPS, "weight", i).str().c_str());
+                                ggml_set_name(layer.ffn_up_exps,   tn(LLM_TENSOR_FFN_UP_EXPS,   "weight", i).str().c_str());
+
+                                for (uint32_t x = 0; x < n_expert; ++x) {
+                                    // the individual experts are loaded into a view of the merged tensor
+                                    ml.create_tensor_as_view(ctx_split, layer.ffn_gate_exps, tn(LLM_TENSOR_FFN_GATE_EXP, "weight", i, x), { n_embd, n_ff }, layer.ffn_gate_exps->nb[2]*x);
+                                    ml.create_tensor_as_view(ctx_split, layer.ffn_down_exps, tn(LLM_TENSOR_FFN_DOWN_EXP, "weight", i, x), { n_ff, n_embd }, layer.ffn_down_exps->nb[2]*x);
+                                    ml.create_tensor_as_view(ctx_split, layer.ffn_up_exps,   tn(LLM_TENSOR_FFN_UP_EXP,   "weight", i, x), { n_embd, n_ff }, layer.ffn_up_exps->nb[2]*x);
+                                }
+                            }
+
+ 			                // For Granite MoE Shared
                             if (hparams.n_ff_shexp > 0) {
                                 layer.ffn_gate_shexp = create_tensor(tn(LLM_TENSOR_FFN_GATE_SHEXP, "weight", i), {n_embd, hparams.n_ff_shexp}, 0);
                                 layer.ffn_up_shexp   = create_tensor(tn(LLM_TENSOR_FFN_UP_SHEXP,   "weight", i), {n_embd, hparams.n_ff_shexp}, 0);
                                 layer.ffn_down_shexp = create_tensor(tn(LLM_TENSOR_FFN_DOWN_SHEXP, "weight", i), {hparams.n_ff_shexp, n_embd}, 0);
                             }
+
                         }
                     }
                 } break;
@@ -1979,8 +2037,46 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
 
                         layer.ffn_gate_inp  = create_tensor(tn(LLM_TENSOR_FFN_GATE_INP,  "weight", i), {n_embd, n_expert}, 0);
                         layer.ffn_gate_exps = create_tensor(tn(LLM_TENSOR_FFN_GATE_EXPS, "weight", i), {n_embd, n_ff, n_expert}, TENSOR_NOT_REQUIRED);
-                        layer.ffn_down_exps = create_tensor(tn(LLM_TENSOR_FFN_DOWN_EXPS, "weight", i), {  n_ff, n_embd, n_expert}, 0);
-                        layer.ffn_up_exps   = create_tensor(tn(LLM_TENSOR_FFN_UP_EXPS,   "weight", i), {n_embd,   n_ff, n_expert}, 0);
+                        if (layer.ffn_gate_exps) {
+                            layer.ffn_down_exps = create_tensor(tn(LLM_TENSOR_FFN_DOWN_EXPS, "weight", i), {  n_ff, n_embd, n_expert}, 0);
+                            layer.ffn_up_exps   = create_tensor(tn(LLM_TENSOR_FFN_UP_EXPS,   "weight", i), {n_embd,   n_ff, n_expert}, 0);
+                        } else {
+                            // merge split expert into a single tensor for compatibility with older MIXTRAL models
+                            // requires disabling mmap
+                            //slaren removed this in #10026, but i think its useful to keep.
+                            use_mmap_buffer = false;
+                            ml.use_mmap = false;
+                            if(!old_mixtral_warning_showed)
+                            {
+                                std::cout << "\n!!!!!!\nWARNING: Using extremely outdated MoE quant. Please update it!\nAttempting to apply hacky kcpp fallback, using last ctx:" << last_used_ctx << "\n";
+                                old_mixtral_warning_showed = true;
+                            }
+                            ggml_context * ctx_split = last_used_ctx;
+                            // for(auto it = ctx_map.cbegin(); it != ctx_map.cend(); ++it)
+                            // {
+                            //     std::cout << "\nName: " << ggml_backend_buft_name(it->first) << " Addr: " << it->second << "\n";
+                            //     ctx_split = it->second;
+                            // }
+
+                            ggml_type type_gate = ml.require_tensor_meta(tn(LLM_TENSOR_FFN_GATE_EXP, "weight", i, 0).str().c_str())->type;
+                            ggml_type type_down = ml.require_tensor_meta(tn(LLM_TENSOR_FFN_DOWN_EXP, "weight", i, 0).str().c_str())->type;
+                            ggml_type type_up   = ml.require_tensor_meta(tn(LLM_TENSOR_FFN_UP_EXP,   "weight", i, 0).str().c_str())->type;
+
+                            layer.ffn_gate_exps = ggml_new_tensor_3d(ctx_split, type_gate, n_embd,   n_ff, n_expert);
+                            layer.ffn_down_exps = ggml_new_tensor_3d(ctx_split, type_down,   n_ff, n_embd, n_expert);
+                            layer.ffn_up_exps   = ggml_new_tensor_3d(ctx_split, type_up,   n_embd,   n_ff, n_expert);
+
+                            ggml_set_name(layer.ffn_gate_exps, tn(LLM_TENSOR_FFN_GATE_EXPS, "weight", i).str().c_str());
+                            ggml_set_name(layer.ffn_down_exps, tn(LLM_TENSOR_FFN_DOWN_EXPS, "weight", i).str().c_str());
+                            ggml_set_name(layer.ffn_up_exps,   tn(LLM_TENSOR_FFN_UP_EXPS,   "weight", i).str().c_str());
+
+                            for (uint32_t x = 0; x < n_expert; ++x) {
+                                // the individual experts are loaded into a view of the merged tensor
+                                ml.create_tensor_as_view(ctx_split, layer.ffn_gate_exps, tn(LLM_TENSOR_FFN_GATE_EXP, "weight", i, x), { n_embd, n_ff }, layer.ffn_gate_exps->nb[2]*x);
+                                ml.create_tensor_as_view(ctx_split, layer.ffn_down_exps, tn(LLM_TENSOR_FFN_DOWN_EXP, "weight", i, x), { n_ff, n_embd }, layer.ffn_down_exps->nb[2]*x);
+                                ml.create_tensor_as_view(ctx_split, layer.ffn_up_exps,   tn(LLM_TENSOR_FFN_UP_EXP,   "weight", i, x), { n_embd, n_ff }, layer.ffn_up_exps->nb[2]*x);
+                            }
+                        }
 
                         layer.layer_out_norm   = create_tensor(tn(LLM_TENSOR_LAYER_OUT_NORM, "weight", i), {n_embd}, 0);
                     }
@@ -4111,11 +4207,12 @@ bool llama_model::load_tensors(llama_model_loader & ml) {
                 throw std::runtime_error("unknown architecture");
         }
 
-        if (n_moved_tensors > 0) {
-            LLAMA_LOG_DEBUG("%s: tensor '%s' (%s) (and %d others) cannot be used with preferred buffer type %s, using %s instead\n",
-                __func__, first_moved_tensor->name, ggml_type_name(first_moved_tensor->type), n_moved_tensors - 1,
-                ggml_backend_buft_name(first_moved_from_buft), ggml_backend_buft_name(first_moved_to_buft));
-        }
+        // if (n_moved_tensors > 0) {
+        //     LLAMA_LOG_DEBUG("%s: tensor '%s' (%s) (and %d others) cannot be used with preferred buffer type %s, using %s instead\n",
+        //         __func__, first_moved_tensor->name, ggml_type_name(first_moved_tensor->type), n_moved_tensors - 1,
+        //         ggml_backend_buft_name(first_moved_from_buft), ggml_backend_buft_name(first_moved_to_buft));
+        // }
+        LLAMA_LOG_DEBUG("%s: relocated tensors: %d of %d\n", __func__, n_moved_tensors, n_total_tensors);
     }
 
     ml.done_getting_tensors();
@@ -4438,6 +4535,9 @@ static bool buft_supported(ggml_backend_buffer_type_t buft, ggml_backend_dev_t d
         throw std::runtime_error(format("failed to create ggml context"));
     }
 
+    #if defined(GGML_USE_CLBLAST)
+    ggml_cl_init();
+    #endif
     ggml_backend_buffer_ptr buf { ggml_backend_buft_alloc_buffer(buft, 0) };
     ggml_tensor * op_tensor = fn(ctx.get());
     for (int i = 0; i < GGML_MAX_SRC; i++) {
@@ -10381,6 +10481,7 @@ struct llm_build_deepseek2 : public llm_graph_context {
 
                     // {n_embd_head_qk_nope, kv_lora_rank, n_head} x {n_embd_head_qk_nope, n_tokens, n_head}
                     ggml_tensor * q_nope_absorbed = ggml_mul_mat(ctx0, model.layers[il].wk_b, q_nope);
+                    ggml_mul_mat_set_prec(q_nope_absorbed, GGML_PREC_F32);
                     cb(q_nope_absorbed, "q_nope_absorbed", il);
 
                     // {kv_lora_rank, n_head, n_tokens}

@@ -1,4 +1,9 @@
-#pragma once
+//
+// Copyright (C) 2023-2024 The ggml authors
+// Copyright (C) 2024 Iwan Kawrakow
+// MIT license
+// SPDX-License-Identifier: MIT
+//
 
 #include "common.cuh"
 #include <cstdint>
@@ -41,6 +46,30 @@ template <int vdr> static __device__ __forceinline__ float vec_dot_q4_0_q8_1_imp
 
     // second part effectively subtracts 8 from each quant value
     return d4 * (sumi * ds8f.x - (8*vdr/QI4_0) * ds8f.y);
+}
+
+#define VDR_Q6_0_Q8_1_MMVQ 2
+#define VDR_Q6_0_Q8_1_MMQ  4
+
+template <int vdr> static __device__ __forceinline__ float vec_dot_q6_0_q8_1_impl(
+    const int * vl, const int * vh, const int * u, const float & d6, const half2 & ds8) {
+
+    int sumi = 0;
+
+#pragma unroll
+    for (int i = 0; i < vdr; ++i) {
+        const int vi0 = ((vl[i] >> 0) & 0x0F0F0F0F) | ((vh[i] << 4) & 0x30303030);
+        const int vi1 = ((vl[i] >> 4) & 0x0F0F0F0F) | ((vh[i] << 2) & 0x30303030);
+
+        // SIMD dot product of quantized values
+        sumi = ggml_cuda_dp4a(vi0, u[2*i+0], sumi);
+        sumi = ggml_cuda_dp4a(vi1, u[2*i+1], sumi);
+    }
+
+    const float2 ds8f = __half22float2(ds8);
+
+    // second part effectively subtracts 8 from each quant value
+    return d6 * (sumi * ds8f.x - (32.f*vdr/QI6_0) * ds8f.y);
 }
 
 #define VDR_Q4_1_Q8_1_MMVQ 2
@@ -526,6 +555,32 @@ static __device__ __forceinline__ float vec_dot_q6_K_q8_1_impl_mmq(
     return d6 * sumf_d;
 }
 
+#define VDR_TQ2_0_Q8_1_MMVQ 2
+#define VDR_TQ2_0_Q8_1_MMQ  8
+
+// Can use the same for both mmvq and mmq, because there are no sub-scales in a TQ2_0 block
+template <int vdr> static __device__ __forceinline__ float vec_dot_tq2_0_q8_1_impl(
+    const int * __restrict__ v, const int * __restrict__ u, const float & d2, const float * __restrict__ d8) {
+
+    float sumf = 0.0f;
+
+#pragma unroll
+    for (int i0 = 0; i0 < QR2_0; ++i0) {
+        int sumi = 0;
+
+#pragma unroll
+        for (int i = 0; i < vdr; ++i) {
+            const int vi = (v[i] >> (2*i0)) & 0x03030303;
+
+            sumi = ggml_cuda_dp4a(__vsub4(vi, 0x01010101), u[vdr*i0 + i], sumi); // SIMD dot product
+        }
+
+        sumf += d8[i0] * sumi;
+    }
+
+    return d2 * sumf;
+}
+
 static __device__ __forceinline__ float vec_dot_q4_0_q8_1(
     const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs) {
 
@@ -542,6 +597,26 @@ static __device__ __forceinline__ float vec_dot_q4_0_q8_1(
     }
 
     return vec_dot_q4_0_q8_1_impl<VDR_Q4_0_Q8_1_MMVQ>(v, u, bq4_0->d, bq8_1->ds);
+}
+
+static __device__ __forceinline__ float vec_dot_q6_0_q8_1(
+    const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs) {
+
+    const block_q6_0 * bq6_0 = (const block_q6_0 *) vbq + kbx;
+
+    int vl[VDR_Q6_0_Q8_1_MMVQ];
+    int vh[VDR_Q6_0_Q8_1_MMVQ];
+    int u[2*VDR_Q6_0_Q8_1_MMVQ];
+
+#pragma unroll
+    for (int i = 0; i < VDR_Q6_0_Q8_1_MMVQ; ++i) {
+        vl[i]    = get_int_b2(bq6_0->qs, iqs + i);
+        vh[i]    = get_int_b2(bq6_0->qh,       i) >> 4*(iqs/2);
+        u[2*i+0] = get_int_b4(bq8_1->qs, iqs + i);
+        u[2*i+1] = get_int_b4(bq8_1->qs, iqs + i + QI6_0);
+    }
+
+    return vec_dot_q6_0_q8_1_impl<VDR_Q6_0_Q8_1_MMVQ>(vl, vh, u, bq6_0->d, bq8_1->ds);
 }
 
 
@@ -786,6 +861,37 @@ static __device__ __forceinline__ float vec_dot_q6_K_q8_1(
     }
 
     return vec_dot_q6_K_q8_1_impl_mmvq(vl, vh, u, scales, bq6_K->d, d8);
+}
+
+static __device__ __forceinline__ float vec_dot_tq2_0_q8_1(
+    const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs) {
+
+    const block_tq2_0 * btq2_0 = (const block_tq2_0 *) vbq + kbx;
+
+    // iqs 0..7  all need bq8_offset 0, 1, 2, 3
+    // iqs 8..15 all need bq8_offset 4, 5, 6, 7
+    const int bq8_offset = QR2_0 * (iqs / 8);
+
+    int v[VDR_TQ2_0_Q8_1_MMVQ];
+    int u[QR2_0*VDR_TQ2_0_Q8_1_MMVQ];
+    float d8[QR2_0];
+
+#pragma unroll
+    for (int i = 0; i < VDR_TQ2_0_Q8_1_MMVQ; ++i) {
+        v[i] = get_int_b2(btq2_0->qs, iqs + i);
+    }
+
+#pragma unroll
+    for (int i = 0; i < QR2_0; ++i) {
+        const block_q8_1 * bq8i = bq8_1 + bq8_offset + i;
+
+        for (int j = 0; j < VDR_TQ2_0_Q8_1_MMVQ; ++j) {
+            u[VDR_TQ2_0_Q8_1_MMVQ*i + j] = get_int_b4(bq8i->qs, (iqs % QI8_1) + j);
+        }
+        d8[i] = __low2float(bq8i->ds);
+    }
+
+    return vec_dot_tq2_0_q8_1_impl<VDR_TQ2_0_Q8_1_MMVQ>(v, u, btq2_0->d, d8);
 }
 
 #define VDR_IQ2_XXS_Q8_1_MMVQ 2
@@ -1082,6 +1188,18 @@ static __device__ __forceinline__ int2 get_int_from_table_16(const int & q4) {
     return make_int2(*((const int *) &val0_8), *((const int *) &val1_8));
 }
 
+static __device__ __forceinline__ int2 get_int_from_table_16(const int & q4, const int8_t * values) {
+    const int      q0_32  = (q4 >> 0) & 0x0F0F0F0F;
+    const int8_t * q0_8   = (const int8_t *) &q0_32;
+    const char4    val0_8 = make_char4(values[q0_8[0]], values[q0_8[1]], values[q0_8[2]], values[q0_8[3]]);
+
+    const int      q1_32  = (q4 >> 4) & 0x0F0F0F0F;
+    const int8_t * q1_8   = (const int8_t *) &q1_32;
+    const char4    val1_8 = make_char4(values[q1_8[0]], values[q1_8[1]], values[q1_8[2]], values[q1_8[3]]);
+
+    return make_int2(*((const int *) &val0_8), *((const int *) &val1_8));
+}
+
 #define VDR_IQ4_NL_Q8_1_MMVQ 2
 #define VDR_IQ4_NL_Q8_1_MMQ  4
 
@@ -1133,3 +1251,28 @@ static __device__ __forceinline__ float vec_dot_iq4_xs_q8_1(
     const float d = __half2float(bq4->d) * __low2float(bq8_1[iqs/4].ds);
     return d * sumi;
 }
+
+static __device__ __forceinline__ void get_int_from_table_16_shift(const uint32_t & q4, uint16_t shift, const uint8_t * all_values,
+        int & val1, int & val2) {
+
+    uint32_t aux32; const uint8_t * q8 = (const uint8_t *)&aux32;
+    aux32 = q4 & 0x0f0f0f0f;
+    const uint8_t * values = all_values + 16*(shift & 1);
+    uint16_t v1 = values[q8[0]] | (values[q8[1]] << 8);
+    uint16_t v2 = values[q8[2]] | (values[q8[3]] << 8);
+    val1 = v1 | (v2 << 16);
+    aux32 = (q4 >> 4) & 0x0f0f0f0f;
+    values = all_values + 8*(shift & 2);
+    v1 = values[q8[0]] | (values[q8[1]] << 8);
+    v2 = values[q8[2]] | (values[q8[3]] << 8);
+    val2 = v1 | (v2 << 16);
+}
+
+#define VDR_IQ4_K_Q8_1_MMVQ 4
+#define VDR_IQ4_K_Q8_1_MMQ  4
+
+#define VDR_IQ5_K_Q8_1_MMVQ 4
+#define VDR_IQ5_K_Q8_1_MMQ  4
+
+#define VDR_IQ2_K_Q8_1_MMVQ 4
+#define VDR_IQ2_K_Q8_1_MMQ  4

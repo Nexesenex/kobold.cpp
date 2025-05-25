@@ -222,7 +222,7 @@
 #define GGML_MAX_OP_PARAMS      64
 
 #ifndef GGML_MAX_NAME
-#   define GGML_MAX_NAME        64
+#   define GGML_MAX_NAME        128
 #endif
 
 #define GGML_DEFAULT_N_THREADS  4
@@ -245,6 +245,12 @@
 
 #define GGML_PAD(x, n) (((x) + (n) - 1) & ~((n) - 1))
 
+#define GGML_ASSERT_CONTINUE(x) \
+    do { \
+        if (!(x)) { \
+            fprintf(stderr, "GGML_ASSERT_CONTINUE: %s:%d: %s\n", __FILE__, __LINE__, #x); \
+        } \
+    } while (0)
 #ifndef NDEBUG
 #   define GGML_UNREACHABLE() do { fprintf(stderr, "statement should be unreachable\n"); abort(); } while(0)
 #elif defined(__GNUC__)
@@ -380,15 +386,76 @@ extern "C" {
         GGML_TYPE_F64     = 28,
         GGML_TYPE_IQ1_M   = 29,
         GGML_TYPE_BF16    = 30,
-        // GGML_TYPE_Q4_0_4_4 = 31, support has been removed from gguf files
-        // GGML_TYPE_Q4_0_4_8 = 32,
-        // GGML_TYPE_Q4_0_8_8 = 33,
+        GGML_TYPE_Q4_0_4_4 = 31, //deprecated upstream
+        GGML_TYPE_Q4_0_4_8 = 32, //deprecated upstream
+        GGML_TYPE_Q4_0_8_8 = 33, //deprecated upstream
         GGML_TYPE_TQ1_0   = 34,
         GGML_TYPE_TQ2_0   = 35,
-        // GGML_TYPE_IQ4_NL_4_4 = 36,
+        GGML_TYPE_IQ4_NL_4_4 = 36, //deprecated upstream
         // GGML_TYPE_IQ4_NL_4_8 = 37,
         // GGML_TYPE_IQ4_NL_8_8 = 38,
-        GGML_TYPE_COUNT   = 39,
+        // GGML_TYPE_COUNT   = 39,
+        //
+        GGML_TYPE_I2_S    = 96,
+        //
+        GGML_TYPE_Q8_0_X4 = 97,
+        GGML_TYPE_Q8_1_X4 = 98,
+        GGML_TYPE_Q8_2_X4 = 99,
+        GGML_TYPE_Q6_0    = 133,
+        GGML_TYPE_IQ1_BN  = 134,
+        GGML_TYPE_IQ2_BN  = 135,
+        GGML_TYPE_Q8_K64  = 136,
+        GGML_TYPE_IQ2_K   = 137,
+        GGML_TYPE_IQ3_K   = 138,
+        GGML_TYPE_IQ4_K   = 139,
+        GGML_TYPE_IQ5_K   = 140,
+        GGML_TYPE_IQ6_K   = 141,
+        // depricated: GGML_TYPE_IQ2_TN  = 142,
+        // depricated: GGML_TYPE_IQ1_TN  = 143,
+        GGML_TYPE_IQ4_KS  = 144,
+        GGML_TYPE_IQ2_KS  = 145,
+        GGML_TYPE_IQ4_KSS = 146,
+        GGML_TYPE_Q8_K16  = 147,
+        GGML_TYPE_Q8_K32  = 148,
+        GGML_TYPE_Q8_KR8  = 149,
+        GGML_TYPE_Q8_K128 = 150,
+        GGML_TYPE_Q8_KV   = 151,
+        GGML_TYPE_IQ5_KS  = 152,
+        GGML_TYPE_IQ2_KT  = 153,
+        GGML_TYPE_IQ3_KT  = 154,
+        GGML_TYPE_IQ4_KT  = 155,
+        GGML_TYPE_IQ3_KS  = 195,
+
+        GGML_TYPE_Q4_0_R8   = 202,
+        GGML_TYPE_Q5_0_R4   = 206,
+        GGML_TYPE_Q8_0_R8   = 208,
+        GGML_TYPE_Q2_K_R4   = 210,
+        GGML_TYPE_Q3_K_R4   = 211,
+        GGML_TYPE_Q4_K_R4   = 212,
+        GGML_TYPE_Q5_K_R4   = 213,
+        GGML_TYPE_Q6_K_R4   = 214,
+        GGML_TYPE_IQ2_XXS_R4= 216,
+        GGML_TYPE_IQ2_XS_R4 = 217,
+        GGML_TYPE_IQ3_XXS_R4= 218,
+        GGML_TYPE_IQ1_S_R4  = 219,
+        GGML_TYPE_IQ4_NL_R4 = 220,
+        GGML_TYPE_IQ3_S_R4  = 221,
+        GGML_TYPE_IQ2_S_R4  = 222,
+        GGML_TYPE_IQ4_XS_R8 = 223,
+        GGML_TYPE_IQ1_M_R4  = 229,
+        GGML_TYPE_BF16_R16  = 230,
+        GGML_TYPE_Q6_0_R4   = 233,
+        GGML_TYPE_IQ2_BN_R4 = 335,
+        GGML_TYPE_IQ2_K_R4  = 337,
+        GGML_TYPE_IQ3_K_R4  = 338,
+        GGML_TYPE_IQ4_K_R4  = 339,
+        GGML_TYPE_IQ5_K_R4  = 340,
+        GGML_TYPE_IQ4_KS_R4 = 344,
+        GGML_TYPE_IQ5_KS_R4 = 352,
+        GGML_TYPE_Q8_KV_R8  = 398,
+        GGML_TYPE_Q8_K_R8   = 399,
+
+        GGML_TYPE_COUNT,
     };
 
     // precision
@@ -423,6 +490,59 @@ extern "C" {
         GGML_FTYPE_MOSTLY_IQ4_XS  = 22, // except 1d tensors
         GGML_FTYPE_MOSTLY_IQ1_M   = 23, // except 1d tensors
         GGML_FTYPE_MOSTLY_BF16    = 24, // except 1d tensors
+        // GGML_FTYPE_MOSTLY_Q4_0_4_4 = 25, // except 1d tensors
+        // GGML_FTYPE_MOSTLY_Q4_0_4_8 = 26, // except 1d tensors
+        // GGML_FTYPE_MOSTLY_Q4_0_8_8 = 27, // except 1d tensors
+        //
+        GGML_FTYPE_MOSTLY_Q6_0    = 127, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ1_BN  = 128, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_BN  = 129, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_K   = 130, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ3_K   = 131, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ4_K   = 132, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ5_K   = 133, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ6_K   = 134, // except 1d tensors
+        // depricated: GGML_FTYPE_MOSTLY_IQ2_TN  = 135, // except 1d tensors
+        // depricated: GGML_FTYPE_MOSTLY_IQ1_TN  = 136, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ4_KS  = 137, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_KS  = 138, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ4_KSS = 139, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q8_KV   = 140, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ5_KS  = 141, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_KT  = 142, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ3_KT  = 143, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ4_KT  = 144, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ3_KS  = 188, // except 1d tensors
+                                         //
+        GGML_FTYPE_MOSTLY_Q4_0_R8   = 202, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q8_0_R8   = 207, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q5_0_R4   = 208, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q2_K_R4   = 210, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q3_K_R4   = 211, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q4_K_R4   = 212, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q5_K_R4   = 213, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q6_K_R4   = 214, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_XXS_R4= 215, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_XS_R4 = 216, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ3_XXS_R4= 217, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ1_S_R4  = 218, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ4_NL_R4 = 219, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ3_S_R4  = 220, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_S_R4  = 221, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ4_XS_R8 = 222, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ1_M_R4  = 223, // except 1d tensors
+        GGML_FTYPE_MOSTLY_BF16_R16  = 224, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q6_0_R4   = 227, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_BN_R4 = 329, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_K_R4  = 330, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ3_K_R4  = 331, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ4_K_R4  = 332, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ5_K_R4  = 333, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ4_KS_R4 = 337, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ5_KS_R4 = 341, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q8_KV_R8  = 398, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q8_K_R8   = 399, // except 1d tensors
+
     };
 
     // available tensor operations:
@@ -493,6 +613,8 @@ extern "C" {
         GGML_OP_TIMESTEP_EMBEDDING,
         GGML_OP_ARGSORT,
         GGML_OP_LEAKY_RELU,
+        GGML_OP_SOFTCAP,
+        GGML_OP_SOFT_CAP_MAX,
 
         GGML_OP_FLASH_ATTN_EXT,
         GGML_OP_FLASH_ATTN_BACK,
@@ -603,7 +725,14 @@ extern "C" {
 
         void * extra; // extra things e.g. for ggml-cuda.cu
 
+        union {
         char padding[8];
+        union {
+        char trimmed_pad_1[3];
+        char clblast_offload_gpu; //we sneak the flag for gpu offloading for clblast into the padding
+        char trimmed_pad_2[4];
+        };
+        };
     };
 
     static const size_t GGML_TENSOR_SIZE = sizeof(struct ggml_tensor);
@@ -655,6 +784,8 @@ extern "C" {
     GGML_API const char * ggml_op_name  (enum ggml_op   op);
     GGML_API const char * ggml_op_symbol(enum ggml_op   op);
 
+    GGML_API bool ggml_is_noop(const struct ggml_tensor * tensor);
+
     GGML_API const char * ggml_unary_op_name(enum ggml_unary_op op);
     GGML_API const char * ggml_op_desc(const struct ggml_tensor * t); // unary or op name
 
@@ -674,14 +805,10 @@ extern "C" {
     GGML_API bool ggml_is_3d        (const struct ggml_tensor * tensor);
     GGML_API int  ggml_n_dims       (const struct ggml_tensor * tensor); // returns 1 for scalars
 
-    // returns whether the tensor elements can be iterated over with a flattened index (no gaps, no permutation)
     GGML_API bool ggml_is_contiguous  (const struct ggml_tensor * tensor);
     GGML_API bool ggml_is_contiguous_0(const struct ggml_tensor * tensor); // same as ggml_is_contiguous()
     GGML_API bool ggml_is_contiguous_1(const struct ggml_tensor * tensor); // contiguous for dims >= 1
     GGML_API bool ggml_is_contiguous_2(const struct ggml_tensor * tensor); // contiguous for dims >= 2
-
-    // returns whether the tensor elements are allocated as one contiguous block of memory (no gaps, but permutation ok)
-    GGML_API bool ggml_is_contiguously_allocated(const struct ggml_tensor * tensor);
 
     // true for tensor that is stored in memory as CxWxHxN and has been permuted to WxHxCxN
     GGML_API bool ggml_is_contiguous_channels(const struct ggml_tensor * tensor);
@@ -1174,6 +1301,38 @@ extern "C" {
             struct ggml_context * ctx,
             struct ggml_tensor  * a,
             float                 s);
+
+    GGML_API struct ggml_tensor * ggml_softcap(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * a,
+            float                 s_before,
+            float                 s_after);
+
+    // in-place, returns view(a)
+    GGML_API struct ggml_tensor * ggml_softcap_inplace(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * a,
+            float                 s_before,
+            float                 s_after);
+
+    GGML_API struct ggml_tensor * ggml_softcap_max(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * a,
+            struct ggml_tensor  * mask,
+            float                 scale,
+            float                 max_bias,
+            float                 s_before,
+            float                 s_after);
+
+    // in-place, returns view(a)
+    GGML_API struct ggml_tensor * ggml_softcap_max_inplace(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * a,
+            struct ggml_tensor  * mask,
+            float                 scale,
+            float                 max_bias,
+            float                 s_before,
+            float                 s_after);
 
     // b -> view(a,offset,nb1,nb2,3), return modified a
     GGML_API struct ggml_tensor * ggml_set(
@@ -2162,6 +2321,9 @@ extern "C" {
         bool                     is_quantized;
         ggml_to_float_t          to_float;
         ggml_from_float_t        from_float_ref;
+        // int64_t                  nrows; // number of rows to process simultaneously
+        // int64_t                  ncols; // number of columns to process simultaneously
+        int64_t                  row_meta_size;
     };
 
     GGML_API const struct ggml_type_traits * ggml_get_type_traits(enum ggml_type type);

@@ -92,7 +92,7 @@ void llm_graph_input_out_ids::set_input(const llama_ubatch * ubatch) {
         //GGML_ASSERT(out_ids && "every model that can must skip unused outputs");
 
         if (!out_ids) {
-            LLAMA_LOG_WARN("%s: 'out_ids' is not created\n", __func__);
+            // LLAMA_LOG_WARN("%s: 'out_ids' is not created\n", __func__);
         } else {
             const int64_t n_tokens = ubatch->n_tokens;
 
@@ -1100,19 +1100,8 @@ ggml_tensor * llm_graph_context::build_attn_mha(
         ggml_flash_attn_ext_set_prec(cur, GGML_PREC_F32);
 
         if (v_mla) {
-#if 0
-            // v_mla can be applied as a matrix-vector multiplication with broadcasting across dimension 3 == n_tokens.
-            // However, the code is optimized for dimensions 0 and 1 being large, so this is ineffient.
             cur = ggml_reshape_4d(ctx0, cur, v_mla->ne[0], 1, n_head, n_tokens);
             cur = ggml_mul_mat(ctx0, v_mla, cur);
-#else
-            // It's preferable to do the calculation as a matrix-matrix multiplication with n_tokens in dimension 1.
-            // The permutations are noops and only change how the tensor data is interpreted.
-            cur = ggml_permute(ctx0, cur, 0, 2, 1, 3);
-            cur = ggml_mul_mat(ctx0, v_mla, cur);
-            cur = ggml_permute(ctx0, cur, 0, 2, 1, 3);
-            cur = ggml_cont(ctx0, cur); // Needed because ggml_reshape_2d expects contiguous inputs.
-#endif
         }
 
         cur = ggml_reshape_2d(ctx0, cur, cur->ne[0]*n_head, n_tokens);
@@ -1130,21 +1119,32 @@ ggml_tensor * llm_graph_context::build_attn_mha(
             // kq = 30 * tanh(kq / 30)
             // before the softmax below
 
-            kq = ggml_tanh(ctx0, ggml_scale(ctx0, kq, 0.08838834764831845f/30.0f));
-            kq = ggml_scale(ctx0, kq, 30);
+            //kq = ggml_tanh(ctx, ggml_scale(ctx, kq, 0.08838834764831845f/30.0f));
+            //kq = ggml_scale(ctx, kq, 30);
+
+            kq = ggml_softcap(ctx0, kq, 0.08838834764831845f/30.0f, 30.f);
         }
 
         if (hparams.attn_soft_cap) {
-            kq = ggml_scale(ctx0, kq, 1.0f / hparams.f_attn_logit_softcapping);
-            kq = ggml_tanh (ctx0, kq);
-            kq = ggml_scale(ctx0, kq, hparams.f_attn_logit_softcapping);
+            //kq = ggml_softcap(ctx, kq, 1.0f / hparams.f_attn_logit_softcapping, hparams.f_attn_logit_softcapping);
+            //kq = ggml_scale(ctx, kq, 1.0f / hparams.f_attn_logit_softcapping);
+            //kq = ggml_tanh(ctx, kq);
+            //kq = ggml_scale(ctx, kq, hparams.f_attn_logit_softcapping);
+			
+            // kq = ggml_scale(ctx0, kq, 1.0f / hparams.f_attn_logit_softcapping);
+            // kq = ggml_tanh (ctx0, kq);
+            // kq = ggml_scale(ctx0, kq, hparams.f_attn_logit_softcapping);
+			
+            kq = ggml_softcap_max(ctx0, kq, kq_mask, kq_scale, hparams.f_max_alibi_bias,
+                    1.0f / hparams.f_attn_logit_softcapping, hparams.f_attn_logit_softcapping);
+        } else {
+            if (kq_b) {
+                kq = ggml_add(ctx0, kq, kq_b);
+            }
+            kq = ggml_soft_max_ext(ctx0, kq, kq_mask, kq_scale, hparams.f_max_alibi_bias);
         }
 
-        if (kq_b) {
-            kq = ggml_add(ctx0, kq, kq_b);
-        }
-
-        kq = ggml_soft_max_ext(ctx0, kq, kq_mask, kq_scale, hparams.f_max_alibi_bias);
+        // kq = ggml_soft_max_ext(ctx0, kq, kq_mask, kq_scale, hparams.f_max_alibi_bias);
 
         if (!v_trans) {
             // note: avoid this branch
