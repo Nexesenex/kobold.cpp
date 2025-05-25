@@ -330,7 +330,7 @@ when you can't use the precompiled binary directly, we provide an automated buil
 - You can attempt a CuBLAS build with `LLAMA_CUBLAS=1`, (or `LLAMA_HIPBLAS=1` for AMD). You will need CUDA Toolkit installed. Some have also reported success with the CMake file, though that is more for windows.
 - For a full featured build (all backends), do `make LLAMA_CLBLAST=1 LLAMA_CUBLAS=1 LLAMA_VULKAN=1`. (Note that `LLAMA_CUBLAS=1` will not work on windows, you need visual studio)
 - To make your build sharable and capable of working on other devices, you must use `LLAMA_PORTABLE=1`
-- After all binaries are built, you can run the python script with the command `koboldcpp.py [ggml_model.gguf] [port]`
+- After all binaries are built, you can run the python script with the command `python koboldcpp.py [ggml_model.gguf] [port]`
 
 ### Compiling on Windows
 - You're encouraged to use the .exe released, but if you want to compile your binaries from source at Windows, the easiest way is:
@@ -354,7 +354,7 @@ when you can't use the precompiled binary directly, we provide an automated buil
 - A makefile is provided, simply run `make`.
 - If you want Metal GPU support, instead run `make LLAMA_METAL=1`, note that MacOS metal libraries need to be installed.
 - To make your build sharable and capable of working on other devices, you must use `LLAMA_PORTABLE=1`
-- After all binaries are built, you can run the python script with the command `koboldcpp.py --model [ggml_model.gguf]` (and add `--gpulayers (number of layer)` if you wish to offload layers to GPU).
+- After all binaries are built, you can run the python script with the command `python koboldcpp.py --model [ggml_model.gguf]` (and add `--gpulayers (number of layer)` if you wish to offload layers to GPU).
 
 ### Compiling on Android (Termux Installation)
 - [First, Install and run Termux from F-Droid](https://f-droid.org/en/packages/com.termux/)
@@ -383,7 +383,7 @@ and it will install everything required. Alternatively, you can download the abo
 
 ## AMD Users
 - For most users, you can get very decent speeds by selecting the **Vulkan** option instead, which supports both Nvidia and AMD GPUs.
-- Alternatively, you can try the ROCM fork at https://github.com/YellowRoseCx/koboldcpp-rocm
+- Alternatively, you can try the ROCM fork at https://github.com/YellowRoseCx/koboldcpp-rocm though this may be outdated.
 
 ## Third Party Resources
 - These unofficial resources have been contributed by the community, and may be outdated or unmaintained. No official support will be provided for them!

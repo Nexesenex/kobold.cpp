@@ -303,14 +303,29 @@ static int GetEosID(FileFormat file_format, int32_t n_vocab)
     }
     return eosID;
 }
-static int GetEotID(FileFormat file_format)
+
+static std::vector<int> GetEogIDs(FileFormat file_format, int32_t n_vocab)
 {
+    std::vector<int> alleogs;
+    int eos = GetEosID(file_format, n_vocab);
     if(file_format == FileFormat::GGUF_GENERIC)
     {
         const llama_vocab * tmpvocab = llama_model_get_vocab(llama_get_model(llama_ctx_v4));
-        return llama_vocab_eot(tmpvocab);
+        int eot = llama_vocab_eot(tmpvocab);
+        std::set<int> eogs = tmpvocab->get_eogs();
+        if (eot >= 0) {
+            eogs.insert(eot);
+        }
+        if (eos >= 0) {
+            eogs.insert(eos);
+        }
+        alleogs = std::vector<int>(eogs.begin(), eogs.end());
+    } else {
+        if (eos >= 0) {
+            alleogs.push_back(eos);
+        }
     }
-    return -1;
+    return alleogs;
 }
 
 static float LowestLogit(const std::vector<float> & logits)
@@ -1638,8 +1653,7 @@ void sample_grammar(FileFormat file_format, int32_t n_vocab, llama_token_data_ar
         }
     }
 
-    const llama_token eos = GetEosID(file_format,n_vocab);
-    const llama_token eot = GetEotID(file_format);
+    const std::vector<llama_token> eog_tokens = GetEogIDs(file_format,n_vocab);
 
     std::vector<std::pair<std::vector<uint32_t>, llama_partial_utf8>> candidates_decoded;
     std::vector<llama_grammar_candidate>                              candidates_grammar;
@@ -1647,7 +1661,8 @@ void sample_grammar(FileFormat file_format, int32_t n_vocab, llama_token_data_ar
     for (size_t i = 0; i < candidates->size; ++i) {
         const llama_token id    = candidates->data[i].id;
         const std::string piece = FileFormatTokenizeID(id,file_format);
-        if (id == eos || (id==eot && id!=-1)) {
+        bool found_eog = std::find(eog_tokens.begin(), eog_tokens.end(), id) != eog_tokens.end();
+        if (found_eog) {
             if (!allow_eos) {
                 candidates->data[i].logit = -INFINITY;
             }
@@ -1695,6 +1710,9 @@ int SampleLogits(const float * logits, int n_ctx, int n_vocab, int rep_pen_range
 int mirostat, float mirostat_tau, float mirostat_eta, float dry_multiplier, float dry_base, int dry_allowed_length, int dry_penalty_last_n, float xtc_threshold, float xtc_probability,
 const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dynatemp_range, float dynatemp_exponent, float smoothing_factor)
 {
+    // printf("SampleLogits called with: n_ctx=%d, n_vocab=%d, rep_pen_range=%d, rep_pen=%f, rep_pen_slope=%f, presence_penalty=%f, top_k=%f, top_a=%f, top_p=%f, min_p=%f, typical_p=%f, tfs=%f, nsigma=%f, temp=%f, mirostat=%d, mirostat_tau=%f, mirostat_eta=%f, dry_multiplier=%f, dry_base=%f, dry_allowed_length=%d, dry_penalty_last_n=%d, xtc_threshold=%f, xtc_probability=%f, sampler_order_size=%zu, dynatemp_range=%f, dynatemp_exponent=%f, smoothing_factor=%f\n",
+    // n_ctx, n_vocab, rep_pen_range, rep_pen, rep_pen_slope, presence_penalty, top_k, top_a, top_p, min_p, typical_p, tfs, nsigma, temp, mirostat, mirostat_tau, mirostat_eta, dry_multiplier, dry_base, dry_allowed_length, dry_penalty_last_n, xtc_threshold, xtc_probability, sampler_order.size(), dynatemp_range, dynatemp_exponent, smoothing_factor);
+
     int id = 0;
     std::vector<llama_token_data> candidates;
     candidates.reserve(n_vocab);
@@ -1796,7 +1814,9 @@ const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dyna
 
 static void grammar_accept_token(FileFormat file_format, int32_t n_vocab, struct llama_grammar * grammar, llama_token token)
 {
-    if (token == GetEosID(file_format,n_vocab) || (token!=-1 && token == GetEotID(file_format))) {
+    const std::vector<llama_token> eog_tokens = GetEogIDs(file_format,n_vocab);
+    bool found_eog = std::find(eog_tokens.begin(), eog_tokens.end(), token) != eog_tokens.end();
+    if (found_eog) {
         for (const auto & stack : grammar->stacks) {
             if (stack.empty()) {
                 return;
@@ -2067,7 +2087,17 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     kcpp_data->use_smartcontext = inputs.use_smartcontext;
     kcpp_data->use_contextshift = inputs.use_contextshift;
     kcpp_data->use_fastforward = inputs.use_fastforward;
-    kcpp_data->swa_full = (inputs.use_fastforward || inputs.use_contextshift)?true:false;
+    kcpp_data->swa_full = !inputs.swa_support;
+    if (!kcpp_data->swa_full) {
+        if (inputs.use_contextshift) {
+            kcpp_data->swa_full = true;  //cannot use SWA
+            printf("\nSWA Mode IS DISABLED!\nSWA Mode Cannot be used with Context Shifting!\n");
+        } else if (inputs.use_fastforward) {
+            printf("\nSWA Mode is ENABLED!\nNote that using SWA Mode with Fast Forwarding can lead to degraded recall!\n");
+        } else {
+            printf("\nSWA Mode IS ENABLED!\n");
+        }
+    }
     debugmode = inputs.debugmode;
     draft_ctx = nullptr;
     guidance_ctx = nullptr;
@@ -3782,6 +3812,37 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         }
     }
 
+    //need to add a cursed hack to improve coherency for GLM4, by ensuring injection for gmask, sop and an extra space
+    //any complaints please direct them to henky
+    if (file_format == FileFormat::GGUF_GENERIC && file_format_meta.model_architecture == GGUFArch::ARCH_GLM4) {
+        std::string temp = gpttype_get_chat_template();
+        if (temp.find("[gMASK]<sop>") != std::string::npos) {
+            if (addedmemory == "") {
+                if (!kcpp_data->prompt.empty() && kcpp_data->prompt.rfind("[gMASK]", 0) == 0) {  //check startswith
+                    kcpp_data->prompt.erase(0, 7);
+                }
+                if (!kcpp_data->prompt.empty() && kcpp_data->prompt.rfind("<sop>", 0) == 0) {  //check startswith
+                    kcpp_data->prompt.erase(0, 5);
+                }
+                if (!kcpp_data->prompt.empty() && kcpp_data->prompt[0] == ' ') {  // check for leading space
+                    kcpp_data->prompt.erase(0, 1);
+                }
+                addedmemory = "[gMASK]<sop> ";
+            } else {
+                if (!addedmemory.empty() && addedmemory.rfind("[gMASK]", 0) == 0) {  //check startswith
+                    addedmemory.erase(0, 7);
+                }
+                if (!addedmemory.empty() && addedmemory.rfind("<sop>", 0) == 0) {  //check startswith
+                    addedmemory.erase(0, 5);
+                }
+                if (!addedmemory.empty() && addedmemory[0] == ' ') {  // check for leading space
+                    addedmemory.erase(0, 1);
+                }
+                addedmemory = "[gMASK]<sop> " + addedmemory;
+            }
+        }
+    }
+
     bool stream_sse = inputs.stream_sse;
     bool allow_regular_prints = (!is_quiet && debugmode!=-1);
 
@@ -3994,7 +4055,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     if (debugmode==1 && !is_quiet)
     {
         std::string outstr = "";
-        printf("\n\n[Debug: Dump Raw Input Tokens]\n");
+        printf("\n\n[Debug: Dump %d Raw Input Tokens]\n",embd_inp.size());
         outstr += get_tok_vec_str(embd_inp);
         printf("%s\n", RemoveBell(outstr).c_str());
     }
@@ -4141,7 +4202,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     if (debugmode==1 && !is_quiet)
     {
         std::string outstr = "";
-        // printf("\n[Debug: Dump Forwarded Input Tokens, format: %d]\n", file_format);
+        // printf("\n[Debug: Dump Forwarded Input Tokens]\n");
         // outstr += get_tok_vec_str(embd_inp);
         outstr += "\n\n[Debug: n_past="+std::to_string(n_past)+" Context Size = " + std::to_string(current_context_tokens.size()) + "]\n";
         outstr += get_tok_vec_str(current_context_tokens);
@@ -4317,8 +4378,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 }
             }
 
-            unsigned int eosID = GetEosID(file_format, n_vocab);
-            unsigned int eotID = GetEotID(file_format);
+            const std::vector<llama_token> eog_tokens = GetEogIDs(file_format,n_vocab);
             float * logitsPtr;
             float lowestLogit = 0;
             int btsize = banned_token_ids.size();
@@ -4460,13 +4520,9 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 if (!inputs.allow_eos_token && !inputs.bypass_eos_token)
                 {
                     // set the logit of the eos token to very low to avoid sampling it
-                    if(eosID!=LLAMA_TOKEN_NULL)
+                    for(int i=0;i<eog_tokens.size();++i)
                     {
-                        logitsPtr[eosID] = lowestLogit;
-                    }
-                    if(eotID!=-1)
-                    {
-                        logitsPtr[eotID] = lowestLogit;
+                         logitsPtr[eog_tokens[i]] = lowestLogit;
                     }
                 }
                 if(btsize>0)
@@ -4540,7 +4596,8 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                 for (auto eid : embd)
                 {
                     std::string tokenizedstr = FileFormatTokenizeID(eid, file_format, inputs.render_special);
-                    if(!inputs.render_special && (eid==eosID || (eid==eotID && eid!=-1) || VecContainsIntVal(special_stop_sequence,id))) //extra filter to avoid unwanted special tokens
+                    bool found_eog = std::find(eog_tokens.begin(), eog_tokens.end(), eid) != eog_tokens.end();
+                    if(!inputs.render_special && (found_eog || VecContainsIntVal(special_stop_sequence,id))) //extra filter to avoid unwanted special tokens
                     {
                         tokenizedstr = ""; //prevent render
                     }
@@ -4642,7 +4699,8 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
                 if(!early_abort)
                 {
-                    if(!inputs.bypass_eos_token && inputs.allow_eos_token && (id==eosID || (id==eotID && id!=-1)))
+                    bool found_eog = std::find(eog_tokens.begin(), eog_tokens.end(), id) != eog_tokens.end();
+                    if(!inputs.bypass_eos_token && inputs.allow_eos_token && found_eog)
                     {
                         if(allow_regular_prints)
                         {

@@ -64,11 +64,11 @@ dry_seq_break_max = 512
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.92065"
-LcppVersion = "b5439"
-EsoboldVersion = "RMv1.102"
+KcppVersion = "1.92100"
+LcppVersion = "b5474"
+EsoboldVersion = "RMv1.110m"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/05/21"
+ReleaseDate = "2025/05/25"
 showdebug = True
 # guimode = False
 kcpp_instance = None #global running instance
@@ -218,6 +218,7 @@ class load_model_inputs(ctypes.Structure):
                 ("draft_quant_k", ctypes.c_int),
                 ("draft_quant_v", ctypes.c_int),
                 ("check_slowness", ctypes.c_bool),
+                ("swa_support", ctypes.c_bool),
                 ("quiet", ctypes.c_bool),
                 ("debugmode", ctypes.c_int)]
 
@@ -1044,7 +1045,7 @@ def extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath,
         except Exception:
             modelfile_extracted_meta = None
 
-def autoset_gpu_layers(ctxsize, sdquanted, blasbatchsize, quantkv, flashattention, mmqmode, lowvram, poslayeroffset, neglayeroffset):
+def autoset_gpu_layers(ctxsize, sdquanted, blasbatchsize, quantkv_var, flashattention_var, mmqmode, lowvram, poslayeroffset, neglayeroffset):
     #shitty algo to determine how many layers to use
     global showusedmemwarning, showmultigpuwarning, modelfile_extracted_meta # reference cached values instead
 
@@ -1409,7 +1410,7 @@ def autoset_gpu_layers(ctxsize, sdquanted, blasbatchsize, quantkv, flashattentio
             bbs = blasbatchsize
             bbs_ratio = bbs / 128
 
-            fa = flashattention
+            fa = flashattention_var
             fa_ratio = 1
             if fa == 1:
                 fa_ratio = 0.25
@@ -1429,7 +1430,7 @@ def autoset_gpu_layers(ctxsize, sdquanted, blasbatchsize, quantkv, flashattentio
                 
             demult = 1.03
 
-            kvq = quantkv
+            kvq = quantkv_var
             kvbpw = 0
             if kvq == 0: # F16
                 kvbpw = 32
@@ -1964,6 +1965,7 @@ def load_model(model_filename):
     inputs.override_kv = args.overridekv.encode("UTF-8") if args.overridekv else "".encode("UTF-8")
     inputs.override_tensors = args.overridetensors.encode("UTF-8") if args.overridetensors else "".encode("UTF-8")
     inputs.check_slowness = (not args.highpriority and os.name == 'nt' and 'Intel' in platform.processor())
+    inputs.swa_support = args.useswa
     inputs = set_backend_props(inputs)
     ret = handle.load_model(inputs)
     return ret
@@ -2370,13 +2372,35 @@ def extract_text(genparams):
         print(f"Error extracting text: {str(e)}")
         return ""
 
+def extract_text_from_pdf(docData):
+    import traceback
+    global args
+    
+    decoded_bytes = None
+    try:
+        # Add padding if necessary
+        padding = len(docData) % 4
+        if padding != 0:
+            docData += '=' * (4 - padding)
 
         # Decode the Base64 string
         decoded_bytes = base64.b64decode(docData)
+    except Exception as e:
+        print(f"Error decoding text from PDF: {str(e)}")
+        print(traceback.format_exc())
+        return ""
 
+    try:
+        return getTextFromPDFEncapsulatedPyMuPdf(decoded_bytes)
+    except Exception as e:
+        print(f"Error extracting text with PyMuPdf: {str(e)}")
+        print(traceback.format_exc())
+    
+    try:
         return getTextFromPDFEncapsulated(decoded_bytes)
     except Exception as e:
-        print(f"Error extracting text: {str(e)}")
+        print(f"Error extracting text with PdfPlumber: {str(e)}")
+        print(traceback.format_exc())
         return ""
 
 # PDF extraction code by sevenof9
@@ -2480,28 +2504,50 @@ def getTextFromPDFEncapsulated(decoded_bytes):
 
         for idx, table in enumerate(table_json_outputs, start=1):
             page_output += f'"table {idx}":\n{table}\n'
-
-        print(f"Finished processing PDF page {page_number}")
         return page_number, page_output
 
+    def process_pages(pagesArgs):
+        pageOutputs = []
+        for i in range(0, len(pagesArgs)):
+            pageOutputs.append(process_page(pagesArgs[i]))
+        return pageOutputs
+
     def run_serial(pages):
-        # Seroa; execution
-        return [process_page(args) for args in pages]
+        from tqdm.auto import tqdm
+        results = []
+        for i in tqdm(range(len(pages)), desc="Processing pages"):
+            results.append(process_page(pages[i]))
+        return results
+        # return [process_page(args) for args in pages]
 
     def run_parallel(pages):
         from multiprocessing import cpu_count
+        from tqdm.auto import tqdm
 
         # Parallel execution based on either the number of pages or number of CPU cores
         num_cores = min(cpu_count(), len(pages))
         print(f"Started processing PDF document with {len(pages)} using {num_cores} cores...")
-        with ThreadPoolExecutor(max_workers=5) as exe:
-            return exe.map(process_page, pages)
-            # exe.submit(cube,2)
-            
-            # Maps the method 'cube' with a list of values.
-            
-        # with Pool(num_cores) as pool:
-        #     return pool.map(process_page, pages)
+
+        total_pages = len(pages)
+        num_cores = min(multiprocessing.cpu_count(), os.cpu_count() or 1)
+        chunk_size = max(1, min(total_pages // (num_cores * 8), 20))
+        chunks = []
+        for i in range(0, total_pages, chunk_size):
+            end = min(i + chunk_size, total_pages)
+            chunk = []
+            for pageNo in range(i, end):
+                chunk.append(pages[pageNo])
+            chunks.append(chunk)
+        results = []
+        with ThreadPoolExecutor(max_workers=num_cores) as exe:
+            with tqdm(total=total_pages, desc="Processing pages") as pbar:
+                for chunk_results in exe.map(process_pages, chunks):
+                    results.extend(chunk_results)
+                    pbar.update(len(chunk_results))
+        return results
+
+        # with ThreadPoolExecutor(max_workers=num_cores) as exe:
+        #     return exe.map(process_page, pages)
 
     # decoded_bytes = io.BytesIO(decoded_bytes)  
     # with pdfplumber.open(decoded_bytes) as pdf:
@@ -2515,7 +2561,7 @@ def getTextFromPDFEncapsulated(decoded_bytes):
         }
 
         # Number of pages before multithreading should be used
-        PARALLEL_THRESHOLD = 8
+        PARALLEL_THRESHOLD = 14
 
         pages = [(i, pdf, TEXT_EXTRACTION_SETTINGS) for i in range(num_pages)]
 
@@ -2532,6 +2578,337 @@ def getTextFromPDFEncapsulated(decoded_bytes):
 
         return final_output
     return ""
+
+# Text extraction from PDF by Vic49
+# Modified for compatibility with KCPP by Esolithe
+def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
+    from tqdm.auto import tqdm
+    import fitz
+    import io
+    from concurrent.futures import ThreadPoolExecutor
+    import json
+    import re
+    import multiprocessing
+    import gc
+    import os
+    import string
+
+    # Global PDF variables
+    CLEAN_PATTERN = re.compile(r"[^\u0000-\uFFFF]", re.DOTALL)
+    WHITE = set(string.whitespace)
+
+    # Functions for text extraction
+    def clean_text(text):
+        text = CLEAN_PATTERN.sub("", text)
+        text = re.sub(r"\n{2,}", "\n", text)
+        text = re.sub(r"^\.*\s*", "", text, 1)
+        return text.strip()
+
+    def is_white(text):
+        return WHITE.issuperset(text)
+
+    def get_raw_lines(textpage, clip=None, tolerance=3, ignore_invisible=True):
+        y_delta = tolerance
+        def sanitize_spans(line):
+            line.sort(key=lambda s: s["bbox"].x0)
+            for i in range(len(line) - 1, 0, -1):
+                s0 = line[i - 1]
+                s1 = line[i]
+                delta = s1["size"] * 0.1
+                try:
+                    if s0["bbox"].x1 + delta < s1["bbox"].x0 or (s0["flags"], s0["char_flags"], s0["size"],) != (s1["flags"], s1["char_flags"], s1["size"]):
+                        continue
+                except Exception:
+                    pass
+                    # print("Could not check char flags in bbox for similarity")
+                
+                dashHandler = False
+                try:
+                    if s0["text"].endswith("-") and s1["text"] and s1["text"][0].isalpha():
+                        dashHandler = True
+                except Exception:
+                    pass
+                    # print(f"Failed to check opacity for dash handler on page")
+
+                if dashHandler:
+                    s0["text"] = s0["text"][:-1] + s1["text"]
+                else:
+                    s0["text"] += s1["text"]
+
+                s0["bbox"] |= s1["bbox"]
+                del line[i]
+                line[i - 1] = s0
+            return line
+        if clip is None:
+            clip = textpage.rect
+        blocks = [
+            b
+            for b in textpage.extractDICT()["blocks"]
+            if b["type"] == 0 and not fitz.Rect(b["bbox"]).is_empty
+        ]
+        spans = []
+        for bno, b in enumerate(blocks):
+            for lno, line in enumerate(b["lines"]):
+                if abs(1 - line["dir"][0]) > 1e-3:
+                    continue
+                for sno, s in enumerate(line["spans"]):
+                    sbbox = fitz.Rect(s["bbox"])
+                    if is_white(s["text"]):
+                        continue
+                    try:
+                        if s["alpha"] == 0 and ignore_invisible:
+                            continue
+                    except Exception:
+                        pass
+                        # print(f"Failed to check opacity for text on page")
+                    if abs(sbbox & clip) < abs(sbbox) * 0.8:
+                        continue
+                    if s["flags"] & 1 == 1:
+                        i = 1 if sno == 0 else sno - 1
+                        if len(line["spans"]) > i:
+                            neighbor = line["spans"][i]
+                            sbbox.y1 = neighbor["bbox"][3]
+                        s["text"] = f"[{s['text']}]"
+                    s["bbox"] = sbbox
+                    s["line"] = lno
+                    s["block"] = bno
+                    spans.append(s)
+        if not spans:
+            return []
+        spans.sort(key=lambda s: s["bbox"].y1)
+        nlines = []
+        line = [spans[0]]
+        lrect = spans[0]["bbox"]
+        for s in spans[1:]:
+            sbbox = s["bbox"]
+            sbbox0 = line[-1]["bbox"]
+            if abs(sbbox.y1 - sbbox0.y1) <= y_delta or abs(sbbox.y0 - sbbox0.y0) <= y_delta:
+                line.append(s)
+                lrect |= sbbox
+                continue
+            line = sanitize_spans(line)
+            nlines.append([lrect, line])
+            line = [s]
+            lrect = sbbox
+        line = sanitize_spans(line)
+        nlines.append([lrect, line])
+        return nlines
+
+    def column_boxes(page, footer_margin=50, header_margin=50):
+        clip = fitz.Rect(page.rect)
+        clip.y1 -= footer_margin
+        clip.y0 += header_margin
+        blocks = [
+            fitz.Rect(b["bbox"])
+            for b in page.get_text("dict")["blocks"]
+            if b["type"] == 0
+        ]
+        blocks = [b for b in blocks if not b.is_empty and b.intersects(clip)]
+        blocks.sort(key=lambda r: (r.x0, r.y0))
+        columns = []
+        threshold = max(page.rect.width * 0.05, 40)
+        for r in blocks:
+            placed = False
+            for col in columns:
+                if abs(r.x0 - col[0].x0) < threshold:
+                    col.append(r)
+                    placed = True
+                    break
+            if not placed:
+                columns.append([r])
+        ordered = []
+        columns.sort(key=lambda c: c[0].x0)
+        for col in columns:
+            col.sort(key=lambda r: r.y0)
+            ordered.extend(col)
+        return ordered
+
+    def format_span(s):
+        txt = s["text"]
+        bold = False
+        try:
+            bold = (s["flags"] & 16) or (s["char_flags"] & 8)
+        except Exception:
+            pass
+            # print("Could not check for bold state on page")
+        italic = s["flags"] & 2
+        if bold and italic:
+            txt = f"***{txt}***"
+        elif bold:
+            txt = f"**{txt}**"
+        elif italic:
+            txt = f"*{txt}*"
+        return txt
+
+    def split_table_and_footnote(data):
+        if data and data[-1]:
+            non_empty = [c for c in data[-1] if c and str(c).strip()]
+            if len(non_empty) == 1:
+                footnote = non_empty[0]
+                return data[:-1], footnote
+        return data, None
+
+    def extract_page(doc, pageTables, page_number):
+        page = doc[page_number]
+        label = page.get_label() or str(page_number + 1)
+        textpage = page.get_textpage()
+        tables_block = []
+
+        # tables_block = page.get_text("dict")["blocks"]
+        # table_rects = []
+
+        tables = {} # page.find_tables() # pageTables[page_number]
+        table_rects = []
+        if tables and tables.tables:
+            for table in tables.tables:
+                if table.row_count >= 2 and table.col_count >= 2:
+                    rows = table.extract()
+                    rows, footnote = split_table_and_footnote(rows)
+                    if rows:
+                        table_dict = {
+                            "bbox": tuple(table.bbox),
+                            "type": "table",
+                            "rows": rows,
+                        }
+                        if footnote:
+                            table_dict["footnote"] = footnote
+                        tables_block.append(table_dict)
+                        table_rects.append(fitz.Rect(table.bbox))
+        tables_block.sort(key=lambda t: (t["bbox"][1], t["bbox"][0]))
+        rects = [
+            r
+            for r in column_boxes(page)
+            if not any(r.intersects(tr) for tr in table_rects)
+        ]
+        blocks = []
+        while tables_block and tables_block[0]["bbox"][1] < rects[0].y0 if rects else False:
+            blocks.append(tables_block.pop(0))
+        for rect in rects:
+            while tables_block and tables_block[0]["bbox"][1] < rect.y0:
+                blocks.append(tables_block.pop(0))
+            lines = []
+            for _, spans in get_raw_lines(textpage, clip=rect):
+                span_line = "".join(format_span(s) for s in spans)
+                if span_line.strip():
+                    lines.append(span_line)
+            text_block = clean_text("\n".join(lines))
+            if text_block:
+                blocks.append({"type": "paragraph", "text": text_block})
+        blocks.extend(tables_block)
+        page = None
+        gc.collect()
+        return f"Page {label}", blocks
+
+    def process_pages(args):
+        (doc, pageTables, start_page, end_page) = args
+        results = []
+        for i in range(start_page, end_page):
+            results.append(extract_page(doc, pageTables, i))
+        return results
+
+    # Get bytes as a readable form
+    decoded_bytes = io.BytesIO(decoded_bytes)
+    
+    # Processing logic
+    with fitz.open("pdf", decoded_bytes) as doc:
+        total_pages = len(doc)
+        print(f"Start processing PDF with {total_pages}")
+        results = []
+        pageTables = []
+
+        # for i in tqdm(range(total_pages), desc="Extracting tables"):
+        #     pageTables.append({}) # {} 
+    
+        num_cores = os.cpu_count()
+        if (num_cores is None):
+            num_cores = 1
+        if total_pages > num_cores: # and True is False
+            chunk_size = max(1, min(total_pages // (num_cores * 8), 20))
+            chunks = []
+            for i in range(0, total_pages, chunk_size):
+                end = min(i + chunk_size, total_pages)
+                chunks.append((doc, pageTables, i, end))
+            with ThreadPoolExecutor(max_workers=num_cores) as exe:
+                with tqdm(total=total_pages, desc="Processing pages") as pbar:
+                    # for chunk_results in pool.starmap(process_pages, chunks):
+                    for chunk_results in exe.map(process_pages, chunks):
+                        results.extend(chunk_results)
+                        pbar.update(len(chunk_results))
+        else:
+            for i in tqdm(range(total_pages), desc="Processing pages"):
+                results.append(extract_page(doc, pageTables, i))
+        result_dict = dict(results)
+        
+        print(f"Finish processing PDF with {total_pages}")
+        return result_dict
+    return None
+
+# Text extraction from PDF by Vic49
+# Modified for compatibility with KCPP by Esolithe
+def getTextFromPDFJsonEncapsulatedPyMuPdf(pages):
+    import json
+    import textwrap
+
+    def col_widths(rows):
+        w = []
+        for row in rows:
+            for i, cell in enumerate(row):
+                raw = str(cell or "")
+                lines = raw.splitlines() or [""]          # ← ensure non-empty
+                longest = max(len(l) for l in lines)
+                if i >= len(w):
+                    w.append(longest)
+                else:
+                    w[i] = max(w[i], longest)
+        return w
+
+    def pad_cell(cell, width):
+        lines = (str(cell or "").splitlines() or [""])   # ← ensure non-empty
+        return "\n".join(l.ljust(width) for l in lines)
+
+    def format_table(rows):
+        widths = col_widths(rows)
+        bar = " | "
+        out = []
+        for r, row in enumerate(rows):
+            padded = [pad_cell(c, widths[i]) for i, c in enumerate(row)]
+            split  = [c.splitlines() for c in padded]
+            height = max(len(c) for c in split)
+            for line in range(height):
+                out.append(
+                    bar.join(
+                        split[i][line] if line < len(split[i]) else " " * widths[i]
+                        for i in range(len(widths))
+                    )
+                )
+            if r == 0:
+                out.append(bar.join("-" * w for w in widths))
+        return "\n".join(out)
+
+    if (json is not None):
+        pages = pages
+
+        lines = []
+        for page_key in sorted(pages, key=lambda k: int(k.split()[1])):
+            page_no = page_key.split()[1]
+            lines.append(f"\n[PAGE BREAK][{page_no}]\n")
+            for blk in pages[page_key]:
+                if blk.get("type") == "paragraph":
+                    para = blk["text"].rstrip()
+                    lines.append(textwrap.fill(para, 100, replace_whitespace=False))
+                    lines.append("")
+                elif blk.get("type") == "table":
+                    lines.append(format_table(blk["rows"]))
+                    if "footnote" in blk:
+                        lines.append(blk["footnote"])
+                    lines.append("")
+
+        return "\n".join(lines)
+    else:
+        return ""
+
+def getTextFromPDFEncapsulatedPyMuPdf(decoded_bytes):
+    return getTextFromPDFJsonEncapsulatedPyMuPdf(getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes))
 
 def whisper_generate(genparams):
     global args
@@ -2905,6 +3282,8 @@ def extract_json_from_string(input_string):
     parsed_json = None
     try: # First check if model exported perfect json
         parsed_json = json.loads(input_string)
+        if not isinstance(parsed_json, list):
+            parsed_json = [parsed_json]
         return parsed_json
     except Exception:
         pass
@@ -2920,6 +3299,8 @@ def extract_json_from_string(input_string):
         for potential_json in potential_jsons:
             try:
                 parsed_json = json.loads(potential_json)
+                if not isinstance(parsed_json, list):
+                    parsed_json = [parsed_json]
                 return parsed_json
             except Exception:
                 continue
@@ -2961,6 +3342,35 @@ def parse_last_logprobs(lastlogprobs):
         logprobsdict['top_logprobs'].append(tops)
         logprobsdict['content'].append(lp_content_item)
     return logprobsdict
+
+def extract_tool_info_from_tool_array(chosen_tool, tools_array):
+    found_function = ""
+    found_tooljson = None
+    try:
+        if isinstance(chosen_tool, str):
+            found_function = chosen_tool
+        elif isinstance(chosen_tool, dict): #if we can match the tool name, we must use that tool, remove all other tools
+            found_function = chosen_tool.get('function').get('name')
+        #if we find the function in tools, remove all other tools except the one matching the function name
+        for tool in tools_array:
+            if found_function and tool.get('type') == "function" and tool.get('function').get('name').lower() == found_function.lower():
+                found_tooljson = tool
+                break
+    except Exception:
+        # In case of any issues, just revert back to no specified function
+        print("Tools parsing not valid - discarded")
+        pass
+    return found_tooljson
+
+def extract_all_names_from_tool_array(tools_array):
+    toolnames = []
+    for tool in tools_array:
+        try:
+            if tool.get('type') == "function" and tool.get('function').get('name'):
+                toolnames.append(tool.get('function').get('name'))
+        except Exception:
+            pass
+    return toolnames
 
 def transform_genparams(genparams, api_format):
     global chatcompl_adapter, maxctx
@@ -3043,32 +3453,6 @@ number ::= ("-"? ([0-9] | [1-9] [0-9]{0,15})) ("." [0-9]+)? ([eE] [-+]? [1-9] [0
 ws ::= | " " | "\n" [ \t]{0,20}
 """
 
-            # tools handling
-            tools_array = genparams.get('tools', [])
-            chosen_tool = genparams.get('tool_choice', "auto")
-            tool_json_formatting_instruction = "\nUse this style of JSON object formatting to give your answer if you think the user is asking you to perform an action: " + json.dumps([{"id": "insert an id for the response", "type": "function", "function": {"name": "insert the name of the function you want to call", "arguments": {"first property key": "first property value", "second property key": "second property value"}}}], indent=0)
-            if tools_array and len(tools_array) > 0 and chosen_tool is not None:
-                try:
-                    specified_function = ""
-                    if isinstance(chosen_tool, str):
-                        specified_function = chosen_tool
-                    elif isinstance(chosen_tool, dict): #if we can match the tool name, we must use that tool, remove all other tools
-                        specified_function = chosen_tool.get('function').get('name')
-                    located_tooljson = None
-                    #if we find the function in tools, remove all other tools except the one matching the function name
-                    for tool in tools_array:
-                        if specified_function and tool.get('type') == "function" and tool.get('function').get('name') == specified_function:
-                            located_tooljson = tool
-                            break
-                    if located_tooljson:
-                        tools_array = []
-                        tools_array.append(located_tooljson)
-                        tool_json_formatting_instruction = f"\nThe user is asking you to use the style of this JSON object formatting to complete the parameters for the specific function named {specified_function} in the following format: " + json.dumps([{"id": "insert an id for the response", "type": "function", "function": {"name": f"{specified_function}", "arguments": {"first property key": "first property value", "second property key": "second property value"}}}], indent=0)
-                except Exception:
-                    # In case of any issues, just revert back to no specified function
-                    print("Tools parsing not valid - discarded")
-                    pass
-
             # handle structured outputs
             respformat = genparams.get('response_format', None)
             if respformat:
@@ -3114,15 +3498,17 @@ ws ::= | " " | "\n" [ \t]{0,20}
                                 messages_string += "\n(Attached Image)\n"
                 # If last message, add any tools calls after message content and before message end token if any
                 if message['role'] == "user" and message_index == len(messages_array):
-                    # Check if user is passing a openai tools array, if so add to end of prompt before assistant prompt unless tool_choice has been set to None
+                    # tools handling: Check if user is passing a openai tools array, if so add to end of prompt before assistant prompt unless tool_choice has been set to None
+                    tools_array = genparams.get('tools', [])
+                    chosen_tool = genparams.get('tool_choice', "auto")
+                    # first handle auto mode, determine whether a tool is needed
                     if tools_array and len(tools_array) > 0 and chosen_tool is not None and chosen_tool!="none":
-                        #if auto mode, determine whether a tool is needed
                         tools_string = json.dumps(tools_array, indent=0)
                         should_use_tools = True
                         user_end = assistant_message_start
                         if chosen_tool=="auto":
                             # if you want a different template, you can set 'custom_tools_prompt' in the chat completions adapter as follows
-                            custom_tools_prompt = adapter_obj.get("custom_tools_prompt", "Can the user query be answered by a listed tool? (One word response: yes or no):")
+                            custom_tools_prompt = adapter_obj.get("custom_tools_prompt", "Can the user query be answered by a listed tool above? (One word response: yes or no):")
                             # note: message string already contains the instruct start tag!
                             pollgrammar = r'root ::= "yes" | "no" | "Yes" | "No" | "YES" | "NO"'
                             temp_poll = {
@@ -3141,15 +3527,64 @@ ws ::= | " " | "\n" [ \t]{0,20}
                                 print(f"\nRelevant tool is listed: {temp_poll_result['text']} ({should_use_tools})")
 
                         if should_use_tools:
-                            messages_string += tools_string
-                            messages_string += tool_json_formatting_instruction
+                            #first, try and extract a specific tool if selected
+                            used_tool_json = extract_tool_info_from_tool_array(chosen_tool, tools_array)
+                            if used_tool_json: #already found the tool we want, remove all others
+                                pass
+                            elif len(tools_array)==1:
+                                used_tool_json = tools_array[0]
+                            else: # we have to find the tool we want the old fashioned way
+                                toolnames = extract_all_names_from_tool_array(tools_array)
+                                if len(toolnames) == 1:
+                                     used_tool_json = extract_tool_info_from_tool_array(toolnames[0], tools_array)
+                                else:
+                                    pollgrammar = ""
+                                    for name in toolnames:
+                                        pollgrammar += ("" if pollgrammar=="" else " | ")
+                                        pollgrammar += "\"" + name + "\""
+                                    pollgrammar = r'root ::= ' + pollgrammar
+                                    decide_tool_prompt = "Which of the listed tools should be used? Pick exactly one. (Reply directly with the selected tool's name):"
+                                    temp_poll = {
+                                        "prompt": f"{messages_string}\n\nTool List:\n{tools_string}\n\n{decide_tool_prompt}{user_end}",
+                                        "max_length":8,
+                                        "temperature":0.1,
+                                        "top_k":1,
+                                        "rep_pen":1,
+                                        "ban_eos_token":False,
+                                        "grammar":pollgrammar
+                                        }
+                                    temp_poll_result = generate(genparams=temp_poll)
+                                    if temp_poll_result:
+                                        raw = temp_poll_result['text'].lower()
+                                        for name in toolnames:
+                                            if name.lower() in raw:
+                                                used_tool_json = extract_tool_info_from_tool_array(name, tools_array)
+                                                if not args.quiet:
+                                                    print(f"\nAttempting to use tool: {name}")
+                                                break
 
-                            # Set temperature low automatically if function calling
-                            genparams["temperature"] = 0.1
-                            genparams["using_openai_tools"] = True
+                            if used_tool_json:
+                                toolparamjson = None
+                                toolname = None
+                                # Set temperature low automatically if function calling
+                                genparams["temperature"] = 0.1
+                                genparams["using_openai_tools"] = True
+                                # Set grammar to llamacpp example grammar to force json response (see https://github.com/ggerganov/llama.cpp/blob/master/grammars/json_arr.gbnf)
+                                genparams["grammar"] = jsongrammar
+                                try:
+                                    toolname = used_tool_json.get('function').get('name')
+                                    toolparamjson = used_tool_json.get('function').get('parameters')
+                                    bettergrammarjson = {"type":"array","items":{"type":"object","properties":{"id":{"type":"string","enum":["call_001"]},"type":{"type":"string","enum":["function"]},"function":{"type":"object","properties":{"name":{"type":"string"},"arguments":{}},"required":["name","arguments"],"additionalProperties":False}},"required":["id","type","function"],"additionalProperties":False}}
+                                    bettergrammarjson["items"]["properties"]["function"]["properties"]["arguments"] = toolparamjson
+                                    decoded = convert_json_to_gbnf(bettergrammarjson)
+                                    if decoded:
+                                        genparams["grammar"] = decoded
+                                except Exception:
+                                    pass
+                                tool_json_formatting_instruction = f"\nPlease use the provided schema to fill the parameters to create a function call for {toolname}, in the following format: " + json.dumps([{"id": "call_001", "type": "function", "function": {"name": f"{toolname}", "arguments": {"first property key": "first property value", "second property key": "second property value"}}}], indent=0)
+                                messages_string += f"\n\nJSON Schema:\n{used_tool_json}\n\n{tool_json_formatting_instruction}{user_end}"
 
-                            # Set grammar to llamacpp example grammar to force json response (see https://github.com/ggerganov/llama.cpp/blob/master/grammars/json_arr.gbnf)
-                            genparams["grammar"] = jsongrammar
+
                 if message['role'] == "system":
                     messages_string += system_message_end
                 elif message['role'] == "user":
@@ -3638,6 +4073,7 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                 if tool_calls and len(tool_calls)>0:
                     for tc in tool_calls:
                         tcarg = tc.get("function",{}).get("arguments",None)
+                        tc["id"] = f"call_{random.randint(10000, 99999)}"
                         if tcarg and not isinstance(tcarg, str):
                             tc["function"]["arguments"] = json.dumps(tcarg)
                     recvtxt = None
@@ -4126,7 +4562,7 @@ Change Mode<br>
             if friendlysdmodelname=="inactive" or fullsdmodelpath=="":
                 response_body = (json.dumps([]).encode())
             else:
-                response_body = (json.dumps([{"name":"Euler","aliases":["k_euler"],"options":{}},{"name":"Euler a","aliases":["k_euler_a","k_euler_ancestral"],"options":{}},{"name":"Heun","aliases":["k_heun"],"options":{}},{"name":"DPM2","aliases":["k_dpm_2"],"options":{}},{"name":"DPM++ 2M","aliases":["k_dpmpp_2m"],"options":{}},{"name":"LCM","aliases":["k_lcm"],"options":{}}]).encode())
+                response_body = (json.dumps([{"name":"Euler","aliases":["k_euler"],"options":{}},{"name":"Euler a","aliases":["k_euler_a","k_euler_ancestral"],"options":{}},{"name":"Heun","aliases":["k_heun"],"options":{}},{"name":"DPM2","aliases":["k_dpm_2"],"options":{}},{"name":"DPM++ 2M","aliases":["k_dpmpp_2m"],"options":{}},{"name":"DDIM","aliases":["ddim"],"options":{}},{"name":"LCM","aliases":["k_lcm"],"options":{}}]).encode())
         elif self.path.endswith('/sdapi/v1/latent-upscale-modes'):
            response_body = (json.dumps([]).encode())
         elif self.path.endswith('/sdapi/v1/upscalers'):
@@ -4351,7 +4787,9 @@ Change Mode<br>
                 return
             try:
                 genparams = json.loads(body)
-                schema = genparams.get('schema', {})
+                schema = genparams.get('schema', None)
+                if not schema:
+                    schema = genparams
                 decoded = convert_json_to_gbnf(schema)
                 response_body = (json.dumps({"result": decoded,"success":(True if decoded else False)}).encode())
             except Exception as e:
@@ -5337,7 +5775,7 @@ def show_gui():
                     ctk.set_widget_scaling(smallratio)
                     changerunmode(1,1,1)
                     togglerope(1,1,1)
-                    toggleflashattn(1,1,1)
+                    # toggleflashattn(1,1,1)
                     togglectxshift(1,1,1)
                     togglehorde(1,1,1)
                     toggletaesd(1,1,1)
@@ -5489,11 +5927,12 @@ def show_gui():
     poslayeroffset_var = ctk.IntVar()
     neglayeroffset_var = ctk.IntVar()
 
-    contextshift = ctk.IntVar(value=1)
-    fastforward = ctk.IntVar(value=1)
-    remotetunnel = ctk.IntVar(value=0)
-    smartcontext = ctk.IntVar()
-    flashattention = ctk.IntVar(value=0)
+    contextshift_var = ctk.IntVar(value=1)
+    fastforward_var = ctk.IntVar(value=1)
+    swa_var = ctk.IntVar(value=0)
+    remotetunnel_var = ctk.IntVar(value=0)
+    smartcontext_var = ctk.IntVar()
+    flashattention_var = ctk.IntVar(value=0)
     context_var = ctk.IntVar()
     customrope_var = ctk.IntVar()
     customrope_scale = ctk.StringVar(value="1.0")
@@ -5837,6 +6276,9 @@ def show_gui():
     def on_picked_model_file(filepath):
         if filepath and (filepath.lower().endswith('.kcpps') or filepath.lower().endswith('.kcppt')):
             #load it as a config file instead
+            if filepath.lower().endswith('.kcpps'):
+                global runmode_untouched
+                runmode_untouched = False
             with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
                 dict = json.load(f)
                 import_vars(dict)
@@ -5869,9 +6311,9 @@ def show_gui():
         pass
 
     def changed_gpulayers_estimate(*args):
-        predicted_gpu_layers = autoset_gpu_layers(int(contextsize_text[context_var.get()]),(sd_quant_var.get()==1),int(blasbatchsize_values[int(blas_size_var.get())]),int(quantkv_values[int(quantkv_var.get())]),flashattention.get(),mmq_var.get(),lowvram_var.get(),int(poslayeroffset_values[int(poslayeroffset_var.get())]),int(neglayeroffset_values[int(neglayeroffset_var.get())]))
+        predicted_gpu_layers = autoset_gpu_layers(int(contextsize_text[context_var.get()]),(sd_quant_var.get()==1),int(blasbatchsize_values[int(blas_size_var.get())]),int(quantkv_values[int(quantkv_var.get())]),flashattention_var.get(),mmq_var.get(),lowvram_var.get(),int(poslayeroffset_values[int(poslayeroffset_var.get())]),int(neglayeroffset_values[int(neglayeroffset_var.get())]))
 
-        # predicted_gpu_layers = autoset_gpu_layers(int(contextsize_text[context_var.get()]),(sd_quant_var.get()==1),int(blasbatchsize_values[int(blas_size_var.get())]),(quantkv_var.get() if flashattention.get()==1 else 0))
+        # predicted_gpu_layers = autoset_gpu_layers(int(contextsize_text[context_var.get()]),(sd_quant_var.get()==1),int(blasbatchsize_values[int(blas_size_var.get())]),(quantkv_var.get() if flashattention_var.get()==1 else 0))
 
         max_gpu_layers = (f"/{modelfile_extracted_meta[1][0]+3}" if (modelfile_extracted_meta and modelfile_extracted_meta[1] and modelfile_extracted_meta[1][0]!=0) else "")
         index = runopts_var.get()
@@ -5922,32 +6364,27 @@ def show_gui():
     gpu_choice_var.trace("w", changed_gpu_choice_var)
     gpulayers_var.trace("w", changed_gpulayers_estimate)
 
+    def toggleswa(a,b,c):
+        if swa_var.get()==1:
+            contextshift_var.set(0)
+
     def togglefastforward(a,b,c):
-        if fastforward.get()==0:
-            contextshift.set(0)
-            smartcontext.set(0)
-            togglectxshift(1,1,1)
+        if fastforward_var.get()==0:
+            contextshift_var.set(0)
+            smartcontext_var.set(0)
 
     def togglectxshift(a,b,c):
-        if contextshift.get()==0:
+        if contextshift_var.get()==0:
             smartcontextbox.grid()
         else:
-            fastforward.set(1)
+            fastforward_var.set(1)
+            swa_var.set(0)
             smartcontextbox.grid_remove()
 
+    # def toggleflashattn(a,b,c):
         # qkvslider.grid()
         # qkvlabel.grid()
-        # if flashattention.get()==0 and quantkv_var.get()>0:
-            # noqkvlabel.grid()
-        # else:
-            # noqkvlabel.grid_remove()
-
-
-    def toggleflashattn(a,b,c):
-        qkvslider.grid()
-        qkvlabel.grid()
-
-        # if flashattention.get()==0 and quantkv_var.get()>0:
+        # if flashattention_var.get()==0 and quantkv_var.get()>0:
             # noqkvlabel.grid()
         # else:
             # noqkvlabel.grid_remove()
@@ -6056,15 +6493,15 @@ def show_gui():
     quick_boxes = {
         "Launch Browser": [launchbrowser, "Launches your default browser after model loading is complete"],
         "Use MMAP": [usemmap,  "Use mmap to load models if enabled, model will not be unloadable"],
-        "Use ContextShift": [contextshift, "Uses Context Shifting to reduce reprocessing.\nRecommended. Check the wiki for more info."],
-        "Remote Tunnel": [remotetunnel,  "Creates a trycloudflare tunnel.\nAllows you to access KoboldCpp/Croco.Cpp from other devices over an internet URL."],
+        "Use ContextShift": [contextshift_var, "Uses Context Shifting to reduce reprocessing.\nRecommended. Check the wiki for more info."],
+        "Remote Tunnel": [remotetunnel_var,  "Creates a trycloudflare tunnel.\nAllows you to access KoboldCpp/Croco.Cpp from other devices over an internet URL."],
         "Quiet Mode": [quietmode, "Prevents all generation related terminal output from being displayed."]
     }
 
     for idx, (name, properties) in enumerate(quick_boxes.items()):
         makecheckbox(quick_tab, name, properties[0], int(idx/2) + 20, idx % 2, tooltiptxt=properties[1])
 
-    makecheckbox(quick_tab, "Use FlashAttention", flashattention, 22, 1, tooltiptxt="Enable flash attention for GGUF models.")
+    makecheckbox(quick_tab, "Use FlashAttention", flashattention_var, 22, 1, tooltiptxt="Enable flash attention for GGUF models.")
 
     makeslider(quick_tab, "BLAS Logical Batch Size - optimum of 128 if not filled :", blasbatchsize_text, blas_size_var, 0, 29, 16, width=280, set=17 ,tooltip="How many tokens to process at once per batch.\nLarger values use more memory unless Physical Batch supersedes it.")
     blas_size_var.trace("w", changed_gpulayers_estimate)
@@ -6165,9 +6602,10 @@ def show_gui():
     # Tokens Tab
     tokens_tab = tabcontent["Tokens"]
     # tokens checkboxes
-    smartcontextbox = makecheckbox(tokens_tab, "Use SmartContext", smartcontext, 1,tooltiptxt="Uses SmartContext. Now considered outdated and not recommended.\nCheck the wiki for more info.")
-    makecheckbox(tokens_tab, "Use ContextShift", contextshift, 2,tooltiptxt="Uses Context Shifting to reduce reprocessing.\nRecommended. Check the wiki for more info.", command=togglectxshift)
-    makecheckbox(tokens_tab, "Use FastForwarding", fastforward, 3,tooltiptxt="Use fast forwarding to recycle previous context (always reprocess if disabled).\nRecommended.", command=togglefastforward)
+    smartcontextbox = makecheckbox(tokens_tab, "Use SmartContext", smartcontext_var, 1,tooltiptxt="Uses SmartContext. Now considered outdated and not recommended.\nCheck the wiki for more info.")
+    makecheckbox(tokens_tab, "Use ContextShift", contextshift_var, 2,tooltiptxt="Uses Context Shifting to reduce reprocessing.\nRecommended. Check the wiki for more info.", command=togglectxshift)
+    makecheckbox(tokens_tab, "Use FastForwarding", fastforward_var, 3,tooltiptxt="Use fast forwarding to recycle previous context (always reprocess if disabled).\nRecommended.", command=togglefastforward)
+    makecheckbox(tokens_tab, "Use Sliding Window Attention (SWA)", swa_var, 4,tooltiptxt="Allows Sliding Window Attention (SWA) KV Cache, which saves memory but cannot be used with context shifting.", command=toggleswa)
 
     # context size
     makeslider(tokens_tab, "Context Size:",contextsize_text, context_var, 0, len(contextsize_text)-1, 40, width=791, set=31,tooltip="What is the maximum context size to support. Model specific. You cannot exceed it.\nLarger contexts require more memory, and not all models support it.")
@@ -6184,16 +6622,15 @@ def show_gui():
             else:
                 item.grid_remove()
     makecheckbox(tokens_tab,  "Custom RoPE Config", variable=customrope_var, row=22, command=togglerope,tooltiptxt="Override the default RoPE configuration with custom RoPE scaling.")
-
-    # use_flashattn = makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, command=toggleflashattn,  tooltiptxt="Enable flash attention for GGUF models.")
-    makecheckbox(tokens_tab, "Use FlashAttention", flashattention, 28, command=toggleflashattn,  tooltiptxt="Enable flash attention for GGUF models.")
+    makecheckbox(tokens_tab, "Use FlashAttention", flashattention_var, 28, tooltiptxt="Enable flash attention for GGUF models.")
+    # makecheckbox(tokens_tab, "Use FlashAttention", flashattention_var, 28, command=toggleflashattn,  tooltiptxt="Enable flash attention for GGUF models.")
     noqkvlabel = makelabel(tokens_tab,"(Note: QuantKV works best with flash attention)",28,0,"Only K cache can be quantized, and performance can suffer.\nIn some cases, it might even use more VRAM when doing a full offload.",padx=160)
     noqkvlabel.configure(text_color="#ff5555")
     avoidfalabel = makelabel(tokens_tab,"(Note: Flash attention may be slow on Vulkan)",28,0,"FlashAttention is discouraged when using Vulkan GPU offload.",padx=160)
     avoidfalabel.configure(text_color="#ff5555")
     qkvslider,qkvlabel,qkvtitle = makeslider(tokens_tab, "Quantize KV Cache:", quantkv_text, quantkv_var, 0, 22, 30, set=0,tooltip="Enable quantization of KV cache (KVQ). Mode 0 (F16) is default. Modes 1-14 requires FlashAttention.\nMode 8-10, 14, 17, 22 disable ContextShift.\nModes 15-22 work for the K cache only and without FA, for incompatible models.")
 
-    quantkv_var.trace("w", toggleflashattn)
+    # quantkv_var.trace("w", toggleflashattn)
 
     makecheckbox(tokens_tab, "No BOS Token", nobostoken_var, 43, tooltiptxt="Prevents BOS token from being added at the start of any prompt. Usually NOT recommended for most models.")
 
@@ -6250,7 +6687,7 @@ def show_gui():
     makelabelentry(network_tab, "Host: ", host_var, 2, 150,tooltip="Select a specific host interface to bind to.\n(Defaults to all)")
 
     makecheckbox(network_tab, "Multiuser Mode", multiuser_var, 3,tooltiptxt="Allows requests by multiple different clients to be queued and handled in sequence.")
-    makecheckbox(network_tab, "Remote Tunnel", remotetunnel, 3, 1,tooltiptxt="Creates a trycloudflare tunnel.\nAllows you to access KoboldCpp/Croco.Cpp from other devices over an internet URL.")
+    makecheckbox(network_tab, "Remote Tunnel", remotetunnel_var, 3, 1,tooltiptxt="Creates a trycloudflare tunnel.\nAllows you to access KoboldCpp/Croco.Cpp from other devices over an internet URL.")
     makecheckbox(network_tab, "Quiet Mode", quietmode, 4,tooltiptxt="Prevents all generation related terminal output from being displayed.")
     makecheckbox(network_tab, "NoCertify Mode (Insecure)", nocertifymode, 4, 1,tooltiptxt="Allows insecure SSL connections. Use this if you have cert errors and need to bypass certificate restrictions.")
     makecheckbox(network_tab, "Shared Multiplayer", multiplayer_var, 5,tooltiptxt="Hosts a shared multiplayer session that others can join.")
@@ -6365,13 +6802,12 @@ def show_gui():
 
     # extra tab
     extra_tab = tabcontent["Extra"]
-    makelabel(extra_tab, "Unpack KoboldCpp/Croco.Cpp to a local directory to modify its files.", 1, 0)
-    makelabel(extra_tab, "You can also launch via koboldcpp.py for faster startup.", 2, 0)
-    ctk.CTkButton(extra_tab , text = "Unpack KoboldCpp/Croco.Cpp To Folder", command = unpack_to_dir ).grid(row=3,column=0, stick="w", padx= 8, pady=2)
-    makelabel(extra_tab, "Export as launcher .kcppt template (Expert Only)", 4, 0,tooltiptxt="Creates a KoboldCpp/Croco.Cpp launch template for others to use.\nEmbeds JSON files directly into exported file when saving.\nWhen loaded, forces the backend to be automatically determined.\nWarning! Not recommended for beginners!")
-    ctk.CTkButton(extra_tab , text = "Generate LaunchTemplate", command = kcpp_export_template ).grid(row=5,column=0, stick="w", padx= 8, pady=2)
+    makelabel(extra_tab, "Extract KoboldCpp/Croco.Cpp", 3, 0,tooltiptxt="Unpack KoboldCpp/Croco.Cpp to a local directory to modify its files. You can also launch via koboldcpp.py for faster startup.")
+    ctk.CTkButton(extra_tab , text = "Unpack KoboldCpp/Croco.Cpp To Folder", command = unpack_to_dir ).grid(row=3,column=0, stick="w", padx= 170, pady=2)
+    makelabel(extra_tab, "Export as .kcppt template", 4, 0,tooltiptxt="Creates a KoboldCpp/Croco.Cpp launch template for others to use.\nEmbeds JSON files directly into exported file when saving.\nWhen loaded, forces the backend to be automatically determined.\nWarning! Not recommended for beginners!")
+    ctk.CTkButton(extra_tab , text = "Generate LaunchTemplate", command = kcpp_export_template ).grid(row=4,column=0, stick="w", padx= 170, pady=2)
     makelabel(extra_tab, "Analyze GGUF Metadata", 6, 0,tooltiptxt="Reads the metadata, weight types and tensor names in any GGUF file.")
-    ctk.CTkButton(extra_tab , text = "Analyze GGUF", command = analyze_gguf_model_wrapper ).grid(row=7,column=0, stick="w", padx= 8, pady=2)
+    ctk.CTkButton(extra_tab , text = "Analyze GGUF", command = analyze_gguf_model_wrapper ).grid(row=6,column=0, stick="w", padx= 170, pady=2)
     if sys.platform == "linux":
         def togglezenity(a,b,c):
             global zenity_permitted
@@ -6385,7 +6821,7 @@ def show_gui():
     global runmode_untouched
     runmode_untouched = True
     togglerope(1,1,1)
-    toggleflashattn(1,1,1)
+    # toggleflashattn(1,1,1)
     togglectxshift(1,1,1)
     togglehorde(1,1,1)
 
@@ -6418,13 +6854,16 @@ def show_gui():
         args.launch     = launchbrowser.get()==1
         args.highpriority = highpriority.get()==1
         args.usemmap = usemmap.get()==1
-        args.smartcontext = smartcontext.get()==1
-        args.flashattention = flashattention.get()==1
-        args.contextshift = contextshift.get()==1
-
+        args.smartcontext = smartcontext_var.get()==1
+        args.flashattention = flashattention_var.get()==1
+        args.contextshift = contextshift_var.get()==1
+        
+        args.noshift = contextshift_var.get()==0
         # args.noshift = contextshift.get()==0
-        args.nofastforward = fastforward.get()==0
-        args.remotetunnel = remotetunnel.get()==1
+
+        args.nofastforward = fastforward_var.get()==0
+        args.useswa = swa_var.get()==1
+        args.remotetunnel = remotetunnel_var.get()==1
         args.foreground = keepforeground.get()==1
         args.cli = terminalonly.get()==1
         args.quiet = quietmode.get()==1
@@ -6629,13 +7068,15 @@ def show_gui():
         launchbrowser.set(1 if "launch" in dict and dict["launch"] else 0)
         highpriority.set(1 if "highpriority" in dict and dict["highpriority"] else 0)
         usemmap.set(1 if "usemmap" in dict and dict["usemmap"] else 0)
-        smartcontext.set(1 if "smartcontext" in dict and dict["smartcontext"] else 0)
-        flashattention.set(1 if "flashattention" in dict and dict["flashattention"] else 0)
-        contextshift.set(1 if "contextshift" in dict and dict["contextshift"] else 0)
 
-        # contextshift.set(0 if "noshift" in dict and dict["noshift"] else 1)
-        fastforward.set(0 if "nofastforward" in dict and dict["nofastforward"] else 1)
-        remotetunnel.set(1 if "remotetunnel" in dict and dict["remotetunnel"] else 0)
+        smartcontext_var.set(1 if "smartcontext" in dict and dict["smartcontext"] else 0)
+        flashattention_var.set(1 if "flashattention" in dict and dict["flashattention"] else 0)
+        contextshift_var.set(1 if "contextshift" in dict and dict["contextshift"] else 0)
+        # contextshift_var.set(0 if "noshift" in dict and dict["noshift"] else 1)
+        fastforward_var.set(0 if "nofastforward" in dict and dict["nofastforward"] else 1)
+        swa_var.set(1 if "useswa" in dict and dict["useswa"] else 0)
+        remotetunnel_var.set(1 if "remotetunnel" in dict and dict["remotetunnel"] else 0)
+
         keepforeground.set(1 if "foreground" in dict and dict["foreground"] else 0)
         terminalonly.set(1 if "cli" in dict and dict["cli"] else 0)
         quietmode.set(1 if "quiet" in dict and dict["quiet"] else 0)
@@ -8572,6 +9013,7 @@ if __name__ == '__main__':
 
     # advparser.add_argument("--noshift", help="If set, do not attempt to Trim and Shift the GGUF context.", action='store_true')
     advparser.add_argument("--nofastforward", help="If set, do not attempt to fast forward GGUF context (always reprocess). Will also enable noshift", action='store_true')
+    advparser.add_argument("--useswa", help="If set, allows Sliding Window Attention (SWA) KV Cache, which saves memory but cannot be used with context shifting.", action='store_true')
     compatgroup3 = advparser.add_mutually_exclusive_group()
     compatgroup3.add_argument("--usemmap", help="If set, uses mmap to load model.", action='store_true')
     advparser.add_argument("--usemlock", help="Enables mlock, preventing the RAM used to load the model from being paged out. Not usually recommended.", action='store_true')

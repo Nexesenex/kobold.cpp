@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 243;
+	const LITEVER = 245;
 	const urlParams = new URLSearchParams(window.location.search);
 	var localflag = urlParams.get('local'); //this will be replaced automatically in embedded kcpp
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -3356,6 +3356,7 @@ Current version indicated by LITEVER below.
 		entersubmit: true, //enter sends the prompt
 		darkmode: true,
 		raw_instruct_tags: false, //experimental flag
+		show_endpoint_selector: false,
 
 		//section migrated from story itself
 		extrastopseq: "",
@@ -3413,6 +3414,7 @@ Current version indicated by LITEVER below.
 		let placeholders = !!instructstartplaceholder && !!instructstartplaceholder_end && !!instructsysplaceholder && !!instructsysplaceholder_end && !!instructendplaceholder && !!instructendplaceholder_end
 		let tags = !!localsettings.instruct_starttag && !!localsettings.instruct_endtag && !!localsettings.instruct_systag
 		&& !!localsettings.instruct_starttag_end && !!localsettings.instruct_endtag_end && !!localsettings.instruct_systag_end
+		&& !!get_instruct_systag(false) && !!get_instruct_systag(true)
 		return placeholders && tags
 	}
 
@@ -4468,7 +4470,10 @@ Current version indicated by LITEVER below.
 		if (maxIndex === lastA) return get_instructstartplaceholder_end();
 		if (maxIndex === lastB) return get_instructendplaceholder_end();
 		return instructsysplaceholder_end;
-
+	}
+	function get_current_timestamp()
+	{
+		return "["+(new Date().toLocaleTimeString([], {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'}))+"]";
 	}
 
 	function remove_all_instruct_tags(text)
@@ -5109,8 +5114,8 @@ Current version indicated by LITEVER below.
 		console.log("Not a RISU card.");
 		return null;
 	}
-
-	function generate_compressed_story(save_images,export_settings,export_aesthetic_settings) {
+	
+	function generate_compressed_story(save_images,export_settings,export_aesthetic_settings, shouldCompress = false) {
 		//encode the current story into a sharable url
 		//a tiny json format which gets compressed by LZMA then b64url
 
@@ -5118,7 +5123,7 @@ Current version indicated by LITEVER below.
 		let storyjson = JSON.stringify(story);
 		console.log("Exporting story: ", story);
 
-		var cstoryjson = buf_to_b64(lz_c.compress(storyjson, 1));
+		var cstoryjson = shouldCompress && localsettings.disableSaveCompressionLocally ? storyjson : buf_to_b64(lz_c.compress(storyjson, 1));
 		return cstoryjson;
 	}
 	function autosave_compressed_story(save_images,export_settings,export_aesthetic_settings) {
@@ -5134,9 +5139,9 @@ Current version indicated by LITEVER below.
 		}
 		console.log("Autosave Start: ", story);
 		(function retry_autosave(json) {
-			lz_c.compress(json, 1, function(res) {
-				let compressedstory = buf_to_b64(res);
-				indexeddb_save("story",compressedstory).then(()=>{
+			if (localsettings.disableSaveCompressionLocally)
+			{
+				indexeddb_save("story", json).then(()=>{
 					console.log("Autosave Done");
 					let newer = pending_storyjson_autosave;
 					if (newer && newer !== json) {
@@ -5146,11 +5151,38 @@ Current version indicated by LITEVER below.
 						pending_storyjson_autosave = null;
 					}
 				});
-			});
+			}
+			else
+			{
+				lz_c.compress(json, 1, function(res) {
+					let compressedstory = buf_to_b64(res);
+					indexeddb_save("story",compressedstory).then(()=>{
+						console.log("Autosave Done");
+						let newer = pending_storyjson_autosave;
+						if (newer && newer !== json) {
+							console.log("Updating Autosave");
+							retry_autosave(newer);
+						}else{
+							pending_storyjson_autosave = null;
+						}
+					});
+				});
+			}
 		})(storyjson);
 	}
 	function decompress_story(cstoryjson) //decompress story from LZMA to json object
 	{
+		try {
+			if (cstoryjson == null || cstoryjson == "") {
+				return null;
+			} else {
+				return JSON.parse(cstoryjson);
+			}
+		}
+		catch (e) {
+			// Surpress and try loading with the decompression logic
+		}
+
 		var story = null;
 		try
 		{
@@ -5749,7 +5781,7 @@ Current version indicated by LITEVER below.
 								{
 									continue;
 								}
-								if(synchro_pending_stream.includes(cur))
+								if(synchro_pending_stream.includes(cur) && synchro_pending_stream.trim().indexOf(cur) > 1) //don't trigger early stopping if the match is very early
 								{
 									cached_stop_seq = [];
 									let need_clean_output = (synchro_pending_stream!="" && localsettings.opmode==1 && gametext_arr.length>0 && document.getElementById("useoaichatcompl").checked);
@@ -6215,6 +6247,7 @@ Current version indicated by LITEVER below.
 			//purge url params
 			window.history.replaceState(null, null, window.location.pathname);
 		} else if (foundScenario && foundScenario != "") {
+			avoidwelcome = true;
 			display_scenarios();
 			document.getElementById("scenariosearch").value = escape_html(foundScenario);
 			scenario_search();
@@ -6226,6 +6259,7 @@ Current version indicated by LITEVER below.
 			//purge url params
 			window.history.replaceState(null, null, window.location.pathname);
 		} else if (foundScenarioSource) {
+			avoidwelcome = true;
 			console.log(foundScenarioSource, urlParams.get(foundScenarioSource.urlParam));
 			display_scenarios();
 			import_scenario(foundScenarioSource, urlParams.get(foundScenarioSource.urlParam));
@@ -6234,6 +6268,7 @@ Current version indicated by LITEVER below.
 		}
 		else if (foundQuery && foundQuery != "")
 		{
+			avoidwelcome = true;
 			window.history.replaceState(null, null, window.location.pathname);
 			if (localsettings.persist_session && !safe_to_overwrite()) {
 				msgboxYesNo("You already have an existing persistent story. Do you want to overwrite it?","Overwrite Story Warning",()=>{
@@ -6250,6 +6285,10 @@ Current version indicated by LITEVER below.
 				document.getElementById("input_text").value = foundQuery;
 				prepare_submit_generation();
 			}
+		}
+		if(avoidwelcome)
+		{
+			close_welcome_panel(false);
 		}
 	}
 
@@ -10111,7 +10150,9 @@ Current version indicated by LITEVER below.
 
 	function toggleclaudemodel()
 	{
-		if (document.getElementById("custom_claude_model").value.toLowerCase().includes("claude-3"))
+		if (document.getElementById("custom_claude_model").value.toLowerCase().includes("claude-3")
+		|| document.getElementById("custom_claude_model").value.toLowerCase().includes("claude-sonnet-4")
+		|| document.getElementById("custom_claude_model").value.toLowerCase().includes("claude-opus-4"))
 		{
 			document.getElementById("claudesystemprompt").classList.remove("hidden");
 			document.getElementById("claudejailbreakprompt").classList.remove("hidden");
@@ -11242,7 +11283,7 @@ Current version indicated by LITEVER below.
 		let defaultsavename = (localsettings.opmode==1?"Untitled Story":(localsettings.opmode==2?"Untitled Adventure":(localsettings.opmode==3?"Untitled Chat":"Untitled Instruct")));
 		let savename = defaultsavename + " " + new Date().toLocaleString();
 		let slotnumshown = (parseInt(slot)+1);
-		let newcompressedstory = generate_compressed_story(true, true, true);
+		let newcompressedstory = generate_compressed_story(true, true, true, true);
 		if(islocal)
 		{
 			indexeddb_load("slot_"+slot+"_meta","").then(testslot=>{
@@ -12046,6 +12087,7 @@ Current version indicated by LITEVER below.
 		document.getElementById("instruct_systag_end").value = localsettings.instruct_systag_end;
 		document.getElementById("instruct_endtag_end").value = localsettings.instruct_endtag_end;
 		document.getElementById("raw_instruct_tags").checked = localsettings.raw_instruct_tags;
+		document.getElementById("show_endpoint_selector").checked = localsettings.show_endpoint_selector;
 		document.getElementById("min_p").value = localsettings.min_p;
 		document.getElementById("dynatemp_range").value = localsettings.dynatemp_range;
 		document.getElementById("dynatemp_exponent").value = localsettings.dynatemp_exponent;
@@ -12589,6 +12631,7 @@ Current version indicated by LITEVER below.
 		localsettings.eos_ban_mode = document.getElementById("eos_ban_mode").value;
 		localsettings.persist_session = (document.getElementById("persist_session").checked ? true : false);
 		localsettings.raw_instruct_tags = (document.getElementById("raw_instruct_tags").checked ? true : false);
+		localsettings.show_endpoint_selector = (document.getElementById("show_endpoint_selector").checked ? true : false);
 		if(document.getElementById("opmode").value==1)
 		{
 			localsettings.gui_type_story = document.getElementById("gui_type").value;
@@ -13549,6 +13592,7 @@ Current version indicated by LITEVER below.
 	function restart_new_game(save = true, keep_memory = false) {
 		xtts_is_playing = false;
 		idle_timer = 0;
+		idle_triggered_counter = 0;
 		gametext_arr = [];
 		redo_arr = [];
 		last_request_str = "No Requests Available";
@@ -14855,7 +14899,7 @@ Current version indicated by LITEVER below.
 			}
 			if(localsettings.inject_timestamps)
 			{
-				newgen = "["+(new Date().toLocaleTimeString([], {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'}))+"] " + newgen;
+				newgen = get_current_timestamp() + " " + newgen;
 			}
 
 			//append instruction for instruct mode
@@ -14895,7 +14939,7 @@ Current version indicated by LITEVER below.
 		let injecttime = "";
 		if(localsettings.inject_timestamps)
 		{
-			injecttime = " ["+(new Date().toLocaleTimeString([], {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'}))+"]";
+			injecttime = " " + get_current_timestamp();
 		}
 		newgen = "\n" + get_my_multiplayer_chatname() + ":"+ injecttime +" "+ newgen + "";
 		return newgen;
@@ -15174,7 +15218,7 @@ Current version indicated by LITEVER below.
 					pending_context_preinjection = "\n"+co + ":";
 					if(localsettings.inject_timestamps)
 					{
-						pending_context_preinjection += " ["+(new Date().toLocaleTimeString([], {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'}))+"]";
+						pending_context_preinjection += " " + get_current_timestamp();
 					}
 				}
 				else
@@ -15214,7 +15258,7 @@ Current version indicated by LITEVER below.
 					let endmatcher = get_instructendplaceholder();
 					if (truncated_context.toLowerCase().trim().endsWith(endmatcher.toLowerCase().trim())) {
 						if (localsettings.inject_timestamps) {
-							pending_context_preinjection += "[" + (new Date().toLocaleTimeString([], { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })) + "]";
+							pending_context_preinjection += get_current_timestamp();
 						}
 						if (localsettings.inject_chatnames_instruct && localsettings.chatopponent!="") {
 							if (localsettings.inject_timestamps) {
@@ -15847,7 +15891,7 @@ Current version indicated by LITEVER below.
 				let prompt = submit_payload.prompt;
 				submit_payload = submit_payload.params;
 				submit_payload.prompt = prompt;
-				let showlog = (document.getElementById("remoteconsolelog").checked ? true : false);
+				let showlog = false;
 				submit_payload.quiet = !showlog;
 
 				//for vesion 1.2.2 and later, send stopper tokens for chat and instruct
@@ -16076,7 +16120,9 @@ Current version indicated by LITEVER below.
 			}
 			else if (custom_claude_key != "")//handle for Claude
 			{
-				let claudev3mode = custom_claude_model.toLowerCase().includes("claude-3");
+				let claudev3mode = custom_claude_model.toLowerCase().includes("claude-3")
+				|| custom_claude_model.toLowerCase().includes("claude-sonnet-4")
+				|| custom_claude_model.toLowerCase().includes("claude-opus-4");
 				let actualep = (custom_claude_endpoint + (claudev3mode?claude_submit_endpoint_v3:claude_submit_endpoint));
 				let targetep = actualep;
 				if(custom_claude_endpoint.toLowerCase().includes("api.anthropic.com"))
@@ -16624,8 +16670,11 @@ Current version indicated by LITEVER below.
 				case "DPM++ 2M":
 					usedsampler = "k_dpmpp_2m";
 					break;
+				case "DDIM":
+					usedsampler = "DDIM";
+					break;
 				default:
-					usedsampler = "k_euler_a";
+					usedsampler = "k_euler";
 					break;
 			}
 
@@ -17188,9 +17237,9 @@ Current version indicated by LITEVER below.
 		gentxt = trim_extra_stop_seqs(gentxt,false);
 
 		//fix alpaca leakage
-		if(localsettings.fix_alpaca_leak && (localsettings.opmode == 2 || localsettings.opmode == 3 || localsettings.opmode == 4) && (get_instruct_starttag(true)=="{{[INPUT]}}" || get_instruct_starttag(true).toLowerCase().includes("### instruction")))
+		if(localsettings.fix_alpaca_leak && (localsettings.opmode == 2 || localsettings.opmode == 3 || localsettings.opmode == 4) && (get_instruct_starttag(true).toLowerCase().includes("### instruction")))
 		{
-			let matches = gentxt.match(/\n### (instruction|response)\n|\n### ([^\s]+?):\n/gi);
+			let matches = gentxt.match(/\n### (instruction|response)\n|\n### (instruction|response):\n/gi);
 			for(let m in matches)
 			{
 				let foundStop = gentxt.indexOf(matches[m]);
@@ -17833,7 +17882,7 @@ Current version indicated by LITEVER below.
 
 						if(localsettings.inject_timestamps)
 						{
-							pending_context_preinjection += "["+(new Date().toLocaleTimeString([], {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'}))+"]";
+							pending_context_preinjection += get_current_timestamp();
 						}
 					}
 				}
@@ -19059,7 +19108,7 @@ Current version indicated by LITEVER below.
 					}
 				}
 
-				let instruct_turns = repack_instruct_turns(fulltxt, `%SpcStg%`,`%SpcEtg%`, true);
+				let instruct_turns = repack_instruct_turns(fulltxt, `%SpcStg%`, `%SpcEtg%`, `%SpcSyg%`, true);
 				fulltxt = "";
 				for(let i=0;i<instruct_turns.length;++i)
 				{
@@ -19077,16 +19126,32 @@ Current version indicated by LITEVER below.
 						currmsg = simpleMarkdown(currmsg,localsettings.instruct_has_latex);
 					}
 
-					if(curr.myturn)
-					{
-						fulltxt += `<hr style="margin-top: 12px; margin-bottom: 12px;"><span class="color_cyan"><img src="${human_square}" style="height:38px;width:auto;padding:3px 6px 3px 3px;border-radius: 8%;"/>${currmsg}</span>`;
+					if (curr?.source !== undefined) {
+						switch (curr?.source) {
+							case "human":
+								fulltxt += `<hr style="margin-top: 12px; margin-bottom: 12px;"><span class="color_cyan"><img src="${human_square}" style="height:38px;width:auto;padding:3px 6px 3px 3px;border-radius: 8%;"/>${currmsg}</span>`;
+								break
+							case "ai":
+								fulltxt += `<hr style="margin-top: 12px; margin-bottom: 12px;"><span class="color_cyan"><img src="${niko_square}" style="height:38px;width:auto;padding:3px 6px 3px 3px;border-radius: 8%;"/>${currmsg}</span>`
+								break
+							case "system":
+							default:
+								fulltxt += `<hr style="margin-top: 12px; margin-bottom: 12px;"><span class="color_cyan"><img src="${favivon_normal}" style="height:38px;width:auto;padding:3px 6px 3px 3px;border-radius: 8%;"/>${currmsg}</span>`
+								break
+						}
 					}
-					else
-					{
-						if (i == 0) {
-							fulltxt += `${currmsg}`;
-						} else {
-							fulltxt += `<hr style="margin-top: 12px; margin-bottom: 12px;"><img src="${niko_square}" style="height:38px;width:auto;padding:3px 6px 3px 3px;border-radius: 8%;"/>${currmsg}</span>`;
+					else {
+						if(curr.myturn)
+						{
+							fulltxt += `<hr style="margin-top: 12px; margin-bottom: 12px;"><span class="color_cyan"><img src="${human_square}" style="height:38px;width:auto;padding:3px 6px 3px 3px;border-radius: 8%;"/>${currmsg}</span>`;
+						}
+						else
+						{
+							if (i == 0) {
+								fulltxt += `${currmsg}`;
+							} else {
+								fulltxt += `<hr style="margin-top: 12px; margin-bottom: 12px;"><img src="${niko_square}" style="height:38px;width:auto;padding:3px 6px 3px 3px;border-radius: 8%;"/>${currmsg}</span>`;
+							}
 						}
 					}
 				}
@@ -19205,7 +19270,7 @@ Current version indicated by LITEVER below.
 			}
 
 			//console.log("FT:" + fulltxt);
-			if(fulltxt=="" && gametext_arr.length == 0 && synchro_pending_stream=="" && pending_response_id!="")
+			if(fulltxt == "" && gametext_arr.length == 0 && synchro_pending_stream=="" && pending_response_id!="")
 			{
 				fulltxt = "Generating...";
 			}
@@ -19238,10 +19303,15 @@ Current version indicated by LITEVER below.
 			}else{
 				document.getElementById("topbtn_customendpt").classList.remove("hidden");
 			}
-			if (!is_using_kcpp_with_server_saving())
+			if(localsettings.show_endpoint_selector || is_using_kcpp_with_server_saving())
+			{
+				document.getElementById("topbtn_ai").classList.remove("hidden");
+			}
+			else
 			{
 				document.getElementById("topbtn_ai").classList.add("hidden");
 			}
+
 			document.getElementById("topbtn_newgame").classList.remove("hidden");
 			document.getElementById("topbtn_save_load").classList.remove("hidden");
 			document.getElementById("topbtn_scenarios").classList.add("hidden");
@@ -19250,7 +19320,7 @@ Current version indicated by LITEVER below.
 			document.getElementById("topbtn_reconnect").classList.add("hidden");
 			document.getElementById("topbtn_customendpt").classList.add("hidden");
 
-			if(!is_using_kcpp_with_server_saving() && localflag)
+			if(localflag && !localsettings.show_endpoint_selector && !is_using_kcpp_with_server_saving())
 			{
 				document.getElementById("topbtn_ai").classList.add("hidden");
 			}else{
@@ -19345,7 +19415,13 @@ Current version indicated by LITEVER below.
 		}
 		else if (!inEditMode && isAestheticUiStyle)
 		{
-			let textToRender = (gametext_arr.length == 0 ? document.getElementById("gametext").innerHTML : concat_gametext(false, "", "", "", true));
+			let textToRender = "";
+			let prepToGen = (gametext_arr.length == 0 && synchro_pending_stream == "" && pending_response_id != "");
+			if (gametext_arr.length == 0 && (prepToGen || pending_response_id == "")) {
+				textToRender = document.getElementById("gametext").innerHTML;
+			} else {
+				textToRender = concat_gametext(false, "", "", "", true);
+			}
 			textToRender = apply_display_only_regex(textToRender);
 			textToRender = replace_placeholders(textToRender,true);
 
@@ -21225,7 +21301,7 @@ Current version indicated by LITEVER below.
 
 					if(localsettings.inject_timestamps)
 					{
-						userinput = "["+(new Date().toLocaleTimeString([], {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'}))+"] " + userinput;
+						userinput = get_current_timestamp() + " " + userinput;
 					}
 
 					//append instruction for instruct mode
@@ -23377,6 +23453,7 @@ Current version indicated by LITEVER below.
 									<option value="Heun">Heun</option>
 									<option value="DPM2">DPM2</option>
 									<option value="LCM">LCM</option>
+									<option value="DDIM">DDIM</option>
 									<option value="DPM++ 2M">DPM++ 2M</option>
 								</select>
 							</div>
@@ -23715,6 +23792,11 @@ Current version indicated by LITEVER below.
 							<div class="justifyleft settingsmall">RawInstructTags <span class="helpicon">?<span
 								class="helptext">Does not insert instruct placeholders, only uses raw tags</span></span></div>
 						   <input title="Raw Instruct Tags" type="checkbox" id="raw_instruct_tags" style="margin:0px 0px 0px 0px;">
+						</div>
+						<div class="settinglabel">
+							<div class="justifyleft settingsmall">ShowEndpointSelector <span class="helpicon">?<span
+								class="helptext">Allows you to change the connected custom endpoint at runtime even in local mode.</span></span></div>
+						   <input title="Show Local Endpoint Selector" type="checkbox" id="show_endpoint_selector" style="margin:0px 0px 0px 0px;">
 						</div>
 					</div>
 
@@ -24119,8 +24201,6 @@ Current version indicated by LITEVER below.
 				<input class="form-control" title="Enter KoboldCpp Custom Endpoint" id="customkoboldendpoint" placeholder="https://sample-remote-address.trycloudflare.com" value="">
 				<input class="form-control" title="Enter KoboldCpp API Key" type="password" id="customkoboldkey" placeholder="KoboldAI API Key (Optional)" value="" onfocus="focus_api_keys()" onblur="blur_api_keys()"><br>
 				<div class="borderbox flex flex-push-right">
-					<input type="checkbox" id="remoteconsolelog">
-					<div class="box-label" title="Will display outputs to the remote endpoint's console logs, useful for debugging.">Show Console Logging</div>
 				</div>
 			</div>
 			<div id="oaicustom" class="menutext hidden">
@@ -24325,6 +24405,8 @@ Current version indicated by LITEVER below.
 					<option value="claude-3-5-sonnet-latest" selected="selected">claude-3-5-sonnet-latest</option>
 					<option value="claude-3-5-haiku-20241022">claude-3-5-haiku-20241022</option>
 					<option value="claude-3-7-sonnet-20250219">claude-3-7-sonnet-20250219</option>
+					<option value="claude-sonnet-4-latest">claude-sonnet-4-latest</option>
+					<option value="claude-opus-4-latest">claude-opus-4-latest</option>
 				</select>
 				<button type="button" class="btn btn-primary" style="display:inline;width:105px;" id="claudefetchlist" onclick="claude_fetch_models()">Fetch List</button>
 				<input type="checkbox" title="Add endpoint version" id="claudeaddversion" onchange="" checked>
@@ -25407,7 +25489,7 @@ else
 
 	let callbackAfterReload = (callback) => {
 		let startTime = Date.now(), intervalId = setInterval(async () => {
-			if (await fetch("/api/admin/health").then(c => c.text()).catch(e => {/*Ignore error*/}) === "true") {
+			if (await fetch(custom_kobold_endpoint + "/api/admin/health").then(c => c.text()).catch(e => {/*Ignore error*/}) === "true") {
 				clearInterval(intervalId);
 				if (typeof callback === "function") {
 					callback(Date.now() - startTime)
@@ -25664,7 +25746,7 @@ else
 			"selective": false,
 			"constant": false,
 			"probability": "100",
-			"wigroup": "",
+			"wigroup": "Agent",
 			"widisabled": false
 		}
 		current_wi = current_wi.filter(wi => wi?.comment !== uniqueIdentifier)
@@ -25716,7 +25798,7 @@ else
 				}
 				let prompt = localsettings.inject_chatnames_instruct ? `Request for user input by ${action?.args?.whoToSendMessageAs}: ${action?.args?.message}` : `Request for user input: ${action?.args?.message}`
 				addThought(createSysPrompt, prompt)
-				return true
+				return currentOrderOfActionsOverall.length === 0
 			}
 			},
 			{
@@ -25740,7 +25822,7 @@ else
 			"name": "stop_thinking",
 			"description": "Ends the current chain of thought. Can only be used after a \"send_message\" action.",
 			"args": null,
-			"enabled": true,
+			"enabled": false,
 				"executor": (action) => {
 					addThought(createSysPrompt, `Stop thinking action confirmed`)
 					return true
@@ -25846,7 +25928,7 @@ else
 				type: "array"
 				}
 			},
-			"enabled": true,
+			"enabled": documentdb_enabled,
 				"executor": (action) => {
 					let textToAdd = action?.args?.text
 					let keywords = action?.args?.keywords
@@ -25967,7 +26049,7 @@ else
 				type: "array"
 				}
 			},
-			"enabled": true,
+			"enabled": false,
 				"executor": (action) => {
 					let orderOfActions = action?.args?.orderOfActions
 					if (!!orderOfActions && Array.isArray(orderOfActions)) {
@@ -26080,16 +26162,16 @@ else
 			},
 			{
 			"name": "generate_image",
-			"description": "Generates an image using AI based on a prompt. Be specific in the prompt about physical characteristics and settings as names of people may not be known.",
+			"description": "Generates or modifies an image using AI based on a prompt. Be specific in the prompt about physical characteristics and settings as names of people may not be known.",
 			"args": {
+				"use_existing_image": {
+					description: "<set this to true to use an existing image as a starting point. The user will select which image to use. (img2img)>",
+					type: "boolean"
+				},
 				"prompt": "<prompt to generate image with>",
 				"aspect": {
 					type: "string",
 					description: "<aspect ratio - must be \"landscape\", \"portrait\" or \"square\">"
-				},
-				"use_another_image_as_source": {
-					description: "<if the user wished to generate a new image based on one they provide, set this to true>",
-					type: "boolean"
 				}
 			},
 			"enabled": localsettings.generate_images_mode == 2, // Only enabled if local endpoint exists / is in use
@@ -26097,7 +26179,7 @@ else
 					let prompt = action?.args?.prompt
 					let aspect = action?.args?.aspect
 					if (!!prompt) {
-						if (!!action?.args?.use_another_image_as_source)
+						if (!!action?.args?.use_existing_image)
 						{
 							waitingFori2iSelection = true
 							addThought(createSysPrompt, `Please click an image as a source for img2img generation`, true)
@@ -26209,6 +26291,49 @@ else
 		}
 		return enabledCommands
 	}
+
+	let getReasoningCommand = () => {
+		return [
+			{
+				"name": "plan_actions",
+				"description": "Defines a list of actions to respond to a user instruction.",
+				"args": {
+					"responsePlanOverview": {
+						type: "string",
+						description: "<short overview of what the user asked for, planned actions and why the order makes sense - this must be specific to the last user instruction>"
+					},
+					"orderOfActions": {
+						type: "array",
+						description: "<array of actions needed to complete the instruction and their objectives>",
+						format: {
+							type: "array",
+							items: {
+								type: "object",
+								properties: {
+									action: {
+										type: "string",
+										enum: getEnabledCommands().map(c => c.name)
+									},
+									objective: {
+										type: "string"
+									}
+								},
+								required: ["action", "objective"]
+							},
+							minItems: 1,
+							maxItems: Number(localsettings.agentCOTMax)
+						}
+					}
+				},
+				"enabled": true,
+				"executor": (action) => {
+					currentOrderOfActionsOverall = action?.args?.orderOfActions.map(act => act.action)
+					currentOrderOfActionDescriptionsOverall = action?.args?.orderOfActions.map(act => act.objective)
+					return false
+				}
+			}
+		]
+	}
 	
 	let toJsonSchema = (obj, currentRef = {}) => {
 		switch (typeof obj) {
@@ -26266,20 +26391,39 @@ else
 				{
 					if (typeof command.args[arg] === "object" && !!command.args[arg]?.format)
 					{
-						let formatToUse = toJsonSchema(JSON.parse(command.args[arg]?.format))
+						let formatToUse = typeof command.args[arg]?.format === "string" ? toJsonSchema(JSON.parse(command.args[arg]?.format)) : command.args[arg]?.format
 						args.properties[arg] = formatToUse
 					}
 					else if (typeof command.args[arg] === "object" && !!command.args[arg]?.type) {
 						args.properties[arg] = {
 							type: command.args[arg].type
 						}
+
+						let propsToEdit = args.properties[arg]
+						if (command.args[arg].type === "array")
+						{
+							args.properties[arg].items = {
+								"type": "string"
+							}
+							propsToEdit = args.properties[arg].items
+							
+							if (!!command.args[arg]?.itemType)
+							{
+								propsToEdit.type = command.args[arg]?.itemType
+							}
+							if (!!command.args[arg]?.uniqueItems)
+							{
+								args.properties[arg].pattern = command.args[arg]?.uniqueItems
+							}
+						}
+						
 						if (!!command.args[arg]?.enum)
 						{
-							args.properties[arg].enum = command.args[arg]?.enum
+							propsToEdit.enum = command.args[arg]?.enum
 						}
 						if (!!command.args[arg]?.pattern)
 						{
-							args.properties[arg].pattern = command.args[arg]?.pattern
+							propsToEdit.pattern = command.args[arg]?.pattern
 						}
 					} else {
 						args.properties[arg] = {
@@ -26620,11 +26764,13 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	let getLastActions = (amountOfActions = 10) => {
-		let exclusions = ["Chain of thought repetition detected - ending", "Chain of thought complete"] // "Action: {", "Action (words =", "Action taken: ", "Action taken (words ="
+		let exclusions = ["Chain of thought repetition detected - ending", "Chain of thought complete", "plan_actions"] 
+		// , "Action: {", "Action (words =", "Action taken: ", "Action taken (words ="
+		// "Action: {", "Action (words =", "Action taken: ", "Action taken (words ="
 		return repack_instruct_turns(concat_gametext(true), `{{[INPUT]}}`, `{{[OUTPUT]}}`, `{{[SYSTEM]}}`, true, false).map(msg => {
 			msg.msg = msg.msg.replaceAll("{{[SYSTEM_END]}}", "").replaceAll("{{[INPUT_END]}}", "").replaceAll("{{[OUTPUT_END]}}", "").trim(); 
 			return msg 
-		}).filter(msg => !/^\n*$/.test(msg.msg) && !!msg.msg && !exclusions.find(exclusion => exclusion.indexOf(msg.msg) !== -1)).splice(-amountOfActions)
+		}).filter(msg => !/^\n*$/.test(msg.msg) && !!msg.msg && !exclusions.find(exclusion => msg.msg.indexOf(exclusion) !== -1)).splice(-amountOfActions)
 	}
 
 	let getInfoSnippet = (snippet) => {
@@ -26665,7 +26811,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	let getInitialAgentPrompt = (commands = getEnabledCommands(), max_mem_len) => {
-		let prompt = createSysPrompt(`System prompt:\n\n${actionPrompt(commands)}`) 
+		prompt = ""
 		if (!!current_memory)
 		{
 			prompt += createSysPrompt(`Setting overview:\n\n${substring_to_boundary(current_memory, max_mem_len)}`)
@@ -26673,9 +26819,17 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return prompt
 	}
 
-	let getFinalAgentPrompt = (currentOrderOfActions) => {
+	let getFinalAgentPrompt = (commands, currentOrderOfActions, objectiveForCurrentAction, initialPrompt) => {
 		let state = getDocumentFromTextDB('State')
 		let prompt = []
+		if (!!initialPrompt)
+		{
+			prompt.push(`Last user instruction: ${initialPrompt}`)
+		}
+		if (!!objectiveForCurrentAction)
+		{
+			prompt.push(`Objective for current action: ${objectiveForCurrentAction}`)
+		}		
 		if (state != null)
 		{
 			prompt.push(`Current state: ${state}`)
@@ -26685,7 +26839,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			prompt.push(`Order of actions: ${currentOrderOfActions.join(" -> ")}`)
 		}
 		let basePrompt = prompt.join("\n\n")
-		return basePrompt.length > 0 ? createSysPrompt(basePrompt) : ""
+		return createSysPrompt(`System prompt:\n\n${actionPrompt(!!commands.find(c => c.name === "plan_actions") ? getEnabledCommands() : commands)}`) + (basePrompt.length > 0 ? createSysPrompt(basePrompt) : "")
 	}
 
 	/**
@@ -26817,7 +26971,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return actionAsText
 	}
 
-	let recentActions = [], maxActionsInHistory = 20, currentAgentCycle = null, endCurrent = false
+	let currentOrderOfActionsOverall = [], currentOrderOfActionDescriptionsOverall = []
+	let recentActions = [], maxActionsInHistory = 1000, currentAgentCycle = null, endCurrent = false
 
 	let runAgentCycle = async (initialPrompt = undefined) => {
 		endCurrent = false
@@ -26825,6 +26980,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		// render_gametext()
 		currentChainOfThought = []
 		recentActions = []
+		currentOrderOfActionsOverall = []
+		currentOrderOfActionDescriptionsOverall = []
+		
 		getLastActions(maxActionsInHistory).forEach(action => {
 			switch(action.source)
 			{
@@ -26864,33 +27022,55 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		let lastThoughtWasBlank = false
 
 		Array(...document.getElementsByClassName("stopThinking")).forEach(elem => elem.classList.remove("hidden"))
-		for (let i = 0; i < localsettings.agentCOTMax && endCurrent === false; i++)
+
+		currentOrderOfActionsOverall = getDocumentFromTextDB('Order of actions')
+		currentOrderOfActionsOverall = !!currentOrderOfActionsOverall ? currentOrderOfActionsOverall.split(",").filter(act => !!act) : []
+		currentOrderOfActionDescriptions = []
+
+		for (let i = 0; i < Number(localsettings.agentCOTMax) + 1 && (currentOrderOfActionsOverall.length === 0 || i < currentOrderOfActionsOverall.length + 1) && endCurrent === false; i++)
 		{
 			clearSuggestions()
-			// Ensure valid commands does not include stop thinking right away to ensure an action of some type is taken
+
+			let nextAction = []
 			let validCommands = getEnabledCommands().map(command => command.name).filter(name => i != 0 || name != "stop_thinking")
+			if (i == 0)
+			{
+				nextAction = getReasoningCommand()
+			}
+			else
+			{
+				// Ensure valid commands does not include stop thinking right away to ensure an action of some type is taken
+				nextAction = JSON.parse(JSON.stringify(currentOrderOfActionsOverall)).splice(i - 1).filter(acts => acts.split("|").find(act => validCommands.includes(act)))
+				nextAction = nextAction.length > 0 ? getCommands().filter(act => nextAction[0].split("|").includes(act.name)) : getEnabledCommands().filter(command => validCommands.includes(command.name))
 
-			let currentOrderOfActions = getDocumentFromTextDB('Order of actions')
-			currentOrderOfActions = !!currentOrderOfActions ? currentOrderOfActions.split(",").filter(act => !!act) : []
-			let nextAction = currentOrderOfActions.splice(i).filter(acts => acts.split("|").find(act => validCommands.includes(act)))
-			nextAction = nextAction.length > 0 ? getCommands().filter(act => nextAction[0].split("|").includes(act.name)) : getEnabledCommands().filter(command => validCommands.includes(command.name))
-
-			// Find any actions which have occured more than the max repeats in settings and remove them from the options
-			let actionsOverMaxRepeats = recentActions.map(elem => elem?.command?.name).reduce((o, c) => {
-				let elem = o.find(e => e.name == c)
-				if (elem === undefined) {
-					o.push({name: c, repeats: 1})
-				} else {
-					elem.repeats++
+				// Find any actions which have occured more than the max repeats in settings and remove them from the options
+				if (currentOrderOfActionsOverall.length === 0)
+				{
+					let actionsOverMaxRepeats = recentActions.map(elem => elem?.command?.name).reduce((o, c) => {
+						let elem = o.find(e => e.name == c)
+						if (elem === undefined) {
+							o.push({name: c, repeats: 1})
+						} else {
+							elem.repeats++
+						}
+						return o
+					}, []).filter(o => o.repeats >= localsettings.agentCOTRepeatsMax).map(o => o.name)
+					nextAction = nextAction.filter(act => !actionsOverMaxRepeats.includes(act.name))
 				}
-				return o
-			}, []).filter(o => o.repeats >= localsettings.agentCOTRepeatsMax).map(o => o.name)
-			nextAction = nextAction.filter(act => !actionsOverMaxRepeats.includes(act.name))
+			}
+
 
 			// Find actions which are identical and have run twice - then remove them from the possible options to run again
 			let duplicateActions = recentActions.filter((elem, pos, arr) => arr.findIndex((elem2) => JSON.stringify(elem) === JSON.stringify(elem2)) !== pos).map(elem => elem?.command?.name)
 			nextAction = nextAction.filter(act => !duplicateActions.includes(act.name))
 
+			// If no actions present, end cycle
+			if (nextAction.length === 0)
+			{
+				isCompleted = true
+				hasAttemptedToCompleteOnce = true
+				continue
+			}
 			let jsonGrammar = await getCommandsGNBF(nextAction)
 
 			currentChainOfThought = currentChainOfThought.splice(-maxActionsInHistory)
@@ -26911,7 +27091,18 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			let history = getInitialAgentPrompt(nextAction, max_mem_len)
 			let wiToInclude = createSysPrompt(substring_to_boundary(getWorldInfoForAgent(truncated_context, max_wi_len) + "\n\n" + textDBResults, max_wi_len))
 			let anToInclude = !!current_anote ? createSysPrompt(substring_to_boundary(current_anotetemplate.replace("<|>", current_anote), max_anote_len)) : ""
-			let finalAgentPrompt = getFinalAgentPrompt(currentOrderOfActions)
+
+			let promptOverview = currentOrderOfActionDescriptionsOverall.length > 0 ? currentOrderOfActionDescriptionsOverall[i - 1] : null
+			if (i === 0)
+			{
+				let planningPrompt = "The last action from the user is the instruction. If you need to ask the user for a response, the action ask_user must be used and be put as the final action in the order. Produces a list of actions to respond to this instruction."
+				if (localsettings.inject_chatnames_instruct) {
+					planningPrompt += ` You must respond as ${localsettings.chatopponent} when using the send_message or ask_user actions.`
+				}
+				promptOverview = planningPrompt
+			}
+			
+			let finalAgentPrompt = getFinalAgentPrompt(nextAction, currentOrderOfActionsOverall, promptOverview, initialPrompt)
 
 			let cotAsText = "", maxLengthOfCot = max_allowed_characters - history.length - wiToInclude.length - anToInclude.length - finalAgentPrompt.length
 			for (let j = currentChainOfThought.length - 1; j >= 0; j--) {
@@ -26954,18 +27145,15 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				let json;
 				if (resp.indexOf("stop_thinking") !== -1)
 				{
-					json = {
-						command: {
-							name: "stop_thinking",
-							args: null
-						}
-					}
+					isCompleted = true
+					hasAttemptedToCompleteOnce = true
+					continue
 				}
 				else
 				{
 					json = JSON.parse(resp)
 				}
-				if (!!json?.command && !!json.command?.name && validCommands.includes(json.command.name))
+				if (!!json?.command && !!json.command?.name && (json.command.name === "plan_actions" || validCommands.includes(json.command.name)))
 				{
 					// If message has been sent before, skip processing it again and let the agent try again
 					if (recentActions.find((elem) => JSON.stringify(elem) === JSON.stringify(json)) !== undefined)
@@ -26986,7 +27174,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					}
 
 					let isCompleted = false;
-					let command = getCommands().find(command => command.name === action.command.name)
+					let command = [...getReasoningCommand(), ...getCommands()].find(command => command.name === action.command.name)
 					if (!!command && command?.executor !== undefined) {
 						let res = await command.executor(action.command)
 						if (res === true) {
@@ -27033,7 +27221,12 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			}
 			catch (e)
 			{
+				console.log(i)
 				addThought(createSysPrompt, `Chain of thought had an exception: ${e}`)
+				if (resp === null || resp.indexOf("evaluate_formula") === -1)
+				{
+					break	
+				}
 			}
 		}
 		currentAgentCycle = null
@@ -27051,6 +27244,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		document.getElementById("agentCOTMaxnumeric").value = localsettings.agentCOTMax;
 		document.getElementById("agentCOTRepeatsMax").value = localsettings.agentCOTRepeatsMax;
 		document.getElementById("agentCOTRepeatsMaxnumeric").value = localsettings.agentCOTRepeatsMax;
+		document.getElementById("disableSaveCompressionLocally").checked = localsettings.disableSaveCompressionLocally;
 	}
 
 	confirm_settings = () => {
@@ -27058,6 +27252,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		localsettings.agentHideCOT = (document.getElementById("agentHideCOT").checked ? true : false);
 		localsettings.agentCOTMax = document.getElementById("agentCOTMax").value;
 		localsettings.agentCOTRepeatsMax = document.getElementById("agentCOTRepeatsMax").value;
+		localsettings.disableSaveCompressionLocally = (document.getElementById("disableSaveCompressionLocally").checked ? true : false);
 		originalConfirmSettings()
 	}
 
@@ -27259,6 +27454,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			localsettings.agentCOTRepeatsMax = 1
 		}
+		if (localsettings?.disableSaveCompressionLocally == undefined) 
+		{
+			localsettings.disableSaveCompressionLocally = true
+		}
 
 		let createSettingElemBool = (inputElemId, labelTitle, labelText) => {
 			let settingLabelElem = document.createElement("div")
@@ -27354,7 +27553,13 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		settingLabelElem = createSettingElemRange("agentCOTMax", "Maximum agent actions", "Defines the maximum number of actions the agent can take without a user input", 1, 20, 1, 5)
 		lastSettingContainer.append(settingLabelElem)
 
+		// Hidden as this is no longer is in use for now
 		settingLabelElem = createSettingElemRange("agentCOTRepeatsMax", "Maximum repeated agent actions of a type", "Defines the maximum number of actions the agent can take of the same type without a user input", 1, 20, 1, 1)
+		settingLabelElem.style.display = "none"
+		lastSettingContainer.append(settingLabelElem)
+
+		lastSettingContainer = document.querySelector("#settingsmenuadvanced > .settingitem:nth-last-child(-n+2)")
+		settingLabelElem = createSettingElemBool("disableSaveCompressionLocally", "Disables save compression locally", "Disables save compression locally - Improves load / autosave performance with larger saves. The save compression is left enabled for sharing saves or uploading to the main server)")
 		lastSettingContainer.append(settingLabelElem)
 
 		createStopThinkingButton()
@@ -27369,7 +27574,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 	img.esobold {
 		background-image: var(--img_esobold);
-		background-size: cover;
+		background-size: contain;
+		background-repeat: round;
 		height: 500px !important;
 		aspect-ratio: 1;
 		border-radius: 250px;
@@ -27384,7 +27590,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	document.getElementById("btnsend").onmouseover = () => {
 		document.getElementById("input_text").placeholder = `Enter text here\nOr enjoy this fact: ${getRandomElemFromArray(facts)}`;
 		document.getElementById("btnsend").style.backgroundImage = `url("${getRandomElemFromArray(icons)}")`; 
-		document.getElementById("btnsend").style.backgroundSize = "cover"
+		document.getElementById("btnsend").style.backgroundSize = "contain"
+		document.getElementById("btnsend").style.backgroundPosition = "center"
+		document.getElementById("btnsend").style.backgroundRepeat = "no-repeat"
 	}
 
 	window.addEventListener('load', () => {

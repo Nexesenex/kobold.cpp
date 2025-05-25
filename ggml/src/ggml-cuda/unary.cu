@@ -33,6 +33,15 @@ static __global__ void gelu_f32(const float * x, float * dst, const int k) {
     dst[i] = 0.5f*xi*(1.0f + tanhf(SQRT_2_OVER_PI*xi*(1.0f + GELU_COEF_A*xi*xi)));
 }
 
+static __global__ void gelu_erf_f32(const float * x, float * dst, int k) {
+    const float SQRT_2_INV = 0.70710678118654752440084436210484f;
+
+    if (i >= k) {
+        return;
+    }
+    dst[i] = 0.5f * x[i] * (1.0f + erff(SQRT_2_INV * x[i]));
+}
+
 static __global__ void gelu_quick_f32(const float * x, float * dst, int k) {
     const float GELU_QUICK_COEF = -1.702f;
     const int i  = blockDim.x*blockIdx.x + threadIdx.x;
@@ -174,6 +183,11 @@ static void step_f32_cuda(const float * x, float * dst, const int k, cudaStream_
 static void gelu_f32_cuda(const float * x, float * dst, const int k, cudaStream_t stream) {
     const int num_blocks = (k + CUDA_GELU_BLOCK_SIZE - 1) / CUDA_GELU_BLOCK_SIZE;
     gelu_f32<<<num_blocks, CUDA_GELU_BLOCK_SIZE, 0, stream>>>(x, dst, k);
+}
+
+static void gelu_erf_f32_cuda(const float * x, float * dst, const int k, cudaStream_t stream) {
+    const int num_blocks = (k + CUDA_GELU_BLOCK_SIZE - 1) / CUDA_GELU_BLOCK_SIZE;
+    gelu_erf_f32<<<num_blocks, CUDA_GELU_BLOCK_SIZE, 0, stream>>>(x, dst, k);
 }
 
 static void gelu_quick_f32_cuda(const float * x, float * dst, const int k, cudaStream_t stream) {
@@ -318,6 +332,20 @@ void ggml_cuda_op_silu_back(ggml_backend_cuda_context & ctx, ggml_tensor * dst) 
     GGML_ASSERT( dst->type == GGML_TYPE_F32);
 
     silu_back_f32_cuda(src0_d, src1_d, dst_d, ggml_nelements(src0), stream);
+}
+
+void ggml_cuda_op_gelu_erf(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
+    const ggml_tensor * src0 = dst->src[0];
+    const float * src0_d = (const float *)src0->data;
+    float * dst_d = (float *)dst->data;
+    cudaStream_t stream = ctx.stream();
+
+    GGML_ASSERT(ggml_is_contiguous(src0));
+
+    GGML_ASSERT(src0->type == GGML_TYPE_F32);
+    GGML_ASSERT( dst->type == GGML_TYPE_F32);
+
+    gelu_erf_f32_cuda(src0_d, dst_d, ggml_nelements(src0), stream);
 }
 
 void ggml_cuda_op_gelu_quick(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {

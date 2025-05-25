@@ -1,10 +1,12 @@
 #!/bin/bash
 chmod +x "./create_ver_file.sh"
 . create_ver_file.sh
-pyinstaller --noconfirm --onefile --clean --console --collect-all customtkinter --collect-all psutil --collect-all pdfplumber --icon "./niko.ico" \
+pyinstaller --noconfirm --onefile --clean --console --collect-all customtkinter --collect-all psutil --collect-all pdfplumber --collect-all PyMuPdf --collect-all tqdm --icon "./niko.ico" \
 --add-data "./kcpp_adapters:./kcpp_adapters" \
 --add-data "./koboldcpp.py:." \
 --add-data "./json_to_gbnf.py:." \
+--add-data "./launch.cmd:." \
+--add-data "./requirements_minimal.txt:." \
 --add-data "./LICENSE.md:."  \
 --add-data "./MIT_LICENSE_GGML_SDCPP_LLAMACPP_ONLY.md:." \
 --add-data "./klite.embd:." \
