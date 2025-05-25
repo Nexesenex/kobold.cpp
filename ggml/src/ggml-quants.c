@@ -212,10 +212,6 @@ void quantize_row_q5_1_ref(const float * GGML_RESTRICT x, block_q5_1 * GGML_REST
     }
 }
 
-// void quantize_row_q5_1(const float * restrict x, void * restrict y, int64_t k) {
-    // quantize_row_q5_1_ref(x, y, k);
-// }
-
 void quantize_row_q6_0_ref(const float * GGML_RESTRICT x, block_q6_0 * GGML_RESTRICT y, int64_t k) {
     static const int qk = QK6_0;
 
@@ -5730,7 +5726,6 @@ bool ggml_validate_row_data(enum ggml_type type, const void * data, size_t nbyte
         // case GGML_TYPE_Q8_K_R8:  break;
         // case GGML_TYPE_Q8_KV:    break;
         // case GGML_TYPE_BF16_R16: break;
-        // case GGML_TYPE_IQ2_KS: break;
         case GGML_TYPE_IQ2_KT: break;
         case GGML_TYPE_IQ3_KT: break;
         case GGML_TYPE_IQ4_KT: break;

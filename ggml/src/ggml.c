@@ -8,6 +8,7 @@
 #include "ggml_ik.h"
 #include "ggml-cpu-aarch64.h"
 #include "iqk/iqk_mul_mat.h"
+#include "iqk_croco/iqk_quantize_croco.h"
 #elif GGML_USE_LLAMA_CPP_MAINLINE
 #include "ggml-backend.h"
 #include "ggml-impl.h"
@@ -22,13 +23,13 @@
 #else
 #include "ggml-backend.h"
 #include "ggml-impl.h"
-#include "ggml-cpu-impl.h"
+#include "ggml-cpu/ggml-cpu-impl.h"
 #include "ggml-threading.h"
 #include "ggml.h"
 #include "ggml-quants.h"
-#include "ggml-cpu-aarch64.h"
+#include "ggml-cpu/ggml-cpu-aarch64.h"
 #include "iqk_croco/iqk_quantize_croco.h"
-#include "iqk/iqk_config.h"
+#include "iqk_croco/iqk_common_croco.h"
 #endif
 
 #ifdef GGML_USE_CPU_HBM
@@ -1030,9 +1031,9 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .blck_size                = QK_IQ1BN,
         .type_size                = sizeof(block_iq1_bn),
         .is_quantized             = true,
-        .to_float                 = (ggml_to_float_t) dequantize_row_iq1_bn,
+        // .to_float                 = (ggml_to_float_t) dequantize_row_iq1_bn,
         // .from_float               = quantize_row_iq1_bn,
-        .from_float_ref           = (ggml_from_float_t)quantize_row_iq1_bn_ref,
+        // .from_float_ref           = (ggml_from_float_t)quantize_row_iq1_bn_ref,
         // .vec_dot                  = ggml_vec_dot_iq1_bn_q8_K64,
         // .vec_dot_type             = GGML_TYPE_Q8_K64,
         // .nrows                    = 1,
@@ -7542,11 +7543,11 @@ size_t ggml_quantize_chunk(
                 ggml_fp32_to_bf16_row_ref(src + start, (ggml_bf16_t *)dst + start, n);
                 result = n * elemsize;
             } break;
-        case GGML_TYPE_BF16_R16:
-            {
-                repack_f32_bf16_r16(src + start, (char *) dst + start_row * row_size, nrows, n_per_row);
-                result = nrows * row_size;
-            } break;
+        // case GGML_TYPE_BF16_R16:
+            // {
+                // repack_f32_bf16_r16(src + start, (char *) dst + start_row * row_size, nrows, n_per_row);
+                // result = nrows * row_size;
+            // } break;
         case GGML_TYPE_F32:
             {
                 size_t elemsize = sizeof(float);
