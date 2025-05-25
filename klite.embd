@@ -25717,7 +25717,7 @@ else
 				type: "array",
 				}
 			},
-			"enabled": true,
+			"enabled": false,
 			"outputVisibleToUser": true,
 			"executor": (action) => {
 				let suggestions = action?.args?.suggestionsToPickFrom
@@ -25736,7 +25736,7 @@ else
 			},
 			{
 			"name": "send_message",
-			"description": "Send a message to the user without waiting for their response. Does not return anything.",
+			"description": "Sends text to the user. When asking for user input include suggestions for them to respond with.",
 			"args": {
 				"whoToSendMessageAs": {
 					description: "<whose perspective is the response written from>",
@@ -25744,12 +25744,35 @@ else
 					type: "string",
 					skip: !localsettings.inject_chatnames_instruct
 				},
-				"message": "<message to send>",
+				"messages": {
+					description: "<text to send>",
+					type: "array",
+					itemType: "string"
+				},
+				"suggestionsToPickFrom": {
+				description: "<suggestions written from the user's perspective which they can pick from for their next action>",
+				type: "array",
+				}
 			},
 			"enabled": true,
 			"outputVisibleToUser": true,
 			"executor": (action) => {
-				addThought(createAIPrompt, localsettings.inject_chatnames_instruct ? `${action?.args?.whoToSendMessageAs}: ${action?.args?.message}` : action?.args?.message)
+				if (!!action?.args?.messages)
+				{
+					action?.args?.messages.forEach(message => {
+						addThought(createAIPrompt, localsettings.inject_chatnames_instruct ? `${action?.args?.whoToSendMessageAs}: ${message}` : message)
+					})
+
+					let suggestions = action?.args?.suggestionsToPickFrom
+					if (!!suggestions && Array.isArray(suggestions)) {
+						try {
+							setSuggestions(suggestions.map(String))
+						}
+						catch {
+							// Do not care about an error here, it's a nice to have if the suggestions show
+						}
+					}
+				}
 			}
 			},
 			{
@@ -25860,8 +25883,10 @@ else
 			"args": {
 				"text": "<text to add>",
 				"keywords": {
-				description: "<keywords to help with searching>",
-				type: "array"
+					description: "<keywords to help with searching>",
+					type: "array",
+					itemType: "string"
+					minItems: 1,
 				}
 			},
 			"enabled": documentdb_enabled,
@@ -25886,7 +25911,9 @@ else
 					"text": "<descriptive text which by itself provides all needed information to define the entity>",
 					"keywords": {
 						description: "<keywords to help with searching>",
-						type: "array"
+						type: "array",
+						itemType: "string"
+						minItems: 1,
 					}
 				},
 				"enabled": true,
