@@ -25880,7 +25880,7 @@ else
 			},
 			{
 				"name": "overwrite_world_information",
-				"description": "Overwrites an entry describing an entity. The information is stored under a unique identifier. This information is included when certain keywords are mentioned. Limit this to key information and overwrite unique identifiers if needed.",
+				"description": "Overwrites an entry describing an entity. The information is stored under a unique identifier. This information is included when certain keywords are mentioned. This does not show the information to the user.",
 				"args": {
 					"uniqueIdentifier": "<unique identifier (such as a characters name, location etc)>",
 					"text": "<descriptive text which by itself provides all needed information to define the entity>",
@@ -26737,7 +26737,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	let getFinalAgentPrompt = (commands, currentOrderOfActions, objectiveForCurrentAction, initialPrompt) => {
 		let state = getDocumentFromTextDB('State')
 		let prompt = []
-		
+
 		let sysPrompt = !!localsettings.instruct_sysprompt ? `${localsettings.instruct_sysprompt}` : `You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user.`
 		prompt.push(`System prompt: ${sysPrompt}`)
 		
