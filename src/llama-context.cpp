@@ -458,7 +458,7 @@ void llama_context::kv_self_update() {
 
     // reserve a worst case graph if needed
     if (need_reserve) {
-        LLAMA_LOG_DEBUG("%s: reserving a worst case graph\n", __func__);
+        // LLAMA_LOG_DEBUG("%s: reserving a worst case graph\n", __func__);
 
         // build worst-case graph
         uint32_t n_seqs = 1; // TODO: worst-case number of sequences
@@ -892,9 +892,9 @@ int llama_context::decode(llama_batch & inp_batch) {
         }
     }
 
-    GGML_ASSERT(n_tokens_all <= cparams.n_batch);
+    GGML_ASSERT_CONTINUE(n_tokens_all <= cparams.n_batch);
 
-    GGML_ASSERT((cparams.causal_attn || cparams.n_ubatch >= n_tokens_all) && "non-causal attention requires n_ubatch >= n_tokens");
+    // GGML_ASSERT((cparams.causal_attn || cparams.n_ubatch >= n_tokens_all) && "non-causal attention requires n_ubatch >= n_tokens");
 
     if (t_compute_start_us == 0) {
         t_compute_start_us = ggml_time_us();

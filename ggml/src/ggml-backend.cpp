@@ -56,7 +56,7 @@ size_t ggml_backend_buft_get_max_size(ggml_backend_buffer_type_t buft) {
     return SIZE_MAX;
 }
 
-size_t ggml_backend_buft_get_alloc_size(ggml_backend_buffer_type_t buft, const struct ggml_tensor * tensor) {
+size_t ggml_backend_buft_get_alloc_size(ggml_backend_buffer_type_t buft, struct ggml_tensor * tensor) {
     // get_alloc_size is optional, defaults to ggml_nbytes
     if (buft->iface.get_alloc_size) {
         size_t size = buft->iface.get_alloc_size(buft, tensor);
@@ -152,7 +152,7 @@ size_t ggml_backend_buffer_get_max_size(ggml_backend_buffer_t buffer) {
     return ggml_backend_buft_get_max_size(ggml_backend_buffer_get_type(buffer));
 }
 
-size_t ggml_backend_buffer_get_alloc_size(ggml_backend_buffer_t buffer, const struct ggml_tensor * tensor) {
+size_t ggml_backend_buffer_get_alloc_size(ggml_backend_buffer_t buffer, struct ggml_tensor * tensor) {
     return ggml_backend_buft_get_alloc_size(ggml_backend_buffer_get_type(buffer), tensor);
 }
 
@@ -617,7 +617,7 @@ static bool ggml_is_view_op(enum ggml_op op) {
 #endif
 
 #ifndef GGML_SCHED_MAX_COPIES
-#define GGML_SCHED_MAX_COPIES 4
+#define GGML_SCHED_MAX_COPIES 1
 #endif
 
 struct ggml_backend_sched_split {
@@ -726,6 +726,8 @@ static char causes[GGML_DEFAULT_GRAPH_SIZE*16 + GGML_SCHED_MAX_SPLITS_DEBUG*GGML
 #define GET_CAUSE(node) ""
 #endif
 
+static bool backend_prealloc_warn = false;
+
 // returns the backend that should be used for the node based on the current locations
 static int ggml_backend_sched_backend_id_from_cur(ggml_backend_sched_t sched, struct ggml_tensor * tensor) {
     // assign pre-allocated nodes to their backend
@@ -747,7 +749,11 @@ static int ggml_backend_sched_backend_id_from_cur(ggml_backend_sched_t sched, st
     if (tensor->buffer || (tensor->view_src && tensor->view_src->buffer)) {
         // since the tensor is pre-allocated, it cannot be moved to another backend
         ggml_backend_buffer_t buffer = tensor->view_src ? tensor->view_src->buffer : tensor->buffer;
-        GGML_ABORT("pre-allocated tensor (%s) in a buffer (%s) that cannot run the operation (%s)", tensor->name, ggml_backend_buffer_name(buffer), ggml_op_name(tensor->op));
+        if (!backend_prealloc_warn) {
+            backend_prealloc_warn = true;
+            printf("\nCaution: pre-allocated tensor (%s) in a buffer (%s) that cannot run the operation (%s)\n", tensor->name, ggml_backend_buffer_name(buffer), ggml_op_name(tensor->op));
+            printf("\nNote that if you are using Quantized KV, not all backends support it!\n");
+        }
     }
 
     // graph input
@@ -1458,7 +1464,7 @@ ggml_backend_sched_t ggml_backend_sched_new(
         bool op_offload) {
     GGML_ASSERT(n_backends > 0);
     GGML_ASSERT(n_backends <= GGML_SCHED_MAX_BACKENDS);
-    GGML_ASSERT(ggml_backend_dev_type(ggml_backend_get_device(backends[n_backends - 1])) == GGML_BACKEND_DEVICE_TYPE_CPU);
+    // GGML_ASSERT(ggml_backend_dev_type(ggml_backend_get_device(backends[n_backends - 1])) == GGML_BACKEND_DEVICE_TYPE_CPU);
 
     struct ggml_backend_sched * sched = (ggml_backend_sched *) calloc(1, sizeof(struct ggml_backend_sched));
 

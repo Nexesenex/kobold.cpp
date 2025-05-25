@@ -6,6 +6,7 @@
 using vDSP_fn_t = void (*)(const float *, vDSP_Stride, const float *, vDSP_Stride, float *, vDSP_Stride, vDSP_Length);
 #endif
 
+
 static inline float op_add(float a, float b) {
     return a + b;
 }
