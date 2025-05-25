@@ -25880,7 +25880,7 @@ else
 			},
 			{
 				"name": "overwrite_world_information",
-				"description": "Overwrites an entry describing an entity. The information is stored under a unique identifier. This information is included when certain keywords are mentioned.",
+				"description": "Overwrites an entry describing an entity. The information is stored under a unique identifier. This information is included when certain keywords are mentioned. Limit this to key information and overwrite unique identifiers if needed.",
 				"args": {
 					"uniqueIdentifier": "<unique identifier (such as a characters name, location etc)>",
 					"text": "<descriptive text which by itself provides all needed information to define the entity>",
@@ -26450,28 +26450,6 @@ json_schema = `RESPOND WITH ONLY VALID JSON CONFORMING TO THE FOLLOWING SCHEMA:
 	}
 } `;
 
-/**
- * Old action prompt
-let actionPrompt = () => {
-	return `${!!localsettings.instruct_sysprompt ? `${localsettings.instruct_sysprompt}\n\n` : ""}You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user.
-
-${constraints}
-
-${getCommandsAsText()}
-
-${agentResources}
-
-${agentEvaluation}
-
-${json_schema}`
-}**/
-
-let actionPrompt = (commands = getEnabledCommands()) => {
-	return `${!!localsettings.instruct_sysprompt ? `${localsettings.instruct_sysprompt}` : `You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user.`}
-
-${getCommandsAsText(commands)}`
-}
-
 let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"message":"I must make sure that I respond to the user with \"send_message\""}}}`
 </script>
 <style>
@@ -26759,6 +26737,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	let getFinalAgentPrompt = (commands, currentOrderOfActions, objectiveForCurrentAction, initialPrompt) => {
 		let state = getDocumentFromTextDB('State')
 		let prompt = []
+		
+		let sysPrompt = !!localsettings.instruct_sysprompt ? `${localsettings.instruct_sysprompt}` : `You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user.`
+		prompt.push(`System prompt: ${sysPrompt}`)
+		
 		if (!!initialPrompt)
 		{
 			prompt.push(`Last user instruction: ${initialPrompt}`)
@@ -26771,12 +26753,17 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			prompt.push(`Current state: ${state}`)
 		}
+		let currentAgentWIs = current_wi.filter(wi => !!wi?.wigroup && wi.wigroup === "Agent").map(wi => wi?.comment)
+		if (currentAgentWIs.length > 0)
+		{
+			prompt.push(`Current unique identifiers for world info: ${currentAgentWIs.join(", ")}`)
+		}
 		if (currentOrderOfActions.length > 0)
 		{
 			prompt.push(`Order of actions: ${currentOrderOfActions.join(" -> ")}`)
 		}
 		let basePrompt = prompt.join("\n\n")
-		return createSysPrompt(`System prompt:\n\n${actionPrompt(!!commands.find(c => c.name === "plan_actions") ? getEnabledCommands() : commands)}`) + (basePrompt.length > 0 ? createSysPrompt(basePrompt) : "")
+		return createSysPrompt(`### Available commands:\n\n${getCommandsAsText(!!commands.find(c => c.name === "plan_actions") ? getEnabledCommands() : commands)}`) + (basePrompt.length > 0 ? createSysPrompt(basePrompt) : "")
 	}
 
 	/**
