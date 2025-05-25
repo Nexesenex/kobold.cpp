@@ -25885,7 +25885,7 @@ else
 				"keywords": {
 					description: "<keywords to help with searching>",
 					type: "array",
-					itemType: "string"
+					itemType: "string",
 					minItems: 1,
 				}
 			},
@@ -25912,7 +25912,7 @@ else
 					"keywords": {
 						description: "<keywords to help with searching>",
 						type: "array",
-						itemType: "string"
+						itemType: "string",
 						minItems: 1,
 					}
 				},
