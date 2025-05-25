@@ -27126,8 +27126,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			}
 			catch (e)
 			{
-				console.log(i)
 				addThought(createSysPrompt, `Chain of thought had an exception: ${e}`)
+				console.error(`Agent response which errored: ${resp}`)
+				
 				if (resp === null || resp.indexOf("evaluate_formula") === -1)
 				{
 					break	
