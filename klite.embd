@@ -25669,6 +25669,33 @@ else
 
 	let getChatOpponentRandomly = () => {
 		return getRandomElemFromArray(localsettings.chatopponent.split("||$||"))
+	}	
+
+	let objToText = (obj, depth = 0) => {
+		// Hard recursion limit
+		if (depth > 1000)
+		{
+			return ""		
+		}
+		let baseIndent = "", output = ""
+		for (let i = 0; i < depth; i++) {
+			baseIndent += "\t"
+		}
+		switch (typeof obj) {
+			case "array":
+				output += `${baseIndent}Array:\n${obj.map(elem => `${baseIndent}\tElement: ${objToText(elem, depth + 1)}`).join("\n")}`
+				break
+			case "object":
+				let keys = Object.keys(obj)
+				output += keys.map(key => {
+					return `${baseIndent}-> ${key}:\n${objToText(obj[key], depth + 1)}`
+				}).join("\n")
+				break
+			default:
+				output += `${baseIndent}${JSON.stringify(obj)}`
+				break
+		}
+		return output
 	}
 
 	let wordCountEnabled = false
@@ -25691,6 +25718,7 @@ else
 				}
 			},
 			"enabled": true,
+			"outputVisibleToUser": true,
 			"executor": (action) => {
 				let suggestions = action?.args?.suggestionsToPickFrom
 				if (!!suggestions && Array.isArray(suggestions)) {
@@ -25719,6 +25747,7 @@ else
 				"message": "<message to send>",
 			},
 			"enabled": true,
+			"outputVisibleToUser": true,
 			"executor": (action) => {
 				addThought(createAIPrompt, localsettings.inject_chatnames_instruct ? `${action?.args?.whoToSendMessageAs}: ${action?.args?.message}` : action?.args?.message)
 			}
@@ -25742,8 +25771,8 @@ else
 			"enabled": localsettings.websearch_enabled,
 				"executor": async (action) => {
 					await(new Promise((resolve, reject) => { PerformWebsearch(`${action?.args?.query}`, resolve) }));
-					let webResp = JSON.stringify(lastSearchResults);
-					addThought(createSysPrompt, "Web search results: " + webResp)
+					let webResp = objToText(lastSearchResults);
+					addThought(createSysPrompt, `Web search results: \n${webResp, 1}`)
 				}
 			},
 			{
@@ -25760,20 +25789,21 @@ else
 				}
 			},
 			"enabled": true,
-				"executor": (action) => {
-					let numDice = action?.args?.numDice
-					let numSides = action?.args?.numSides
-					if (!!numDice && !!numSides) {
-						let results = []
-						for (let roll = 0; roll < numDice; roll++) {
-							results.push(Math.ceil(Math.random() * numSides))
-						}
-						addThought(createSysPrompt, `Rolled ${numDice} dice with ${numSides} sides: ${results.join(", ")}`)
+			"outputVisibleToUser": true,
+			"executor": (action) => {
+				let numDice = action?.args?.numDice
+				let numSides = action?.args?.numSides
+				if (!!numDice && !!numSides) {
+					let results = []
+					for (let roll = 0; roll < numDice; roll++) {
+						results.push(Math.ceil(Math.random() * numSides))
 					}
-					else {
-						addThought(createSysPrompt, `Could not roll dice as the format was incorrect`)
-					}
+					addThought(createSysPrompt, `Rolled ${numDice} dice with ${numSides} sides: ${results.join(", ")}`)
 				}
+				else {
+					addThought(createSysPrompt, `Could not roll dice as the format was incorrect`)
+				}
+			}
 			},
 			{
 			"name": "get_random_terms_from_table",
@@ -25789,6 +25819,7 @@ else
 				enum: getTableNamesFromTextDB()
 				}
 			},
+			"outputVisibleToUser": true,
 			"enabled": getTableNamesFromTextDB().length > 0,
 				"executor": (action) => {
 					let numOfTerms = action?.args?.numOfTerms
@@ -25884,7 +25915,6 @@ else
 				"executor": (action) => {
 					let systemPrompt = action?.args?.text
 					if (!!systemPrompt) {
-						// localsettings.instruct_sysprompt = systemPrompt
 						current_memory = `{{[SYSTEM]}}${systemPrompt}{{[SYSTEM_END]}}`
 						addThought(createSysPrompt, `Setting overview has been overwritten`)
 					}
@@ -26023,47 +26053,47 @@ else
 				}
 			},
 			{
-				"name": "analyse_image",
-				"description": "Produces a description about an image using AI based on a prompt and an input image. Will prompt the user to select an image to analyse.",
-				"args": {
-					"prompt": "<prompt to query image about>"
-				},
-				"enabled": is_using_kcpp_with_llava(), // Only enabled if local endpoint exists / is in use
-				"executor": async (action) => {
-					let analysisPrompt = "Describe the image in detail. Transcribe and include any text from the image in the description."
-					if (!!action?.args?.prompt) {
-						analysisPrompt += `Specifically please focus on:\n\n${action?.args?.prompt}`
-					}
-					if (!!analysisPrompt) {
-						waitingFori2iSelection = true
-						addThought(createSysPrompt, `Please click an image as a source for image analysis`, true)
-
-						let waitForI2ILoop = () => {
-							return new Promise((resolve, reject) => {
-								let intervalId = setInterval(() => {
-									if (waitingFori2iSelection === false || endCurrent) {
-										clearInterval(intervalId)
-										resolve()
-									}
-								}, 1000)
-							})
-						}
-						await waitForI2ILoop()
-						if (!!i2i64) {
-							let parts = i2i64.split(',');
-							if (parts.length === 2 && parts[0].startsWith('data:image')) {
-								i2i64 = parts[1];
-							}
-							let analysisResult = await generateAndGetTextFromPrompt(`${createInstructPrompt(analysisPrompt)}${instructendplaceholder}${!!localsettings?.inject_jailbreak_instruct ? localsettings.custom_jailbreak_text : ""}`, undefined, [i2i64])
-							addThought(createSysPrompt, `Image analysed: ${analysisResult}`)
-						}
-						else {
-							addThought(createSysPrompt, `User did not select an image - no image analysed`)
-						}
-						i2i64 = undefined;
-						waitingFori2iSelection = false;
-					}
+			"name": "analyse_image",
+			"description": "Produces a description about an image using AI based on a prompt and an input image. Will prompt the user to select an image to analyse. It does not provide the original prompt used to generate the image.",
+			"args": {
+				"prompt": "<prompt to query image about>"
+			},
+			"enabled": is_using_kcpp_with_llava(), // Only enabled if local endpoint exists / is in use
+			"executor": async (action) => {
+				let analysisPrompt = "Describe the image in detail. Transcribe and include any text from the image in the description."
+				if (!!action?.args?.prompt) {
+					analysisPrompt += `Specifically please focus on:\n\n${action?.args?.prompt}`
 				}
+				if (!!analysisPrompt) {
+					waitingFori2iSelection = true
+					addThought(createSysPrompt, `Please click an image as a source for image analysis`, true)
+
+					let waitForI2ILoop = () => {
+						return new Promise((resolve, reject) => {
+							let intervalId = setInterval(() => {
+								if (waitingFori2iSelection === false || endCurrent) {
+									clearInterval(intervalId)
+									resolve()
+								}
+							}, 1000)
+						})
+					}
+					await waitForI2ILoop()
+					if (!!i2i64) {
+						let parts = i2i64.split(',');
+						if (parts.length === 2 && parts[0].startsWith('data:image')) {
+							i2i64 = parts[1];
+						}
+						let analysisResult = await generateAndGetTextFromPrompt(`${createInstructPrompt(analysisPrompt)}${instructendplaceholder}${!!localsettings?.inject_jailbreak_instruct ? localsettings.custom_jailbreak_text : ""}`, undefined, [i2i64])
+						addThought(createSysPrompt, `Image analysed: ${analysisResult}`)
+					}
+					else {
+						addThought(createSysPrompt, `User did not select an image - no image analysed`)
+					}
+					i2i64 = undefined;
+					waitingFori2iSelection = false;
+				}
+			}
 			},
 			{
 			"name": "generate_image",
@@ -26079,6 +26109,7 @@ else
 					description: "<aspect ratio - must be \"landscape\", \"portrait\" or \"square\">"
 				}
 			},
+			"outputVisibleToUser": true,
 			"enabled": localsettings.generate_images_mode == 2, // Only enabled if local endpoint exists / is in use
 				"executor": async (action) => {
 					let prompt = action?.args?.prompt
@@ -26171,6 +26202,7 @@ else
 			"args": {
 				"textToSay": "<text to say>"
 			},
+			"outputVisibleToUser": true,
 			"enabled": localsettings.speech_synth == KCPP_TTS_ID, // Only enabled if local endpoint exists / is in use
 				"executor": (action) => {
 					let textToSay = action?.args?.textToSay
@@ -26373,7 +26405,7 @@ else
 	// https://github.com/Wladastic/mini_autogpt is the original repo for these prompts - They have been modified with some attempted improvements.  It is MIT licensed.
 let getCommandsAsText = (commands = getEnabledCommands()) => {
 	return commands.map(command => {
-		let baseCommand = `Command: ${command.name}\nDescription: ${command.description}`
+		let baseCommand = `Command: ${command.name}\nDescription: ${command.description}\nIs output visible to user: ${!!command?.outputVisibleToUser}`
 		if (!!command.args)
 		{
 			let args = Object.keys(command.args).map(key => {
@@ -26857,33 +26889,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			}
 		}
 		return wistr
-	}
-
-	let objToText = (obj, depth = 0) => {
-		// Hard recursion limit
-		if (depth > 1000)
-		{
-			return ""		
-		}
-		let baseIndent = "", output = ""
-		for (let i = 0; i < depth; i++) {
-			baseIndent += "\t"
-		}
-		switch (typeof obj) {
-			case "array":
-				output += `${baseIndent}Array:\n${obj.map(elem => `${baseIndent}\tElement: ${objToText(elem, depth + 1)}`).join("\n")}`
-				break
-			case "object":
-				let keys = Object.keys(obj)
-				output += keys.map(key => {
-					return `${baseIndent}-> ${key}:\n${objToText(obj[key], depth + 1)}`
-				}).join("\n")
-				break
-			default:
-				output += `${baseIndent}${JSON.stringify(obj)}`
-				break
-		}
-		return output
 	}
 	let actionToText = (action) => {
 		let actionAsText = `Name: ${action.name}\n`
