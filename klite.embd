@@ -26859,13 +26859,51 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		return wistr
 	}
 
+	let objToText = (obj, depth = 0) => {
+		// Hard recursion limit
+		if (depth > 1000)
+		{
+			return ""		
+		}
+		let baseIndent = "", output = ""
+		for (let i = 0; i < depth; i++) {
+			baseIndent += "\t"
+		}
+		switch (typeof obj) {
+			case "array":
+				output += `${baseIndent}Array:\n${obj.map(elem => `${baseIndent}\tElement: ${objToText(elem, depth + 1)}`).join("\n")}`
+				break
+			case "object":
+				let keys = Object.keys(obj)
+				output += keys.map(key => {
+					return `${baseIndent}-> ${key}:\n${objToText(obj[key], depth + 1)}`
+				}).join("\n")
+				break
+			default:
+				output += `${baseIndent}${JSON.stringify(obj)}`
+				break
+		}
+		return output
+	}
 	let actionToText = (action) => {
 		let actionAsText = `Name: ${action.name}\n`
 		if (!!action.args)
 		{
 			let args = Object.keys(action.args).map(key => {
 				let value = action.args[key];
-				return typeof value === "object" ? `\t${key}: ${JSON.stringify(value)}` : `\t${key}: ${value}`
+				let val = value
+				if (typeof value === "object")
+				{
+					try
+					{
+						val = `\n${objToText(value, 2)}`
+					}
+					catch (e)
+					{
+						val = JSON.stringify(value)
+					}
+				}
+				return `\t${key}: ${val}`
 			}).join("\n")
 			actionAsText += `\nArguments:\n${args}`
 		}
