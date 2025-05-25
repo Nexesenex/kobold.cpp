@@ -26405,7 +26405,7 @@ else
 	// https://github.com/Wladastic/mini_autogpt is the original repo for these prompts - They have been modified with some attempted improvements.  It is MIT licensed.
 let getCommandsAsText = (commands = getEnabledCommands()) => {
 	return commands.map(command => {
-		let baseCommand = `Command: ${command.name}\nDescription: ${command.description}\nIs output visible to user: ${!!command?.outputVisibleToUser}`
+		let baseCommand = `Command: ${command.name} (command output is ${!!command?.outputVisibleToUser ? "visible" : "invisible"} to the user)\nDescription: ${command.description}`
 		if (!!command.args)
 		{
 			let args = Object.keys(command.args).map(key => {
