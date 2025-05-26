@@ -568,7 +568,7 @@ static __global__ void dequantize_block_iq1_m(const void * __restrict__ vx, dst_
     }
 }
 
-/* template<typename dst_t>
+template<typename dst_t>
 static __global__ void dequantize_block_iq1_bn(const void * __restrict__ vx, dst_t * __restrict__ yy,
         int64_t n_per_row, int64_t row_size, int64_t nrows) {
 
@@ -610,9 +610,9 @@ static __global__ void dequantize_block_iq1_bn(const void * __restrict__ vx, dst
     y[7] = d*(vs - 1);
 
 #undef COMPUTE_VS
-} */
+}
 
-/* template<typename dst_t>
+template<typename dst_t>
 static __global__ void dequantize_block_iq2_bn(const void * __restrict__ vx, dst_t * __restrict__ yy, int64_t n_per_row, int64_t row_size, int64_t nrows) {
 
     int64_t ii  = 256*blockIdx.x;
@@ -636,7 +636,7 @@ static __global__ void dequantize_block_iq2_bn(const void * __restrict__ vx, dst
         y[j+32] = d * ((qs[j] >> 4) & 3) + m;
         y[j+48] = d * ((qs[j] >> 6) & 3) + m;
     }
-} */
+}
 
 template<typename dst_t>
 static __global__ void dequantize_block_iq4_nl(const void * __restrict__ vx, dst_t * __restrict__ yy) {
