@@ -26178,6 +26178,33 @@ else
 
 	let getChatOpponentRandomly = () => {
 		return getRandomElemFromArray(localsettings.chatopponent.split("||$||"))
+	}	
+
+	let objToText = (obj, depth = 0) => {
+		// Hard recursion limit
+		if (depth > 1000)
+		{
+			return ""		
+		}
+		let baseIndent = "", output = ""
+		for (let i = 0; i < depth; i++) {
+			baseIndent += "\t"
+		}
+		switch (typeof obj) {
+			case "array":
+				output += `${baseIndent}Array:\n${obj.map(elem => `${baseIndent}\tElement: ${objToText(elem, depth + 1)}`).join("\n")}`
+				break
+			case "object":
+				let keys = Object.keys(obj)
+				output += keys.map(key => {
+					return `${baseIndent}-> ${key}:\n${objToText(obj[key], depth + 1)}`
+				}).join("\n")
+				break
+			default:
+				output += `${baseIndent}${JSON.stringify(obj)}`
+				break
+		}
+		return output
 	}
 
 	let wordCountEnabled = false
@@ -26199,7 +26226,8 @@ else
 				type: "array",
 				}
 			},
-			"enabled": true,
+			"enabled": false,
+			"outputVisibleToUser": true,
 			"executor": (action) => {
 				let suggestions = action?.args?.suggestionsToPickFrom
 				if (!!suggestions && Array.isArray(suggestions)) {
@@ -26217,7 +26245,7 @@ else
 			},
 			{
 			"name": "send_message",
-			"description": "Send a message to the user without waiting for their response. Does not return anything.",
+			"description": "Sends text to the user. When asking for user input include suggestions for them to respond with.",
 			"args": {
 				"whoToSendMessageAs": {
 					description: "<whose perspective is the response written from>",
@@ -26225,11 +26253,35 @@ else
 					type: "string",
 					skip: !localsettings.inject_chatnames_instruct
 				},
-				"message": "<message to send>",
+				"messages": {
+					description: "<text to send>",
+					type: "array",
+					itemType: "string"
+				},
+				"suggestionsToPickFrom": {
+				description: "<suggestions written from the user's perspective which they can pick from for their next action>",
+				type: "array",
+				}
 			},
 			"enabled": true,
+			"outputVisibleToUser": true,
 			"executor": (action) => {
-				addThought(createAIPrompt, localsettings.inject_chatnames_instruct ? `${action?.args?.whoToSendMessageAs}: ${action?.args?.message}` : action?.args?.message)
+				if (!!action?.args?.messages)
+				{
+					action?.args?.messages.forEach(message => {
+						addThought(createAIPrompt, localsettings.inject_chatnames_instruct ? `${action?.args?.whoToSendMessageAs}: ${message}` : message)
+					})
+
+					let suggestions = action?.args?.suggestionsToPickFrom
+					if (!!suggestions && Array.isArray(suggestions)) {
+						try {
+							setSuggestions(suggestions.map(String))
+						}
+						catch {
+							// Do not care about an error here, it's a nice to have if the suggestions show
+						}
+					}
+				}
 			}
 			},
 			{
@@ -26251,8 +26303,8 @@ else
 			"enabled": localsettings.websearch_enabled,
 				"executor": async (action) => {
 					await(new Promise((resolve, reject) => { PerformWebsearch(`${action?.args?.query}`, resolve) }));
-					let webResp = JSON.stringify(lastSearchResults);
-					addThought(createSysPrompt, "Web search results: " + webResp)
+					let webResp = objToText(lastSearchResults);
+					addThought(createSysPrompt, `Web search results: \n${webResp, 1}`)
 				}
 			},
 			{
@@ -26269,20 +26321,21 @@ else
 				}
 			},
 			"enabled": true,
-				"executor": (action) => {
-					let numDice = action?.args?.numDice
-					let numSides = action?.args?.numSides
-					if (!!numDice && !!numSides) {
-						let results = []
-						for (let roll = 0; roll < numDice; roll++) {
-							results.push(Math.ceil(Math.random() * numSides))
-						}
-						addThought(createSysPrompt, `Rolled ${numDice} dice with ${numSides} sides: ${results.join(", ")}`)
+			"outputVisibleToUser": true,
+			"executor": (action) => {
+				let numDice = action?.args?.numDice
+				let numSides = action?.args?.numSides
+				if (!!numDice && !!numSides) {
+					let results = []
+					for (let roll = 0; roll < numDice; roll++) {
+						results.push(Math.ceil(Math.random() * numSides))
 					}
-					else {
-						addThought(createSysPrompt, `Could not roll dice as the format was incorrect`)
-					}
+					addThought(createSysPrompt, `Rolled ${numDice} dice with ${numSides} sides: ${results.join(", ")}`)
 				}
+				else {
+					addThought(createSysPrompt, `Could not roll dice as the format was incorrect`)
+				}
+			}
 			},
 			{
 			"name": "get_random_terms_from_table",
@@ -26298,6 +26351,7 @@ else
 				enum: getTableNamesFromTextDB()
 				}
 			},
+			"outputVisibleToUser": true,
 			"enabled": getTableNamesFromTextDB().length > 0,
 				"executor": (action) => {
 					let numOfTerms = action?.args?.numOfTerms
@@ -26338,8 +26392,10 @@ else
 			"args": {
 				"text": "<text to add>",
 				"keywords": {
-				description: "<keywords to help with searching>",
-				type: "array"
+					description: "<keywords to help with searching>",
+					type: "array",
+					itemType: "string",
+					minItems: 1,
 				}
 			},
 			"enabled": documentdb_enabled,
@@ -26358,14 +26414,16 @@ else
 			},
 			{
 				"name": "overwrite_world_information",
-				"description": "Overwrites an entry describing an entity. The information is stored under a unique identifier. This information is included when certain keywords are mentioned.",
+				"description": "Overwrites an entry describing an entity. The information is stored under a unique identifier. This information is included when certain keywords are mentioned. This does not show the information to the user.",
 				"args": {
 					"uniqueIdentifier": "<unique identifier (such as a characters name, location etc)>",
-					"text": "<descriptive text which by itself provides all needed information to define the entity>",
 					"keywords": {
-						description: "<keywords to help with searching>",
-						type: "array"
-					}
+						description: "<keywords to help with searching - at least one must be provided>",
+						type: "array",
+						itemType: "string",
+						minItems: 1,
+					},
+					"text": "<descriptive text which by itself provides all needed information to define the entity>"
 				},
 				"enabled": true,
 				"executor": (action) => {
@@ -26393,7 +26451,6 @@ else
 				"executor": (action) => {
 					let systemPrompt = action?.args?.text
 					if (!!systemPrompt) {
-						// localsettings.instruct_sysprompt = systemPrompt
 						current_memory = `{{[SYSTEM]}}${systemPrompt}{{[SYSTEM_END]}}`
 						addThought(createSysPrompt, `Setting overview has been overwritten`)
 					}
@@ -26428,7 +26485,7 @@ else
 				}
 			},
 			{
-				"name": "overwrite_current_state_response",
+			"name": "overwrite_current_state_response",
 				"description": "The current state can be overwritten by the overwrite_current_state command. Providing a JSON object to this function will enforce a particular response format when overriding the state.",
 				"args": {
 					"json": "<format which should be used when overwriting the current state>"
@@ -26532,47 +26589,47 @@ else
 				}
 			},
 			{
-				"name": "analyse_image",
-				"description": "Produces a description about an image using AI based on a prompt and an input image. Will prompt the user to select an image to analyse.",
-				"args": {
-					"prompt": "<prompt to query image about>"
-				},
-				"enabled": is_using_kcpp_with_llava(), // Only enabled if local endpoint exists / is in use
-				"executor": async (action) => {
-					let analysisPrompt = "Describe the image in detail. Transcribe and include any text from the image in the description."
-					if (!!action?.args?.prompt) {
-						analysisPrompt += `Specifically please focus on:\n\n${action?.args?.prompt}`
-					}
-					if (!!analysisPrompt) {
-						waitingFori2iSelection = true
-						addThought(createSysPrompt, `Please click an image as a source for image analysis`, true)
-
-						let waitForI2ILoop = () => {
-							return new Promise((resolve, reject) => {
-								let intervalId = setInterval(() => {
-									if (waitingFori2iSelection === false || endCurrent) {
-										clearInterval(intervalId)
-										resolve()
-									}
-								}, 1000)
-							})
-						}
-						await waitForI2ILoop()
-						if (!!i2i64) {
-							let parts = i2i64.split(',');
-							if (parts.length === 2 && parts[0].startsWith('data:image')) {
-								i2i64 = parts[1];
-							}
-							let analysisResult = await generateAndGetTextFromPrompt(`${createInstructPrompt(analysisPrompt)}${instructendplaceholder}${!!localsettings?.inject_jailbreak_instruct ? localsettings.custom_jailbreak_text : ""}`, undefined, [i2i64])
-							addThought(createSysPrompt, `Image analysed: ${analysisResult}`)
-						}
-						else {
-							addThought(createSysPrompt, `User did not select an image - no image analysed`)
-						}
-						i2i64 = undefined;
-						waitingFori2iSelection = false;
-					}
+			"name": "analyse_image",
+			"description": "Produces a description about an image using AI based on a prompt and an input image. Will prompt the user to select an image to analyse. It does not provide the original prompt used to generate the image.",
+			"args": {
+				"prompt": "<prompt to query image about>"
+			},
+			"enabled": is_using_kcpp_with_llava(), // Only enabled if local endpoint exists / is in use
+			"executor": async (action) => {
+				let analysisPrompt = "Describe the image in detail. Transcribe and include any text from the image in the description."
+				if (!!action?.args?.prompt) {
+					analysisPrompt += `Specifically please focus on:\n\n${action?.args?.prompt}`
 				}
+				if (!!analysisPrompt) {
+					waitingFori2iSelection = true
+					addThought(createSysPrompt, `Please click an image as a source for image analysis`, true)
+
+					let waitForI2ILoop = () => {
+						return new Promise((resolve, reject) => {
+							let intervalId = setInterval(() => {
+								if (waitingFori2iSelection === false || endCurrent) {
+									clearInterval(intervalId)
+									resolve()
+								}
+							}, 1000)
+						})
+					}
+					await waitForI2ILoop()
+					if (!!i2i64) {
+						let parts = i2i64.split(',');
+						if (parts.length === 2 && parts[0].startsWith('data:image')) {
+							i2i64 = parts[1];
+						}
+						let analysisResult = await generateAndGetTextFromPrompt(`${createInstructPrompt(analysisPrompt)}${instructendplaceholder}${!!localsettings?.inject_jailbreak_instruct ? localsettings.custom_jailbreak_text : ""}`, undefined, [i2i64])
+						addThought(createSysPrompt, `Image analysed: ${analysisResult}`)
+					}
+					else {
+						addThought(createSysPrompt, `User did not select an image - no image analysed`)
+					}
+					i2i64 = undefined;
+					waitingFori2iSelection = false;
+				}
+			}
 			},
 			{
 			"name": "generate_image",
@@ -26588,6 +26645,7 @@ else
 					description: "<aspect ratio - must be \"landscape\", \"portrait\" or \"square\">"
 				}
 			},
+			"outputVisibleToUser": true,
 			"enabled": localsettings.generate_images_mode == 2, // Only enabled if local endpoint exists / is in use
 				"executor": async (action) => {
 					let prompt = action?.args?.prompt
@@ -26680,6 +26738,7 @@ else
 			"args": {
 				"textToSay": "<text to say>"
 			},
+			"outputVisibleToUser": true,
 			"enabled": localsettings.speech_synth == KCPP_TTS_ID, // Only enabled if local endpoint exists / is in use
 				"executor": (action) => {
 					let textToSay = action?.args?.textToSay
@@ -26882,7 +26941,7 @@ else
 	// https://github.com/Wladastic/mini_autogpt is the original repo for these prompts - They have been modified with some attempted improvements.  It is MIT licensed.
 let getCommandsAsText = (commands = getEnabledCommands()) => {
 	return commands.map(command => {
-		let baseCommand = `Command: ${command.name}\nDescription: ${command.description}`
+		let baseCommand = `Command: ${command.name} (command output is ${!!command?.outputVisibleToUser ? "visible" : "invisible"} to the user)\nDescription: ${command.description}`
 		if (!!command.args)
 		{
 			let args = Object.keys(command.args).map(key => {
@@ -26926,28 +26985,6 @@ json_schema = `RESPOND WITH ONLY VALID JSON CONFORMING TO THE FOLLOWING SCHEMA:
 		"args": { "type": "object" }
 	}
 } `;
-
-/**
- * Old action prompt
-let actionPrompt = () => {
-	return `${!!localsettings.instruct_sysprompt ? `${localsettings.instruct_sysprompt}\n\n` : ""}You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user.
-
-${constraints}
-
-${getCommandsAsText()}
-
-${agentResources}
-
-${agentEvaluation}
-
-${json_schema}`
-}**/
-
-let actionPrompt = (commands = getEnabledCommands()) => {
-	return `${!!localsettings.instruct_sysprompt ? `${localsettings.instruct_sysprompt}` : `You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user.`}
-
-${getCommandsAsText(commands)}`
-}
 
 let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"message":"I must make sure that I respond to the user with \"send_message\""}}}`
 </script>
@@ -27236,6 +27273,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	let getFinalAgentPrompt = (commands, currentOrderOfActions, objectiveForCurrentAction, initialPrompt) => {
 		let state = getDocumentFromTextDB('State')
 		let prompt = []
+
+		let sysPrompt = !!localsettings.instruct_sysprompt ? `${localsettings.instruct_sysprompt}` : `You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user.`
+		prompt.push(`System prompt: ${sysPrompt}`)
+		
 		if (!!initialPrompt)
 		{
 			prompt.push(`Last user instruction: ${initialPrompt}`)
@@ -27248,12 +27289,17 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			prompt.push(`Current state: ${state}`)
 		}
+		let currentAgentWIs = current_wi.filter(wi => !!wi?.wigroup && wi.wigroup === "Agent").map(wi => wi?.comment)
+		if (currentAgentWIs.length > 0)
+		{
+			prompt.push(`Current unique identifiers for world info: ${currentAgentWIs.join(", ")}`)
+		}
 		if (currentOrderOfActions.length > 0)
 		{
 			prompt.push(`Order of actions: ${currentOrderOfActions.join(" -> ")}`)
 		}
 		let basePrompt = prompt.join("\n\n")
-		return createSysPrompt(`System prompt:\n\n${actionPrompt(!!commands.find(c => c.name === "plan_actions") ? getEnabledCommands() : commands)}`) + (basePrompt.length > 0 ? createSysPrompt(basePrompt) : "")
+		return createSysPrompt(`### Available commands:\n\n${getCommandsAsText(!!commands.find(c => c.name === "plan_actions") ? getEnabledCommands() : commands)}`) + (basePrompt.length > 0 ? createSysPrompt(basePrompt) : "")
 	}
 
 	/**
@@ -27367,14 +27413,25 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}
 		return wistr
 	}
-
 	let actionToText = (action) => {
 		let actionAsText = `Name: ${action.name}\n`
 		if (!!action.args)
 		{
 			let args = Object.keys(action.args).map(key => {
 				let value = action.args[key];
-				return typeof value === "object" ? `\t${key}: ${JSON.stringify(value)}` : `\t${key}: ${value}`
+				let val = value
+				if (typeof value === "object")
+				{
+					try
+					{
+						val = `\n${objToText(value, 2)}`
+					}
+					catch (e)
+					{
+						val = JSON.stringify(value)
+					}
+				}
+				return `\t${key}: ${val}`
 			}).join("\n")
 			actionAsText += `\nArguments:\n${args}`
 		}
@@ -27635,8 +27692,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			}
 			catch (e)
 			{
-				console.log(i)
 				addThought(createSysPrompt, `Chain of thought had an exception: ${e}`)
+				console.error(`Agent response which errored: ${resp}`)
+				
 				if (resp === null || resp.indexOf("evaluate_formula") === -1)
 				{
 					break	
@@ -27659,6 +27717,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		document.getElementById("agentCOTRepeatsMax").value = localsettings.agentCOTRepeatsMax;
 		document.getElementById("agentCOTRepeatsMaxnumeric").value = localsettings.agentCOTRepeatsMax;
 		document.getElementById("disableSaveCompressionLocally").checked = localsettings.disableSaveCompressionLocally;
+		document.getElementById("enableRunningMemory").checked = localsettings.enableRunningMemory;
 	}
 
 	confirm_settings = () => {
@@ -27667,6 +27726,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		localsettings.agentCOTMax = document.getElementById("agentCOTMax").value;
 		localsettings.agentCOTRepeatsMax = document.getElementById("agentCOTRepeatsMax").value;
 		localsettings.disableSaveCompressionLocally = (document.getElementById("disableSaveCompressionLocally").checked ? true : false);
+		localsettings.enableRunningMemory = (document.getElementById("enableRunningMemory").checked ? true : false);
 		originalConfirmSettings()
 	}
 
@@ -27872,6 +27932,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			localsettings.disableSaveCompressionLocally = true
 		}
+		if (localsettings?.enableRunningMemory == undefined) 
+		{
+			localsettings.enableRunningMemory = false
+		}
 
 		let createSettingElemBool = (inputElemId, labelTitle, labelText) => {
 			let settingLabelElem = document.createElement("div")
@@ -27974,6 +28038,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 		lastSettingContainer = document.querySelector("#settingsmenuadvanced > .settingitem:nth-last-child(-n+2)")
 		settingLabelElem = createSettingElemBool("disableSaveCompressionLocally", "Disables save compression locally", "Disables save compression locally - Improves load / autosave performance with larger saves. The save compression is left enabled for sharing saves or uploading to the main server)")
+		lastSettingContainer.append(settingLabelElem)
+
+		settingLabelElem = createSettingElemBool("enableRunningMemory", "Enable running memory", "Enables running memory, an experimental version of autogenerating memory which triggers every time the context length changes by half its maximum. The summaries it generates can be found under world info.")
 		lastSettingContainer.append(settingLabelElem)
 
 		createStopThinkingButton()
@@ -28606,6 +28673,75 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				modelDropdown.value = urlToSet
 			}
 		}
+	}
+</script>
+<script>
+	// Autogenerate running memory mod
+	let maxMemories = 5, lastContextLength = concat_gametext(true, "").length, autosummaryInterval = 60 * 1000;
+	let updateRunningMemory = async () => {
+		if (!localsettings?.enableRunningMemory || gametext_arr.length == 0 || (gametext_arr.length == 1 && gametext_arr[0].trim() == "")) {
+			return null
+		} else {
+			let truncated_context = concat_gametext(true, "");
+			if (truncated_context.length > (lastContextLength + (0.5 * localsettings.max_context_length * 3.0))) {
+				lastContextLength = truncated_context.length
+				let max_allowed_characters = Math.floor(localsettings.max_context_length * 3.0) - 100;
+				let max_mem_len = Math.floor(max_allowed_characters * 0.8);
+				let truncated_memory = current_memory.substring(current_memory.length - max_mem_len);
+				if (truncated_memory != null && truncated_memory != "") {
+					truncated_memory += "\n";
+				}
+
+				truncated_context = end_trim_to_sentence(truncated_context, true);
+				truncated_context = truncated_context.substring(truncated_context.length - max_allowed_characters);
+				let augmented_len = truncated_memory.length + truncated_context.length;
+				let excess_len = augmented_len - max_allowed_characters; //if > 0, then we exceeded context window
+				truncated_context = truncated_memory + truncated_context.substring(excess_len);
+
+				let long_story = (truncated_context.length > 1800 ? true : false);
+				truncated_context += "\n{{[INPUT]}}:Summarize the above text in a single paragraph of up to " + (long_story ? "ten" : "five") + " detailed sentences.{{[OUTPUT]}}";
+				truncated_context = replace_placeholders(truncated_context);
+
+				let summary = await generateAndGetTextFromPrompt(truncated_context)
+				if (!!summary) {
+					let overwriteWIFromAgent = (uniqueIdentifier, content) => {
+						let baseWI = {
+							"key": "",
+							"keysecondary": "",
+							"keyanti": "",
+							"content": content,
+							"comment": uniqueIdentifier,
+							"folder": null,
+							"selective": false,
+							"constant": true,
+							"probability": "100",
+							"wigroup": "Autogenerated history",
+							"widisabled": false
+						}
+						current_wi = current_wi.filter(wi => wi?.comment !== uniqueIdentifier)
+						current_wi.push(baseWI)
+					}
+					let runningMemory = current_wi.filter(wi => wi?.wigroup === "Autogenerated history")
+					if (runningMemory.length >= maxMemories) {
+						current_wi = current_wi.filter(wi => wi?.comment !== runningMemory[0].comment)
+					}
+					overwriteWIFromAgent(`AutoHist${Math.floor(Math.random() * 1000)}`, `[Autogenerated history:\n\n${summary}]`)
+					return summary
+				}
+			}
+		}
+	}
+	setInterval(updateRunningMemory, autosummaryInterval)
+
+	let previousRestartNewGame = restart_new_game, previousLoadSelectedFile = load_selected_file
+	restart_new_game = () => {
+		previousRestartNewGame()
+		lastContextLength = concat_gametext(true, "").length
+	}
+
+	load_selected_file = (file) => {
+		previousLoadSelectedFile(file)
+		lastContextLength = concat_gametext(true, "").length
 	}
 </script>
 </html>
