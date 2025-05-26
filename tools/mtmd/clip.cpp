@@ -4149,6 +4149,17 @@ bool clip_model_quantize(const char * fname_inp, const char * fname_out, const i
             {
                 quantize = false;
             }
+            for(int d=0;d<ggml_n_dims(cur);++d)
+            {
+                const int64_t blck_size = ggml_blck_size(type);
+                if(d==0 && cur->ne[d] % blck_size != 0)
+                {
+                    printf("\nSkipping %s because %d is not divisible by %d\n",name.c_str(),cur->ne[d],blck_size);
+                    quantize = false;
+                    break;
+                }
+            }
+
             // //temp fix for gemma3
             // if(name.find("ffn_up.weight") != std::string::npos)
             // {

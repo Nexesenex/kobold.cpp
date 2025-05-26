@@ -12,6 +12,7 @@ env:
   BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
   NOAVX2: 1
   ARCHES_CU11: 1
+  KCPP_CUDA: 11.5.0
 
 jobs:
   linux:
