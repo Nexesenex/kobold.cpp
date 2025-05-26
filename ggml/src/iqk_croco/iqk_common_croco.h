@@ -7,7 +7,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-#include "iqk_config.h"
+#include "iqk_croco/iqk_config_croco.h"
 
 #if defined IQK_IMPLEMENT
 

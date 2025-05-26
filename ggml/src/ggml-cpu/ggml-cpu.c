@@ -17,7 +17,6 @@
 #include "gguf.h"
 
 #include "iqk_croco/iqk_quantize_croco.h"
-#include "iqk_croco/iqk_quantize_croco.h"
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <malloc.h> // using malloc.h with MSC/MINGW

@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+#define __cplusplus
+
 #if GGML_USE_IQK_MULMAT
 #include "iqk_mul_mat.h"
 #endif

@@ -1,6 +1,7 @@
-#include "build-info.h"
-#include "common/common.h"
+#include "common.h"
 #include "llama.h"
+
+// #include "build-info.h"
 
 #include <cstdio>
 #include <cstring>
@@ -66,9 +67,9 @@ static const std::vector<quant_option> QUANT_OPTIONS = {
     { "IQ5_K",    LLAMA_FTYPE_MOSTLY_IQ5_K,    " 5.5 bpw non-linear quantization",  },
     { "IQ5_KS",   LLAMA_FTYPE_MOSTLY_IQ5_KS,   " 5.25 bpw non-linear quantization", },
     { "IQ6_K",    LLAMA_FTYPE_MOSTLY_IQ6_K,    " 6.6 bpw non-linear quantization",  },
-    { "Q4_0_4_4", LLAMA_FTYPE_MOSTLY_Q4_0_4_4, " 4.34G, +0.4685 ppl @ Llama-3-8B",  },
-    { "Q4_0_4_8", LLAMA_FTYPE_MOSTLY_Q4_0_4_8, " 4.34G, +0.4685 ppl @ Llama-3-8B",  },
-    { "Q4_0_8_8", LLAMA_FTYPE_MOSTLY_Q4_0_8_8, " 4.34G, +0.4685 ppl @ Llama-3-8B",  },
+//     { "Q4_0_4_4", LLAMA_FTYPE_MOSTLY_Q4_0_4_4, " 4.34G, +0.4685 ppl @ Llama-3-8B",  },
+//     { "Q4_0_4_8", LLAMA_FTYPE_MOSTLY_Q4_0_4_8, " 4.34G, +0.4685 ppl @ Llama-3-8B",  },
+//     { "Q4_0_8_8", LLAMA_FTYPE_MOSTLY_Q4_0_8_8, " 4.34G, +0.4685 ppl @ Llama-3-8B",  },
     { "F16",      LLAMA_FTYPE_MOSTLY_F16,      "14.00G, +0.0020 ppl @ Mistral-7B",  },
     { "BF16",     LLAMA_FTYPE_MOSTLY_BF16,     "14.00G, -0.0050 ppl @ Mistral-7B",  },
     { "F32",      LLAMA_FTYPE_ALL_F32,         "26.00G              @ 7B",          },

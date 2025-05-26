@@ -1454,6 +1454,8 @@ void llama_model::load_vocab(llama_model_loader & ml) {
     vocab.load(ml, kv);
 }
 
+static bool old_mixtral_warning_showed = false;
+
 bool llama_model::load_tensors(llama_model_loader & ml) {
     const auto & split_mode   = params.split_mode;
     const auto & n_gpu_layers = params.n_gpu_layers;

@@ -8,6 +8,7 @@
 #include "ggml_ik.h"
 #include "ggml-cpu-aarch64.h"
 #include "iqk/iqk_mul_mat.h"
+#include "iqk_croco/iqk_quantize_croco.h"
 #elif GGML_USE_LLAMA_CPP_MAINLINE
 #include "ggml-backend.h"
 #include "ggml-impl.h"
@@ -22,20 +23,18 @@
 #else
 #include "ggml-backend.h"
 #include "ggml-impl.h"
-#include "ggml-cpu-impl.h"
+#include "ggml-cpu/ggml-cpu-impl.h"
 #include "ggml-threading.h"
 #include "ggml.h"
 #include "ggml-quants.h"
-#include "ggml-cpu-aarch64.h"
+#include "ggml-cpu/ggml-cpu-aarch64.h"
 #include "iqk_croco/iqk_quantize_croco.h"
-#include "iqk/iqk_config.h"
+#include "iqk_croco/iqk_common_croco.h"
 #endif
 
 #ifdef GGML_USE_CPU_HBM
 #include <hbwmalloc.h>
 #endif
-
-// #include "iqk/iqk_quantize.h"
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <malloc.h> // using malloc.h with MSC/MINGW
@@ -1030,9 +1029,9 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .blck_size                = QK_IQ1BN,
         .type_size                = sizeof(block_iq1_bn),
         .is_quantized             = true,
-        .to_float                 = (ggml_to_float_t) dequantize_row_iq1_bn,
+        // .to_float                 = (ggml_to_float_t) dequantize_row_iq1_bn,
         // .from_float               = quantize_row_iq1_bn,
-        .from_float_ref           = (ggml_from_float_t)quantize_row_iq1_bn_ref,
+        // .from_float_ref           = (ggml_from_float_t)quantize_row_iq1_bn_ref,
         // .vec_dot                  = ggml_vec_dot_iq1_bn_q8_K64,
         // .vec_dot_type             = GGML_TYPE_Q8_K64,
         // .nrows                    = 1,

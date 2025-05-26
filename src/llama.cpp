@@ -1,5 +1,3 @@
-static bool old_mixtral_warning_showed = false;
-
 // we do what we must because we can
 #include "llama-impl.cpp"
 #include "llama-chat.cpp"
