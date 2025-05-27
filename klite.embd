@@ -25752,7 +25752,11 @@ else
 				"messages": {
 					description: "<text to send>",
 					type: "array",
-					itemType: "string"
+					items: {
+						type: "string",
+					},
+					minItems: 1,
+					maxItems: 5
 				},
 				"suggestionsToPickFrom": {
 				description: "<suggestions written from the user's perspective which they can pick from for their next action>",
@@ -25771,9 +25775,10 @@ else
 					let suggestions = action?.args?.suggestionsToPickFrom
 					if (!!suggestions && Array.isArray(suggestions)) {
 						try {
-							setSuggestions(suggestions.map(String))
-							if (suggestions.length > 0)
+							let actualSuggestions = suggestions.map(String).filter(text => text.trim().length > 0)
+							if (actualSuggestions.length > 0)
 							{
+								setSuggestions(actualSuggestions)
 								return true
 							}
 						}
