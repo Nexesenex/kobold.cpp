@@ -25683,13 +25683,18 @@ else
 		}
 		switch (typeof obj) {
 			case "array":
-				output += `${baseIndent}Array:\n${obj.map(elem => `${baseIndent}\tElement: ${objToText(elem, depth + 1)}`).join("\n")}`
-				break
 			case "object":
-				let keys = Object.keys(obj)
-				output += keys.map(key => {
-					return `${baseIndent}-> ${key}:\n${objToText(obj[key], depth + 1)}`
-				}).join("\n")
+				if (Array.isArray(obj))
+				{
+					output += `${baseIndent}Array:\n${obj.map(elem => `${baseIndent}\tElement:\n${objToText(elem, depth + 2)}`).join("\n")}`
+				}
+				else
+				{
+					let keys = Object.keys(obj)
+					output += keys.map(key => {
+						return `${baseIndent}-> ${key}:\n${objToText(obj[key], depth + 1)}`
+					}).join("\n")
+				}
 				break
 			default:
 				output += `${baseIndent}${JSON.stringify(obj)}`
