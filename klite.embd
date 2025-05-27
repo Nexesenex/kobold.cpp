@@ -21813,11 +21813,11 @@ Current version indicated by LITEVER below.
 
 		function transformInputToAestheticStyle(bodyStr, isPreview) { // Trim unnecessary empty space and new lines, and append * or " to each bubble if start/end sequence ends with * or ", to preserve styling.
 		
-			let sys = "system"
 			bodyStr = bodyStr.replaceAll(you + '\n', you).replaceAll(you + ' ', you).replaceAll(you, style('you') + `${you.endsWith('*') ? '*' : ''}` + `${you.endsWith('"') ? '"' : ''}`);
 			bodyStr = bodyStr.replaceAll(bot + '\n', bot).replaceAll(bot + ' ', bot).replaceAll(bot, style('AI') + `${bot.endsWith('*') ? '*' : ''}` + `${bot.endsWith('"') ? '"' : ''}`);
 			if (isAgentModeEnabledAndSetCorrectly())
 			{
+				let sys = get_instruct_systag(doTrim=true)
 				bodyStr = bodyStr.replaceAll(sys + '\n', sys).replaceAll(sys + ' ', sys).replaceAll(sys, style('sys') + `${sys.endsWith('*') ? '*' : ''}` + `${sys.endsWith('"') ? '"' : ''}`);	
 			}
 
