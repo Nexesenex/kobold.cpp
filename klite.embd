@@ -25767,6 +25767,10 @@ else
 					if (!!suggestions && Array.isArray(suggestions)) {
 						try {
 							setSuggestions(suggestions.map(String))
+							if (suggestions.length > 0)
+							{
+								return true
+							}
 						}
 						catch {
 							// Do not care about an error here, it's a nice to have if the suggestions show
