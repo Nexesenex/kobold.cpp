@@ -27215,6 +27215,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				}
 			}
 		}
+		
+		// Render any suggestions generated in the agent logic
+		renderSuggestions()
 		currentAgentCycle = null
 		Array(...document.getElementsByClassName("stopThinking")).forEach(elem => elem.classList.add("hidden"))
 		submit_multiplayer(true)
