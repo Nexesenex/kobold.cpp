@@ -467,6 +467,7 @@ static fs::path get_executable_path() {
 #else
     return {};
 #endif
+    return L""; //fix for freebsd compile
 }
 
 static fs::path backend_filename_prefix() {

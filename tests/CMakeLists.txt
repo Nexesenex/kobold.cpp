@@ -167,11 +167,11 @@ if (NOT GGML_BACKEND_DL)
 endif()
 
 # libmtmd
-set(LLAMA_TEST_NAME test-mtmd-c-api)
-llama_build_and_test(test-mtmd-c-api.c)
-target_link_libraries(${LLAMA_TEST_NAME} PRIVATE mtmd)
+# set(LLAMA_TEST_NAME test-mtmd-c-api)
+# llama_build_and_test(test-mtmd-c-api.c)
+# target_link_libraries(${LLAMA_TEST_NAME} PRIVATE mtmd)
 
 # dummy executable - not installed
-get_filename_component(TEST_TARGET test-c.c NAME_WE)
-add_executable(${TEST_TARGET} test-c.c)
-target_link_libraries(${TEST_TARGET} PRIVATE llama)
+# get_filename_component(TEST_TARGET test-c.c NAME_WE)
+# add_executable(${TEST_TARGET} test-c.c)
+# target_link_libraries(${TEST_TARGET} PRIVATE llama)

@@ -14,6 +14,9 @@
 #include "vec.h"
 #include "ops.h"
 #include "ggml.h"
+#include "gguf.h"
+
+#include "iqk_croco/iqk_quantize_croco.h"
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <malloc.h> // using malloc.h with MSC/MINGW
@@ -37,6 +40,8 @@
 #if defined(__gnu_linux__)
 #include <syscall.h>
 #endif
+
+#define IK_PRINT_TIMING 0
 
 #ifdef GGML_USE_OPENMP
 #include <omp.h>
@@ -72,6 +77,9 @@
 #define UNUSED GGML_UNUSED
 #define SWAP(x, y, T) do { T SWAP = x; (x) = y; (y) = SWAP; } while (0)
 
+#if defined(GGML_USE_CLBLAST) // allow usage of CLBlast alongside Accelerate functions
+#include "ggml_v3b-opencl.h"
+#endif
 #if defined(__ARM_ARCH)
 struct ggml_arm_arch_features_type {
     int has_neon;
@@ -239,6 +247,13 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .vec_dot_type             = GGML_TYPE_Q8_1,
         .nrows                    = 1,
     },
+    [GGML_TYPE_Q6_0] = {
+        .from_float               = quantize_row_q6_0,
+        .vec_dot                  = ggml_vec_dot_q6_0_q8_0,
+        .vec_dot_type             = GGML_TYPE_Q8_0,
+        .nrows                    = 1,
+        // .row_meta_size            = 0,
+    },
     [GGML_TYPE_Q8_0] = {
         .from_float               = quantize_row_q8_0,
         .vec_dot                  = ggml_vec_dot_q8_0_q8_0,
@@ -254,9 +269,27 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .vec_dot_type             = GGML_TYPE_Q8_1,
         .nrows                    = 1,
     },
+    [GGML_TYPE_Q8_0_X4] = {
+        // .from_float               = quantize_row_q8_0_x4,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_Q8_1_X4] = {
+        // .from_float               = quantize_row_q8_1_x4,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_Q8_2_X4] = {
+        // .from_float               = quantize_row_q8_2_x4,
+        .nrows                    = 1,
+    },
     [GGML_TYPE_Q2_K] = {
         .from_float               = quantize_row_q2_K,
         .vec_dot                  = ggml_vec_dot_q2_K_q8_K,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_Q2_K_R4] = {
+        // .from_float               = quantize_row_q2_k_r4,
+        // .vec_dot                  = vec_dot_q2_k_r4_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
@@ -266,16 +299,34 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
+    [GGML_TYPE_Q3_K_R4] = {
+        // .from_float               = quantize_row_q3_k_r4,
+        // .vec_dot                  = vec_dot_q3_k_r4_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
     [GGML_TYPE_Q4_K] = {
         .from_float               = quantize_row_q4_K,
         .vec_dot                  = ggml_vec_dot_q4_K_q8_K,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
+    [GGML_TYPE_Q4_K_R4] = {
+        // .from_float               = quantize_row_q4_k_r4,
+        // .vec_dot                  = vec_dot_q4_k_r4_q8_k,
+        // .vec_dot_type             = GGML_TYPE_Q8_K_32,
+        .nrows                    = 1,
+    },
     [GGML_TYPE_Q5_K] = {
         .from_float               = quantize_row_q5_K,
         .vec_dot                  = ggml_vec_dot_q5_K_q8_K,
         .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_Q5_K_R4] = {
+        // .from_float               = quantize_row_q5_k_r4,
+        // .vec_dot                  = vec_dot_q5_k_r4_q8_k,
+        // .vec_dot_type             = GGML_TYPE_Q8_K_32,
         .nrows                    = 1,
     },
     [GGML_TYPE_Q6_K] = {
@@ -288,15 +339,39 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
 #endif
     },
+    [GGML_TYPE_Q6_K_R4] = {
+        // .from_float               = quantize_row_q6_k_r4,
+        // .vec_dot                  = vec_dot_q6_k_r4_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_Q8_K_R8] = {
+        // .from_float               = quantize_row_q8_k_r8,
+        // .vec_dot                  = vec_dot_q8_k_r8_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_KR8,
+        .nrows                    = 1,
+    },
     [GGML_TYPE_IQ2_XXS] = {
         .from_float               = NULL,
         .vec_dot                  = ggml_vec_dot_iq2_xxs_q8_K,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
+    [GGML_TYPE_IQ2_XXS_R4] = {
+        // .from_float               = quantize_row_iq2_xxs_r4,
+        // .vec_dot                  = vec_dot_iq2_xxs_r4_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
     [GGML_TYPE_IQ2_XS] = {
         .from_float               = NULL,
         .vec_dot                  = ggml_vec_dot_iq2_xs_q8_K,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ2_XS_R4] = {
+        // .from_float               = quantize_row_iq2_xs_r4,
+        // .vec_dot                  = vec_dot_iq2_xs_r4_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
@@ -307,9 +382,21 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
+    [GGML_TYPE_IQ3_XXS_R4] = {
+        // .from_float               = quantize_row_iq3_xxs_r4,
+        // .vec_dot                  = vec_dot_iq3_xxs_r4_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
     [GGML_TYPE_IQ3_S] = {
         //.from_float               = quantize_row_iq3_s,
         .vec_dot                  = ggml_vec_dot_iq3_s_q8_K,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ3_S_R4] = {
+        // .from_float               = quantize_row_iq3_s_r4,
+        // .vec_dot                  = vec_dot_iq3_s_r4_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
@@ -319,16 +406,52 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
+    [GGML_TYPE_IQ2_S_R4] = {
+        // .from_float               = quantize_row_iq2_s_r4,
+        // .vec_dot                  = vec_dot_iq2_s_r4_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
     [GGML_TYPE_IQ1_S] = {
         .from_float               = NULL,
         .vec_dot                  = ggml_vec_dot_iq1_s_q8_K,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
+    [GGML_TYPE_IQ1_S_R4] = {
+        // .from_float               = quantize_row_iq1_s_r4,
+        // .vec_dot                  = vec_dot_iq1_s_r4_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K128,
+        .nrows                    = 1,
+    },
     [GGML_TYPE_IQ1_M] = {
         .from_float               = NULL,
         .vec_dot                  = ggml_vec_dot_iq1_m_q8_K,
         .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ1_M_R4] = {
+        // .from_float               = quantize_row_iq1_m_r4,
+        // .vec_dot                  = vec_dot_iq1_m_r4_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K128,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ1_BN] = {
+        .from_float               = quantize_row_iq1_bn,
+        .vec_dot                  = vec_dot_iq1_bn_q8_K64,
+        .vec_dot_type             = GGML_TYPE_IQ1_BN,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ2_BN] = {
+        // .from_float               = quantize_row_iq2_bn,
+        // .vec_dot                  = vec_dot_iq2_bn_q8_K64,
+        .vec_dot_type             = GGML_TYPE_IQ2_BN,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ2_BN_R4] = {
+        // .from_float               = quantize_row_iq2_bn_r4,
+        // .vec_dot                  = vec_dot_iq2_bn_r4_q8_K64,
+        .vec_dot_type             = GGML_TYPE_Q8_K16,
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ4_NL] = {
@@ -343,13 +466,230 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
-    [GGML_TYPE_Q8_K] = {
-        .from_float               = quantize_row_q8_K,
+    [GGML_TYPE_IQ4_KS] = {
+        .from_float               = quantize_row_iq4_ks,
+        .vec_dot                  = vec_dot_iq4_ks_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
     },
+    [GGML_TYPE_IQ4_KS_R4] = {
+        // .from_float               = quantize_row_iq4_ks_r4,
+        // .vec_dot                  = vec_dot_iq4_ks_r4_q8_k,
+// #if defined __AVX2__
+        .vec_dot_type             = GGML_TYPE_Q8_K32,
+// #else
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+// #endif
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ5_KS] = {
+        .from_float               = quantize_row_iq5_ks,
+        .vec_dot                  = vec_dot_iq5_ks_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ5_KS_R4] = {
+        // .from_float               = quantize_row_iq5_ks_r4,
+        // .vec_dot                  = vec_dot_iq5_ks_r4_q8_k,
+// #if defined __AVX2__
+        .vec_dot_type             = GGML_TYPE_Q8_K32,
+// #else
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+// #endif
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ4_KSS] = {
+        .from_float               = quantize_row_iq4_kss,
+        .vec_dot                  = vec_dot_iq4_kss_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ3_KS] = {
+        .from_float               = quantize_row_iq3_ks,
+        .vec_dot                  = vec_dot_iq3_ks_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_Q8_K64] = {
+        .from_float               = quantize_row_q8_K64,
+    },
+    [GGML_TYPE_Q8_K128] = {
+        .from_float               = quantize_row_q8_K128,
+    },
+    [GGML_TYPE_Q8_KV] = {
+        // .from_float               = quantize_row_q8_KV,
+        // .vec_dot                  = vec_dot_q8_KV_q8_KV,
+        .vec_dot_type             = GGML_TYPE_Q8_KV,
+    },
+    [GGML_TYPE_Q8_KV_R8] = {
+        // .from_float               = quantize_row_q8_KV_r8,
+        // .vec_dot                  = vec_dot_q8_KV_r8_q8_KV,
+        .vec_dot_type             = GGML_TYPE_Q8_KV,
+    },
+    [GGML_TYPE_Q8_K16] = {
+        .from_float               = quantize_row_q8_K16,
+    },
+    [GGML_TYPE_Q8_K32] = {
+        .from_float               = quantize_row_q8_K32,
+    },
+    [GGML_TYPE_Q8_KR8] = {
+        .from_float               = quantize_row_q8_KR8,
+    },
+    // [GGML_TYPE_Q8_K] = {
+        // .from_float               = quantize_row_q8_K,
+    // },
     [GGML_TYPE_BF16] = {
         .from_float               = (ggml_from_float_t) ggml_cpu_fp32_to_bf16,
         .vec_dot                  = (ggml_vec_dot_t) ggml_vec_dot_bf16,
         .vec_dot_type             = GGML_TYPE_BF16,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_BF16_R16] = {
+        // .from_float               = (ggml_from_float_t) ggml_fp32_to_bf16_row,
+        // .vec_dot                  = (ggml_vec_dot_t) ggml_vec_dot_bf16,
+        .vec_dot_type             = GGML_TYPE_BF16,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ2_K] = {
+        .from_float               = quantize_row_iq2_k,
+        .vec_dot                  = vec_dot_iq2_k_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ2_K_R4] = {
+        // .from_float               = quantize_row_iq2_k_r4,
+        // .vec_dot                  = vec_dot_iq2_k_r4_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ2_KS] = {
+        .from_float               = quantize_row_iq2_ks,
+        .vec_dot                  = vec_dot_iq2_ks_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ3_K] = {
+        .from_float               = quantize_row_iq3_k,
+        .vec_dot                  = vec_dot_iq3_k_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ4_K] = {
+        .from_float               = quantize_row_iq4_k,
+        .vec_dot                  = vec_dot_iq4_k_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ4_K_R4] = {
+        // .from_float               = quantize_row_iq4_k_r4,
+        // .vec_dot                  = vec_dot_iq4_k_r4_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ3_K_R4] = {
+        // .from_float               = quantize_row_iq3_k_r4,
+        // .vec_dot                  = vec_dot_iq3_k_r4_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ5_K] = {
+        .from_float               = quantize_row_iq5_k,
+        .vec_dot                  = vec_dot_iq5_k_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ5_K_R4] = {
+        // .from_float               = quantize_row_iq5_k_r4,
+        // .vec_dot                  = vec_dot_iq5_k_r4_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ6_K] = {
+        .from_float               = quantize_row_iq6_k,
+        .vec_dot                  = vec_dot_iq6_k_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ4_NL_R4] = {
+        // .from_float               = quantize_row_iq4_nl_r4,
+        // .vec_dot                  = vec_dot_iq4_nl_r4_q8_0,
+#if GGML_USE_IQK_MULMAT
+#if defined __AVX2__
+        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+#else
+        .vec_dot_type             = GGML_TYPE_Q8_0_X4,
+#endif
+#else
+        .vec_dot_type             = GGML_TYPE_Q8_0,
+#endif
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ4_XS_R8] = {
+        // .from_float               = quantize_row_iq4_xs_r8,
+        // .vec_dot                  = vec_dot_iq4_xs_r8_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K32,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_Q4_0_R8] = {
+        // .from_float               = quantize_row_q4_0_r8,
+        // .vec_dot                  = vec_dot_q4_0_r8_q8_0,
+#if GGML_USE_IQK_MULMAT
+#if defined __AVX2__
+        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+#else
+        .vec_dot_type             = GGML_TYPE_Q8_0_X4,
+#endif
+#else
+        .vec_dot_type             = GGML_TYPE_Q8_0,
+#endif
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_Q8_0_R8] = {
+        // .from_float               = quantize_row_q8_0_r8,
+        // .vec_dot                  = vec_dot_q8_0_r8_q8_0,
+#if GGML_USE_IQK_MULMAT
+#if defined __AVX2__
+        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+#else
+        .vec_dot_type             = GGML_TYPE_Q8_0_X4,
+#endif
+#else
+        .vec_dot_type             = GGML_TYPE_Q8_0,
+#endif
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_Q5_0_R4] = {
+        // .from_float               = quantize_row_q5_0_r4,
+        // .vec_dot                  = vec_dot_q5_0_r4_q8_0,
+#if GGML_USE_IQK_MULMAT
+#if defined __AVX2__
+        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+#else
+        .vec_dot_type             = GGML_TYPE_Q8_0_X4,
+#endif
+#else
+        .vec_dot_type             = GGML_TYPE_Q8_0,
+#endif
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_Q6_0_R4] = {
+        // .from_float               = quantize_row_q6_0_r4,
+        // .vec_dot                  = vec_dot_q6_0_r4_q8_0,
+#if GGML_USE_IQK_MULMAT
+#if defined __AVX2__
+        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+#else
+        .vec_dot_type             = GGML_TYPE_Q8_0_X4,
+#endif
+#else
+        .vec_dot_type             = GGML_TYPE_Q8_0,
+#endif
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_I2_S] = {
+        .from_float               = NULL,
+        .vec_dot                  = NULL,
+        .vec_dot_type             = GGML_TYPE_Q8_0,
         .nrows                    = 1,
     },
     [GGML_TYPE_TQ1_0] = {
@@ -361,6 +701,24 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_TQ2_0] = {
         .from_float               = quantize_row_tq2_0,
         .vec_dot                  = ggml_vec_dot_tq2_0_q8_K,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ2_KT] = {
+        .from_float               = quantize_row_iq2_kt,
+        .vec_dot                  = vec_dot_iq2_kt_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ3_KT] = {
+        .from_float               = quantize_row_iq3_kt,
+        .vec_dot                  = vec_dot_iq3_kt_q8_k,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+        .nrows                    = 1,
+    },
+    [GGML_TYPE_IQ4_KT] = {
+        .from_float               = quantize_row_iq4_kt,
+        .vec_dot                  = vec_dot_iq4_kt_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
@@ -555,7 +913,7 @@ void ggml_barrier(struct ggml_threadpool * tp) {
 #endif
 }
 
-#if defined(__gnu_linux__)
+#if defined(__gnu_linux__) && !defined(__BIONIC__)
 static cpu_set_t ggml_get_numa_affinity(void) {
     cpu_set_t cpuset;
     pthread_t thread;
@@ -577,7 +935,7 @@ void ggml_numa_init(enum ggml_numa_strategy numa_flag) {
         return;
     }
 
-#if defined(__gnu_linux__)
+#if defined(__gnu_linux__) && !defined(__BIONIC__)
     struct stat st;
     char path[256];
     int rv;
@@ -610,15 +968,16 @@ void ggml_numa_init(enum ggml_numa_strategy numa_flag) {
     // figure out which node we're on
     uint current_cpu;
     int getcpu_ret = 0;
-#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 33) || defined(__COSMOPOLITAN__)
-    getcpu_ret = getcpu(&current_cpu, &g_state.numa.current_node);
-#else
-    // old glibc doesn't have a wrapper for this call. Fall back on direct syscall
-#   if !defined(SYS_getcpu) && defined(SYS_get_cpu)
-#       define SYS_getcpu SYS_get_cpu // some older glibc versions use this name
-#   endif
-    getcpu_ret = syscall(SYS_getcpu, &current_cpu, &g_state.numa.current_node);
-#endif
+//#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 33) || defined(__COSMOPOLITAN__)
+//    getcpu_ret = getcpu(&current_cpu, &g_state.numa.current_node);
+//#else
+//    // old glibc doesn't have a wrapper for this call. Fall back on direct syscall
+//#   if !defined(SYS_getcpu) && defined(SYS_get_cpu)
+//#       define SYS_getcpu SYS_get_cpu // some older glibc versions use this name
+//#   endif
+//    getcpu_ret = syscall(SYS_getcpu, &current_cpu, &g_state.numa.current_node);
+//#endif
+// koboldcpp fix: we don't use numa and this thing breaks runpod
 
     if (g_state.numa.n_nodes < 1 || g_state.numa.total_cpus < 1 || getcpu_ret != 0) {
         g_state.numa.n_nodes = 0;
@@ -1289,6 +1648,15 @@ static void ggml_compute_forward_mul_mat(
     //   compute by src0 rows
 
     // TODO: extract to "extra_op"
+#if defined(GGML_USE_CLBLAST)
+    if (ggml_cl_can_mul_mat(src0, src1, dst)) {
+        if (params->ith == 0) {
+            ggml_cl_mul_mat(src0, src1, dst, params->wdata, params->wsize);
+        }
+        return;
+    }
+#endif
+
 #if GGML_USE_LLAMAFILE
     // broadcast factors
     const int64_t r2 = ne12 / ne02;
@@ -1843,6 +2211,14 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
             {
                 ggml_compute_forward_scale(params, tensor);
             } break;
+        case GGML_OP_SOFTCAP:
+            {
+                ggml_compute_forward_softcap(params, tensor);
+            } break;
+        case GGML_OP_SOFT_CAP_MAX:
+            {
+                ggml_compute_forward_softcap_max(params, tensor);
+            } break;
         case GGML_OP_SET:
             {
                 ggml_compute_forward_set(params, tensor);
@@ -2190,7 +2566,7 @@ static int ggml_get_n_tasks(struct ggml_tensor * node, int n_threads) {
                 case GGML_UNARY_OP_SGN:
                 case GGML_UNARY_OP_NEG:
                 case GGML_UNARY_OP_STEP:
-                case GGML_UNARY_OP_TANH:
+                //case GGML_UNARY_OP_TANH:
                 case GGML_UNARY_OP_ELU:
                 case GGML_UNARY_OP_RELU:
                 case GGML_UNARY_OP_SIGMOID:
@@ -2207,6 +2583,10 @@ static int ggml_get_n_tasks(struct ggml_tensor * node, int n_threads) {
                 case GGML_UNARY_OP_SILU:
                     {
                         n_tasks = n_threads;
+                    } break;
+                case GGML_UNARY_OP_TANH:
+                    {
+                        n_tasks = MIN(ggml_nrows(node), n_threads);
                     } break;
                 default:
                     GGML_ABORT("fatal error");
@@ -2258,7 +2638,9 @@ static int ggml_get_n_tasks(struct ggml_tensor * node, int n_threads) {
             {
                 n_tasks = 1; //TODO
             } break;
+        case GGML_OP_SOFTCAP:
         case GGML_OP_SOFT_MAX:
+        case GGML_OP_SOFT_CAP_MAX:
             {
                 n_tasks = MIN(n_threads, ggml_nrows(node->src[0]));
             } break;
@@ -2698,8 +3080,14 @@ struct ggml_cplan ggml_graph_plan(
                     {
                         const enum ggml_type vec_dot_type = type_traits_cpu[node->src[0]->type].vec_dot_type;
 
+#if defined(GGML_USE_CLBLAST)
+                        if (ggml_cl_can_mul_mat(node->src[0], node->src[1], node)) {
+                            cur = ggml_cl_mul_mat_get_wsize(node->src[0], node->src[1], node);
+                        } else
+#endif
                         if (node->src[1]->type != vec_dot_type) {
-                            cur = ggml_row_size(vec_dot_type, ggml_nelements(node->src[1]));
+                            size_t cur2 = ggml_row_size(vec_dot_type, ggml_nelements(node->src[1]));
+                            cur = MAX(cur, cur2);
                         }
                     } break;
                 case GGML_OP_MUL_MAT_ID:
@@ -2843,6 +3231,8 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
 
     for (int node_n = 0; node_n < cgraph->n_nodes && atomic_load_explicit(&tp->abort, memory_order_relaxed) != node_n; node_n++) {
         struct ggml_tensor * node = cgraph->nodes[node_n];
+
+        if (ggml_is_noop(node)) continue;
 
         ggml_compute_forward(&params, node);
 
@@ -3488,6 +3878,9 @@ void ggml_cpu_init(void) {
 
 #if defined(__ARM_ARCH)
         ggml_init_arm_arch_features();
+#endif
+#if defined(GGML_USE_CLBLAST)
+        ggml_cl_init();
 #endif
 
         is_first_call = false;

@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <algorithm>
 
 #ifdef _WIN32
     #include <windows.h>
@@ -31,6 +32,17 @@
 #endif
 
 #define ASYNCIO_CONCURRENCY 64
+#ifndef NO_VULKAN_EXTENSIONS
+#ifndef GGML_VULKAN_COOPMAT_GLSLC_SUPPORT
+#define GGML_VULKAN_COOPMAT_GLSLC_SUPPORT
+#endif
+#ifndef GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT
+#define GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT
+#endif
+#ifndef GGML_VULKAN_INTEGER_DOT_GLSLC_SUPPORT
+#define GGML_VULKAN_INTEGER_DOT_GLSLC_SUPPORT
+#endif
+#endif
 
 std::mutex lock;
 std::vector<std::pair<std::string, std::string>> shader_fnames;
@@ -218,6 +230,8 @@ void string_to_spv_func(const std::string& _name, const std::string& in_fname, c
     std::string name = _name + (f16acc ? "_f16acc" : "") + (coopmat ? "_cm1" : "") + (coopmat2 ? "_cm2" : (fp16 ? "" : "_fp32"));
     std::string out_fname = join_paths(output_dir, name + ".spv");
     std::string in_path = join_paths(input_dir, in_fname);
+
+    std::cout << "string_to_spv: " << name << "\n";
 
     std::string target_env = (name.find("_cm2") != std::string::npos) ? "--target-env=vulkan1.3" : "--target-env=vulkan1.2";
 
