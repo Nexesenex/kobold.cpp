@@ -26775,16 +26775,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		let prompt = []
 
 		let sysPrompt = !!localsettings.instruct_sysprompt ? `${localsettings.instruct_sysprompt}` : `You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user.`
-		prompt.push(`System prompt: ${sysPrompt}`)
-		
-		if (!!initialPrompt)
-		{
-			prompt.push(`Last user instruction: ${initialPrompt}`)
-		}
-		if (!!objectiveForCurrentAction)
-		{
-			prompt.push(`Objective for current action: ${objectiveForCurrentAction}`)
-		}		
 		if (state != null)
 		{
 			prompt.push(`Current state: ${state}`)
@@ -26794,10 +26784,19 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			prompt.push(`Current unique identifiers for world info: ${currentAgentWIs.join(", ")}`)
 		}
-		if (currentOrderOfActions.length > 0)
+		prompt.push(`System prompt for all responses: ${sysPrompt}`)		
+		if (!!initialPrompt)
 		{
-			prompt.push(`Order of actions: ${currentOrderOfActions.join(" -> ")}`)
+			prompt.push(`Most recent input from user: ${initialPrompt}`)
 		}
+		if (!!objectiveForCurrentAction)
+		{
+			prompt.push(`Objective for current action: ${objectiveForCurrentAction}`)
+		}		
+		// if (currentOrderOfActions.length > 0)
+		// {
+		// 	prompt.push(`Order of actions: ${currentOrderOfActions.join(" -> ")}`)
+		// }
 		let basePrompt = prompt.join("\n\n")
 		return createSysPrompt(`### Available commands:\n\n${getCommandsAsText(!!commands.find(c => c.name === "plan_actions") ? getEnabledCommands() : commands)}`) + (basePrompt.length > 0 ? createSysPrompt(basePrompt) : "")
 	}
@@ -26954,7 +26953,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		currentOrderOfActionsOverall = []
 		currentOrderOfActionDescriptionsOverall = []
 		
-		getLastActions(maxActionsInHistory).forEach(action => {
+		let lastActions = getLastActions(maxActionsInHistory)
+		lastActions.forEach(action => {
 			switch(action.source)
 			{
 				case "system":
@@ -26974,17 +26974,26 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			initialPrompt = (localsettings.inject_chatnames_instruct ? `${localsettings.chatname}: ${initialPrompt}` : initialPrompt)
 			addThought(createInstructPrompt, initialPrompt)
-			if (!!documentdb_enabled)
+		}
+		else if (!!lastActions && lastActions.length > 0)
+		{
+			let firstElem = getLastActions()[0]; 
+			let prevInput = (firstElem.source === "human" ? firstElem.msg.replace(new RegExp(`^${localsettings.chatname}:\\s*`), "") : ""); 
+			if (!!prevInput)
 			{
-				let contentToSearch = documentdb_data
-				if (!!documentdb_searchhistory)
-				{
-					contentToSearch += `\n\n[DOCUMENT BREAK][Chatlog history]${concat_gametext(true)}[DOCUMENT BREAK]`
-				}
-				let ltmSnippets = await DatabaseMinisearch(contentToSearch, initialPrompt, "");
-				for (let i = 0; i < ltmSnippets.length; ++i) {
-					textDBResults += getInfoSnippet(ltmSnippets[i]);
-				}
+				initialPrompt = prevInput
+			}
+		}
+		if (!!initialPrompt && !!documentdb_enabled)
+		{
+			let contentToSearch = documentdb_data
+			if (!!documentdb_searchhistory)
+			{
+				contentToSearch += `\n\n[DOCUMENT BREAK][Chatlog history]${concat_gametext(true)}[DOCUMENT BREAK]`
+			}
+			let ltmSnippets = await DatabaseMinisearch(contentToSearch, initialPrompt, "");
+			for (let i = 0; i < ltmSnippets.length; ++i) {
+				textDBResults += getInfoSnippet(ltmSnippets[i]);
 			}
 		}
 
