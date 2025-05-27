@@ -25686,7 +25686,7 @@ else
 			case "object":
 				if (Array.isArray(obj))
 				{
-					output += `${baseIndent}Array:\n${obj.map(elem => `${baseIndent}\tElement:\n${objToText(elem, depth + 2)}`).join("\n")}`
+					output += `${baseIndent}Array:\n${obj.map(elem => `${baseIndent}\t->\n${objToText(elem, depth + 2)}`).join("\n")}`
 				}
 				else
 				{
