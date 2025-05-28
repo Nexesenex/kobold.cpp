@@ -17,6 +17,7 @@
 
 #include "ggml-impl.h"
 #include "ggml-quants.h"
+#include "ggml-cpu/ggml-cpu-quants.h"
 #include "iqk_mul_mat_croco.h"
 #include "iqk_quantize_croco.h"
 

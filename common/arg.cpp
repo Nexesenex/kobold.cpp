@@ -5,7 +5,7 @@
 #include "log.h"
 #include "sampling.h"
 #include "chat.h"
-#include "build-info.h"
+// #include "build-info.h"
 
 // fix problem with std::min and std::max
 #if defined(_WIN32)
