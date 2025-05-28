@@ -1206,7 +1206,7 @@ static void ggml_gemv_q4_0_8x8_q8_0(int n, float * GGML_RESTRICT s, size_t bs, c
         }
     }
     return;
-#elif defined(__riscv_v_intrinsic)
+#elif defined __riscv_v
     if (__riscv_vlenb() >= QK4_0) {
         const size_t vl = QK4_0;
 
@@ -3798,7 +3798,7 @@ static void ggml_gemm_q4_0_8x8_q8_0(int n, float * GGML_RESTRICT s, size_t bs, c
         }
         return;
     }
-#elif defined(__riscv_v_intrinsic)
+#elif defined __riscv_v
     if (__riscv_vlenb() >= QK4_0) {
         const size_t vl = QK4_0;
 

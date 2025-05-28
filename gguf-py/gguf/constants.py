@@ -2260,6 +2260,7 @@ class VisionProjectorType:
     ULTRAVOX = "ultravox"
     INTERNVL = "internvl"
     QWEN2A = "qwen2a" # audio
+    QWEN25O = "qwen2.5o" # omni
 
 
 # Items here are (block size, type size)
