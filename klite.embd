@@ -25779,7 +25779,7 @@ else
 							if (actualSuggestions.length > 0)
 							{
 								setSuggestions(actualSuggestions)
-								return true
+								return !!localsettings?.agentStopOnRequestForInput
 							}
 						}
 						catch {
@@ -27250,6 +27250,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		originalDisplaySettings()
 		document.getElementById("agentBehaviour").checked = localsettings.agentBehaviour;
 		document.getElementById("agentHideCOT").checked = localsettings.agentHideCOT;
+		document.getElementById("agentStopOnRequestForInput").checked = localsettings.agentStopOnRequestForInput;
 		document.getElementById("agentCOTMax").value = localsettings.agentCOTMax;
 		document.getElementById("agentCOTMaxnumeric").value = localsettings.agentCOTMax;
 		document.getElementById("agentCOTRepeatsMax").value = localsettings.agentCOTRepeatsMax;
@@ -27261,6 +27262,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	confirm_settings = () => {
 		localsettings.agentBehaviour = (document.getElementById("agentBehaviour").checked ? true : false);
 		localsettings.agentHideCOT = (document.getElementById("agentHideCOT").checked ? true : false);
+		localsettings.agentStopOnRequestForInput = (document.getElementById("agentStopOnRequestForInput").checked ? true : false);
 		localsettings.agentCOTMax = document.getElementById("agentCOTMax").value;
 		localsettings.agentCOTRepeatsMax = document.getElementById("agentCOTRepeatsMax").value;
 		localsettings.disableSaveCompressionLocally = (document.getElementById("disableSaveCompressionLocally").checked ? true : false);
@@ -27458,6 +27460,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			localsettings.agentHideCOT = true
 		}
+		if (localsettings?.agentStopOnRequestForInput == undefined)
+		{
+			localsettings.agentStopOnRequestForInput = true
+		}
 		if (localsettings?.agentCOTMax == undefined)
 		{
 			localsettings.agentCOTMax = 5
@@ -27567,6 +27573,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		lastSettingContainer.append(settingLabelElem)
 
 		settingLabelElem = createSettingElemRange("agentCOTMax", "Maximum agent actions", "Defines the maximum number of actions the agent can take without a user input", 1, 20, 1, 5)
+		lastSettingContainer.append(settingLabelElem)
+
+		settingLabelElem = createSettingElemBool("agentStopOnRequestForInput", "Stop on request for input from agent", "Stops the current agent processing if it asks for user input")
 		lastSettingContainer.append(settingLabelElem)
 
 		// Hidden as this is no longer is in use for now
