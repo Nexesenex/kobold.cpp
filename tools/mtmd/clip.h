@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// !!! Internal header, to be used by mtmd only !!!
+
 struct clip_ctx;
 
 struct clip_image_size {
@@ -76,7 +78,7 @@ void clip_build_img_from_pixels(const unsigned char * rgb_pixels, int nx, int ny
 bool clip_image_load_from_file(const char * fname, struct clip_image_u8 * img);
 
 /** interpret bytes as an image file with length bytes_length, and use the result to populate img */
-bool clip_image_load_from_bytes(const unsigned char * bytes, size_t bytes_length, struct clip_image_u8 * img, const int maxdims);
+bool clip_image_load_from_bytes(const unsigned char * bytes, size_t bytes_length, struct clip_image_u8 * img);
 
 /** preprocess img and store the result in res_imgs, pad_to_square may be overridden to false depending on model configuration */
 bool clip_image_preprocess(struct clip_ctx * ctx, const struct clip_image_u8 * img, struct clip_image_f32_batch * res_imgs );
@@ -91,8 +93,6 @@ bool clip_is_glm(const struct clip_ctx * ctx);
 bool clip_is_qwen2vl(const struct clip_ctx * ctx);
 bool clip_is_llava(const struct clip_ctx * ctx);
 bool clip_is_gemma3(const struct clip_ctx * ctx);
-bool clip_is_pixtral(const struct clip_ctx * ctx);
-void set_clip_uses_gpu(bool usegpu);
 
 bool clip_encode_float_image (struct clip_ctx * ctx, int n_threads, float * img, int h, int w, float * vec);
 
@@ -101,5 +101,4 @@ void clip_image_f32_batch_add_mel(struct clip_image_f32_batch * batch, int n_mel
 
 bool clip_has_vision_encoder(const struct clip_ctx * ctx);
 bool clip_has_audio_encoder(const struct clip_ctx * ctx);
-
-bool clip_model_quantize(const char * fname_inp, const char * fname_out, const int itype) ;
+bool clip_has_whisper_encoder(const struct clip_ctx * ctx);
