@@ -361,7 +361,8 @@ struct ggml_cuda_pool_leg : public ggml_cuda_pool {
             b.size = 0;
             return ptr;
         }
-        if(worst_i!=-1 && !g_mul_mat_q) //no buffer that fits our needs, resize largest one to save memory (non mmq only)
+#if defined (FORCE_CUBLAS) 
+        if(worst_i!=-1) //no buffer that fits our needs, resize largest one to save memory (non mmq only)
         {
             ggml_cuda_buffer& b = buffer_pool[worst_i];
             b.size = 0;
@@ -371,6 +372,7 @@ struct ggml_cuda_pool_leg : public ggml_cuda_pool {
             pool_size -= size;
             b.ptr = ptr = nullptr;
         }
+#endif
 
         void * ptr;
         size_t look_ahead_size = (size_t) (1.05 * size);
@@ -2402,9 +2404,9 @@ static void ggml_cuda_mul_mat_id(ggml_backend_cuda_context & ctx, ggml_tensor * 
     }
 }
 
-void ggml_cuda_set_mul_mat_q(const bool mul_mat_q) {
-    g_mul_mat_q = mul_mat_q;
-}
+// void ggml_cuda_set_mul_mat_q(const bool mul_mat_q) {
+    // g_mul_mat_q = mul_mat_q;
+// }
 
 static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct ggml_tensor * dst) {
     // why is this here instead of mul_mat?

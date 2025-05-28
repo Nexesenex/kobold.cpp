@@ -1,4 +1,7 @@
 #include "mmq.cuh"
+#include "quantize.cuh"
+
+#include <vector>
 
 void ggml_cuda_op_mul_mat_q(
     ggml_backend_cuda_context & ctx,
@@ -128,10 +131,10 @@ void ggml_cuda_op_mul_mat_q(
 
 bool ggml_cuda_should_use_mmq(enum ggml_type type, int cc, int64_t ne11) {
 
-    if(!g_mul_mat_q)
-    {
-        return false;
-    }
+    // if(!g_mul_mat_q)
+    // {
+        // return false;
+    // }
 
     bool mmq_supported;
 
