@@ -1,6 +1,8 @@
 #include "convert.cuh"
 #include "dequantize.cuh"
 
+#include <cstdint>
+
 #define CUDA_Q8_0_NE_ALIGN 2048
 
 #define UNUSED GGML_UNUSED
@@ -1464,10 +1466,10 @@ to_fp16_cuda_t ggml_get_to_fp16_cuda(ggml_type type) {
             return dequantize_row_iq1_s_cuda;
         case GGML_TYPE_IQ1_M:
             return dequantize_row_iq1_m_cuda;
-        // case GGML_TYPE_IQ1_BN:
-            // return dequantize_row_iq1_bn_cuda;
-        // case GGML_TYPE_IQ2_BN:
-            // return dequantize_row_iq2_bn_cuda;
+        case GGML_TYPE_IQ1_BN:
+            return dequantize_row_iq1_bn_cuda;
+        case GGML_TYPE_IQ2_BN:
+            return dequantize_row_iq2_bn_cuda;
         case GGML_TYPE_IQ4_NL:
             return dequantize_row_iq4_nl_cuda;
         case GGML_TYPE_IQ4_XS:
@@ -1548,10 +1550,10 @@ to_fp32_cuda_t ggml_get_to_fp32_cuda(ggml_type type) {
             return dequantize_row_iq1_s_cuda;
         case GGML_TYPE_IQ1_M:
             return dequantize_row_iq1_m_cuda;
-        // case GGML_TYPE_IQ1_BN:
-            // return dequantize_row_iq1_bn_cuda;
-        // case GGML_TYPE_IQ2_BN:
-            // return dequantize_row_iq2_bn_cuda;
+        case GGML_TYPE_IQ1_BN:
+            return dequantize_row_iq1_bn_cuda;
+        case GGML_TYPE_IQ2_BN:
+            return dequantize_row_iq2_bn_cuda;
         case GGML_TYPE_IQ4_NL:
             return dequantize_row_iq4_nl_cuda;
         case GGML_TYPE_IQ4_XS:

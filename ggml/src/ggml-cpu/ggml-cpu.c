@@ -270,15 +270,15 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_Q8_0_X4] = {
-        .from_float               = quantize_row_q8_0_x4,
+        // .from_float               = quantize_row_q8_0_x4,
         .nrows                    = 1,
     },
     [GGML_TYPE_Q8_1_X4] = {
-        .from_float               = quantize_row_q8_1_x4,
+        // .from_float               = quantize_row_q8_1_x4,
         .nrows                    = 1,
     },
     [GGML_TYPE_Q8_2_X4] = {
-        .from_float               = quantize_row_q8_2_x4,
+        // .from_float               = quantize_row_q8_2_x4,
         .nrows                    = 1,
     },
     [GGML_TYPE_Q2_K] = {
@@ -288,8 +288,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_Q2_K_R4] = {
-        .from_float               = quantize_row_q2_k_r4,
-        .vec_dot                  = vec_dot_q2_k_r4_q8_k,
+        // .from_float               = quantize_row_q2_k_r4,
+        // .vec_dot                  = vec_dot_q2_k_r4_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
@@ -300,8 +300,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_Q3_K_R4] = {
-        .from_float               = quantize_row_q3_k_r4,
-        .vec_dot                  = vec_dot_q3_k_r4_q8_k,
+        // .from_float               = quantize_row_q3_k_r4,
+        // .vec_dot                  = vec_dot_q3_k_r4_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
@@ -312,8 +312,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_Q4_K_R4] = {
-        .from_float               = quantize_row_q4_k_r4,
-        .vec_dot                  = vec_dot_q4_k_r4_q8_k,
+        // .from_float               = quantize_row_q4_k_r4,
+        // .vec_dot                  = vec_dot_q4_k_r4_q8_k,
         // .vec_dot_type             = GGML_TYPE_Q8_K_32,
         .nrows                    = 1,
     },
@@ -324,8 +324,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_Q5_K_R4] = {
-        .from_float               = quantize_row_q5_k_r4,
-        .vec_dot                  = vec_dot_q5_k_r4_q8_k,
+        // .from_float               = quantize_row_q5_k_r4,
+        // .vec_dot                  = vec_dot_q5_k_r4_q8_k,
         // .vec_dot_type             = GGML_TYPE_Q8_K_32,
         .nrows                    = 1,
     },
@@ -340,14 +340,14 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
 #endif
     },
     [GGML_TYPE_Q6_K_R4] = {
-        .from_float               = quantize_row_q6_k_r4,
-        .vec_dot                  = vec_dot_q6_k_r4_q8_k,
+        // .from_float               = quantize_row_q6_k_r4,
+        // .vec_dot                  = vec_dot_q6_k_r4_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
     [GGML_TYPE_Q8_K_R8] = {
-        .from_float               = quantize_row_q8_k_r8,
-        .vec_dot                  = vec_dot_q8_k_r8_q8_k,
+        // .from_float               = quantize_row_q8_k_r8,
+        // .vec_dot                  = vec_dot_q8_k_r8_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_KR8,
         .nrows                    = 1,
     },
@@ -358,8 +358,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ2_XXS_R4] = {
-        .from_float               = quantize_row_iq2_xxs_r4,
-        .vec_dot                  = vec_dot_iq2_xxs_r4_q8_k,
+        // .from_float               = quantize_row_iq2_xxs_r4,
+        // .vec_dot                  = vec_dot_iq2_xxs_r4_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
@@ -370,8 +370,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ2_XS_R4] = {
-        .from_float               = quantize_row_iq2_xs_r4,
-        .vec_dot                  = vec_dot_iq2_xs_r4_q8_k,
+        // .from_float               = quantize_row_iq2_xs_r4,
+        // .vec_dot                  = vec_dot_iq2_xs_r4_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
@@ -383,8 +383,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ3_XXS_R4] = {
-        .from_float               = quantize_row_iq3_xxs_r4,
-        .vec_dot                  = vec_dot_iq3_xxs_r4_q8_k,
+        // .from_float               = quantize_row_iq3_xxs_r4,
+        // .vec_dot                  = vec_dot_iq3_xxs_r4_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
@@ -395,8 +395,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ3_S_R4] = {
-        .from_float               = quantize_row_iq3_s_r4,
-        .vec_dot                  = vec_dot_iq3_s_r4_q8_k,
+        // .from_float               = quantize_row_iq3_s_r4,
+        // .vec_dot                  = vec_dot_iq3_s_r4_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
@@ -407,8 +407,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ2_S_R4] = {
-        .from_float               = quantize_row_iq2_s_r4,
-        .vec_dot                  = vec_dot_iq2_s_r4_q8_k,
+        // .from_float               = quantize_row_iq2_s_r4,
+        // .vec_dot                  = vec_dot_iq2_s_r4_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
@@ -420,7 +420,7 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     },
     [GGML_TYPE_IQ1_S_R4] = {
         // .from_float               = quantize_row_iq1_s_r4,
-        .vec_dot                  = vec_dot_iq1_s_r4_q8_k,
+        // .vec_dot                  = vec_dot_iq1_s_r4_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K128,
         .nrows                    = 1,
     },
@@ -443,14 +443,14 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ2_BN] = {
-        .from_float               = quantize_row_iq2_bn,
-        .vec_dot                  = vec_dot_iq2_bn_q8_K64,
+        // .from_float               = quantize_row_iq2_bn,
+        // .vec_dot                  = vec_dot_iq2_bn_q8_K64,
         .vec_dot_type             = GGML_TYPE_IQ2_BN,
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ2_BN_R4] = {
-        .from_float               = quantize_row_iq2_bn_r4,
-        .vec_dot                  = vec_dot_iq2_bn_r4_q8_K64,
+        // .from_float               = quantize_row_iq2_bn_r4,
+        // .vec_dot                  = vec_dot_iq2_bn_r4_q8_K64,
         .vec_dot_type             = GGML_TYPE_Q8_K16,
         .nrows                    = 1,
     },
@@ -473,8 +473,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ4_KS_R4] = {
-        .from_float               = quantize_row_iq4_ks_r4,
-        .vec_dot                  = vec_dot_iq4_ks_r4_q8_k,
+        // .from_float               = quantize_row_iq4_ks_r4,
+        // .vec_dot                  = vec_dot_iq4_ks_r4_q8_k,
 // #if defined __AVX2__
         .vec_dot_type             = GGML_TYPE_Q8_K32,
 // #else
@@ -489,8 +489,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ5_KS_R4] = {
-        .from_float               = quantize_row_iq5_ks_r4,
-        .vec_dot                  = vec_dot_iq5_ks_r4_q8_k,
+        // .from_float               = quantize_row_iq5_ks_r4,
+        // .vec_dot                  = vec_dot_iq5_ks_r4_q8_k,
 // #if defined __AVX2__
         .vec_dot_type             = GGML_TYPE_Q8_K32,
 // #else
@@ -517,13 +517,13 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .from_float               = quantize_row_q8_K128,
     },
     [GGML_TYPE_Q8_KV] = {
-        .from_float               = quantize_row_q8_KV,
-        .vec_dot                  = vec_dot_q8_KV_q8_KV,
+        // .from_float               = quantize_row_q8_KV,
+        // .vec_dot                  = vec_dot_q8_KV_q8_KV,
         .vec_dot_type             = GGML_TYPE_Q8_KV,
     },
     [GGML_TYPE_Q8_KV_R8] = {
-        .from_float               = quantize_row_q8_KV_r8,
-        .vec_dot                  = vec_dot_q8_KV_r8_q8_KV,
+        // .from_float               = quantize_row_q8_KV_r8,
+        // .vec_dot                  = vec_dot_q8_KV_r8_q8_KV,
         .vec_dot_type             = GGML_TYPE_Q8_KV,
     },
     [GGML_TYPE_Q8_K16] = {
@@ -535,9 +535,9 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_Q8_KR8] = {
         .from_float               = quantize_row_q8_KR8,
     },
-    [GGML_TYPE_Q8_K] = {
-        .from_float               = quantize_row_q8_K,
-    },
+    // [GGML_TYPE_Q8_K] = {
+        // .from_float               = quantize_row_q8_K,
+    // },
     [GGML_TYPE_BF16] = {
         .from_float               = (ggml_from_float_t) ggml_cpu_fp32_to_bf16,
         .vec_dot                  = (ggml_vec_dot_t) ggml_vec_dot_bf16,
@@ -545,8 +545,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_BF16_R16] = {
-        .from_float               = (ggml_from_float_t) ggml_fp32_to_bf16_row,
-        .vec_dot                  = (ggml_vec_dot_t) ggml_vec_dot_bf16,
+        // .from_float               = (ggml_from_float_t) ggml_fp32_to_bf16_row,
+        // .vec_dot                  = (ggml_vec_dot_t) ggml_vec_dot_bf16,
         .vec_dot_type             = GGML_TYPE_BF16,
         .nrows                    = 1,
     },
@@ -557,8 +557,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ2_K_R4] = {
-        .from_float               = quantize_row_iq2_k_r4,
-        .vec_dot                  = vec_dot_iq2_k_r4_q8_k,
+        // .from_float               = quantize_row_iq2_k_r4,
+        // .vec_dot                  = vec_dot_iq2_k_r4_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
@@ -581,14 +581,14 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ4_K_R4] = {
-        .from_float               = quantize_row_iq4_k_r4,
-        .vec_dot                  = vec_dot_iq4_k_r4_q8_k,
+        // .from_float               = quantize_row_iq4_k_r4,
+        // .vec_dot                  = vec_dot_iq4_k_r4_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ3_K_R4] = {
-        .from_float               = quantize_row_iq3_k_r4,
-        .vec_dot                  = vec_dot_iq3_k_r4_q8_k,
+        // .from_float               = quantize_row_iq3_k_r4,
+        // .vec_dot                  = vec_dot_iq3_k_r4_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
@@ -599,8 +599,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ5_K_R4] = {
-        .from_float               = quantize_row_iq5_k_r4,
-        .vec_dot                  = vec_dot_iq5_k_r4_q8_k,
+        // .from_float               = quantize_row_iq5_k_r4,
+        // .vec_dot                  = vec_dot_iq5_k_r4_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K,
         .nrows                    = 1,
     },
@@ -611,8 +611,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ4_NL_R4] = {
-        .from_float               = quantize_row_iq4_nl_r4,
-        .vec_dot                  = vec_dot_iq4_nl_r4_q8_0,
+        // .from_float               = quantize_row_iq4_nl_r4,
+        // .vec_dot                  = vec_dot_iq4_nl_r4_q8_0,
 #if GGML_USE_IQK_MULMAT
 #if defined __AVX2__
         .vec_dot_type             = GGML_TYPE_Q8_2_X4,
@@ -625,14 +625,14 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ4_XS_R8] = {
-        .from_float               = quantize_row_iq4_xs_r8,
-        .vec_dot                  = vec_dot_iq4_xs_r8_q8_k,
+        // .from_float               = quantize_row_iq4_xs_r8,
+        // .vec_dot                  = vec_dot_iq4_xs_r8_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K32,
         .nrows                    = 1,
     },
     [GGML_TYPE_Q4_0_R8] = {
-        .from_float               = quantize_row_q4_0_r8,
-        .vec_dot                  = vec_dot_q4_0_r8_q8_0,
+        // .from_float               = quantize_row_q4_0_r8,
+        // .vec_dot                  = vec_dot_q4_0_r8_q8_0,
 #if GGML_USE_IQK_MULMAT
 #if defined __AVX2__
         .vec_dot_type             = GGML_TYPE_Q8_2_X4,
@@ -645,8 +645,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_Q8_0_R8] = {
-        .from_float               = quantize_row_q8_0_r8,
-        .vec_dot                  = vec_dot_q8_0_r8_q8_0,
+        // .from_float               = quantize_row_q8_0_r8,
+        // .vec_dot                  = vec_dot_q8_0_r8_q8_0,
 #if GGML_USE_IQK_MULMAT
 #if defined __AVX2__
         .vec_dot_type             = GGML_TYPE_Q8_2_X4,
@@ -659,8 +659,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_Q5_0_R4] = {
-        .from_float               = quantize_row_q5_0_r4,
-        .vec_dot                  = vec_dot_q5_0_r4_q8_0,
+        // .from_float               = quantize_row_q5_0_r4,
+        // .vec_dot                  = vec_dot_q5_0_r4_q8_0,
 #if GGML_USE_IQK_MULMAT
 #if defined __AVX2__
         .vec_dot_type             = GGML_TYPE_Q8_2_X4,
@@ -673,8 +673,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_Q6_0_R4] = {
-        .from_float               = quantize_row_q6_0_r4,
-        .vec_dot                  = vec_dot_q6_0_r4_q8_0,
+        // .from_float               = quantize_row_q6_0_r4,
+        // .vec_dot                  = vec_dot_q6_0_r4_q8_0,
 #if GGML_USE_IQK_MULMAT
 #if defined __AVX2__
         .vec_dot_type             = GGML_TYPE_Q8_2_X4,

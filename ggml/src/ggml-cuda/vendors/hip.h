@@ -4,7 +4,6 @@
 #include <hip/hip_runtime.h>
 #include <hipblas/hipblas.h>
 #include <hip/hip_fp16.h>
-// #include <hip/hip_bf16.h>
 #include <hip/hip_bfloat16.h>
 #ifdef __HIP_PLATFORM_AMD__
 // for rocblas_initialize()

@@ -1,4 +1,7 @@
 #include "mmq.cuh"
+#include "quantize.cuh"
+
+#include <vector>
 
 void ggml_cuda_op_mul_mat_q(
     ggml_backend_cuda_context & ctx,

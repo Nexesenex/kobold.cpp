@@ -466,6 +466,7 @@ struct ggml_cuda_pool_vmm : public ggml_cuda_pool {
 #if defined(GGML_USE_HIP)
             mappings.push_back({start_ptr, reserve_size});
 #endif
+
             // the memory allocation handle is no longer needed after mapping
             CU_CHECK(cuMemRelease(handle));
 

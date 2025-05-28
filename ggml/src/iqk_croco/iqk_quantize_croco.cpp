@@ -16,7 +16,7 @@
 #include "iqk_quantize_croco.h"
 #include "iqk_config_croco.h"
 
-#include "ggml-cpu-quants.h"
+#include "ggml-cpu/ggml-cpu-quants.h"
 #include "ggml-cpu/ggml-cpu-impl.h"
 #include "ggml-cpu.h"
 
@@ -826,7 +826,7 @@ void quantize_row_q8_0_x4(const float * x, void * vy, int64_t k) {
 #endif
 }
 
-namespace {
+/* namespace {
 template <typename Block, typename Block_x4>
 void quantize_row_q8_1_x4_T(const float * x, Block * y, int64_t k) {
     assert(k % QK8_1 == 0);
@@ -992,15 +992,15 @@ void quantize_row_q8_1_x4_T(const float * x, Block * y, int64_t k) {
     }
 #endif
 }
-}
+} */
 
-void quantize_row_q8_1_x4(const float * x, void * vy, int64_t k) {
+/* void quantize_row_q8_1_x4(const float * x, void * vy, int64_t k) {
     quantize_row_q8_1_x4_T<block_q8_1, block_q8_1_x4>(x, (block_q8_1 *)vy, k);
 }
 
 void quantize_row_q8_2_x4(const float * x, void * vy, int64_t k) {
     quantize_row_q8_1_x4_T<block_q8_2, block_q8_2_x4>(x, (block_q8_2 *)vy, k);
-}
+} */
 
 //
 // ============================================== iq2_K
@@ -3092,7 +3092,7 @@ void iqk_quantize_row_q8_K128(const float * x, void * vy, int64_t k) {
 #endif
 }
 // TODO: merge this with the above template
-void iqk_quantize_row_q8_KV(const float * x, void * vy, int64_t k) {
+/* void iqk_quantize_row_q8_KV(const float * x, void * vy, int64_t k) {
     assert(k % 32 == 0);
     auto dptr = (float *)vy;
     auto q8 = (int8_t *)(dptr + 2);
@@ -3187,7 +3187,7 @@ void iqk_quantize_row_q8_KV(const float * x, void * vy, int64_t k) {
     auto iptr = (int32_t *)(dptr + 1);
     iptr[0] = isum;
 #endif
-}
+} */
 }
 
 void quantize_row_q8_K128(const float * x, void * vy, int64_t k) {
@@ -6317,7 +6317,7 @@ void vec_dot_q8_k_r8_q8_k(int n, float * s, size_t bs, const void * vx, size_t b
 // ========================================= q8_KV_r8
 //
 
-void quantize_row_q8_KV_r8_ref(const float * x, void * y, int64_t k) {
+/* void quantize_row_q8_KV_r8_ref(const float * x, void * y, int64_t k) {
     quantize_q8_KV_r8(x, y, 8, k/8, nullptr);
 }
 
@@ -6411,9 +6411,9 @@ static void modify_q8_KV_r8(int64_t k, char * cy) {
     int8_t * q8 = (int8_t *)(cy + 8*sizeof(float));
     for (int j = 0; j < k; ++j) q8[j] += 127;
 }
-#endif
+#endif */
 
-size_t quantize_q8_KV_r8(const float * src, void * dst, int64_t nrows, int64_t n_per_row, [[maybe_unused]] const float * imatrix) {
+/* size_t quantize_q8_KV_r8(const float * src, void * dst, int64_t nrows, int64_t n_per_row, [[maybe_unused]] const float * imatrix) {
     GGML_ASSERT(nrows%8 == 0);
     GGML_ASSERT(n_per_row%16 == 0);
     char * qcur = (char *)dst;
@@ -6427,7 +6427,7 @@ size_t quantize_q8_KV_r8(const float * src, void * dst, int64_t nrows, int64_t n
         src += 8*n_per_row;
     }
     return nrows*row_size_1;
-}
+} */
 
 void dequantize_row_q8_KV_r8(const void * vx, float * y, int64_t k) {
     auto n_per_row = k/8;
@@ -7524,7 +7524,7 @@ void vec_dot_iq1_m_r4_q8_k(int n, float * s, size_t bs, const void * vx, size_t 
     GGML_UNUSED(by);
 } */
 
-void quantize_row_q8_KV(const float * x, void * vy, int64_t k) {
+/* void quantize_row_q8_KV(const float * x, void * vy, int64_t k) {
     iqk_quantize_row_q8_KV(x, vy, k);
 }
 
@@ -7562,7 +7562,7 @@ void vec_dot_q8_KV_q8_KV(int n, float * s, size_t bs, const void * vx, size_t bx
     GGML_UNUSED(bs);
     GGML_UNUSED(bx);
     GGML_UNUSED(by);
-}
+} */
 
 
 //================================================
