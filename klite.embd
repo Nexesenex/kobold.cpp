@@ -26680,9 +26680,17 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					let elem = combined_chunks[i]
 					try {
 						let cleanedText = decodeEntities(elem.message)
-						let suggestions = JSON.parse([...cleanedText.matchAll(suggestionsRegex)][0][1].replaceAll("&quot;", `"`))
-						setSuggestions(suggestions)
-						break
+						let matcher = /[\s\S]*?Name: send_message\n\nArguments:[\s\S]*?suggestionsToPickFrom:\s*?Array:/gi
+						if (matcher.test(cleanedText))
+						{
+							let suggestions = cleanedText.replace(matcher, "")
+								.trim()
+								.split("->")
+								.map(elem => elem.trim().replace(/^"(.*)"$/g, "$1").replaceAll("&quot;", `"`))
+								.filter(elem => !!elem)
+							setSuggestions(suggestions)
+							break
+						}
 					}
 					catch (e) {
 						// Suppress errors
