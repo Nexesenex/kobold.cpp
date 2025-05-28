@@ -26787,7 +26787,19 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		let state = getDocumentFromTextDB('State')
 		let prompt = []
 
-		let sysPrompt = !!localsettings.instruct_sysprompt ? `${localsettings.instruct_sysprompt}` : `You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user.`
+		let sysPrompt;
+		if (!!localsettings.instruct_sysprompt)
+		{
+			sysPrompt = localsettings.instruct_sysprompt
+		}
+		else
+		{
+			sysPrompt = `You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user. Ensure you always send at least one response which is visible to the user.`
+			if (current_memory.length > 0)
+			{
+				sysPrompt += " Ensure responses are in line with the setting overview. Only override the setting overview when the user explicitly instructs you to do so."
+			}
+		}
 		if (state != null)
 		{
 			prompt.push(`Current state: ${state}`)
