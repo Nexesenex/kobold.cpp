@@ -1,5 +1,8 @@
+// #include "build-info.h"
 #include "common.h"
 #include "llama.h"
+
+// #include "build-info.h"
 
 #include <cstdio>
 #include <cstring>

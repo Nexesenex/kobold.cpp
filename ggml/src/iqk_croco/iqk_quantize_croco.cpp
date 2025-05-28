@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+// #define __cplusplus
+
 #if GGML_USE_IQK_MULMAT
 #include "iqk_mul_mat.h"
 #endif
@@ -18,13 +20,13 @@
 #include "ggml-cpu/ggml-cpu-impl.h"
 #include "ggml-cpu.h"
 
-// #include <math.h>
-// #include <string.h>
-// #include <assert.h>
-// #include <float.h>
+#include <math.h>
+#include <string.h>
+#include <assert.h>
+#include <float.h>
 
-// #include <stdlib.h> // for qsort
-// #include <stdio.h>  // for GGML_ASSERT
+#include <stdlib.h> // for qsort
+#include <stdio.h>  // for GGML_ASSERT
 
 #include <vector>
 #include <utility>

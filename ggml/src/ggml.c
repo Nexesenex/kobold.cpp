@@ -1,19 +1,42 @@
 #define _CRT_SECURE_NO_DEPRECATE // Disables "unsafe" warnings on Windows
 #define _USE_MATH_DEFINES // For M_PI on MSVC
 
+#if GGML_USE_IQK_MULMAT
+#include "ggml-backend.h"
+#include "ggml-impl_ik.h"
+#include "ggml-quants_ik.h"
+#include "ggml_ik.h"
+#include "ggml-cpu-aarch64.h"
+#include "iqk/iqk_mul_mat.h"
+#include "iqk_croco/iqk_quantize_croco.h"
+#elif GGML_USE_LLAMA_CPP_MAINLINE
 #include "ggml-backend.h"
 #include "ggml-impl.h"
+#include "ggml-cpu-impl.h"
 #include "ggml-threading.h"
 #include "ggml-cpu.h"
 #include "ggml.h"
 
 // FIXME: required here for quantization functions
 #include "ggml-quants.h"
+#include "ggml-cpu-aarch64.h"
+#else
+#include "ggml-backend.h"
+#include "ggml-impl.h"
+#include "ggml-cpu/ggml-cpu-impl.h"
+#include "ggml-threading.h"
+#include "ggml.h"
+#include "ggml-quants.h"
+#include "ggml-cpu/ggml-cpu-aarch64.h"
 #include "iqk_croco/iqk_quantize_croco.h"
+#include "iqk_croco/iqk_common_croco.h"
+#endif
 
 #ifdef GGML_USE_CPU_HBM
 #include <hbwmalloc.h>
 #endif
+
+// #include "iqk/iqk_quantize.h"
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <malloc.h> // using malloc.h with MSC/MINGW
@@ -696,7 +719,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .from_float_ref           = (ggml_from_float_t) quantize_row_q8_1_ref,
         .row_meta_size = 0,
     },
-/*     [GGML_TYPE_Q8_0_X4] = {
+    /* [GGML_TYPE_Q8_0_X4] = {
         .type_name                = "q8_0_x4",
         .blck_size                = QK8_0,
         .type_size                = sizeof(block_q8_0),
@@ -705,8 +728,8 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .from_float_ref           = quantize_row_q8_0_x4,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
-/*     [GGML_TYPE_Q8_1_X4] = {
+    },
+    [GGML_TYPE_Q8_1_X4] = {
         .type_name                = "q8_1_x4",
         .blck_size                = QK8_1,
         .type_size                = sizeof(block_q8_1),
@@ -715,8 +738,8 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .from_float_ref           = quantize_row_q8_1_x4,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
-/*     [GGML_TYPE_Q8_2_X4] = {
+    },
+    [GGML_TYPE_Q8_2_X4] = {
         .type_name                = "q8_2_x4",
         .blck_size                = QK8_2,
         .type_size                = sizeof(block_q8_2),
@@ -735,7 +758,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .from_float_ref           = (ggml_from_float_t) quantize_row_q2_K_ref,
         .row_meta_size = 0,
     },
-/*     [GGML_TYPE_Q2_K_R4] = {
+    [GGML_TYPE_Q2_K_R4] = {
         .type_name                = "q2_k_r4",
         .blck_size                = QK_K,
         .type_size                = sizeof(block_q2_K),
@@ -747,7 +770,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_Q8_K,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
+    },
     [GGML_TYPE_Q3_K] = {
         .type_name                = "q3_K",
         .blck_size                = QK_K,
@@ -757,7 +780,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .from_float_ref           = (ggml_from_float_t) quantize_row_q3_K_ref,
         .row_meta_size = 0,
     },
-/*     [GGML_TYPE_Q3_K_R4] = {
+    [GGML_TYPE_Q3_K_R4] = {
         .type_name                = "q3_k_r4",
         .blck_size                = QK_K,
         .type_size                = sizeof(block_q3_K),
@@ -769,7 +792,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_Q8_K,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
+    },
     [GGML_TYPE_Q4_K] = {
         .type_name                = "q4_K",
         .blck_size                = QK_K,
@@ -779,7 +802,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .from_float_ref           = (ggml_from_float_t) quantize_row_q4_K_ref,
         .row_meta_size = 0,
     },
-/*     [GGML_TYPE_Q4_K_R4] = {
+    [GGML_TYPE_Q4_K_R4] = {
         .type_name                = "q4_k_r4",
         .blck_size                = QK_K,
         .type_size                = sizeof(block_q4_K),
@@ -791,7 +814,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_Q8_K32,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
+    },
     [GGML_TYPE_Q5_K] = {
         .type_name                = "q5_K",
         .blck_size                = QK_K,
@@ -801,7 +824,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .from_float_ref           = (ggml_from_float_t) quantize_row_q5_K_ref,
         .row_meta_size = 0,
     },
-/*     [GGML_TYPE_Q5_K_R4] = {
+    [GGML_TYPE_Q5_K_R4] = {
         .type_name                = "q5_k_r4",
         .blck_size                = QK_K,
         .type_size                = sizeof(block_q5_K),
@@ -813,7 +836,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_Q8_K32,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
+    },
     [GGML_TYPE_Q6_K] = {
         .type_name                = "q6_K",
         .blck_size                = QK_K,
@@ -823,7 +846,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .from_float_ref           = (ggml_from_float_t) quantize_row_q6_K_ref,
         .row_meta_size = 0,
     },
-/*     [GGML_TYPE_Q6_K_R4] = {
+    [GGML_TYPE_Q6_K_R4] = {
         .type_name                = "q6_k_r4",
         .blck_size                = QK_K,
         .type_size                = sizeof(block_q6_K),
@@ -835,8 +858,8 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_Q8_K,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
-/*     [GGML_TYPE_Q8_K_R8] = {
+    },
+    [GGML_TYPE_Q8_K_R8] = {
         .type_name                = "q8_k_r8",
         .blck_size                = QK_K,
         .type_size                = sizeof(block_q8_k_r8)/8,
@@ -848,7 +871,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_Q8_KR8,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
+    },
     [GGML_TYPE_IQ2_XXS] = {
         .type_name                = "iq2_xxs",
         .blck_size                = QK_K,
@@ -858,7 +881,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .from_float_ref           = NULL,
         .row_meta_size = 0,
     },
-/*     [GGML_TYPE_IQ2_XXS_R4] = {
+    [GGML_TYPE_IQ2_XXS_R4] = {
         .type_name                = "iq2_xxs_r4",
         .blck_size                = QK_K,
         .type_size                = sizeof(block_iq2_xxs),
@@ -870,7 +893,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_Q8_K,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
+    },
     [GGML_TYPE_IQ2_XS] = {
         .type_name                = "iq2_xs",
         .blck_size                = QK_K,
@@ -880,7 +903,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .from_float_ref           = NULL,
         .row_meta_size = 0,
     },
-/*     [GGML_TYPE_IQ2_XS_R4] = {
+    [GGML_TYPE_IQ2_XS_R4] = {
         .type_name                = "iq2_xs_r4",
         .blck_size                = QK_K,
         .type_size                = sizeof(block_iq2_xs),
@@ -892,7 +915,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_Q8_K,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
+    },
     [GGML_TYPE_IQ3_XXS] = {
         .type_name                = "iq3_xxs",
         .blck_size                = QK_K,
@@ -902,7 +925,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .from_float_ref           = (ggml_from_float_t)quantize_row_iq3_xxs_ref,
         .row_meta_size = 0,
     },
-/*     [GGML_TYPE_IQ3_XXS_R4] = {
+    [GGML_TYPE_IQ3_XXS_R4] = {
         .type_name                = "iq3_xxs_r4",
         .blck_size                = QK_K,
         .type_size                = sizeof(block_iq3_xxs),
@@ -914,7 +937,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_Q8_K,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
+    },
     [GGML_TYPE_IQ3_S] = {
         .type_name                = "iq3_s",
         .blck_size                = QK_K,
@@ -924,7 +947,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .from_float_ref           = (ggml_from_float_t)quantize_row_iq3_s_ref,
         .row_meta_size = 0,
     },
-/*     [GGML_TYPE_IQ3_S_R4] = {
+    [GGML_TYPE_IQ3_S_R4] = {
         .type_name                = "iq3_s_r4",
         .blck_size                = QK_K,
         .type_size                = sizeof(block_iq3_s),
@@ -936,7 +959,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_Q8_K,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
+    },
     [GGML_TYPE_IQ2_S] = {
         .type_name                = "iq2_s",
         .blck_size                = QK_K,
@@ -946,7 +969,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .from_float_ref           = (ggml_from_float_t)quantize_row_iq2_s_ref,
         .row_meta_size = 0,
     },
-/*     [GGML_TYPE_IQ2_S_R4] = {
+    [GGML_TYPE_IQ2_S_R4] = {
         .type_name                = "iq2_s_r4",
         .blck_size                = QK_K,
         .type_size                = sizeof(block_iq2_s),
@@ -958,7 +981,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_Q8_K,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
+    },
     [GGML_TYPE_IQ1_S] = {
         .type_name                = "iq1_s",
         .blck_size                = QK_K,
@@ -968,7 +991,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .from_float_ref           = NULL,
         .row_meta_size = 0,
     },
-/*     [GGML_TYPE_IQ1_S_R4] = {
+    [GGML_TYPE_IQ1_S_R4] = {
         .type_name                = "iq1_s_r4",
         .blck_size                = 32,
         .type_size                = sizeof(block_iq1_s_r4)/4,
@@ -980,7 +1003,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_Q8_K128,
         // .nrows                    = 1,
         .row_meta_size            = 2,
-    }, */
+    },
     [GGML_TYPE_IQ1_M] = {
         .type_name                = "iq1_m",
         .blck_size                = QK_K,
@@ -990,7 +1013,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .from_float_ref           = NULL,
         .row_meta_size = 0,
     },
-/*     [GGML_TYPE_IQ1_M_R4] = {
+    [GGML_TYPE_IQ1_M_R4] = {
         .type_name                = "iq1_m_r4",
         .blck_size                = 32,
         .type_size                = sizeof(block_iq1_m_r4)/4,
@@ -1002,7 +1025,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_Q8_K128,
         // .nrows                    = 1,
         .row_meta_size            = 2,
-    }, */
+    },
     [GGML_TYPE_IQ1_BN] = {
         .type_name                = "iq1_bn",
         .blck_size                = QK_IQ1BN,
@@ -1021,9 +1044,9 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .blck_size                = QK_IQ1BN,
         .type_size                = sizeof(block_iq2_bn),
         .is_quantized             = true,
-        // .to_float                 = (ggml_to_float_t) dequantize_row_iq2_bn,
+        .to_float                 = (ggml_to_float_t) dequantize_row_iq2_bn,
         // .from_float               = quantize_row_iq2_bn,
-        // .from_float_ref           = (ggml_from_float_t)quantize_row_iq2_bn_ref,
+        .from_float_ref           = (ggml_from_float_t)quantize_row_iq2_bn_ref,
         // .vec_dot                  = vec_dot_iq2_bn_q8_K64,
         // .vec_dot_type             = GGML_TYPE_Q8_K64,
         // .nrows                    = 1,
@@ -1034,9 +1057,9 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .blck_size                = QK_IQ1BN,
         .type_size                = sizeof(block_iq2_bn),
         .is_quantized             = true,
-        // .to_float                 = (ggml_to_float_t) dequantize_row_iq2_bn_r4,
+        .to_float                 = (ggml_to_float_t) dequantize_row_iq2_bn_r4,
         // .from_float               = quantize_row_iq2_bn_r4,
-        // .from_float_ref           = (ggml_from_float_t)quantize_row_iq2_bn_r4_ref,
+        .from_float_ref           = (ggml_from_float_t)quantize_row_iq2_bn_r4_ref,
         // .vec_dot                  = vec_dot_iq2_bn_r4_q8_K64,
         //.vec_dot_type             = GGML_TYPE_Q8_K16,
         // .nrows                    = 1,
@@ -1073,7 +1096,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .nrows                    = 1,
         .row_meta_size            = 4,
     },
-/*     [GGML_TYPE_IQ4_KS_R4] = {
+    [GGML_TYPE_IQ4_KS_R4] = {
         .type_name                = "iq4_ks_r4",
         .blck_size                = QK_K,
         .type_size                = sizeof(block_iq4_ks),
@@ -1089,7 +1112,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
 #endif
         // .nrows                    = 1,
         .row_meta_size            = 4,
-    }, */
+    },
     [GGML_TYPE_IQ5_KS] = {
         .type_name                = "iq5_ks",
         .blck_size                = QK_K,
@@ -1103,7 +1126,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .nrows                    = 1,
         .row_meta_size            = 4,
     },
-/*     [GGML_TYPE_IQ5_KS_R4] = {
+    [GGML_TYPE_IQ5_KS_R4] = {
         .type_name                = "iq5_ks_r4",
         .blck_size                = QK_K,
         .type_size                = sizeof(block_iq5_ks),
@@ -1119,7 +1142,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
 #endif
         // .nrows                    = 1,
         .row_meta_size            = 4,
-    }, */
+    },
     [GGML_TYPE_IQ4_KSS] = {
         .type_name                = "iq4_kss",
         .blck_size                = QK_K,
@@ -1182,7 +1205,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .from_float               = quantize_row_q8_K128,
         .row_meta_size            = 0,
     },
-/*     [GGML_TYPE_Q8_KV] = {
+    /* [GGML_TYPE_Q8_KV] = {
         .type_name                = "q8_KV",
         .blck_size                = 32,
         .type_size                = 32,
@@ -1193,8 +1216,8 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot                  = vec_dot_q8_KV_q8_KV,
         // .vec_dot_type             = GGML_TYPE_Q8_KV,
         .row_meta_size            = 8,
-    }, */
-/*    [GGML_TYPE_Q8_KV_R8] = {
+    },
+    [GGML_TYPE_Q8_KV_R8] = {
         .type_name                = "q8_KV_r8",
         .blck_size                = 32,
         .type_size                = 32,
@@ -1205,7 +1228,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot                  = vec_dot_q8_KV_r8_q8_KV,
         // .vec_dot_type             = GGML_TYPE_Q8_KV,
         .row_meta_size            = 4,
-    },
+    }, */
     [GGML_TYPE_Q8_K16] = {
         .type_name                = "q8_K16",
         .blck_size                = 64,
@@ -1229,7 +1252,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         // .from_float               = quantize_row_q8_KR8,
         .row_meta_size            = 0,
-    }, */
+    },
     [GGML_TYPE_BF16] = {
         .type_name                = "bf16",
         .blck_size                = 1,
@@ -1239,7 +1262,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .from_float_ref           = (ggml_from_float_t) ggml_fp32_to_bf16_row_ref,
         .row_meta_size = 0,
     },
-/*     [GGML_TYPE_BF16_R16] = {
+    [GGML_TYPE_BF16_R16] = {
         .type_name                = "bf16_r16",
         .blck_size                = 1,
         .type_size                = sizeof(ggml_bf16_t),
@@ -1251,7 +1274,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_BF16,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
+    },
     [GGML_TYPE_Q4_0_4_4] = { // deprecated upstream
         .type_name                = "q4_0_4x4",
         .blck_size                = QK4_0,
@@ -1376,7 +1399,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .nrows                    = 1,
         .row_meta_size            = 2,
     },
-/*     [GGML_TYPE_IQ2_K_R4] = {
+    [GGML_TYPE_IQ2_K_R4] = {
         .type_name                = "iq2_k_r4",
         .blck_size                = QK_K,
         .type_size                = sizeof(block_iq2_k),
@@ -1388,7 +1411,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_Q8_K,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
+    },
     [GGML_TYPE_IQ2_KS] = {
         .type_name                = "iq2_ks",
         .blck_size                = QK_K,
@@ -1428,7 +1451,8 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .nrows                    = 1,
         .row_meta_size            = 0,
     },
-/*     [GGML_TYPE_IQ4_K_R4] = {
+
+    [GGML_TYPE_IQ4_K_R4] = {
         .type_name                = "iq4_k_r4",
         .blck_size                = QK_K,
         .type_size                = sizeof(block_iq4_k),
@@ -1440,8 +1464,8 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_Q8_K,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
-/*     [GGML_TYPE_IQ3_K_R4] = {
+    },
+    [GGML_TYPE_IQ3_K_R4] = {
         .type_name                = "iq3_k_r4",
         .blck_size                = QK_K,
         .type_size                = sizeof(block_iq3_k),
@@ -1453,7 +1477,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_Q8_K,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
+    },
     [GGML_TYPE_IQ5_K] = {
         .type_name                = "iq5_k",
         .blck_size                = QK_K,
@@ -1467,7 +1491,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .nrows                    = 1,
         .row_meta_size            = 0,
     },
-/*     [GGML_TYPE_IQ5_K_R4] = {
+    [GGML_TYPE_IQ5_K_R4] = {
         .type_name                = "iq5_k_r4",
         .blck_size                = QK_K,
         .type_size                = sizeof(block_iq5_k),
@@ -1479,7 +1503,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_Q8_K,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
+    },
     [GGML_TYPE_IQ6_K] = {
         .type_name                = "iq6_k",
         .blck_size                = QK_K,
@@ -1493,7 +1517,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .nrows                    = 1,
         .row_meta_size            = 0,
     },
-/*     [GGML_TYPE_IQ4_NL_R4] = {
+    [GGML_TYPE_IQ4_NL_R4] = {
         .type_name                = "iq4_nl_r4",
         .blck_size                = QK4_NL,
         .type_size                = sizeof(block_iq4_nl),
@@ -1513,8 +1537,8 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
 // #endif
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
-/*     [GGML_TYPE_IQ4_XS_R8] = {
+    },
+    [GGML_TYPE_IQ4_XS_R8] = {
         .type_name                = "iq4_xs_r8",
         .blck_size                = QK_K,
         .type_size                = sizeof(block_iq4_xs),
@@ -1526,8 +1550,8 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_Q8_K32,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
-/*     [GGML_TYPE_Q4_0_R8] = {
+    },
+    [GGML_TYPE_Q4_0_R8] = {
         .type_name                = "q4_0_r8",
         .blck_size                = QK4_NL,
         .type_size                = sizeof(block_iq4_nl),
@@ -1547,8 +1571,8 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
 // #endif
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
-/*     [GGML_TYPE_Q8_0_R8] = {
+    },
+    [GGML_TYPE_Q8_0_R8] = {
         .type_name                = "q8_0_r8",
         .blck_size                = QK8_0,
         .type_size                = sizeof(block_q8_0),
@@ -1568,8 +1592,8 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
 // #endif
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
-/*     [GGML_TYPE_Q5_0_R4] = {
+    },
+    [GGML_TYPE_Q5_0_R4] = {
         .type_name                = "q5_0_r4",
         .blck_size                = QK5_0,
         .type_size                = sizeof(block_q5_0),
@@ -1589,8 +1613,8 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
 // #endif
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
-/*     [GGML_TYPE_Q6_0_R4] = {
+    },
+    [GGML_TYPE_Q6_0_R4] = {
         .type_name                = "q6_0_r4",
         .blck_size                = QK6_0,
         .type_size                = sizeof(block_q6_0),
@@ -1610,8 +1634,8 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
 // #endif
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
-/*     [GGML_TYPE_I2_S] = {
+    },
+    [GGML_TYPE_I2_S] = {
         .type_name                = "i2_s",
         .blck_size                = 1,
         .type_size                = 1,
@@ -1623,7 +1647,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .vec_dot_type             = GGML_TYPE_Q8_0,
         // .nrows                    = 1,
         .row_meta_size            = 0,
-    }, */
+    },
 };
 
 const struct ggml_type_traits * ggml_get_type_traits(enum ggml_type type) {
@@ -1631,14 +1655,14 @@ const struct ggml_type_traits * ggml_get_type_traits(enum ggml_type type) {
     return &type_traits[type];
 }
 
-/* static inline int ggml_packed_rows(enum ggml_type type) {
+static inline int ggml_packed_rows(enum ggml_type type) {
     return type == GGML_TYPE_BF16_R16 ? 16
          : type == GGML_TYPE_Q8_K_R8 || type == GGML_TYPE_Q8_KV_R8 ||
            type == GGML_TYPE_Q8_0_R8 || type == GGML_TYPE_Q4_0_R8 ||
            type == GGML_TYPE_IQ4_XS_R8 ? 8
            : type >= GGML_TYPE_Q4_0_R8 && type <= GGML_TYPE_Q8_K_R8 ? 4
          : 1;
-} */
+}
 
 //
 // ggml object

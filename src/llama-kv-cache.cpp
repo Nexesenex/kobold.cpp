@@ -70,7 +70,7 @@ llama_kv_cache_unified::llama_kv_cache_unified(
 
     for (uint32_t il = 0; il < hparams.n_layer; il++) {
         if (filter && !filter(il)) {
-            LLAMA_LOG_DEBUG("%s: layer %3d: skipped\n", __func__, il);
+          //  LLAMA_LOG_DEBUG("%s: layer %3d: skipped\n", __func__, il);
             continue;
         }
 
@@ -88,7 +88,7 @@ llama_kv_cache_unified::llama_kv_cache_unified(
             dev_name = ggml_backend_dev_name(dev);
         }
 
-        LLAMA_LOG_DEBUG("%s: layer %3d: dev = %s\n", __func__, il, dev_name);
+        //LLAMA_LOG_DEBUG("%s: layer %3d: dev = %s\n", __func__, il, dev_name);
 
         ggml_context * ctx = ctx_for_buft(buft);
         if (!ctx) {
@@ -318,8 +318,8 @@ bool llama_kv_cache_unified::update(llama_context & lctx) {
 
     if (cells.get_has_shift()) {
         if (!get_can_shift()) {
-            GGML_ABORT("The current KV cache / model configuration does not support K-shift");
-        }
+            printf("\nWARNING: The current KV cache / model configuration does not support K-shift");
+        } else {
 
         LLAMA_LOG_DEBUG("%s: applying K-shift\n", __func__);
 
@@ -341,7 +341,7 @@ bool llama_kv_cache_unified::update(llama_context & lctx) {
         }
 
         cells.reset_shift();
-    }
+    }}
 
     if (do_defrag) {
         LLAMA_LOG_DEBUG("%s: defragmenting KV cache\n", __func__);
@@ -603,7 +603,7 @@ void llama_kv_cache_unified::prune_swa(llama_seq_id seq_id, llama_pos pmin, llam
     }
 
     if (n_attended < std::min<int>(n_swa, pmin)) {
-        LLAMA_LOG_WARN("%s: partial SWA cache detected - possible loss of information, pmin = %d, n_attended = %d, n_swa = %d\n", __func__, pmin, n_attended, n_swa);
+        //LLAMA_LOG_WARN("%s: partial SWA cache detected - possible loss of information, pmin = %d, n_attended = %d, n_swa = %d\n", __func__, pmin, n_attended, n_swa);
     }
 }
 

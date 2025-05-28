@@ -5,6 +5,7 @@
 #include "log.h"
 #include "sampling.h"
 #include "chat.h"
+// #include "build-info.h"
 
 // fix problem with std::min and std::max
 #if defined(_WIN32)
@@ -824,6 +825,7 @@ const std::vector<ggml_type> kv_cache_types = {
     GGML_TYPE_IQ4_NL,
     GGML_TYPE_Q5_0,
     GGML_TYPE_Q5_1,
+    GGML_TYPE_Q6_0,
 };
 
 static ggml_type kv_cache_type_from_str(const std::string & s) {
