@@ -8416,7 +8416,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
                     print("No GPU backend found, or could not automatically determine GPU layers. Please set it manually.")
                     args.gpulayers = 0
 
-    if args.threads == -1:
+    if args.threads <= 0:
         args.threads = get_default_threads()
         print(f"Auto Set Threads: {args.threads}")
 

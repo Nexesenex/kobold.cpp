@@ -22318,11 +22318,11 @@ Current version indicated by LITEVER below.
 
 		function transformInputToAestheticStyle(bodyStr, isPreview) { // Trim unnecessary empty space and new lines, and append * or " to each bubble if start/end sequence ends with * or ", to preserve styling.
 		
-			let sys = "system"
 			bodyStr = bodyStr.replaceAll(you + '\n', you).replaceAll(you + ' ', you).replaceAll(you, style('you') + `${you.endsWith('*') ? '*' : ''}` + `${you.endsWith('"') ? '"' : ''}`);
 			bodyStr = bodyStr.replaceAll(bot + '\n', bot).replaceAll(bot + ' ', bot).replaceAll(bot, style('AI') + `${bot.endsWith('*') ? '*' : ''}` + `${bot.endsWith('"') ? '"' : ''}`);
 			if (isAgentModeEnabledAndSetCorrectly())
 			{
+				let sys = get_instruct_systag(doTrim=true)
 				bodyStr = bodyStr.replaceAll(sys + '\n', sys).replaceAll(sys + ' ', sys).replaceAll(sys, style('sys') + `${sys.endsWith('*') ? '*' : ''}` + `${sys.endsWith('"') ? '"' : ''}`);	
 			}
 
@@ -26192,13 +26192,18 @@ else
 		}
 		switch (typeof obj) {
 			case "array":
-				output += `${baseIndent}Array:\n${obj.map(elem => `${baseIndent}\tElement: ${objToText(elem, depth + 1)}`).join("\n")}`
-				break
 			case "object":
-				let keys = Object.keys(obj)
-				output += keys.map(key => {
-					return `${baseIndent}-> ${key}:\n${objToText(obj[key], depth + 1)}`
-				}).join("\n")
+				if (Array.isArray(obj))
+				{
+					output += `${baseIndent}Array:\n${obj.map(elem => `${baseIndent}\t->\n${objToText(elem, depth + 2)}`).join("\n")}`
+				}
+				else
+				{
+					let keys = Object.keys(obj)
+					output += keys.map(key => {
+						return `${baseIndent}-> ${key}:\n${objToText(obj[key], depth + 1)}`
+					}).join("\n")
+				}
 				break
 			default:
 				output += `${baseIndent}${JSON.stringify(obj)}`
@@ -26256,7 +26261,11 @@ else
 				"messages": {
 					description: "<text to send>",
 					type: "array",
-					itemType: "string"
+					items: {
+						type: "string",
+					},
+					minItems: 1,
+					maxItems: 5
 				},
 				"suggestionsToPickFrom": {
 				description: "<suggestions written from the user's perspective which they can pick from for their next action>",
@@ -26275,7 +26284,12 @@ else
 					let suggestions = action?.args?.suggestionsToPickFrom
 					if (!!suggestions && Array.isArray(suggestions)) {
 						try {
-							setSuggestions(suggestions.map(String))
+							let actualSuggestions = suggestions.map(String).filter(text => text.trim().length > 0)
+							if (actualSuggestions.length > 0)
+							{
+								setSuggestions(actualSuggestions)
+								return !!localsettings?.agentStopOnRequestForInput
+							}
 						}
 						catch {
 							// Do not care about an error here, it's a nice to have if the suggestions show
@@ -27175,9 +27189,17 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					let elem = combined_chunks[i]
 					try {
 						let cleanedText = decodeEntities(elem.message)
-						let suggestions = JSON.parse([...cleanedText.matchAll(suggestionsRegex)][0][1].replaceAll("&quot;", `"`))
-						setSuggestions(suggestions)
-						break
+						let matcher = /[\s\S]*?Name: send_message\n\nArguments:[\s\S]*?suggestionsToPickFrom:\s*?Array:/gi
+						if (matcher.test(cleanedText))
+						{
+							let suggestions = cleanedText.replace(matcher, "")
+								.trim()
+								.split("->")
+								.map(elem => elem.trim().replace(/^"(.*)"$/g, "$1").replaceAll("&quot;", `"`))
+								.filter(elem => !!elem)
+							setSuggestions(suggestions)
+							break
+						}
 					}
 					catch (e) {
 						// Suppress errors
@@ -27274,17 +27296,20 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		let state = getDocumentFromTextDB('State')
 		let prompt = []
 
-		let sysPrompt = !!localsettings.instruct_sysprompt ? `${localsettings.instruct_sysprompt}` : `You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user.`
-		prompt.push(`System prompt: ${sysPrompt}`)
-		
-		if (!!initialPrompt)
+		let sysPrompt;
+		if (!!localsettings.instruct_sysprompt)
 		{
-			prompt.push(`Last user instruction: ${initialPrompt}`)
+			sysPrompt = localsettings.instruct_sysprompt
 		}
-		if (!!objectiveForCurrentAction)
+		else
 		{
-			prompt.push(`Objective for current action: ${objectiveForCurrentAction}`)
-		}		
+			sysPrompt = `You are a decision making action AI that evaluates thoughts and takes concise, purposeful actions which lead to a response to the user. Ensure you always send at least one response which is visible to the user.`
+			if (current_memory.length > 0)
+			{
+				sysPrompt += " Ensure responses are in line with the setting overview. Only override the setting overview when the user explicitly instructs you to do so."
+			}
+			sysPrompt += " Providing suggestions will force you to stop taking actions. Only include suggestions when you have nothing else to do or require user input."
+		}
 		if (state != null)
 		{
 			prompt.push(`Current state: ${state}`)
@@ -27294,10 +27319,19 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			prompt.push(`Current unique identifiers for world info: ${currentAgentWIs.join(", ")}`)
 		}
-		if (currentOrderOfActions.length > 0)
+		prompt.push(`System prompt for all responses: ${sysPrompt}`)		
+		if (!!initialPrompt)
 		{
-			prompt.push(`Order of actions: ${currentOrderOfActions.join(" -> ")}`)
+			prompt.push(`Most recent input from user: ${initialPrompt}`)
 		}
+		if (!!objectiveForCurrentAction)
+		{
+			prompt.push(`Objective for current action: ${objectiveForCurrentAction}`)
+		}		
+		// if (currentOrderOfActions.length > 0)
+		// {
+		// 	prompt.push(`Order of actions: ${currentOrderOfActions.join(" -> ")}`)
+		// }
 		let basePrompt = prompt.join("\n\n")
 		return createSysPrompt(`### Available commands:\n\n${getCommandsAsText(!!commands.find(c => c.name === "plan_actions") ? getEnabledCommands() : commands)}`) + (basePrompt.length > 0 ? createSysPrompt(basePrompt) : "")
 	}
@@ -27454,7 +27488,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		currentOrderOfActionsOverall = []
 		currentOrderOfActionDescriptionsOverall = []
 		
-		getLastActions(maxActionsInHistory).forEach(action => {
+		let lastActions = getLastActions(maxActionsInHistory)
+		lastActions.forEach(action => {
 			switch(action.source)
 			{
 				case "system":
@@ -27474,17 +27509,26 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			initialPrompt = (localsettings.inject_chatnames_instruct ? `${localsettings.chatname}: ${initialPrompt}` : initialPrompt)
 			addThought(createInstructPrompt, initialPrompt)
-			if (!!documentdb_enabled)
+		}
+		else if (!!lastActions && lastActions.length > 0)
+		{
+			let firstElem = getLastActions()[0]; 
+			let prevInput = (firstElem.source === "human" ? firstElem.msg.replace(new RegExp(`^${localsettings.chatname}:\\s*`), "") : ""); 
+			if (!!prevInput)
 			{
-				let contentToSearch = documentdb_data
-				if (!!documentdb_searchhistory)
-				{
-					contentToSearch += `\n\n[DOCUMENT BREAK][Chatlog history]${concat_gametext(true)}[DOCUMENT BREAK]`
-				}
-				let ltmSnippets = await DatabaseMinisearch(contentToSearch, initialPrompt, "");
-				for (let i = 0; i < ltmSnippets.length; ++i) {
-					textDBResults += getInfoSnippet(ltmSnippets[i]);
-				}
+				initialPrompt = prevInput
+			}
+		}
+		if (!!initialPrompt && !!documentdb_enabled)
+		{
+			let contentToSearch = documentdb_data
+			if (!!documentdb_searchhistory)
+			{
+				contentToSearch += `\n\n[DOCUMENT BREAK][Chatlog history]${concat_gametext(true)}[DOCUMENT BREAK]`
+			}
+			let ltmSnippets = await DatabaseMinisearch(contentToSearch, initialPrompt, "");
+			for (let i = 0; i < ltmSnippets.length; ++i) {
+				textDBResults += getInfoSnippet(ltmSnippets[i]);
 			}
 		}
 
@@ -27701,6 +27745,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				}
 			}
 		}
+		
+		// Render any suggestions generated in the agent logic
+		renderSuggestions()
 		currentAgentCycle = null
 		Array(...document.getElementsByClassName("stopThinking")).forEach(elem => elem.classList.add("hidden"))
 		submit_multiplayer(true)
@@ -27712,6 +27759,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		originalDisplaySettings()
 		document.getElementById("agentBehaviour").checked = localsettings.agentBehaviour;
 		document.getElementById("agentHideCOT").checked = localsettings.agentHideCOT;
+		document.getElementById("agentStopOnRequestForInput").checked = localsettings.agentStopOnRequestForInput;
 		document.getElementById("agentCOTMax").value = localsettings.agentCOTMax;
 		document.getElementById("agentCOTMaxnumeric").value = localsettings.agentCOTMax;
 		document.getElementById("agentCOTRepeatsMax").value = localsettings.agentCOTRepeatsMax;
@@ -27723,6 +27771,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	confirm_settings = () => {
 		localsettings.agentBehaviour = (document.getElementById("agentBehaviour").checked ? true : false);
 		localsettings.agentHideCOT = (document.getElementById("agentHideCOT").checked ? true : false);
+		localsettings.agentStopOnRequestForInput = (document.getElementById("agentStopOnRequestForInput").checked ? true : false);
 		localsettings.agentCOTMax = document.getElementById("agentCOTMax").value;
 		localsettings.agentCOTRepeatsMax = document.getElementById("agentCOTRepeatsMax").value;
 		localsettings.disableSaveCompressionLocally = (document.getElementById("disableSaveCompressionLocally").checked ? true : false);
@@ -27920,6 +27969,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			localsettings.agentHideCOT = true
 		}
+		if (localsettings?.agentStopOnRequestForInput == undefined)
+		{
+			localsettings.agentStopOnRequestForInput = true
+		}
 		if (localsettings?.agentCOTMax == undefined)
 		{
 			localsettings.agentCOTMax = 5
@@ -28029,6 +28082,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		lastSettingContainer.append(settingLabelElem)
 
 		settingLabelElem = createSettingElemRange("agentCOTMax", "Maximum agent actions", "Defines the maximum number of actions the agent can take without a user input", 1, 20, 1, 5)
+		lastSettingContainer.append(settingLabelElem)
+
+		settingLabelElem = createSettingElemBool("agentStopOnRequestForInput", "Stop on request for input from agent", "Stops the current agent processing if it asks for user input")
 		lastSettingContainer.append(settingLabelElem)
 
 		// Hidden as this is no longer is in use for now

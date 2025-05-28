@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// !!! Internal header, to be used by mtmd only !!!
+
 struct clip_ctx;
 
 struct clip_image_size {
@@ -101,5 +103,6 @@ void clip_image_f32_batch_add_mel(struct clip_image_f32_batch * batch, int n_mel
 
 bool clip_has_vision_encoder(const struct clip_ctx * ctx);
 bool clip_has_audio_encoder(const struct clip_ctx * ctx);
+bool clip_has_whisper_encoder(const struct clip_ctx * ctx);
 
 bool clip_model_quantize(const char * fname_inp, const char * fname_out, const int itype) ;
