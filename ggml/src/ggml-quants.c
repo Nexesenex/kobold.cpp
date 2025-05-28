@@ -6,6 +6,8 @@
 #include "ggml-cpu/ggml-cpu-impl.h"
 #include "ggml-cpu.h"
 
+#include "iqk_croco/iqk_quantize_croco.h"
+
 #include <math.h>
 #include <string.h>
 #include <assert.h>

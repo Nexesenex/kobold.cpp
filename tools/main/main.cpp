@@ -7,8 +7,6 @@
 #include "chat.h"
 #include "build-info.h"
 
-// #include "build-info.h"
-
 #include <cstdio>
 #include <cstring>
 #include <ctime>

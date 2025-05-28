@@ -16,7 +16,7 @@
 #include "iqk_quantize_croco.h"
 #include "iqk_config_croco.h"
 
-#include "ggml-cpu-quants.h"
+#include "ggml-cpu/ggml-cpu-quants.h"
 #include "ggml-cpu/ggml-cpu-impl.h"
 #include "ggml-cpu.h"
 
