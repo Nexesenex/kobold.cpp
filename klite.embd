@@ -28246,13 +28246,15 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 </script>
 <script>
-	// Dynamic stylesheet attempt
+	// Dynamic stylesheet for esobold attempt
 	// Disabled autoload
 	// Addition of a close button
 	// Addition of an open button to settings
 	// Save to local storage
 	// Load from local storage
 	// Preset method init - saveCurrentChangesAsTheme, deleteTheme, importCSSFiles, applyTheme
+	// Modified exportCurrentChangesAsCSS to allow no download
+	// Apply theme on page load
 
 	let extractStyleSheets = () => {
 		// Based on https://www.projectwallace.com/blog/extracting-css-from-webpage#the-algorithm
@@ -28274,7 +28276,20 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	let closeBlackLiteUI = () => {
+		applyBlackLiteCssToPage()
 		window.cleanupBlackliteTools()
+	}
+
+	let applyBlackLiteCssToPage = () => {
+		if (!!document.getElementById("customUiTheme"))
+		{
+			document.getElementById("customUiTheme").remove()
+		}
+		let customUiTheme = document.createElement('style');
+		customUiTheme.id = 'customUiTheme';
+		customUiTheme.type = 'text/css';
+		customUiTheme.textContent = window.presetManager.exportCurrentChangesAsCSS(false)
+		document.head.appendChild(customUiTheme);
 	}
 
 	window.addEventListener('load', () => {
@@ -28301,6 +28316,14 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		settingContainer.append(settingLabelElem)
 
 		document.getElementById("openBlackLightTools").onclick = openBlackLiteUI
+
+		// Apply theme
+		setTimeout(() => {
+			openBlackLiteUI()
+			setTimeout(() => {
+				closeBlackLiteUI()
+			}, 1)
+		}, 1)
 	})
 </script>
 <script>
@@ -30199,7 +30222,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
             }
         },
         
-        exportCurrentChangesAsCSS() {
+        exportCurrentChangesAsCSS(download = true) {
             try {
                 const currentTheme = this.themes[this.currentTheme] || this.themes['Default Theme'];
                 const classic = document.getElementById('theme-classic')?.checked || false;
@@ -30237,12 +30260,19 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
                     cssText += '\n/* Background Styles */\n' + bgCss;
                 }
 
-                const blob = new Blob([cssText], { type: 'text/css' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = 'blacklite-custom-theme.css';
-                link.click();
-                URL.revokeObjectURL(link.href);
+				if (download)
+				{
+					const blob = new Blob([cssText], { type: 'text/css' });
+					const link = document.createElement('a');
+					link.href = URL.createObjectURL(blob);
+					link.download = 'blacklite-custom-theme.css';
+					link.click();
+					URL.revokeObjectURL(link.href);
+				}
+				else
+				{
+					return cssText
+				}
             } catch (error) {
                 console.error('Error exporting CSS:', error);
             }
@@ -30393,6 +30423,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
     window.addEventListener('beforeunload', () => {
         window.cleanupBlackliteTools();
     });
+
+	window.presetManager = PresetManager
 })();
 </script>
 </html>
