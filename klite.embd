@@ -27606,6 +27606,12 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			stopAgentThinking()
 		}
+		else
+		{
+			document.getElementById("separate_end_tags").checked = true
+			toggle_separate_end_tags()
+			confirm_settings()
+		}
 		updateAgentButtonVisibility();
 		render_gametext();
 	}
