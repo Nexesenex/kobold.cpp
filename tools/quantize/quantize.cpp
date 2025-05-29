@@ -25,7 +25,6 @@ static const std::vector<quant_option> QUANT_OPTIONS = {
     { "Q4_1",     LLAMA_FTYPE_MOSTLY_Q4_1,     " 4.78G, +0.4511 ppl @ Llama-3-8B",  },
     { "Q5_0",     LLAMA_FTYPE_MOSTLY_Q5_0,     " 5.21G, +0.1316 ppl @ Llama-3-8B",  },
     { "Q5_1",     LLAMA_FTYPE_MOSTLY_Q5_1,     " 5.65G, +0.1062 ppl @ Llama-3-8B",  },
-    { "Q6_0",     LLAMA_FTYPE_MOSTLY_Q6_0,     " 6.5 bpw quantization",             },
     { "IQ2_XXS",  LLAMA_FTYPE_MOSTLY_IQ2_XXS,  " 2.06 bpw quantization",            },
     { "IQ2_XS",   LLAMA_FTYPE_MOSTLY_IQ2_XS,   " 2.31 bpw quantization",            },
     { "IQ2_S",    LLAMA_FTYPE_MOSTLY_IQ2_S,    " 2.5  bpw quantization",            },
@@ -34,13 +33,9 @@ static const std::vector<quant_option> QUANT_OPTIONS = {
     { "IQ1_M",    LLAMA_FTYPE_MOSTLY_IQ1_M,    " 1.75 bpw quantization",            },
     { "TQ1_0",    LLAMA_FTYPE_MOSTLY_TQ1_0,    " 1.69 bpw ternarization",           },
     { "TQ2_0",    LLAMA_FTYPE_MOSTLY_TQ2_0,    " 2.06 bpw ternarization",           },
-    { "IQ1_BN",   LLAMA_FTYPE_MOSTLY_IQ1_BN,   " 1.62 bpw quantization (Bitnet)",   },
-    { "IQ2_BN",   LLAMA_FTYPE_MOSTLY_IQ2_BN,   " 2.00 bpw quantization (Bitnet)",   },
     { "Q2_K",     LLAMA_FTYPE_MOSTLY_Q2_K,     " 2.96G, +3.5199 ppl @ Llama-3-8B",  },
     { "Q2_K_S",   LLAMA_FTYPE_MOSTLY_Q2_K_S,   " 2.96G, +3.1836 ppl @ Llama-3-8B",  },
     { "IQ3_XXS",  LLAMA_FTYPE_MOSTLY_IQ3_XXS,  " 3.06 bpw quantization",            },
-    { "IQ3_KT",   LLAMA_FTYPE_MOSTLY_IQ3_KT,   " 3.125 bpw trellis quantization",   },
-    { "IQ4_KT",   LLAMA_FTYPE_MOSTLY_IQ4_KT,   " 4.0 bpw trellis quantization",     },
     { "IQ3_S",    LLAMA_FTYPE_MOSTLY_IQ3_S,    " 3.44 bpw quantization",            },
     { "IQ3_M",    LLAMA_FTYPE_MOSTLY_IQ3_M,    " 3.66 bpw quantization mix",        },
     { "Q3_K",     LLAMA_FTYPE_MOSTLY_Q3_K_M,   "alias for Q3_K_M"                   },
@@ -58,18 +53,6 @@ static const std::vector<quant_option> QUANT_OPTIONS = {
     { "Q5_K_M",   LLAMA_FTYPE_MOSTLY_Q5_K_M,   " 5.33G, +0.0569 ppl @ Llama-3-8B",  },
     { "Q6_K",     LLAMA_FTYPE_MOSTLY_Q6_K,     " 6.14G, +0.0217 ppl @ Llama-3-8B",  },
     { "Q8_0",     LLAMA_FTYPE_MOSTLY_Q8_0,     " 7.96G, +0.0026 ppl @ Llama-3-8B",  },
-    { "IQ4_KS",   LLAMA_FTYPE_MOSTLY_IQ4_KS,   " 4.25 bpw non-linear quantization", },
-    { "IQ4_KSS",  LLAMA_FTYPE_MOSTLY_IQ4_KSS,  " 4.0 bpw non-linear quantization",  },
-    { "IQ2_K",    LLAMA_FTYPE_MOSTLY_IQ2_K,    " 2.375 bpw non-linear quantization",},
-    { "IQ2_KS",   LLAMA_FTYPE_MOSTLY_IQ2_KS,   " 2.1875 bpw non-linear quantization",},
-    { "IQ2_KT",   LLAMA_FTYPE_MOSTLY_IQ2_KT,   " 2.125 bpw trellis quantization",   },
-    { "IQ3_K",    LLAMA_FTYPE_MOSTLY_IQ3_K,    " 3.44 bpw non-linear quantization", },
-    { "IQ3_KS",   LLAMA_FTYPE_MOSTLY_IQ3_KS,   " 3.25 bpw non-linear quantization", },
-    { "IQ3_KL",   LLAMA_FTYPE_MOSTLY_IQ3_KL,   " 4 bpw non-linear quantization mix",},
-    { "IQ4_K",    LLAMA_FTYPE_MOSTLY_IQ4_K,    " 4.5 bpw non-linear quantization",  },
-    { "IQ5_K",    LLAMA_FTYPE_MOSTLY_IQ5_K,    " 5.5 bpw non-linear quantization",  },
-    { "IQ5_KS",   LLAMA_FTYPE_MOSTLY_IQ5_KS,   " 5.25 bpw non-linear quantization", },
-    { "IQ6_K",    LLAMA_FTYPE_MOSTLY_IQ6_K,    " 6.6 bpw non-linear quantization",  },
 //     { "Q4_0_4_4", LLAMA_FTYPE_MOSTLY_Q4_0_4_4, " 4.34G, +0.4685 ppl @ Llama-3-8B",  },
 //     { "Q4_0_4_8", LLAMA_FTYPE_MOSTLY_Q4_0_4_8, " 4.34G, +0.4685 ppl @ Llama-3-8B",  },
 //     { "Q4_0_8_8", LLAMA_FTYPE_MOSTLY_Q4_0_8_8, " 4.34G, +0.4685 ppl @ Llama-3-8B",  },
@@ -78,6 +61,54 @@ static const std::vector<quant_option> QUANT_OPTIONS = {
     { "F32",      LLAMA_FTYPE_ALL_F32,         "26.00G              @ 7B",          },
     // Note: Ensure COPY comes after F32 to avoid ftype 0 from matching.
     { "COPY",     LLAMA_FTYPE_ALL_F32,         "only copy tensors, no quantizing",  },
+
+    { "IQ3_KS",   LLAMA_FTYPE_MOSTLY_IQ3_KS,   " 3.25 bpw non-linear quantization", },
+
+    { "Q6_0",     LLAMA_FTYPE_MOSTLY_Q6_0,     " 6.5 bpw quantization",             },
+    { "IQ2_XXS_R4",LLAMA_FTYPE_MOSTLY_IQ2_XXS_R4,"IQ2_XXS repacked",            },
+    { "IQ2_XS_R4",LLAMA_FTYPE_MOSTLY_IQ2_XS_R4,"IQ2_XS repacked",            },
+    { "IQ2_M_R4", LLAMA_FTYPE_MOSTLY_IQ2_M_R4, " 2.7  bpw quantization",            },
+    { "IQ1_S_R4", LLAMA_FTYPE_MOSTLY_IQ1_S_R4, " 1.5 bpw quantization",             },
+    { "IQ1_M_R4", LLAMA_FTYPE_MOSTLY_IQ1_M_R4, " 1.75 bpw quantization",            },
+    { "IQ1_BN",   LLAMA_FTYPE_MOSTLY_IQ1_BN,   " 1.62 bpw quantization (Bitnet)",   },
+    { "IQ2_BN",   LLAMA_FTYPE_MOSTLY_IQ2_BN,   " 2.00 bpw quantization (Bitnet)",   },
+    { "IQ2_BN_R4",LLAMA_FTYPE_MOSTLY_IQ2_BN_R4," 2.00 bpw quantization (Bitnet)",   },
+    { "Q2_K_R4",  LLAMA_FTYPE_MOSTLY_Q2_K_R4,  "Q2_K_S repacked", },
+    { "IQ3_KT",   LLAMA_FTYPE_MOSTLY_IQ3_KT,   " 3.125 bpw trellis quantization",   },
+    { "IQ4_KT",   LLAMA_FTYPE_MOSTLY_IQ4_KT,   " 4.0 bpw trellis quantization",     },
+    { "IQ3_XXS_R4",LLAMA_FTYPE_MOSTLY_IQ3_XXS_R4,"IQ3_XXS repacked",            },
+    { "IQ3_S_R4", LLAMA_FTYPE_MOSTLY_IQ3_S_R4, "IQ3_S repacked",            },
+    { "Q3_K_R4",  LLAMA_FTYPE_MOSTLY_Q3_K_R4,  "Q3_K_S repacked" },
+    { "IQ4_NL_R4",LLAMA_FTYPE_MOSTLY_IQ4_NL_R4," 4.50 bpw non-linear quantization", },
+    { "IQ4_XS_R8",LLAMA_FTYPE_MOSTLY_IQ4_XS_R8," 4.25 bpw non-linear quantization", },
+    { "Q4_0_R8",  LLAMA_FTYPE_MOSTLY_Q4_0_R8,  " 4.50 bpw quantization",            },
+    { "Q5_0_R4",  LLAMA_FTYPE_MOSTLY_Q5_0_R4,  " 5.50 bpw quantization",            },
+    { "Q6_0_R4",  LLAMA_FTYPE_MOSTLY_Q6_0_R4,  " 6.50 bpw quantization",            },
+    { "Q8_0_R8",  LLAMA_FTYPE_MOSTLY_Q8_0_R8,  " 8.50 bpw quantization",            },
+    { "Q8_KV",    LLAMA_FTYPE_MOSTLY_Q8_KV,    " 8.00 bpw quantization",            },
+    { "IQ4_KS",   LLAMA_FTYPE_MOSTLY_IQ4_KS,   " 4.25 bpw non-linear quantization", },
+    { "IQ4_KS_R4",LLAMA_FTYPE_MOSTLY_IQ4_KS_R4,"IQ4_KS repacked", },
+    { "IQ5_KS_R4",LLAMA_FTYPE_MOSTLY_IQ5_KS_R4,"IQ5_KS repacked", },
+    { "IQ4_KSS",  LLAMA_FTYPE_MOSTLY_IQ4_KSS,  " 4.0 bpw non-linear quantization",  },
+    { "IQ5_KS",   LLAMA_FTYPE_MOSTLY_IQ5_KS,   " 5.25 bpw non-linear quantization", },
+    { "IQ2_K",    LLAMA_FTYPE_MOSTLY_IQ2_K,    " 2.375 bpw non-linear quantization",},
+    { "IQ2_K_R4", LLAMA_FTYPE_MOSTLY_IQ2_K_R4, "IQ2_K repacked",},
+    { "IQ2_KS",   LLAMA_FTYPE_MOSTLY_IQ2_KS,   " 2.1875 bpw non-linear quantization",},
+    { "IQ2_KT",   LLAMA_FTYPE_MOSTLY_IQ2_KT,   " 2.125 bpw trellis quantization",   },
+    { "IQ3_K",    LLAMA_FTYPE_MOSTLY_IQ3_K,    " 3.44 bpw non-linear quantization", },
+    { "IQ3_K_R4", LLAMA_FTYPE_MOSTLY_IQ3_K_R4, "IQ3_K repacked", },
+    { "IQ3_KL",   LLAMA_FTYPE_MOSTLY_IQ3_KL,   " 4 bpw non-linear quantization mix",},
+    { "IQ4_K",    LLAMA_FTYPE_MOSTLY_IQ4_K,    " 4.5 bpw non-linear quantization",  },
+    { "IQ4_K_R4", LLAMA_FTYPE_MOSTLY_IQ4_K_R4, "IQ4_K repacked",  },
+    { "IQ5_K",    LLAMA_FTYPE_MOSTLY_IQ5_K,    " 5.5 bpw non-linear quantization",  },
+    { "IQ5_K_R4", LLAMA_FTYPE_MOSTLY_IQ5_K_R4, "IQ5_K repacked",  },
+    { "IQ6_K",    LLAMA_FTYPE_MOSTLY_IQ6_K,    " 6.6 bpw non-linear quantization",  },
+    { "Q4_K_R4",  LLAMA_FTYPE_MOSTLY_Q4_K_R4,  "Q4_K_S repacked", },
+    { "Q5_K_R4",  LLAMA_FTYPE_MOSTLY_Q5_K_R4,  "Q5_K_S repacked", },
+    { "Q6_K_R4",  LLAMA_FTYPE_MOSTLY_Q6_K_R4,  "Q6_K repacked", },
+    { "Q8_K_R8",  LLAMA_FTYPE_MOSTLY_Q8_K_R8,  "Q8_K repacked", },
+    { "Q8_KV_R8", LLAMA_FTYPE_MOSTLY_Q8_KV_R8, "Q8_KV repacked", },
+    { "BF16_R16", LLAMA_FTYPE_MOSTLY_BF16_R16, "14.00G, -0.0050 ppl @ Mistral-7B", },
 };
 
 // Quantization types. Changes to this struct must be replicated in llama-quantize.cpp
@@ -136,6 +167,7 @@ static bool try_parse_ftype(const std::string & ftype_str_in, llama_ftype & ftyp
 [[noreturn]]
 static void usage(const char * executable) {
     printf("usage: %s [--help] [--allow-requantize] [--leave-output-tensor] [--pure] [--imatrix] [--include-weights] [--exclude-weights] [--output-tensor-type]\n", executable);
+    printf("       [--attn-q-type] [--attn-k-type] [--attn-v-type] [--attn-qkv-type] [--attn-output-type] [--ffn-gate-type] [--ffn-down-type] [--ffn-up-type]\n\n");
     printf("       [--token-embedding-type] [--tensor-type] [--keep-split] [--override-kv] model-f32.gguf [model-quant.gguf] type [nthreads]\n\n");
     printf("  --allow-requantize: Allows requantizing tensors that have already been quantized. Warning: This can severely reduce quality compared to quantizing from 16bit or 32bit\n");
     printf("  --leave-output-tensor: Will leave output.weight un(re)quantized. Increases model size but may also increase quality, especially when requantizing\n");
@@ -143,14 +175,30 @@ static void usage(const char * executable) {
     printf("  --imatrix file_name: use data in file_name as importance matrix for quant optimizations\n");
     printf("  --include-weights tensor_name: use importance matrix for this/these tensor(s)\n");
     printf("  --exclude-weights tensor_name: use importance matrix for this/these tensor(s)\n");
-    printf("  --output-tensor-type ggml_type: use this ggml_type for the output.weight tensor\n");
-    printf("  --token-embedding-type ggml_type: use this ggml_type for the token embeddings tensor\n");
-    printf("  --tensor-type TENSOR=TYPE: quantize this tensor to this ggml_type. example: --tensor-type attn_q=q8_0\n");
-    printf("      Advanced option to selectively quantize tensors. May be specified multiple times.\n");
+    printf("  --output-tensor-type ggml_type: use this ggml_type for the output.weight tensor.\n");
+    printf("  --token-embedding-type ggml_type: use this ggml_type for the token_embd.weight tensor.\n\n");
+    printf("  --custom-q regex1=type1,regex2=type2...: use this to specify custom quantization type rules.\n\n");
+    printf("  --repack Repack all tensors to the corresponding _r4/8 variant if available.\n\n");
+    printf("  --repack-pattern Comma separated list of regexs to use for matching tensor names to be repacked.\n\n");
+    printf("Additional specific tensor quantization types used in the custom quant scheme 'CQS (default is Q2_K):\n");
+    printf("      --attn-q-type ggml_type: use this ggml_type for the attn_q.weight tensor.\n");
+    printf("      --attn-k-type ggml_type: use this ggml_type for the attn_k.weight tensor.\n");
+    printf("      --attn-v-type ggml_type: use this ggml_type for the attn_v.weight tensor.\n");
+    printf("      --attn-qkv-type ggml_type: use this ggml_type for the attn_qkv.weight tensor.\n");
+    printf("      --attn-output-type ggml_type: use this ggml_type for the attn_output.weight tensor.\n");
+    printf("      --ffn-gate-type ggml_type: use this ggml_type for the ffn_gate tensor.\n");
+    printf("      --ffn-down-type ggml_type: use this ggml_type for the ffn_down tensor.\n");
+    printf("      --ffn-up-type ggml_type: use this ggml_type for the ffn_up tensor.\n\n");
     printf("  --keep-split: will generate quantized model in the same shards as input\n");
     printf("  --override-kv KEY=TYPE:VALUE\n");
-    printf("      Advanced option to override model metadata by key in the quantized model. May be specified multiple times.\n");
+    printf("      Advanced option to override model metadata by key in the quantized model. May be specified multiple times.\n\n");
     printf("Note: --include-weights and --exclude-weights cannot be used together\n");
+    printf("Note: The token embeddings tensor is loaded in system RAM, even in case of full GPU/VRAM offload.\n");
+    printf("Note: The recommanded type for the output tensor is q6_K for the ffn types > iq3_xxs and < q8_0.\n\n");
+    printf("Note for the Custom Quant Scheme FTYPE:\n");
+    printf("    Write the specific tensor legacy quants as qN_N, the K-Quants as qN_K, the IQ-Quants as iqN_xx.\n");
+    printf("    Usually, attn-q-type can be one type below the chosen ffn type, and attn-v-type should be one type above.\n");
+    printf("    attn-qkv-type replaces the types attn-q, attn-k and attn-v on some models.\n");
     printf("\nAllowed quantization types:\n");
     for (auto & it : QUANT_OPTIONS) {
         if (it.name != "COPY") {
@@ -338,6 +386,78 @@ int main(int argc, char ** argv) {
             if (arg_idx < argc-1) {
                 params.token_embedding_type = parse_ggml_type(argv[++arg_idx]);
                 if (params.token_embedding_type == GGML_TYPE_COUNT) {
+                    usage(argv[0]);
+                }
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--attn-q-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.attn_q_type = parse_ggml_type(argv[++arg_idx]);
+                if (params.attn_q_type == GGML_TYPE_COUNT) {
+                    usage(argv[0]);
+                }
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--attn-k-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.attn_k_type = parse_ggml_type(argv[++arg_idx]);
+                if (params.attn_k_type == GGML_TYPE_COUNT) {
+                    usage(argv[0]);
+                }
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--attn-v-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.attn_v_type = parse_ggml_type(argv[++arg_idx]);
+                if (params.attn_v_type == GGML_TYPE_COUNT) {
+                    usage(argv[0]);
+                }
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--attn-qkv-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.attn_qkv_type = parse_ggml_type(argv[++arg_idx]);
+                if (params.attn_qkv_type == GGML_TYPE_COUNT) {
+                    usage(argv[0]);
+                }
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--attn-output-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.attn_output_type = parse_ggml_type(argv[++arg_idx]);
+                if (params.attn_output_type == GGML_TYPE_COUNT) {
+                    usage(argv[0]);
+                }
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--ffn-gate-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.ffn_gate_type = parse_ggml_type(argv[++arg_idx]);
+                if (params.ffn_gate_type == GGML_TYPE_COUNT) {
+                    usage(argv[0]);
+                }
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--ffn-down-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.ffn_down_type = parse_ggml_type(argv[++arg_idx]);
+                if (params.ffn_down_type == GGML_TYPE_COUNT) {
+                    usage(argv[0]);
+                }
+            } else {
+                usage(argv[0]);
+            }
+        } else if (strcmp(argv[arg_idx], "--ffn-up-type") == 0) {
+            if (arg_idx < argc-1) {
+                params.ffn_up_type = parse_ggml_type(argv[++arg_idx]);
+                if (params.ffn_up_type == GGML_TYPE_COUNT) {
                     usage(argv[0]);
                 }
             } else {
