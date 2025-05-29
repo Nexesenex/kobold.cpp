@@ -28272,6 +28272,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	let openBlackLiteUI = () => {
+		clearBlackLiteCssFromPage()
 		window.initBlackliteTools()
 	}
 
@@ -28280,11 +28281,14 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		window.cleanupBlackliteTools()
 	}
 
-	let applyBlackLiteCssToPage = () => {
+	let clearBlackLiteCssFromPage = () => {
 		if (!!document.getElementById("customUiTheme"))
 		{
 			document.getElementById("customUiTheme").remove()
 		}
+	}
+	let applyBlackLiteCssToPage = () => {
+		clearBlackLiteCssFromPage()
 		let customUiTheme = document.createElement('style');
 		customUiTheme.id = 'customUiTheme';
 		customUiTheme.type = 'text/css';
