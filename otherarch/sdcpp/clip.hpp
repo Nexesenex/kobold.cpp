@@ -701,7 +701,7 @@ public:
 
     void set_clip_skip(int skip) {
         if (skip <= 0) {
-            return
+            return;
         }
         clip_skip = skip;
     }
