@@ -3151,6 +3151,8 @@ Current version indicated by LITEVER below.
 	var documentdb_chunksize = 800;
 	var documentdb_data = "";
 	var documentdb_useembeddings = false
+	var documentdb_sqPrefix = ""
+	var documentdb_cPrefix = ""
 	var generateimagesinterval = 750; //if generated images is enabled, it will trigger after every 700 new characters in context.
 	var nextgeneratedimagemilestone = generateimagesinterval; //used to keep track of when to generate the next image
 	var image_db = {}; //stores a dictionary of pending images
@@ -7330,6 +7332,8 @@ Current version indicated by LITEVER below.
 		new_save_storyobj.documentdb_chunksize = documentdb_chunksize;
 		new_save_storyobj.documentdb_data = documentdb_data;
 		new_save_storyobj.documentdb_useembeddings = documentdb_useembeddings;
+		new_save_storyobj.documentdb_sqPrefix = documentdb_sqPrefix;
+		new_save_storyobj.documentdb_cPrefix = documentdb_cPrefix;
 
 		if (export_settings) {
 			new_save_storyobj.savedsettings = JSON.parse(JSON.stringify(localsettings));
@@ -7641,6 +7645,14 @@ Current version indicated by LITEVER below.
 				if(storyobj.documentdb_useembeddings)
 				{
 					documentdb_useembeddings = storyobj.documentdb_useembeddings;
+				}
+				if(storyobj.documentdb_sqPrefix)
+				{
+					documentdb_sqPrefix = storyobj.documentdb_sqPrefix;
+				}
+				if(storyobj.documentdb_cPrefix)
+				{
+					documentdb_cPrefix = storyobj.documentdb_cPrefix;
 				}
 
 
@@ -13353,6 +13365,8 @@ Current version indicated by LITEVER below.
 		documentdb_chunksize = document.getElementById("documentdb_chunksize").value;
 		documentdb_data = document.getElementById("documentdb_data").value;
 		documentdb_useembeddings = document.getElementById("documentdb_useembeddings").checked ? true : false;
+		documentdb_sqPrefix = document.getElementById("documentdb_sqPrefix").value;
+		documentdb_cPrefix = document.getElementById("documentdb_cPrefix").value;
 		documentdb_numresults = parseInt(documentdb_numresults);
 		documentdb_numresults = cleannum(documentdb_numresults,1,10);
 		documentdb_searchrange = parseInt(documentdb_searchrange);
@@ -13743,6 +13757,8 @@ Current version indicated by LITEVER below.
 			documentdb_chunksize = 800;
 			documentdb_data = "";
 			documentdb_useembeddings = false;
+			documentdb_sqPrefix = "";
+			documentdb_cPrefix = "";
 		}
 		if(localsettings.inject_randomness_seed>0)
 		{
@@ -20713,6 +20729,9 @@ Current version indicated by LITEVER below.
 		document.getElementById("documentdb_chunksize_slide").value = documentdb_chunksize;
 		document.getElementById("documentdb_data").value = documentdb_data;
 		document.getElementById("documentdb_useembeddings").checked = documentdb_useembeddings;
+		document.getElementById("documentdb_sqPrefix").value = documentdb_sqPrefix;
+		document.getElementById("documentdb_cPrefix").value = documentdb_cPrefix;
+
 		if(is_using_kcpp_with_embeddings())
 		{
 			document.getElementById("useembeddingslabel").classList.remove("color_red");
@@ -22439,7 +22458,7 @@ Current version indicated by LITEVER below.
                 let actualChunkStart = Math.max(0, startLoc - chunkSizeOverlap);
                 let actualChunkEnd = Math.min(doc.length, actualChunkStart + chunkSize);
                 let currentSnippet = doc.substring(actualChunkStart, actualChunkEnd);
-                paragraphs.push({snippet: currentSnippet, document: title});
+                paragraphs.push({snippet: documentdb_cPrefix + currentSnippet, document: title});
                 startLoc = actualChunkEnd;
                 i++;
             }
@@ -22452,7 +22471,7 @@ Current version indicated by LITEVER below.
 		let miniSearch;
 		if (documentdb_useembeddings && is_using_kcpp_with_embeddings())
 		{
-			let searchResults = yield getRankedEmbeddings(searchStr, paragraphs);
+			let searchResults = yield getRankedEmbeddings(documentdb_sqPrefix + searchStr, paragraphs);
 			searchResults = searchResults.filter(x=>x.similarity>minSimilarity);
 			searchResults = searchResults.slice(0, valuesToReturn);
 			return searchResults;
@@ -22515,7 +22534,7 @@ Current version indicated by LITEVER below.
 			miniSearch.addAll(paragraphs); //populate minisearch with paragraphs
 
 			//step 3: run the search over the dbText to generate matches
-			let searchResults = searchAndScore(searchStr, recentTextStr, paragraphs);
+			let searchResults = searchAndScore(documentdb_sqPrefix + searchStr, documentdb_sqPrefix + recentTextStr, paragraphs);
 			searchResults = searchResults.filter(x => x.match > minSimilarity);
 			searchResults = searchResults.slice(0, valuesToReturn);
 			return searchResults;
@@ -22941,6 +22960,20 @@ Current version indicated by LITEVER below.
 
 				<div class="settinglabel settingsmall" style="padding: 4px;" id="documentdb_snippetestimate"></div>
 				<div class="settinglabel settingsmall" style="padding: 4px;">Please note, as with world info this can cause context reprocessing.  It is recommended to have at least 8K context size and a good prompt processing speed to use this feature.</div>
+				<div class="settinglabel">
+					<div class="justifyleft"><br>Search Query Prefix<span class="helpicon">?<span
+						class="helptext">Adds a prefix to search queries. Can help models better search content when using embeddings.</span></span></div>
+				</div>
+				<input title="Edit Search Query Prefix" class="form-control" id="documentdb_sqPrefix"
+					placeholder=""></input>
+
+				<div class="settinglabel">
+					<div class="justifyleft"><br>Chunk Prefix<span class="helpicon">?<span
+						class="helptext">Adds a prefix to chunks. Can help models better search content when using embeddings.</span></span></div>
+				</div>
+				<input title="Edit Chunk Prefix" class="form-control" id="documentdb_cPrefix"
+					placeholder=""></input>
+
 				<div class="settinglabel">
 					<div class="justifyleft"><br>TextDB Storage<span class="helpicon">?<span
 						class="helptext">Paste as much raw text data here as you like. E.g. background information, reference documents, etc. This text will populate the database that will be chunked and searched by TextDB. This can be split using "[DOCUMENT BREAK]" to split the overall database into smaller documents, and titles can be added with "[DOCUMENT BREAK][Title of document]This is the content of the document".</span></span></div>
