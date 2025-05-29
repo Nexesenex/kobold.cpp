@@ -28316,7 +28316,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}
 
 		let settingContainer = document.querySelector("#settingsmenuadvanced > div:nth-child(3)")
-		settingLabelElem = createSettingElemButton("openBlackLightTools", "Open Black Lite Tools (themes)", "Opens plugin from Peter for creating custom themes")
+		settingLabelElem = createSettingElemButton("openBlackLightTools", "Open BlackLite-Tools (themes)", "Opens plugin from Peter for creating custom themes")
 		settingContainer.append(settingLabelElem)
 
 		document.getElementById("openBlackLightTools").onclick = openBlackLiteUI
@@ -28611,7 +28611,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
                 const scrollPosition = scrollContainer ? scrollContainer.scrollTop : 0;
 
                 const content = `
-					<button id="closeBlackLiteUI" class="BLTOOL-button BLTOOL-button-danger" style="height: 28px; float: right; position: absolute; right: 10px; top: 5px;" onclick="closeBlackLiteUI()">X</button>
+					<button id="closeBlackLiteUI" class="BLTOOL-button BLTOOL-button-danger" style="height: 28px; width: 28px; float: right; position: absolute; right: 10px; top: 5px;" onclick="closeBlackLiteUI()">X</button>
                     <div style="margin-bottom: 5px;">
                         <h3 style="font-size: 22px; margin: 0; padding: 0; width: 100%;">BlackLite UI Customization Tool</h3>
                     </div>
