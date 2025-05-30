@@ -195,6 +195,7 @@ class Keys:
         UNK_ID               = "tokenizer.ggml.unknown_token_id"
         SEP_ID               = "tokenizer.ggml.seperator_token_id"
         PAD_ID               = "tokenizer.ggml.padding_token_id"
+        CLS_ID               = "tokenizer.ggml.cls_token_id"
         MASK_ID              = "tokenizer.ggml.mask_token_id"
         ADD_BOS              = "tokenizer.ggml.add_bos_token"
         ADD_EOS              = "tokenizer.ggml.add_eos_token"
@@ -617,6 +618,7 @@ MODEL_ARCH_NAMES: dict[MODEL_ARCH, str] = {
     MODEL_ARCH.CHATGLM:          "chatglm",
     MODEL_ARCH.GLM4:             "glm4",
     MODEL_ARCH.BITNET:           "bitnet",
+    MODEL_ARCH.BITNET_25:      "bitnet-25",
     MODEL_ARCH.T5:               "t5",
     MODEL_ARCH.T5ENCODER:        "t5encoder",
     MODEL_ARCH.JAIS:             "jais",
@@ -1884,6 +1886,28 @@ MODEL_TENSORS: dict[MODEL_ARCH, list[MODEL_TENSOR]] = {
         MODEL_TENSOR.ATTN_SUB_NORM,
         MODEL_TENSOR.FFN_SUB_NORM,
     ],
+    MODEL_ARCH.BITNET_25: [
+        MODEL_TENSOR.TOKEN_EMBD,
+        MODEL_TENSOR.OUTPUT_NORM,
+        MODEL_TENSOR.OUTPUT,
+        MODEL_TENSOR.ROPE_FREQS,
+        MODEL_TENSOR.ATTN_NORM,
+        MODEL_TENSOR.ATTN_Q,
+        MODEL_TENSOR.ATTN_K,
+        MODEL_TENSOR.ATTN_V,
+        MODEL_TENSOR.ATTN_OUT,
+        MODEL_TENSOR.ATTN_ROT_EMBD,
+        MODEL_TENSOR.FFN_GATE_INP,
+        MODEL_TENSOR.FFN_NORM,
+        MODEL_TENSOR.FFN_GATE,
+        MODEL_TENSOR.FFN_DOWN,
+        MODEL_TENSOR.FFN_UP,
+        MODEL_TENSOR.FFN_GATE_EXP,
+        MODEL_TENSOR.FFN_DOWN_EXP,
+        MODEL_TENSOR.FFN_UP_EXP,
+        MODEL_TENSOR.ATTN_SUB_NORM,
+        MODEL_TENSOR.FFN_SUB_NORM,
+    ],
     MODEL_ARCH.T5: [
         MODEL_TENSOR.TOKEN_EMBD,
         MODEL_TENSOR.OUTPUT,
@@ -2218,8 +2242,64 @@ class GGMLQuantizationType(IntEnum):
     F64     = 28
     IQ1_M   = 29
     BF16    = 30
+    Q4_0_4_4  =  31
+    Q4_0_4_8  =  32
+    Q4_0_8_8  =  33
     TQ1_0   = 34
     TQ2_0   = 35
+    I2_S      =  86
+    Q8_0_X4   =  97
+    Q8_1_X4   =  98
+    Q8_2_X4   =  99
+    Q6_0      = 133
+    IQ1_BN    = 134
+    IQ2_BN    = 135
+    Q8_K64    = 136
+    IQ2_K     = 137
+    IQ3_K     = 138
+    IQ4_K     = 139
+    IQ5_K     = 140
+    IQ6_K     = 141
+    IQ4_KS    = 144
+    IQ2_KS    = 145
+    IQ4_KSS   = 146
+    Q8_K16    = 147
+    Q8_K32    = 148
+    Q8_KR8    = 149
+    Q8_K128   = 150
+    Q8_KV     = 151
+    IQ5_KS    = 152
+    IQ2_KT    = 153
+    IQ3_KT    = 154
+    IQ4_KT    = 155
+    Q4_0_R8   = 202
+    Q5_0_R4   = 206
+    Q8_0_R8   = 208
+    Q2_K_R4   = 210
+    Q3_K_R4   = 211
+    Q4_K_R4   = 212
+    Q5_K_R4   = 213
+    Q6_K_R4   = 214
+    IQ2_XXS_R4= 216
+    IQ2_XS_R4 = 217
+    IQ3_XXS_R4= 218
+    IQ1_S_R4  = 219
+    IQ4_NL_R4 = 220
+    IQ3_S_R4  = 221
+    IQ2_S_R4  = 222
+    IQ4_XS_R8 = 223
+    IQ1_M_R4  = 229
+    BF16_R16  = 230
+    Q6_0_R4   = 233
+    IQ2_BN_R4 = 335
+    IQ2_K_R4  = 337
+    IQ3_K_R4  = 338
+    IQ4_K_R4  = 339
+    IQ5_K_R4  = 340
+    IQ4_KS_R4 = 344
+    IQ5_KS_R4 = 352
+    Q8_KV_R8  = 398
+    Q8_K_R8   = 399
 
 
 class ExpertGatingFuncType(IntEnum):
@@ -2271,6 +2351,50 @@ class LlamaFileType(IntEnum):
     # MOSTLY_Q4_0_8_8      = 35  # removed from gguf files, use Q4_0 and runtime repack
     MOSTLY_TQ1_0         = 36  # except 1d tensors
     MOSTLY_TQ2_0         = 37  # except 1d tensors
+    MOSTLY_Q6_0            = 127    #except 1d tensors
+    MOSTLY_IQ1_BN          = 128    #except 1d tensors
+    MOSTLY_IQ2_BN          = 129    #except 1d tensors
+    MOSTLY_IQ2_K           = 130    #except 1d tensors
+    MOSTLY_IQ3_K           = 131    #except 1d tensors
+    MOSTLY_IQ4_K           = 132    #except 1d tensors
+    MOSTLY_IQ5_K           = 133    #except 1d tensors
+    MOSTLY_IQ6_K           = 134    #except 1d tensors
+    MOSTLY_IQ4_KS          = 137    #except 1d tensors
+    MOSTLY_IQ2_KS          = 138    #except 1d tensors
+    MOSTLY_IQ4_KSS         = 139    #except 1d tensors
+    MOSTLY_Q8_KV           = 140    #except 1d tensors
+    MOSTLY_IQ5_KS          = 141    #except 1d tensors
+    MOSTLY_IQ2_KT          = 142    #except 1d tensors
+    MOSTLY_IQ3_KT          = 143    #except 1d tensors
+    MOSTLY_IQ4_KT          = 144    #except 1d tensors
+    MOSTLY_Q4_0_R8         = 202    #except 1d tensors
+    MOSTLY_Q8_0_R8         = 207    #except 1d tensors
+    MOSTLY_Q5_0_R4         = 208    #except 1d tensors
+    MOSTLY_Q2_K_R4         = 210    #except 1d tensors
+    MOSTLY_Q3_K_R4         = 211    #except 1d tensors
+    MOSTLY_Q4_K_R4         = 212    #except 1d tensors
+    MOSTLY_Q5_K_R4         = 213    #except 1d tensors
+    MOSTLY_Q6_K_R4         = 214    #except 1d tensors
+    MOSTLY_IQ2_XXS_R4      = 215    #except 1d tensors
+    MOSTLY_IQ2_XS_R4       = 216    #except 1d tensors
+    MOSTLY_IQ3_XXS_R4      = 217    #except 1d tensors
+    MOSTLY_IQ1_S_R4        = 218    #except 1d tensors
+    MOSTLY_IQ4_NL_R4       = 219    #except 1d tensors
+    MOSTLY_IQ3_S_R4        = 220    #except 1d tensors
+    MOSTLY_IQ2_S_R4        = 221    #except 1d tensors
+    MOSTLY_IQ4_XS_R8       = 222    #except 1d tensors
+    MOSTLY_IQ1_M_R4        = 223    #except 1d tensors
+    MOSTLY_BF16_R16        = 224    #except 1d tensors
+    MOSTLY_Q6_0_R4         = 227    #except 1d tensors
+    MOSTLY_IQ2_BN_R4       = 329    #except 1d tensors
+    MOSTLY_IQ2_K_R4        = 330    #except 1d tensors
+    MOSTLY_IQ3_K_R4        = 331    #except 1d tensors
+    MOSTLY_IQ4_K_R4        = 332    #except 1d tensors
+    MOSTLY_IQ5_K_R4        = 333    #except 1d tensors
+    MOSTLY_IQ4_KS_R4       = 337    #except 1d tensors
+    MOSTLY_IQ5_KS_R4       = 341    #except 1d tensors
+    MOSTLY_Q8_KV_R8        = 398    #except 1d tensors
+    MOSTLY_Q8_K_R8         = 399    #except 1d tensors
 
     GUESSED              = 1024  # not specified in the model file
 
@@ -2359,6 +2483,62 @@ GGML_QUANT_SIZES: dict[GGMLQuantizationType, tuple[int, int]] = {
     GGMLQuantizationType.BF16:    (1, 2),
     GGMLQuantizationType.TQ1_0:   (256, 2 + 4 * 13),
     GGMLQuantizationType.TQ2_0:   (256, 2 + 64),
+    GGMLQuantizationType.Q4_0_4_4    : (  32,   18),
+    GGMLQuantizationType.Q4_0_4_8    : (  32,   18),
+    GGMLQuantizationType.Q4_0_8_8    : (  32,   18),
+    GGMLQuantizationType.I2_S        : (   1,    1),
+    GGMLQuantizationType.Q8_0_X4     : (  32,   34),
+    GGMLQuantizationType.Q8_1_X4     : (  32,   36),
+    GGMLQuantizationType.Q8_2_X4     : (  32,   36),
+    GGMLQuantizationType.Q6_0        : (  32,   26),
+    GGMLQuantizationType.IQ1_BN      : (  64,   13),
+    GGMLQuantizationType.IQ2_BN      : (  64,   16),
+    GGMLQuantizationType.Q8_K64      : (  64,   68),
+    GGMLQuantizationType.IQ2_K       : ( 256,   76),
+    GGMLQuantizationType.IQ3_K       : ( 256,  110),
+    GGMLQuantizationType.IQ4_K       : ( 256,  144),
+    GGMLQuantizationType.IQ5_K       : ( 256,  176),
+    GGMLQuantizationType.IQ6_K       : ( 256,  212),
+    GGMLQuantizationType.IQ4_KS      : ( 256,  136),
+    GGMLQuantizationType.IQ2_KS      : ( 256,   70),
+    GGMLQuantizationType.IQ4_KSS     : ( 256,  128),
+    GGMLQuantizationType.Q8_K16      : (  64,   64),
+    GGMLQuantizationType.Q8_K32      : ( 256,  292),
+    GGMLQuantizationType.Q8_KR8      : ( 256,  292),
+    GGMLQuantizationType.Q8_K128     : ( 128,  140),
+    GGMLQuantizationType.Q8_KV       : (  32,   32),
+    GGMLQuantizationType.IQ5_KS      : ( 256,  168),
+    GGMLQuantizationType.IQ2_KT      : ( 256,   68),
+    GGMLQuantizationType.IQ3_KT      : ( 256,  100),
+    GGMLQuantizationType.IQ4_KT      : ( 256,  128),
+    GGMLQuantizationType.Q4_0_R8     : (  32,   18),
+    GGMLQuantizationType.Q5_0_R4     : (  32,   22),
+    GGMLQuantizationType.Q8_0_R8     : (  32,   34),
+    GGMLQuantizationType.Q2_K_R4     : ( 256,   84),
+    GGMLQuantizationType.Q3_K_R4     : ( 256,  110),
+    GGMLQuantizationType.Q4_K_R4     : ( 256,  144),
+    GGMLQuantizationType.Q5_K_R4     : ( 256,  176),
+    GGMLQuantizationType.Q6_K_R4     : ( 256,  210),
+    GGMLQuantizationType.IQ2_XXS_R4  : ( 256,   66),
+    GGMLQuantizationType.IQ2_XS_R4   : ( 256,   74),
+    GGMLQuantizationType.IQ3_XXS_R4  : ( 256,   98),
+    GGMLQuantizationType.IQ1_S_R4    : (  32,    6),
+    GGMLQuantizationType.IQ4_NL_R4   : (  32,   18),
+    GGMLQuantizationType.IQ3_S_R4    : ( 256,  110),
+    GGMLQuantizationType.IQ2_S_R4    : ( 256,   82),
+    GGMLQuantizationType.IQ4_XS_R8   : ( 256,  136),
+    GGMLQuantizationType.IQ1_M_R4    : (  32,    7),
+    GGMLQuantizationType.BF16_R16    : (   1,    2),
+    GGMLQuantizationType.Q6_0_R4     : (  32,   26),
+    GGMLQuantizationType.IQ2_BN_R4   : (  64,   16),
+    GGMLQuantizationType.IQ2_K_R4    : ( 256,   76),
+    GGMLQuantizationType.IQ3_K_R4    : ( 256,  110),
+    GGMLQuantizationType.IQ4_K_R4    : ( 256,  144),
+    GGMLQuantizationType.IQ5_K_R4    : ( 256,  176),
+    GGMLQuantizationType.IQ4_KS_R4   : ( 256,  136),
+    GGMLQuantizationType.IQ5_KS_R4   : ( 256,  168),
+    GGMLQuantizationType.Q8_KV_R8    : (  32,   32),
+    GGMLQuantizationType.Q8_K_R8     : ( 256,  258),
 }
 
 
@@ -2425,7 +2605,7 @@ KEY_TOKENIZER_PAD_ID     = Keys.Tokenizer.PAD_ID
 KEY_TOKENIZER_MASK_ID    = Keys.Tokenizer.MASK_ID
 KEY_TOKENIZER_HF_JSON    = Keys.Tokenizer.HF_JSON
 KEY_TOKENIZER_RWKV       = Keys.Tokenizer.RWKV
-
+KEY_TOKENIZER_CLS_ID     = Keys.Tokenizer.CLS_ID
 KEY_TOKENIZER_FIM_PRE_ID = Keys.Tokenizer.FIM_PRE_ID
 KEY_TOKENIZER_FIM_SUF_ID = Keys.Tokenizer.FIM_SUF_ID
 KEY_TOKENIZER_FIM_MID_ID = Keys.Tokenizer.FIM_MID_ID
