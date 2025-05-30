@@ -229,6 +229,8 @@ KoboldCpp-experimental is a sligthly extended KoboldCpp with [custom](experiment
 
 Croco is based on KoboldCPP
 
+-----
+
 # koboldcpp (for information)
 
 KoboldCpp is an easy-to-use AI text-generation software for GGML and GGUF models, inspired by the original **KoboldAI**. It's a single self-contained distributable that builds off **llama.cpp** and adds many additional powerful features.
@@ -456,11 +458,13 @@ and it will install everything required. Alternatively, you can download the abo
 
 Croco is also using the following fork of KoboldCPP, Esobold.
 
+-----
+
 # Esobold (Esolithe's fork of KoboldCPP) (for information)
 
 ![Kobold](https://github.com/user-attachments/assets/f5cb4087-bc72-47fc-91a5-29a4d6495648)
 
-Welcome all, this fork focuses on enhanced remote management, server saving and integration in KoboldCPP and Kobold Lite.
+Welcome all, this fork focuses on enhanced remote management, server saving and integration in KoboldCPP and Kobold Lite.  Release can be found [here](https://github.com/esolithe/esobold/releases).
 
 It offers the following functionalities:
 - Config reloading (Cedo's implementation) enhanced with an option to select a text model to override the config (useful to switch between models using a generic "8B" or "12B" config without needing one for each model).  There is also helper text in Lite to show you the current config and model in use, along with a waiting mechanism to only reload when it's ready.
