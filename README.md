@@ -487,6 +487,8 @@ It offers the following functionalities:
 
 ![8d3e3a9d-08e0-4caf-9ad8-c2d806fec7e0](https://github.com/user-attachments/assets/8d3e3a9d-08e0-4caf-9ad8-c2d806fec7e0)
 
+- Addition of [BlackLite-Tools](https://github.com/PeterPeet/BlackLite-Tools/tree/BlackLite-UICustomizationTool) by Peter for UI styling with a few UX tweaks (open / close tool, saving of themes through reloads, autoload of last theme on opening etc) - this can be found under the advanced settings
+
 ## Agent thinking mode (experimental)
 
 An attempt to replicate tool usage / agent logic in Lite.  Essentially, the AI is provided the user input and a list of tools that it can use.  Should work on all UI modes for instruct, along with supporting chat names.
