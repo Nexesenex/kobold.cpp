@@ -7979,9 +7979,13 @@ Current version indicated by LITEVER below.
 			const regex = new RegExp(`(\\[DOCUMENT BREAK\\]\\[${documentName}\\])(.*?)(\\[DOCUMENT BREAK\\]|$)`, "s");
 			curr_doc_db = curr_doc_db.replace(regex, `$1${documentContent.trim()}$3`);
 		} else {
-			curr_doc_db += `[DOCUMENT BREAK][${documentName}]${documentContent.trim()}`;
+			curr_doc_db += `[DOCUMENT BREAK][${documentName}]${documentContent.trim()}[DOCUMENT BREAK]`;
 		}
 		document.getElementById("documentdb_data").value = curr_doc_db;
+		if (document.getElementById("memorycontainer").classList.contains("hidden"))
+		{
+			documentdb_data = document.getElementById("documentdb_data").value;
+		}
 	}
 
 	function importLorebookAsTextDB(lorebook)
@@ -26832,6 +26836,59 @@ json_schema = `RESPOND WITH ONLY VALID JSON CONFORMING TO THE FOLLOWING SCHEMA:
 
 let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"message":"I must make sure that I respond to the user with \"send_message\""}}}`
 </script>
+<script>
+	// Reloading utils
+	class ReloadUtils
+	{
+		async waitForReload() {
+			return new Promise((resolve, reject) => {
+				setTimeout(async () => {
+					let startTime = Date.now(),
+						intervalId = setInterval(async () => {
+							if (await fetch(custom_kobold_endpoint + "/api/admin/health").then(c => c.text()).catch(e => {
+								/*Ignore error*/
+							}) === "true") {
+								clearInterval(intervalId);
+								resolve(Date.now() - startTime);
+							}
+						}, 1000);
+				}, 3000)
+			})
+		}
+
+		async triggerReload(filename, modelName = "") {
+			let resp = await fetch(custom_kobold_endpoint + koboldcpp_admin_reload_endpoint, {
+				method: 'POST',
+				headers: get_kobold_header(),
+				body: JSON.stringify({
+					"filename": filename,
+					"modelName": modelName
+				})
+			})
+			let json = await resp.json()
+			return !!json && !!json?.success
+		}
+
+		async reloadAndWait(filename, modelName = "") {
+			try {
+				let reloadSuccess = await this.triggerReload(filename, modelName)
+				if (reloadSuccess) {
+					console.log("KoboldCpp is now restarting");
+					let reloadTime = await this.waitForReload()
+					console.log("Restart complete");
+				} else {
+					msgbox("The request to reload KoboldCpp with a new configuration failed!\n\nPlease check if the feature is enabled, the admin directory is set, and selected config and password are correct.", "KoboldCpp Reload Failed");
+				}
+
+			} catch (error) {
+				console.log("Error: " + error);
+				msgbox(error, "Error");
+			};
+		}
+	}
+
+	window.reloadUtils = new ReloadUtils()
+</script>
 <style>
 	.stopThinking {
 		position: absolute;
@@ -27306,6 +27363,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	let recentActions = [], maxActionsInHistory = 1000, currentAgentCycle = null, endCurrent = false
 
 	let runAgentCycle = async (initialPrompt = undefined) => {
+		
+		clearSuggestions()
 		endCurrent = false
 		// gametext_arr = []
 		// render_gametext()
@@ -27370,8 +27429,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 		for (let i = 0; i < Number(localsettings.agentCOTMax) + 1 && (currentOrderOfActionsOverall.length === 0 || i < currentOrderOfActionsOverall.length + 1) && endCurrent === false; i++)
 		{
-			clearSuggestions()
-
 			let nextAction = []
 			let validCommands = getEnabledCommands().map(command => command.name).filter(name => i != 0 || name != "stop_thinking")
 			if (i == 0)
@@ -27476,6 +27533,11 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				history += localsettings.custom_jailbreak_text
 			}
 
+			if (false == true)
+			{
+				await reloadUtils.reloadAndWait("12b.kcpps", "")
+				console.log("Complete");
+			}
 			let resp = await generateAndGetTextFromPrompt(replace_instruct_placeholders(history), jsonGrammar, [], recentActions.map(JSON.stringify))
 			
 			try
