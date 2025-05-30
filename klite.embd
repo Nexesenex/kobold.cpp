@@ -26840,6 +26840,20 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	// Reloading utils
 	class ReloadUtils
 	{
+		async getCurrentConfigAndModel() {
+			let originalConfig = await (await fetch(`${custom_kobold_endpoint}/api/admin/current_config`, {
+				method: 'GET',
+				headers: get_kobold_header(),
+			})).text()
+
+			let originalModel = await (await fetch(`${custom_kobold_endpoint}/api/admin/current_model`, {
+				method: 'GET',
+				headers: get_kobold_header(),
+			})).text()
+
+			return {config: originalConfig, model: originalModel}
+		}
+
 		async waitForReload() {
 			return new Promise((resolve, reject) => {
 				setTimeout(async () => {
@@ -26876,6 +26890,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					console.log("KoboldCpp is now restarting");
 					let reloadTime = await this.waitForReload()
 					console.log("Restart complete");
+					connect_custom_endpoint()
 				} else {
 					msgbox("The request to reload KoboldCpp with a new configuration failed!\n\nPlease check if the feature is enabled, the admin directory is set, and selected config and password are correct.", "KoboldCpp Reload Failed");
 				}
@@ -27364,7 +27379,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 	let runAgentCycle = async (initialPrompt = undefined) => {
 		
-		clearSuggestions()
 		endCurrent = false
 		// gametext_arr = []
 		// render_gametext()
@@ -27427,8 +27441,23 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		currentOrderOfActionsOverall = !!currentOrderOfActionsOverall ? currentOrderOfActionsOverall.split(",").filter(act => !!act) : []
 		currentOrderOfActionDescriptions = []
 
+		// Get current config and model overrides
+		let configOverrides = getDocumentFromTextDB("Agent config overrides")
+		configOverrides = !!configOverrides ? configOverrides.split("|").map(joined => joined.split("::")).filter(arr => arr.length === 2 || arr.length === 3).reduce((obj, elem) => {
+			obj[elem[0]] = {
+				config: elem[1],
+				model: (elem.length > 2 ? elem[2] : "")
+			}
+			return obj
+		}, {}) : {}
+
+		let originalConfiguration = await reloadUtils.getCurrentConfigAndModel()
+		let previousConfig = JSON.parse(JSON.stringify(originalConfiguration))
+
 		for (let i = 0; i < Number(localsettings.agentCOTMax) + 1 && (currentOrderOfActionsOverall.length === 0 || i < currentOrderOfActionsOverall.length + 1) && endCurrent === false; i++)
 		{
+			clearSuggestions()
+
 			let nextAction = []
 			let validCommands = getEnabledCommands().map(command => command.name).filter(name => i != 0 || name != "stop_thinking")
 			if (i == 0)
@@ -27532,12 +27561,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			{
 				history += localsettings.custom_jailbreak_text
 			}
-
-			if (false == true)
-			{
-				await reloadUtils.reloadAndWait("12b.kcpps", "")
-				console.log("Complete");
-			}
 			let resp = await generateAndGetTextFromPrompt(replace_instruct_placeholders(history), jsonGrammar, [], recentActions.map(JSON.stringify))
 			
 			try
@@ -27578,10 +27601,30 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					{
 						addThought(createAIPrompt, `Action taken:\n\n${actionToText(action?.command).trim()}`)
 					}
-
+					
 					let isCompleted = false;
 					let command = [...getReasoningCommand(), ...getCommands()].find(command => command.name === action.command.name)
 					if (!!command && command?.executor !== undefined) {
+						if (configOverrides[action.command.name])
+						{
+							let overrides = configOverrides[action.command.name]
+							debugger
+							if (previousConfig.config !== overrides.config || previousConfig.model !== overrides.model)
+							{
+								await reloadUtils.reloadAndWait(overrides.config, overrides.model)
+								console.log("Completed reload");
+								previousConfig.config = overrides.config
+								previousConfig.model = overrides.model
+							}
+						}
+						else if (previousConfig.config !== originalConfiguration.config || previousConfig.model !== originalConfiguration.model) {
+							debugger
+							await reloadUtils.reloadAndWait(originalConfiguration.config, originalConfiguration.model)
+							previousConfig.config = originalConfiguration.config
+							previousConfig.model = originalConfiguration.model
+							console.log("Completed reload");
+						}
+
 						let res = await command.executor(action.command)
 						if (res === true) {
 							isCompleted = true
@@ -27635,6 +27678,13 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					break	
 				}
 			}
+		}
+
+		if (previousConfig.config !== originalConfiguration.config || previousConfig.model !== originalConfiguration.model)
+		{
+			debugger
+			await reloadUtils.reloadAndWait(originalConfiguration.config, originalConfiguration.model)
+			console.log("Completed reload");
 		}
 		
 		// Render any suggestions generated in the agent logic
