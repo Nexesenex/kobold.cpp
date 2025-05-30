@@ -442,6 +442,7 @@ extern "C" {
         void * imatrix;                       // pointer to importance matrix data
         void * kv_overrides;                  // pointer to vector containing overrides
         void * tensor_types;                  // pointer to vector containing tensor types
+        void * custom_quants;                 // pointer to vector containing custom quantization rules
     } llama_model_quantize_params;
 
     typedef struct llama_logit_bias {
