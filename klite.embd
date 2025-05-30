@@ -26215,7 +26215,7 @@ else
 			},
 			{
 			"name": "evaluate_formula",
-			"description": "Evaluates a mathematical formula and returns the result.",
+			"description": "Evaluates a mathematical formula and returns the result. All variables must be inputed as numbers, text is not supported.",
 			"args": {
 				"formula": "<mathematical formula to evaluate>"
 			},
@@ -26477,10 +26477,10 @@ else
 			},
 			{
 			"name": "generate_image",
-			"description": "Generates or modifies an image using AI based on a prompt. Be specific in the prompt about physical characteristics and settings as names of people may not be known.",
+			"description": "Generates a new image from scratch or edits an existing image. Be specific in the prompt about physical characteristics and settings as names of people may not be known.",
 			"args": {
-				"use_existing_image": {
-					description: "<set this to true to use an existing image as a starting point. The user will select which image to use. (img2img)>",
+				"edit_existing_image": {
+					description: "<edits an existing image when set to true (img2img)>",
 					type: "boolean"
 				},
 				"prompt": "<prompt to generate image with>",
@@ -26495,7 +26495,7 @@ else
 					let prompt = action?.args?.prompt
 					let aspect = action?.args?.aspect
 					if (!!prompt) {
-						if (!!action?.args?.use_existing_image)
+						if (!!action?.args?.edit_existing_image)
 						{
 							waitingFori2iSelection = true
 							addThought(createSysPrompt, `Please click an image as a source for img2img generation`, true)
