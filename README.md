@@ -2,7 +2,7 @@
 
 ![Kobold](https://github.com/user-attachments/assets/f5cb4087-bc72-47fc-91a5-29a4d6495648)
 
-Welcome all, this fork focuses on enhanced remote management, server saving and integration in KoboldCPP and Kobold Lite.
+Welcome all, this fork focuses on enhanced remote management, server saving and integration in KoboldCPP and Kobold Lite.  Release can be found [here](https://github.com/esolithe/esobold/releases).
 
 It offers the following functionalities:
 - Config reloading (Cedo's implementation) enhanced with an option to select a text model to override the config (useful to switch between models using a generic "8B" or "12B" config without needing one for each model).  There is also helper text in Lite to show you the current config and model in use, along with a waiting mechanism to only reload when it's ready.
