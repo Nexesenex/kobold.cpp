@@ -26483,7 +26483,7 @@ else
 					description: "<edits an existing image when set to true (img2img)>",
 					type: "boolean"
 				},
-				"prompt": "<prompt to generate image with>",
+				"prompt": "<prompt to generate image with - when editing only mention the changed parts of the image>",
 				"aspect": {
 					type: "string",
 					description: "<aspect ratio - must be \"landscape\", \"portrait\" or \"square\">"
@@ -27338,7 +27338,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}
 		else if (!!lastActions && lastActions.length > 0)
 		{
-			let firstElem = getLastActions()[0]; 
+			let firstElem = lastActions.splice(-1); 
 			let prevInput = (firstElem.source === "human" ? firstElem.msg.replace(new RegExp(`^${localsettings.chatname}:\\s*`), "") : ""); 
 			if (!!prevInput)
 			{
