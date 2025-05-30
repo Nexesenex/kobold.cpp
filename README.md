@@ -237,6 +237,8 @@ KoboldCpp is an easy-to-use AI text-generation software for GGML and GGUF models
 ![Preview](media/preview2.png)
 ![Preview](media/preview3.png)
 ![Preview](media/preview4.png)
+![Preview](media/preview5.png)
+![Preview](media/preview6.png)
 
 ### Features
 - Single file executable, with no installation required and no external dependencies

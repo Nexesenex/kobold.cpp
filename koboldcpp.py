@@ -3569,8 +3569,8 @@ ws ::= | " " | "\n" [ \t]{0,20}
                             if used_tool_json:
                                 toolparamjson = None
                                 toolname = None
-                                # Set temperature low automatically if function calling
-                                genparams["temperature"] = 0.1
+                                # Set temperature lower automatically if function calling, cannot exceed 0.5
+                                genparams["temperature"] = (1.0 if genparams.get("temperature", 0.5) > 1.0 else genparams.get("temperature", 0.5))
                                 genparams["using_openai_tools"] = True
                                 # Set grammar to llamacpp example grammar to force json response (see https://github.com/ggerganov/llama.cpp/blob/master/grammars/json_arr.gbnf)
                                 genparams["grammar"] = jsongrammar
