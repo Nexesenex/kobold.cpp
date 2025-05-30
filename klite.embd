@@ -27401,9 +27401,12 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			}
 
 
-			// Find actions which are identical and have run twice - then remove them from the possible options to run again
-			let duplicateActions = recentActions.filter((elem, pos, arr) => arr.findIndex((elem2) => JSON.stringify(elem) === JSON.stringify(elem2)) !== pos).map(elem => elem?.command?.name)
-			nextAction = nextAction.filter(act => !duplicateActions.includes(act.name))
+			// Find actions which are identical and have run twice - then remove them from the possible options to run again - applies when plans are not used
+			if (currentOrderOfActionsOverall.length === 0)
+			{
+				let duplicateActions = recentActions.filter((elem, pos, arr) => arr.findIndex((elem2) => JSON.stringify(elem) === JSON.stringify(elem2)) !== pos).map(elem => elem?.command?.name)
+				nextAction = nextAction.filter(act => !duplicateActions.includes(act.name))
+			}
 
 			// If no actions present, end cycle
 			if (nextAction.length === 0)
@@ -27634,8 +27637,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 	}
 
 	let toggleAgent = () => {
-		localsettings.agentBehaviour = !localsettings.agentBehaviour;
-		if (!localsettings.agentBehaviour)
+		populate_regex_replacers()
+
+		document.getElementById("agentBehaviour").checked = !document.getElementById("agentBehaviour").checked
+		if (!document.getElementById("agentBehaviour").checked)
 		{
 			stopAgentThinking()
 		}
