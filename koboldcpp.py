@@ -47,7 +47,7 @@ net_save_slots = 10
 
 # abuse prevention
 stop_token_max = 256
-ban_token_max = 512
+ban_token_max = 768
 logit_bias_max = 512
 dry_seq_break_max = 128
 
