@@ -3543,6 +3543,9 @@ static bool ggml_sycl_compute_forward(ggml_backend_sycl_context & ctx, struct gg
                 case GGML_UNARY_OP_GELU_QUICK:
                     ggml_sycl_gelu_quick(ctx, dst);
                     break;
+                case GGML_UNARY_OP_GELU_ERF:
+                    ggml_sycl_gelu_erf(ctx, dst);
+                    break;
                 case GGML_UNARY_OP_TANH:
                     ggml_sycl_tanh(ctx, dst);
                     break;
@@ -4096,6 +4099,7 @@ static bool ggml_backend_sycl_device_supports_op(ggml_backend_dev_t dev, const g
                 case GGML_UNARY_OP_HARDSIGMOID:
                 case GGML_UNARY_OP_HARDSWISH:
                 case GGML_UNARY_OP_GELU_QUICK:
+                case GGML_UNARY_OP_GELU_ERF:
                 case GGML_UNARY_OP_TANH:
                 case GGML_UNARY_OP_EXP:
                 case GGML_UNARY_OP_SGN:
@@ -4253,14 +4257,6 @@ static bool ggml_backend_sycl_device_supports_op(ggml_backend_dev_t dev, const g
         case GGML_OP_SOFT_MAX:
             return true;
         case GGML_OP_ROPE:
-            {
-                const int mode = ((const int32_t *) op->op_params)[2];
-                // mode is not used as a bitmask in practice, the various rope type modes are independent implementations
-                if (mode == GGML_ROPE_TYPE_MROPE) {
-                    return false;
-                }
-                return true;
-            }
         case GGML_OP_IM2COL:
             return true;
         case GGML_OP_UPSCALE:

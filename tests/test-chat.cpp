@@ -5,15 +5,16 @@
 //
 //    cmake -B build && cmake --build build --parallel && ./build/bin/test-chat ../minja/build/tests/*.jinja 2>/dev/null
 //
-#include <fstream>
-#include <iostream>
-#include <json.hpp>
-#include <string>
-
 #include "chat.h"
 
 #include "../src/unicode.h"
 #include "../src/llama-grammar.h"
+
+#include <nlohmann/json.hpp>
+
+#include <fstream>
+#include <iostream>
+#include <string>
 
 using json = nlohmann::ordered_json;
 
