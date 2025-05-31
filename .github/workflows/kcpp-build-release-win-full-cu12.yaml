@@ -57,7 +57,6 @@ jobs:
         id: make_build
         run: |
           make LLAMA_CLBLAST=1 LLAMA_VULKAN=1 LLAMA_PORTABLE=1 -j ${env:NUMBER_OF_PROCESSORS}
-          echo "Vulkan Shaders Rebuilt"
 
       - uses: Jimver/cuda-toolkit@v0.2.15
         id: cuda-toolkit
