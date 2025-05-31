@@ -831,7 +831,7 @@ else ()
                 ggml/include/gguf.h
                 ggml/src/gguf.cpp
 				${GGML_SOURCES_CUDA})
-    target_include_directories(ggml_v1 PUBLIC . ./ggml/include ./ggml/src ./ggml/src/ggml-cpu ./include ./otherarch ./otherarch/tools ./vendor/stb ./vendor)
+    target_include_directories(ggml PUBLIC . ./ggml/include ./ggml/src ./ggml/src/ggml-cpu ./include ./otherarch ./otherarch/tools ./vendor/stb ./vendor)
     target_compile_features(ggml PUBLIC c_std_11) # don't bump
     target_link_libraries(ggml PUBLIC Threads::Threads ${LLAMA_EXTRA_LIBS})
     set_target_properties(ggml PROPERTIES POSITION_INDEPENDENT_CODE ON)
