@@ -26890,7 +26890,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					console.log("KoboldCpp is now restarting");
 					let reloadTime = await this.waitForReload()
 					console.log("Restart complete");
-					connect_custom_endpoint()
 				} else {
 					msgbox("The request to reload KoboldCpp with a new configuration failed!\n\nPlease check if the feature is enabled, the admin directory is set, and selected config and password are correct.", "KoboldCpp Reload Failed");
 				}
@@ -27442,14 +27441,15 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		currentOrderOfActionDescriptions = []
 
 		// Get current config and model overrides
-		let configOverrides = getDocumentFromTextDB("Agent config overrides")
-		configOverrides = !!configOverrides ? configOverrides.split("|").map(joined => joined.split("::")).filter(arr => arr.length === 2 || arr.length === 3).reduce((obj, elem) => {
-			obj[elem[0]] = {
-				config: elem[1],
-				model: (elem.length > 2 ? elem[2] : "")
-			}
-			return obj
-		}, {}) : {}
+		let configOverrides = []
+		// getDocumentFromTextDB("Agent config overrides")
+		// configOverrides = !!configOverrides ? configOverrides.split("|").map(joined => joined.split("::")).filter(arr => arr.length === 2 || arr.length === 3).reduce((obj, elem) => {
+		// 	obj[elem[0]] = {
+		// 		config: elem[1],
+		// 		model: (elem.length > 2 ? elem[2] : "")
+		// 	}
+		// 	return obj
+		// }, {}) : {}
 
 		let originalConfiguration = await reloadUtils.getCurrentConfigAndModel()
 		let previousConfig = JSON.parse(JSON.stringify(originalConfiguration))
@@ -27608,7 +27608,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 						if (configOverrides[action.command.name])
 						{
 							let overrides = configOverrides[action.command.name]
-							debugger
 							if (previousConfig.config !== overrides.config || previousConfig.model !== overrides.model)
 							{
 								await reloadUtils.reloadAndWait(overrides.config, overrides.model)
@@ -27617,18 +27616,18 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 								previousConfig.model = overrides.model
 							}
 						}
-						else if (previousConfig.config !== originalConfiguration.config || previousConfig.model !== originalConfiguration.model) {
-							debugger
-							await reloadUtils.reloadAndWait(originalConfiguration.config, originalConfiguration.model)
-							previousConfig.config = originalConfiguration.config
-							previousConfig.model = originalConfiguration.model
-							console.log("Completed reload");
-						}
 
 						let res = await command.executor(action.command)
 						if (res === true) {
 							isCompleted = true
 							hasAttemptedToCompleteOnce = true
+						}
+
+						if (previousConfig.config !== originalConfiguration.config || previousConfig.model !== originalConfiguration.model) {
+							await reloadUtils.reloadAndWait(originalConfiguration.config, originalConfiguration.model)
+							previousConfig.config = originalConfiguration.config
+							previousConfig.model = originalConfiguration.model
+							console.log("Completed reload");
 						}
 					}
 					
@@ -27682,7 +27681,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 		if (previousConfig.config !== originalConfiguration.config || previousConfig.model !== originalConfiguration.model)
 		{
-			debugger
 			await reloadUtils.reloadAndWait(originalConfiguration.config, originalConfiguration.model)
 			console.log("Completed reload");
 		}
