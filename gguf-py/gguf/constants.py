@@ -333,6 +333,7 @@ class MODEL_ARCH(IntEnum):
     CHATGLM          = auto()
     GLM4             = auto()
     BITNET           = auto()
+    BITNET_25        = auto()
     T5               = auto()
     T5ENCODER        = auto()
     JAIS             = auto()
@@ -2337,6 +2338,16 @@ class LlamaFileType(IntEnum):
     MOSTLY_IQ5_KS_R4       = 341    #except 1d tensors
     MOSTLY_Q8_KV_R8        = 398    #except 1d tensors
     MOSTLY_Q8_K_R8         = 399    #except 1d tensors
+    MOSTLY_Q4_1_S          = 490   # except 1d tensors
+    MOSTLY_Q5_0_S          = 491   # except 1d tensors
+    MOSTLY_Q5_1_S          = 492   # except 1d tensors
+    MOSTLY_Q6_0_S          = 493   # except 1d tensors
+    MOSTLY_Q8_0_S          = 494   # except 1d tensors
+    MOSTLY_Q4_1_XS         = 495   # except 1d tensors
+    MOSTLY_Q5_0_XS         = 496   # except 1d tensors
+    MOSTLY_Q5_1_XS         = 497   # except 1d tensors
+    MOSTLY_Q6_0_XS         = 498   # except 1d tensors
+    MOSTLY_Q8_0_XS         = 499   # except 1d tensors
 
     GUESSED              = 1024  # not specified in the model file
 
@@ -2400,6 +2411,7 @@ GGML_QUANT_SIZES: dict[GGMLQuantizationType, tuple[int, int]] = {
     GGMLQuantizationType.Q4_1:    (32, 2 + 2 + 16),
     GGMLQuantizationType.Q5_0:    (32, 2 + 4 + 16),
     GGMLQuantizationType.Q5_1:    (32, 2 + 2 + 4 + 16),
+    GGMLQuantizationType.Q6_0:    (32, 2 + 8 + 16),
     GGMLQuantizationType.Q8_0:    (32, 2 + 32),
     GGMLQuantizationType.Q8_1:    (32, 4 + 4 + 32),
     GGMLQuantizationType.Q2_K:    (256, 2 + 2 + QK_K // 16 + QK_K // 4),
@@ -2432,7 +2444,7 @@ GGML_QUANT_SIZES: dict[GGMLQuantizationType, tuple[int, int]] = {
     GGMLQuantizationType.Q8_0_X4     : (  32,   34),
     GGMLQuantizationType.Q8_1_X4     : (  32,   36),
     GGMLQuantizationType.Q8_2_X4     : (  32,   36),
-    GGMLQuantizationType.Q6_0        : (  32,   26),
+    # GGMLQuantizationType.Q6_0        : (  32,   26),
     GGMLQuantizationType.IQ1_BN      : (  64,   13),
     GGMLQuantizationType.IQ2_BN      : (  64,   16),
     GGMLQuantizationType.Q8_K64      : (  64,   68),

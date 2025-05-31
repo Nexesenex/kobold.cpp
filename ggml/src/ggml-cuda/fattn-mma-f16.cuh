@@ -868,13 +868,12 @@ static __global__ void flash_attn_ext_f16(
         NO_DEVICE_CODE;
         return;
     }
-	
+
 #if __CUDA_ARCH__ == GGML_CUDA_CC_TURING
     if (ncols1*ncols2 > 32) {
         NO_DEVICE_CODE;
         return;
     }
-
 #endif // __CUDA_ARCH__ == GGML_CUDA_CC_TURING
 
     static_assert(FATTN_KQ_STRIDE % KQ_per_iter == 0, "bad KQ_per_iter");
@@ -1038,6 +1037,8 @@ DECL_FATTN_MMA_F16_CASE_ALL_NCOLS2( 96,  16)
 DECL_FATTN_MMA_F16_CASE_ALL_NCOLS2(112,  16)
 DECL_FATTN_MMA_F16_CASE_ALL_NCOLS2(128,  16)
 DECL_FATTN_MMA_F16_CASE_ALL_NCOLS2(256,  16)
+
+DECL_FATTN_MMA_F16_CASE_ALL_NCOLS2(512,  16)
 
 DECL_FATTN_MMA_F16_CASE_ALL_NCOLS2( 64,  32)
 DECL_FATTN_MMA_F16_CASE_ALL_NCOLS2( 80,  32)
