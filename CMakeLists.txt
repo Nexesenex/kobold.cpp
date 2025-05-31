@@ -172,6 +172,9 @@ if (LLAMA_CUBLAS)
         add_compile_definitions(GGML_USE_LLAMAFILE)
         add_compile_definitions(GGML_USE_CUDA)
         add_compile_definitions(SD_USE_CUDA)
+
+        file(GLOB   GGML_HEADERS_CUDA "*.cuh")
+        list(APPEND GGML_HEADERS_CUDA "../../include/ggml-cuda.h")
 		
 		if (CUDAToolkit_VERSION VERSION_GREATER_EQUAL "12.8")
 			# Options are:
