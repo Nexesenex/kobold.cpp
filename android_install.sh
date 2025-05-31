@@ -9,7 +9,7 @@ exit 1
 fi
 
 echo "--------------------------------------------"
-echo "KoboldCPP Quick Installer for Termux (Android only!)"
+echo "Esobold Quick Installer for Termux (Android only!)"
 echo "--------------------------------------------"
 if [ $# -ge 1 ]; then
     choice="$1"
@@ -36,7 +36,7 @@ elif [ "$choice" = "2" ]; then
     echo "[*] Install without model download..."
     INSTALL_MODEL=false
 elif [ "$choice" = "1" ]; then
-    echo "[*] Install with model download..."
+    echo "[*] Install with model downloader enabled in Lite UI..."
     INSTALL_MODEL=true
 else
     echo "Invalid choice. Exiting."
@@ -68,7 +68,7 @@ if [ -f "$SCRIPT_DIR/koboldcpp.py" ]; then
     echo "[*] Detected existing koboldcpp.py in $SCRIPT_DIR"
     KOBOLDCPP_DIR="$SCRIPT_DIR"
 elif [ -d "$SCRIPT_DIR/esobold" ] && [ -f "$SCRIPT_DIR/esobold/koboldcpp.py" ]; then
-    echo "[*] Detected existing koboldcpp clone in $SCRIPT_DIR/esobold"
+    echo "[*] Detected existing Esobold clone in $SCRIPT_DIR/esobold"
     KOBOLDCPP_DIR="$SCRIPT_DIR/esobold"
 else
     echo "[*] No existing esobold found. Cloning repository..."
@@ -82,7 +82,7 @@ cd "$KOBOLDCPP_DIR"
 if [ -f "$KOBOLDCPP_DIR/koboldcpp_default.so" ]; then
     echo "[*] Found koboldcpp_default.so — skipping build step."
 else
-    echo "[*] Building KoboldCPP now..."
+    echo "[*] Building Esobold now..."
     make -j 2
 fi
 
