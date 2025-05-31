@@ -538,6 +538,24 @@ The currently supported options include:
 Horror[DOCUMENT BREAK]
 ```
 
+- Support for automatically switching models and configs for agent tasks (image gen, image analysis, speech etc) - the text should be "command name::config file::model file".  Multiple overrides can be stored by using "|" to separate them.
+
+```
+[DOCUMENT BREAK][Agent config overrides]send_message::12b.kcpps[DOCUMENT BREAK]
+```
+
+A full list of the names for enabled commands can be found with the command below in the browser console:
+
+```
+getEnabledCommands().map(c => c.name)
+```
+
+Using this function requires the following conditions to be met:
+- Use an instruct model
+- Use separate start and end tags for all roles (tick the option under the instruct settings and ensure they are all filled out, like ChatML)
+- Ensure that if you wish the AI to use web searching, TTS or image gen that the respective options are configured and enabled in the UI
+
+
 Using this function requires the following conditions to be met:
 - Use an instruct model
 - Use separate start and end tags for all roles (tick the option under the instruct settings and ensure they are all filled out, like ChatML)
@@ -553,8 +571,9 @@ Using this function requires the following conditions to be met:
 
 ![image](https://github.com/user-attachments/assets/41ec4f1c-5698-4ef3-ba7c-6998cbc1d8f3)
 
-- Upload document support (including upload of text documents, lorebooks, PDFs (SevenOf9 wrote the parser), OCR using the vision model loaded, and transcription from audio)
+- Upload document support (including upload of text documents, lorebooks, PDFs (Vic49 / SevenOf9 wrote the parser), OCR using the vision model loaded, and transcription from audio)
 - Export / Import of WI groups from files
+- Addition of search query and chunk prefix support
 
 ## Running the fork
 
