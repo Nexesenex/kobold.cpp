@@ -1,7 +1,9 @@
-#include "gguf.h" // for reading GGUF splits
 #include "arg.h"
 
+#include "chat.h"
 #include "common.h"
+#include "gguf.h" // for reading GGUF splits
+#include "json-schema-to-grammar.h"
 #include "log.h"
 #include "sampling.h"
 #include "chat.h"
@@ -15,6 +17,9 @@
 #endif
 #include <windows.h>
 #endif
+
+#define JSON_ASSERT GGML_ASSERT
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <climits>
@@ -34,8 +39,6 @@
 #include <curl/easy.h>
 #include <future>
 #endif
-
-#include "json-schema-to-grammar.h"
 
 using json = nlohmann::ordered_json;
 

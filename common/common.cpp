@@ -11,7 +11,7 @@
 #include "log.cpp"
 // Change JSON_ASSERT from assert() to GGML_ASSERT:
 #define JSON_ASSERT GGML_ASSERT
-#include "json.hpp"
+#include <nlohmann/json.hpp>
 #include "json-schema-to-grammar.cpp"
 #include "llama.h"
 #include "chat.cpp"
@@ -911,13 +911,16 @@ struct common_init_result common_init_from_params(common_params & params) {
             ok = false;
         }
 
-        if (llama_vocab_eos(vocab) == LLAMA_TOKEN_NULL) {
-            LOG_WRN("%s: warning: vocab does not have an EOS token, reranking will not work\n", __func__);
-            ok = false;
-        }
+        bool has_eos = llama_vocab_eos(vocab) != LLAMA_TOKEN_NULL;
+        bool has_sep = llama_vocab_sep(vocab) != LLAMA_TOKEN_NULL;
 
-        if (llama_vocab_sep(vocab) == LLAMA_TOKEN_NULL) {
-            LOG_WRN("%s: warning: vocab does not have a  SEP token, reranking will not work\n", __func__);
+        if (!has_eos && !has_sep) {
+            LOG_WRN("%s: warning: vocab does not have an EOS token or SEP token, reranking will not work\n", __func__);
+            ok = false;
+        } else if (!has_eos) {
+            LOG_WRN("%s: warning: vocab does not have an EOS token, using SEP token as fallback\n", __func__);
+        } else if (!has_sep) {
+            LOG_WRN("%s: warning: vocab does not have a SEP token, reranking will not work\n", __func__);
             ok = false;
         }
 

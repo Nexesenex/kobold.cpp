@@ -12,7 +12,7 @@
 
 #include "ggml-backend.h"
 #include "ggml.h"
-#include "json.hpp"
+#include <nlohmann/json.hpp>
 #include "zip.h"
 #include "gguf.h"
 

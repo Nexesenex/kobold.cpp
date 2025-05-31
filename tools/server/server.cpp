@@ -9,10 +9,8 @@
 #include "sampling.h"
 #include "speculative.h"
 #include "mtmd.h"
+#include "mtmd-helper.h"
 
-// Change JSON_ASSERT from assert() to GGML_ASSERT:
-#define JSON_ASSERT GGML_ASSERT
-#include "json.hpp"
 // mime type for sending response
 #define MIMETYPE_JSON "application/json; charset=utf-8"
 
@@ -4187,7 +4185,7 @@ int main(int argc, char ** argv) {
                     throw std::runtime_error("This server does not support multimodal");
                 }
                 for (auto & file : files) {
-                    mtmd::bitmap bmp(mtmd_helper_bitmap_init_from_buf(file.data(), file.size()));
+                    mtmd::bitmap bmp(mtmd_helper_bitmap_init_from_buf(ctx_server.mctx, file.data(), file.size()));
                     if (!bmp.ptr) {
                         throw std::runtime_error("Failed to load image or audio file");
                     }
