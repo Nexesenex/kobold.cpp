@@ -5912,7 +5912,7 @@ def downloader_internal(input_url, output_filename, capture_output, min_file_siz
             a2cexe = (os.path.join(basepath, "aria2c-win.exe"))
             if os.path.exists(a2cexe): #on windows try using embedded a2cexe
                 rc = subprocess.run([
-                        a2cexe, "-x", "16", "-s", "16", "--summary-interval=30", "--console-log-level=error", "--log-level=error",
+                        a2cexe, "-x", "16", "-s", "16", "--summary-interval=20", "--console-log-level=error", "--log-level=error",
                         "--download-result=default", "--allow-overwrite=true", "--file-allocation=none", "--max-tries=3", "-o", output_filename, input_url
                     ], capture_output=capture_output, text=True, check=True, encoding='utf-8')
                 dl_success = (rc.returncode == 0 and os.path.exists(output_filename) and os.path.getsize(output_filename) > min_file_size)
