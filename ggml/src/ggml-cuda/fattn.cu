@@ -337,7 +337,7 @@ void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst
     }
 
     // The MMA implementation needs Turing or newer, use the old WMMA code for Volta:
-    if (fp16_mma_available(cc) && !new_mma_available(cc)) {
+    if ((fp16_mma_available(cc) && !new_mma_available(cc)) || cc == GGML_CUDA_CC_TURING) { //kcpp try fix fa broken on turing
         ggml_cuda_flash_attn_ext_wmma_f16(ctx, dst);
         return;
     }
