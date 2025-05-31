@@ -86,12 +86,17 @@ else
     make -j 2
 fi
 
+if [[ ! -e "$SCRIPT_DIR/Default.kcpps" ]]; then
+    echo "[*] Adding default config"
+    echo -e '{}' >> Default.kcpps
+fi
+
 # grab model if needed
-echo "[*] Your KoboldCPP Installation is Complete!"
+echo "[*] Your Esobold Installation is Complete!"
 if [ "$INSTALL_MODEL" = true ]; then
-    echo "[*] Downloading Gemma3-1B, a small GGUF model..."
+    echo "[*] Running Esobold..."
     # python koboldcpp.py --model https://huggingface.co/ggml-org/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_K_M.gguf
-    python koboldcpp.py --nomodel --adminallowhf --maxrequestsize 100 --admin --admindir . --admintextmodelsdir . --admindatadir . --savedatafile . --configsDir . --textModelsDir .
+    python koboldcpp.py --nomodel --adminallowhf --maxrequestsize 100 --admin --admindir "./" --admintextmodelsdir "./" --admindatadir "./" --savedatafile "./"
 else
     echo "To use it, please obtain a GGUF model, then run it with the command 'python koboldcpp.py --model (your_gguf)' and then open a web browser to http://localhost:5001"
 fi

@@ -257,7 +257,7 @@ when you can't use the precompiled binary directly, we provide an automated buil
 - You can use this auto-installation script to quickly install and build everything and launch KoboldCpp with a model.
 Simply run:
 ```
-curl -sSL https://raw.githubusercontent.com/LostRuins/koboldcpp/concedo/android_install.sh | sh
+curl -sSL https://raw.githubusercontent.com/esolithe/esobold/refs/heads/remoteManagement/android_install.sh | sh
 ```
 and it will install everything required. Alternatively, you can download the above `android_install.sh` script to file, then do `chmod +x` and run it interactively.
 ## Termux Manual Instructions (DIY Setup)
