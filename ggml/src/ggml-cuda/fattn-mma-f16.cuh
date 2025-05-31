@@ -1243,10 +1243,11 @@ static __global__ void flash_attn_ext_f16(
     }
 #if __CUDA_ARCH__ == GGML_CUDA_CC_TURING
     if (ncols1*ncols2 > 32) {
+        printf("\nCUDA_ARCH:%d, DKQ:%d, DV:%d, ncols1:%d, ncols2:%d, nwarps:%d, ntiles:%d, ne00:%d, ne01:%d\n",__CUDA_ARCH__,DKQ, DV, ncols1, ncols2, nwarps, ntiles,ne00,ne01);
         NO_DEVICE_CODE;
         return;
     }
-#endif __CUDA_ARCH__ == GGML_CUDA_CC_TURING
+#endif // __CUDA_ARCH__ == GGML_CUDA_CC_TURING
 
     static_assert(!mla || DKQ >= DV, "MLA needs DKQ >= DV");
 

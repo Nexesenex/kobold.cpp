@@ -1,6 +1,7 @@
 #include "chat.h"
 #include "chat-parser.cpp"
 #include "common.h"
+#include "json-partial.h"
 #include "json-schema-to-grammar.h"
 #include "log.h"
 #include "json-partial.cpp"
@@ -15,7 +16,6 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-
 
 static std::string format_time(const std::chrono::system_clock::time_point & now, const std::string & format) {
     auto time = std::chrono::system_clock::to_time_t(now);

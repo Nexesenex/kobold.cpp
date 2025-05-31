@@ -52,12 +52,12 @@ net_save_slots = 10
 
 # abuse prevention
 stop_token_max = 256
-ban_token_max = 512
+ban_token_max = 768
 logit_bias_max = 512
 dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.92.1"
+KcppVersion = "1.93"
 showdebug = True
 kcpp_instance = None #global running instance
 global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None}
@@ -2846,8 +2846,8 @@ ws ::= | " " | "\n" [ \t]{0,20}
                             if used_tool_json:
                                 toolparamjson = None
                                 toolname = None
-                                # Set temperature low automatically if function calling
-                                genparams["temperature"] = 0.1
+                                # Set temperature lower automatically if function calling, cannot exceed 0.5
+                                genparams["temperature"] = (1.0 if genparams.get("temperature", 0.5) > 1.0 else genparams.get("temperature", 0.5))
                                 genparams["using_openai_tools"] = True
                                 # Set grammar to llamacpp example grammar to force json response (see https://github.com/ggerganov/llama.cpp/blob/master/grammars/json_arr.gbnf)
                                 genparams["grammar"] = jsongrammar
@@ -3775,6 +3775,14 @@ Change Mode<br>
             if args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
                 dirpath = os.path.abspath(args.admindir)
                 opts = [f for f in sorted(os.listdir(dirpath)) if (f.endswith(".kcpps") or f.endswith(".kcppt") or f.endswith(".gguf")) and os.path.isfile(os.path.join(dirpath, f))]
+                opts.append("unload_model")
+            response_body = (json.dumps(opts).encode())
+
+        elif self.path.endswith(('/api/admin/list_models')): #used by admin to get models which can be reloaded with
+            opts = []
+            if args.admin and args.admintextmodelsdir and os.path.exists(args.admintextmodelsdir) and self.check_header_password(args.adminpassword):
+                dirpath = os.path.abspath(args.admintextmodelsdir)
+                opts = [f for f in os.listdir(dirpath) if f.endswith(".gguf") and os.path.isfile(os.path.join(dirpath, f))]
             response_body = (json.dumps(opts).encode())
 
         elif self.path.endswith(('/api/admin/list_models')): #used by admin to get models which can be reloaded with
@@ -4453,27 +4461,51 @@ Change Mode<br>
                 except Exception:
                     targetfile = ""
                 if targetfile and targetfile!="":
-                    dirpath = os.path.abspath(args.admindir)
-                    targetfilepath = os.path.join(dirpath, targetfile)
-                    opts = [f for f in os.listdir(dirpath) if (f.lower().endswith(".kcpps") or f.lower().endswith(".kcppt") or f.lower().endswith(".gguf")) and os.path.isfile(os.path.join(dirpath, f))]
-                    if targetfile in opts and os.path.exists(targetfilepath):
-                        # Now check targetModel
-                        if targetModel and targetModel!="":
-                            dirpath = os.path.abspath(args.admintextmodelsdir)
-                            targetfilepath = os.path.join(dirpath, targetModel)
-                            opts = [f for f in os.listdir(dirpath) if f.endswith(".gguf") and os.path.isfile(os.path.join(dirpath, f))]
-                            if (targetModel in opts and os.path.exists(targetfilepath)) or (args.adminallowhf and re.search(r'^https://huggingface\.co/.*?/resolve/main/.*\.gguf$', targetModel)):
-                                global_memory["restart_model"] = targetModel
-                                print(f"Admin: Received request to reload config to {targetfile} and {targetModel}")
-
-                        if "restart_model" not in global_memory or global_memory["restart_target"] == "":   
-                            print(f"Admin: Received request to reload config to {targetfile}")
-                        global_memory["restart_target"] = targetfile
+                    if targetfile=="unload_model": #special request to simply unload model
+                        print("Admin: Received request to unload model")
+                        global_memory["restart_target"] = "unload_model"
                         resp = {"success": True}
+                    else:
+                        dirpath = os.path.abspath(args.admindir)
+                        targetfilepath = os.path.join(dirpath, targetfile)
+                        opts = [f for f in os.listdir(dirpath) if (f.lower().endswith(".kcpps") or f.lower().endswith(".kcppt") or f.lower().endswith(".gguf")) and os.path.isfile(os.path.join(dirpath, f))]
+                        if targetfile in opts and os.path.exists(targetfilepath):
+                            # Now check targetModel
+                            if targetModel and targetModel!="":
+                                dirpath = os.path.abspath(args.admintextmodelsdir)
+                                targetfilepath = os.path.join(dirpath, targetModel)
+                                opts = [f for f in os.listdir(dirpath) if f.endswith(".gguf") and os.path.isfile(os.path.join(dirpath, f))]
+                                if (targetModel in opts and os.path.exists(targetfilepath)) or (args.adminallowhf and re.search(r'^https://huggingface\.co/.*?/resolve/main/.*\.gguf$', targetModel)):
+                                    global_memory["restart_model"] = targetModel
+                                    print(f"Admin: Received request to reload config to {targetfile} and {targetModel}")
+
+                            if "restart_model" not in global_memory or global_memory["restart_target"] == "":   
+                                print(f"Admin: Received request to reload config to {targetfile}")
+                            global_memory["restart_target"] = targetfile
+                            resp = {"success": True}
             response_body = (json.dumps(resp).encode())
 
         elif self.path.endswith('/set_tts_settings'): #return dummy response
             response_body = (json.dumps({"message": "Settings successfully applied"}).encode())
+
+        elif self.path=="/api/extra/shutdown":
+            # if args.singleinstance:
+            client_ip = self.client_address[0]
+            is_local = client_ip in ('127.0.0.1', '::1', 'localhost')
+            if is_local and args.singleinstance:
+                response_body = (json.dumps({"success": True}).encode())
+                self.send_response(response_code)
+                self.send_header('content-length', str(len(response_body)))
+                self.end_headers(content_type='application/json')
+                self.wfile.write(response_body)
+                print("\nReceived Shutdown Command! Shutting down...\n")
+                time.sleep(1)
+                global exitcounter
+                exitcounter = 999
+                sys.exit(0)
+                return
+            else:
+                response_body = (json.dumps({"success": False}).encode())
 
         if response_body is not None:
             self.send_response(response_code)
@@ -4770,6 +4802,14 @@ def RunServerMultiThreaded(addr, port, server_handler):
     global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui, global_memory
     if is_port_in_use(port):
         print(f"Warning: Port {port} already appears to be in use by another program.")
+        if args.singleinstance:
+            print(f"Attempting to request shutdown of previous instance on port {port}...")
+            shutdownreq = make_url_request(f'http://localhost:{port}/api/extra/shutdown',{})
+            shutdownok = (shutdownreq and "success" in shutdownreq and shutdownreq["success"] is True)
+            time.sleep(2)
+            print("Shutdown existing successful!" if shutdownok else "Shutdown existing failed!")
+            time.sleep(1)
+
     ipv4_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     ipv4_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     ipv6_sock = None
@@ -5209,6 +5249,7 @@ def show_gui():
     admin_text_model_dir_var = ctk.StringVar()
     admin_data_dir_var = ctk.StringVar()
     admin_password_var = ctk.StringVar()
+    singleinstance_var = ctk.IntVar(value=0)
     admin_allow_hf_var = ctk.IntVar(value=0)
 
     nozenity_var = ctk.IntVar(value=0)
@@ -5928,6 +5969,7 @@ def show_gui():
     makefileentry(admin_tab, "Model Directory:", "Select directory containing .gguf text model files to allow overriding configs with", admin_text_model_dir_var, 7, width=280, dialog_type=2, tooltiptxt="Specify a directory to look for .gguf text model files in, which can be used to swap models within a config.")
     makefileentry(admin_tab, "Data Directory:", "Select directory which will be used to store user data if desired", admin_data_dir_var, 9, width=280, dialog_type=2, tooltiptxt="Specify a directory to store user data in.")
     makecheckbox(admin_tab, "Allow Model Download From HuggingFace", admin_allow_hf_var, 11, 0,tooltiptxt="Allows model downloading from HuggingFace within the Lite UI.")
+    makecheckbox(admin_tab, "SingleInstance Mode", singleinstance_var, 13, 0,tooltiptxt="Allows this server to be shut down by another KoboldCpp instance with singleinstance starting on the same port.")
 
     def kcpp_export_template():
         nonlocal kcpp_exporting_template
@@ -6169,6 +6211,7 @@ def show_gui():
         args.admintextmodelsdir = admin_text_model_dir_var.get()
         args.admindatadir = admin_data_dir_var.get()
         args.adminpassword = admin_password_var.get()
+        args.singleinstance = (singleinstance_var.get()==1)
         args.adminallowhf = (admin_allow_hf_var.get()==1 and not args.cli)
 
     def import_vars(dict):
@@ -6360,6 +6403,7 @@ def show_gui():
         admin_text_model_dir_var.set(dict["admintextmodelsdir"] if ("admintextmodelsdir" in dict and dict["admintextmodelsdir"]) else "")
         admin_data_dir_var.set(dict["admindatadir"] if ("admindatadir" in dict and dict["admindatadir"]) else "")
         admin_password_var.set(dict["adminpassword"] if ("adminpassword" in dict and dict["adminpassword"]) else "")
+        singleinstance_var.set(dict["singleinstance"] if ("singleinstance" in dict) else 0)
         admin_allow_hf_var.set(dict["adminallowhf"] if ("adminallowhf" in dict) else 0)
 
         importvars_in_progress = False
@@ -6931,7 +6975,7 @@ def downloader_internal(input_url, output_filename, capture_output, min_file_siz
             a2cexe = (os.path.join(basepath, "aria2c-win.exe"))
             if os.path.exists(a2cexe): #on windows try using embedded a2cexe
                 rc = subprocess.run([
-                        a2cexe, "-x", "16", "-s", "16", "--summary-interval=30", "--console-log-level=error", "--log-level=error",
+                        a2cexe, "-x", "16", "-s", "16", "--summary-interval=20", "--console-log-level=error", "--log-level=error",
                         "--download-result=default", "--allow-overwrite=true", "--file-allocation=none", "--max-tries=3", "-o", output_filename, input_url
                     ], capture_output=capture_output, text=True, check=True, encoding='utf-8')
                 dl_success = (rc.returncode == 0 and os.path.exists(output_filename) and os.path.getsize(output_filename) > min_file_size)
@@ -7173,7 +7217,7 @@ def main(launch_args, default_args):
                         if args.admin and args.admindir:
                             dirpath = os.path.abspath(args.admindir)
                             targetfilepath = os.path.join(dirpath, restart_target)
-                            if os.path.exists(targetfilepath):
+                            if os.path.exists(targetfilepath) or restart_target=="unload_model":
                                 print("Terminating old process...")
                                 global_memory["load_complete"] = False
                                 kcpp_instance.terminate()
@@ -7181,7 +7225,12 @@ def main(launch_args, default_args):
                                 kcpp_instance = None
                                 print("Restarting KoboldCpp...")
                                 fault_recovery_mode = True
-                                if targetfilepath.endswith(".gguf"):
+                                if restart_target=="unload_model":
+                                    reload_from_new_args(vars(default_args))
+                                    args.model_param = None
+                                    args.model = None
+                                    args.nomodel = True
+                                elif targetfilepath.endswith(".gguf"):
                                     reload_from_new_args(vars(default_args))
                                     args.model_param = targetfilepath
                                 else:
@@ -8025,6 +8074,7 @@ if __name__ == '__main__':
     compatgroup2 = parser.add_mutually_exclusive_group()
     compatgroup2.add_argument("--showgui", help="Always show the GUI instead of launching the model right away when loading settings from a .kcpps file.", action='store_true')
     compatgroup2.add_argument("--skiplauncher", help="Doesn't display or use the GUI launcher. Overrides showgui.", action='store_true')
+    advparser.add_argument("--singleinstance", help="Allows this KoboldCpp instance to be shut down by any new instance requesting the same port, preventing duplicate servers from clashing on a port.", action='store_true')
 
     hordeparsergroup = parser.add_argument_group('Horde Worker Commands')
     hordeparsergroup.add_argument("--hordemodelname", metavar=('[name]'), help="Sets your AI Horde display model name.", default="")

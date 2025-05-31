@@ -12,7 +12,7 @@
 
 #include "darts.h"
 #include "ggml_extend.hpp"
-#include "json.hpp"
+#include <nlohmann/json.hpp>
 #include "model.h"
 
 // Port from: https://github.com/google/sentencepiece/blob/master/src/unigram_model.h

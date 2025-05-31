@@ -2412,10 +2412,11 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
                 set_clip_uses_gpu(false);
                 printf("Clip forced to use CPU!\n");
             }
-            clp_ctx = clip_init(mmproj_filename.c_str(), clip_context_params{
+            clip_init_result cres = clip_init(mmproj_filename.c_str(), clip_context_params{
                 /* use_gpu */   true,
                 /* verbosity */ static_cast<ggml_log_level>(1),
             });
+            clp_ctx = cres.ctx_v;
             if(clp_ctx == nullptr) {
                 fprintf(stderr, "%s: error: failed to load mmproj model!\n", __func__);
                 return ModelLoadResult::FAIL;
