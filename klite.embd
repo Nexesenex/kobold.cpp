@@ -27504,8 +27504,10 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		}
 		else if (!!lastActions && lastActions.length > 0)
 		{
-			let firstElem = lastActions.splice(-1); 
-			let prevInput = (firstElem.source === "human" ? firstElem.msg.replace(new RegExp(`^${localsettings.chatname}:\\s*`), "") : ""); 
+			let humanActions = lastActions.reverse().filter(elem => elem.source === "human")
+			let prevInput = (humanActions.length > 0 ? humanActions[0].msg.replace(new RegExp(`^${localsettings.chatname}:\\s*`), "") : ""); 
+			// let firstElem = lastActions.splice(-1); 
+			// let prevInput = (firstElem.source === "human" ? firstElem.msg.replace(new RegExp(`^${localsettings.chatname}:\\s*`), "") : ""); 
 			if (!!prevInput)
 			{
 				initialPrompt = prevInput
@@ -27661,7 +27663,9 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			{
 				if (resp.trim() == "")
 				{
-					addThought(createSysPrompt, "Error - Empty response instead of action. Ensure all responses are valid JSON.", lastThoughtWasBlank)
+					// addThought(createSysPrompt, "Error - Empty response instead of action. Ensure all responses are valid JSON.", lastThoughtWasBlank)
+					isCompleted = true
+					hasAttemptedToCompleteOnce = true
 					continue
 				}
 				lastThoughtWasBlank = false
