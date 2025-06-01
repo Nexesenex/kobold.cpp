@@ -333,6 +333,7 @@ class MODEL_ARCH(IntEnum):
     CHATGLM          = auto()
     GLM4             = auto()
     BITNET           = auto()
+    BITNET_25        = auto()
     T5               = auto()
     T5ENCODER        = auto()
     JAIS             = auto()
