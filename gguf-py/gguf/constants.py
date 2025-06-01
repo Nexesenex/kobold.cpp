@@ -2338,6 +2338,16 @@ class LlamaFileType(IntEnum):
     MOSTLY_IQ5_KS_R4       = 341    #except 1d tensors
     MOSTLY_Q8_KV_R8        = 398    #except 1d tensors
     MOSTLY_Q8_K_R8         = 399    #except 1d tensors
+    MOSTLY_Q4_1_S          = 490   # except 1d tensors
+    MOSTLY_Q5_0_S          = 491   # except 1d tensors
+    MOSTLY_Q5_1_S          = 492   # except 1d tensors
+    MOSTLY_Q6_0_S          = 493   # except 1d tensors
+    MOSTLY_Q8_0_S          = 494   # except 1d tensors
+    MOSTLY_Q4_1_XS         = 495   # except 1d tensors
+    MOSTLY_Q5_0_XS         = 496   # except 1d tensors
+    MOSTLY_Q5_1_XS         = 497   # except 1d tensors
+    MOSTLY_Q6_0_XS         = 498   # except 1d tensors
+    MOSTLY_Q8_0_XS         = 499   # except 1d tensors
 
     GUESSED              = 1024  # not specified in the model file
 
