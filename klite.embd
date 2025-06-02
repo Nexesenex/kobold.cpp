@@ -28493,6 +28493,17 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 				{
 					return
 				}
+				else if (content.startsWith("data:text/"))
+				{
+					try
+					{
+						extractedText = atob(content.split(",")[1])
+					}
+					catch (e)
+					{
+						console.error(e)
+					}
+				}
 				else
 				{
 					extractedText = (await this.extractTextFromDocument(content))?.text
