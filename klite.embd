@@ -26249,6 +26249,7 @@ else
 			"enabled": false,
 			"outputVisibleToUser": true,
 			"executor": (action) => {
+				clearSuggestions()
 				let suggestions = action?.args?.suggestionsToPickFrom
 				if (!!suggestions && Array.isArray(suggestions)) {
 					try {
@@ -26292,6 +26293,7 @@ else
 			"executor": (action) => {
 				if (!!action?.args?.messages)
 				{
+					clearSuggestions()
 					action?.args?.messages.forEach(message => {
 						addThought(createAIPrompt, localsettings.inject_chatnames_instruct ? `${action?.args?.whoToSendMessageAs}: ${message}` : message)
 					})
@@ -27658,6 +27660,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 	let runAgentCycle = async (initialPrompt = undefined) => {
 		
+		clearSuggestions()
 		endCurrent = false
 		// gametext_arr = []
 		// render_gametext()
@@ -27738,8 +27741,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 		for (let i = 0; i < Number(localsettings.agentCOTMax) + 1 && (currentOrderOfActionsOverall.length === 0 || i < currentOrderOfActionsOverall.length + 1) && endCurrent === false; i++)
 		{
-			clearSuggestions()
-
 			let nextAction = []
 			let validCommands = getEnabledCommands(manualOverridesForEnabledCommands).map(command => command.name).filter(name => i != 0 || name != "stop_thinking")
 			if (i == 0)
