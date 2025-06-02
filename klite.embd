@@ -26687,7 +26687,7 @@ else
 							}
 							await waitForI2ILoop()
 							if (!!i2i64) {
-								generate_new_image(preparePromptForImageGen(prompt), i2i64, calcImageSizing(aspect))
+								generate_new_image(preparePromptForImageGen(prompt), i2i64, true, calcImageSizing(aspect))
 								addThought(createSysPrompt, `Image generated`)
 							}
 							else {
@@ -26698,7 +26698,7 @@ else
 						}
 						else
 						{
-							generate_new_image(preparePromptForImageGen(prompt), undefined, calcImageSizing(aspect))
+							generate_new_image(preparePromptForImageGen(prompt), undefined, true, calcImageSizing(aspect))
 							addThought(createSysPrompt, `Image generated`)
 						}
 					}
@@ -26737,7 +26737,7 @@ else
 						await waitForI2ILoop()
 						if (!!i2i64) {
 							let aspectI2I = action?.args?.aspect
-							generate_new_image(preparePromptForImageGen(i2iPrompt), i2i64, calcImageSizing(aspectI2I))
+							generate_new_image(preparePromptForImageGen(i2iPrompt), i2i64, true, calcImageSizing(aspectI2I))
 							addThought(createSysPrompt, `Image generated`)
 						}
 						else {
