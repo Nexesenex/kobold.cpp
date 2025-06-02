@@ -14780,6 +14780,7 @@ Current version indicated by LITEVER below.
 					};
 				}).catch((error) => {
 					console.log("XTTS Speak Error: " + error);
+					ttsIsBeingGenerated = false
 				});
 			}
 			else if(is_pollinations_tts)
@@ -14823,6 +14824,7 @@ Current version indicated by LITEVER below.
 					};
 				}).catch((error) => {
 					console.log("Pollinations Speak Error: " + error);
+					ttsIsBeingGenerated = false
 				});
 			}
 			else if(xtts_is_connected)
@@ -14869,6 +14871,7 @@ Current version indicated by LITEVER below.
 						xtts_is_playing = false;
 						update_submit_button(false);
 						console.log("XTTS Speak Error: " + error);
+						ttsIsBeingGenerated = false
 					});
 				}
 				else
@@ -14922,6 +14925,7 @@ Current version indicated by LITEVER below.
 							console.log("AllTalk v2 Speak Error:", data);
 							xtts_is_playing = false;
 							update_submit_button(false);
+							ttsIsBeingGenerated = false
 						});
 
 					} else {
@@ -14974,17 +14978,20 @@ Current version indicated by LITEVER below.
 											console.log("AllTalk v2 Speak Error:", data);
 											xtts_is_playing = false;
 											update_submit_button(false);
+											ttsIsBeingGenerated = false
 										});
 									} else {
 										console.log("AllTalk Generation Error:", data);
 										xtts_is_playing = false;
 										update_submit_button(false);
+										ttsIsBeingGenerated = false
 									}
 								})
 								.catch((error) => {
 									console.log("AllTalk Request Error:", error);
 									xtts_is_playing = false;
 									update_submit_button(false);
+									ttsIsBeingGenerated = false
 								});
 							}
 							else //alltalk v1 audio
@@ -15004,12 +15011,14 @@ Current version indicated by LITEVER below.
 									console.log("AllTalk v1 Speak Error: " + error);
 									xtts_is_playing = false;
 									update_submit_button(false);
+									ttsIsBeingGenerated = false
 								});
 							}
 						}).catch((error) => {
 							console.log("AllTalk Non-Stream Req Error: " + error);
 							xtts_is_playing = false;
 							update_submit_button(false);
+							ttsIsBeingGenerated = false
 						});
 					}
 				}
@@ -15024,6 +15033,7 @@ Current version indicated by LITEVER below.
 				window.speechSynthesis.speak(utterance);
 				utterance.onend = function(event) {
 					update_submit_button(false);
+					ttsIsBeingGenerated = false
 				};
 			}
 		}
@@ -27867,14 +27877,24 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 					let action = json
 					recentActions.push(json)
-					if (wordCountEnabled && !!action?.command?.args?.message && typeof action?.command?.args?.message === "string")
+
+					let actionSummary = []
+					if (wordCountEnabled && !!action?.command?.args?.messages)
 					{
-						addThought(createAIPrompt, `Action taken (words = ${action?.command?.args?.message.split(/\s/g).filter(s => s.length > 0).length}):\n\n${actionToText(action?.command).trim()}`)
+						let wordCount = action?.command?.args?.messages.flatMap(str => str.split(/\s/g).filter(s => s.length > 0)).length
+						actionSummary.push(`Action taken (words = ${wordCount}):`)
 					}
 					else
 					{
-						addThought(createAIPrompt, `Action taken:\n\n${actionToText(action?.command).trim()}`)
+						actionSummary.push(`Action taken:`)
 					}
+
+					if (i > 0)
+					{
+						actionSummary.push(`Aim: ${promptOverview}`)
+					}
+					actionSummary.push(`${actionToText(action?.command, ).trim()}`)
+					addThought(createAIPrompt, actionSummary.join("\n\n"))
 					
 					let isCompleted = false;
 					let command = [...getReasoningCommand(), ...getCommands()].find(command => command.name === action.command.name)
