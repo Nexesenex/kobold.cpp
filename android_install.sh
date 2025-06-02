@@ -86,7 +86,9 @@ else
     make -j 2
 fi
 
-if [[ ! -e "$SCRIPT_DIR/Default.kcpps" ]]; then
+if [ -f "$KOBOLDCPP_DIR/Default.kcpps" ]; then
+    echo "[*] Found default config — skipping creation of config."
+else
     echo "[*] Adding default config"
     echo -e '{}' >> Default.kcpps
 fi
