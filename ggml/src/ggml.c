@@ -134,7 +134,7 @@ static void ggml_print_backtrace_symbols(void) {
 }
 #endif
 
-static void ggml_print_backtrace(void) {
+void ggml_print_backtrace(void) {
     const char * GGML_NO_BACKTRACE = getenv("GGML_NO_BACKTRACE");
     if (GGML_NO_BACKTRACE) {
         return;
@@ -161,6 +161,10 @@ static void ggml_print_backtrace(void) {
     const int parent_pid = getpid();
     const int child_pid = fork();
     if (child_pid < 0) { // error
+#if defined(__linux__)
+        close(lock[1]);
+        close(lock[0]);
+#endif
         return;
     } else if (child_pid == 0) { // child
         char attach[32];
@@ -168,6 +172,7 @@ static void ggml_print_backtrace(void) {
 #if defined(__linux__)
         close(lock[1]);
         (void) !read(lock[0], lock, 1);
+        close(lock[0]);
 #endif
         // try gdb
         execlp("gdb", "gdb", "--batch",
@@ -196,7 +201,7 @@ static void ggml_print_backtrace(void) {
     }
 }
 #else
-static void ggml_print_backtrace(void) {
+void ggml_print_backtrace(void) {
     // platform not supported
 }
 #endif
@@ -216,6 +221,8 @@ void ggml_abort(const char * file, int line, const char * fmt, ...) {
     ggml_print_backtrace();
     abort();
 }
+
+// ggml_print_backtrace is registered with std::set_terminate by ggml.cpp
 
 //
 // logging

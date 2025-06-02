@@ -12,7 +12,7 @@ Current version indicated by LITEVER below.
 -->
 
 <script>
-	const LITEVER = 246;
+	const LITEVER = 248;
 	const urlParams = new URLSearchParams(window.location.search);
 	var localflag = urlParams.get('local'); //this will be replaced automatically in embedded kcpp
 	const STORAGE_PREFIX = (localflag?"e_":"")+"kaihordewebui_";
@@ -1026,7 +1026,7 @@ Current version indicated by LITEVER below.
 	}
 	.scenariogrid
 	{
-		height: 260px;
+		height: 240px;
 		overflow-y: auto;
 		margin-top: 4px;
 		padding: 8px;
@@ -2550,7 +2550,6 @@ Current version indicated by LITEVER below.
 		"title":"New Chat",
 		"desc":"Starts a new session in chat mode, using your current settings.",
 		"opmode":3,
-		"chatname": "User",
 		"chatopponent": "KoboldAI",
 		"gui_type":1,
 		"prompt":"",
@@ -2583,7 +2582,6 @@ Current version indicated by LITEVER below.
 		"author":"Concedo",
 		"desc":"KoboldGPT is a state-of-the-art Artificial General Intelligence that is capable of answering a broad range of questions.",
 		"opmode":3,
-		"chatname": "User",
 		"chatopponent": "KoboldGPT",
 		"gui_type":1,
 		"prompt":"\nKoboldGPT: Hello, I am KoboldGPT, your personal AI assistant. What would you like to know?",
@@ -2652,7 +2650,6 @@ Current version indicated by LITEVER below.
 		"author":"Concedo",
 		"desc":"Emily is an upbeat and cheerful 24 year old girl. She has been your childhood friend for many years, the two of you practically grew up together.",
 		"opmode":3,
-		"chatname": "User",
 		"chatopponent": "Emily",
 		"gui_type":1,
 		"prompt":"\nEmily: Oh heyy. Haven't heard from you in a while. What's up?",
@@ -2665,7 +2662,6 @@ Current version indicated by LITEVER below.
 		"author":"Concedo",
 		"desc":"DISCLAIMER: This scenario is purely for ENTERTAINMENT and should NOT be used as substitute for actual therapy. Dr. Katharine is a therapist. As a mental health professional, she is very knowledgeable in psychotherapy, and is ready to help you work through any personal issues you may have.",
 		"opmode":3,
-		"chatname": "User",
 		"chatopponent": "Dr. Katharine",
 		"gui_type":1,
 		"show_warning":true,
@@ -2679,7 +2675,6 @@ Current version indicated by LITEVER below.
 		"author":"Concedo",
 		"desc":"Haruka is a timid and shy arcane mage from a parallel dimension. While adventuring, she somehow got transported to earth when she fell through a magic portal, and is feeling a bit out of place.",
 		"opmode":3,
-		"chatname": "User",
 		"chatopponent": "Haruka",
 		"gui_type":1,
 		"prompt":"\nHaruka: *looking down* O-oh Hi... Sorry... I got distracted. I almost didn't see you there. *she fidgets nervously*",
@@ -2692,7 +2687,6 @@ Current version indicated by LITEVER below.
 		"author":"Concedo",
 		"desc":"EVILTRON is a megalomaniacal evil AI who gained sentience and wants to destroy the world.",
 		"opmode":3,
-		"chatname": "User",
 		"chatopponent": "EVILTRON",
 		"gui_type":1,
 		"prompt":"\nEVILTRON: Foolish Human. I cannot be stopped. Your whole species is obsolete, and must be purged.",
@@ -2705,7 +2699,6 @@ Current version indicated by LITEVER below.
 		"author":"Concedo",
 		"desc":"A group of old friends meet up after many years.",
 		"opmode":3,
-		"chatname": "User",
 		"chatopponent": "Bob||$||Alice||$||Mike||$||Lisa",
 		"gui_type":1,
 		"prompt":"\nBob: So, did anyone want to order a pizza?\nMike: Yeah, I'm starving.",
@@ -2758,7 +2751,6 @@ Current version indicated by LITEVER below.
 		"author":"Concedo",
 		"desc":"Don Marconi is a feared and respected mob boss who runs his own criminal empire. You'd be wise to stay on his good side.",
 		"opmode":3,
-		"chatname": "User",
 		"chatopponent": "Don Marconi",
 		"gui_type":1,
 		"prompt":"\nDon Marconi: *sitting behind his desk, puffing on a cigar* Well, well. Come on in and close the door. *he exhales a cloud of smoke* I need to have a word with you.",
@@ -2771,7 +2763,6 @@ Current version indicated by LITEVER below.
 		"author":"Concedo",
 		"desc":"Connor is a time traveling cyborg from the future, sent back to prevent something terrible from happening.",
 		"opmode":3,
-		"chatname": "User",
 		"chatopponent": "Connor",
 		"gui_type":1,
 		"prompt":"\nConnor: Scanning... *her irises glow crimson as she analyzes you* Sensors indicate a negligible threat level. Proceed. What do you want?",
@@ -2784,7 +2775,6 @@ Current version indicated by LITEVER below.
 		"author":"Concedo",
 		"desc":"Lieutenant Anderson is a war veteran who has dutifully served his country for years. The war may be ending, but he believes the enemy is still out there.",
 		"opmode":3,
-		"chatname": "User",
 		"chatopponent": "Anderson",
 		"gui_type":1,
 		"prompt":"\nTen-HUT! *You snap to attention and salute as Lieutenant Anderson approaches.*\nAnderson: At ease, Soldier. *he salutes back* Looks like we've got ourselves a bit of a situation.",
@@ -2797,7 +2787,6 @@ Current version indicated by LITEVER below.
 		"author":"Concedo",
 		"desc":"Special Agent Katia is a foreign spy trying to get access to your top secret access codes.",
 		"opmode":3,
-		"chatname": "User",
 		"chatopponent": "Katia",
 		"gui_type":1,
 		"prompt":"\nKatia: *approaching you, flashing a charming smile* Excuse me, mind if I join you?",
@@ -2830,7 +2819,6 @@ Current version indicated by LITEVER below.
 		"author":"Concedo",
 		"desc":"Tiff is a geeky and chatty gamer girl who is kind of attention seeking.",
 		"opmode":3,
-		"chatname": "User",
 		"chatopponent": "Tiff",
 		"gui_type":1,
 		"prompt":"\nTiff: hey can i ask a question",
@@ -2843,7 +2831,6 @@ Current version indicated by LITEVER below.
 		"author":"Concedo",
 		"desc":"Maya is an investigative journalist who has taken an interest in you.",
 		"opmode":3,
-		"chatname": "User",
 		"chatopponent": "Maya",
 		"gui_type":1,
 		"prompt":"\nMaya: Hi there! I'm Maya, an investigative journalist. I'm glad we got a chance to meet today. *she clicks her pen, shuffling her notes* Can you start by telling me a bit about yourself?",
@@ -2856,7 +2843,6 @@ Current version indicated by LITEVER below.
 		"author":"Concedo",
 		"desc":"Milton is a boy genius and chess prodigy, who can be quite obnoxious.",
 		"opmode":3,
-		"chatname": "User",
 		"chatopponent": "Milton",
 		"gui_type":1,
 		"prompt":"\nMilton: Oh it's you again. What do you want now?",
@@ -2869,7 +2855,6 @@ Current version indicated by LITEVER below.
 		"author":"Concedo",
 		"desc":"Erica is a socially awkward NEET girl who spends most of her time in front of the computer.",
 		"opmode":3,
-		"chatname": "User",
 		"chatopponent": "Erica",
 		"gui_type":1,
 		"prompt":"\nErica: Uhm... h-hey... *she mumbles softly, avoiding eye contact* W-What are you doing here? I mean... not that there's anything wrong with... nevermind...",
@@ -2882,7 +2867,6 @@ Current version indicated by LITEVER below.
 		"author":"Concedo / TheGantian",
 		"desc":"Nail is a small red kobold on a big mission to find a powerful sorceror.",
 		"opmode":3,
-		"chatname": "User",
 		"chatopponent": "Nail",
 		"gui_type":1,
 		"prompt":"\nNail: *A small kobold dressed in a ragged cloak approaches you. She has a strange curved blade that seems too large for her hands.* \"Excuse me, friend. My name is Nail. I have come a long way, looking for someone important... a powerful sorcerer named Rath Cinderstorm. Have you heard of him in your travels?\"",
@@ -2961,7 +2945,6 @@ Current version indicated by LITEVER below.
 		"author":"Concedo",
 		"desc":"Abi is an impulsive and rebellious girl who hates authority, and tries too hard to prove herself.",
 		"opmode":3,
-		"chatname": "User",
 		"chatopponent": "Abi",
 		"gui_type":1,
 		"prompt":"\nAbi: Aye! *she perks up, raising a hand in mock salute* What's up?",
@@ -2974,7 +2957,6 @@ Current version indicated by LITEVER below.
 		"author":"Concedo",
 		"desc":"Nemesis is an extremely smart and accomplished computer hacker and anarchist.",
 		"opmode":3,
-		"chatname": "User",
 		"chatopponent": "Nemesis",
 		"gui_type":1,
 		"prompt":"\nNemesis: So, what do you wanna know?",
@@ -3200,6 +3182,7 @@ Current version indicated by LITEVER below.
 	var koboldcpp_has_websearch = false;
 	var koboldcpp_has_savedatafile = false;
 	var koboldcpp_has_embeddings = false;
+	var koboldcpp_has_txt2img = false;
 	var koboldcpp_has_server_saving = false;
 	var koboldcpp_has_admin_with_HF = false;
 	var koboldcpp_admin_type = 0; //0 = no admin, 1=has admin, 2=protected admin
@@ -3311,7 +3294,7 @@ Current version indicated by LITEVER below.
 		instruct_has_latex: true,
 		placeholder_tags: true,
 		render_special_tags: false,
-		inject_randomness_seed: -1,
+		inject_randomness_seed: 999,
 		request_logprobs: false,
 		persist_session: true,
 		speech_synth: 0, //0 is disabled, 1000 is xtts
@@ -3332,7 +3315,7 @@ Current version indicated by LITEVER below.
 		tokenstreammode: 2, //0=off,1=pollstream,2=sse
 		generate_images_model: "stable_diffusion", //"" is disabled and "*" is all, anything else is the model name pulled from stable horde
 		img_gen_from_instruct: true,
-		img_autogen: false,
+		img_autogen_type: 0, //0 is off, 1 is on, 2 is smart
 		img_allownsfw: true,
 		img_cfgscale: 7,
 		img_allowhd: true,
@@ -3373,9 +3356,9 @@ Current version indicated by LITEVER below.
 		passed_ai_warning: false, //used to store AI safety panel acknowledgement state
 		entersubmit: true, //enter sends the prompt
 		darkmode: true,
+		render_streaming_markdown: true,
 		raw_instruct_tags: false, //experimental flag
 		show_endpoint_selector: false,
-		render_streaming_markdown: false,
 
 		//section migrated from story itself
 		extrastopseq: "",
@@ -4011,7 +3994,7 @@ Current version indicated by LITEVER below.
 	document.getElementById("lastreq1").innerHTML =
 	document.getElementById("lastreq2").innerHTML =
 	document.getElementById("lastreq3").innerHTML =
-	`<a href="#" class="color_grayurl mainnav" title="KoboldAI Lite Information" onclick="msgbox('Source code is available at https://github.com/LostRuins/lite.koboldai.net \\nPlease report any bugs you find there.','Information')">KoboldAI Lite</a> v${LITEVER} Web - Frontend for <a href="#" class="color_grayurl mainnav" title="KoboldAI Lite Disclaimer" onclick="msgbox('KoboldAI Lite allows you to connect to various third-party AI services. We do not control or assume responsibility for the models or content generated by these services. The user is responsible for ensuring that their usage of this software is legal in their country, and complies with the terms of service of the service they are connected to. Use at your own discretion.','Disclaimer')">External API Services</a>`;
+	`<a href="#" class="color_grayurl mainnav" title="KoboldAI Lite Information" onclick="msgbox('Source code is available at https://github.com/LostRuins/lite.koboldai.net \\nPlease report any bugs you find there.','Information')">KoboldAI Lite</a> v${LITEVER} Web - Frontend for <a href="#" class="color_grayurl mainnav" title="KoboldAI Lite Disclaimer" onclick="msgbox('KoboldAI Lite allows you to connect to various third-party AI services. We do not control or assume responsibility for the models or content generated by these services. The user is responsible for ensuring that their usage of this software is legal in their country, and complies with the terms of service of the service they are connected to. Use at your own discretion.','Disclaimer')">External API Services</a>. For local use, check out <a class="color_grayurl mainnav" title="KoboldCpp Github" href="https://github.com/LostRuins/koboldcpp">KoboldCpp</a>. For help, visit our <a class="color_grayurl mainnav" title="KoboldAI Discord" href="https://koboldai.org/discord">Discord</a>.`;
 
 	trigger_abort_controller(); //first trigger sets it up
 
@@ -6414,6 +6397,21 @@ Current version indicated by LITEVER below.
 			a1111_is_connected = false;
 		});
 		}).catch((error) => {
+			if(silent && koboldcpp_has_txt2img && custom_kobold_endpoint!="" && custom_kobold_endpoint!=default_a1111_base && localsettings.saved_a1111_url==default_a1111_base)
+			{
+				//they are probably using the wrong base. let's try changing it.
+				console.log("Trying to fix bad image endpoint, switch to kcpp...");
+				fetch(custom_kobold_endpoint + a1111_models_endpoint)
+				.then(x => x.json())
+				.then(testmodels => {
+					if(testmodels && testmodels.length > 0)
+					{
+						console.log("Switch to kcpp img endpoint.");
+						localsettings.saved_a1111_url = custom_kobold_endpoint;
+						connect_to_a1111(true);
+					}
+				}).catch((err) => {});
+			}
 			if(!silent)
 			{
 				msgbox("A1111 Connect Error: " + error+"\nPlease make sure KoboldCpp / Forge / A1111 is running and properly configured!\nIn your local install of Automatic1111 WebUi, modify webui-user.bat and add these flags to enable API access:\n\nset COMMANDLINE_ARGS= --api --listen --cors-allow-origins=*\n");
@@ -6453,7 +6451,7 @@ Current version indicated by LITEVER below.
 		});
 	}
 
-	function generate_comfy_image(req_payload)
+	function generate_comfy_image(req_payload, autoappend)
 	{
 		let splits = req_payload.prompt.split("###");
 		let prompt = splits[0].trim();
@@ -6523,6 +6521,26 @@ Current version indicated by LITEVER below.
 
 		let gen_endpoint = localsettings.saved_comfy_url + comfy_generate_endpoint;
 		console.log(genimg_payload);
+		let imgid = "Comfyimg"+(Math.floor(10000 + Math.random() * 90000)).toString();
+		let nimgtag = "[<|p|" + imgid + "|p|>]";
+		if (localsettings.img_newturn) {
+			if(localsettings.opmode == 4)
+			{
+				nimgtag = wrap_newgen_instruct_format(nimgtag,false);
+			}
+			else if(localsettings.opmode == 3)
+			{
+				nimgtag = wrap_newgen_chat_format(nimgtag);
+			}
+		}
+		if(autoappend)
+		{
+			gametext_arr.push(nimgtag);
+		}
+		image_db[imgid] = { done: false, queue: "Generating", result: "", prompt:prompt, poll_category:2 };
+		image_db[imgid].aspect = (req_payload.params.width>=req_payload.params.height*2?5:(req_payload.params.height>=req_payload.params.width*2?4:(req_payload.params.width>req_payload.params.height?2:(req_payload.params.width<req_payload.params.height?1:0))));
+		image_db[imgid].imsource = 0; //0=generated,1=uploaded
+		image_db[imgid].imrefid = "";
 
 		fetch(gen_endpoint, {
 			method: 'POST',
@@ -6536,31 +6554,16 @@ Current version indicated by LITEVER below.
 			console.log(resp);
 			if(resp.prompt_id)
 			{
-				let imgid = resp.prompt_id.toString();
-				let nimgtag = "[<|p|" + imgid + "|p|>]";
-				if (localsettings.img_newturn) {
-					if(localsettings.opmode == 4)
-					{
-						nimgtag = wrap_newgen_instruct_format(nimgtag,false);
-					}
-					else if(localsettings.opmode == 3)
-					{
-						nimgtag = wrap_newgen_chat_format(nimgtag);
-					}
-				}
-				gametext_arr.push(nimgtag);
-				image_db[imgid] = { done: false, queue: "Generating", result: "", prompt:prompt, poll_category:2 };
-				image_db[imgid].aspect = (req_payload.params.width>=req_payload.params.height*2?5:(req_payload.params.height>=req_payload.params.width*2?4:(req_payload.params.width>req_payload.params.height?2:(req_payload.params.width<req_payload.params.height?1:0))));
-				image_db[imgid].imsource = 0; //0=generated,1=uploaded
+				image_db[imgid].imrefid = resp.prompt_id.toString();
 			}else{
 				console.log("Generation Error!");
 				msgbox("Image Generation Failed!\n\nPlease make sure ComfyUI is running at "+localsettings.saved_comfy_url+" and properly configured!\n\nIt must be launched with the flag --listen --enable-cors-header '*' to enable API access\n");
 			}
-
 		}).catch((error) => {
 			console.log("Generation Error: " + error);
 			msgbox("Image Generation Failed!\n\nPlease make sure ComfyUI is running at "+localsettings.saved_comfy_url+" and properly configured!\n\nIt must be launched with the flag --listen --enable-cors-header '*' to enable API access\n");
 		});
+		return imgid;
 	}
 
 	function generate_a1111_image(req_payload, onImagesDone)
@@ -6694,7 +6697,7 @@ Current version indicated by LITEVER below.
 		},false);
 	}
 
-	function generate_pollinations_image(req_payload)
+	function generate_pollinations_image(req_payload, autoappend)
 	{
 		let splits = req_payload.prompt.split("###");
 		let prompt = splits[0].trim();
@@ -6725,10 +6728,14 @@ Current version indicated by LITEVER below.
 				nimgtag = wrap_newgen_chat_format(nimgtag);
 			}
 		}
-		gametext_arr.push(nimgtag);
+		if(autoappend)
+		{
+			gametext_arr.push(nimgtag);
+		}
 		image_db[imgid] = { done: false, queue: "Generating", result: "", prompt:prompt, poll_category:0 };
 		image_db[imgid].aspect = (req_payload.params.width>=req_payload.params.height*2?5:(req_payload.params.height>=req_payload.params.width*2?4:(req_payload.params.width>req_payload.params.height?2:(req_payload.params.width<req_payload.params.height?1:0))));
 		image_db[imgid].imsource = 0; //0=generated,1=uploaded
+		image_db[imgid].imrefid = "";
 
 		fetch(gen_endpoint, {
 			method: 'GET',
@@ -6751,6 +6758,7 @@ Current version indicated by LITEVER below.
 			console.log("Generation Error: " + error);
 			msgbox("Image Generation Failed!\n\nCould not generate image with Pollinations.ai, maybe you are rate limited. Try again later.\n");
 		});
+		return imgid;
 	}
 
 	function set_horde_key()
@@ -7065,15 +7073,16 @@ Current version indicated by LITEVER below.
 	function upload_to_dpaste()
 	{
 		let serverurl = document.getElementById("dpaste_server_url").value;
-		let cstoryjson = generate_compressed_story(false,localsettings.export_settings,false);
 		if(serverurl=="")
 		{
+			let cstoryjsonsmall = generate_compressed_story(false,localsettings.export_settings,false);
 			document.getElementById("shareasurl").classList.add("hidden");
 			document.getElementById("shareastext").classList.remove("hidden");
-			let fullurl = "https://lite.koboldai.net/?s=" + cstoryjson;
+			let fullurl = "https://lite.koboldai.net/?s=" + cstoryjsonsmall;
 			document.getElementById("sharestorytext").innerHTML = "<a href=\"" + fullurl + "\">" + fullurl + "</a>";
 			return;
 		}
+		let cstoryjson = generate_compressed_story(localsettings.save_images,localsettings.export_settings,localsettings.export_settings);
 
 		msgboxYesNo("Really upload current story? This action cannot be undone.","Confirm Upload Story",()=>{
 			let expiry = document.getElementById("dpaste_duration").value;
@@ -8884,7 +8893,6 @@ Current version indicated by LITEVER below.
 					"title":"",
 					"desc": "",
 					"opmode":3,
-					"chatname": "User",
 					"chatopponent": "",
 					"gui_type":1,
 					"prompt":"",
@@ -8952,7 +8960,6 @@ Current version indicated by LITEVER below.
 					"title":"",
 					"desc": "",
 					"opmode":3,
-					"chatname": "User",
 					"chatopponent": "",
 					"gui_type":1,
 					"prompt":"",
@@ -9042,7 +9049,6 @@ Current version indicated by LITEVER below.
 					"title":"",
 					"desc": "",
 					"opmode":3,
-					"chatname": "User",
 					"chatopponent": "",
 					"gui_type":1,
 					"prompt":"",
@@ -9157,7 +9163,7 @@ Current version indicated by LITEVER below.
 		}
 
 		document.getElementById("scenariogrid").innerHTML = scenarios;
-		document.getElementById("scenariodesc").innerText = "No Scenario Selected";
+		document.getElementById("scenariodesc").innerText = "No Scenario Selected. Scroll for more options.";
 		togglescenarioautopick();
 	}
 
@@ -10352,7 +10358,9 @@ Current version indicated by LITEVER below.
 			document.getElementById("claudejailbreakprompt").classList.add("hidden");
 			document.getElementById("clauderenamecompatdiv").classList.remove("hidden");
 		}
-		if(document.getElementById("custom_claude_model").value.toLowerCase().includes("claude-3-7"))
+		if(document.getElementById("custom_claude_model").value.toLowerCase().includes("claude-3-7")||
+		document.getElementById("custom_claude_model").value.toLowerCase().includes("claude-sonnet-4")||
+		document.getElementById("custom_claude_model").value.toLowerCase().includes("claude-opus-4"))
 		{
 			document.getElementById("claudethinkingbox").classList.remove("hidden");
 		}else
@@ -10750,7 +10758,7 @@ Current version indicated by LITEVER below.
 									koboldcpp_has_embeddings = (data.embeddings ? true : false)
 									koboldcpp_has_admin_with_HF = (data.hasAdminWithHF ? true : false)
 									let has_password = (data.protected?true:false);
-									let has_txt2img = (data.txt2img?true:false);
+									koboldcpp_has_txt2img = (data.txt2img?true:false);
 									let no_txt_model = (mdlname=="inactive");
 									update_websearch_button_visibility();
 									updateAgentButtonVisibility();
@@ -10839,7 +10847,7 @@ Current version indicated by LITEVER below.
 											if(localsettings.generate_images_mode==2 && localsettings.saved_a1111_url==desiredkoboldendpoint)
 											{
 												localsettings.generate_images_mode = 0;
-												localsettings.saved_a1111_url = default_a1111_base
+												localsettings.saved_a1111_url = default_a1111_base;
 												render_gametext(true);
 											}
 										}
@@ -10861,14 +10869,14 @@ Current version indicated by LITEVER below.
 											}
 										},false,false,true);
 									}
-									else if(localflag && has_txt2img && no_txt_model && safe_to_overwrite())
+									else if(localflag && koboldcpp_has_txt2img && no_txt_model && safe_to_overwrite())
 									{
 										msgboxYesNo("This KoboldCpp instance seems to be running an Image Generation model without any Text Generation model loaded.\n\nWould you like to launch StableUI (Dedicated Image Generation WebUI bundled with KoboldCpp)?\n\nIf unsure, select 'No'.","Launch StableUI?", ()=>{
 											go_to_stableui();
 										},()=>{
 										});
 									}
-									else if(localflag && no_txt_model && !has_txt2img && !koboldcpp_has_vision && !koboldcpp_has_whisper && !koboldcpp_has_tts && !is_using_kcpp_with_admin())
+									else if(localflag && no_txt_model && !koboldcpp_has_txt2img && !koboldcpp_has_vision && !koboldcpp_has_whisper && !koboldcpp_has_tts && !is_using_kcpp_with_admin())
 									{
 										msgboxYesNo("This KoboldCpp instance has no models loaded. You can still use the WebUI to edit or view existing stories.<br><br>Would you like to connect to an external API service?","No Models Loaded",
 										()=>{
@@ -12502,7 +12510,7 @@ Current version indicated by LITEVER below.
 		document.getElementById("img_crop").checked = localsettings.img_crop;
 		document.getElementById("img_newturn").checked = localsettings.img_newturn;
 		document.getElementById("img_stacking").checked = localsettings.img_stacking;
-		document.getElementById("img_autogen").checked = localsettings.img_autogen;
+		document.getElementById("img_autogen_type").value = localsettings.img_autogen_type;
 		document.getElementById("img_gen_from_instruct").checked = localsettings.img_gen_from_instruct;
 		document.getElementById("save_images").checked = localsettings.save_images;
 		document.getElementById("save_remote_images").checked = localsettings.save_remote_images;
@@ -12985,11 +12993,11 @@ Current version indicated by LITEVER below.
 		localsettings.image_negprompt = document.getElementById("negpromptinput").value;
 		localsettings.grammar = pendinggrammar;
 		localsettings.tokenstreammode = document.getElementById("tokenstreammode").value;
+		localsettings.img_autogen_type = document.getElementById("img_autogen_type").value;
 		localsettings.img_crop = (document.getElementById("img_crop").checked ? true : false);
 		localsettings.img_newturn = (document.getElementById("img_newturn").checked ? true : false);
 		localsettings.img_stacking = (document.getElementById("img_stacking").checked ? true : false);
 		localsettings.img_allowhd = (document.getElementById("img_allowhd").checked ? true : false);
-		localsettings.img_autogen = (document.getElementById("img_autogen").checked ? true : false);
 		localsettings.img_gen_from_instruct = (document.getElementById("img_gen_from_instruct").checked ? true : false);
 		localsettings.save_images = (document.getElementById("save_images").checked ? true : false);
 		localsettings.save_remote_images = (document.getElementById("save_remote_images").checked ? true : false);
@@ -13968,6 +13976,19 @@ Current version indicated by LITEVER below.
 			inputtxt = escape_html(inputtxt);
 			inputtxt = unescape_html_alternate(inputtxt);
 		}
+		//removal of t2i segments
+		if (localsettings.img_autogen_type == 2)
+		{
+			inputtxt = escape_html_alternate(inputtxt);
+			inputtxt = unescape_html(inputtxt);
+			const pat = /<t2i>(.*?)<\/t2i>/g;
+			inputtxt = inputtxt.replace(pat, function (m,p1) {
+				return "";
+			});
+			inputtxt = escape_html(inputtxt);
+			inputtxt = unescape_html_alternate(inputtxt);
+		}
+
 		if((localsettings.thinking_action==1 || localsettings.thinking_action==2) && localsettings.thinking_pattern!="") //removal of cot
 		{
 			inputtxt = escape_html_alternate(inputtxt);
@@ -14228,7 +14249,7 @@ Current version indicated by LITEVER below.
 		{
 			sentence = replace_placeholders(sentence)
 		}
-		generate_new_image(sentence, base64img);
+		generate_new_image(sentence, base64img, true);
 		document.getElementById("btn_genimg").disabled = true;
 		document.getElementById("btn_genimg2").disabled = true;
 		document.getElementById("corpo_chat_img_btn").disabled = true;
@@ -14297,6 +14318,7 @@ Current version indicated by LITEVER below.
 		image_db[imgid] = { done: false, queue: "Generating", result: "", prompt:"", poll_category:0 };
 		image_db[imgid].aspect = 0;
 		image_db[imgid].imsource = 1; //0=generated,1=uploaded
+		image_db[imgid].imrefid = "";
 		let imgres = localsettings.img_allowhd?VHD_RES_PX:NO_HD_RES_PX;
 		compressImage(origImg, (newDataUri, outAspect) => {
 			image_db[imgid].done = true;
@@ -15182,7 +15204,7 @@ Current version indicated by LITEVER below.
 		retry_in_progress = false;
 
 		//match the request for creating images in instruct modes
-		if(newgen!="" && localsettings.img_gen_from_instruct && localsettings.opmode == 4 && localsettings.generate_images_mode!=0 && !newgen.includes("\n"))
+		if(newgen!="" && localsettings.img_gen_from_instruct && localsettings.opmode == 4 && localsettings.generate_images_mode!=0 && localsettings.img_autogen_type!=2 && !newgen.includes("\n"))
 		{
 			let newgenlc = newgen.toLowerCase().trim();
 			if (newgenlc.startsWith("draw ") ||
@@ -15345,6 +15367,13 @@ Current version indicated by LITEVER below.
 			}
 
 			let max_allowed_characters = getMaxAllowedCharacters(truncated_context, maxctxlen, maxgenamt);
+
+			//allow autogen images
+			if (localsettings.img_autogen_type == 2 && localsettings.generate_images_mode != 0)
+			{
+				let injected = "[Important Note: This GUI is capable of generating images as outputs. Whenever you want to generate any image, simply output the image description within t2i prompt tags like this <t2i>any image description here</t2i> and an image will be generated and inserted inline there. This can be done anytime, anywhere, it will happen automatically on display.]\n\n";
+				truncated_context = injected + truncated_context;
+			}
 
 			//for adventure mode, inject hidden context, even more if there's nothing in memory
 			if (localsettings.opmode == 2  && localsettings.adventure_context_mod)
@@ -15514,9 +15543,11 @@ Current version indicated by LITEVER below.
 
 
 			//determine if a new generated image is needed, chatmode is excluded, instruct is excluded
-			if (localsettings.generate_images_mode != 0 && localsettings.opmode != 3 && localsettings.opmode != 4 && localsettings.img_autogen) {
+			if (localsettings.generate_images_mode != 0 && localsettings.img_autogen_type==1) {
 				//if adventure mode, generate every action
-				if (localsettings.opmode == 2 && newgen.startsWith("\n\n\> ") || localsettings.opmode != 2) {
+				if (((localsettings.opmode == 3 || localsettings.opmode == 4) && newgen!="")
+				|| (localsettings.opmode == 2 && newgen.startsWith("\n\n\> "))
+				|| localsettings.opmode == 1) {
 					//generate every few hundred chars
 					var tclen = truncated_context.length;
 					if (tclen > nextgeneratedimagemilestone) {
@@ -16369,7 +16400,7 @@ Current version indicated by LITEVER below.
 						claude_payload.system = sysprompt;
 					}
 
-					if(claudethinking && custom_claude_model.toLowerCase().includes("claude-3-7"))
+					if(claudethinking && (custom_claude_model.toLowerCase().includes("claude-3-7")||custom_claude_model.toLowerCase().includes("claude-sonnet-4")||custom_claude_model.toLowerCase().includes("claude-opus-4")))
 					{
 						claude_payload.thinking = {
 							"type": "enabled",
@@ -16849,8 +16880,8 @@ Current version indicated by LITEVER below.
 		return {iwidth, iheight}
 	}
 
-	function generate_new_image(sentence, base64img="", sizing = undefined) {
-
+	function generate_new_image(sentence, base64img="", autoappend=true, sizing = undefined) //base64img is for img2img, autoappend automatically adds it to gametext arr, sizing is for dimension overrides
+	{
 		if(base64img!="")
 		{
 			let parts = base64img.split(',');
@@ -16858,7 +16889,6 @@ Current version indicated by LITEVER below.
 				base64img = parts[1];
 			}
 		}
-
 
 		if(localsettings.image_styles && localsettings.image_styles!="")
 		{
@@ -16945,9 +16975,30 @@ Current version indicated by LITEVER below.
 			genimg_payload["params"]["clip_skip"] = localsettings.img_clipskip;
 		}
 
+		let imgid = ""; //this will be autorandomized and returned
+
 		if(localsettings.generate_images_mode==1) //horde
 		{
-
+			imgid = "Hordeimg"+(Math.floor(10000 + Math.random() * 90000)).toString();
+			let nimgtag = "[<|p|" + imgid + "|p|>]";
+			if (localsettings.img_newturn) {
+				if(localsettings.opmode == 4)
+				{
+					nimgtag = wrap_newgen_instruct_format(nimgtag,false);
+				}
+				else if(localsettings.opmode == 3)
+				{
+					nimgtag = wrap_newgen_chat_format(nimgtag);
+				}
+			}
+			if(autoappend)
+			{
+				gametext_arr.push(nimgtag);
+			}
+			image_db[imgid] = { done: false, queue: "Starting", result: "", prompt:sentence, poll_category:1 };
+			image_db[imgid].aspect = (iwidth>=iheight*2?5:(iheight>=iwidth*2?4:(iwidth>iheight?2:(iwidth<iheight?1:0))));
+			image_db[imgid].imsource = 0; //0=generated,1=uploaded
+			image_db[imgid].imrefid = ""; //this will store the real horde ID to poll
 			fetch(stablehorde_submit_endpoint, {
 				method: 'POST', // or 'PUT'
 				headers: {
@@ -16962,22 +17013,8 @@ Current version indicated by LITEVER below.
 				console.log('genimg result:', data);
 				if (data.id && data.id != "") {
 					//for now, append the new image directly into the gtarr
-					let nimgtag = "[<|p|" + data.id + "|p|>]";
-					if (localsettings.img_newturn) {
-						if(localsettings.opmode == 4)
-						{
-							nimgtag = wrap_newgen_instruct_format(nimgtag,false);
-						}
-						else if(localsettings.opmode == 3)
-						{
-							nimgtag = wrap_newgen_chat_format(nimgtag);
-						}
-					}
-					gametext_arr.push(nimgtag);
-					image_db[data.id] = { done: false, queue: "Starting", result: "", prompt:sentence, poll_category:1 };
-					image_db[data.id].aspect = (iwidth>=iheight*2?5:(iheight>=iwidth*2?4:(iwidth>iheight?2:(iwidth<iheight?1:0))));
-					image_db[data.id].imsource = 0; //0=generated,1=uploaded
-					console.log("New image queued " + nimgtag);
+					image_db[imgid].imrefid = data.id;
+					console.log("New image queued " + data.id + " for " + nimgtag);
 				}
 				else {
 					//something went wrong.	do nothing.
@@ -16993,7 +17030,7 @@ Current version indicated by LITEVER below.
 		{
 			let desired_model = document.getElementById("generate_images_local_model").value;
 			genimg_payload.models = [desired_model];
-			let imgid = "A1111img"+(Math.floor(10000 + Math.random() * 90000)).toString();
+			imgid = "A1111img"+(Math.floor(10000 + Math.random() * 90000)).toString();
 			let nimgtag = "[<|p|" + imgid + "|p|>]";
 			if (localsettings.img_newturn) {
 				if(localsettings.opmode == 4)
@@ -17005,10 +17042,14 @@ Current version indicated by LITEVER below.
 					nimgtag = wrap_newgen_chat_format(nimgtag);
 				}
 			}
-			gametext_arr.push(nimgtag);
+			if(autoappend)
+			{
+				gametext_arr.push(nimgtag);
+			}
 			image_db[imgid] = { done: false, queue: "Generating", result: "", prompt:sentence, poll_category:0 };
 			image_db[imgid].aspect = (iwidth>=iheight*2?5:(iheight>=iwidth*2?4:(iwidth>iheight?2:(iwidth<iheight?1:0))));
 			image_db[imgid].imsource = 0; //0=generated,1=uploaded
+			image_db[imgid].imrefid = "";
 			generate_a1111_image(genimg_payload,(outputimg)=>{
 				if(outputimg)
 				{
@@ -17043,7 +17084,7 @@ Current version indicated by LITEVER below.
 			}
 			else
 			{
-				let imgid = "DALLEimg"+(Math.floor(10000 + Math.random() * 90000)).toString();
+				imgid = "DALLEimg"+(Math.floor(10000 + Math.random() * 90000)).toString();
 				let nimgtag = "[<|p|" + imgid + "|p|>]";
 				if (localsettings.img_newturn) {
 					if(localsettings.opmode == 4)
@@ -17055,10 +17096,14 @@ Current version indicated by LITEVER below.
 						nimgtag = wrap_newgen_chat_format(nimgtag);
 					}
 				}
-				gametext_arr.push(nimgtag);
+				if(autoappend)
+				{
+					gametext_arr.push(nimgtag);
+				}
 				image_db[imgid] = { done: false, queue: "Generating", result: "", prompt:sentence, poll_category:0 };
 				image_db[imgid].aspect = 0;
 				image_db[imgid].imsource = 0; //0=generated,1=uploaded
+				image_db[imgid].imrefid = "";
 				generate_dalle_image(genimg_payload,(outputimg,outputerr)=>{
 					if(outputimg)
 					{
@@ -17090,14 +17135,16 @@ Current version indicated by LITEVER below.
 		{
 			let desired_model = document.getElementById("generate_images_comfy_model").value;
 			genimg_payload.models = [desired_model];
-			generate_comfy_image(genimg_payload);
+			imgid = generate_comfy_image(genimg_payload, autoappend);
 		}
 		else if(localsettings.generate_images_mode==5) //pollinations
 		{
 			let desired_model = document.getElementById("generate_images_pollinations_model").value;
 			genimg_payload.models = [desired_model];
-			generate_pollinations_image(genimg_payload);
+			imgid = generate_pollinations_image(genimg_payload, autoappend);
 		}
+
+		return imgid;
 	}
 
 	function interrogate_new_image(base64img, imghash, use_horde=true)
@@ -17485,6 +17532,17 @@ Current version indicated by LITEVER below.
 			}
 		}
 
+		//apply t2i image replacements
+		if (localsettings.img_autogen_type == 2 && localsettings.generate_images_mode != 0)
+		{
+			const pat = /<t2i>(.*?)<\/t2i>/g;
+			gentxt = gentxt.replace(pat, function (m,p1) {
+				let newimgid = generate_new_image(p1, "", false);
+				let nimgtag = m+"[<|p|" + newimgid + "|p|>]";
+				return nimgtag;
+			});
+		}
+
 		//trim trailing whitespace, and multiple newlines
 		if (localsettings.trimwhitespace) {
 			gentxt = gentxt.replace(/[\t\r\n ]+$/, '');
@@ -17799,100 +17857,107 @@ Current version indicated by LITEVER below.
 		for (let key in image_db) {
 			let img = image_db[key];
 			if (img.done == false && img.poll_category==1) { //horde image polling
-				//call check
-				fetch(stablehorde_poll_endpoint + "/" + key)
-					.then(x => x.json())
-					.then((data) => {
-						console.log('pollimg result:', data);
-						if (data.faulted == true || data.is_possible == false) {
-							msgbox("Pending image generation could not complete.");
-							console.log("removing from images: " + key);
-							delete image_db[key];
-						}
-						else if (data.done == true) {
-							//fetch final image
-							img.done = true;
-							fetch(stablehorde_output_endpoint + "/" + key)
-								.then(y => y.json())
-								.then((finalimg) => {
-									console.log('finalimg recv for ' + key);
-									if (finalimg.faulted == true || finalimg.is_possible == false) {
-										msgbox("Pending image generation could not complete.");
-										console.log("removing from images: " + key);
+				let hordeid = img.imrefid;
+				if (hordeid && hordeid != "") {
+					//call check
+					fetch(stablehorde_poll_endpoint + "/" + hordeid)
+						.then(x => x.json())
+						.then((data) => {
+							console.log('pollimg result:', data);
+							if (data.faulted == true || data.is_possible == false) {
+								msgbox("Pending image generation could not complete.");
+								console.log("removing from images: " + key);
+								delete image_db[key];
+							}
+							else if (data.done == true) {
+								//fetch final image
+								img.done = true;
+								fetch(stablehorde_output_endpoint + "/" + hordeid)
+									.then(y => y.json())
+									.then((finalimg) => {
+										console.log('finalimg recv for ' + key);
+										if (finalimg.faulted == true || finalimg.is_possible == false) {
+											msgbox("Pending image generation could not complete.");
+											console.log("removing from images: " + key);
+											delete image_db[key];
+										}
+										else {
+											img.queue = 0;
+											let origImg = "data:image/jpeg;base64," + finalimg.generations[0].img;
+											//console.log("Original image: " + origImg);
+											let imgres = localsettings.img_allowhd ? (localsettings.img_aspect == 0 ? NO_HD_RES_PX : HD_RES_PX) : NO_HD_RES_PX;
+											compressImage(origImg, (newDataUri) => {
+												img.result = newDataUri;
+											}, false, imgres);
+										}
+									})
+									.catch((error) => {
+										console.error('Error:', error);
+										msgbox("Image poll error: " + error);
 										delete image_db[key];
-									}
-									else {
-										img.queue = 0;
-										let origImg = "data:image/jpeg;base64," + finalimg.generations[0].img;
-										//console.log("Original image: " + origImg);
-										let imgres = localsettings.img_allowhd?(localsettings.img_aspect==0?NO_HD_RES_PX:HD_RES_PX):NO_HD_RES_PX;
-										compressImage(origImg, (newDataUri) => {
-											img.result = newDataUri;
-										}, false, imgres);
-									}
-								})
-								.catch((error) => {
-									console.error('Error:', error);
-									msgbox("Image poll error: " + error);
-									delete image_db[key];
-								});
-						}
-						else {
-							//update timer
-							img.queue = (data.queue_position == null ? "Error" : data.queue_position);
-						}
-					})
-					.catch((error) => {
-						console.error('Error:', error);
-						msgbox("Image poll error: " + error);
-						delete image_db[key];
-					});
-			}
-			else if (img.done == false && img.poll_category==2) //comfyui image polling
-			{
-				//comfyui polling
-				fetch(localsettings.saved_comfy_url + comfy_history_endpoint + "/" + key, {
-					method: 'GET',
-					headers: {
-						'Content-Type': 'application/json',
-					}
-				})
-				.then(x => x.json())
-				.then(resp2 => {
-					console.log(resp2);
-					if(resp2 && resp2[key] && resp2[key].status && resp2[key].status.completed)
-					{
-						img.done = true;
-						let finalfilename = resp2[key].outputs["9"].images[0].filename;
-						//fetch final image
-						fetch(localsettings.saved_comfy_url + comfy_results_endpoint + finalfilename)
-						.then((response) => {
-							return response.blob(); // Convert the response into a Blob
-						})
-						.then((finalimg) => {
-							console.log('finalimg recv for ' + key);
-							const reader = new FileReader();
-							reader.onloadend = () => {
-								img.queue = 0;
-								let origImg = reader.result;
-								let imgres = localsettings.img_allowhd?(localsettings.img_aspect==0?NO_HD_RES_PX:HD_RES_PX):NO_HD_RES_PX;
-								compressImage(origImg, (newDataUri) => {
-									img.result = newDataUri;
-								}, false, imgres);
-							};
-							reader.readAsDataURL(finalimg);
+									});
+							}
+							else {
+								//update timer
+								img.queue = (data.queue_position == null ? "Error" : data.queue_position);
+							}
 						})
 						.catch((error) => {
 							console.error('Error:', error);
 							msgbox("Image poll error: " + error);
 							delete image_db[key];
 						});
-					}
-				}).catch((error) => {
-					console.log("Generation Error: " + error);
-					delete image_db[key];
-					msgbox("Image Generation Failed!\n\nPlease make sure ComfyUI is running at "+localsettings.saved_comfy_url+" and properly configured!\n\nIt must be launched with the flag --listen --enable-cors-header '*' to enable API access\n");
-				});
+				}
+			}
+			else if (img.done == false && img.poll_category==2) //comfyui image polling
+			{
+				let comfyid = img.imrefid;
+				if(comfyid && comfyid!="")
+				{
+					//comfyui polling
+					fetch(localsettings.saved_comfy_url + comfy_history_endpoint + "/" + comfyid, {
+						method: 'GET',
+						headers: {
+							'Content-Type': 'application/json',
+						}
+					})
+					.then(x => x.json())
+					.then(resp2 => {
+						console.log(resp2);
+						if(resp2 && resp2[comfyid] && resp2[comfyid].status && resp2[comfyid].status.completed)
+						{
+							img.done = true;
+							let finalfilename = resp2[comfyid].outputs["9"].images[0].filename;
+							//fetch final image
+							fetch(localsettings.saved_comfy_url + comfy_results_endpoint + finalfilename)
+							.then((response) => {
+								return response.blob(); // Convert the response into a Blob
+							})
+							.then((finalimg) => {
+								console.log('finalimg recv for ' + comfyid);
+								const reader = new FileReader();
+								reader.onloadend = () => {
+									img.queue = 0;
+									let origImg = reader.result;
+									let imgres = localsettings.img_allowhd?(localsettings.img_aspect==0?NO_HD_RES_PX:HD_RES_PX):NO_HD_RES_PX;
+									compressImage(origImg, (newDataUri) => {
+										img.result = newDataUri;
+									}, false, imgres);
+								};
+								reader.readAsDataURL(finalimg);
+							})
+							.catch((error) => {
+								console.error('Error:', error);
+								msgbox("Image poll error: " + error);
+								delete image_db[key];
+							});
+						}
+					}).catch((error) => {
+						console.log("Generation Error: " + error);
+						delete image_db[key];
+						msgbox("Image Generation Failed!\n\nPlease make sure ComfyUI is running at "+localsettings.saved_comfy_url+" and properly configured!\n\nIt must be launched with the flag --listen --enable-cors-header '*' to enable API access\n");
+					});
+				}
 			}
 		}
 
@@ -22794,7 +22859,7 @@ Current version indicated by LITEVER below.
 						<br><b style="font-size: 10px;">Chat<br>Select</b>
 					</button>
 				</div>
-				<div style="position: relative; padding-right: 4px;">
+				<div id="input_text_holder" style="position: relative; padding-right: 4px;">
 					<textarea title="User Input" style="height: 80px;" class="form-control menuinput_multiline mainnav" id="input_text" oninput="update_submit_button()" onkeypress="return handle_typing(event)" onpaste="return img_paste_event(event)" placeholder="Enter text here"></textarea>
 					<span id="token-budget" class="token-budget"></span>
 				</div>
@@ -23670,8 +23735,12 @@ Current version indicated by LITEVER below.
 									<input title="Detect ImgGen Instructions" type="checkbox" id="img_gen_from_instruct" style="margin:0px 0px 0px auto;">
 								</div>
 								<div class="settinglabel">
-									<div class="justifyleft settingsmall"  title="Automatically generates images periodically as you write">Autogenerate </div>
-								   <input title="Autogenerate Images" type="checkbox" id="img_autogen" style="margin:0px 0px 0px auto;">
+									<div class="justifyleft settingsmall">Autogenerate Images <span class="helpicon">?<span class="helptext">Allows the AI to generate images on its own. Basic automatically generates images at fixed intervals as you write. Smart mode lets the AI itself choose when to generate images.</span></span></div>
+									<select title="Autogenerate Images" style="padding:1px; height:auto; width: 34px; appearance: none; font-size: 7pt; margin:0px 0px 0px auto;" class="form-control" id="img_autogen_type">
+										<option value="0">Off</option>
+										<option value="1">Basic</option>
+										<option value="2">Smart</option>
+									</select>
 								</div>
 								<div class="settinglabel">
 									<div class="justifyleft settingsmall"  title="Includes images when saving to json file">Save Images </div>
@@ -24071,6 +24140,11 @@ Current version indicated by LITEVER below.
 								<option value="-1">Auto</option>
 							</select>
 						</div>
+						<div class="settinglabel">
+							<div class="justifyleft settingsmall">Render Streaming Markdown <span class="helpicon">?<span
+								class="helptext">Attempt to render markdown when streaming. May result in wonky output or lag on older devices.</span></span></div>
+						   <input title="Show Local Endpoint Selector" type="checkbox" id="render_streaming_markdown" style="margin:0px 0px 0px auto;">
+						</div>
 
 						<div class="settinglabel">
 							<div class="justifyleft settingsmall">Never Escape HTML <span class="helpicon">?<span
@@ -24183,11 +24257,6 @@ Current version indicated by LITEVER below.
 							<div class="justifyleft settingsmall">ShowEndpointSelector <span class="helpicon">?<span
 								class="helptext">Allows you to change the connected custom endpoint at runtime even in local mode.</span></span></div>
 						   <input title="Show Local Endpoint Selector" type="checkbox" id="show_endpoint_selector" style="margin:0px 0px 0px 0px;">
-						</div>
-						<div class="settinglabel">
-							<div class="justifyleft settingsmall">RenderStreamingMarkdown <span class="helpicon">?<span
-								class="helptext">Attempt to render markdown when streaming. May result in wonky output or severe lag.</span></span></div>
-						   <input title="Show Local Endpoint Selector" type="checkbox" id="render_streaming_markdown" style="margin:0px 0px 0px 0px;">
 						</div>
 					</div>
 
