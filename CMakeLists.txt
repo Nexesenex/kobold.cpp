@@ -337,11 +337,11 @@ if (LLAMA_CUBLAS)
             set(CMAKE_CUDA_ARCHITECTURES "60-virtual;61-virtual;70-virtual;75-virtual;80-virtual") # needed for f16 CUDA intrinsics
         else()
             message("CUDA Toolkit Version: ${CUDAToolkit_VERSION}")
-            add_compile_definitions(GGML_CUDA_USE_GRAPHS) #try enable cuda graphs
             if(CUDAToolkit_VERSION VERSION_GREATER 12)
-                set(CMAKE_CUDA_ARCHITECTURES "50-virtual;61-virtual;70-virtual;75-virtual;80-virtual") # lowest CUDA 12 standard + lowest for integer intrinsics
+                 add_compile_definitions(GGML_CUDA_USE_GRAPHS) #try enable cuda graphs on cu12 build
+                 set(CMAKE_CUDA_ARCHITECTURES "50-virtual;61-virtual;70-virtual;75-virtual;80-virtual") # lowest CUDA 12 standard + lowest for integer intrinsics
             else()
-                set(CMAKE_CUDA_ARCHITECTURES "35-virtual;50-virtual;61-virtual;70-virtual;75-virtual;80-virtual") # lowest CUDA 12 standard + lowest for integer intrinsics
+                 set(CMAKE_CUDA_ARCHITECTURES "35-virtual;50-virtual;61-virtual;70-virtual;75-virtual") # lowest CUDA 12 standard + lowest for integer intrinsics
             endif()
         endif()
     endif()

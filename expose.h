@@ -39,7 +39,6 @@ struct load_model_inputs
     const char * executable_path = nullptr;
     const char * model_filename = nullptr;
     const char * lora_filename = nullptr;
-    const char * lora_base = nullptr;
     const char * draftmodel_filename = nullptr;
     const int draft_amount = 4;
     const int draft_gpulayers = 999;
@@ -77,7 +76,9 @@ struct load_model_inputs
     const int draft_quant_k = -1;
     const int draft_quant_v = -1;
     const bool check_slowness = false;
+    const bool highpriority = false;
     const bool swa_support = false;
+    const float lora_multiplier = 1.0f;
     const bool quiet = false;
     const int debugmode = 0;
 };
@@ -279,7 +280,6 @@ struct embeddings_generation_outputs
 
 extern std::string executable_path;
 extern std::string lora_filename;
-extern std::string lora_base;
 extern std::string mmproj_filename;
 extern std::string draftmodel_filename;
 extern std::vector<std::string> generated_tokens;

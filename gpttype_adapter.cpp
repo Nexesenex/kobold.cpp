@@ -54,7 +54,6 @@ const int LLAVA_TOKEN_IDENTIFIER_B = -999;
 //shared
 std::string executable_path = "";
 std::string lora_filename = "";
-std::string lora_base = "";
 std::string mmproj_filename = "";
 std::string draftmodel_filename = "";
 int speculative_chunk_amt = 8; //do it in chunks of this many tokens
@@ -139,6 +138,7 @@ static std::vector<logit_bias> logit_biases;
 static bool add_bos_token = true; // if set to false, mmproj handling breaks. dont disable unless you know what you're doing
 static bool load_guidance = false; //whether to enable cfg for negative prompts
 static bool check_slowness = false; //will display a suggestion to use highpriority if slow
+static bool highpriority = false;
 
 static int delayed_generated_tokens_limit = 0;
 std::deque<std::string> delayed_generated_tokens; //for use with antislop sampling
@@ -2116,6 +2116,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     add_bos_token = !inputs.no_bos_token;
     load_guidance = inputs.load_guidance;
     check_slowness = inputs.check_slowness;
+    highpriority = inputs.highpriority;
 
     if(!add_bos_token)
     {
@@ -2213,15 +2214,9 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         {
             printf("\nAttempting to apply LORA adapter: %s\n", lora_filename.c_str());
 
-            const char * lora_base_arg = NULL;
-            if (lora_base != "") {
-                printf("Using LORA base model: %s\n", lora_base.c_str());
-                lora_base_arg = lora_base.c_str();
-            }
-
             int err = llama_v2_apply_lora_from_file(llama_ctx_v2,
                                                  lora_filename.c_str(),
-                                                 lora_base_arg,
+                                                 nullptr,
                                                  kcpp_data->n_threads);
             if (err != 0)
             {
@@ -2291,15 +2286,9 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         {
             printf("\nAttempting to apply LORA adapter: %s\n", lora_filename.c_str());
 
-            const char * lora_base_arg = NULL;
-            if (lora_base != "") {
-                printf("Using LORA base model: %s\n", lora_base.c_str());
-                lora_base_arg = lora_base.c_str();
-            }
-
             int err = llama_v3_apply_lora_from_file(llama_ctx_v3,
                                                  lora_filename.c_str(),
-                                                 lora_base_arg,
+                                                 nullptr,
                                                  kcpp_data->n_threads);
             if (err != 0)
             {
@@ -2613,6 +2602,11 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         ggml_threadpool_params threadpool1_params, threadpool2_params;
         ggml_threadpool_params_init(&threadpool1_params,kcpp_data->n_threads);
         ggml_threadpool_params_init(&threadpool2_params,kcpp_data->n_blasthreads);
+        if(inputs.highpriority)
+        {
+            threadpool1_params.prio = GGML_SCHED_PRIO_HIGH;
+            threadpool2_params.prio = GGML_SCHED_PRIO_HIGH;
+        }
 
         printf("Threadpool set to %d threads and %d blasthreads...\n", kcpp_data->n_threads,kcpp_data->n_blasthreads);
         struct ggml_threadpool * threadpool1 = ggml_threadpool_new(&threadpool1_params);
@@ -2626,19 +2620,12 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         if (lora_filename != "")
         {
             printf("\nAttempting to apply LORA adapter: %s\n", lora_filename.c_str());
-
-            const char * lora_base_arg = NULL;
-            if (lora_base != "") {
-                printf("Using LORA base model: %s\n", lora_base.c_str());
-                lora_base_arg = lora_base.c_str();
-            }
-
             auto adapter = llama_adapter_lora_init(llamamodel, lora_filename.c_str());
             if (adapter == nullptr) {
                 fprintf(stderr, "%s: error: failed to apply lora adapter\n", __func__);
                 return ModelLoadResult::FAIL;
             }
-            llama_set_adapter_lora(llama_ctx_v4, adapter, 1.0f);
+            llama_set_adapter_lora(llama_ctx_v4, adapter, inputs.lora_multiplier);
         }
 
         if(mmproj_filename != "" && file_format==FileFormat::GGUF_GENERIC)
@@ -3304,11 +3291,11 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         {
             printf("\nAttempting to apply LORA adapter: %s\n", lora_filename.c_str());
 
-            const char * lora_base_arg = NULL;
-            if (lora_base != "") {
-                printf("Using LORA base model: %s\n", lora_base.c_str());
-                lora_base_arg = lora_base.c_str();
-            }
+            // const char * lora_base_arg = NULL;
+            // if (lora_base != "") {
+                // printf("Using LORA base model: %s\n", lora_base.c_str());
+                // lora_base_arg = lora_base.c_str();
+            // }
 
             auto adapter = llama_adapter_lora_init(llamamodel, lora_filename.c_str());
             if (adapter == nullptr) {

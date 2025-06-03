@@ -64,11 +64,11 @@ dry_seq_break_max = 256
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.93000"
-LcppVersion = "b5548"
-EsoboldVersion = "RMv1.11.3"
+KcppVersion = "1.93010"
+LcppVersion = "b5572"
+EsoboldVersion = "RMv1.11.4"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/05/31"
+ReleaseDate = "2025/06/02"
 showdebug = True
 # guimode = False
 kcpp_instance = None #global running instance
@@ -180,7 +180,6 @@ class load_model_inputs(ctypes.Structure):
                 ("executable_path", ctypes.c_char_p),
                 ("model_filename", ctypes.c_char_p),
                 ("lora_filename", ctypes.c_char_p),
-                ("lora_base", ctypes.c_char_p),
                 ("draftmodel_filename", ctypes.c_char_p),
                 ("draft_amount", ctypes.c_int),
                 ("draft_gpulayers", ctypes.c_int),
@@ -218,7 +217,9 @@ class load_model_inputs(ctypes.Structure):
                 ("draft_quant_k", ctypes.c_int),
                 ("draft_quant_v", ctypes.c_int),
                 ("check_slowness", ctypes.c_bool),
+                ("highpriority", ctypes.c_bool),
                 ("swa_support", ctypes.c_bool),
+                ("lora_multiplier", ctypes.c_float),
                 ("quiet", ctypes.c_bool),
                 ("debugmode", ctypes.c_int)]
 
@@ -1851,12 +1852,10 @@ def load_model(model_filename):
     inputs.use_mmap = args.usemmap
     inputs.use_mlock = args.usemlock
     inputs.lora_filename = "".encode("UTF-8")
-    inputs.lora_base = "".encode("UTF-8")
+    inputs.lora_multiplier = args.loramult
     if args.lora:
         inputs.lora_filename = args.lora[0].encode("UTF-8")
         inputs.use_mmap = False
-        if len(args.lora) > 1:
-            inputs.lora_base = args.lora[1].encode("UTF-8")
 
     inputs.draftmodel_filename = args.draftmodel.encode("UTF-8") if args.draftmodel else "".encode("UTF-8")
     inputs.draft_amount = args.draftamount
@@ -1965,6 +1964,7 @@ def load_model(model_filename):
     inputs.override_kv = args.overridekv.encode("UTF-8") if args.overridekv else "".encode("UTF-8")
     inputs.override_tensors = args.overridetensors.encode("UTF-8") if args.overridetensors else "".encode("UTF-8")
     inputs.check_slowness = (not args.highpriority and os.name == 'nt' and 'Intel' in platform.processor())
+    inputs.highpriority = args.highpriority
     inputs.swa_support = args.useswa
     inputs = set_backend_props(inputs)
     ret = handle.load_model(inputs)
@@ -4517,6 +4517,13 @@ Change Mode<br>
                 opts = [f for f in os.listdir(dirpath) if f.endswith(".gguf") and os.path.isfile(os.path.join(dirpath, f))]
             response_body = (json.dumps(opts).encode())
 
+        elif self.path.endswith(('/api/admin/list_models')): #used by admin to get models which can be reloaded with
+            opts = []
+            if args.admin and args.admintextmodelsdir and os.path.exists(args.admintextmodelsdir) and self.check_header_password(args.adminpassword):
+                dirpath = os.path.abspath(args.admintextmodelsdir)
+                opts = [f for f in os.listdir(dirpath) if f.endswith(".gguf") and os.path.isfile(os.path.join(dirpath, f))]
+            response_body = (json.dumps(opts).encode())
+
         elif self.path.endswith(('/api/extra/perf')):
             lastp = handle.get_last_process_time()
             laste = handle.get_last_eval_time()
@@ -5207,14 +5214,23 @@ Change Mode<br>
                     if targetfile=="unload_model": #special request to simply unload model
                         print("Admin: Received request to unload model")
                         global_memory["restart_target"] = "unload_model"
-
                         resp = {"success": True}
                     else:
                         dirpath = os.path.abspath(args.admindir)
                         targetfilepath = os.path.join(dirpath, targetfile)
                         opts = [f for f in os.listdir(dirpath) if (f.lower().endswith(".kcpps") or f.lower().endswith(".kcppt") or f.lower().endswith(".gguf")) and os.path.isfile(os.path.join(dirpath, f))]
                         if targetfile in opts and os.path.exists(targetfilepath):
-                            print(f"Admin: Received request to reload config to {targetfile}")
+                            # Now check targetModel
+                            if targetModel and targetModel!="":
+                                dirpath = os.path.abspath(args.admintextmodelsdir)
+                                targetfilepath = os.path.join(dirpath, targetModel)
+                                opts = [f for f in os.listdir(dirpath) if f.endswith(".gguf") and os.path.isfile(os.path.join(dirpath, f))]
+                                if (targetModel in opts and os.path.exists(targetfilepath)) or (args.adminallowhf and re.search(r'^https://huggingface\.co/.*?/resolve/main/.*\.gguf$', targetModel)):
+                                    global_memory["restart_model"] = targetModel
+                                    print(f"Admin: Received request to reload config to {targetfile} and {targetModel}")
+
+                            if "restart_model" not in global_memory or global_memory["restart_target"] == "":   
+                                print(f"Admin: Received request to reload config to {targetfile}")
                             global_memory["restart_target"] = targetfile
                             resp = {"success": True}
             response_body = (json.dumps(resp).encode())
@@ -5995,7 +6011,7 @@ def show_gui():
 
     model_var = ctk.StringVar()
     lora_var = ctk.StringVar()
-    lora_base_var = ctk.StringVar()
+    loramult_var = ctk.StringVar(value="1.0")
     preloadstory_var = ctk.StringVar()
     savedatafile_var = ctk.StringVar()
     mmproj_var = ctk.StringVar()
@@ -6050,10 +6066,8 @@ def show_gui():
     admin_text_model_dir_var = ctk.StringVar()
     admin_data_dir_var = ctk.StringVar()
     admin_password_var = ctk.StringVar()
-
-    admin_allow_hf_var = ctk.IntVar(value=0)
-
     singleinstance_var = ctk.IntVar(value=0)
+    admin_allow_hf_var = ctk.IntVar(value=0)
 
     nozenity_var = ctk.IntVar(value=0)
 
@@ -6698,8 +6712,8 @@ def show_gui():
     makefileentry(model_tab, "Text Model:", "Select GGUF or GGML Model File", model_var, 1,width=280,singlerow=True, onchoosefile=on_picked_model_file, filetypes=[("GGML bin or GGUF", ("*.bin","*.gguf"))] ,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
     makefileentry(model_tab, "Text Lora Adapter:", "Select Lora Adapter File",lora_var, 3,width=280,singlerow=True,tooltiptxt="Select an optional GGML Text LoRA adapter to use.\nLeave blank to skip.")
     makefileentry(model_tab, "Text Lora Base:", "Select Lora Base File", lora_base_var, 5,width=280,singlerow=True,tooltiptxt="Select an optional F16 GGML Text LoRA base file to use.\nLeave blank to skip.")
-    ctk.CTkButton(model_tab, width=70, text = "HF Search", command = model_searcher ).grid(row=1,column=0, stick="nw", padx=370)
-
+    ctk.CTkButton(model_tab, width=70, text = "HF Search", command = model_searcher ).grid(row=1,column=0, stick="nw", padx=490)
+    makelabelentry(model_tab, "Multiplier: ", loramult_var, 3, 50,padx=390,singleline=True,tooltip="Scale multiplier for Text LoRA Strength. Default is 1.0", labelpadx=330)
     makefileentry(model_tab, "Vision mmproj:", "Select Vision mmproj File", mmproj_var, 7,width=280,singlerow=True,tooltiptxt="Select a mmproj file to use for vision models like LLaVA.\nLeave blank to skip.")
 
     makecheckbox(model_tab, "Vision Force CPU", mmprojcpu_var, 9, tooltiptxt="Force CLIP for Vision mmproj always on CPU.")
@@ -6824,13 +6838,10 @@ def show_gui():
     makecheckbox(admin_tab, "Enable Model Administration", admin_var, 1, 0,tooltiptxt="Enable a admin server, allowing you to remotely relaunch and swap models and configs.")
     makelabelentry(admin_tab, "Admin Password:" , admin_password_var, 3, 150,padx=120,singleline=True,tooltip="Require a password to access admin functions. You are strongly advised to use one for publically accessible instances!")
     makefileentry(admin_tab, "Config Directory:", "Select directory containing .kcpps files to relaunch from", admin_dir_var, 5, width=280, dialog_type=2, tooltiptxt="Specify a directory to look for .kcpps configs in, which can be used to swap models.")
-
     makefileentry(admin_tab, "Model Directory:", "Select directory containing .gguf text model files to allow overriding configs with", admin_text_model_dir_var, 7, width=280, dialog_type=2, tooltiptxt="Specify a directory to look for .gguf text model files in, which can be used to swap models within a config.")
     makefileentry(admin_tab, "Data Directory:", "Select directory which will be used to store user data if desired", admin_data_dir_var, 9, width=280, dialog_type=2, tooltiptxt="Specify a directory to store user data in.")
     makecheckbox(admin_tab, "Allow Model Download From HuggingFace", admin_allow_hf_var, 11, 0,tooltiptxt="Allows model downloading from HuggingFace within the Lite UI.")
-
     makecheckbox(admin_tab, "SingleInstance Mode", singleinstance_var, 13, 0,tooltiptxt="Allows this server to be shut down by another KoboldCpp instance with singleinstance starting on the same port.")
-
 
     def kcpp_export_template():
         nonlocal kcpp_exporting_template
@@ -6860,6 +6871,10 @@ def show_gui():
     ctk.CTkButton(extra_tab , text = "Generate LaunchTemplate", command = kcpp_export_template ).grid(row=4,column=0, stick="w", padx= 170, pady=2)
     makelabel(extra_tab, "Analyze GGUF Metadata", 6, 0,tooltiptxt="Reads the metadata, weight types and tensor names in any GGUF file.")
     ctk.CTkButton(extra_tab , text = "Analyze GGUF", command = analyze_gguf_model_wrapper ).grid(row=6,column=0, stick="w", padx= 170, pady=2)
+    if os.name == 'nt':
+        makelabel(extra_tab, "File Extensions Handler", 10, 0,tooltiptxt="Makes KoboldCpp the default handler for .kcpps, .kcppt, .ggml and .gguf files.")
+        ctk.CTkButton(extra_tab , text = "Register", width=90, command = register_koboldcpp ).grid(row=10,column=0, stick="w", padx= 170, pady=2)
+        ctk.CTkButton(extra_tab , text = "Unregister", width=90, command = unregister_koboldcpp ).grid(row=10,column=0, stick="w", padx= 264, pady=2)
     if sys.platform == "linux":
         def togglezenity(a,b,c):
             global zenity_permitted
@@ -7024,7 +7039,8 @@ def show_gui():
             pass
 
         args.model_param = None if model_var.get() == "" else model_var.get()
-        args.lora = None if lora_var.get() == "" else ([lora_var.get()] if lora_base_var.get()=="" else [lora_var.get(), lora_base_var.get()])
+        args.lora = None if lora_var.get() == "" else ([lora_var.get()])
+        args.loramult = (float(loramult_var.get()) if loramult_var.get()!="" else 1.0)
         args.preloadstory = None if preloadstory_var.get() == "" else preloadstory_var.get()
         args.savedatafile = None if savedatafile_var.get() == "" else savedatafile_var.get()
         try:
@@ -7105,11 +7121,8 @@ def show_gui():
         args.admintextmodelsdir = admin_text_model_dir_var.get()
         args.admindatadir = admin_data_dir_var.get()
         args.adminpassword = admin_password_var.get()
-
-        args.adminallowhf = (admin_allow_hf_var.get()==1 and not args.cli)
-
         args.singleinstance = (singleinstance_var.get()==1)
-
+        args.adminallowhf = (admin_allow_hf_var.get()==1 and not args.cli)
 
     def import_vars(dict):
         global importvars_in_progress
@@ -7246,13 +7259,12 @@ def show_gui():
         model_var.set(dict["model_param"] if ("model_param" in dict and dict["model_param"]) else "")
 
         lora_var.set("")
-        lora_base_var.set("")
         if "lora" in dict and dict["lora"]:
             if len(dict["lora"]) > 1:
                 lora_var.set(dict["lora"][0])
-                lora_base_var.set(dict["lora"][1])
             else:
                 lora_var.set(dict["lora"][0])
+        loramult_var.set(str(dict["loramult"]) if ("loramult" in dict and dict["loramult"]) else "1.0")
 
         mmproj_var.set(dict["mmproj"] if ("mmproj" in dict and dict["mmproj"]) else "")
         mmprojcpu_var.set(1 if ("mmprojcpu" in dict and dict["mmprojcpu"]) else 0)
@@ -7318,11 +7330,8 @@ def show_gui():
         admin_text_model_dir_var.set(dict["admintextmodelsdir"] if ("admintextmodelsdir" in dict and dict["admintextmodelsdir"]) else "")
         admin_data_dir_var.set(dict["admindatadir"] if ("admindatadir" in dict and dict["admindatadir"]) else "")
         admin_password_var.set(dict["adminpassword"] if ("adminpassword" in dict and dict["adminpassword"]) else "")
-
-        admin_allow_hf_var.set(dict["adminallowhf"] if ("adminallowhf" in dict) else 0)
-
         singleinstance_var.set(dict["singleinstance"] if ("singleinstance" in dict) else 0)
-
+        admin_allow_hf_var.set(dict["adminallowhf"] if ("adminallowhf" in dict) else 0)
 
         importvars_in_progress = False
         gui_changed_modelfile()
@@ -7432,24 +7441,24 @@ def show_gui_msgbox(title,message):
     try:
         from tkinter import messagebox
         import tkinter as tk
-        root = tk.Tk()
-        root.attributes("-alpha", 0)
+        root2 = tk.Tk()
+        root2.attributes("-alpha", 0)
         messagebox.showerror(title=title, message=message)
-        root.withdraw()
-        root.quit()
+        root2.withdraw()
+        root2.destroy()
     except Exception:
         pass
 
-def show_gui_yesnobox(title,message):
+def show_gui_yesnobox(title,message,icon='error'):
     print(title + ": " + message, flush=True)
     try:
         from tkinter import messagebox
         import tkinter as tk
-        root = tk.Tk()
-        root.attributes("-alpha", 0)
-        result = messagebox.askquestion(title=title, message=message,icon='error')
-        root.withdraw()
-        root.quit()
+        root2 = tk.Tk()
+        root2.attributes("-alpha", 0)
+        result = messagebox.askquestion(title=title, message=message,icon=icon)
+        root2.withdraw()
+        root2.destroy()
         return result
     except Exception:
         return False
@@ -7901,7 +7910,7 @@ def downloader_internal(input_url, output_filename, capture_output, min_file_siz
             a2cexe = (os.path.join(basepath, "aria2c-win.exe"))
             if os.path.exists(a2cexe): #on windows try using embedded a2cexe
                 rc = subprocess.run([
-                        a2cexe, "-x", "16", "-s", "16", "--summary-interval=30", "--console-log-level=error", "--log-level=error",
+                        a2cexe, "-x", "16", "-s", "16", "--summary-interval=20", "--console-log-level=error", "--log-level=error",
                         "--download-result=default", "--allow-overwrite=true", "--file-allocation=none", "--max-tries=3", "-o", output_filename, input_url
                     ], capture_output=capture_output, text=True, check=True, encoding='utf-8')
                 dl_success = (rc.returncode == 0 and os.path.exists(output_filename) and os.path.getsize(output_filename) > min_file_size)
@@ -7989,6 +7998,65 @@ def analyze_gguf_model_wrapper(filename=""):
     print(f"Analyzing {filename}, please wait...\n---",flush=True)
     dumpthread = threading.Thread(target=analyze_gguf_model, args=(args,filename))
     dumpthread.start()
+
+
+def register_koboldcpp():
+    try:
+        exe_path = ""
+        if getattr(sys, 'frozen', False):
+            exe_path = sys.executable
+        if os.name == 'nt' and exe_path!="":
+            confirmyes = show_gui_yesnobox("Confirm Add File Extensions","Do you want to register KoboldCpp as the default file associations for .gguf, .kcpps, .kcppt and .ggml files?",icon="question")
+            if confirmyes == 'yes':
+                import winreg
+                print(f"Registering file associations to {exe_path}")
+                entries = [
+                    (r"Software\Classes\KoboldCpp\DefaultIcon", "", f"{exe_path},0"),
+                    (r"Software\Classes\KoboldCpp\shell\Open\command", "", f'"{exe_path}" "%1" --singleinstance'),
+                    (r"Software\Classes\KoboldCpp\shell\Edit\command", "", f'"{exe_path}" "%1" --singleinstance --showgui'),
+                    (r"Software\Classes\.gguf", "", "KoboldCpp"),
+                    (r"Software\Classes\.kcpps", "", "KoboldCpp"),
+                    (r"Software\Classes\.kcppt", "", "KoboldCpp"),
+                    (r"Software\Classes\.ggml", "", "KoboldCpp"),
+                ]
+                for key_path, value_name, value_data in entries:
+                    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path) as key:
+                        winreg.SetValueEx(key, value_name, 0, winreg.REG_SZ, value_data)
+                print("KoboldCpp file associations registered successfully.")
+        else:
+            show_gui_msgbox("Cannot Set File Association","File Associations only available for Windows standalone executables.")
+    except Exception as e:
+        print(f"Register Extensions: An error occurred: {e}")
+
+def unregister_koboldcpp():
+    try:
+        if os.name == 'nt':
+            confirmyes = show_gui_yesnobox("Confirm Remove File Extensions","Do you want to unregister KoboldCpp as the default file associations for .gguf, .kcpps, .kcppt and .ggml files?",icon="question")
+            if confirmyes == 'yes':
+                import winreg
+                keys_to_delete = [
+                    r"Software\Classes\KoboldCpp\shell\Edit\command",
+                    r"Software\Classes\KoboldCpp\shell\Edit",
+                    r"Software\Classes\KoboldCpp\shell\Open\command",
+                    r"Software\Classes\KoboldCpp\shell\Open",
+                    r"Software\Classes\KoboldCpp\shell",
+                    r"Software\Classes\KoboldCpp\DefaultIcon",
+                    r"Software\Classes\KoboldCpp",
+                    r"Software\Classes\.gguf",
+                    r"Software\Classes\.kcpps",
+                    r"Software\Classes\.kcppt",
+                    r"Software\Classes\.ggml",
+                ]
+                for key_path in keys_to_delete:
+                    try:
+                        winreg.DeleteKey(winreg.HKEY_CURRENT_USER, key_path)
+                    except Exception:
+                        print(f"Failed to delete registry key: {key_path}")
+                print("KoboldCpp file associations unregistered.")
+        else:
+            show_gui_msgbox("Cannot Set File Association","File Associations only available for Windows standalone executables.")
+    except Exception as e:
+        print(f"Unregister Extensions: An error occurred: {e}")
 
 def main(launch_args, default_args):
     global args, showdebug, kcpp_instance, exitcounter, using_gui_launcher, sslvalid, global_memory
@@ -9073,9 +9141,10 @@ if __name__ == '__main__':
     advparser.add_argument("--blasubatchsize", help="Sets the Physical batch size used in BLAS processing (default 128 for VRAM savings, optimal speed is 512, 256 is a great compromise). Setting it to 0 alignes Physical BLAS batch on logical BLAS. Same steps as for logical BBS.", type=check_range(int,0,4096), default=0)
 
     advparser.add_argument("--blasthreads", help="Use a different number of threads during BLAS if specified. Otherwise, has the same value as --threads",metavar=('[threads]'), type=int, default=0)
-    advparser.add_argument("--lora", help="LLAMA models only, applies a lora file on top of model. Experimental.", metavar=('[lora_filename]', '[lora_base]'), nargs='+')
+    # advparser.add_argument("--lora", help="GGUF models only, applies a lora file on top of model. Experimental.", metavar=('[lora_filename]', '[lora_base]'), nargs='+')
+    advparser.add_argument("--lora", help="GGUF models only, applies a lora file on top of model.", metavar=('[lora_filename]'), nargs='+')
+    advparser.add_argument("--loramult", metavar=('[amount]'), help="Multiplier for the Text LORA model to be applied.", type=float, default=1.0)
     advparser.add_argument("--contextshift", help="If set, do attempt to Trim and Shift the GGUF context without reprocessing everything once the max context is reached. If you disable it (or need to use Quantized KV cache (KVQ) with FlashAttention, aka. modes 1 to 14, which are incompatible with Context Shift), you can eventually use --smartcontext instead.", action='store_true')
-
     # advparser.add_argument("--noshift", help="If set, do not attempt to Trim and Shift the GGUF context.", action='store_true')
     advparser.add_argument("--nofastforward", help="If set, do not attempt to fast forward GGUF context (always reprocess). Will also enable noshift", action='store_true')
     advparser.add_argument("--useswa", help="If set, allows Sliding Window Attention (SWA) KV Cache, which saves memory but cannot be used with context shifting.", action='store_true')
@@ -9166,7 +9235,7 @@ if __name__ == '__main__':
     sdparsergrouplora = sdparsergroup.add_mutually_exclusive_group()
     sdparsergrouplora.add_argument("--sdquant", help="If specified, loads the model quantized to save memory.", action='store_true')
     sdparsergrouplora.add_argument("--sdlora", metavar=('[filename]'), help="Specify an image generation LORA safetensors model to be applied.", default="")
-    sdparsergroup.add_argument("--sdloramult", metavar=('[amount]'), help="Multiplier for the LORA model to be applied.", type=float, default=1.0)
+    sdparsergroup.add_argument("--sdloramult", metavar=('[amount]'), help="Multiplier for the image LORA model to be applied.", type=float, default=1.0)
     sdparsergroup.add_argument("--sdnotile", help="Disables VAE tiling, may not work for large images.", action='store_true')
 
     whisperparsergroup = parser.add_argument_group('Whisper Transcription Commands')
