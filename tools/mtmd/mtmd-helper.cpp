@@ -311,6 +311,7 @@ int32_t mtmd_helper_eval_chunk_single(mtmd_context * ctx,
         GGML_ABORT("chunk type not supported");
     }
 
+    llama_batch_free(text_batch);
     return 0;
 }
 
