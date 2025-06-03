@@ -23356,14 +23356,14 @@ Current version indicated by LITEVER below.
 				<div class="settinglabel settingsmall" style="padding: 4px;">Please note, as with world info this can cause context reprocessing.  It is recommended to have at least 8K context size and a good prompt processing speed to use this feature.</div>
 				<div class="settinglabel">
 					<div class="justifyleft"><br>Search Query Prefix<span class="helpicon">?<span
-						class="helptext">Adds a prefix to search queries. Can help models better search content when using embeddings.</span></span></div>
+						class="helptext">Adds a prefix to search queries. Can help models better search content when using embeddings. Only modify if you know what this does as it can affect embedding model performance negatively.</span></span></div>
 				</div>
 				<input title="Edit Search Query Prefix" class="form-control" id="documentdb_sqPrefix"
 					placeholder=""></input>
 
 				<div class="settinglabel">
 					<div class="justifyleft"><br>Chunk Prefix<span class="helpicon">?<span
-						class="helptext">Adds a prefix to chunks. Can help models better search content when using embeddings.</span></span></div>
+						class="helptext">Adds a prefix to chunks. Can help models better search content when using embeddings. Only modify if you know what this does as it can affect embedding model performance negatively.</span></span></div>
 				</div>
 				<input title="Edit Chunk Prefix" class="form-control" id="documentdb_cPrefix"
 					placeholder=""></input>
