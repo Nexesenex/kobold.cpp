@@ -128,3 +128,11 @@ FileFormat check_file_format(const std::string & fname, FileFormatExtraMeta * fi
 void ContextFastForward(std::vector<int> &current_context_tokens, std::vector<int> &embd_inp,
  int &n_past, std::vector<int> &last_n_tokens, const int nctx, std::vector<int> &smartcontext,
  const bool useSmartContext, const bool requireFullSubset);
+
+size_t gpttype_calc_new_state_kv();
+size_t gpttype_calc_new_state_tokencount();
+size_t gpttype_calc_old_state_kv();
+size_t gpttype_calc_old_state_tokencount();
+size_t gpttype_save_state_kv();
+bool gpttype_load_state_kv();
+bool gpttype_clear_state_kv(bool shrink);

@@ -372,5 +372,32 @@ extern "C"
         return output;
     }
 
-
+    size_t calc_new_state_kv() // returns how much memory a new savestate will cost
+    {
+        return gpttype_calc_new_state_kv();
+    }
+    size_t calc_new_state_tokencount()
+    {
+        return gpttype_calc_new_state_tokencount();
+    }
+    size_t calc_old_state_kv() //returns how much memory current savestate is using
+    {
+        return gpttype_calc_old_state_kv();
+    }
+    size_t calc_old_state_tokencount()
+    {
+        return gpttype_calc_old_state_tokencount();
+    }
+    size_t save_state_kv() //triggers the save kv state of current ctx to memory
+    {
+        return gpttype_save_state_kv();
+    }
+    bool load_state_kv() //triggers the load kv state of current ctx to memory
+    {
+        return gpttype_load_state_kv();
+    }
+    bool clear_state_kv()
+    {
+        return gpttype_clear_state_kv(true);
+    }
 }
