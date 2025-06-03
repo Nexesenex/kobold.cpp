@@ -7216,14 +7216,19 @@ Current version indicated by LITEVER below.
 				let ext = fileNameWithExt.substring(extPos);
 
 				let readerText = new FileReader();
+				let readerDataArr = new FileReader();
 				let readerDataURL = new FileReader();
 				readerText.onload = function () {
 					let plaintext = readerText.result; //basic plaintext
-					readerDataURL.onload = function() {
-						let content = readerDataURL.result; //raw data
-						fileCallback({ file, fileName, ext, content, plaintext });
+					readerDataArr.onload = function() {
+						let dataArr = readerDataArr.result; //raw data arr
+						readerDataURL.onload = function() {
+							let content = readerDataURL.result; //raw data
+							fileCallback({ file, fileName, ext, content, dataArr, plaintext });
+						};
+						readerDataURL.readAsDataURL(file);
 					};
-					readerDataURL.readAsDataURL(file);
+					readerDataArr.readAsArrayBuffer(file);
 				};
 				readerText.readAsText(file); //first, attempt read as text, then read as data
 			}
@@ -21544,17 +21549,70 @@ Current version indicated by LITEVER below.
 		saveFileGeneric('world_info', fdata, 'application/json');
 	}
 
+	function importCharacterCardAsWI(data) {
+		let arr = new Uint8Array(data)
+		
+		let charData = convertTavernPng(arr).data
+		let charName = charData.name
+		let memory = charData.description
+		let firstMessage = charData.first_mes
+		let alternateGreetings = !!charData?.alternate_greetings ? charData?.alternate_greetings : []
+		let lorebook = !!charData?.character_book?.entries ? load_tavern_wi(charData.character_book) : []
+		let greetingsWI = [firstMessage, ...alternateGreetings].map(greeting => {
+			return {
+				"key": charName,
+				"keysecondary": "Alternative greeting",
+				"keyanti": "",
+				"content": greeting,
+				"comment": "",
+				"folder": charName,
+				"selective": false,
+				"constant": false,
+				"probability": 1,
+				"wigroup": "",
+				"widisabled": true
+			}
+		})
+
+		let wiForChar = [{
+			"key": charName,
+			"keysecondary": "",
+			"keyanti": "",
+			"content": memory,
+			"comment": "",
+			"folder": charName,
+			"selective": false,
+			"constant": false,
+			"probability": 100,
+			"wigroup": "",
+			"widisabled": false
+		}]
+		wiForChar.push(...greetingsWI)
+		wiForChar.push(...lorebook)
+		wiForChar.forEach(wi => wi.wigroup = charName.replace("'", ""))
+		return wiForChar
+	}
+
 	function import_wi_from_file()
 	{
 		promptUserForLocalFile((fileDetails) => {
 			try {
-				let { file, fileName, ext, content, plaintext } = fileDetails;
-				let wiToAdd = JSON.parse(plaintext);
-				let has_tav_wi_check = has_tavern_wi_check(wiToAdd);
-				if(has_tav_wi_check)
+				let { file, fileName, ext, content, plaintext, dataArr } = fileDetails;
+				let wiToAdd = []
+				if (ext === ".png")
 				{
-					wiToAdd = load_tavern_wi(wiToAdd);
+					wiToAdd = importCharacterCardAsWI(dataArr)
 				}
+				else
+				{
+					wiToAdd = JSON.parse(plaintext);
+					let has_tav_wi_check = has_tavern_wi_check(wiToAdd);
+					if(has_tav_wi_check)
+					{
+						wiToAdd = load_tavern_wi(wiToAdd);
+					}
+				}
+
 				if (wiToAdd && wiToAdd.length > 0)
 				{
 					for (let i = 0; i < wiToAdd.length; ++i)
