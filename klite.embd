@@ -21522,6 +21522,14 @@ Current version indicated by LITEVER below.
 		},true,true);
 	}
 
+	function export_wi_group_to_file()
+	{
+		save_wi();
+		update_wi();
+		let fdata = JSON.stringify(pending_wi_obj.filter(elem => elem.wigroup === curr_wi_tab));
+		saveFileGeneric(!!curr_wi_tab ? `${curr_wi_tab}_world_info` : "General_world_info", fdata, 'application/json');
+	}
+
 	function export_wi_to_file()
 	{
 		save_wi();
@@ -21529,6 +21537,7 @@ Current version indicated by LITEVER below.
 		let fdata = JSON.stringify(pending_wi_obj);
 		saveFileGeneric('world_info', fdata, 'application/json');
 	}
+
 	function import_wi_from_file()
 	{
 		promptUserForLocalFile((fileDetails) => {
@@ -23166,6 +23175,7 @@ Current version indicated by LITEVER below.
 					<div class="settinglabel">
 						<button type="button" class="btn purplebtn widelbtn" style="padding:4px;margin:2px;margin-top:4px;margin-bottom:4px;font-size:8px" id="wiexport" onclick="wi_group_export()">[Edit Group]</button>
 						<button type="button" class="btn purplebtn widelbtn" style="padding:4px;margin:2px;margin-top:4px;margin-bottom:4px;font-size:8px" id="wiexport" onclick="export_wi_to_file()">[Export all WI to file]</button>
+						<button type="button" class="btn purplebtn widelbtn" style="padding:4px;margin:2px;margin-top:4px;margin-bottom:4px;font-size:8px" id="wiexport" onclick="export_wi_group_to_file()">[Export current WI group to file]</button>
 						<button type="button" class="btn purplebtn widelbtn" style="padding:4px;margin:2px;margin-top:4px;margin-bottom:4px;font-size:8px" id="wiexport" onclick="import_wi_from_file()">[Import all WI from file]</button>
 					</div>
 					<div style="float:right;">
@@ -31203,7 +31213,6 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					}
 				};
 				this.loadFromLocalStorage()
-				this.applyTheme(this.currentTheme);
 			},
 
 			saveToLocalStorage() {
@@ -31211,16 +31220,18 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					themes: this.themes,
 					currentTheme: this.currentTheme
 				}
-				localStorage.setItem("BLTOOL_themestorage", JSON.stringify(saveObj))
+				indexeddb_save("BLTOOL_themestorage", JSON.stringify(saveObj))
 			},
 
 			loadFromLocalStorage() {
-				let saveJson = localStorage.getItem("BLTOOL_themestorage")
-				if (saveJson !== null) {
-					let saveObj = JSON.parse(saveJson)
-					this.themes = saveObj.themes,
+				indexeddb_load("BLTOOL_themestorage", null).then(saveJson => {
+					if (saveJson !== null) {
+						let saveObj = JSON.parse(saveJson)
+						this.themes = saveObj.themes
 						this.currentTheme = saveObj.currentTheme
-				}
+						this.applyTheme(this.currentTheme)
+					}
+				})
 			},
 
 			renderPresetsTab() {
