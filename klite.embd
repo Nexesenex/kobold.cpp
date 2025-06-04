@@ -28656,9 +28656,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 	img.esobold {
 		background-image: var(--img_esobold);
-		background-size: contain;
 		background-repeat: round;
-		height: 500px !important;
+		width: min(500px,100%);
 		aspect-ratio: 1;
 		border-radius: 250px;
 		margin: 50px 50px 50px 0px;
