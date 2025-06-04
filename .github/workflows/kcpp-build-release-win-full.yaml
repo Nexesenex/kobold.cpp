@@ -13,7 +13,7 @@ env:
 
 jobs:
   windows:
-    runs-on: windows-2019
+    runs-on: windows-2022
     steps:
       - name: Clone
         id: checkout
@@ -64,12 +64,21 @@ jobs:
           cuda: '11.4.4'
           use-github-cache: false
 
-      - name: Build CUDA
-        id: cmake_build
+      - name: Locate Visual Studio 2019
+        id: vswhere
+        shell: powershell
         run: |
+          $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -version 16 -property installationPath
+          echo "VS2019_PATH=$vsPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8
+
+      - name: Build CUDA with Visual Studio 2019
+        id: cmake_build
+        shell: cmd
+        run: |
+          call "%VS2019_PATH%\VC\Auxiliary\Build\vcvars64.bat"
           mkdir build
           cd build
-          cmake .. -DLLAMA_CUBLAS=ON -DCMAKE_SYSTEM_VERSION="10.0.19041.0"
+          cmake .. -G "Visual Studio 16 2019" -A x64 -DLLAMA_CUBLAS=ON -DCMAKE_SYSTEM_VERSION="10.0.19041.0"
           cmake --build . --config Release -j 2
           cd ..
 
