@@ -15556,6 +15556,7 @@ Current version indicated by LITEVER below.
 			}
 
 			//for chatmode, inject hidden context if AN and memory are empty, and if there's no story in context before the chat
+			let finalCo = ""
 			if (localsettings.opmode == 3) {
 				let co = localsettings.chatopponent;
 
@@ -15645,6 +15646,11 @@ Current version indicated by LITEVER below.
 					pending_context_preinjection = "\n";
 				}
 
+				if (co != "")
+				{
+					finalCo = co
+				}
+
 				if(localsettings.allow_continue_chat && newgen.trim() == "" && co!="")
 				{
 					let me = get_my_multiplayer_chatname();
@@ -15688,6 +15694,10 @@ Current version indicated by LITEVER below.
 							coarr = coarr.filter(x=>(!groupchat_removals.includes(x)));
 							coarr = coarr.map(x=>x.trim());
 							let co = coarr[Math.floor(Math.random()*coarr.length)];
+							if (co != "")
+							{
+								finalCo = co
+							}
 							pending_context_preinjection += co + ":";
 							if(localsettings.inject_jailbreak_instruct || (localsettings.think_injected!=0 && localsettings.start_thinking_tag!=""))
 							{
@@ -15840,6 +15850,12 @@ Current version indicated by LITEVER below.
 								shoulduse = (t1 && !t3);
 							}
 						}
+					}
+
+					// If accessing WI for a character's memory, switch based on the current chat opponent
+					if (!!finalCo && (!!wi.comment && !!wi.wigroup) && (wi.comment.endsWith("_imported_memory") && wi.wigroup === wi.comment.replace("_imported_memory", "")))
+					{
+						shoulduse = wi.wigroup == finalCo
 					}
 
 					if (shoulduse) {
@@ -21605,7 +21621,7 @@ Current version indicated by LITEVER below.
 			"keysecondary": "",
 			"keyanti": "",
 			"content": memory,
-			"comment": "",
+			"comment": `${charName}_imported_memory`,
 			"folder": charName,
 			"selective": false,
 			"constant": false,
@@ -26449,8 +26465,14 @@ else
 		return arr[Math.floor(Math.random() * arr.length)]
 	}
 
-	let getChatOpponentRandomly = () => {
-		return getRandomElemFromArray(localsettings.chatopponent.split("||$||"))
+	let mostRecentChatOpponent = ""
+	let resetChatOpponentToRandom = () => {
+		mostRecentChatOpponent = getRandomElemFromArray(localsettings.chatopponent.split("||$||"))
+		return mostRecentChatOpponent
+	}
+
+	let getChatOpponentForAgent = () => {
+		return localsettings.inject_chatnames_instruct ? mostRecentChatOpponent : ""
 	}	
 
 	let objToText = (obj, depth = 0) => {
@@ -26494,7 +26516,7 @@ else
 			"args": {
 				"whoToSendMessageAs": {
 					description: "<whose perspective is the response written from>",
-					pattern: (localsettings.inject_chatnames_instruct ? `^${getChatOpponentRandomly()}$` : undefined),
+					pattern: (localsettings.inject_chatnames_instruct ? `^${getChatOpponentForAgent()}$` : undefined),
 					type: "string",
 					skip: !localsettings.inject_chatnames_instruct
 				},
@@ -26528,7 +26550,7 @@ else
 			"args": {
 				"whoToSendMessageAs": {
 					description: "<whose perspective is the response written from>",
-					pattern: (localsettings.inject_chatnames_instruct ? `^${getChatOpponentRandomly()}$` : undefined),
+					pattern: (localsettings.inject_chatnames_instruct ? `^${getChatOpponentForAgent()}$` : undefined),
 					type: "string",
 					skip: !localsettings.inject_chatnames_instruct
 				},
@@ -27060,6 +27082,12 @@ else
 				"name": "plan_actions",
 				"description": "Defines a list of actions to respond to a user instruction.",
 				"args": {
+					"whoToRespondAs": {
+						description: "<whose perspective is the response going to be written from>",
+						enum: (localsettings.inject_chatnames_instruct ? localsettings.chatopponent.split("||$||") : undefined),
+						type: "string",
+						skip: !localsettings.inject_chatnames_instruct
+					},
 					"responsePlanOverview": {
 						type: "string",
 						description: "<short overview of what the user asked for, planned actions and why the order makes sense - this must be specific to the last user instruction>"
@@ -27091,6 +27119,17 @@ else
 				"executor": (action) => {
 					currentOrderOfActionsOverall = action?.args?.orderOfActions.map(act => act.action)
 					currentOrderOfActionDescriptionsOverall = action?.args?.orderOfActions.map(act => act.objective)
+					if (localsettings.inject_chatnames_instruct)
+					{
+						if (!!action?.args?.whoToRespondAs)
+						{
+							mostRecentChatOpponent = action?.args?.whoToRespondAs
+						}
+						else
+						{
+							mostRecentChatOpponent = resetChatOpponentToRandom()
+						}
+					}
 					return false
 				}
 			}
@@ -27856,6 +27895,12 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					}
 				}
 
+				// If accessing WI for a character's memory, switch based on the current chat opponent
+				if (!!getChatOpponentForAgent() && (!!wi.comment && !!wi.wigroup) && (wi.comment.endsWith("_imported_memory") && wi.wigroup === wi.comment.replace("_imported_memory", "")))
+				{
+					shoulduse = wi.wigroup == getChatOpponentForAgent()
+				}
+
 				if (shoulduse) {
 					//check if randomness less than 100%
 					if (wi.probability && wi.probability < 100) {
@@ -28068,7 +28113,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			{
 				let planningPrompt = "The last action from the user is the instruction. If you need to ask the user for a response, the action ask_user must be used and be put as the final action in the order. Produces a list of actions to respond to this instruction."
 				if (localsettings.inject_chatnames_instruct) {
-					planningPrompt += ` You must respond as ${localsettings.chatopponent} when using the send_message or ask_user actions.`
+					planningPrompt += ` You must respond as ${localsettings.chatopponent.split("||$||").join(" or ")} when using the send_message or ask_user actions. Choose the person based on the user's instruction.`
 				}
 				promptOverview = planningPrompt
 			}
@@ -28102,7 +28147,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			{
 				history += localsettings.custom_jailbreak_text
 			}
-			let resp = await generateAndGetTextFromPrompt(replace_instruct_placeholders(history), jsonGrammar, [], recentActions.map(JSON.stringify))
+			let resp = await generateAndGetTextFromPrompt(replace_placeholders(history), jsonGrammar, [], recentActions.map(JSON.stringify))
 			
 			try
 			{
