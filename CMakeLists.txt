@@ -15,17 +15,10 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS 1)
 set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(LLAMA_STANDALONE ON)
-set(BUILD_SHARED_LIBS_DEFAULT ON)
 set(LLAMA_STATIC OFF)
 set(LLAMA_NATIVE OFF)
 set(LLAMA_LTO OFF)
-set(LLAMA_ALL_WARNINGS OFF)
-set(LLAMA_ALL_WARNINGS_3RD_PARTY OFF)
 set(LLAMA_GPROF OFF)
-set(LLAMA_SANITIZE_THREAD OFF)
-set(LLAMA_SANITIZE_ADDRESS OFF)
-set(LLAMA_SANITIZE_UNDEFINED OFF)
 
 
 # instruction set specific
@@ -86,8 +79,6 @@ set(GGML_V2_LEGACY_CUDA_SOURCES otherarch/ggml_v2-cuda-legacy.cu otherarch/ggml_
 
 
 if (LLAMA_CUBLAS)
-    cmake_minimum_required(VERSION 3.17)
-
     find_package(CUDAToolkit)
     if (CUDAToolkit_FOUND)
         message(STATUS "cuBLAS found")
@@ -218,52 +209,9 @@ if (LLAMA_HIPBLAS)
     endif()
 endif()
 
-if (LLAMA_ALL_WARNINGS)
-    if (NOT MSVC)
-        set(warning_flags -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function)
-        set(c_flags -Wshadow -Wstrict-prototypes -Wpointer-arith -Wmissing-prototypes -Werror=implicit-int
-            -Werror=implicit-function-declaration)
-        set(cxx_flags -Wmissing-declarations -Wmissing-noreturn)
-
-        if (CMAKE_C_COMPILER_ID MATCHES "Clang")
-            set(warning_flags ${warning_flags} -Wunreachable-code-break -Wunreachable-code-return)
-            set(cxx_flags ${cxx_flags} -Wmissing-prototypes -Wextra-semi)
-
-            if (
-                (CMAKE_C_COMPILER_ID STREQUAL "Clang"      AND CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 3.8.0) OR
-                (CMAKE_C_COMPILER_ID STREQUAL "AppleClang" AND CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 7.3.0)
-            )
-                set(c_flags ${c_flags} -Wdouble-promotion)
-            endif()
-        elseif (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-            set(c_flags ${c_flags} -Wdouble-promotion)
-            set(cxx_flags ${cxx_flags} -Wno-array-bounds)
-
-            if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 7.1.0)
-                set(cxx_flags ${cxx_flags} -Wno-format-truncation)
-            endif()
-            if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.1.0)
-                set(cxx_flags ${cxx_flags} -Wextra-semi)
-            endif()
-        endif()
-    else()
-        # todo : msvc
-    endif()
-
-    add_compile_options(
-            ${warning_flags}
-            "$<$<COMPILE_LANGUAGE:C>:${c_flags}>"
-            "$<$<COMPILE_LANGUAGE:CXX>:${cxx_flags}>"
-    )
-
-endif()
 
 if (WIN32)
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
-
-    if (BUILD_SHARED_LIBS)
-        set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
-    endif()
 endif()
 
 if (LLAMA_LTO)
