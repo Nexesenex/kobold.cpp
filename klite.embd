@@ -28311,8 +28311,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			document.getElementById("separate_end_tags").checked = true
 			toggle_separate_end_tags()
-			confirm_settings()
 		}
+		confirm_settings()
 		updateAgentButtonVisibility();
 		render_gametext();
 	}
