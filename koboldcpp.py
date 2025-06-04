@@ -547,6 +547,13 @@ def init_library():
     handle.token_count.restype = token_count_outputs
     handle.get_pending_output.restype = ctypes.c_char_p
     handle.get_chat_template.restype = ctypes.c_char_p
+    handle.calc_new_state_kv.restype = ctypes.c_size_t
+    handle.calc_old_state_kv.restype = ctypes.c_size_t
+    handle.calc_new_state_tokencount.restype = ctypes.c_size_t
+    handle.calc_old_state_tokencount.restype = ctypes.c_size_t
+    handle.save_state_kv.restype = ctypes.c_size_t
+    handle.load_state_kv.restype = ctypes.c_bool
+    handle.clear_state_kv.restype = ctypes.c_bool
     handle.sd_load_model.argtypes = [sd_load_model_inputs]
     handle.sd_load_model.restype = ctypes.c_bool
     handle.sd_generate.argtypes = [sd_generation_inputs]
@@ -874,11 +881,17 @@ def get_capabilities():
     has_search = True if args.websearch else False
     has_tts = (ttsmodelpath!="")
     has_embeddings = (embeddingsmodelpath!="")
+    embeddingModel = ""
+    try:
+        embeddingModel = os.path.basename(embeddingsmodelpath)
+        embeddingModel = os.path.splitext(embeddingModel)[0]
+    except:
+        embeddingModel = ""
     has_guidance = True if args.enableguidance else False
     has_server_saving = args.admin and not (args.admindatadir == "")
     had_admin_with_hf = args.adminallowhf
     admin_type = (2 if args.admin and args.admindir and args.adminpassword else (1 if args.admin and args.admindir else 0))
-    return {"result":"KoboldCpp", "version":KcppVersion, "protected":has_password, "llm":has_llm, "txt2img":has_txt2img,"vision":has_vision,"transcribe":has_whisper,"multiplayer":has_multiplayer,"websearch":has_search,"tts":has_tts, "embeddings":has_embeddings, "savedata":(savedata_obj is not None), "admin": admin_type, "guidance": has_guidance, "hasServerSaving": has_server_saving, "hasAdminWithHF": had_admin_with_hf}
+    return {"result":"KoboldCpp", "version":KcppVersion, "protected":has_password, "llm":has_llm, "txt2img":has_txt2img,"vision":has_vision,"transcribe":has_whisper,"multiplayer":has_multiplayer,"websearch":has_search,"tts":has_tts, "embeddings":has_embeddings, "savedata":(savedata_obj is not None), "admin": admin_type, "guidance": has_guidance, "hasServerSaving": has_server_saving, "hasAdminWithHF": had_admin_with_hf, "embeddingModel": embeddingModel}
 
 def dump_gguf_metadata(file_path): #if you're gonna copy this into your own project at least credit concedo
     chunk_size = 1024*1024*12  # read first 12mb of file
@@ -4660,7 +4673,7 @@ Change Mode<br>
 
         elif self.path=="/v1":
             content_type = 'text/html'
-            response_body = ("KoboldCpp OpenAI compatible endpoint is running!\n\nFor usage reference, see https://platform.openai.com/docs/api-reference").encode()
+            response_body = ("KoboldCpp OpenAI compatible endpoint is running!<br>For usage reference, see <a href='https://platform.openai.com/docs/api-reference'>https://platform.openai.com/docs/api-reference</a><br>For other endpoints, see <a href='/api'>KoboldCpp API Documentation</a>").encode()
 
         elif self.path=="/api/extra/preloadstory":
             if preloaded_story is None:
@@ -5284,9 +5297,9 @@ Change Mode<br>
         if reqblocking:
             requestsinqueue = (requestsinqueue - 1) if requestsinqueue > 0 else 0
 
+        # handle endpoints that require mutex locking and handle actual gens
         try:
             sse_stream_flag = False
-
             api_format = 0 #1=basic,2=kai,3=oai,4=oai-chat,5=interrogate,6=ollama,7=ollamachat
             is_imggen = False
             is_comfyui_imggen = False
@@ -5294,24 +5307,49 @@ Change Mode<br>
             is_extract_text = False
             is_tts = False
             is_embeddings = False
+            response_body = None
 
-            if self.path.endswith('/request'):
+            if self.path.endswith('/api/admin/check_state'):
+                if global_memory and args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
+                    newstate = handle.calc_new_state_kv()
+                    oldstate = handle.calc_old_state_kv()
+                    newtokencnt = handle.calc_new_state_tokencount()
+                    oldtokencnt = handle.calc_old_state_tokencount()
+                    response_body = (json.dumps({"success": True, "old_state_size":oldstate, "old_tokens":oldtokencnt, "new_state_size":newstate, "new_tokens":newtokencnt}).encode())
+                else:
+                    response_body = (json.dumps({"success": False, "old_state_size":0, "old_tokens":0, "new_state_size":0, "new_tokens":0}).encode())
+            elif self.path.endswith('/api/admin/load_state'):
+                if global_memory and args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
+                    result = handle.load_state_kv()
+                    tokencnt = handle.calc_new_state_tokencount()
+                    response_body = (json.dumps({"success": result, "new_tokens":tokencnt}).encode())
+                else:
+                    response_body = (json.dumps({"success": False, "new_tokens":0}).encode())
+            elif self.path.endswith('/api/admin/save_state'):
+                if global_memory and args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
+                    result = handle.save_state_kv()
+                    tokencnt = handle.calc_new_state_tokencount()
+                    response_body = (json.dumps({"success": (result>0), "new_state_size":result, "new_tokens":tokencnt}).encode())
+                else:
+                    response_body = (json.dumps({"success": False, "new_state_size":0, "new_tokens":0}).encode())
+            elif self.path.endswith('/api/admin/clear_state'):
+                if global_memory and args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
+                    result = handle.clear_state_kv()
+                    response_body = (json.dumps({"success": result}).encode())
+                else:
+                    response_body = (json.dumps({"success": False}).encode())
+            elif self.path.endswith('/request'):
                 api_format = 1
-
-            if self.path.endswith(('/api/v1/generate', '/api/latest/generate')):
+            elif self.path.endswith(('/api/v1/generate', '/api/latest/generate')):
                 api_format = 2
-
-            if self.path.endswith('/api/extra/generate/stream'):
+            elif self.path.endswith('/api/extra/generate/stream'):
                 api_format = 2
                 sse_stream_flag = True
-
-            if self.path.endswith('/v1/completions') or self.path.endswith('/v1/completion'):
+            elif self.path.endswith('/v1/completions') or self.path.endswith('/v1/completion'):
                 api_format = 3
-
-            if self.path.endswith('/v1/chat/completions'):
+            elif self.path.endswith('/v1/chat/completions'):
                 api_format = 4
-
-            if self.path.endswith('/sdapi/v1/interrogate'):
+            elif self.path.endswith('/sdapi/v1/interrogate'):
                 has_vision = (mmprojpath!="")
                 if not has_vision:
                     self.send_response(503)
@@ -5322,30 +5360,30 @@ Change Mode<br>
                         }}).encode())
                     return
                 api_format = 5
-
-            if self.path.endswith('/api/generate'):
+            elif self.path.endswith('/api/generate'):
                 api_format = 6
-            if self.path.endswith('/api/chat'):
+            elif self.path.endswith('/api/chat'):
                 api_format = 7
-
-            if self.path=="/prompt" or self.path.endswith('/sdapi/v1/txt2img') or self.path.endswith('/sdapi/v1/img2img'):
+            elif self.path=="/prompt" or self.path.endswith('/sdapi/v1/txt2img') or self.path.endswith('/sdapi/v1/img2img'):
                 is_imggen = True
                 if self.path=="/prompt":
                     is_comfyui_imggen = True
-
             if self.path.endswith('/api/extra/extractText'):
                 is_extract_text = True
 
-            if self.path.endswith('/api/extra/transcribe') or self.path.endswith('/v1/audio/transcriptions'):
+            elif self.path.endswith('/api/extra/transcribe') or self.path.endswith('/v1/audio/transcriptions'):
                 is_transcribe = True
-
-            if self.path.endswith('/api/extra/tts') or self.path.endswith('/v1/audio/speech') or self.path.endswith('/tts_to_audio'):
+            elif self.path.endswith('/api/extra/tts') or self.path.endswith('/v1/audio/speech') or self.path.endswith('/tts_to_audio'):
                 is_tts = True
-
-            if self.path.endswith('/api/extra/embeddings') or self.path.endswith('/v1/embeddings'):
+            elif self.path.endswith('/api/extra/embeddings') or self.path.endswith('/v1/embeddings'):
                 is_embeddings = True
 
-            if is_imggen or is_transcribe or is_tts or is_embeddings or is_extract_text or api_format > 0:
+            if response_body is not None:
+                self.send_response(response_code)
+                self.send_header('content-length', str(len(response_body)))
+                self.end_headers(content_type='application/json')
+                self.wfile.write(response_body)
+            elif is_imggen or is_transcribe or is_tts or is_embeddings or is_extract_text or api_format > 0:
                 global last_req_time
                 last_req_time = time.time()
 
