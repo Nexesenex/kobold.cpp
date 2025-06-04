@@ -25248,12 +25248,11 @@ Current version indicated by LITEVER below.
 			<br>
 			<div>
 				<b class="color_white" style="padding: 5px;">Change Loaded Model / Config:</b><br>
-				<div style="display:flex;padding: 5px;">
-					
-					<label for="adminconfigdropdown" id="adminconfigdropdownlabel"></label>
-					<select title="Select New Config" style="padding:4px; width:calc(100% - 150px)" class="form-control" id="adminconfigdropdown">
+				<div style="padding: 5px;">
+					<label for="adminconfigdropdown" id="adminconfigdropdownlabel" style="color: white"></label>
+					<select title="Select New Config" style="padding:4px;" class="form-control" id="adminconfigdropdown">
 					</select>
-					<label for="adminmodeldropdown" id="adminmodeldropdownlabel"></label>
+					<label for="adminmodeldropdown" id="adminmodeldropdownlabel" style="color: white"></label>
 					<select title="Select New Model" style="padding:4px;" class="form-control" id="adminmodeldropdown">
 					</select>					
 					<label for="adminmodelfromhf" id="adminmodelfromhflabel"></label>
@@ -32155,7 +32154,13 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 <script>
 // Start with the BlackLite tools minimised	
 window.addEventListener('load', () => {
-	setTimeout(() => document.getElementsByClassName("BLTOOL-toggle-handle")[0].click(), 100)
+	let intervalId = setInterval(() => {
+		if (!!window?.blackliteToolsInitialized)
+		{
+			document.getElementsByClassName("BLTOOL-toggle-handle")[0].click()
+			clearInterval(intervalId)
+		}
+	}, 100)
 })
 
 /* 
