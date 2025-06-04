@@ -102,6 +102,11 @@ enum sd_type_t {
     // SD_TYPE_IQ4_NL_8_8 = 38,
     // SD_TYPE_COUNT = 39,
     //
+    SD_TYPE_I2_S    = 86,
+    //
+    SD_TYPE_Q8_0_X4 = 97,
+    SD_TYPE_Q8_1_X4 = 98,
+    SD_TYPE_Q8_2_X4 = 99,
     SD_TYPE_Q6_0    = 133,
     SD_TYPE_IQ1_BN  = 134,
     SD_TYPE_IQ2_BN  = 135,
