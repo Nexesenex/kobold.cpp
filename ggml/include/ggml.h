@@ -396,7 +396,7 @@ extern "C" {
         // GGML_TYPE_IQ4_NL_8_8 = 38,
         // GGML_TYPE_COUNT   = 39,
         //
-        GGML_TYPE_I2_S    = 96,
+        GGML_TYPE_I2_S    = 86,
         //
         GGML_TYPE_Q8_0_X4 = 97,
         GGML_TYPE_Q8_1_X4 = 98,
@@ -425,7 +425,7 @@ extern "C" {
         GGML_TYPE_IQ3_KT  = 154,
         GGML_TYPE_IQ4_KT  = 155,
 
-        GGML_TYPE_IQ3_KS  = 195,
+        GGML_TYPE_IQ3_KS  = 196,
 
         GGML_TYPE_Q4_0_R8   = 202,
         GGML_TYPE_Q5_0_R4   = 206,
