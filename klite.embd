@@ -11866,7 +11866,8 @@ Current version indicated by LITEVER below.
 
 	function trigger_admin_savestate()
 	{
-		document.getElementById("loadstatetxt").innerText = "Saving State...";
+		let slot = parseInt(document.getElementById("savestate_selection").value);
+		document.getElementById("loadstatetxt").innerText = `Saving State ${slot}...`;
 		let header = {'Content-Type': 'application/json'};
 		if(last_admin_key!="")
 		{
@@ -11874,27 +11875,31 @@ Current version indicated by LITEVER below.
 		}
 		fetch(custom_kobold_endpoint + koboldcpp_admin_savestate_endpoint, {
 			method: 'POST',
-			headers: header
+			headers: header,
+			body: JSON.stringify({
+				"slot": slot
+			})
 		})
 		.then(x => x.json())
 		.then(values => {
 			console.log(values);
 			if(values.success)
 			{
-				document.getElementById("loadstatetxt").innerText = `State Saved (${values.new_tokens} tokens in ${parseInt(values.new_state_size/(1024*1024))} MB)`;
+				document.getElementById("loadstatetxt").innerText = `State ${slot} Saved (${values.new_tokens} tokens in ${parseInt(values.new_state_size/(1024*1024))} MB)`;
 			}else{
-				document.getElementById("loadstatetxt").innerText = `Save State Failed!`;
+				document.getElementById("loadstatetxt").innerText = `Save State ${slot} Failed!`;
 			}
 		}).catch((error) => {
 			console.log("Error: " + error);
-			document.getElementById("loadstatetxt").innerText = `Save State Failed!`;
+			document.getElementById("loadstatetxt").innerText = `Save State ${slot} Failed!`;
 			msgbox(error,"Error");
 		});
 	}
 
 	function trigger_admin_loadstate()
 	{
-		document.getElementById("loadstatetxt").innerText = "Loading State...";
+		let slot = parseInt(document.getElementById("savestate_selection").value);
+		document.getElementById("loadstatetxt").innerText = `Loading State ${slot}...`;
 		let header = {'Content-Type': 'application/json'};
 		if(last_admin_key!="")
 		{
@@ -11902,27 +11907,31 @@ Current version indicated by LITEVER below.
 		}
 		fetch(custom_kobold_endpoint + koboldcpp_admin_loadstate_endpoint, {
 			method: 'POST',
-			headers: header
+			headers: header,
+			body: JSON.stringify({
+				"slot": slot
+			})
 		})
 		.then(x => x.json())
 		.then(values => {
 			console.log(values);
 			if(values.success)
 			{
-				document.getElementById("loadstatetxt").innerText = `State Loaded (${values.new_tokens} tokens)`;
+				document.getElementById("loadstatetxt").innerText = `State ${slot} Loaded (${values.new_tokens} tokens)`;
 			}else{
-				document.getElementById("loadstatetxt").innerText = `Load State Failed!`;
+				document.getElementById("loadstatetxt").innerText = `Load State ${slot} Failed!`;
 			}
 		}).catch((error) => {
 			console.log("Error: " + error);
-			document.getElementById("loadstatetxt").innerText = `Load State Failed!`;
+			document.getElementById("loadstatetxt").innerText = `Load State ${slot} Failed!`;
 			msgbox(error,"Error");
 		});
 	}
 
 	function trigger_admin_savestate()
 	{
-		document.getElementById("loadstatetxt").innerText = "Saving State...";
+		let slot = parseInt(document.getElementById("savestate_selection").value);
+		document.getElementById("loadstatetxt").innerText = `Saving State ${slot}...`;
 		let header = {'Content-Type': 'application/json'};
 		if(last_admin_key!="")
 		{
@@ -11930,27 +11939,31 @@ Current version indicated by LITEVER below.
 		}
 		fetch(custom_kobold_endpoint + koboldcpp_admin_savestate_endpoint, {
 			method: 'POST',
-			headers: header
+			headers: header,
+			body: JSON.stringify({
+				"slot": slot
+			})
 		})
 		.then(x => x.json())
 		.then(values => {
 			console.log(values);
 			if(values.success)
 			{
-				document.getElementById("loadstatetxt").innerText = `State Saved (${values.new_tokens} tokens in ${parseInt(values.new_state_size/(1024*1024))} MB)`;
+				document.getElementById("loadstatetxt").innerText = `State ${slot} Saved (${values.new_tokens} tokens in ${parseInt(values.new_state_size/(1024*1024))} MB)`;
 			}else{
-				document.getElementById("loadstatetxt").innerText = `Save State Failed!`;
+				document.getElementById("loadstatetxt").innerText = `Save State ${slot} Failed!`;
 			}
 		}).catch((error) => {
 			console.log("Error: " + error);
-			document.getElementById("loadstatetxt").innerText = `Save State Failed!`;
+			document.getElementById("loadstatetxt").innerText = `Save State ${slot} Failed!`;
 			msgbox(error,"Error");
 		});
 	}
 
 	function trigger_admin_loadstate()
 	{
-		document.getElementById("loadstatetxt").innerText = "Loading State...";
+		let slot = parseInt(document.getElementById("savestate_selection").value);
+		document.getElementById("loadstatetxt").innerText = `Loading State ${slot}...`;
 		let header = {'Content-Type': 'application/json'};
 		if(last_admin_key!="")
 		{
@@ -11958,20 +11971,23 @@ Current version indicated by LITEVER below.
 		}
 		fetch(custom_kobold_endpoint + koboldcpp_admin_loadstate_endpoint, {
 			method: 'POST',
-			headers: header
+			headers: header,
+			body: JSON.stringify({
+				"slot": slot
+			})
 		})
 		.then(x => x.json())
 		.then(values => {
 			console.log(values);
 			if(values.success)
 			{
-				document.getElementById("loadstatetxt").innerText = `State Loaded (${values.new_tokens} tokens)`;
+				document.getElementById("loadstatetxt").innerText = `State ${slot} Loaded (${values.new_tokens} tokens)`;
 			}else{
-				document.getElementById("loadstatetxt").innerText = `Load State Failed!`;
+				document.getElementById("loadstatetxt").innerText = `Load State ${slot} Failed!`;
 			}
 		}).catch((error) => {
 			console.log("Error: " + error);
-			document.getElementById("loadstatetxt").innerText = `Load State Failed!`;
+			document.getElementById("loadstatetxt").innerText = `Load State ${slot} Failed!`;
 			msgbox(error,"Error");
 		});
 	}
@@ -16045,6 +16061,7 @@ Current version indicated by LITEVER below.
 			}
 
 			//for chatmode, inject hidden context if AN and memory are empty, and if there's no story in context before the chat
+			let finalCo = ""
 			if (localsettings.opmode == 3) {
 				let co = localsettings.chatopponent;
 
@@ -16134,6 +16151,11 @@ Current version indicated by LITEVER below.
 					pending_context_preinjection = "\n";
 				}
 
+				if (co != "")
+				{
+					finalCo = co
+				}
+
 				if(localsettings.allow_continue_chat && newgen.trim() == "" && co!="")
 				{
 					let me = get_my_multiplayer_chatname();
@@ -16177,6 +16199,10 @@ Current version indicated by LITEVER below.
 							coarr = coarr.filter(x=>(!groupchat_removals.includes(x)));
 							coarr = coarr.map(x=>x.trim());
 							let co = coarr[Math.floor(Math.random()*coarr.length)];
+							if (co != "")
+							{
+								finalCo = co
+							}
 							pending_context_preinjection += co + ":";
 							if(localsettings.inject_jailbreak_instruct || (localsettings.think_injected!=0 && localsettings.start_thinking_tag!=""))
 							{
@@ -16329,6 +16355,12 @@ Current version indicated by LITEVER below.
 								shoulduse = (t1 && !t3);
 							}
 						}
+					}
+
+					// If accessing WI for a character's memory, switch based on the current chat opponent
+					if (!!finalCo && (!!wi.comment && !!wi.wigroup) && (wi.comment.endsWith("_imported_memory") && wi.wigroup === wi.comment.replace("_imported_memory", "")))
+					{
+						shoulduse = wi.wigroup == finalCo
 					}
 
 					if (shoulduse) {
@@ -18428,6 +18460,14 @@ Current version indicated by LITEVER below.
 			{
 				let pat = new RegExp(localsettings.thinking_pattern, "gmi");
 				gentxtspeak = gentxtspeak.replace(pat, '');
+			}
+			//remove t2i
+			if (localsettings.img_autogen_type == 2)
+			{
+				const pat = /<t2i>(.*?)<\/t2i>/g;
+				gentxtspeak = gentxtspeak.replace(pat, "");
+				const pat2 = /{{\[IMG_.{1,8}_REF\]}}/g;
+				gentxtspeak = gentxtspeak.replace(pat2, "");
 			}
 
 			tts_speak(gentxtspeak);
@@ -22018,16 +22058,18 @@ Current version indicated by LITEVER below.
 		let userinput = getInputBoxValue().trim();
 		try
 		{
-			if(userinput!="")
+			if(userinput=="")
 			{
-				let newjson = JSON.parse(userinput);
-				pending_wi_obj = pending_wi_obj.filter(item => !currwis.includes(item));
-				for (var i = 0; i < newjson.length; ++i) {
-					newjson[i].wigroup = curr_wi_tab;
-					pending_wi_obj.push(newjson[i]);
-				}
-				update_wi();
+				userinput = "[]";
 			}
+			let newjson = JSON.parse(userinput);
+			pending_wi_obj = pending_wi_obj.filter(item => !currwis.includes(item));
+			for (var i = 0; i < newjson.length; ++i) {
+				newjson[i].wigroup = curr_wi_tab;
+				pending_wi_obj.push(newjson[i]);
+			}
+			update_wi();
+
 		} catch (e) {
 			console.log("WI JSON not correctly formatted!");
 		}
@@ -22084,7 +22126,7 @@ Current version indicated by LITEVER below.
 			"keysecondary": "",
 			"keyanti": "",
 			"content": memory,
-			"comment": "",
+			"comment": `${charName}_imported_memory`,
 			"folder": charName,
 			"selective": false,
 			"constant": false,
@@ -22115,6 +22157,10 @@ Current version indicated by LITEVER below.
 					if(has_tav_wi_check)
 					{
 						wiToAdd = load_tavern_wi(wiToAdd);
+						if(wiToAdd && wiToAdd.length > 0)
+						{
+							wiToAdd.forEach(wi => wi.wigroup = fileName.replace("'", ""))
+						}
 					}
 				}
 
@@ -25714,20 +25760,24 @@ Current version indicated by LITEVER below.
 			<div>
 				<b class="color_white" style="padding: 5px;">Save / Load Context State:</b><br>
 				<div style="display:flex;padding: 5px;">
-				<button type="button" style="margin:2px;width:50%" class="btn btn-primary" onclick="trigger_admin_savestate()">Save State</button>
-				<button type="button" style="margin:2px;width:50%" class="btn btn-primary" onclick="trigger_admin_loadstate()">Load State</button>
+				<select title="State Slot Selection" style="padding:4px;width:30%" class="form-control" id="savestate_selection">
+					<option value="0" selected="selected">State 0</option>
+					<option value="1">State 1</option>
+					<option value="2">State 2</option>
+				</select>
+				<button type="button" style="margin:2px;width:35%" class="btn btn-primary" onclick="trigger_admin_savestate()">Save State</button>
+				<button type="button" style="margin:2px;width:35%" class="btn btn-primary" onclick="trigger_admin_loadstate()">Load State</button>
 				</div>
 				<div class="menutext" id="loadstatetxt"></div>
 			</div>
 			<br>
 			<div>
 				<b class="color_white" style="padding: 5px;">Change Loaded Model / Config:</b><br>
-				<div style="display:flex;padding: 5px;">
-					
-					<label for="adminconfigdropdown" id="adminconfigdropdownlabel"></label>
-					<select title="Select New Config" style="padding:4px; width:calc(100% - 150px)" class="form-control" id="adminconfigdropdown">
+				<div style="padding: 5px;">
+					<label for="adminconfigdropdown" id="adminconfigdropdownlabel" style="color: white"></label>
+					<select title="Select New Config" style="padding:4px;" class="form-control" id="adminconfigdropdown">
 					</select>
-					<label for="adminmodeldropdown" id="adminmodeldropdownlabel"></label>
+					<label for="adminmodeldropdown" id="adminmodeldropdownlabel" style="color: white"></label>
 					<select title="Select New Model" style="padding:4px;" class="form-control" id="adminmodeldropdown">
 					</select>					
 					<label for="adminmodelfromhf" id="adminmodelfromhflabel"></label>
@@ -26924,8 +26974,14 @@ else
 		return arr[Math.floor(Math.random() * arr.length)]
 	}
 
-	let getChatOpponentRandomly = () => {
-		return getRandomElemFromArray(localsettings.chatopponent.split("||$||"))
+	let mostRecentChatOpponent = ""
+	let resetChatOpponentToRandom = () => {
+		mostRecentChatOpponent = getRandomElemFromArray(localsettings.chatopponent.split("||$||"))
+		return mostRecentChatOpponent
+	}
+
+	let getChatOpponentForAgent = () => {
+		return localsettings.inject_chatnames_instruct ? mostRecentChatOpponent : ""
 	}	
 
 	let objToText = (obj, depth = 0) => {
@@ -26969,7 +27025,7 @@ else
 			"args": {
 				"whoToSendMessageAs": {
 					description: "<whose perspective is the response written from>",
-					pattern: (localsettings.inject_chatnames_instruct ? `^${getChatOpponentRandomly()}$` : undefined),
+					pattern: (localsettings.inject_chatnames_instruct ? `^${getChatOpponentForAgent()}$` : undefined),
 					type: "string",
 					skip: !localsettings.inject_chatnames_instruct
 				},
@@ -27003,7 +27059,7 @@ else
 			"args": {
 				"whoToSendMessageAs": {
 					description: "<whose perspective is the response written from>",
-					pattern: (localsettings.inject_chatnames_instruct ? `^${getChatOpponentRandomly()}$` : undefined),
+					pattern: (localsettings.inject_chatnames_instruct ? `^${getChatOpponentForAgent()}$` : undefined),
 					type: "string",
 					skip: !localsettings.inject_chatnames_instruct
 				},
@@ -27535,6 +27591,12 @@ else
 				"name": "plan_actions",
 				"description": "Defines a list of actions to respond to a user instruction.",
 				"args": {
+					"whoToRespondAs": {
+						description: "<whose perspective is the response going to be written from>",
+						enum: (localsettings.inject_chatnames_instruct ? localsettings.chatopponent.split("||$||") : undefined),
+						type: "string",
+						skip: !localsettings.inject_chatnames_instruct
+					},
 					"responsePlanOverview": {
 						type: "string",
 						description: "<short overview of what the user asked for, planned actions and why the order makes sense - this must be specific to the last user instruction>"
@@ -27566,6 +27628,17 @@ else
 				"executor": (action) => {
 					currentOrderOfActionsOverall = action?.args?.orderOfActions.map(act => act.action)
 					currentOrderOfActionDescriptionsOverall = action?.args?.orderOfActions.map(act => act.objective)
+					if (localsettings.inject_chatnames_instruct)
+					{
+						if (!!action?.args?.whoToRespondAs)
+						{
+							mostRecentChatOpponent = action?.args?.whoToRespondAs
+						}
+						else
+						{
+							mostRecentChatOpponent = resetChatOpponentToRandom()
+						}
+					}
 					return false
 				}
 			}
@@ -28331,6 +28404,12 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 					}
 				}
 
+				// If accessing WI for a character's memory, switch based on the current chat opponent
+				if (!!getChatOpponentForAgent() && (!!wi.comment && !!wi.wigroup) && (wi.comment.endsWith("_imported_memory") && wi.wigroup === wi.comment.replace("_imported_memory", "")))
+				{
+					shoulduse = wi.wigroup == getChatOpponentForAgent()
+				}
+
 				if (shoulduse) {
 					//check if randomness less than 100%
 					if (wi.probability && wi.probability < 100) {
@@ -28543,7 +28622,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			{
 				let planningPrompt = "The last action from the user is the instruction. If you need to ask the user for a response, the action ask_user must be used and be put as the final action in the order. Produces a list of actions to respond to this instruction."
 				if (localsettings.inject_chatnames_instruct) {
-					planningPrompt += ` You must respond as ${localsettings.chatopponent} when using the send_message or ask_user actions.`
+					planningPrompt += ` You must respond as ${localsettings.chatopponent.split("||$||").join(" or ")} when using the send_message or ask_user actions. Choose the person based on the user's instruction.`
 				}
 				promptOverview = planningPrompt
 			}
@@ -28577,7 +28656,7 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 			{
 				history += localsettings.custom_jailbreak_text
 			}
-			let resp = await generateAndGetTextFromPrompt(replace_instruct_placeholders(history), jsonGrammar, [], recentActions.map(JSON.stringify))
+			let resp = await generateAndGetTextFromPrompt(replace_placeholders(history), jsonGrammar, [], recentActions.map(JSON.stringify))
 			
 			try
 			{
@@ -28786,8 +28865,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 		{
 			document.getElementById("separate_end_tags").checked = true
 			toggle_separate_end_tags()
-			confirm_settings()
 		}
+		confirm_settings()
 		updateAgentButtonVisibility();
 		render_gametext();
 	}
@@ -29086,9 +29165,8 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 
 	img.esobold {
 		background-image: var(--img_esobold);
-		background-size: contain;
 		background-repeat: round;
-		height: 500px !important;
+		width: min(500px,100%);
 		aspect-ratio: 1;
 		border-radius: 250px;
 		margin: 50px 50px 50px 0px;
@@ -32629,7 +32707,13 @@ let checkFinalThoughtsPrompt = `Action: {"command":{"name":"thought","args":{"me
 <script>
 // Start with the BlackLite tools minimised	
 window.addEventListener('load', () => {
-	setTimeout(() => document.getElementsByClassName("BLTOOL-toggle-handle")[0].click(), 100)
+	let intervalId = setInterval(() => {
+		if (!!window?.blackliteToolsInitialized)
+		{
+			document.getElementsByClassName("BLTOOL-toggle-handle")[0].click()
+			clearInterval(intervalId)
+		}
+	}, 100)
 })
 
 /* 

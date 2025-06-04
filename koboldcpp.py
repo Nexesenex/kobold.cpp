@@ -49,6 +49,7 @@ default_draft_amount = 8
 default_ttsmaxlen = 4096
 default_visionmaxres = 1024
 net_save_slots = 10
+savestate_limit = 3 #3 savestate slots
 
 # abuse prevention (don't abuse the antislop! :D)
 stop_token_max = 512
@@ -548,10 +549,14 @@ def init_library():
     handle.get_pending_output.restype = ctypes.c_char_p
     handle.get_chat_template.restype = ctypes.c_char_p
     handle.calc_new_state_kv.restype = ctypes.c_size_t
-    handle.calc_old_state_kv.restype = ctypes.c_size_t
     handle.calc_new_state_tokencount.restype = ctypes.c_size_t
+    handle.calc_old_state_kv.argtypes = [ctypes.c_int]
+    handle.calc_old_state_kv.restype = ctypes.c_size_t
+    handle.calc_old_state_tokencount.argtypes = [ctypes.c_int]
     handle.calc_old_state_tokencount.restype = ctypes.c_size_t
+    handle.save_state_kv.argtypes = [ctypes.c_int]
     handle.save_state_kv.restype = ctypes.c_size_t
+    handle.load_state_kv.argtypes = [ctypes.c_int]
     handle.load_state_kv.restype = ctypes.c_bool
     handle.clear_state_kv.restype = ctypes.c_bool
     handle.sd_load_model.argtypes = [sd_load_model_inputs]
@@ -4592,15 +4597,18 @@ Change Mode<br>
         elif self.path.endswith('/sdapi/v1/upscalers'):
            response_body = (json.dumps([]).encode())
 
-        elif self.path.endswith(('/speakers_list')): #xtts compatible
+        elif self.path.endswith('/speakers_list'): #xtts compatible
             response_body = (json.dumps(["kobo","cheery","sleepy","shouty","chatty"]).encode()) #some random voices for them to enjoy
-        elif self.path.endswith(('/speakers')): #xtts compatible
+        elif self.path.endswith('/speakers'): #xtts compatible
             response_body = (json.dumps([{"name":"kobo","voice_id":"kobo","preview_url":""},{"name":"cheery","voice_id":"cheery","preview_url":""},{"name":"sleepy","voice_id":"sleepy","preview_url":""},{"name":"shouty","voice_id":"shouty","preview_url":""},{"name":"chatty","voice_id":"chatty","preview_url":""}]).encode()) #some random voices for them to enjoy
-        elif self.path.endswith(('/get_tts_settings')): #xtts compatible
+        elif self.path.endswith('/get_tts_settings'): #xtts compatible
             response_body = (json.dumps({"temperature":0.75,"speed":1,"length_penalty":1,"repetition_penalty":1,"top_p":1,"top_k":4,"enable_text_splitting":True,"stream_chunk_size":100}).encode()) #some random voices for them to enjoy
 
-        elif self.path.endswith(('/api/tags')): #ollama compatible
-            response_body = (json.dumps({"models":[{"name":"koboldcpp","model":friendlymodelname,"modified_at":"2024-07-19T15:26:55.6122841+08:00","size":394998579,"digest":"b5dc5e784f2a3ee1582373093acf69a2f4e2ac1710b253a001712b86a61f88bb","details":{"parent_model":"","format":"gguf","family":"koboldcpp","families":["koboldcpp"],"parameter_size":"128M","quantization_level":"Q4_0"}}]}).encode())
+        elif self.path.endswith('/api/tags') or self.path.endswith('/api/ps'): #ollama compatible
+            response_body = (json.dumps({"models":[{"name":"koboldcpp","model":friendlymodelname,"modified_at":"2024-07-19T15:26:55.6122841+08:00","expires_at": "2055-06-04T19:06:25.5433636+08:00","size":394998579,"size_vram":394998579,"digest":"b5dc5e784f2a3ee1582373093acf69a2f4e2ac1710b253a001712b86a61f88bb","details":{"parent_model":"","format":"gguf","family":"koboldcpp","families":["koboldcpp"],"parameter_size":"128M","quantization_level":"Q4_0"}}]}).encode())
+        elif self.path.endswith('/api/version'): #ollama compatible, NOT the kcpp version
+            response_body = (json.dumps({"version":"0.7.0"}).encode())
+
 
         #comfyui compatible
         elif self.path=='/system_stats':
@@ -5311,23 +5319,42 @@ Change Mode<br>
 
             if self.path.endswith('/api/admin/check_state'):
                 if global_memory and args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
+                    cur_states = []
+                    for sl in range(savestate_limit): #0,1,2
+                        oldstate = handle.calc_old_state_kv(sl)
+                        oldtokencnt = handle.calc_old_state_tokencount(sl)
+                        cur_states.append({"tokens":oldtokencnt,"size":oldstate})
                     newstate = handle.calc_new_state_kv()
-                    oldstate = handle.calc_old_state_kv()
                     newtokencnt = handle.calc_new_state_tokencount()
-                    oldtokencnt = handle.calc_old_state_tokencount()
-                    response_body = (json.dumps({"success": True, "old_state_size":oldstate, "old_tokens":oldtokencnt, "new_state_size":newstate, "new_tokens":newtokencnt}).encode())
+                    response_body = (json.dumps({"success": True, "old_states":cur_states, "new_state_size":newstate, "new_tokens":newtokencnt}).encode())
                 else:
-                    response_body = (json.dumps({"success": False, "old_state_size":0, "old_tokens":0, "new_state_size":0, "new_tokens":0}).encode())
+                    response_body = (json.dumps({"success": False, "old_states":[], "new_state_size":0, "new_tokens":0}).encode())
             elif self.path.endswith('/api/admin/load_state'):
                 if global_memory and args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
-                    result = handle.load_state_kv()
+                    targetslot = 0
+                    try:
+                        tempbody = json.loads(body)
+                        if isinstance(tempbody, dict):
+                            targetslot = tempbody.get('slot', 0)
+                    except Exception:
+                        pass
+                    targetslot = (targetslot if targetslot<savestate_limit else 0)
+                    result = handle.load_state_kv(targetslot)
                     tokencnt = handle.calc_new_state_tokencount()
                     response_body = (json.dumps({"success": result, "new_tokens":tokencnt}).encode())
                 else:
                     response_body = (json.dumps({"success": False, "new_tokens":0}).encode())
             elif self.path.endswith('/api/admin/save_state'):
                 if global_memory and args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
-                    result = handle.save_state_kv()
+                    targetslot = 0
+                    try:
+                        tempbody = json.loads(body)
+                        if isinstance(tempbody, dict):
+                            targetslot = tempbody.get('slot', 0)
+                    except Exception:
+                        pass
+                    targetslot = (targetslot if targetslot<savestate_limit else 0)
+                    result = handle.save_state_kv(targetslot)
                     tokencnt = handle.calc_new_state_tokencount()
                     response_body = (json.dumps({"success": (result>0), "new_state_size":result, "new_tokens":tokencnt}).encode())
                 else:
@@ -5360,9 +5387,9 @@ Change Mode<br>
                         }}).encode())
                     return
                 api_format = 5
-            elif self.path.endswith('/api/generate'):
+            elif self.path.endswith('/api/generate'): #ollama
                 api_format = 6
-            elif self.path.endswith('/api/chat'):
+            elif self.path.endswith('/api/chat'): #ollama
                 api_format = 7
             elif self.path=="/prompt" or self.path.endswith('/sdapi/v1/txt2img') or self.path.endswith('/sdapi/v1/img2img'):
                 is_imggen = True
