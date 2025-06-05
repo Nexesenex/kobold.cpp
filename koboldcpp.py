@@ -5413,18 +5413,18 @@ def show_gui():
         button = ctk.CTkButton(parent, 50, text="Browse", command= lambda a=var,b=searchtext:getfilename(a,b))
         if singlerow:
             if singlecol:
-                entry.grid(row=row, column=0, padx=(94+8), stick="w")
-                button.grid(row=row, column=0, padx=(94+width+12), stick="nw")
+                entry.grid(row=row, column=0, padx=(94+8), pady=2, stick="w")
+                button.grid(row=row, column=0, padx=(94+width+12), pady=2, stick="w")
             else:
-                entry.grid(row=row, column=1, padx=8, stick="w")
-                button.grid(row=row, column=1, padx=(width+12), stick="nw")
+                entry.grid(row=row, column=1, padx=8, pady=2, stick="w")
+                button.grid(row=row, column=1, padx=(width+12), pady=2, stick="w")
         else:
             if singlecol:
-                entry.grid(row=row+1, column=0, columnspan=3, padx=8, stick="nw")
-                button.grid(row=row+1, column=0, columnspan=3, padx=(width+12), stick="nw")
+                entry.grid(row=row+1, column=0, columnspan=3, padx=8, pady=2, stick="w")
+                button.grid(row=row+1, column=0, columnspan=3, padx=(width+12), pady=2, stick="w")
             else:
-                entry.grid(row=row+1, column=0, columnspan=1, padx=8, stick="nw")
-                button.grid(row=row+1, column=1, columnspan=1, padx=8, stick="nw")
+                entry.grid(row=row+1, column=0, columnspan=1, padx=8, pady=2, stick="w")
+                button.grid(row=row+1, column=1, columnspan=1, padx=8, pady=2, stick="w")
         return label, entry, button
 
     def model_searcher():
@@ -5812,7 +5812,7 @@ def show_gui():
     # load model
     makefileentry(quick_tab, "GGUF Text Model:", "Select GGUF or GGML Model File", model_var, 40, 280, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
     model_var.trace("w", gui_changed_modelfile)
-    ctk.CTkButton(quick_tab, width=70, text = "HF Search", command = model_searcher ).grid(row=41,column=1, stick="sw", padx= 202)
+    ctk.CTkButton(quick_tab, width=70, text = "HF Search", command = model_searcher ).grid(row=41,column=1, stick="sw", padx= 202, pady=2)
 
     # Hardware Tab
     hardware_tab = tabcontent["Hardware"]
@@ -5908,7 +5908,7 @@ def show_gui():
     model_tab = tabcontent["Loaded Files"]
 
     makefileentry(model_tab, "Text Model:", "Select GGUF or GGML Model File", model_var, 1,width=205,singlerow=True, onchoosefile=on_picked_model_file,tooltiptxt="Select a GGUF or GGML model file on disk to be loaded.")
-    ctk.CTkButton(model_tab, width=70, text = "HF Search", command = model_searcher ).grid(row=1,column=0, stick="nw", padx=370)
+    ctk.CTkButton(model_tab, width=70, text = "HF Search", command = model_searcher ).grid(row=1,column=0, stick="nw", padx=370, pady=2)
     makefileentry(model_tab, "Text Lora:", "Select Lora File",lora_var, 3,width=160,singlerow=True,tooltiptxt="Select an optional GGML Text LoRA adapter to use.\nLeave blank to skip.")
     makelabelentry(model_tab, "Multiplier: ", loramult_var, 3, 50,padx=390,singleline=True,tooltip="Scale multiplier for Text LoRA Strength. Default is 1.0", labelpadx=330)
     makefileentry(model_tab, "Vision mmproj:", "Select Vision mmproj File", mmproj_var, 7,width=280,singlerow=True,tooltiptxt="Select a mmproj file to use for vision models like LLaVA.\nLeave blank to skip.")
@@ -5928,7 +5928,7 @@ def show_gui():
         fnam = zentk_askopenfilename(title="Pick Premade ChatCompletions Adapter",filetypes=[("JSON Adapter", "*.json")], initialdir=initialDir)
         if fnam:
             chatcompletionsadapter_var.set(fnam)
-    ctk.CTkButton(model_tab, 64, text="Pick Premade", command=pickpremadetemplate).grid(row=25, column=0, padx=322, stick="nw")
+    ctk.CTkButton(model_tab, 64, text="Pick Premade", command=pickpremadetemplate).grid(row=25, column=0, padx=322, pady=2, stick="nw")
 
     mmproj_var.trace("w", gui_changed_modelfile)
     draftmodel_var.trace("w", gui_changed_modelfile)
@@ -6018,19 +6018,26 @@ def show_gui():
     audio_tab = tabcontent["Audio"]
     makefileentry(audio_tab, "Whisper Model (Speech-To-Text):", "Select Whisper .bin Model File", whisper_model_var, 1, width=280, filetypes=[("*.bin","*.bin")], tooltiptxt="Select a Whisper .bin model file on disk to be loaded for Voice Recognition.")
     whisper_model_var.trace("w", gui_changed_modelfile)
-    makelabelentry(audio_tab, "OuteTTS Threads:" , tts_threads_var, 3, 50,padx=290,singleline=True,tooltip="How many threads to use during TTS generation.\nIf left blank, uses same value as threads.")
-    makefileentry(audio_tab, "OuteTTS Model (Text-To-Speech):", "Select OuteTTS GGUF Model File", tts_model_var, 5, width=280, filetypes=[("*.gguf","*.gguf")], tooltiptxt="Select a OuteTTS GGUF model file on disk to be loaded for Narration.")
+    makefileentry(audio_tab, "OuteTTS Model (Text-To-Speech Required):", "Select OuteTTS GGUF Model File", tts_model_var, 3, width=280, filetypes=[("*.gguf","*.gguf")], tooltiptxt="Select a OuteTTS GGUF model file on disk to be loaded for Narration.")
     tts_model_var.trace("w", gui_changed_modelfile)
-    makefileentry(audio_tab, "WavTokenizer Model (Text-To-Speech):", "Select WavTokenizer GGUF Model File", wavtokenizer_var, 7, width=280, filetypes=[("*.gguf","*.gguf")], tooltiptxt="Select a WavTokenizer GGUF model file on disk to be loaded for Narration.")
-    wavtokenizer_var.trace("w", gui_changed_modelfile)
+    makelabelentry(audio_tab, "OuteTTS Threads:" , tts_threads_var, 5, 50,padx=290,singleline=True,tooltip="How many threads to use during TTS generation.\nIf left blank, uses same value as threads.")
+    makelabelentry(audio_tab, "OuteTTS Max Tokens:" , ttsmaxlen_var, 7, 50,padx=290,singleline=True,tooltip="Max allowed audiotokens to generate per TTS request.")
     makecheckbox(audio_tab, "TTS Use GPU", ttsgpu_var, 9, 0,tooltiptxt="Uses the GPU for TTS.")
-    makelabelentry(audio_tab, "OuteTTS Max Tokens:" , ttsmaxlen_var, 11, 50,padx=290,singleline=True,tooltip="Max allowed audiotokens to generate per TTS request.")
     ttsgpu_var.trace("w", gui_changed_modelfile)
+    makefileentry(audio_tab, "WavTokenizer Model (Text-To-Speech Required):", "Select WavTokenizer GGUF Model File", wavtokenizer_var, 11, width=280, filetypes=[("*.gguf","*.gguf")], tooltiptxt="Select a WavTokenizer GGUF model file on disk to be loaded for Narration.")
+    wavtokenizer_var.trace("w", gui_changed_modelfile)
 
     admin_tab = tabcontent["Admin"]
-    makecheckbox(admin_tab, "Enable Model Administration", admin_var, 1, 0,tooltiptxt="Enable a admin server, allowing you to remotely relaunch and swap models and configs.")
+    def toggleadmin(a,b,c):
+        if admin_var.get()==1 and admin_dir_var.get()=="":
+            autopath = os.path.realpath(__file__)
+            if getattr(sys, 'frozen', False):
+                autopath = sys.executable
+            autopath = os.path.dirname(autopath)
+            admin_dir_var.set(autopath)
+    makecheckbox(admin_tab, "Enable Model Administration", admin_var, 1, 0, command=toggleadmin,tooltiptxt="Enable a admin server, allowing you to remotely relaunch and swap models and configs.")
     makelabelentry(admin_tab, "Admin Password:" , admin_password_var, 3, 150,padx=120,singleline=True,tooltip="Require a password to access admin functions. You are strongly advised to use one for publically accessible instances!")
-    makefileentry(admin_tab, "Config Directory:", "Select directory containing .kcpps files to relaunch from", admin_dir_var, 5, width=280, dialog_type=2, tooltiptxt="Specify a directory to look for .kcpps configs in, which can be used to swap models.")
+    makefileentry(admin_tab, "Config Directory (Required):", "Select directory containing .gguf or .kcpps files to relaunch from", admin_dir_var, 5, width=280, dialog_type=2, tooltiptxt="Specify a directory to look for .kcpps configs in, which can be used to swap models.")
     makefileentry(admin_tab, "Model Directory:", "Select directory containing .gguf text model files to allow overriding configs with", admin_text_model_dir_var, 7, width=280, dialog_type=2, tooltiptxt="Specify a directory to look for .gguf text model files in, which can be used to swap models within a config.")
     makefileentry(admin_tab, "Data Directory:", "Select directory which will be used to store user data if desired", admin_data_dir_var, 9, width=280, dialog_type=2, tooltiptxt="Specify a directory to store user data in.")
     makecheckbox(admin_tab, "Allow Model Download From HuggingFace", admin_allow_hf_var, 11, 0,tooltiptxt="Allows model downloading from HuggingFace within the Lite UI.")
@@ -6526,9 +6533,9 @@ def show_gui():
     ctk.CTkButton(tabs , text = "Launch", fg_color="#2f8d3c", hover_color="#2faa3c", command = guilaunch, width=80, height = 35 ).grid(row=1,column=1, stick="se", padx= 25, pady=5)
 
     ctk.CTkButton(tabs , text = "Update", fg_color="#9900cc", hover_color="#aa11dd", command = display_updates, width=90, height = 35 ).grid(row=1,column=0, stick="sw", padx= 5, pady=5)
-    ctk.CTkButton(tabs , text = "Save", fg_color="#084a66", hover_color="#085a88", command = save_config_gui, width=60, height = 35 ).grid(row=1,column=1, stick="sw", padx= 5, pady=5)
-    ctk.CTkButton(tabs , text = "Load", fg_color="#084a66", hover_color="#085a88", command = load_config_gui, width=60, height = 35 ).grid(row=1,column=1, stick="sw", padx= 70, pady=5)
-    ctk.CTkButton(tabs , text = "Help (Find Models)", fg_color="#992222", hover_color="#bb3333", command = display_help, width=100, height = 35 ).grid(row=1,column=1, stick="sw", padx= 135, pady=5)
+    ctk.CTkButton(tabs , text = "Save Config", fg_color="#084a66", hover_color="#085a88", command = save_config_gui, width=60, height = 35 ).grid(row=1,column=1, stick="sw", padx= 5, pady=5)
+    ctk.CTkButton(tabs , text = "Load Config", fg_color="#084a66", hover_color="#085a88", command = load_config_gui, width=60, height = 35 ).grid(row=1,column=1, stick="sw", padx= 92, pady=5)
+    ctk.CTkButton(tabs , text = "Help (Find Models)", fg_color="#992222", hover_color="#bb3333", command = display_help, width=100, height = 35 ).grid(row=1,column=1, stick="sw", padx= 180, pady=5)
 
     # start a thread that tries to get actual gpu names and layer counts
     gpuinfo_thread = threading.Thread(target=auto_set_backend_gui)
@@ -6816,6 +6823,8 @@ def convert_invalid_args(args):
         dict["noavx2"] = True
     if "skiplauncher" in dict and dict["skiplauncher"]:
         dict["showgui"] = False
+    if "useswa" in dict and dict["useswa"]:
+        dict["noshift"] = True
     if ("model_param" not in dict or not dict["model_param"]) and ("model" in dict):
         model_value = dict["model"] #may be null, empty/non-empty string, empty/non empty array
         if isinstance(model_value, str) and model_value:  # Non-empty string

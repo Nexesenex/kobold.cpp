@@ -1,11 +1,15 @@
 #pragma once
 
 #include "llama.h"
-#include "llama-io.h"
 #include "llama-memory.h"
+
+class llama_io_write_i;
+class llama_io_read_i;
 
 struct llama_kv_cache : public llama_memory_i {
     virtual ~llama_kv_cache() = default;
+
+    // TODO: move the init_ interfaces to llama_memory_i
 
     // split the input batch into a set of ubatches and verify that they can fit into the cache
     // return a state object containing the ubatches and KV cache state required to process them
@@ -19,16 +23,9 @@ struct llama_kv_cache : public llama_memory_i {
     // simulate full cache, used for allocating worst-case compute buffers
     virtual llama_memory_state_ptr init_full() = 0;
 
-    // process any pending defrag/shift/etc. operations
-    // optionally call once before processing a new batch
-    // return true if any operations were performed
-    virtual bool update(llama_context & lctx) = 0;
-
-    // schedule a defrag if the fragmentation threshold is exceeded. otherwise, do nothing
-    // TODO: change to
-    //   llama_memory_state_ptr init_defrag(float thold) = 0;
-    //
-    virtual void defrag_sched(float thold) = 0;
+    // prepare for any pending memory updates, such as shifts, defrags, etc.
+    // status == LLAMA_MEMORY_STATUS_NO_UPDATE if there is nothing to update
+    virtual llama_memory_state_ptr init_update(llama_context * lctx, bool optimize) = 0;
 
     // getters
     virtual bool get_can_shift() const = 0;

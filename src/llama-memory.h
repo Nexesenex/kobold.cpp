@@ -36,11 +36,18 @@ public:
     virtual bool get_can_edit() const = 0;
 };
 
+using llama_memory_ptr = std::unique_ptr<llama_memory_i>;
+
 enum llama_memory_status {
     LLAMA_MEMORY_STATUS_SUCCESS = 0,
+    LLAMA_MEMORY_STATUS_NO_UPDATE,
     LLAMA_MEMORY_STATUS_FAILED_PREPARE,
     LLAMA_MEMORY_STATUS_FAILED_COMPUTE,
 };
+
+// helper function for combining the status of two memory states
+// useful for implementing hybrid memory types (e.g. iSWA)
+llama_memory_status llama_memory_status_combine(llama_memory_status s0, llama_memory_status s1);
 
 // the interface for managing the memory state during batch processing
 // this interface is implemented per memory type. see:
@@ -69,7 +76,7 @@ public:
     // get the current ubatch
     virtual const llama_ubatch & get_ubatch() const = 0;
 
-    // get the status of the memory state
+    // get the status of the memory state - used for error handling and checking if any updates would be applied
     virtual llama_memory_status get_status() const = 0;
 };
 

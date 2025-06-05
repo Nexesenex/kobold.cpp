@@ -412,6 +412,7 @@ struct vk_device_struct {
     vk_pipeline pipeline_count_equal_i32;
     vk_pipeline pipeline_im2col_f32, pipeline_im2col_f32_f16;
     vk_pipeline pipeline_timestep_embedding_f32;
+    vk_pipeline pipeline_conv_transpose_1d_f32;
     vk_pipeline pipeline_pool2d_f32;
     vk_pipeline pipeline_rwkv_wkv6_f32;
     vk_pipeline pipeline_rwkv_wkv7_f32;
@@ -460,7 +461,7 @@ struct vk_device_struct {
     // for GGML_VK_PERF_LOGGER
     std::unique_ptr<vk_perf_logger> perf_logger;
     vk::QueryPool query_pool;
-    uint32_t num_queries;
+    int32_t num_queries;
 
     ~vk_device_struct() {
         VK_LOG_DEBUG("destroy device " << name);
@@ -720,6 +721,21 @@ struct vk_op_timestep_embedding_push_constants {
     uint32_t nb1;
     uint32_t dim;
     uint32_t max_period;
+};
+
+struct vk_op_conv_transpose_1d_push_constants {
+    uint32_t Cout;
+    uint32_t Cin;
+    uint32_t K;
+    uint32_t L;
+    uint32_t KL;
+
+    uint32_t nb01;
+    uint32_t nb02;
+    uint32_t nb11;
+    uint32_t nb1;
+
+    int32_t s0;
 };
 
 struct vk_op_pool2d_push_constants {
@@ -2741,6 +2757,8 @@ static void ggml_vk_load_shaders(vk_device& device) {
     }
 
     ggml_vk_create_pipeline(device, device->pipeline_timestep_embedding_f32, "timestep_embedding_f32", timestep_embedding_f32_len, timestep_embedding_f32_data, "main", 2, sizeof(vk_op_timestep_embedding_push_constants), {256, 1, 1}, {}, 1);
+
+    ggml_vk_create_pipeline(device, device->pipeline_conv_transpose_1d_f32, "conv_transpose_1d_f32", conv_transpose_1d_f32_len, conv_transpose_1d_f32_data, "main", 3, sizeof(vk_op_conv_transpose_1d_push_constants), {1, 1, 1}, {}, 1);
 
     ggml_vk_create_pipeline(device, device->pipeline_pool2d_f32, "pool2d_f32", pool2d_f32_len, pool2d_f32_data, "main", 2, sizeof(vk_op_pool2d_push_constants), {512, 1, 1}, {}, 1);
 
@@ -6416,6 +6434,11 @@ static vk_pipeline ggml_vk_op_get_pipeline(ggml_backend_vk_context * ctx, const 
             return ctx->device->pipeline_timestep_embedding_f32;
         }
         return nullptr;
+    case GGML_OP_CONV_TRANSPOSE_1D:
+        if (src0->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F32) {
+            return ctx->device->pipeline_conv_transpose_1d_f32;
+        }
+        return nullptr;
     case GGML_OP_POOL_2D:
         if (src0->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F32) {
             return ctx->device->pipeline_pool2d_f32;
@@ -6749,6 +6772,10 @@ static void ggml_vk_op_f32(ggml_backend_vk_context * ctx, vk_context& subctx, co
             const uint32_t dim = dst->op_params[0];
             uint32_t half_ceil = (dim + 1) / 2;
             elements = { half_ceil, (uint32_t)src0->ne[0], 1 };
+        } break;
+    case GGML_OP_CONV_TRANSPOSE_1D:
+        {
+            elements = {uint32_t(src0->ne[1]), 1, 1}; // parallelize in {Cout, 1, 1}
         } break;
     case GGML_OP_POOL_2D:
         {
@@ -7551,6 +7578,37 @@ static void ggml_vk_timestep_embedding(ggml_backend_vk_context * ctx, vk_context
     ggml_vk_op_f32<vk_op_timestep_embedding_push_constants>(ctx, subctx, src0, nullptr, nullptr, dst, GGML_OP_TIMESTEP_EMBEDDING, {
         nb1, dim, max_period,
     }, dryrun);
+}
+
+static void ggml_vk_conv_transpose_1d(ggml_backend_vk_context * ctx, vk_context& subctx, const ggml_tensor * src0, const ggml_tensor * src1, ggml_tensor * dst, bool dryrun = false) {
+    // src0: (K, Cout, Cin, 1) -- kernel
+    // src1: (L, Cin, 1, 1) -- input
+    // dst: (*, Cout, 1, 1)
+
+    GGML_ASSERT(src0->type == GGML_TYPE_F32);
+    GGML_ASSERT(src1->type == GGML_TYPE_F32);
+    GGML_ASSERT( dst->type == GGML_TYPE_F32);
+
+    GGML_TENSOR_BINARY_OP_LOCALS
+
+    GGML_ASSERT(nb00 == sizeof(float));
+    GGML_ASSERT(nb10 == sizeof(float));
+
+    const int32_t s0 = dst->op_params[0];
+
+    vk_op_conv_transpose_1d_push_constants p{};
+    p.Cout = static_cast<uint32_t>(ne01);
+    p.Cin = static_cast<uint32_t>(ne02);
+    p.K = static_cast<uint32_t>(ne00);
+    p.L = static_cast<uint32_t>(ne10);
+    p.KL = static_cast<uint32_t>(ne0);
+    p.nb01 = static_cast<uint32_t>(nb01 / nb00);
+    p.nb02 = static_cast<uint32_t>(nb02 / nb00);
+    p.nb11 = static_cast<uint32_t>(nb11 / nb10);
+    p.nb1 = static_cast<uint32_t>(nb1 / nb0);
+    p.s0 = static_cast<uint32_t>(s0);
+
+    ggml_vk_op_f32(ctx, subctx, src0, src1, nullptr, dst, GGML_OP_CONV_TRANSPOSE_1D, std::move(p), dryrun);
 }
 
 static void ggml_vk_pool_2d(ggml_backend_vk_context * ctx, vk_context& subctx, const ggml_tensor * src0, ggml_tensor * dst, bool dryrun = false) {
@@ -8624,6 +8682,7 @@ static bool ggml_vk_build_graph(ggml_backend_vk_context * ctx, ggml_tensor * nod
     case GGML_OP_COUNT_EQUAL:
     case GGML_OP_IM2COL:
     case GGML_OP_TIMESTEP_EMBEDDING:
+    case GGML_OP_CONV_TRANSPOSE_1D:
     case GGML_OP_POOL_2D:
     case GGML_OP_CONV_2D_DW:
     case GGML_OP_RWKV_WKV6:
@@ -8688,6 +8747,7 @@ static bool ggml_vk_build_graph(ggml_backend_vk_context * ctx, ggml_tensor * nod
         case GGML_OP_COUNT_EQUAL:
         case GGML_OP_IM2COL:
         case GGML_OP_TIMESTEP_EMBEDDING:
+        case GGML_OP_CONV_TRANSPOSE_1D:
         case GGML_OP_POOL_2D:
         case GGML_OP_CONV_2D_DW:
         case GGML_OP_LEAKY_RELU:
@@ -8860,6 +8920,10 @@ static bool ggml_vk_build_graph(ggml_backend_vk_context * ctx, ggml_tensor * nod
         ggml_vk_timestep_embedding(ctx, compute_ctx, src0, node, dryrun);
 
         break;
+    case GGML_OP_CONV_TRANSPOSE_1D:
+        ggml_vk_conv_transpose_1d(ctx, compute_ctx, src0, src1, node, dryrun);
+
+        break;
     case GGML_OP_POOL_2D:
         ggml_vk_pool_2d(ctx, compute_ctx, src0, node, dryrun);
 
@@ -8987,6 +9051,7 @@ static bool ggml_vk_compute_forward(ggml_backend_vk_context * ctx, ggml_tensor *
     case GGML_OP_COUNT_EQUAL:
     case GGML_OP_IM2COL:
     case GGML_OP_TIMESTEP_EMBEDDING:
+    case GGML_OP_CONV_TRANSPOSE_1D:
     case GGML_OP_POOL_2D:
     case GGML_OP_CONV_2D_DW:
     case GGML_OP_RWKV_WKV6:
@@ -9537,8 +9602,8 @@ static ggml_status ggml_backend_vk_graph_compute(ggml_backend_t backend, ggml_cg
             if (ctx->device->query_pool) {
                 ctx->device->device.destroyQueryPool(ctx->device->query_pool);
             }
-            VkQueryPoolCreateInfo query_create_info = { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
-            query_create_info.queryType = VK_QUERY_TYPE_TIMESTAMP;
+            vk::QueryPoolCreateInfo query_create_info;
+            query_create_info.queryType = vk::QueryType::eTimestamp;
             query_create_info.queryCount = cgraph->n_nodes + 100;
             ctx->device->query_pool = ctx->device->device.createQueryPool(query_create_info);
             ctx->device->num_queries = query_create_info.queryCount;
@@ -9624,7 +9689,7 @@ static ggml_status ggml_backend_vk_graph_compute(ggml_backend_t backend, ggml_cg
 
         // Get the results and pass them to the logger
         std::vector<uint64_t> timestamps(cgraph->n_nodes + 1);
-        ctx->device->device.getQueryPoolResults(ctx->device->query_pool, 0, cgraph->n_nodes + 1, (cgraph->n_nodes + 1)*sizeof(uint64_t), timestamps.data(), sizeof(uint64_t), vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait);
+        VK_CHECK(ctx->device->device.getQueryPoolResults(ctx->device->query_pool, 0, cgraph->n_nodes + 1, (cgraph->n_nodes + 1)*sizeof(uint64_t), timestamps.data(), sizeof(uint64_t), vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait), "get timestamp results");
         for (int i = 0; i < cgraph->n_nodes; i++) {
             if (!ggml_vk_is_empty(cgraph->nodes[i])) {
                 ctx->device->perf_logger->log_timing(cgraph->nodes[i], uint64_t((timestamps[i+1] - timestamps[i]) * ctx->device->properties.limits.timestampPeriod));
@@ -10048,6 +10113,8 @@ static bool ggml_backend_vk_device_supports_op(ggml_backend_dev_t dev, const ggm
         case GGML_OP_LEAKY_RELU:
         case GGML_OP_OPT_STEP_ADAMW:
             return true;
+        case GGML_OP_CONV_TRANSPOSE_1D:
+            return op->src[0]->type == GGML_TYPE_F32 && op->src[1]->type == GGML_TYPE_F32;
         default:
             return false;
     }
@@ -10539,6 +10606,11 @@ static void ggml_vk_check_results_0(ggml_tensor * tensor) {
         const int32_t dim = tensor->op_params[0];
         const int32_t max_period = tensor->op_params[1];
         tensor_clone = ggml_timestep_embedding(ggml_ctx, src_clone[0], dim, max_period);
+    } else if (tensor->op == GGML_OP_CONV_TRANSPOSE_1D){
+        const int32_t s0 = tensor->op_params[0];
+        const int32_t p0 = tensor->op_params[1];
+        const int32_t d0 = tensor->op_params[2];
+        tensor_clone = ggml_conv_transpose_1d(ggml_ctx, src_clone[0], src_clone[1], s0, p0, d0);
     } else if (tensor->op == GGML_OP_POOL_2D) {
         enum ggml_op_pool op = static_cast<ggml_op_pool>(tensor->op_params[0]);
         const int32_t k0 = tensor->op_params[1];
