@@ -40,7 +40,7 @@ jobs:
           :CheckProcess
           tasklist /FI "IMAGENAME eq %ProcessName%" | find /I "%ProcessName%" >nul
           if %errorlevel%==0 (
-              timeout /t 5 /nobreak >nul
+              ping localhost /n 5 >nul
               goto CheckProcess
           )
           echo VS2019 Setup completed
