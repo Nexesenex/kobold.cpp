@@ -51,6 +51,7 @@ jobs:
               goto CheckProcess
           )
           echo VS2019 Setup completed
+          exit /b 0
 
       - name: Download and install win64devkit
         run: |
