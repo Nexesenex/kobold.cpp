@@ -13,7 +13,7 @@ env:
 
 jobs:
   windows:
-    runs-on: windows-2019
+    runs-on: windows-2022
     steps:
       - name: Clone
         id: checkout
@@ -35,6 +35,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install customtkinter==5.2.0 pyinstaller==5.11.0 psutil==5.9.5
 
+      - name: Display full Visual Studio info Before
+        run: |
+          & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -all -products * -format json
+        shell: pwsh
+
       - name: Visual Studio 2019 Reinstall
         shell: cmd
         run: |
@@ -52,6 +57,11 @@ jobs:
           )
           echo VS2019 Setup completed
           exit /b 0
+
+      - name: Display full Visual Studio info After
+        run: |
+          & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -all -products * -format json
+        shell: pwsh
 
       - name: Download and install win64devkit
         run: |
