@@ -16,7 +16,7 @@
 #include "ggml.h"
 #include "gguf.h"
 
-#include "iqk_croco/iqk_quantize_croco.h"
+#include "iqk/iqk_quantize.h"
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <malloc.h> // using malloc.h with MSC/MINGW
@@ -423,8 +423,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ1_S_R4] = {
-        // .from_float               = quantize_row_iq1_s_r4,
-        // .vec_dot                  = vec_dot_iq1_s_r4_q8_k,
+        .from_float               = quantize_row_iq1_s_r4,
+        .vec_dot                  = vec_dot_iq1_s_r4_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K128,
         .nrows                    = 1,
     },
@@ -435,8 +435,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ1_M_R4] = {
-        // .from_float               = quantize_row_iq1_m_r4,
-        // .vec_dot                  = vec_dot_iq1_m_r4_q8_k,
+        .from_float               = quantize_row_iq1_m_r4,
+        .vec_dot                  = vec_dot_iq1_m_r4_q8_k,
         .vec_dot_type             = GGML_TYPE_Q8_K128,
         .nrows                    = 1,
     },
@@ -447,8 +447,8 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ2_BN] = {
-        // .from_float               = quantize_row_iq2_bn,
-        // .vec_dot                  = vec_dot_iq2_bn_q8_K64,
+        .from_float               = quantize_row_iq2_bn,
+        .vec_dot                  = vec_dot_iq2_bn_q8_K64,
         .vec_dot_type             = GGML_TYPE_IQ2_BN,
         .nrows                    = 1,
     },

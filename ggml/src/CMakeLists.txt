@@ -203,10 +203,10 @@ add_library(ggml-base
             ggml-threading.h
             ggml-quants.c
             ggml-quants.h
-            iqk_croco/iqk_quantize_croco.cpp
-            iqk_croco/iqk_quantize_croco.h
-            iqk_croco/iqk_common_croco.h
-            iqk_croco/iqk_config_croco.h
+            iqk/iqk_quantize.cpp
+            iqk/iqk_quantize.h
+            iqk/iqk_common.h
+            iqk/iqk_config.h
             gguf.cpp)
 
 target_include_directories(ggml-base PRIVATE .)
