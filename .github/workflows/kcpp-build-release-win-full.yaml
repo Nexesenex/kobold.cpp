@@ -39,9 +39,6 @@ jobs:
         shell: cmd
         run: |
           @echo off
-          echo Removing Visual Studio
-          "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe" /uninstall --quiet
-          "C:\Program Files (x86)\Microsoft Visual Studio\Installer\InstallCleanup.exe" -f
           echo Preparing setup
           curl -fLO https://download.visualstudio.microsoft.com/download/pr/1fbe074b-8ae1-4e9b-8e83-d1ce4200c9d1/61098e228df7ba3a6a8b4e920a415ad8878d386de6dd0f23f194fe1a55db189a/vs_Enterprise.exe
           vs_Enterprise.exe --quiet --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.CLI.Support --add Microsoft.VisualStudio.Component.Windows10SDK.19041 --add Microsoft.VisualStudio.Workload.UniversalBuildTools --add Microsoft.VisualStudio.Component.VC.CMake.Project
