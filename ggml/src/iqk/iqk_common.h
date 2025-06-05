@@ -7,6 +7,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+#pragma once
+
 #include "iqk_config.h"
 
 #if defined IQK_IMPLEMENT
@@ -14,6 +16,10 @@
 #include <cstring>
 #include <type_traits>
 #include <vector>
+#include <cstdint>
+
+#include "ggml-cpu/ggml-cpu-impl.h"
+#include "ggml-cpu/ggml-cpu-quants.h"
 
 #include "ggml-impl.h"
 #include "ggml-quants.h"

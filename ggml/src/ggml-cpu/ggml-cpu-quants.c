@@ -7,7 +7,7 @@
 #include "ggml-cpu-impl.h"
 #include "ggml-cpu.h"
 
-#include "iqk_croco/iqk_quantize_croco.h"
+#include "iqk/iqk_quantize.h"
 
 #include <math.h>
 #include <string.h>
