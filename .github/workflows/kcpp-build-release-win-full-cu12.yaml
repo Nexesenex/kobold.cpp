@@ -13,7 +13,7 @@ env:
 
 jobs:
   windows:
-    runs-on: windows-2022
+    runs-on: windows-2019
     steps:
       - name: Clone
         id: checkout
