@@ -58,11 +58,6 @@ jobs:
           echo VS2019 Setup completed
           exit /b 0
 
-      - name: Disable Visual Studio 2022 by Renaming
-        run: |
-          Rename-Item "C:\Program Files\Microsoft Visual Studio\2022\Enterprise" "Enterprise_DISABLED"
-        shell: pwsh
-
       - name: Display full Visual Studio info After
         run: |
           & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -all -products * -format json
@@ -97,12 +92,14 @@ jobs:
           cuda: '11.4.4'
           use-github-cache: false
 
-      - name: Build CUDA
+      - name: Build CUDA with Visual Studio 2019
         id: cmake_build
+        shell: cmd
         run: |
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           mkdir build
           cd build
-          cmake .. -DLLAMA_CUBLAS=ON -DCMAKE_SYSTEM_VERSION="10.0.19041.0"
+          cmake .. -G "Visual Studio 16 2019" -A x64 -DLLAMA_CUBLAS=ON -DCMAKE_SYSTEM_VERSION="10.0.19041.0"
           cmake --build . --config Release -j 2
           cd ..
 
