@@ -58,6 +58,11 @@ jobs:
           echo VS2019 Setup completed
           exit /b 0
 
+      - name: Disable Visual Studio 2022 by Renaming
+        run: |
+          Rename-Item "C:\Program Files\Microsoft Visual Studio\2022\Enterprise" "Enterprise_DISABLED"
+        shell: pwsh
+
       - name: Display full Visual Studio info After
         run: |
           & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -all -products * -format json
