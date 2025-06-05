@@ -86,6 +86,8 @@ set(GGML_V2_LEGACY_CUDA_SOURCES otherarch/ggml_v2-cuda-legacy.cu otherarch/ggml_
 
 
 if (LLAMA_CUBLAS)
+    cmake_minimum_required(VERSION 3.17)
+
     find_package(CUDAToolkit)
     if (CUDAToolkit_FOUND)
         message(STATUS "cuBLAS found")
@@ -564,3 +566,4 @@ if (LLAMA_HIPBLAS)
     COMMENT "Copying DLL to parent directory"
     )
 endif()
+
