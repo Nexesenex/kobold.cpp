@@ -25,6 +25,26 @@ jobs:
         run: |
           echo "Building from ref: ${{ inputs.commit_hash != '' && inputs.commit_hash || github.head_ref || github.ref_name }}"
 
+      - name: Visual Studio 2019 Reinstall
+        shell: cmd
+        run: |
+          @echo off
+          echo Removing Visual Studio
+          "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe" /uninstall --quiet
+          "C:\Program Files (x86)\Microsoft Visual Studio\Installer\InstallCleanup.exe" -f
+          echo Preparing setup
+          curl -fLO https://download.visualstudio.microsoft.com/download/pr/1fbe074b-8ae1-4e9b-8e83-d1ce4200c9d1/61098e228df7ba3a6a8b4e920a415ad8878d386de6dd0f23f194fe1a55db189a/vs_Enterprise.exe
+          vs_Enterprise.exe --quiet --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.CLI.Support --add Microsoft.VisualStudio.Component.Windows10SDK.19041 --add Microsoft.VisualStudio.Workload.UniversalBuildTools --add Microsoft.VisualStudio.Component.VC.CMake.Project
+          echo Waiting for VS2019 setup
+          set "ProcessName=setup.exe"
+          :CheckProcess
+          tasklist /FI "IMAGENAME eq %ProcessName%" | find /I "%ProcessName%" >nul
+          if %errorlevel%==0 (
+              timeout /t 5 /nobreak >nul
+              goto CheckProcess
+          )
+          echo VS2019 Setup completed
+
       - name: Get Python
         uses: actions/setup-python@v2
         with:
@@ -63,20 +83,6 @@ jobs:
         with:
           cuda: '11.4.4'
           use-github-cache: false
-
-      - name: Install Visual Studio 2019
-        shell: cmd
-        run: |
-          echo off
-          echo Downloading Visual Studio 2019 Setup
-          curl -fLO https://download.visualstudio.microsoft.com/download/pr/1fbe074b-8ae1-4e9b-8e83-d1ce4200c9d1/61098e228df7ba3a6a8b4e920a415ad8878d386de6dd0f23f194fe1a55db189a/vs_Enterprise.exe
-          echo Running Visual Studio 2019 Setup
-          vs_Enterprise.exe --quiet --wait --norestart --nocache ^
-            --add Microsoft.VisualStudio.Workload.VCTools ^
-            --add Microsoft.VisualStudio.Component.VC.CLI.Support ^
-            --add Microsoft.VisualStudio.Component.Windows10SDK.19041 ^
-            --add Microsoft.VisualStudio.Workload.UniversalBuildTools ^
-            --add Microsoft.VisualStudio.Component.VC.CMake.Project
 
       - name: Build CUDA with Visual Studio 2019
         id: cmake_build
