@@ -5,7 +5,7 @@
 
 #include "ggml.h"
 
-#include "iqk_croco/iqk_quantize_croco.h"
+#include "iqk/iqk_quantize.h"
 
 #include <stdint.h>
 #include <stddef.h>
@@ -204,6 +204,11 @@ GGML_API void iq2xs_init_impl(enum ggml_type type);
 GGML_API void iq2xs_free_impl(enum ggml_type type);
 GGML_API void iq3xs_init_impl(int grid_size);
 GGML_API void iq3xs_free_impl(int grid_size);
+
+GGML_API void iq1s_process_1block(int block_size, const float * xb, const float * weight, int8_t * L,
+        float * the_scale, uint16_t * the_index, int * the_shift, float * pairs, float * sumx, float * sumw);
+GGML_API void iq1m_process_1block(const float * xb, const float * weight, int8_t * L,
+        float * the_scale, uint16_t * the_index, int * the_shift, float * pairs);
 
 #ifdef __cplusplus
 }

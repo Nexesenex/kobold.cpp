@@ -6,7 +6,7 @@
 #include "ggml-cpu/ggml-cpu-impl.h"
 #include "ggml-cpu.h"
 
-#include "iqk_croco/iqk_quantize_croco.h"
+#include "iqk/iqk_quantize.h"
 
 #include <math.h>
 #include <string.h>
@@ -4444,6 +4444,106 @@ static int iq1_find_best_neighbour2(const uint16_t * GGML_RESTRICT neighbours, c
 
 #define IQ1S_BLOCK_SIZE 32
 #define IQ1M_BLOCK_SIZE 16
+
+void iq1s_process_1block(int block_size, const float * xb, const float * weight, int8_t * L, float * the_scale, uint16_t * the_index, int * the_shift,
+        float * pairs, float * sumx, float * sumw) {
+    float max = fabsf(xb[0]);
+    for (int i = 1; i < block_size; ++i) max = MAX(max, fabsf(xb[i]));
+    if (max < GROUP_MAX_EPS_IQ1_S) {
+        *the_scale = 0;
+        *the_shift = 1;
+        for (int k = 0; k < block_size/8; ++k) the_index[k] = 0;
+        return;
+    }
+    const int gindex = iq2_data_index(GGML_TYPE_IQ1_S);
+    const uint64_t * kgrid_q2xs      = iq2_data[gindex].grid;
+    const int      * kmap_q2xs       = iq2_data[gindex].map;
+    const uint16_t * kneighbors_q2xs = iq2_data[gindex].neighbours;
+
+    GGML_ASSERT(kgrid_q2xs      && "forgot to call ggml_quantize_init()?");
+    GGML_ASSERT(kmap_q2xs       && "forgot to call ggml_quantize_init()?");
+    GGML_ASSERT(kneighbors_q2xs && "forgot to call ggml_quantize_init()?");
+
+    const float x_p[3] = {-1 + IQ1S_DELTA,  IQ1S_DELTA, 1 + IQ1S_DELTA};
+    const float x_m[3] = {-1 - IQ1S_DELTA, -IQ1S_DELTA, 1 - IQ1S_DELTA};
+
+    // Here we solve exactly the sum of squared difference (SSD) weighted minimization problem.
+    // With just 3 allowed quant values (-1, 0, 1), we can search exhaustively for the two
+    // boundaries that split the weights xb[i] into 3 groups. To do so, we sort the weights
+    // in ascending order, compute Si = sum[weight[j] xb[j], j = 0...i] and
+    // Wi = sum[weight[j], j = 0...i], and use these to quckly get get the optimum scale
+    // for each possible and score for each split.
+    int * idx = (int *)(pairs + 1);
+    for (int j = 0; j < block_size; ++j) {
+        pairs[2*j] = xb[j];
+        idx[2*j] = j;
+    }
+    qsort(pairs, block_size, 2*sizeof(float), iq1_sort_helper);
+    {
+        sumx[0] = sumw[0] = 0;
+        for (int j = 0; j < block_size; ++j) {
+            int i = idx[2*j];
+            sumx[j+1] = sumx[j] + weight[i]*xb[i];
+            sumw[j+1] = sumw[j] + weight[i];
+        }
+    }
+    float best_score = -FLT_MIN, scale = max;
+    int besti1 = -1, besti2 = -1, best_shift = 0;
+    for (int i1 = 0; i1 <= block_size; ++i1) {
+        for (int i2 = i1; i2 <= block_size; ++i2) {
+            float sumqx = (sumx[i1] - sumx[0])*x_p[0] + (sumx[i2] - sumx[i1])*x_p[1] + (sumx[block_size] - sumx[i2])*x_p[2];
+            float sumq2 = (sumw[i1] - sumw[0])*x_p[0]*x_p[0] + (sumw[i2] - sumw[i1])*x_p[1]*x_p[1] + (sumw[block_size] - sumw[i2])*x_p[2]*x_p[2];
+            if (sumq2 > 0 && sumqx*sumqx > best_score*sumq2) {
+                scale = sumqx/sumq2; best_score = scale*sumqx;
+                besti1 = i1; besti2 = i2; best_shift = 1;
+            }
+            sumqx = (sumx[i1] - sumx[0])*x_m[0] + (sumx[i2] - sumx[i1])*x_m[1] + (sumx[block_size] - sumx[i2])*x_m[2];
+            sumq2 = (sumw[i1] - sumw[0])*x_m[0]*x_m[0] + (sumw[i2] - sumw[i1])*x_m[1]*x_m[1] + (sumw[block_size] - sumw[i2])*x_m[2]*x_m[2];
+            if (sumq2 > 0 && sumqx*sumqx > best_score*sumq2) {
+                scale = sumqx/sumq2; best_score = scale*sumqx;
+                besti1 = i1; besti2 = i2; best_shift = -1;
+            }
+        }
+    }
+    GGML_ASSERT(besti1 >= 0 && besti2 >= 0 && best_shift != 0);
+    for (int j =      0; j < besti1; ++j) L[idx[2*j]] = 0;
+    for (int j = besti1; j < besti2; ++j) L[idx[2*j]] = 1;
+    for (int j = besti2; j < block_size; ++j) L[idx[2*j]] = 2;
+    if (scale < 0) {
+        for (int j = 0; j < block_size; ++j) L[j] = 2 - L[j];
+        scale = -scale; best_shift = -best_shift;
+    }
+    bool all_on_grid = true;
+    const float * xx = best_shift == 1 ? x_p : x_m;
+    for (int k = 0; k < block_size/8; ++k) {
+        uint16_t u = 0;
+        for (int j = 0; j < 8; ++j) u |= (L[8*k+j] << 2*j);
+        int grid_index = kmap_q2xs[u];
+        if (grid_index < 0) {
+            all_on_grid = false;
+            const uint16_t * neighbours = kneighbors_q2xs - kmap_q2xs[u] - 1;
+            grid_index = iq1_find_best_neighbour2(neighbours, kgrid_q2xs, xb + 8*k, weight + 8*k, scale, xx, L + 8*k, NGRID_IQ1S);
+            GGML_ASSERT(grid_index >= 0);
+        }
+        the_index[k] = grid_index;
+    }
+    if (!all_on_grid) {
+        float sumqx = 0, sumq2 = 0;
+        for (int k = 0; k < block_size/8; ++k) {
+            const int8_t * pg = (const int8_t *)(kgrid_q2xs + the_index[k]);
+            for (int j = 0; j < 8; ++j) {
+                float w = weight[8*k + j];
+                float q = xx[(pg[j] - 1)/2];
+                sumqx += w*q*xb[8*k+j];
+                sumq2 += w*q*q;
+            }
+        }
+        if (sumqx > 0 && sumq2 > 0) scale = sumqx/sumq2;
+    }
+    *the_scale = scale;
+    *the_shift = best_shift;
+}
+
 static void quantize_row_iq1_s_impl(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, int64_t n, const float * GGML_RESTRICT quant_weights,
         float    * scales,
         float    * weight,
@@ -4620,6 +4720,146 @@ size_t quantize_iq1_s(const float * GGML_RESTRICT src, void * GGML_RESTRICT dst,
         qrow += nblock*sizeof(block_iq1_s);
     }
     return nrow * nblock * sizeof(block_iq1_s);
+}
+
+void iq1m_process_1block(const float * xb, const float * weight, int8_t * L, float * the_scale, uint16_t * the_index, int * the_shift,
+        float * pairs) {
+
+    const int block_size = IQ1M_BLOCK_SIZE;
+
+    const float x_p[3] = {-1 + IQ1M_DELTA,  IQ1M_DELTA, 1 + IQ1M_DELTA};
+    const float x_m[3] = {-1 - IQ1M_DELTA, -IQ1M_DELTA, 1 - IQ1M_DELTA};
+
+    float sumqx[4], sumq2[4];
+    float sumw1[IQ1M_BLOCK_SIZE+1], sumw2[IQ1M_BLOCK_SIZE+1];
+    float sumx1[IQ1M_BLOCK_SIZE+1], sumx2[IQ1M_BLOCK_SIZE+1];
+
+    const int gindex = iq2_data_index(GGML_TYPE_IQ1_M);
+
+    const uint64_t * kgrid_q2xs      = iq2_data[gindex].grid;
+    const int      * kmap_q2xs       = iq2_data[gindex].map;
+    const uint16_t * kneighbors_q2xs = iq2_data[gindex].neighbours;
+
+    GGML_ASSERT(kgrid_q2xs      && "forgot to call ggml_quantize_init()?");
+    GGML_ASSERT(kmap_q2xs       && "forgot to call ggml_quantize_init()?");
+    GGML_ASSERT(kneighbors_q2xs && "forgot to call ggml_quantize_init()?");
+
+    // Here we solve exactly the sum of squared difference (SSD) weighted minimization problem.
+    // With just 3 allowed quant values (-1, 0, 1), we can search exhaustively for the two
+    // boundaries that split the weights xb[i] into 3 groups. To do so, we sort the weights
+    // in ascending order, compute Si = sum[weight[j] xb[j], j = 0...i] and
+    // Wi = sum[weight[j], j = 0...i], and use these to quckly get get the optimum scale
+    // for each possible and score for each split.
+    int * idx = (int *)(pairs + 1);
+    for (int j = 0; j < block_size; ++j) {
+        pairs[2*j] = xb[j];
+        idx[2*j] = j;
+    }
+    qsort(pairs, block_size, 2*sizeof(float), iq1_sort_helper);
+    sumw1[0] = sumw2[0] = sumx1[0] = sumx2[0] = 0;
+    for (int j = 0; j < block_size; ++j) {
+        int i = idx[2*j];
+        if (i < block_size/2) {
+            sumw1[j+1] = sumw1[j] + weight[i];
+            sumx1[j+1] = sumx1[j] + weight[i]*xb[i];
+            sumw2[j+1] = sumw2[j];
+            sumx2[j+1] = sumx2[j];
+        } else {
+            sumw2[j+1] = sumw2[j] + weight[i];
+            sumx2[j+1] = sumx2[j] + weight[i]*xb[i];
+            sumw1[j+1] = sumw1[j];
+            sumx1[j+1] = sumx1[j];
+        }
+    }
+    float best_score = 0, scale = 0.f;
+    int besti1 = -1, besti2 = -1, best_k = -1;
+    // 0: +, +
+    // 1: +, -
+    // 2: -, +
+    // 3: -, -
+    for (int i1 = 0; i1 <= block_size; ++i1) {
+        for (int i2 = i1; i2 <= block_size; ++i2) {
+            sumqx[0] = (sumx1[i1] - sumx1[0])*x_p[0] + (sumx1[i2] - sumx1[i1])*x_p[1] + (sumx1[block_size]-sumx1[i2])*x_p[2] +
+                       (sumx2[i1] - sumx2[0])*x_p[0] + (sumx2[i2] - sumx2[i1])*x_p[1] + (sumx2[block_size]-sumx2[i2])*x_p[2];
+            sumqx[1] = (sumx1[i1] - sumx1[0])*x_p[0] + (sumx1[i2] - sumx1[i1])*x_p[1] + (sumx1[block_size]-sumx1[i2])*x_p[2] +
+                       (sumx2[i1] - sumx2[0])*x_m[0] + (sumx2[i2] - sumx2[i1])*x_m[1] + (sumx2[block_size]-sumx2[i2])*x_m[2];
+            sumqx[2] = (sumx1[i1] - sumx1[0])*x_m[0] + (sumx1[i2] - sumx1[i1])*x_m[1] + (sumx1[block_size]-sumx1[i2])*x_m[2] +
+                       (sumx2[i1] - sumx2[0])*x_p[0] + (sumx2[i2] - sumx2[i1])*x_p[1] + (sumx2[block_size]-sumx2[i2])*x_p[2];
+            sumqx[3] = (sumx1[i1] - sumx1[0])*x_m[0] + (sumx1[i2] - sumx1[i1])*x_m[1] + (sumx1[block_size]-sumx1[i2])*x_m[2] +
+                       (sumx2[i1] - sumx2[0])*x_m[0] + (sumx2[i2] - sumx2[i1])*x_m[1] + (sumx2[block_size]-sumx2[i2])*x_m[2];
+            sumq2[0] = (sumw1[i1] - sumw1[0])*x_p[0]*x_p[0] + (sumw1[i2] - sumw1[i1])*x_p[1]*x_p[1] + (sumw1[block_size]-sumw1[i2])*x_p[2]*x_p[2] +
+                       (sumw2[i1] - sumw2[0])*x_p[0]*x_p[0] + (sumw2[i2] - sumw2[i1])*x_p[1]*x_p[1] + (sumw2[block_size]-sumw2[i2])*x_p[2]*x_p[2];
+            sumq2[1] = (sumw1[i1] - sumw1[0])*x_p[0]*x_p[0] + (sumw1[i2] - sumw1[i1])*x_p[1]*x_p[1] + (sumw1[block_size]-sumw1[i2])*x_p[2]*x_p[2] +
+                       (sumw2[i1] - sumw2[0])*x_m[0]*x_m[0] + (sumw2[i2] - sumw2[i1])*x_m[1]*x_m[1] + (sumw2[block_size]-sumw2[i2])*x_m[2]*x_m[2];
+            sumq2[2] = (sumw1[i1] - sumw1[0])*x_m[0]*x_m[0] + (sumw1[i2] - sumw1[i1])*x_m[1]*x_m[1] + (sumw1[block_size]-sumw1[i2])*x_m[2]*x_m[2] +
+                       (sumw2[i1] - sumw2[0])*x_p[0]*x_p[0] + (sumw2[i2] - sumw2[i1])*x_p[1]*x_p[1] + (sumw2[block_size]-sumw2[i2])*x_p[2]*x_p[2];
+            sumq2[3] = (sumw1[i1] - sumw1[0])*x_m[0]*x_m[0] + (sumw1[i2] - sumw1[i1])*x_m[1]*x_m[1] + (sumw1[block_size]-sumw1[i2])*x_m[2]*x_m[2] +
+                       (sumw2[i1] - sumw2[0])*x_m[0]*x_m[0] + (sumw2[i2] - sumw2[i1])*x_m[1]*x_m[1] + (sumw2[block_size]-sumw2[i2])*x_m[2]*x_m[2];
+            for (int k = 0; k < 4; ++k) {
+                if (sumq2[k] > 0 && sumqx[k]*sumqx[k] > best_score*sumq2[k]) {
+                    scale = sumqx[k]/sumq2[k]; best_score = scale*sumqx[k];
+                    besti1 = i1; besti2 = i2; best_k = k;
+                }
+            }
+        }
+    }
+    GGML_ASSERT(besti1 >= 0 && besti2 >= 0 && best_k >= 0);
+    for (int j =      0; j < besti1; ++j) L[idx[2*j]] = 0;
+    for (int j = besti1; j < besti2; ++j) L[idx[2*j]] = 1;
+    for (int j = besti2; j < block_size; ++j) L[idx[2*j]] = 2;
+    if (scale < 0) {
+        for (int j = 0; j < block_size; ++j) L[j] = 2 - L[j];
+        scale = -scale;
+        best_k = 3 - best_k;
+    }
+    bool all_on_grid = true;
+    const float * xx;
+    for (int k = 0; k < block_size/8; ++k) {
+        if (k == 0) xx = best_k < 2 ? x_p : x_m;
+        else xx = best_k%2 == 0 ? x_p : x_m;
+        uint16_t u = 0;
+        for (int j = 0; j < 8; ++j) u |= (L[8*k+j] << 2*j);
+        int grid_index = kmap_q2xs[u];
+        if (grid_index < 0) {
+            all_on_grid = false;
+            const uint16_t * neighbours = kneighbors_q2xs - kmap_q2xs[u] - 1;
+            grid_index = iq1_find_best_neighbour2(neighbours, kgrid_q2xs, xb + 8*k, weight + 8*k, scale, xx, L + 8*k, NGRID_IQ1S);
+            GGML_ASSERT(grid_index >= 0);
+        }
+        the_index[k] = grid_index;
+    }
+    if (!all_on_grid) {
+        sumqx[0] = sumqx[1] = sumqx[2] = sumqx[3] = 0;
+        sumq2[0] = sumq2[1] = sumq2[2] = sumq2[3] = 0;
+        for (int j = 0; j < block_size; ++j) {
+            float w = weight[j];
+            float qp = x_p[L[j]];
+            float qm = x_m[L[j]];
+            sumqx[0] += w*xb[j]*qp;
+            sumq2[0] += w*qp*qp;
+            sumqx[3] += w*xb[j]*qm;
+            sumq2[3] += w*qm*qm;
+            if (j < 8) {
+                sumqx[1] += w*xb[j]*qp;
+                sumq2[1] += w*qp*qp;
+                sumqx[2] += w*xb[j]*qm;
+                sumq2[2] += w*qm*qm;
+            } else {
+                sumqx[2] += w*xb[j]*qp;
+                sumq2[2] += w*qp*qp;
+                sumqx[1] += w*xb[j]*qm;
+                sumq2[1] += w*qm*qm;
+            }
+        }
+        best_score = 0;
+        for (int k = 0; k < 4; ++k) {
+            if (sumqx[k] > 0 && sumq2[k] > 0 && sumqx[k]*sumqx[k] > best_score*sumq2[k]) {
+                scale = sumqx[k]/sumq2[k]; best_score = scale*sumqx[k]; best_k = k;
+            }
+        }
+    }
+    *the_scale = scale;
+    *the_shift = best_k;
 }
 
 static void quantize_row_iq1_m_impl(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, int64_t n, const float * GGML_RESTRICT quant_weights,
