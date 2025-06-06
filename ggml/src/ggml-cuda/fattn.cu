@@ -15,14 +15,12 @@ static void ggml_cuda_flash_attn_ext_mma_f16_switch_ncols1(ggml_backend_cuda_con
 
     if constexpr (ncols2 <= 8) {
         if (Q->ne[1] <= 8/ncols2) {
-            printf("\nCase B: %d %d %d %d %d\n",DKQ,DV,8/ncols2,ncols2,Q->ne[1]);
             ggml_cuda_flash_attn_ext_mma_f16_case<DKQ, DV, 8/ncols2, ncols2>(ctx, dst);
             return;
         }
     }
 
     if (Q->ne[1] <= 16/ncols2) {
-        printf("\nCase C: %d %d %d %d %d\n",DKQ,DV,16/ncols2,ncols2,Q->ne[1]);
         ggml_cuda_flash_attn_ext_mma_f16_case<DKQ, DV, 16/ncols2, ncols2>(ctx, dst);
         return;
     }
@@ -32,7 +30,6 @@ static void ggml_cuda_flash_attn_ext_mma_f16_switch_ncols1(ggml_backend_cuda_con
         return;
     }
 
-    printf("\nCase E: %d %d %d %d %d\n",DKQ,DV,64/ncols2,ncols2,Q->ne[1]);
     ggml_cuda_flash_attn_ext_mma_f16_case<DKQ, DV, 64/ncols2, ncols2>(ctx, dst);
 }
 
@@ -50,7 +47,7 @@ static void ggml_cuda_flash_attn_ext_mma_f16_switch_ncols2(ggml_backend_cuda_con
 
     GGML_ASSERT(Q->ne[2] % K->ne[2] == 0);
     const int gqa_ratio = Q->ne[2] / K->ne[2];
-     printf("\ngqa_ratio is %d\n",gqa_ratio);
+
     if (use_gqa_opt && gqa_ratio % 8 == 0) {
         ggml_cuda_flash_attn_ext_mma_f16_switch_ncols1<DKQ, DV, 8>(ctx, dst);
         return;
@@ -75,7 +72,7 @@ static void ggml_cuda_flash_attn_ext_mma_f16(ggml_backend_cuda_context & ctx, gg
     const ggml_tensor * K    = dst->src[1];
     const ggml_tensor * V    = dst->src[2];
     const ggml_tensor * mask = dst->src[3];
-    printf("\nQ->ne[0] is %d\n",Q->ne[0]);
+
     switch (Q->ne[0]) {
         case 64:
             GGML_ASSERT(V->ne[0] == 64);
