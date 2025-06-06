@@ -1,7 +1,6 @@
-#include "common.h"
+#include "build-info.h"
+#include "common/common.h"
 #include "llama.h"
-
-// #include "build-info.h"
 
 #include <cstdio>
 #include <cstring>
