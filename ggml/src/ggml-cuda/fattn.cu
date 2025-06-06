@@ -24,6 +24,9 @@ static void ggml_cuda_flash_attn_ext_mma_f16_switch_ncols1(ggml_backend_cuda_con
 
     if (Q->ne[1] <= 32/ncols2) {
         ggml_cuda_flash_attn_ext_mma_f16_case<D, 32/ncols2, ncols2>(ctx, dst);
+
+    // if (ggml_cuda_highest_compiled_arch(cc) <= GGML_CUDA_CC_TURING || Q->ne[1] <= 32/ncols2) {
+        // ggml_cuda_flash_attn_ext_mma_f16_case<DKQ, DV, 32/ncols2, ncols2>(ctx, dst);
         return;
     }
 
@@ -430,7 +433,7 @@ void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst
     }
 
     // The MMA implementation needs Turing or newer, use the old WMMA code for Volta:
-    if (cc == GGML_CUDA_CC_TURING || (fp16_mma_available(cc) && !new_mma_available(cc))) { //kcpp: turing use wmma to fix cu11 incoherence
+    if (ggml_cuda_highest_compiled_arch(cc) <= GGML_CUDA_CC_TURING || cc == GGML_CUDA_CC_TURING || (fp16_mma_available(cc) && !new_mma_available(cc))) { //kcpp: use wmma to fix cu11 incoherence
         ggml_cuda_flash_attn_ext_wmma_f16(ctx, dst);
         return;
     }

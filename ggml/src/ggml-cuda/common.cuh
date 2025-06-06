@@ -122,7 +122,11 @@ constexpr int ggml_cuda_highest_compiled_arch(const int arch) {
 }
 #else
 static int ggml_cuda_highest_compiled_arch(const int arch) {
+#ifndef KCPP_LIMIT_CUDA_MAX_ARCH
     return arch;
+#else
+    return (arch > KCPP_LIMIT_CUDA_MAX_ARCH ? KCPP_LIMIT_CUDA_MAX_ARCH : arch);
+#endif
 }
 #endif // __CUDA_ARCH_LIST__
 

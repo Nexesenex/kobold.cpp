@@ -11,7 +11,6 @@ static bool old_mixtral_warning_showed = false;
 #include "llama-vocab.cpp"
 #include "llama-grammar.cpp"
 #include "llama-sampling.cpp"
-#include "llama-kv-cache.cpp"
 #include "llama-kv-cache-unified.cpp"
 #include "llama-kv-cache-unified-iswa.cpp"
 #include "llama-kv-cache-recurrent.cpp"
