@@ -220,16 +220,12 @@ Cuda 12.2 arch 60617075 : Cu12.2_SMC2_Ar60617075_DmmvX64Y2_MMY2_KQIt2
 Cuda 12.1 arch 52617075 : CuCML_ArCML_SMC2_DmmvX32Y1 (CML : CMakeList)
 Cuda 11.4.4/11.5 arch 35375052 : CuCML_ArCML_SMC2_DmmvX32Y1
 
+
+-----
+
 # koboldcpp-experimental
 
 KoboldCpp-experimental is a sligthly extended KoboldCpp with [custom](experimental/README.md) functionality.
-
-
------
-
-Croco is based on KoboldCPP
-
------
 
 # koboldcpp (for information)
 
@@ -488,7 +484,7 @@ It offers the following functionalities:
 ![418190669-f839ed18-0fb9-4319-82d8-03952c5d3f20](https://github.com/user-attachments/assets/2ee0c202-8f68-44d6-aa6f-18ae35f33857)
 
 - Agent thinking (based on prompts from this cool project [here](https://github.com/Wladastic/mini_autogpt))
-- Improvements to TextDB, such as VectorDB (embedding) support and document support (including upload of text documents, PDFs (SevenOf9 wrote the parser), OCR using the vision model loaded, and transcription from audio)
+- Improvements to TextDB, such as VectorDB (embedding) support and document support (including upload of text documents, PDFs (Vic49 / SevenOf9 wrote the parser), OCR using the vision model loaded, and transcription from audio)
 - Export / Import of WI groups from files
 
 ![8d3e3a9d-08e0-4caf-9ad8-c2d806fec7e0](https://github.com/user-attachments/assets/8d3e3a9d-08e0-4caf-9ad8-c2d806fec7e0)
@@ -501,8 +497,6 @@ An attempt to replicate tool usage / agent logic in Lite.  Essentially, the AI i
 
 The currently supported options include:
 - Sending messages / Asking for additional user input (including AI suggested options like a text adventure)
-
-![2025-04-01 19_57_17-KoboldAI Lite — LibreWolf](https://github.com/user-attachments/assets/c46ce852-8d04-4451-a27e-7eb2cd1ab462)
 
 ![c46ce852-8d04-4451-a27e-7eb2cd1ab462](https://github.com/user-attachments/assets/c46ce852-8d04-4451-a27e-7eb2cd1ab462)
 
@@ -549,12 +543,6 @@ A full list of the names for enabled commands can be found with the command belo
 ```
 getEnabledCommands().map(c => c.name)
 ```
-
-Using this function requires the following conditions to be met:
-- Use an instruct model
-- Use separate start and end tags for all roles (tick the option under the instruct settings and ensure they are all filled out, like ChatML)
-- Ensure that if you wish the AI to use web searching, TTS or image gen that the respective options are configured and enabled in the UI
-
 
 Using this function requires the following conditions to be met:
 - Use an instruct model
