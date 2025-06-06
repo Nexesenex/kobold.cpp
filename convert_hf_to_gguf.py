@@ -844,6 +844,8 @@ class TextModel(ModelBase):
         logger.info("** _L Ftypes have also have attn_k tensors conv. to a higher quant (ex, q6_0 vs q5_0.")
         logger.info("** _XL Ftypes have also FFN_down tensors converted to a higher quant.")
         logger.info("** _XXL Ftypes have also attn_output tensors converted to a higher quant.")
+        logger.info("** Q4_0_XXL Ftype will be thus, for example, equivalent to Q5_0_XXS FType.")
+        logger.info("** Same for Q5_0_XXL Ftype with Q6_0_XXS, and Q6_0_XXL Ftype with Q8_0_XXS.")
         logger.info("****************************************************************************************")
 
         if (n_ctx := self.find_hparam(["max_position_embeddings", "n_ctx", "n_positions"], optional=True)) is not None:
