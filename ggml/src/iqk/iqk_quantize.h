@@ -11,8 +11,6 @@
 
 #define GGML_COMMON_DECL_C
 
-#include "ggml.h"
-
 #include "ggml-common.h"
 
 #ifdef __cplusplus

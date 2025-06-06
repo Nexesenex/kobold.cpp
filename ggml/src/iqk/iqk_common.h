@@ -18,6 +18,7 @@
 #include <vector>
 #include <cstdint>
 
+#include "ggml-cpu/ggml-cpu-impl.h"
 #include "ggml-cpu/ggml-cpu-quants.h"
 
 #include "ggml-impl.h"
