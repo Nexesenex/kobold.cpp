@@ -3345,6 +3345,14 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
                     case GGML_TYPE_IQ6_K:
                     case GGML_TYPE_IQ1_BN:
                     case GGML_TYPE_IQ2_BN:
+                    case GGML_TYPE_IQ2_K_R4:
+                    case GGML_TYPE_IQ3_K_R4:
+                    case GGML_TYPE_IQ4_K_R4:
+                    case GGML_TYPE_IQ4_KS_R4:
+                    case GGML_TYPE_IQ5_K_R4:
+                    case GGML_TYPE_IQ5_KS_R4:
+                    case GGML_TYPE_IQ1_S_R4:
+                    case GGML_TYPE_IQ1_M_R4:
 #ifdef GGML_USE_MUSA
                         if (a->type == GGML_TYPE_Q3_K) {
                             return false;
