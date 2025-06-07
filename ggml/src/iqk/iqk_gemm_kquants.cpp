@@ -719,7 +719,6 @@ static void mul_mat_qY_K_q8_K_T(int n, const void * vx, size_t bx, const DataInf
 
 #endif
 
-
 //    inline __m256i process_mins_and_scales(const uint8_t * data, float c, int i, const Q8& q8, __m256 * accd) {
 //        make_q4_scales(data, utmp);
 //        const __m256i mins_and_scales = _mm256_cvtepu8_epi16(_mm_set_epi32(utmp[3], utmp[2], utmp[1], utmp[0]));
@@ -1991,7 +1990,7 @@ bool iqk_set_kernels_kquants(int ne00, int typeA, int typeB, std::array<mul_mat_
     auto expected_type_B = etypeA == GGML_TYPE_IQ4_XS_R8 || etypeA == GGML_TYPE_Q4_K_R4 || etypeA == GGML_TYPE_Q5_K_R4 ? GGML_TYPE_Q8_K32
                          : etypeA == GGML_TYPE_Q8_K_R8 ? GGML_TYPE_Q8_KR8
                          : etypeA == GGML_TYPE_Q8_KV || etypeA == GGML_TYPE_Q8_KV_R8 ? GGML_TYPE_Q8_KV
-                         : etypeA == GGML_TYPE_Q4_K || etypeA == GGML_TYPE_Q5_K ? GGML_TYPE_Q8_2_X4						 
+                         : etypeA == GGML_TYPE_Q4_K  || etypeA == GGML_TYPE_Q5_K ? GGML_TYPE_Q8_2_X4
                          : GGML_TYPE_Q8_K;
 
     if (ne00%QK_K != 0 || ggml_type(typeB) != expected_type_B) {
@@ -2013,7 +2012,7 @@ bool iqk_set_kernels_kquants(int ne00, int typeA, int typeB, std::array<mul_mat_
             break;
         case GGML_TYPE_Q5_K:
             IQK_SET_MUL_MAT_FUNCTIONS_T(mul_mat_qX_K_q8_2_X4_T, DequantizerQ5K_AVX2, kernels);
-            //set_functions<DequantizerQ5K>(kernels)
+            //set_functions<DequantizerQ5K>(kernels);
             break;
         case GGML_TYPE_Q6_K:
             set_functions<DequantizerQ6K>(kernels);

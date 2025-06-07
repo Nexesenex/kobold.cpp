@@ -10,7 +10,6 @@
 #include <stddef.h>
 
 #define GGML_COMMON_DECL_C
-
 #include "ggml-common.h"
 
 #ifdef __cplusplus

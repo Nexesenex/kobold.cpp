@@ -236,15 +236,19 @@ struct MulMat {
     static inline ggml_type is_dequant_better(ggml_type type, int nrc_y) {
 #ifdef __AVX2__
         switch (type) {
-            case GGML_TYPE_IQ2_KT : return nrc_y >= 32 ? GGML_TYPE_Q8_0_R8 : type;
-            case GGML_TYPE_IQ3_KT : return nrc_y >= 32 ? GGML_TYPE_F32 : type;
-            case GGML_TYPE_IQ4_KT : return nrc_y >= 32 ? GGML_TYPE_Q8_0_R8 : type;
             case GGML_TYPE_IQ2_XXS: return nrc_y >= 32 ? GGML_TYPE_Q8_0_R8 : type;
+            // case GGML_TYPE_IQ2_XS : return nrc_y >= 32 ? GGML_TYPE_Q8_K_R8 : type;
+            // case GGML_TYPE_IQ2_S  : return nrc_y >= 16 ? GGML_TYPE_Q8_K_R8 : type;
             case GGML_TYPE_IQ3_XXS: return nrc_y >= 32 ? GGML_TYPE_Q8_0_R8 : type;
             case GGML_TYPE_IQ3_S  : return nrc_y >= 32 ? GGML_TYPE_Q8_0_R8 : type;
             case GGML_TYPE_IQ1_S  : return nrc_y >= 32 ? GGML_TYPE_Q8_0_R8 : type;
+            // case GGML_TYPE_Q3_K   : return nrc_y >= 32 ? GGML_TYPE_Q8_K_R8 : type;
             case GGML_TYPE_Q4_K   : return nrc_y >= 32 ? GGML_TYPE_Q8_1    : type;
             case GGML_TYPE_Q5_K   : return nrc_y >= 32 ? GGML_TYPE_Q8_1    : type;
+            // case GGML_TYPE_Q6_K   : return nrc_y >= 64 ? GGML_TYPE_Q8_0_R8 : type;
+            case GGML_TYPE_IQ2_KT : return nrc_y >= 32 ? GGML_TYPE_Q8_0_R8 : type;
+            case GGML_TYPE_IQ3_KT : return nrc_y >= 32 ? GGML_TYPE_Q8_0_R8 : type;
+            case GGML_TYPE_IQ4_KT : return nrc_y >= 32 ? GGML_TYPE_Q8_0_R8 : type;
             default: break;
         }
 #else
@@ -615,9 +619,9 @@ extern "C" IQK_API bool iqk_mul_mat_moe(long Nx, long Ny, long ne00, int ne11,
         first_x *= num_rows;
         nrc_x   *= num_rows;
 
-        auto type_size = ggml_type_size(dequant_type);
-
-        size_t row_size_qx = ne00*type_size;
+        // auto type_size = ggml_type_size(dequant_type);
+        // size_t row_size_qx = ne00*type_size;
+        size_t row_size_qx = ggml_row_size(dequant_type, ne00);
         size_t row_size_qy = strideB;
 
         DataInfo info{C + first_x, (const char *)B, nb1/sizeof(float), row_size_qy, 0, ne11, row_mapping, nb2/sizeof(float)};
@@ -683,9 +687,9 @@ extern "C" IQK_API bool iqk_moe_fused_up_gate(long Nx, long Ny, long ne00, int n
         first_x *= num_rows;
         nrc_x   *= num_rows;
 
-        auto type_size = ggml_type_size(dequant_type);
-
-        size_t row_size_qx = ne00*type_size;
+        // auto type_size = ggml_type_size(dequant_type);
+        // size_t row_size_qx = ne00*type_size;
+        size_t row_size_qx = ggml_row_size(dequant_type, ne00);
         size_t row_size_qy = strideB;
 
         DataInfo info{C + first_x, (const char *)B, nb1/sizeof(float), row_size_qy, 0, ne11, row_mapping, nb2/sizeof(float)};

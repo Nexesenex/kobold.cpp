@@ -551,11 +551,14 @@ void ggml_cuda_op_mul_mat_vec_q(
         case GGML_TYPE_IQ3_KS:
             mul_mat_vec_iq3_ks_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
             break;
-        case GGML_TYPE_IQ4_KT:
-            mul_mat_vec_iq4_kt_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
-            break;
         case GGML_TYPE_IQ2_KT:
             mul_mat_vec_iq2_kt_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
+            break;
+        case GGML_TYPE_IQ3_KT:
+            mul_mat_vec_iq3_kt_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
+            break;
+        case GGML_TYPE_IQ4_KT:
+            mul_mat_vec_iq4_kt_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
             break;
         case GGML_TYPE_IQ5_K:
             mul_mat_vec_iq5_k_q8_1_cuda(src0_dd_i, src1_ddq_i, dst_dd_i, ne00, row_diff, src1_padded_row_size, src1_ncols, nrows_dst, stream);
@@ -634,7 +637,6 @@ bool ggml_cuda_mmvq_type_supported(ggml_type src0_type) {
         case GGML_TYPE_IQ4_KS:
         case GGML_TYPE_IQ4_KSS:
         case GGML_TYPE_IQ2_KS:
-        //case GGML_TYPE_IQ2_KT:
         case GGML_TYPE_IQ5_K:
         case GGML_TYPE_IQ5_KS:
         case GGML_TYPE_IQ6_K:
@@ -647,8 +649,9 @@ bool ggml_cuda_mmvq_type_supported(ggml_type src0_type) {
         case GGML_TYPE_IQ5_KS_R4:
         case GGML_TYPE_IQ1_S_R4:
         case GGML_TYPE_IQ1_M_R4:
-        case GGML_TYPE_IQ4_KT:
         case GGML_TYPE_IQ2_KT:
+        case GGML_TYPE_IQ3_KT:
+        case GGML_TYPE_IQ4_KT:
             return true;
         default:
             return false;
