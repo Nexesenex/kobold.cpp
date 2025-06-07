@@ -5,7 +5,7 @@
 #include "sampling.h"
 #include "llama.h"
 #include "chat.h"
-#include "build-info.h"
+// #include "build-info.h"
 
 #include <cstdio>
 #include <cstring>
