@@ -1748,7 +1748,7 @@ static const int8_t kvalues_iq4nl[16] = {-127, -104, -83, -65, -49, -35, -22, -1
     // quantize_row_q8_K_ref(x, y, k);
 // }
 
-/* void quantize_row_q8_K(const float * GGML_RESTRICT x, void * GGML_RESTRICT y, int64_t k) {
+void quantize_row_q8_K(const float * GGML_RESTRICT x, void * GGML_RESTRICT y, int64_t k) {
 #ifdef __wasm_simd128__
     assert(k % QK_K == 0);
     const int64_t nb = k / QK_K;
@@ -1830,7 +1830,7 @@ static const int8_t kvalues_iq4nl[16] = {-127, -104, -83, -65, -49, -35, -22, -1
 #else
     quantize_row_q8_K_ref(x, y, k);
 #endif
-} */
+}
 
 //===================================== Dot products =================================
 
