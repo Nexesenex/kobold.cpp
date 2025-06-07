@@ -3666,6 +3666,11 @@ size_t quantize_iq2_xxs(const float * GGML_RESTRICT src, void * GGML_RESTRICT ds
     return nrow * nblock * sizeof(block_iq2_xxs);
 }
 
+void quantize_row_iq2_xxs_ref(const float * restrict x, block_iq2_xxs * restrict y, int64_t k) {
+    assert(k % QK_K == 0);
+    quantize_iq2_xxs(x, y, 1, k, NULL);
+}
+
 size_t quantize_iq2_xs(const float * GGML_RESTRICT src, void * GGML_RESTRICT dst, int64_t nrow, int64_t n_per_row, const float * quant_weights) {
     GGML_ASSERT(n_per_row%QK_K == 0);
     int64_t nblock = n_per_row/QK_K;
@@ -3676,6 +3681,11 @@ size_t quantize_iq2_xs(const float * GGML_RESTRICT src, void * GGML_RESTRICT dst
         qrow += nblock*sizeof(block_iq2_xs);
     }
     return nrow * nblock * sizeof(block_iq2_xs);
+}
+
+void quantize_row_iq2_xs_ref(const float * restrict x, block_iq2_xs * restrict y, int64_t k) {
+    assert(k % QK_K == 0);
+    quantize_iq2_xs(x, y, 1, k, NULL);
 }
 
 //
@@ -4658,6 +4668,15 @@ size_t quantize_iq1_s(const float * GGML_RESTRICT src, void * GGML_RESTRICT dst,
     return nrow * nblock * sizeof(block_iq1_s);
 }
 
+void quantize_row_iq1_s_ref  (const float * GGML_RESTRICT x, block_iq1_s   * GGML_RESTRICT y, int64_t k) {
+    int nblock = k/QK_K;
+    float qw[QK_K];
+    for (int j = 0; j < QK_K; ++j) qw[j] = 1;
+    for (int ibl = 0; ibl < nblock; ++ibl) {
+        quantize_iq1_s(x + ibl*QK_K, &y[ibl], 1, QK_K, qw);
+    }
+}
+
 void iq1m_process_1block(const float * xb, const float * weight, int8_t * L, float * the_scale, uint16_t * the_index, int * the_shift,
         float * pairs) {
 
@@ -4944,6 +4963,15 @@ size_t quantize_iq1_m(const float * GGML_RESTRICT src, void * GGML_RESTRICT dst,
         qrow += nblock*sizeof(block_iq1_m);
     }
     return nrow * nblock * sizeof(block_iq1_m);
+}
+
+void quantize_row_iq1_m_ref  (const float * GGML_RESTRICT x, block_iq1_s   * GGML_RESTRICT y, int64_t k) {
+    int nblock = k/QK_K;
+    float qw[QK_K];
+    for (int j = 0; j < QK_K; ++j) qw[j] = 1;
+    for (int ibl = 0; ibl < nblock; ++ibl) {
+        quantize_iq1_s(x + ibl*QK_K, &y[ibl], 1, QK_K, qw);
+    }
 }
 
 // ============================ 4-bit non-linear quants
