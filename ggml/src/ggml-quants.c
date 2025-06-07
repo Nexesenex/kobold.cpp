@@ -2794,18 +2794,6 @@ void dequantize_row_q8_K(const block_q8_K * GGML_RESTRICT x, float * GGML_RESTRI
     }
 }
 
-void quantize_row_q8_K(const float * restrict x, void * restrict y, int64_t k) {
-#ifdef GGML_USE_IQK_MULMAT
-    iqk_quantize_row_q8_K(x, y, k);
-#else
-    quantize_row_q8_K_ref(x, y, k);
-#endif
-}
-
-// void quantize_row_q8_K(const float * restrict x, void * restrict y, int64_t k) {
-    // quantize_row_q8_K_ref(x, y, k);
-// }
-
 // ================================ IQ2 quantization =============================================
 
 typedef struct {
