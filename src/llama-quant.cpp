@@ -705,6 +705,44 @@ static ggml_type llama_tensor_get_type(quantize_state_impl & qs, ggml_type new_t
     return new_type;
 }
 
+static std::pair<ggml_type, int> interleaved_properties(ggml_type type) {
+    static std::unordered_map<ggml_type, std::pair<ggml_type, int>> k_map = {
+        { GGML_TYPE_Q4_0_4_4,    { GGML_TYPE_Q4_0, 4} },
+        { GGML_TYPE_Q4_0_4_8,    { GGML_TYPE_Q4_0, 4} },
+        { GGML_TYPE_Q4_0_8_8,    { GGML_TYPE_Q4_0, 8} },
+        { GGML_TYPE_Q4_0_R8,     { GGML_TYPE_Q4_0, 8} },
+        { GGML_TYPE_Q5_0_R4,     { GGML_TYPE_Q5_0, 4} },
+        { GGML_TYPE_Q6_0_R4,     { GGML_TYPE_Q6_0, 4} },
+        { GGML_TYPE_Q8_0_R8,     { GGML_TYPE_Q8_0, 8} },
+        { GGML_TYPE_Q2_K_R4,     { GGML_TYPE_Q2_K, 4} },
+        { GGML_TYPE_Q3_K_R4,     { GGML_TYPE_Q3_K, 4} },
+        { GGML_TYPE_Q4_K_R4,     { GGML_TYPE_Q4_K, 4} },
+        { GGML_TYPE_Q5_K_R4,     { GGML_TYPE_Q5_K, 4} },
+        { GGML_TYPE_Q6_K_R4,     { GGML_TYPE_Q6_K, 4} },
+        { GGML_TYPE_IQ2_XXS_R4,  { GGML_TYPE_IQ2_XXS, 4} },
+        { GGML_TYPE_IQ2_XS_R4,   { GGML_TYPE_IQ2_XS, 4} },
+        { GGML_TYPE_IQ2_S_R4,    { GGML_TYPE_IQ2_S, 4} },
+        { GGML_TYPE_IQ3_XXS_R4,  { GGML_TYPE_IQ3_XXS, 4} },
+        { GGML_TYPE_IQ3_S_R4,    { GGML_TYPE_IQ3_S, 4} },
+        { GGML_TYPE_IQ4_XS_R8,   { GGML_TYPE_IQ4_XS, 8} },
+        { GGML_TYPE_IQ4_NL_R4,   { GGML_TYPE_IQ4_NL, 4} },
+        { GGML_TYPE_IQ1_S_R4,    { GGML_TYPE_IQ1_S, 4} },
+        { GGML_TYPE_IQ1_M_R4,    { GGML_TYPE_IQ1_M, 4} },
+        { GGML_TYPE_IQ2_BN_R4,   { GGML_TYPE_IQ2_BN, 4} },
+        { GGML_TYPE_IQ2_K_R4,    { GGML_TYPE_IQ2_K, 4} },
+        { GGML_TYPE_IQ3_K_R4,    { GGML_TYPE_IQ3_K, 4} },
+        { GGML_TYPE_IQ4_K_R4,    { GGML_TYPE_IQ4_K, 4} },
+        { GGML_TYPE_IQ4_KS_R4,   { GGML_TYPE_IQ4_KS, 4} },
+        { GGML_TYPE_IQ5_KS_R4,   { GGML_TYPE_IQ5_KS, 4} },
+        { GGML_TYPE_IQ5_K_R4,    { GGML_TYPE_IQ5_K, 4} },
+        { GGML_TYPE_Q8_KV_R8,    { GGML_TYPE_Q8_KV, 8} },
+        { GGML_TYPE_Q8_K_R8,     { GGML_TYPE_Q8_K, 8} },
+        { GGML_TYPE_BF16_R16,    { GGML_TYPE_BF16, 16} },
+    };
+    if (auto it = k_map.find(type); it != k_map.end()) return it->second;
+    return {type, 1};
+}
+
 static size_t llama_tensor_quantize_impl(enum ggml_type new_type, const float * f32_data, void * new_data, const int64_t chunk_size, int64_t nrows, int64_t n_per_row, const float * imatrix, std::vector<std::thread> & workers, const int nthread) {
     if (nthread < 2) {
         // single-thread
@@ -1243,7 +1281,15 @@ static void llama_model_quantize_impl(const std::string & fname_inp, const std::
                 f32_data = (float *) f32_conv_buf.data();
             }
 
-            LLAMA_LOG_INFO("converting to %s .. ", ggml_type_name(new_type));
+            int chunk_size_multiplier = 1;
+            auto [working_type, num_rows] = interleaved_properties(new_type);
+            if (tensor->ne[1] % num_rows != 0) {
+                new_type = working_type;
+            } else {
+                chunk_size_multiplier = num_rows;
+            }
+
+            LLAMA_LOG_INFO("conv. to %s .. ", ggml_type_name(new_type));
             fflush(stdout);
 
             if (work.size() < (size_t)nelements * 4) {
@@ -1255,7 +1301,8 @@ static void llama_model_quantize_impl(const std::string & fname_inp, const std::
             const int64_t nrows = tensor->ne[1];
 
             static const int64_t min_chunk_size = 32 * 512;
-            const int64_t chunk_size = (n_per_row >= min_chunk_size ? n_per_row : n_per_row * ((min_chunk_size + n_per_row - 1)/n_per_row));
+            const int64_t chunk_size = (n_per_row >= min_chunk_size ? n_per_row : n_per_row * ((min_chunk_size + n_per_row - 1)/n_per_row)) *
+                                       chunk_size_multiplier;
 
             const int64_t nelements_matrix = tensor->ne[0] * tensor->ne[1];
             const int64_t nchunk = (nelements_matrix + chunk_size - 1)/chunk_size;
