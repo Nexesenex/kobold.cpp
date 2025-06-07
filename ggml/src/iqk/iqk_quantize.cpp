@@ -18,7 +18,7 @@
 #include "iqk_quantize.h"
 #include "iqk_config.h"
 
-#include "iqk_gemm_ktquants.h"
+// #include "iqk_gemm_ktquants.h"
 
 #include <vector>
 #include <utility>
@@ -569,7 +569,7 @@ inline float hsum_float_4(__m128 x) {
     return _mm_cvtss_f32(x);
 }
 inline float hsum_float_8(__m256 x) {
-    return hsum_float_4(_mm_add_ps(_mm256_castps256_ps128(x), _mm256_extractf128_ps(x, 1))); 
+    return hsum_float_4(_mm_add_ps(_mm256_castps256_ps128(x), _mm256_extractf128_ps(x, 1)));
 }
 inline int hsum_i32_8(const __m256i a) {
     const __m128i sum128 = _mm_add_epi32(_mm256_castsi256_si128(a), _mm256_extractf128_si256(a, 1));
@@ -806,7 +806,7 @@ void quantize_row_q8_0_x4(const float * x, void * vy, int64_t k) {
 #endif
 }
 
-/* namespace {
+namespace {
 template <typename Block, typename Block_x4>
 void quantize_row_q8_1_x4_T(const float * x, Block * y, int64_t k) {
     assert(k % QK8_1 == 0);
@@ -972,15 +972,15 @@ void quantize_row_q8_1_x4_T(const float * x, Block * y, int64_t k) {
     }
 #endif
 }
-} */
+}
 
-/* void quantize_row_q8_1_x4(const float * x, void * vy, int64_t k) {
+void quantize_row_q8_1_x4(const float * x, void * vy, int64_t k) {
     quantize_row_q8_1_x4_T<block_q8_1, block_q8_1_x4>(x, (block_q8_1 *)vy, k);
 }
 
 void quantize_row_q8_2_x4(const float * x, void * vy, int64_t k) {
     quantize_row_q8_1_x4_T<block_q8_2, block_q8_2_x4>(x, (block_q8_2 *)vy, k);
-} */
+}
 
 //
 // ============================================== iq2_K
@@ -8562,9 +8562,9 @@ size_t quantize_iq2_kt(const float * src, void * dst, int64_t nrows, int64_t n_p
 
 void dequantize_row_iq2_kt(const block_iq2_kt * x, float * y, int64_t k) {
     assert(k % QuantizerIQ2KT::kSuperBlockSize == 0);
-#ifdef __AVX2__
+/* #ifdef __AVX2__
     if (iqk_dequantize_ktquants(GGML_TYPE_IQ2_KT, k, x, 0, y, 0, 1)) return;
-#endif
+#endif */
     const int nb = k / QuantizerIQ2KT::kSuperBlockSize;
     const float * dptr = (const float *)x;
     const float d = *dptr * QuantizerIQ2KT::kScale;
@@ -8818,9 +8818,9 @@ size_t quantize_iq3_kt(const float * src, void * dst, int64_t nrows, int64_t n_p
 }
 
 void dequantize_row_iq3_kt(const block_iq3_kt * x, float * y, int64_t k) {
-#ifdef __AVX2__
+/* #ifdef __AVX2__
     if (iqk_dequantize_ktquants(GGML_TYPE_IQ3_KT, k, x, 0, y, 0, 1)) return;
-#endif
+#endif */
     using Q = QuantizerIQ3KT;
     constexpr int kNumGroups = Q::kSuperBlockSize/Q::kGroupSize;
     assert(k % Q::kSuperBlockSize == 0);
@@ -9077,9 +9077,9 @@ size_t quantize_iq4_kt(const float * src, void * dst, int64_t nrows, int64_t n_p
 }
 
 void dequantize_row_iq4_kt(const block_iq4_kt * x, float * y, int64_t k) {
-#ifdef __AVX2__
+/* #ifdef __AVX2__
     if (iqk_dequantize_ktquants(GGML_TYPE_IQ4_KT, k, x, 0, y, 0, 1)) return;
-#endif
+#endif */
     using Q = QuantizerIQ4KT;
     assert(k % Q::kSuperBlockSize == 0);
     constexpr int kNumGroups = Q::kSuperBlockSize/Q::kGroupSize;
