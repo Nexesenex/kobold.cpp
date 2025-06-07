@@ -561,7 +561,7 @@ void quantize_row_q8_K64(const float * x, void * y, int64_t k) {
     quantize_row_q8_K64_ref(x, (block_q8_K64 *)y, k);
 }
 
-#ifdef __AVX2__
+// #ifdef __AVX2__
 namespace {
 inline float hsum_float_4(__m128 x) {
     x = _mm_add_ps(x, _mm_movehl_ps(x, x));
@@ -585,7 +585,7 @@ inline float hmax_f32_8(__m256 x) {
     return  _mm_cvtss_f32(max4);
 }
 }
-#endif
+// #endif
 
 void quantize_row_q8_K16(const float * x, void * vy, int64_t nk) {
     float * dptr = (float *)vy;
