@@ -5634,12 +5634,12 @@ bool ggml_validate_row_data(enum ggml_type type, const void * data, size_t nbyte
         return false;
     }
 
-    if (type != GGML_TYPE_IQ2_BN && type != GGML_TYPE_IQ1_BN
-        // && type != GGML_TYPE_IQ2_TN && type != GGML_TYPE_IQ1_TN &&
+/*     if (type != GGML_TYPE_IQ2_BN && type != GGML_TYPE_IQ1_BN
+        && type != GGML_TYPE_IQ2_TN && type != GGML_TYPE_IQ1_TN &&
         && type != GGML_TYPE_IQ2_KS && type != GGML_TYPE_IQ4_KS && type != GGML_TYPE_IQ4_KSS && type != GGML_TYPE_IQ3_KS && type != GGML_TYPE_IQ5_KS && type != GGML_TYPE_IQ2_KT && type != GGML_TYPE_IQ3_KT && type != GGML_TYPE_IQ4_KT && nbytes % ggml_type_size(type) != 0) {
         fprintf(stderr, "%s: invalid size %zu for type %s (type size = %zu)\n", __func__, nbytes, ggml_type_name(type), ggml_type_size(type));
         return false;
-    }
+    } */
 
     const size_t nb = nbytes/ggml_type_size(type);
 
@@ -5925,34 +5925,34 @@ bool ggml_validate_row_data(enum ggml_type type, const void * data, size_t nbyte
         case GGML_TYPE_IQ3_KS: break;
         case GGML_TYPE_IQ5_KS: break;
         case GGML_TYPE_IQ4_KSS: break;
-        // case GGML_TYPE_IQ4_NL_R4: break;
-        // case GGML_TYPE_IQ4_XS_R8: break;
-        // case GGML_TYPE_IQ2_XXS_R4: break;
-        // case GGML_TYPE_IQ2_XS_R4: break;
-        // case GGML_TYPE_IQ3_XXS_R4: break;
-        // case GGML_TYPE_IQ3_S_R4: break;
-        // case GGML_TYPE_IQ2_S_R4: break;
-        // case GGML_TYPE_IQ1_S_R4: break;
-        // case GGML_TYPE_IQ1_M_R4: break;
-        // case GGML_TYPE_Q4_0_R8: break;
-        // case GGML_TYPE_Q5_0_R4: break;
-        // case GGML_TYPE_Q6_0_R4: break;
-        // case GGML_TYPE_Q8_0_R8: break;
-        // case GGML_TYPE_Q2_K_R4: break;
-        // case GGML_TYPE_Q3_K_R4: break;
-        // case GGML_TYPE_Q4_K_R4: break;
-        // case GGML_TYPE_Q5_K_R4: break;
-        // case GGML_TYPE_Q6_K_R4: break;
-        // case GGML_TYPE_IQ2_K_R4: break;
-        // case GGML_TYPE_IQ3_K_R4: break;
-        // case GGML_TYPE_IQ4_K_R4: break;
-        // case GGML_TYPE_IQ5_K_R4: break;
-        // case GGML_TYPE_IQ4_KS_R4:break;
-        // case GGML_TYPE_IQ5_KS_R4:break;
-        // case GGML_TYPE_Q8_KV_R8: break;
-        // case GGML_TYPE_Q8_K_R8:  break;
-        // case GGML_TYPE_Q8_KV:    break;
-        // case GGML_TYPE_BF16_R16: break;
+        case GGML_TYPE_IQ4_NL_R4: break;
+        case GGML_TYPE_IQ4_XS_R8: break;
+        case GGML_TYPE_IQ2_XXS_R4: break;
+        case GGML_TYPE_IQ2_XS_R4: break;
+        case GGML_TYPE_IQ3_XXS_R4: break;
+        case GGML_TYPE_IQ3_S_R4: break;
+        case GGML_TYPE_IQ2_S_R4: break;
+        case GGML_TYPE_IQ1_S_R4: break;
+        case GGML_TYPE_IQ1_M_R4: break;
+        case GGML_TYPE_Q4_0_R8: break;
+        case GGML_TYPE_Q5_0_R4: break;
+        case GGML_TYPE_Q6_0_R4: break;
+        case GGML_TYPE_Q8_0_R8: break;
+        case GGML_TYPE_Q2_K_R4: break;
+        case GGML_TYPE_Q3_K_R4: break;
+        case GGML_TYPE_Q4_K_R4: break;
+        case GGML_TYPE_Q5_K_R4: break;
+        case GGML_TYPE_Q6_K_R4: break;
+        case GGML_TYPE_IQ2_K_R4: break;
+        case GGML_TYPE_IQ3_K_R4: break;
+        case GGML_TYPE_IQ4_K_R4: break;
+        case GGML_TYPE_IQ5_K_R4: break;
+        case GGML_TYPE_IQ4_KS_R4:break;
+        case GGML_TYPE_IQ5_KS_R4:break;
+        case GGML_TYPE_Q8_KV_R8: break;
+        case GGML_TYPE_Q8_K_R8:  break;
+        case GGML_TYPE_Q8_KV:    break;
+        case GGML_TYPE_BF16_R16: break;
         case GGML_TYPE_IQ2_KT: break;
         case GGML_TYPE_IQ3_KT: break;
         case GGML_TYPE_IQ4_KT: break;
