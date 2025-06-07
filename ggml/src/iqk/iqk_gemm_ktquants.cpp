@@ -98,35 +98,26 @@ struct Trellis2 {
 };
 
 
-template <bool is_8 = false>
+template <bool is_8 = false, bool is_abs = false>
 struct Trellis3 {
-    constexpr static uint32_t ka = 3417055213;
-    constexpr static uint32_t kb = 0;
+    constexpr static uint32_t ka = 0xCBAC1FED;
     constexpr static uint32_t ka1 = ka*ka;
-    constexpr static uint32_t kb1 = kb*ka+kb;
     constexpr static uint32_t ka2 = ka1*ka;
-    constexpr static uint32_t kb2 = kb1*ka+kb;
     constexpr static uint32_t ka3 = ka2*ka;
-    constexpr static uint32_t kb3 = kb2*ka+kb;
     constexpr static uint32_t ka4 = ka3*ka;
-    constexpr static uint32_t kb4 = kb3*ka+kb;
     constexpr static uint32_t ka5 = ka4*ka;
-    constexpr static uint32_t kb5 = kb4*ka+kb;
     constexpr static uint32_t ka6 = ka5*ka;
-    constexpr static uint32_t kb6 = kb5*ka+kb;
     constexpr static uint32_t ka7 = ka6*ka;
-    constexpr static uint32_t kb7 = kb6*ka+kb;
     const __m256i mka = is_8 ? _mm256_setr_epi32(ka, ka1, ka2, ka3, ka4, ka5, ka6, ka7) : _mm256_setr_epi32(ka, ka1, ka2, ka3, ka, ka1, ka2, ka3);
-    const __m256i mkb = is_8 ? _mm256_setr_epi32(kb, kb1, kb2, kb3, kb4, kb5, kb6, kb7) : _mm256_setr_epi32(kb, kb1, kb2, kb3, kb, kb1, kb2, kb3);
     const __m256i shuffle = _mm256_set_epi32(7, 3, 6, 2, 5, 1, 4, 0);
 
     inline __m256i next8(uint32_t val1, uint32_t val2) const {
         __m256i mval = MM256_SET_M128I(_mm_set1_epi32(val2), _mm_set1_epi32(val1));
-        return _mm256_add_epi32(_mm256_mullo_epi32(mval, mka), mkb);
+        return _mm256_mullo_epi32(mval, mka);
     }
     inline __m256i next8(uint32_t val) const {
         __m256i mval = _mm256_set1_epi32(val);
-        return _mm256_add_epi32(_mm256_mullo_epi32(mval, mka), mkb);
+        return _mm256_mullo_epi32(mval, mka);
     }
     inline __m256 gen8(uint32_t val1, uint32_t val2) const {
         auto v8 = _mm256_and_si256(next8(val1, val2), _mm256_set1_epi32(0x3f3f3f3f));
@@ -136,7 +127,11 @@ struct Trellis3 {
         auto dot = _mm256_maddubs_epi16(v8, _mm256_set1_epi32(0x01010101));
         auto i8  = _mm256_add_epi32(_mm256_set1_epi32(-126), _mm256_madd_epi16(dot, _mm256_set1_epi16(1)));
 #endif
-        return _mm256_cvtepi32_ps(i8);
+        if constexpr (is_abs) {
+            return _mm256_cvtepi32_ps(_mm256_sign_epi32(i8, i8));
+        } else {
+            return _mm256_cvtepi32_ps(i8);
+        }
     }
     inline __m256 gen8(uint32_t val) const {
         auto v8 = _mm256_and_si256(next8(val), _mm256_set1_epi32(0x3f3f3f3f));
@@ -146,11 +141,14 @@ struct Trellis3 {
         auto dot = _mm256_maddubs_epi16(v8, _mm256_set1_epi32(0x01010101));
         auto i8  = _mm256_add_epi32(_mm256_set1_epi32(-126), _mm256_madd_epi16(dot, _mm256_set1_epi16(1)));
 #endif
-        return _mm256_cvtepi32_ps(i8);
+        if constexpr (is_abs) {
+            return _mm256_cvtepi32_ps(_mm256_sign_epi32(i8, i8));
+        } else {
+            return _mm256_cvtepi32_ps(i8);
+        }
     }
-    template <bool is_unsigned = false>
     inline __m256i next32(const uint32_t * val) const {
-        const __m256i offset = is_unsigned ? _mm256_setzero_si256() : _mm256_set1_epi32(-126);
+        const __m256i offset = _mm256_set1_epi32(-126);
         __m256i aux[4];
         for (int i = 0; i < 4; ++i) {
             auto i8 = _mm256_and_si256(next8(val[2*i+0], val[2*i+1]), _mm256_set1_epi32(0x3f3f3f3f));
@@ -165,11 +163,15 @@ struct Trellis3 {
         aux[2] = _mm256_packs_epi32(aux[2], aux[3]); // 16, 17, 18, 19, 24, 25, 26, 27, 20, 21, 22, 23, 28, 29, 30, 31
         aux[0] = _mm256_packs_epi16(aux[0], aux[2]); //  0,  1,  2,  3,  8,  9, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27
                                                      //  4,  5,  6,  7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31
-        return _mm256_permutevar8x32_epi32(aux[0], shuffle);
+        if constexpr (is_abs) {
+            auto result = _mm256_permutevar8x32_epi32(aux[0], shuffle);
+            return _mm256_sign_epi8(result, result);
+        } else {
+            return _mm256_permutevar8x32_epi32(aux[0], shuffle);
+        }
     }
-    template <bool is_unsigned = false>
     inline __m256i next32(const uint16_t * val, uint32_t v0) const {
-        const __m256i offset = is_unsigned ? _mm256_setzero_si256() : _mm256_set1_epi32(-126);
+        const __m256i offset = _mm256_set1_epi32(-126);
         __m256i aux[4];
         for (int i = 0; i < 4; ++i) {
             auto i8 = _mm256_and_si256(next8(v0 + val[i]), _mm256_set1_epi32(0x3f3f3f3f));
@@ -184,16 +186,20 @@ struct Trellis3 {
         aux[2] = _mm256_packs_epi32(aux[2], aux[3]); // 16, 17, 18, 19, 24, 25, 26, 27, 20, 21, 22, 23, 28, 29, 30, 31
         aux[0] = _mm256_packs_epi16(aux[0], aux[2]); //  0,  1,  2,  3,  8,  9, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27
                                                      //  4,  5,  6,  7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31
-        return _mm256_permutevar8x32_epi32(aux[0], shuffle);
+        if constexpr (is_abs) {
+            auto result = _mm256_permutevar8x32_epi32(aux[0], shuffle);
+            return _mm256_sign_epi8(result, result);
+        } else {
+            return _mm256_permutevar8x32_epi32(aux[0], shuffle);
+        }
     }
-    template <bool is_unsigned = false>
     inline void next64(const uint32_t * val, __m256i * result) const {
-        const __m256i offset = is_unsigned ? _mm256_setzero_si256() : _mm256_set1_epi32(-126);
-        auto vka3 = _mm256_set1_epi32(ka3), vkb3 = _mm256_set1_epi32(kb3);
+        const __m256i offset = _mm256_set1_epi32(-126);
+        auto vka3 = _mm256_set1_epi32(ka3);
         __m256i aux[8];
         for (int i = 0; i < 4; ++i) {
             auto i8_1 = next8(val[2*i+0], val[2*i+1]);
-            auto i8_2 = _mm256_add_epi32(_mm256_mullo_epi32(i8_1, vka3), vkb3);
+            auto i8_2 = _mm256_mullo_epi32(i8_1, vka3);
             i8_1 = _mm256_and_si256(i8_1, _mm256_set1_epi32(0x3f3f3f3f));
             i8_2 = _mm256_and_si256(i8_2, _mm256_set1_epi32(0x3f3f3f3f));
 #ifdef HAVE_FANCY_SIMD
@@ -212,6 +218,9 @@ struct Trellis3 {
             aux[4*k+0] = _mm256_packs_epi16(aux[4*k+0], aux[4*k+2]); //  0,  1,  2,  3,  8,  9, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27
                                                                      //  4,  5,  6,  7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31
             result[k] = _mm256_permutevar8x32_epi32(aux[4*k+0], shuffle);
+            if constexpr (is_abs) {
+                result[k] = _mm256_sign_epi8(result[k], result[k]);
+            }
         }
     }
 };
@@ -448,6 +457,156 @@ void mul_mat_iq2_kt_q8_2_x4_T(int n, const void * vx, size_t bx, const DataInfo&
                     compute_dot(yb.qs);
                     accd[iy] = _mm256_fmadd_ps(d8, sum_4(), accd[iy]);
                     //accd[iy] = _mm256_fmadd_ps(m8, m126,    accd[iy]);
+                }
+            }
+        }
+
+        for (int iy = 0; iy < nrc_y; ++iy) {
+            info.store(ix, iy, hsum_float_8(accd[iy]));
+        }
+    }
+}
+
+void iqk_dequantize_iq3_kt_q80_r8(int n, const void * vx, size_t bx, void * vy, int nrc_x) {
+    GGML_ASSERT(n%QK_K == 0);
+    GGML_ASSERT(nrc_x%8 == 0);
+    const int nb = n/QK_K;
+
+    Trellis3<false, true> trellis;
+
+    auto shifts = _mm_set_epi32(0, 0, 4, 0);
+
+    block_q8_0_r8 * y = (block_q8_0_r8 *)vy;
+
+    const block_iq3_kt * x8[8];
+    float dkt[8];
+    float ls[8];
+    float ls_all[64];
+    uint32_t idx[8];
+    uint32_t sign_bits[16];
+
+    for (int ix = 0; ix < nrc_x; ix += 8) {
+        for (int k = 0; k < 8; ++k) {
+            const float * dptr = (const float *)((const char*)vx + (ix+k)*bx);
+            dkt[k] = dptr[0];
+            x8[k] = (const block_iq3_kt *)(dptr + 1);
+        }
+        auto vd = _mm256_mul_ps(_mm256_set1_ps(1.01f), _mm256_loadu_ps(dkt));
+
+        for (int i = 0; i < nb; ++i) {
+            for (int k = 0; k < 8; ++k) {
+                auto s8 = _mm_set1_epi32(*(const uint32_t *)x8[k][i].scales);
+                s8 = _mm_and_si128(_mm_srlv_epi32(s8, shifts), _mm_set1_epi8(0xf));
+                auto s32 = _mm256_cvtepi8_epi32(s8);
+                _mm256_storeu_ps(ls_all + 8*k, _mm256_cvtepi32_ps(s32));
+            }
+            auto mask = _mm256_set1_epi8(1);
+            for (int ib = 0; ib < QK_K/32; ++ib) {
+                for (int k = 0; k < 8; ++k) ls[k] = ls_all[8*k+ib];
+                auto scales = _mm256_mul_ps(vd, _mm256_loadu_ps(ls));
+                _mm_storeu_si128((__m128i *)y[ib].d, _mm256_cvtps_ph(scales, _MM_FROUND_TO_NEAREST_INT));
+                for (int j = 0; j < 4; ++j) {
+                    for (int k = 0; k < 8; ++k) {
+                        const uint16_t * ql = (const uint16_t *)x8[k][i].ql;
+                        idx[k] = ql[4*ib+j] + 4096;
+                        auto qh = (const uint32_t *)x8[k][i].qh;
+                        sign_bits[k+0] = qh[2*j+0];
+                        sign_bits[k+8] = qh[2*j+1];
+                    }
+                    __m256i packed[2];
+                    trellis.next64(idx, packed);
+                    auto signs1 = _mm256_loadu_si256((const __m256i *)sign_bits+0);
+                    auto signs2 = _mm256_loadu_si256((const __m256i *)sign_bits+1);
+                    signs1 = _mm256_or_si256(_mm256_cmpeq_epi8(_mm256_and_si256(signs1, mask), mask), _mm256_set1_epi8(1));
+                    signs2 = _mm256_or_si256(_mm256_cmpeq_epi8(_mm256_and_si256(signs2, mask), mask), _mm256_set1_epi8(1));
+                    packed[0] = _mm256_sign_epi8(packed[0], signs1);
+                    packed[1] = _mm256_sign_epi8(packed[1], signs2);
+                    _mm256_storeu_si256((__m256i *)y[ib].qs+2*j+0, packed[0]);
+                    _mm256_storeu_si256((__m256i *)y[ib].qs+2*j+1, packed[1]);
+                }
+                mask = _mm256_slli_epi16(mask, 1);
+            }
+            y += 8; // = QK_K/32;
+        }
+    }
+}
+
+template <int nrc_y>
+void mul_mat_iq3_kt_q8_2_x4_T(int n, const void * vx, size_t bx, const DataInfo& info, int nrc_x) {
+    assert(n%QK_K == 0);
+    const int nb = n/QK_K;
+
+    Trellis3<true, true> trellis;
+
+    auto shifts = _mm_set_epi32(0, 0, 4, 0);
+
+    constexpr int k_acc = nrc_y;
+
+    __m256  accd[k_acc];
+    const block_q8_2_x4 * y[nrc_y];
+    for (int iy = 0; iy < nrc_y; ++iy) {
+        y[iy] = (const block_q8_2_x4 *)info.src1_row(iy);
+    }
+
+    __m256i  xv[4], sv[4], dot[4];
+    __m256   scales[2];
+
+    auto sum_4 = [&dot] () {
+        // dot[k] has 8 values from block k
+        // 0 1 0 1 0 1 0 1
+        dot[0] = _mm256_add_epi32(_mm256_unpacklo_epi32(dot[0], dot[1]), _mm256_unpackhi_epi32(dot[0], dot[1]));
+        // 2 3 2 3 2 3 2 3
+        dot[2] = _mm256_add_epi32(_mm256_unpacklo_epi32(dot[2], dot[3]), _mm256_unpackhi_epi32(dot[2], dot[3]));
+        // 0 1 2 3 0 1 2 3
+        dot[0] = _mm256_add_epi32(_mm256_unpacklo_epi64(dot[0], dot[2]), _mm256_unpackhi_epi64(dot[0], dot[2]));
+        return _mm256_cvtepi32_ps(dot[0]);
+    };
+
+    auto compute_dot = [&dot, &xv, &sv] (const int8_t * y) {
+        for (int k = 0; k < 4; ++k) {
+            auto yv = _mm256_loadu_si256((const __m256i *)y + k);
+#ifdef HAVE_FANCY_SIMD
+            //dot[k] = _mm256_dpbusd_epi32(_mm256_setzero_si256(), xv[k], yv);
+            dot[k] = _mm256_dpbusd_epi32(_mm256_setzero_si256(), xv[k], _mm256_sign_epi8(yv, sv[k]));
+#else
+            auto p = _mm256_maddubs_epi16(xv[k], _mm256_sign_epi8(yv, sv[k]));
+            dot[k] = _mm256_madd_epi16(p, _mm256_set1_epi16(1));
+#endif
+        }
+    };
+
+    for (int ix = 0; ix < nrc_x; ++ix) {
+        const float * dptr = (const float *)((const char*)vx + ix*bx);
+        auto d = _mm256_set1_ps(dptr[0] * 1.01f);
+        const block_iq3_kt * x = (const block_iq3_kt *)(dptr + 1);
+
+        for (int iy = 0; iy < k_acc; ++iy) accd[iy] = _mm256_setzero_ps();
+
+        for (int i = 0; i < nb; ++i) {
+            auto ql = (const uint16_t *)x[i].ql;
+            auto sign_bits = _mm256_loadu_si256((const __m256i *)x[i].qh);
+            auto s8 = _mm_set1_epi32(*(const uint32_t *)x[i].scales);
+            s8 = _mm_and_si128(_mm_srlv_epi32(s8, shifts), _mm_set1_epi8(0xf));
+            auto s32 = _mm256_cvtepi8_epi32(s8);
+            auto all_scales = _mm256_mul_ps(d, _mm256_cvtepi32_ps(s32));
+            auto scales_l = _mm256_castps256_ps128(all_scales);
+            auto scales_h = _mm256_extractf128_ps(all_scales, 1);
+            scales[0] = _mm256_set_m128(scales_l, scales_l);
+            scales[1] = _mm256_set_m128(scales_h, scales_h);
+            auto mask = _mm256_set1_epi8(1);
+            for (int i128 = 0; i128 < 2; ++i128) {
+                for (int k = 0; k < 4; ++k) {
+                    xv[k] = trellis.next32(ql + 16*i128 + 4*k, 4096);
+                    sv[k] = _mm256_or_si256(_mm256_cmpeq_epi8(_mm256_and_si256(sign_bits, mask), mask), _mm256_set1_epi8(1));
+                    mask = _mm256_slli_epi16(mask, 1);
+                }
+                for (int iy = 0; iy < nrc_y; ++iy) {
+                    const block_q8_2_x4& yb = y[iy][2*i+i128];
+                    auto dy = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(_mm_loadu_si128((const __m128i *)yb.d)), 16));
+                    dy = _mm256_mul_ps(scales[i128], dy);
+                    auto d8 = _mm256_set_m128(_mm256_castps256_ps128(dy), _mm256_castps256_ps128(dy));
+                    compute_dot(yb.qs);
+                    accd[iy] = _mm256_fmadd_ps(d8, sum_4(), accd[iy]);
                 }
             }
         }
@@ -874,6 +1033,14 @@ bool iqk_set_kernels_ktquants(int ne00, int typeA, int typeB, std::array<mul_mat
         return false;
     }
 
+    if (typeA == GGML_TYPE_IQ3_KT) {
+        if (typeB == GGML_TYPE_Q8_2_X4) {
+            IQK_SET_MUL_MAT_FUNCTIONS(mul_mat_iq3_kt_q8_2_x4_T, kernels);
+            return true;
+        }
+        return false;
+    }
+
     if (ggml_type(typeB) != GGML_TYPE_F32) {
         return false;
     }
@@ -896,10 +1063,10 @@ bool iqk_set_kernels_ktquants(int ne00, int typeA, int typeB, std::array<mul_mat
 
 }
 
-bool iqk_dequantize_ktquants(int type, int n, const void * vx, size_t bx, void * y, size_t stride_y, int nrc_x) {
+bool iqk_dequantize_ktquants(int type, int n, const void * vx, size_t bx, void * y, [[maybe_unused]] size_t stride_y, int nrc_x) {
     switch (type) {
         case GGML_TYPE_IQ2_KT: iqk_dequantize_iq2_kt_q80_r8(n, vx, bx, y, nrc_x); break;
-        case GGML_TYPE_IQ3_KT: iqk_dequantize_iq3_kt(n, vx, bx, (float *)y, stride_y, nrc_x); break;
+        case GGML_TYPE_IQ3_KT: iqk_dequantize_iq3_kt_q80_r8(n, vx, bx, y, nrc_x); break;
         case GGML_TYPE_IQ4_KT: iqk_dequantize_iq4_kt_q80_r8(n, vx, bx, y, nrc_x); break;
         default: return false;
     }
@@ -1419,22 +1586,17 @@ void mul_mat_iq4_kt_F32_T(int n, const void * vx, size_t bx, const DataInfo& inf
 }
 
 struct Trellis3 {
-    constexpr static uint32_t ka = 3417055213;
-    constexpr static uint32_t kb = 0;
+    constexpr static uint32_t ka = ;0xCBAC1FED;
     constexpr static uint32_t ka1 = ka*ka;
-    constexpr static uint32_t kb1 = kb*ka+kb;
     constexpr static uint32_t ka2 = ka1*ka;
-    constexpr static uint32_t kb2 = kb1*ka+kb;
     constexpr static uint32_t ka3 = ka2*ka;
-    constexpr static uint32_t kb3 = kb2*ka+kb;
     const uint32x4_t mka = uint32x4_t{ka, ka1, ka2, ka3};
-    const uint32x4_t mkb = uint32x4_t{kb, kb1, kb2, kb3};
     const uint8x16_t shuffle = load_shuffle();
 
     inline uint32x4x2_t next8(uint32_t val1, uint32_t val2) const {
         uint32x4x2_t result{vdupq_n_u32(val1), vdupq_n_u32(val2)};
-        result.val[0] = vmlaq_u32(mkb, mka, result.val[0]);
-        result.val[1] = vmlaq_u32(mkb, mka, result.val[1]);
+        result.val[0] = vmulq_u32(mka, result.val[0]);
+        result.val[1] = vmulq_u32(mka, result.val[1]);
         return result;
     }
     inline int8x16x2_t next32(const uint32_t * val) const {
@@ -1457,12 +1619,12 @@ struct Trellis3 {
         int8x16x2_t result = {vdupq_n_s8(-126), vdupq_n_s8(-126)};
         int8x16x2_t i8;
         for (int i = 0; i < 2; ++i) {
-            i8.val[0] = vmlaq_u32(mkb, mka, vdupq_n_u32(val[2*i+0]+v0));
+            i8.val[0] = vmulq_u32(mka, vdupq_n_u32(val[2*i+0]+v0));
             i8.val[1] = vmlaq_u32(vkb3, vka3, i8.val[0]);
             i8.val[0] = vandq_u32(i8.val[0], vdupq_n_u32(0x3f3f3f3f));
             i8.val[1] = vandq_u32(i8.val[1], vdupq_n_u32(0x3f3f3f3f));
             auto s1 = vpaddq_s8(vreinterpretq_s8_u32(i8.val[0]), vreinterpretq_s8_u32(i8.val[1]));
-            i8.val[0] = vmlaq_u32(mkb, mka, vdupq_n_u32(val[2*i+1]+v0));
+            i8.val[0] = vmulq_u32(mka, vdupq_n_u32(val[2*i+1]+v0));
             i8.val[1] = vmlaq_u32(vkb3, vka3, i8.val[0]);
             i8.val[0] = vandq_u32(i8.val[0], vdupq_n_u32(0x3f3f3f3f));
             i8.val[1] = vandq_u32(i8.val[1], vdupq_n_u32(0x3f3f3f3f));
