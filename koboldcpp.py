@@ -58,7 +58,7 @@ logit_bias_max = 512
 dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.93"
+KcppVersion = "1.93.1"
 showdebug = True
 kcpp_instance = None #global running instance
 global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None}
@@ -353,6 +353,7 @@ class embeddings_load_model_inputs(ctypes.Structure):
                 ("vulkan_info", ctypes.c_char_p),
                 ("gpulayers", ctypes.c_int),
                 ("flash_attention", ctypes.c_bool),
+                ("use_mmap", ctypes.c_bool),
                 ("quiet", ctypes.c_bool),
                 ("debugmode", ctypes.c_int)]
 
@@ -1228,7 +1229,6 @@ def load_model(model_filename):
     inputs.lora_multiplier = args.loramult
     if args.lora:
         inputs.lora_filename = args.lora[0].encode("UTF-8")
-        inputs.use_mmap = False
 
     inputs.draftmodel_filename = args.draftmodel.encode("UTF-8") if args.draftmodel else "".encode("UTF-8")
     inputs.draft_amount = args.draftamount
@@ -2324,6 +2324,7 @@ def embeddings_load_model(model_filename):
     inputs.gpulayers = 0
     inputs.flash_attention = False
     inputs.threads = args.threads
+    inputs.use_mmap = args.usemmap
     inputs = set_backend_props(inputs)
     ret = handle.embeddings_load_model(inputs)
     return ret
@@ -4825,7 +4826,12 @@ Change Mode<br>
                         outdatas = []
                         odidx = 0
                         for od in gen["data"]:
-                            outdatas.append({"object":"embedding","index":odidx,"embedding":od})
+                            if genparams.get("encoding_format", "")=="base64":
+                                binary_data = struct.pack('<' + 'f' * len(od), *od)
+                                b64_string = base64.b64encode(binary_data).decode('utf-8')
+                                outdatas.append({"object":"embedding","index":odidx,"embedding":b64_string})
+                            else:
+                                outdatas.append({"object":"embedding","index":odidx,"embedding":od})
                             odidx += 1
                         genresp = (json.dumps({"object":"list","data":outdatas,"model":friendlyembeddingsmodelname,"usage":{"prompt_tokens":gen["count"],"total_tokens":gen["count"]}}).encode())
                         self.send_response(200)

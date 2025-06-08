@@ -131,6 +131,7 @@ typedef struct sd_ctx_t sd_ctx_t;
 
 SD_API void set_sd_vae_tiling(sd_ctx_t* ctx, bool tiling);
 SD_API int get_loaded_sd_version(sd_ctx_t* ctx);
+SD_API bool sd_loaded_chroma();
 
 SD_API sd_ctx_t* new_sd_ctx(const char* model_path,
                             const char* clip_l_path,

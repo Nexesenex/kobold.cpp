@@ -29,6 +29,7 @@ KCPP_CUDAAPPEND=-cuda${KCPP_CUDA//.}$KCPP_APPEND
 
 LLAMA_NOAVX2_FLAG=""
 ARCHES_FLAG=""
+NO_WMMA_FLAG=""
 if [ -n "$NOAVX2" ]; then
 	LLAMA_NOAVX2_FLAG="LLAMA_NOAVX2=1"
 fi
@@ -38,11 +39,14 @@ fi
 if [ -n "$ARCHES_CU12" ]; then
 	ARCHES_FLAG="LLAMA_ARCHES_CU12=1"
 fi
+if [ -n "$NO_WMMA" ]; then
+	NO_WMMA_FLAG="LLAMA_NO_WMMA=1"
+fi
 
 if [ "$KCPP_CUDA" = "rocm" ]; then
-	bin/micromamba run -r conda -p conda/envs/linux make -j$(nproc) LLAMA_VULKAN=1 LLAMA_CLBLAST=1 LLAMA_HIPBLAS=1 LLAMA_PORTABLE=1 LLAMA_ADD_CONDA_PATHS=1 $LLAMA_NOAVX2_FLAG $ARCHES_FLAG
+	bin/micromamba run -r conda -p conda/envs/linux make -j$(nproc) LLAMA_VULKAN=1 LLAMA_CLBLAST=1 LLAMA_HIPBLAS=1 LLAMA_PORTABLE=1 LLAMA_USE_BUNDLED_GLSLC=1 LLAMA_ADD_CONDA_PATHS=1 $LLAMA_NOAVX2_FLAG $ARCHES_FLAG $NO_WMMA_FLAG
 else
-	bin/micromamba run -r conda -p conda/envs/linux make -j$(nproc) LLAMA_VULKAN=1 LLAMA_CLBLAST=1 LLAMA_CUBLAS=1 LLAMA_PORTABLE=1 LLAMA_ADD_CONDA_PATHS=1 $LLAMA_NOAVX2_FLAG $ARCHES_FLAG
+	bin/micromamba run -r conda -p conda/envs/linux make -j$(nproc) LLAMA_VULKAN=1 LLAMA_CLBLAST=1 LLAMA_CUBLAS=1 LLAMA_PORTABLE=1 LLAMA_USE_BUNDLED_GLSLC=1 LLAMA_ADD_CONDA_PATHS=1 $LLAMA_NOAVX2_FLAG $ARCHES_FLAG $NO_WMMA_FLAG
 fi
 
 if [ $? -ne 0 ]; then
@@ -61,9 +65,9 @@ elif [[ $1 == "dist" ]]; then
 			ROCM_PATH=/opt/rocm
 		fi
 		if [ -n "$NOAVX2" ]; then
-			bin/micromamba run -r conda -p conda/envs/linux pyinstaller --noconfirm --onefile --collect-all customtkinter --collect-all psutil --collect-all pdfplumber --collect-all PyMuPdf --collect-all tqdm --add-data './koboldcpp_default.so:.' --add-data './koboldcpp_hipblas.so:.' --add-data './koboldcpp_vulkan.so:.' --add-data './koboldcpp_clblast.so:.' --add-data './koboldcpp_failsafe.so:.' --add-data './koboldcpp_noavx2.so:.' --add-data './koboldcpp_clblast_noavx2.so:.' --add-data './koboldcpp_clblast_failsafe.so:.' --add-data './koboldcpp_vulkan_noavx2.so:.' --add-data './kcpp_adapters:./kcpp_adapters' --add-data './koboldcpp.py:.' --add-data './json_to_gbnf.py:.' --add-data './launch.cmd:.' --add-data './requirements_minimal.txt:.' --add-data './LICENSE.md:.' --add-data './MIT_LICENSE_GGML_SDCPP_LLAMACPP_ONLY.md:.' --add-data './klite.embd:.' --add-data './kcpp_docs.embd:.' --add-data './kcpp_sdui.embd:.' --add-data './taesd.embd:.' --add-data './taesd_xl.embd:.' --add-data './taesd_f.embd:.' --add-data './taesd_3.embd:.' --add-data './rwkv_vocab.embd:.' --add-data './rwkv_world_vocab.embd:.' --add-data "$ROCM_PATH/lib/rocblas:." --version-file './version.txt' --clean --console koboldcpp.py -n "koboldcpp-linux-x64-rocm"
+			bin/micromamba run -r conda -p conda/envs/linux pyinstaller --noconfirm --onefile --collect-all customtkinter --collect-all psutil --collect-all pdfplumber --collect-all PyMuPdf --collect-all tqdm --add-data './koboldcpp_default.so:.' --add-data './koboldcpp_hipblas.so:.' --add-data './koboldcpp_vulkan.so:.' --add-data './koboldcpp_clblast.so:.' --add-data './koboldcpp_failsafe.so:.' --add-data './koboldcpp_noavx2.so:.' --add-data './koboldcpp_clblast_noavx2.so:.' --add-data './koboldcpp_clblast_failsafe.so:.' --add-data './koboldcpp_vulkan_noavx2.so:.' --add-data './kcpp_adapters:./kcpp_adapters' --add-data './koboldcpp.py:.' --add-data './json_to_gbnf.py:.' --add-data './launch.cmd:.' --add-data './requirements_minimal.txt:.' --add-data './LICENSE.md:.' --add-data './MIT_LICENSE_GGML_SDCPP_LLAMACPP_ONLY.md:.' --add-data './klite.embd:.' --add-data './kcpp_docs.embd:.' --add-data './kcpp_sdui.embd:.' --add-data './taesd.embd:.' --add-data './taesd_xl.embd:.' --add-data './taesd_f.embd:.' --add-data './taesd_3.embd:.' --add-data './rwkv_vocab.embd:.' --add-data './rwkv_world_vocab.embd:.' --add-data "$ROCM_PATH/lib/rocblas:." --add-data "$ROCM_PATH/lib/libamd_comgr.so:." --version-file './version.txt' --clean --console koboldcpp.py -n "koboldcpp-linux-x64-rocm"
 		else
-			bin/micromamba run -r conda -p conda/envs/linux pyinstaller --noconfirm --onefile --collect-all customtkinter --collect-all psutil --collect-all pdfplumber --collect-all PyMuPdf --collect-all tqdm --add-data './koboldcpp_default.so:.' --add-data './koboldcpp_hipblas.so:.' --add-data './koboldcpp_vulkan.so:.' --add-data './koboldcpp_clblast.so:.' --add-data './koboldcpp_failsafe.so:.' --add-data './koboldcpp_noavx2.so:.' --add-data './koboldcpp_clblast_noavx2.so:.' --add-data './koboldcpp_clblast_failsafe.so:.' --add-data './koboldcpp_vulkan_noavx2.so:.' --add-data './kcpp_adapters:./kcpp_adapters' --add-data './koboldcpp.py:.' --add-data './json_to_gbnf.py:.' --add-data './launch.cmd:.'  --add-data './requirements_minimal.txt:.' --add-data './LICENSE.md:.' --add-data './MIT_LICENSE_GGML_SDCPP_LLAMACPP_ONLY.md:.' --add-data './klite.embd:.' --add-data './kcpp_docs.embd:.' --add-data './kcpp_sdui.embd:.' --add-data './taesd.embd:.' --add-data './taesd_xl.embd:.' --add-data './taesd_f.embd:.' --add-data './taesd_3.embd:.' --add-data './rwkv_vocab.embd:.' --add-data './rwkv_world_vocab.embd:.' --add-data "$ROCM_PATH/lib/rocblas:." --version-file './version.txt' --clean --console koboldcpp.py -n "koboldcpp-linux-x64-rocm"
+			bin/micromamba run -r conda -p conda/envs/linux pyinstaller --noconfirm --onefile --collect-all customtkinter --collect-all psutil --collect-all pdfplumber --collect-all PyMuPdf --collect-all tqdm --add-data './koboldcpp_default.so:.' --add-data './koboldcpp_hipblas.so:.' --add-data './koboldcpp_vulkan.so:.' --add-data './koboldcpp_clblast.so:.' --add-data './koboldcpp_failsafe.so:.' --add-data './koboldcpp_noavx2.so:.' --add-data './koboldcpp_clblast_noavx2.so:.' --add-data './koboldcpp_clblast_failsafe.so:.' --add-data './koboldcpp_vulkan_noavx2.so:.' --add-data './kcpp_adapters:./kcpp_adapters' --add-data './koboldcpp.py:.' --add-data './json_to_gbnf.py:.' --add-data './launch.cmd:.'  --add-data './requirements_minimal.txt:.' --add-data './LICENSE.md:.' --add-data './MIT_LICENSE_GGML_SDCPP_LLAMACPP_ONLY.md:.' --add-data './klite.embd:.' --add-data './kcpp_docs.embd:.' --add-data './kcpp_sdui.embd:.' --add-data './taesd.embd:.' --add-data './taesd_xl.embd:.' --add-data './taesd_f.embd:.' --add-data './taesd_3.embd:.' --add-data './rwkv_vocab.embd:.' --add-data './rwkv_world_vocab.embd:.' --add-data "$ROCM_PATH/lib/rocblas:." --add-data "$ROCM_PATH/lib/libamd_comgr.so:." --version-file './version.txt' --clean --console koboldcpp.py -n "koboldcpp-linux-x64-rocm"
 		fi
 	else
 		if [ -n "$NOAVX2" ]; then

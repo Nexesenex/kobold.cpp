@@ -244,7 +244,7 @@ ifdef LLAMA_HIPBLAS
 ifeq ($(wildcard /opt/rocm),)
 	ROCM_PATH   ?= /usr
 ifdef LLAMA_PORTABLE
-	GPU_TARGETS ?= gfx803 gfx900 gfx906 gfx908 gfx90a gfx942 gfx1010 gfx1030 gfx1031 gfx1032 gfx1100 gfx1101 gfx1102 $(shell $(shell which amdgpu-arch))
+	GPU_TARGETS ?= gfx803 gfx900 gfx906 gfx908 gfx90a gfx942 gfx1010 gfx1030 gfx1031 gfx1032 gfx1100 gfx1101 gfx1102 gfx1200 gfx1201 $(shell $(shell which amdgpu-arch))
 else
 	GPU_TARGETS ?= $(shell $(shell which amdgpu-arch))
 endif
@@ -252,13 +252,17 @@ endif
 	HCXX        := $(ROCM_PATH)/bin/hipcc
 else
 	ROCM_PATH   ?= /opt/rocm
-	GPU_TARGETS ?= gfx803 gfx900 gfx906 gfx908 gfx90a gfx942 gfx1010 gfx1030 gfx1031 gfx1032 gfx1100 gfx1101 gfx1102 $(shell $(ROCM_PATH)/llvm/bin/amdgpu-arch)
+	GPU_TARGETS ?= gfx803 gfx900 gfx906 gfx908 gfx90a gfx942 gfx1010 gfx1030 gfx1031 gfx1032 gfx1100 gfx1101 gfx1102 gfx1200 gfx1201 $(shell $(ROCM_PATH)/llvm/bin/amdgpu-arch)
 	HCC         := $(ROCM_PATH)/llvm/bin/clang
 	HCXX        := $(ROCM_PATH)/llvm/bin/clang++
 endif
+ifdef LLAMA_NO_WMMA
+	HIPFLAGS   += -DGGML_HIP_NO_ROCWMMA_FATTN
+else
 	DETECT_ROCWMMA := $(shell find -L /opt/rocm/include /usr/include -type f -name rocwmma.hpp 2>/dev/null | head -n 1)
 ifdef DETECT_ROCWMMA
 	HIPFLAGS   += -DGGML_HIP_ROCWMMA_FATTN -I$(dir $(DETECT_ROCWMMA))
+endif
 endif
 
 	HIPFLAGS   += -DGGML_USE_HIP -DGGML_HIP_NO_VMM -DGGML_USE_CUDA -DSD_USE_CUDA $(shell $(ROCM_PATH)/bin/hipconfig -C)
@@ -714,15 +718,31 @@ ifeq ($(OS),Windows_NT)
 	@echo 'Vulkan Shaders Rebuilt for Windows...'
 else
 	@echo 'Now rebuilding vulkan shaders for Linux...'
-	@chmod +x vulkan-shaders-gen glslc-linux
-	@echo 'Checking if bundled glslc-linux binary is usable...'
+	@chmod +x vulkan-shaders-gen
+	@echo 'Checking if system glslc-linux binary is usable...'
 	@GLSLC_BIN=$$( \
-		if [ -x ./glslc-linux ] && ./glslc-linux --version 2>/dev/null | grep -q "glslang"; then \
-			echo "./glslc-linux"; \
-		elif command -v glslc >/dev/null 2>&1; then \
-			echo "glslc"; \
+		if [ -n "$$LLAMA_USE_BUNDLED_GLSLC" ]; then \
+			chmod +x ./glslc-linux; \
+			if [ -x ./glslc-linux ] && ./glslc-linux --version 2>/dev/null | grep -q "glslang"; then \
+				echo "./glslc-linux"; \
+			elif command -v glslc >/dev/null 2>&1; then \
+				echo "glslc"; \
+			else \
+				echo ""; \
+			fi; \
 		else \
-			echo ""; \
+			if command -v glslc >/dev/null 2>&1 && glslc --version 2>/dev/null | grep -q "glslang"; then \
+				echo "glslc"; \
+			elif [ -x ./glslc-linux ]; then \
+				chmod +x ./glslc-linux; \
+				if ./glslc-linux --version 2>/dev/null | grep -q "glslang"; then \
+					echo "./glslc-linux"; \
+				else \
+					echo ""; \
+				fi; \
+			else \
+				echo ""; \
+			fi; \
 		fi); \
 	if [ -z "$$GLSLC_BIN" ]; then \
 		echo "Error: No usable glslc found. Vulkan shaders cannot be compiled!"; \
@@ -742,15 +762,32 @@ ifeq ($(OS),Windows_NT)
 	@echo 'Vulkan Shaders (no extensions) Rebuilt for Windows...'
 else
 	@echo 'Now rebuilding vulkan shaders (no extensions) for Linux...'
-	@chmod +x vulkan-shaders-gen-noext glslc-linux
-	@echo 'Checking if bundled glslc-linux binary is usable...'
-	@GLSLC_BIN=$$(if ./glslc-linux --version >/dev/null 2>&1; then \
-		echo "./glslc-linux"; \
-	elif command -v glslc >/dev/null 2>&1; then \
-		echo "glslc"; \
-	else \
-		echo ""; \
-	fi); \
+	@chmod +x vulkan-shaders-gen-noext
+	@echo 'Checking if system glslc-linux binary is usable...'
+	@GLSLC_BIN=$$( \
+		if [ -n "$$LLAMA_USE_BUNDLED_GLSLC" ]; then \
+			chmod +x ./glslc-linux; \
+			if [ -x ./glslc-linux ] && ./glslc-linux --version 2>/dev/null | grep -q "glslang"; then \
+				echo "./glslc-linux"; \
+			elif command -v glslc >/dev/null 2>&1; then \
+				echo "glslc"; \
+			else \
+				echo ""; \
+			fi; \
+		else \
+			if command -v glslc >/dev/null 2>&1 && glslc --version 2>/dev/null | grep -q "glslang"; then \
+				echo "glslc"; \
+			elif [ -x ./glslc-linux ]; then \
+				chmod +x ./glslc-linux; \
+				if ./glslc-linux --version 2>/dev/null | grep -q "glslang"; then \
+					echo "./glslc-linux"; \
+				else \
+					echo ""; \
+				fi; \
+			else \
+				echo ""; \
+			fi; \
+		fi); \
 	if [ -z "$$GLSLC_BIN" ]; then \
 		echo "Error: No usable glslc found. Vulkan shaders (no extensions) cannot be compiled!"; \
 	else \

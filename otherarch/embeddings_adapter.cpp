@@ -117,7 +117,7 @@ bool embeddingstype_load_model(const embeddings_load_model_inputs inputs)
     llama_model_params model_params = llama_model_default_params();
     llama_context_params ctx_params = llama_context_default_params();
     const int nthreads = inputs.threads;
-    model_params.use_mmap = false;
+    model_params.use_mmap = inputs.use_mmap;
     model_params.use_mlock = false;
     model_params.n_gpu_layers = inputs.gpulayers; //offload if possible
     model_params.split_mode = llama_split_mode::LLAMA_SPLIT_MODE_LAYER;

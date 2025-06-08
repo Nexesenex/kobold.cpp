@@ -56,7 +56,7 @@ static __global__ void flash_attn_ext_f16(
         const int ne1,
         const int ne2,
         const int ne3) {
-#if defined(FLASH_ATTN_AVAILABLE) && ((__CUDA_ARCH__ == GGML_CUDA_CC_VOLTA || __CUDA_ARCH__ == GGML_CUDA_CC_TURING) || (defined(GGML_HIP_ROCWMMA_FATTN) && defined(FP16_MMA_AVAILABLE)))
+#if !defined(GGML_HIP_NO_ROCWMMA_FATTN) && defined(FLASH_ATTN_AVAILABLE) && ((__CUDA_ARCH__ == GGML_CUDA_CC_VOLTA || __CUDA_ARCH__ == GGML_CUDA_CC_TURING) || (defined(GGML_HIP_ROCWMMA_FATTN) && defined(FP16_MMA_AVAILABLE)))
     // Skip unused kernel variants for faster compilation:
     if (use_logit_softcap && !(D == 128 || D == 256)) {
         NO_DEVICE_CODE;
