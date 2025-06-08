@@ -201,9 +201,9 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
     sd_params->t5xxl_path = t5xxl_filename;
     sd_params->clip_l_path = clipl_filename;
     sd_params->clip_g_path = clipg_filename;
-    //if clip and t5 is set, and model is a gguf, load it as a diffusion model path
+    //if t5 is set, and model is a gguf, load it as a diffusion model path
     bool endswithgguf = (sd_params->model_path.rfind(".gguf") == sd_params->model_path.size() - 5);
-    if(sd_params->clip_l_path!="" && sd_params->t5xxl_path!="" && endswithgguf)
+    if(sd_params->t5xxl_path!="" && endswithgguf)
     {
         printf("\nSwap to Diffusion Model Path:%s",sd_params->model_path.c_str());
         sd_params->diffusion_model_path = sd_params->model_path;
@@ -342,12 +342,13 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
     //ensure unsupported dimensions are fixed
     int biggestdim = (sd_params->width>sd_params->height?sd_params->width:sd_params->height);
     auto loadedsdver = get_loaded_sd_version(sd_ctx);
-    if(loadedsdver==SDVersion::VERSION_FLUX)
+    if (loadedsdver == SDVersion::VERSION_FLUX)
     {
-        sd_params->cfg_scale = 1;
-        if(sampler=="euler a"||sampler=="k_euler_a"||sampler=="euler_a")
-        {
-            sampler = "euler"; //euler a broken on flux
+        if (!sd_loaded_chroma()) {
+            sd_params->cfg_scale = 1;  //non chroma clamp cfg scale
+        }
+        if (sampler == "euler a" || sampler == "k_euler_a" || sampler == "euler_a") {
+            sampler = "euler";  //euler a broken on flux
         }
     }
     int reslimit = (loadedsdver==SDVersion::VERSION_SD1 || loadedsdver==SDVersion::VERSION_SD2)?832:1024;

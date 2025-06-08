@@ -65,9 +65,9 @@ dry_seq_break_max = 256
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.93040"
+KcppVersion = "1.93100"
 LcppVersion = "b5600"
-EsoboldVersion = "RMv1.11.8"
+EsoboldVersion = "RMv1.11.9"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
 ReleaseDate = "2025/06/08"
 showdebug = True
@@ -5576,7 +5576,12 @@ Change Mode<br>
                         outdatas = []
                         odidx = 0
                         for od in gen["data"]:
-                            outdatas.append({"object":"embedding","index":odidx,"embedding":od})
+                            if genparams.get("encoding_format", "")=="base64":
+                                binary_data = struct.pack('<' + 'f' * len(od), *od)
+                                b64_string = base64.b64encode(binary_data).decode('utf-8')
+                                outdatas.append({"object":"embedding","index":odidx,"embedding":b64_string})
+                            else:
+                                outdatas.append({"object":"embedding","index":odidx,"embedding":od})
                             odidx += 1
                         genresp = (json.dumps({"object":"list","data":outdatas,"model":friendlyembeddingsmodelname,"usage":{"prompt_tokens":gen["count"],"total_tokens":gen["count"]}}).encode())
                         self.send_response(200)
