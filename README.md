@@ -262,11 +262,11 @@ KoboldCpp is an easy-to-use AI text-generation software for GGML and GGUF models
 - You can also run it using the command line. For info, please check `koboldcpp.exe --help`
 
 ## Linux Usage (Precompiled Binary, Recommended)
-On modern Linux systems, you should download the `koboldcpp-linux-x64-cuda11` prebuilt PyInstaller binary for greatest compatibility on the **[releases page](https://github.com/LostRuins/koboldcpp/releases/latest)**. Simply download and run the binary (You may have to `chmod +x` it first). If you have a newer device, you can also try the `koboldcpp-linux-x64-cuda12` instead for better speeds.
+On modern Linux systems, you should download the `koboldcpp-linux-x64` prebuilt PyInstaller binary on the **[releases page](https://github.com/LostRuins/koboldcpp/releases/latest)**. Simply download and run the binary (You may have to `chmod +x` it first). If you have an older device, you can also try the `koboldcpp-linux-x64-oldpc` instead for greatest compatibility.
 
 Alternatively, you can also install koboldcpp to the current directory by running the following terminal command:
 ```
-curl -fLo koboldcpp https://github.com/LostRuins/koboldcpp/releases/latest/download/koboldcpp-linux-x64-cuda11 && chmod +x koboldcpp
+curl -fLo koboldcpp https://github.com/LostRuins/koboldcpp/releases/latest/download/koboldcpp-linux-x64-oldpc && chmod +x koboldcpp
 ```
 After running this command you can launch Koboldcpp from the current directory using `./koboldcpp` in the terminal (for CLI usage, run with `--help`).
 Finally, obtain and load a GGUF model. See [here](#Obtaining-a-GGUF-model)

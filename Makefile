@@ -788,15 +788,31 @@ ifeq ($(OS),Windows_NT)
 	@echo 'Vulkan Shaders Rebuilt for Windows...'
 else
 	@echo 'Now rebuilding vulkan shaders for Linux...'
-	@chmod +x vulkan-shaders-gen glslc-linux
-	@echo 'Checking if bundled glslc-linux binary is usable...'
+	@chmod +x vulkan-shaders-gen
+	@echo 'Checking if system glslc-linux binary is usable...'
 	@GLSLC_BIN=$$( \
-		if [ -x ./glslc-linux ] && ./glslc-linux --version 2>/dev/null | grep -q "glslang"; then \
-			echo "./glslc-linux"; \
-		elif command -v glslc >/dev/null 2>&1; then \
-			echo "glslc"; \
+		if [ -n "$$LLAMA_USE_BUNDLED_GLSLC" ]; then \
+			chmod +x ./glslc-linux; \
+			if [ -x ./glslc-linux ] && ./glslc-linux --version 2>/dev/null | grep -q "glslang"; then \
+				echo "./glslc-linux"; \
+			elif command -v glslc >/dev/null 2>&1; then \
+				echo "glslc"; \
+			else \
+				echo ""; \
+			fi; \
 		else \
-			echo ""; \
+			if command -v glslc >/dev/null 2>&1 && glslc --version 2>/dev/null | grep -q "glslang"; then \
+				echo "glslc"; \
+			elif [ -x ./glslc-linux ]; then \
+				chmod +x ./glslc-linux; \
+				if ./glslc-linux --version 2>/dev/null | grep -q "glslang"; then \
+					echo "./glslc-linux"; \
+				else \
+					echo ""; \
+				fi; \
+			else \
+				echo ""; \
+			fi; \
 		fi); \
 	if [ -z "$$GLSLC_BIN" ]; then \
 		echo "Error: No usable glslc found. Vulkan shaders cannot be compiled!"; \
@@ -816,15 +832,32 @@ ifeq ($(OS),Windows_NT)
 	@echo 'Vulkan Shaders (no extensions) Rebuilt for Windows...'
 else
 	@echo 'Now rebuilding vulkan shaders (no extensions) for Linux...'
-	@chmod +x vulkan-shaders-gen-noext glslc-linux
-	@echo 'Checking if bundled glslc-linux binary is usable...'
-	@GLSLC_BIN=$$(if ./glslc-linux --version >/dev/null 2>&1; then \
-		echo "./glslc-linux"; \
-	elif command -v glslc >/dev/null 2>&1; then \
-		echo "glslc"; \
-	else \
-		echo ""; \
-	fi); \
+	@chmod +x vulkan-shaders-gen-noext
+	@echo 'Checking if system glslc-linux binary is usable...'
+	@GLSLC_BIN=$$( \
+		if [ -n "$$LLAMA_USE_BUNDLED_GLSLC" ]; then \
+			chmod +x ./glslc-linux; \
+			if [ -x ./glslc-linux ] && ./glslc-linux --version 2>/dev/null | grep -q "glslang"; then \
+				echo "./glslc-linux"; \
+			elif command -v glslc >/dev/null 2>&1; then \
+				echo "glslc"; \
+			else \
+				echo ""; \
+			fi; \
+		else \
+			if command -v glslc >/dev/null 2>&1 && glslc --version 2>/dev/null | grep -q "glslang"; then \
+				echo "glslc"; \
+			elif [ -x ./glslc-linux ]; then \
+				chmod +x ./glslc-linux; \
+				if ./glslc-linux --version 2>/dev/null | grep -q "glslang"; then \
+					echo "./glslc-linux"; \
+				else \
+					echo ""; \
+				fi; \
+			else \
+				echo ""; \
+			fi; \
+		fi); \
 	if [ -z "$$GLSLC_BIN" ]; then \
 		echo "Error: No usable glslc found. Vulkan shaders (no extensions) cannot be compiled!"; \
 	else \

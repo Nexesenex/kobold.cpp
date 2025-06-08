@@ -372,6 +372,7 @@ class embeddings_load_model_inputs(ctypes.Structure):
                 ("vulkan_info", ctypes.c_char_p),
                 ("gpulayers", ctypes.c_int),
                 ("flash_attention", ctypes.c_bool),
+                ("use_mmap", ctypes.c_bool),
                 ("quiet", ctypes.c_bool),
                 ("debugmode", ctypes.c_int)]
 
@@ -1873,7 +1874,6 @@ def load_model(model_filename):
     inputs.lora_multiplier = args.loramult
     if args.lora:
         inputs.lora_filename = args.lora[0].encode("UTF-8")
-        inputs.use_mmap = False
 
     inputs.draftmodel_filename = args.draftmodel.encode("UTF-8") if args.draftmodel else "".encode("UTF-8")
     inputs.draft_amount = args.draftamount
@@ -3038,6 +3038,7 @@ def embeddings_load_model(model_filename):
     inputs.gpulayers = 0
     inputs.flash_attention = False
     inputs.threads = args.threads
+    inputs.use_mmap = args.usemmap
     inputs = set_backend_props(inputs)
     ret = handle.embeddings_load_model(inputs)
     return ret
