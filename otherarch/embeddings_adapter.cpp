@@ -120,10 +120,6 @@ bool embeddingstype_load_model(const embeddings_load_model_inputs inputs)
     model_params.use_mmap = inputs.use_mmap;
     model_params.use_mlock = false;
     model_params.n_gpu_layers = inputs.gpulayers; //offload if possible
-
-    ctx_params.offload_kqv = base_ctx_params.offload_kqv;
-    model_params.main_gpu = base_model_params.main_gpu;
-
     model_params.split_mode = llama_split_mode::LLAMA_SPLIT_MODE_LAYER;
 
     llama_model * embeddingsmodel = llama_model_load_from_file(modelfile.c_str(), model_params);
@@ -132,94 +128,13 @@ bool embeddingstype_load_model(const embeddings_load_model_inputs inputs)
     max_batchsize = (inputs.embeddingsmaxctx>0?inputs.embeddingsmaxctx:n_ctx_train);
     max_batchsize = (max_batchsize>n_ctx_train?n_ctx_train:max_batchsize);
     ctx_params.embeddings = true;
-    // ctx_params.n_ubatch = max_batchsize; //max size, must fit
+    ctx_params.n_ubatch = max_batchsize; //max size, must fit
     ctx_params.n_ctx = max_batchsize;
-    // ctx_params.n_batch = max_batchsize;
+    ctx_params.n_batch = max_batchsize;
     ctx_params.offload_kqv = false;
-	
-    if (base_ctx_params.n_ubatch > 32 && base_ctx_params.n_ubatch <= 128)
-        ctx_params.n_ubatch = 32;
-    else if (base_ctx_params.n_ubatch > 128 && base_ctx_params.n_ubatch <= 256)
-        ctx_params.n_ubatch = 32 + base_ctx_params.n_ubatch/8;
-    else if (base_ctx_params.n_ubatch > 256 && base_ctx_params.n_ubatch <= 1024)
-        ctx_params.n_ubatch = 64 + base_ctx_params.n_ubatch/16;
-    else if (base_ctx_params.n_ubatch > 1024)
-        ctx_params.n_ubatch = 128 + base_ctx_params.n_ubatch/32;
-    else ctx_params.n_ubatch = base_ctx_params.n_ubatch;
-
-    if (base_ctx_params.n_batch > 32 && base_ctx_params.n_batch <= 128)
-        ctx_params.n_batch = 32;
-    else if (base_ctx_params.n_ubatch > 128 && base_ctx_params.n_batch <= 256)
-        ctx_params.n_batch = 32 + base_ctx_params.n_batch/8;
-    else if (base_ctx_params.n_ubatch > 256 && base_ctx_params.n_batch <= 1024)
-        ctx_params.n_batch = 64 + base_ctx_params.n_batch/16;
-    else if (base_ctx_params.n_batch > 1024)
-        ctx_params.n_batch = 128 + base_ctx_params.n_batch/32;
-    else ctx_params.n_batch = base_ctx_params.n_batch;
-
     ctx_params.n_threads = nthreads;
     ctx_params.n_threads_batch = nthreads;
     ctx_params.flash_attn = inputs.flash_attention;
-
-    embed_quant_k=embed_quant_k-1;
-    embed_quant_v=embed_quant_v-1;
-
-    if (embed_quant_k==-1)
-    {
-        ctx_params.type_k = base_ctx_params.type_k;
-        ctx_params.type_v = base_ctx_params.type_v;
-    }
-    else 
-    {
-        ctx_params.type_k =
-		(embed_inputs.quant_k==22?GGML_TYPE_IQ4_NL:
-		(embed_inputs.quant_k==21?GGML_TYPE_Q4_0:
-		(embed_inputs.quant_k==20?GGML_TYPE_Q4_1:
-		(embed_inputs.quant_k==19?GGML_TYPE_Q5_0:
-		(embed_inputs.quant_k==18?GGML_TYPE_Q5_1:
-		(embed_inputs.quant_k==17?GGML_TYPE_Q6_0:
-		(embed_inputs.quant_k==16?GGML_TYPE_Q8_0:
-		(embed_inputs.quant_k==15?GGML_TYPE_BF16:
-		(embed_inputs.quant_k==14?GGML_TYPE_IQ4_NL:
-		(embed_inputs.quant_k==13?GGML_TYPE_Q5_0:
-		(embed_inputs.quant_k==12?GGML_TYPE_Q5_1:
-		(embed_inputs.quant_k==11?GGML_TYPE_Q5_1:
-		(embed_inputs.quant_k==10?GGML_TYPE_Q6_0:
-		(embed_inputs.quant_k==9?GGML_TYPE_Q6_0:
-		(embed_inputs.quant_k==8?GGML_TYPE_Q6_0:
-		(embed_inputs.quant_k==7?GGML_TYPE_Q8_0:
-		(embed_inputs.quant_k==6?GGML_TYPE_Q8_0:
-		(embed_inputs.quant_k==5?GGML_TYPE_Q8_0:
-		(embed_inputs.quant_k==4?GGML_TYPE_F16:
-		(embed_inputs.quant_k==3?GGML_TYPE_F16:
-		(embed_inputs.quant_k==2?GGML_TYPE_Q4_0:
-		(embed_inputs.quant_k==1?GGML_TYPE_Q8_0:
-		GGML_TYPE_F16))))))))))))))))))))));
-        ctx_params.type_v =
-		(embed_inputs.quant_v==22?GGML_TYPE_F16:
-		(embed_inputs.quant_v==21?GGML_TYPE_F16:
-		(embed_inputs.quant_v==20?GGML_TYPE_F16:
-		(embed_inputs.quant_v==19?GGML_TYPE_F16:
-		(embed_inputs.quant_v==18?GGML_TYPE_F16:
-		(embed_inputs.quant_v==17?GGML_TYPE_F16:
-		(embed_inputs.quant_v==16?GGML_TYPE_F16:
-		(embed_inputs.quant_v==15?GGML_TYPE_BF16:
-		(embed_inputs.quant_v==14?GGML_TYPE_IQ4_NL:
-		(embed_inputs.quant_v==13?GGML_TYPE_IQ4_NL:
-		(embed_inputs.quant_v==12?GGML_TYPE_IQ4_NL:
-		(embed_inputs.quant_v==11?GGML_TYPE_Q5_0:
-		(embed_inputs.quant_v==10?GGML_TYPE_IQ4_NL:
-		(embed_inputs.quant_v==9?GGML_TYPE_Q5_0:
-		(embed_inputs.quant_v==8?GGML_TYPE_Q6_0:
-		(embed_inputs.quant_v==7?GGML_TYPE_IQ4_NL:
-		(embed_inputs.quant_v==6?GGML_TYPE_Q5_0:
-		(embed_inputs.quant_v==5?GGML_TYPE_Q6_0:
-		(embed_inputs.quant_v==4?GGML_TYPE_Q6_0:
-		(embed_inputs.quant_v==3?GGML_TYPE_Q8_0:
-		(embed_inputs.quant_v==2?GGML_TYPE_Q4_0:
-		(embed_inputs.quant_v==1?GGML_TYPE_Q8_0:
-		GGML_TYPE_F16))))))))))))))))))))));
-    }
 
     embeddings_ctx = llama_init_from_model(embeddingsmodel, ctx_params);
 
