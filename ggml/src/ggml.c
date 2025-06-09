@@ -456,15 +456,48 @@ void ggml_fp16_to_fp32_row(const ggml_fp16_t * x, float * y, int64_t n) {
 }
 
 void ggml_fp32_to_fp16_row(const float * x, ggml_fp16_t * y, int64_t n) {
-    int i = 0;
-    for (; i < n; ++i) {
+    int64_t i = 0;
+#if defined(__F16C__)
+    for (; i + 7 < n; i += 8) {
+        __m256 x_vec = _mm256_loadu_ps(x + i);
+        __m128i y_vec = _mm256_cvtps_ph(x_vec, _MM_FROUND_TO_NEAREST_INT);
+        _mm_storeu_si128((__m128i *)(y + i), y_vec);
+    }
+    for(; i + 3 < n; i += 4) {
+        __m128 x_vec = _mm_loadu_ps(x + i);
+        __m128i y_vec = _mm_cvtps_ph(x_vec, _MM_FROUND_TO_NEAREST_INT);
+        _mm_storel_epi64((__m128i *)(y + i), y_vec);
+    }
+#endif
+    for (; i < n; i++) {
         y[i] = GGML_FP32_TO_FP16(x[i]);
     }
 }
 
 void ggml_bf16_to_fp32_row(const ggml_bf16_t * x, float * y, int64_t n) {
-    int i = 0;
-    for (; i < n; ++i) {
+    int64_t i = 0;
+#if defined(__AVX512F__)
+    for (; i + 16 <= n; i += 16) {
+        _mm512_storeu_ps(y + i,
+                         _mm512_castsi512_ps(
+                             _mm512_slli_epi32(
+                                 _mm512_cvtepu16_epi32(
+                                     _mm256_loadu_si256(
+                                         (const __m256i *)(x + i))),
+                                 16)));
+    }
+#elif defined(__AVX2__)
+    for (; i + 8 <= n; i += 8) {
+        _mm256_storeu_ps(y + i,
+                         _mm256_castsi256_ps(
+                             _mm256_slli_epi32(
+                                 _mm256_cvtepu16_epi32(
+                                     _mm_loadu_si128(
+                                         (const __m128i *)(x + i))),
+                                 16)));
+    }
+#endif
+    for (; i < n; i++) {
         y[i] = GGML_BF16_TO_FP32(x[i]);
     }
 }
@@ -606,42 +639,42 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .blck_size                = 1,
         .type_size                = sizeof(int8_t),
         .is_quantized             = false,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_I16] = {
         .type_name                = "i16",
         .blck_size                = 1,
         .type_size                = sizeof(int16_t),
         .is_quantized             = false,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_I32] = {
         .type_name                = "i32",
         .blck_size                = 1,
         .type_size                = sizeof(int32_t),
         .is_quantized             = false,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_I64] = {
         .type_name                = "i64",
         .blck_size                = 1,
         .type_size                = sizeof(int64_t),
         .is_quantized             = false,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_F64] = {
         .type_name                = "f64",
         .blck_size                = 1,
         .type_size                = sizeof(double),
         .is_quantized             = false,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_F32] = {
         .type_name                = "f32",
         .blck_size                = 1,
         .type_size                = sizeof(float),
         .is_quantized             = false,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_F16] = {
         .type_name                = "f16",
@@ -650,7 +683,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = false,
         .to_float                 = (ggml_to_float_t) ggml_fp16_to_fp32_row,
         .from_float_ref           = (ggml_from_float_t) ggml_fp32_to_fp16_row,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_Q4_0] = {
         .type_name                = "q4_0",
@@ -659,7 +692,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_q4_0,
         .from_float_ref           = (ggml_from_float_t) quantize_row_q4_0_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_Q4_1] = {
         .type_name                = "q4_1",
@@ -668,21 +701,21 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_q4_1,
         .from_float_ref           = (ggml_from_float_t) quantize_row_q4_1_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [4] = { // GGML_TYPE_Q4_2
         .type_name                = "DEPRECATED",
         .blck_size                = 0,
         .type_size                = 0,
         .is_quantized             = false,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [5] = { // GGML_TYPE_Q4_3
         .type_name                = "DEPRECATED",
         .blck_size                = 0,
         .type_size                = 0,
         .is_quantized             = false,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_Q5_0] = {
         .type_name                = "q5_0",
@@ -691,7 +724,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_q5_0,
         .from_float_ref           = (ggml_from_float_t) quantize_row_q5_0_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_Q5_1] = {
         .type_name                = "q5_1",
@@ -700,7 +733,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_q5_1,
         .from_float_ref           = (ggml_from_float_t) quantize_row_q5_1_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_Q6_0] = {
         .type_name                = "q6_0",
@@ -709,7 +742,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_q6_0,
         .from_float_ref           = (ggml_from_float_t) quantize_row_q6_0_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_Q8_0] = {
         .type_name                = "q8_0",
@@ -718,7 +751,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_q8_0,
         .from_float_ref           = (ggml_from_float_t) quantize_row_q8_0_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_Q8_1] = {
         .type_name                = "q8_1",
@@ -726,7 +759,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .type_size                = sizeof(block_q8_1),
         .is_quantized             = true,
         .from_float_ref           = (ggml_from_float_t) quantize_row_q8_1_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_Q8_0_X4] = {
         .type_name                = "q8_0_x4",
@@ -765,7 +798,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_q2_K,
         .from_float_ref           = (ggml_from_float_t) quantize_row_q2_K_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_Q2_K_R4] = {
         .type_name                = "q2_k_r4",
@@ -787,7 +820,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_q3_K,
         .from_float_ref           = (ggml_from_float_t) quantize_row_q3_K_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_Q3_K_R4] = {
         .type_name                = "q3_k_r4",
@@ -809,7 +842,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_q4_K,
         .from_float_ref           = (ggml_from_float_t) quantize_row_q4_K_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_Q4_K_R4] = {
         .type_name                = "q4_k_r4",
@@ -831,7 +864,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_q5_K,
         .from_float_ref           = (ggml_from_float_t) quantize_row_q5_K_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_Q5_K_R4] = {
         .type_name                = "q5_k_r4",
@@ -853,7 +886,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_q6_K,
         .from_float_ref           = (ggml_from_float_t) quantize_row_q6_K_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_Q6_K_R4] = {
         .type_name                = "q6_k_r4",
@@ -888,7 +921,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_iq2_xxs,
         .from_float_ref           = NULL,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_IQ2_XXS_R4] = {
         .type_name                = "iq2_xxs_r4",
@@ -910,7 +943,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_iq2_xs,
         .from_float_ref           = NULL,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_IQ2_XS_R4] = {
         .type_name                = "iq2_xs_r4",
@@ -932,7 +965,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_iq3_xxs,
         .from_float_ref           = (ggml_from_float_t)quantize_row_iq3_xxs_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_IQ3_XXS_R4] = {
         .type_name                = "iq3_xxs_r4",
@@ -954,7 +987,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_iq3_s,
         .from_float_ref           = (ggml_from_float_t)quantize_row_iq3_s_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_IQ3_S_R4] = {
         .type_name                = "iq3_s_r4",
@@ -976,7 +1009,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_iq2_s,
         .from_float_ref           = (ggml_from_float_t)quantize_row_iq2_s_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_IQ2_S_R4] = {
         .type_name                = "iq2_s_r4",
@@ -998,7 +1031,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_iq1_s,
         .from_float_ref           = NULL,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_IQ1_S_R4] = {
         .type_name                = "iq1_s_r4",
@@ -1020,7 +1053,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_iq1_m,
         .from_float_ref           = NULL,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_IQ1_M_R4] = {
         .type_name                = "iq1_m_r4",
@@ -1081,7 +1114,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_iq4_nl,
         .from_float_ref           = (ggml_from_float_t)quantize_row_iq4_nl_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_IQ4_XS] = {
         .type_name                = "iq4_xs",
@@ -1090,7 +1123,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_iq4_xs,
         .from_float_ref           = (ggml_from_float_t)quantize_row_iq4_xs_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_IQ4_KS] = {
         .type_name                = "iq4_ks",
@@ -1196,7 +1229,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .blck_size                = QK_K,
         .type_size                = sizeof(block_q8_K),
         .is_quantized             = true,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_Q8_K64] = {
         .type_name                = "q8_K64",
@@ -1269,7 +1302,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = false,
         .to_float                 = (ggml_to_float_t) ggml_bf16_to_fp32_row,
         .from_float_ref           = (ggml_from_float_t) ggml_fp32_to_bf16_row_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_BF16_R16] = {
         .type_name                = "bf16_r16",
@@ -1292,7 +1325,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = NULL,
         .from_float_ref           = NULL,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_Q4_0_4_8] = { // deprecated upstream
         .type_name                = "q4_0_4x8",
@@ -1302,7 +1335,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = NULL,
         .from_float_ref           = NULL,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_Q4_0_8_8] = { // deprecated upstream
         .type_name                = "q4_0_8x8",
@@ -1312,7 +1345,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = NULL,
         .from_float_ref           = NULL,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_TQ1_0] = {
         .type_name                = "tq1_0",
@@ -1321,7 +1354,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_tq1_0,
         .from_float_ref           = (ggml_from_float_t) quantize_row_tq1_0_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_TQ2_0] = {
         .type_name                = "tq2_0",
@@ -1330,7 +1363,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_tq2_0,
         .from_float_ref           = (ggml_from_float_t) quantize_row_tq2_0_ref,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_IQ4_NL_4_4] = { // deprecated upstream
         .type_name                = "iq4_nl_4x4",
@@ -1340,21 +1373,21 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = NULL,
         .from_float_ref           = NULL,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [37] = { // GGML_TYPE_IQ4_NL_4_8
         .type_name                = "TYPE_IQ4_NL_4_8 REMOVED, use IQ4_NL with runtime repacking",
         .blck_size                = 0,
         .type_size                = 0,
         .is_quantized             = false,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [38] = { // GGML_TYPE_IQ4_NL_8_8
         .type_name                = "TYPE_IQ4_NL_8_8 REMOVED, use IQ4_NL with runtime repacking",
         .blck_size                = 0,
         .type_size                = 0,
         .is_quantized             = false,
-        .row_meta_size = 0,
+        .row_meta_size            = 0,
     },
     [GGML_TYPE_IQ2_KT] = {
         .type_name                = "iq2_kt",
@@ -1984,6 +2017,10 @@ size_t ggml_nbytes(const struct ggml_tensor * tensor) {
         for (int i = 0; i < GGML_MAX_DIMS; ++i) {
             nbytes += (tensor->ne[i] - 1)*tensor->nb[i];
         }
+        // hack for I2_S
+        if(tensor->type == GGML_TYPE_I2_S) {
+            nbytes = nbytes / 4 + 32;
+        }
     }
     else {
         nbytes = tensor->nb[1]; //tensor->ne[0]*tensor->nb[0]/blck_size;
@@ -2489,6 +2526,7 @@ static struct ggml_tensor * ggml_new_tensor_impl(
         /*.op           =*/ GGML_OP_NONE,
         /*.op_params    =*/ { 0 },
         /*.flags        =*/ 0,
+        // /*.grad         =*/ NULL,
         /*.src          =*/ { NULL },
         /*.view_src     =*/ view_src,
         /*.view_offs    =*/ view_offs,
@@ -2498,6 +2536,9 @@ static struct ggml_tensor * ggml_new_tensor_impl(
         /*.padding      =*/ { 0 },
     };
 
+#ifdef __clang__
+    #pragma clang diagnostic pop
+#endif
     // TODO: this should not be needed as long as we don't rely on aligned SIMD loads
     //GGML_ASSERT_ALIGNED(result->data);
 
