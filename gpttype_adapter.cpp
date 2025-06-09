@@ -619,6 +619,16 @@ static void speculative_decoding_setup(std::string spec_model_filename, const ll
         draft_ctx_params.n_ubatch = 128 + base_ctx_params.n_ubatch/32;
     else draft_ctx_params.n_ubatch = base_ctx_params.n_ubatch;
 
+    if (base_ctx_params.n_batch > 32 && base_ctx_params.n_batch <= 128)
+        draft_ctx_params.n_batch = 32;
+    else if (base_ctx_params.n_batch > 128 && base_ctx_params.n_batch <= 256)
+        draft_ctx_params.n_batch = 32 + base_ctx_params.n_batch/8;
+    else if (base_ctx_params.n_batch > 256 && base_ctx_params.n_batch <= 1024)
+        draft_ctx_params.n_batch = 64 + base_ctx_params.n_batch/16;
+    else if (base_ctx_params.n_batch > 1024)
+        draft_ctx_params.n_batch = 128 + base_ctx_params.n_batch/32;
+    else draft_ctx_params.n_batch = base_ctx_params.n_batch;
+
     draft_ctx_params.n_threads = base_ctx_params.n_threads;
     draft_ctx_params.n_threads_batch =  base_ctx_params.n_threads_batch;
     draft_ctx_params.flash_attn = base_ctx_params.flash_attn;
