@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ggml_ik.h"
+#include "ggml.h"
 
 // GGML internal header
 
