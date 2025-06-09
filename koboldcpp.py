@@ -29,10 +29,13 @@ import threading
 import html
 import random
 import hashlib
-import urllib.parse as urlparse
+import urllib.parse
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Tuple
+import shutil
+import subprocess
 
 # PDF extraction logic
 # import logging
@@ -65,12 +68,11 @@ dry_seq_break_max = 256
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.93100"
+KcppVersion = "1.93200"
 LcppVersion = "b5600"
-EsoboldVersion = "RMv1.11.9"
+EsoboldVersion = "RMv1.12"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/06/08"
-showdebug = True
+ReleaseDate = "2025/06/09"
 # guimode = False
 kcpp_instance = None #global running instance
 global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None}
@@ -373,6 +375,7 @@ class embeddings_load_model_inputs(ctypes.Structure):
                 ("gpulayers", ctypes.c_int),
                 ("flash_attention", ctypes.c_bool),
                 ("use_mmap", ctypes.c_bool),
+                ("embeddingsmaxctx", ctypes.c_int),
                 ("quiet", ctypes.c_bool),
                 ("debugmode", ctypes.c_int)]
 
@@ -726,7 +729,6 @@ def is_incomplete_utf8_sequence(byte_seq): #note, this will only flag INCOMPLETE
         return False #invalid sequence, but not incomplete
 
 def unpack_to_dir(destpath = ""):
-    import shutil
     srcpath = os.path.abspath(os.path.dirname(__file__))
     cliunpack = False if destpath == "" else True
     print("Attempt to unpack KoboldCpp/Croco.Cpp into directory...")
@@ -1629,8 +1631,6 @@ def autoset_gpu_layers(ctxsize, sdquanted, blasbatchsize, quantkv_var, flashatte
         return 0
 
 def fetch_gpu_properties(testCL,testCU,testVK):
-    import subprocess
-
     gpumem_ignore_limit_min = 1024*1024*600 #600 mb min
     gpumem_ignore_limit_max = 1024*1024*1024*300 #300 gb max
 
@@ -3039,6 +3039,7 @@ def embeddings_load_model(model_filename):
     inputs.flash_attention = False
     inputs.threads = args.threads
     inputs.use_mmap = args.usemmap
+    inputs.embeddingsmaxctx = args.embeddingsmaxctx
     inputs = set_backend_props(inputs)
     ret = handle.embeddings_load_model(inputs)
     return ret
@@ -3109,11 +3110,9 @@ def websearch(query):
     if query==websearch_lastquery:
         print("Returning cached websearch...")
         return websearch_lastresponse
-    import urllib.parse
-    import urllib.request
     import difflib
     from html.parser import HTMLParser
-    from concurrent.futures import ThreadPoolExecutor
+    # from concurrent.futures import ThreadPoolExecutor
     num_results = 10
     searchresults = []
     utfprint("Performing new websearch...",1)
@@ -3283,7 +3282,6 @@ def websearch(query):
 
 def is_port_in_use(portNum):
     try:
-        import socket
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             return s.connect_ex(('localhost', portNum)) == 0
     except Exception:
@@ -3732,7 +3730,6 @@ ws ::= | " " | "\n" [ \t]{0,20}
 def LaunchWebbrowser(target_url, failedmsg):
     try:
         if os.name == "posix" and "DISPLAY" in os.environ:  # UNIX-like systems
-            import subprocess
             clean_env = os.environ.copy()
             clean_env.pop("LD_LIBRARY_PATH", None)
             clean_env["PATH"] = "/usr/bin:/bin"
@@ -4285,8 +4282,8 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def noscript_webui(self):
         global modelbusy, sslvalid
-        parsed_url = urlparse.urlparse(self.path)
-        parsed_dict = urlparse.parse_qs(parsed_url.query)
+        parsed_url = urllib.parse.urlparse(self.path)
+        parsed_dict = urllib.parse.parse_qs(parsed_url.query)
         reply = ""
         status = str(parsed_dict['status'][0]) if 'status' in parsed_dict else "Ready To Generate"
         prompt = str(parsed_dict['prompt'][0]) if 'prompt' in parsed_dict else ""
@@ -4357,7 +4354,7 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
             parsed_dict["status"] = status
             parsed_dict["chatmode"] = ("1" if chatmode else "0")
             parsed_dict["imgmode"] = ("1" if imgmode else "0")
-            updated_query_string = urlparse.urlencode(parsed_dict, doseq=True)
+            updated_query_string = urllib.parse.urlencode(parsed_dict, doseq=True)
             updated_path = parsed_url._replace(query=updated_query_string).geturl()
             self.path = updated_path
             time.sleep(0.5) #short delay
@@ -5708,8 +5705,6 @@ def RunServerMultiThreaded(addr, port, server_handler):
 
 # Based on https://github.com/mathgeniuszach/xdialog/blob/main/xdialog/zenity_dialogs.py - MIT license | - Expanded version by Henk717
 def zenity(filetypes=None, initialdir="", initialfile="", **kwargs) -> Tuple[int, str]:
-    import shutil
-    import subprocess
     global zenity_recent_dir, zenity_permitted
 
     if not zenity_permitted:
@@ -6125,6 +6120,7 @@ def show_gui():
     ttsmaxlen_var = ctk.StringVar(value=str(default_ttsmaxlen))
 
     embeddings_model_var = ctk.StringVar()
+    embeddings_ctx_var = ctk.StringVar(value=str(""))
 
     admin_var = ctk.IntVar(value=0)
     admin_dir_var = ctk.StringVar()
@@ -6321,8 +6317,8 @@ def show_gui():
                 searchbase = model_search.get()
                 if searchbase.strip()=="":
                     return
-                urlcode = urlparse.urlencode({"search":( "GGUF " + searchbase),"limit":10}, doseq=True)
-                urlcode2 = urlparse.urlencode({"search":searchbase,"limit":6}, doseq=True)
+                urlcode = urllib.parse.urlencode({"search":( "GGUF " + searchbase),"limit":10}, doseq=True)
+                urlcode2 = urllib.parse.urlencode({"search":searchbase,"limit":6}, doseq=True)
                 resp = make_url_request(f"https://huggingface.co/api/models?{urlcode}",None,'GET',{},10)
                 for m in resp:
                     searchedmodels.append(m["id"])
@@ -6792,6 +6788,7 @@ def show_gui():
     makelabelentry(model_tab, "Layers: ", draftgpulayers_var, 13, 50,padx=320,singleline=True,tooltip="How many layers to GPU offload for the draft model", labelpadx=270)
     makeslider(model_tab, "Quantize Draft KV Cache:", draft_quantkv_text, draft_quantkv_var, 0, 23, 30, set=-1,tooltip="Enable quantization of Draft KV cache (D_KVQ). Mode -1 (same as main) is default. Mode 0 (F16) is FA and non-FA both. Modes 1-12 requires FlashAttention and disables ContextShift.\nModes 15-22 work without FA, for incompatible models.")
     makefileentry(model_tab, "Embeds Model:", "Select Embeddings Model File", embeddings_model_var, 15, width=280,singlerow=True, filetypes=[("*.gguf","*.gguf")], tooltiptxt="Select an embeddings GGUF model that can be used to generate embedding vectors.")
+    makelabelentry(model_tab, "EmbdCtx: ", embeddings_ctx_var, 15, 50,padx=510,singleline=True,tooltip="If set above 0, limits max context for embedding model to save memory.", labelpadx=450)
     makefileentry(model_tab, "Preload Story:", "Select Preloaded Story File", preloadstory_var, 17,width=280,singlerow=True,tooltiptxt="Select an optional KoboldAI JSON savefile \nto be served on launch to any client.")
     makefileentry(model_tab, "SaveData File:", "Select or Create New SaveData Database File", savedatafile_var, 19,width=280,filetypes=[("KoboldCpp SaveDB", "*.jsondb")],singlerow=True,dialog_type=1,tooltiptxt="Selecting a file will allow data to be loaded and saved persistently to this KoboldCpp server remotely. File is created if it does not exist.")
     makefileentry(model_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 24, width=250, filetypes=[("JSON Adapter", "*.json")], tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
@@ -7183,6 +7180,9 @@ def show_gui():
         if embeddings_model_var.get() != "":
             args.embeddingsmodel = embeddings_model_var.get()
 
+        if embeddings_ctx_var.get() != "":
+            args.embeddingsmaxctx = (0 if embeddings_ctx_var.get()=="" else int(embeddings_ctx_var.get()))
+
         if tts_model_var.get() != "" and wavtokenizer_var.get() != "":
             args.ttsthreads = (0 if tts_threads_var.get()=="" else int(tts_threads_var.get()))
             args.ttsmodel = tts_model_var.get()
@@ -7398,6 +7398,7 @@ def show_gui():
         ttsmaxlen_var.set(str(dict["ttsmaxlen"]) if ("ttsmaxlen" in dict and dict["ttsmaxlen"]) else str(default_ttsmaxlen))
 
         embeddings_model_var.set(dict["embeddingsmodel"] if ("embeddingsmodel" in dict and dict["embeddingsmodel"]) else "")
+        embeddings_ctx_var.set(str(dict["embeddingsmaxctx"]) if ("embeddingsmaxctx" in dict and dict["embeddingsmaxctx"]) else "")
 
         admin_var.set(dict["admin"] if ("admin" in dict) else 0)
         admin_dir_var.set(dict["admindir"] if ("admindir" in dict and dict["admindir"]) else "")
@@ -7542,7 +7543,6 @@ def print_with_time(txt):
     print(f"{datetime.now().strftime('[%H:%M:%S]')} " + txt, flush=True)
 
 def make_url_request(url, data, method='POST', headers={}, timeout=300):
-    import urllib.request
     global nocertify
     try:
         request = None
@@ -7573,7 +7573,6 @@ def make_url_request(url, data, method='POST', headers={}, timeout=300):
 
 #A very simple and stripped down embedded horde worker with no dependencies
 def run_horde_worker(args, api_key, worker_name):
-    import random
     global friendlymodelname, maxhordectx, maxhordelen, exitcounter, punishcounter, modelbusy, session_starttime, sslvalid
     httpsaffix = ("https" if sslvalid else "http")
     epurl = f"{httpsaffix}://localhost:{args.port}"
@@ -7770,8 +7769,9 @@ def setuptunnel(global_memory, has_sd):
     # This script will help setup a cloudflared tunnel for accessing KoboldCpp/Croco.Cpp over the internet
     # It should work out of the box on both linux and windows
     try:
-        import subprocess
-        import re
+
+        # import subprocess
+        # import re
         
         global sslvalid
         httpsaffix = ("https" if sslvalid else "http")
@@ -7937,9 +7937,6 @@ def delete_old_pyinstaller():
     if not base_path:
         return
 
-    import time
-    import os
-    import shutil
     selfdirpath = os.path.abspath(base_path)
     temp_parentdir_path = os.path.abspath(os.path.join(base_path, '..'))
     for dirname in os.listdir(temp_parentdir_path):
@@ -7961,15 +7958,10 @@ def delete_old_pyinstaller():
 
 def sanitize_string(input_string):
     # alphanumeric characters, dots, dashes, and underscores
-    import re
     sanitized_string = re.sub( r'[^\w\d\.\-_]', '', input_string)
     return sanitized_string
 
 def downloader_internal(input_url, output_filename, capture_output, min_file_size=64): # 64 bytes required by default
-    import shutil
-    import subprocess
-    import os
-
     if "https://huggingface.co/" in input_url and "/blob/main/" in input_url:
         input_url = input_url.replace("/blob/main/", "/resolve/main/")
     if output_filename == "auto":
@@ -8961,7 +8953,6 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
     #if post-ready script specified, execute it
     if args.onready:
         def onready_subprocess():
-            import subprocess
             print("Starting Post-Load subprocess...")
             subprocess.run(args.onready[0], shell=True)
         timer_thread = threading.Timer(1, onready_subprocess) #1 second delay
@@ -9183,7 +9174,6 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
             print("Server was not started, main function complete. Idling.", flush=True)
 
 if __name__ == '__main__':
-    import multiprocessing
     multiprocessing.freeze_support()
 
     def check_range(value_type, min_value, max_value):
@@ -9338,6 +9328,7 @@ if __name__ == '__main__':
 
     embeddingsparsergroup = parser.add_argument_group('Embeddings Model Commands')
     embeddingsparsergroup.add_argument("--embeddingsmodel", metavar=('[filename]'), help="Specify an embeddings model to be loaded for generating embedding vectors.", default="")
+    embeddingsparsergroup.add_argument("--embeddingsmaxctx", metavar=('[amount]'), help="Overrides the default maximum supported context of an embeddings model (defaults to trained context).", type=int, default=0)
 
     admingroup = parser.add_argument_group('Administration Commands')
     admingroup.add_argument("--admin", help="Enables admin mode, allowing you to unload and reload different configurations or models.", action='store_true')
