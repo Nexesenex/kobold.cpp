@@ -92,6 +92,9 @@ option(GGML_USE_LLAMA_CPP_MAINLINE          "ggml: use Llama CPP mainline MatMul
 
 option(GGML_CUDA_IQK_FORCE_BF16             "ggml: use bf16 Cublas for quants w/o MMQ kernels"  OFF)
 
+option(GGML_IQK_FLASH_ATTENTION             "ggml: enable the IQK FlashAttention CPU kernels"   ON)
+option(GGML_IQK_FA_ALL_QUANTS               "ggml: compile all quants for IQK FlashAttention"   OFF)
+
 option(GGML_CCACHE                          "ggml: use ccache if available"                     OFF)
 
 set   (GGML_CUDA_COMPRESSION_MODE "size" CACHE STRING
@@ -155,10 +158,45 @@ endif()
 
 # Croco.Cpp with IK MM
 if (GGML_IQK_MUL_MAT)
+    set (GGML_SOURCES_IQK iqk/iqk_quantize.cpp)
+    set (GGML_HEADERS_IQK iqk/iqk_config.h)
     message(STATUS "Using optimized iqk matrix multiplications")
     add_compile_definitions(GGML_USE_IQK_MULMAT)
-    set(GGML_SOURCES_IQK_MM iqk/iqk_mul_mat.cpp)
-    set(GGML_HEADERS_IQK_MM iqk/iqk_mul_mat.h)
+    set(GGML_SOURCES_IQK_MM iqk/iqk_mul_mat.cpp
+                            iqk/iqk_flash_attn.cpp
+                            iqk/fa/iqk_fa_576_512.cpp
+                            iqk/fa/iqk_fa_192_128.cpp
+                            iqk/fa/iqk_fa_256_256.cpp
+                            iqk/fa/iqk_fa_128_128.cpp
+                            iqk/fa/iqk_fa_96_96.cpp
+                            iqk/fa/iqk_fa_64_64.cpp
+                            iqk/iqk_gemm_floats.cpp
+                            iqk/iqk_gemm_kquants.cpp
+                            iqk/iqk_gemm_ktquants.cpp
+                            iqk/iqk_gemm_iquants.cpp
+                            iqk/iqk_gemm_iqk_quants.cpp
+                            iqk/iqk_gemm_1bit.cpp
+                            iqk/iqk_gemm_legacy_quants.cpp)
+    set(GGML_HEADERS_IQK_MM iqk/iqk_mul_mat.h
+                            iqk/iqk_flash_impl.h
+                            iqk/fa/iqk_fa_templates.h
+                            iqk/iqk_gemm_floats.h
+                            iqk/iqk_gemm_kquants.h
+                            iqk/iqk_gemm_ktquants.h
+                            iqk/iqk_gemm_iquants.h
+                            iqk/iqk_gemm_iqk_quants.h
+                            iqk/iqk_gemm_1bit.h
+                            iqk/iqk_gemm_legacy_quants.h)
+    if (GGML_IQK_FLASH_ATTENTION)
+        message(STATUS "Enabling IQK Flash Attention kernels")
+        add_compile_definitions(GGML_IQK_FLASH_ATTENTION)
+        if (GGML_IQK_FA_ALL_QUANTS)
+            message(STATUS "Including all IQK FA kernels")
+            add_compile_definitions(GGML_IQK_FA_ALL_QUANTS)
+        endif()
+    else()
+        message(STATUS "Disabling IQK Flash Attention kernels")
+    endif()
 endif()
 
 if (LLAMA_CUBLAS)
@@ -735,30 +773,77 @@ endif()
 #
 
 if (GGML_IQK_MUL_MAT)
-	# add_library(ggml
-				# ggml/src/ggml.c
-				# ggml/include/ggml_ik.h
-				# ggml/src/ggml-cpu.c
-				# ggml/include/ggml-cpu.h
-				# ggml/src/iqk/iqk_mul_mat.cpp
-				# ggml/src/iqk/iqk_mul_mat.h
-				# ggml/src/ggml-alloc.c
-				# ggml/include/ggml-alloc.h
-				# ggml/src/ggml-backend.cpp
-				# ggml/src/ggml-backend-impl.h
-				# ggml/include/ggml-backend.h
-				# ggml/include/ggml-cpp.h
-				# ggml/src/ggml-quants_ik.c
-				# ggml/src/ggml-quants_ik.h
-				# ggml/src/llamafile/sgemm.cpp
-				# ggml/src/llamafile/sgemm.h
-				# ggml/src/ggml-aarch64.c
-				# ggml/src/ggml-aarch64.h
-				# ${GGML_SOURCES_CUDA})
-	# target_include_directories(ggml PUBLIC . ./ggml/include ./ggml/src ./ggml/src/ggml-cpu ./include ./otherarch ./otherarch/tools)
-	# target_compile_features(ggml PUBLIC c_std_11) # don't bump
-	# target_link_libraries(ggml PUBLIC Threads::Threads ${LLAMA_EXTRA_LIBS})
-	# set_target_properties(ggml PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    add_library(ggml
+				ggml/src/ggml.c
+                ggml/src/iqk/iqk_quantize.cpp
+                ggml/src/iqk/iqk_quantize.h
+                ggml/src/iqk/iqk_config.h
+                ggml/src/iqk/iqk_common.h
+                ggml/src/iqk/iqk_mul_mat.cpp
+                ggml/src/iqk/iqk_flash_attn.cpp
+                ggml/src/iqk/fa/iqk_fa_576_512.cpp
+                ggml/src/iqk/fa/iqk_fa_192_128.cpp
+                ggml/src/iqk/fa/iqk_fa_256_256.cpp
+                ggml/src/iqk/fa/iqk_fa_128_128.cpp
+                ggml/src/iqk/fa/iqk_fa_96_96.cpp
+                ggml/src/iqk/fa/iqk_fa_64_64.cpp
+                ggml/src/iqk/iqk_gemm_floats.cpp
+                ggml/src/iqk/iqk_gemm_kquants.cpp
+                ggml/src/iqk/iqk_gemm_ktquants.cpp
+                ggml/src/iqk/iqk_gemm_iquants.cpp
+                ggml/src/iqk/iqk_gemm_iqk_quants.cpp
+                ggml/src/iqk/iqk_gemm_1bit.cpp
+                ggml/src/iqk/iqk_gemm_legacy_quants.cpp
+                ggml/src/iqk/iqk_mul_mat.h
+                ggml/src/iqk/iqk_flash_impl.h
+                ggml/src/iqk/fa/iqk_fa_templates.h
+                ggml/src/iqk/iqk_gemm_floats.h
+                ggml/src/iqk/iqk_gemm_kquants.h
+                ggml/src/iqk/iqk_gemm_ktquants.h
+                ggml/src/iqk/iqk_gemm_iquants.h
+                ggml/src/iqk/iqk_gemm_iqk_quants.h
+                ggml/src/iqk/iqk_gemm_1bit.h
+                ggml/src/iqk/iqk_gemm_legacy_quants.h
+				ggml/include/ggml.h
+				ggml/src/ggml-cpu/ggml-cpu.c
+				ggml/include/ggml-cpu.h
+				ggml/src/ggml-alloc.c
+				ggml/include/ggml-alloc.h
+				ggml/src/ggml-backend.cpp
+				ggml/src/ggml-backend-impl.h
+				ggml/include/ggml-backend.h
+				ggml/include/ggml-cpp.h
+				ggml/src/ggml-quants.c
+				ggml/src/ggml-quants.h
+				ggml/src/ggml-cpu/llamafile/sgemm.cpp
+				ggml/src/ggml-cpu/llamafile/sgemm.h
+				ggml/src/ggml-cpu/ggml-cpu-traits.cpp
+				ggml/src/ggml-cpu/ggml-cpu-traits.h
+				ggml/src/ggml-threading.cpp
+				ggml/src/ggml-cpu/ggml-cpu.cpp
+				ggml/src/ggml-cpu/ggml-cpu-aarch64.cpp
+				ggml/src/ggml-cpu/ggml-cpu-aarch64.h
+				ggml/src/ggml-cpu/ggml-cpu-quants.c
+				ggml/src/ggml-cpu/ggml-cpu-quants.h
+                ggml/src/ggml-cpu/common.h
+                ggml/src/ggml-cpu/binary-ops.h
+                ggml/src/ggml-cpu/binary-ops.cpp
+                ggml/src/ggml-cpu/unary-ops.h
+                ggml/src/ggml-cpu/unary-ops.cpp
+                ggml/src/ggml-cpu/simd-mappings.h
+                ggml/src/ggml-cpu/vec.h
+                ggml/src/ggml-cpu/vec.cpp
+                ggml/src/ggml-cpu/ops.h
+                ggml/src/ggml-cpu/ops.cpp
+				ggml/src/ggml-backend-reg.cpp
+                ggml/include/gguf.h
+                ggml/src/gguf.cpp
+				${GGML_SOURCES_CUDA})
+    target_include_directories(ggml PUBLIC . ./ggml/include ./ggml/src ./ggml/src/ggml-cpu ./include ./otherarch ./otherarch/tools ./vendor/stb ./vendor)
+    target_compile_features(ggml PUBLIC c_std_11) # don't bump
+    target_link_libraries(ggml PUBLIC Threads::Threads ${LLAMA_EXTRA_LIBS})
+    set_target_properties(ggml PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    target_compile_options(ggml PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-use_fast_math -extended-lambda -allow-unsupported-compiler>)
     add_compile_definitions(GGML_USE_IQK_MULMAT)
 elseif (GGML_USE_LLAMA_CPP_MAINLINE)
 	# add_library(ggml

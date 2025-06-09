@@ -1,7 +1,7 @@
 #define _CRT_SECURE_NO_DEPRECATE // Disables "unsafe" warnings on Windows
 #define _USE_MATH_DEFINES // For M_PI on MSVC
 
-#if GGML_USE_IQK_MULMAT
+/* #if GGML_USE_IQK_MULMAT
 #include "ggml-backend.h"
 #include "ggml-impl_ik.h"
 #include "ggml-quants_ik.h"
@@ -20,7 +20,7 @@
 // FIXME: required here for quantization functions
 #include "ggml-quants.h"
 #include "ggml-cpu-aarch64.h"
-#else
+#else */
 #include "ggml-backend.h"
 #include "ggml-impl.h"
 #include "ggml-cpu/ggml-cpu-impl.h"
@@ -29,7 +29,7 @@
 #include "ggml-quants.h"
 #include "ggml-cpu/ggml-cpu-aarch64.h"
 #include "iqk/iqk_quantize.h"
-#endif
+// #endif
 
 #ifdef GGML_USE_CPU_HBM
 #include <hbwmalloc.h>
