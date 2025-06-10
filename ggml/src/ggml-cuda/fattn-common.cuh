@@ -841,7 +841,7 @@ void launch_fattn(
 
     GGML_ASSERT(!mask || mask->type == GGML_TYPE_F16);
     GGML_ASSERT(!mask || mask->ne[1] >= GGML_PAD(Q->ne[1], 16) &&
-                                "the Flash-Attention CUDA kernel requires the mask to be padded to 16 and at least n_queries big");
+        "the Flash-Attention CUDA kernel requires the mask to be padded to 16 and at least n_queries big");
 
     GGML_ASSERT(K->ne[1] % FATTN_KQ_STRIDE == 0 && "Incorrect KV cache padding.");
 
