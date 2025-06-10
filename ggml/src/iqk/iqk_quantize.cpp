@@ -922,6 +922,7 @@ void quantize_row_q8_1_x4_T(const float * x, Block * y, int64_t k) {
         __m256i i2 = _mm256_cvtps_epi32( v2 );
         __m256i i3 = _mm256_cvtps_epi32( v3 );
 
+        #ifdef __AVX2__
         // Compute the sum of the quants and set y[i].s
         int isum = hsum_i32_8(_mm256_add_epi32(_mm256_add_epi32(i0, i1), _mm256_add_epi32(i2, i3)));
         if constexpr (std::is_same_v<Block, block_q8_1>) {
@@ -937,6 +938,7 @@ void quantize_row_q8_1_x4_T(const float * x, Block * y, int64_t k) {
                 y[i].s = GGML_FP32_TO_BF16(d * isum).bits;
             }
         }
+        #endif
 
         // Convert int32 to int16
         i0 = _mm256_packs_epi32( i0, i1 );  // 0, 1, 2, 3,  8, 9, 10, 11,  4, 5, 6, 7, 12, 13, 14, 15
@@ -7718,27 +7720,27 @@ void dequantize_row_ms_i2s(const void * vx, float * y, int64_t k) {
 }
 
 namespace {
-/*#ifdef __AVX2__
+#ifdef __AVX2__
 __m128 hsum_float_4x4(__m128 * accm) {
      accm[0] = _mm_add_ps(_mm_unpacklo_ps(accm[0], accm[2]), _mm_unpackhi_ps(accm[0], accm[2]));
      accm[1] = _mm_add_ps(_mm_unpacklo_ps(accm[1], accm[3]), _mm_unpackhi_ps(accm[1], accm[3]));
      return _mm_add_ps(_mm_unpacklo_ps(accm[0], accm[1]), _mm_unpackhi_ps(accm[0], accm[1]));
 }
-__m256 hsum_float_8x8(__m256 * accm) {
+/* __m256 hsum_float_8x8(__m256 * accm) {
      for (int i = 0; i < 4; ++i) {
          accm[i] = _mm256_set_m128(_mm_add_ps(_mm256_castps256_ps128(accm[i+4]), _mm256_extractf128_ps(accm[i+4], 1)),
                                    _mm_add_ps(_mm256_castps256_ps128(accm[i+0]), _mm256_extractf128_ps(accm[i+0], 1)));
      }
      for (int i = 0; i < 2; ++i) accm[i] = _mm256_add_ps(_mm256_unpacklo_ps(accm[i], accm[i+2]), _mm256_unpackhi_ps(accm[i], accm[i+2]));
      return _mm256_add_ps(_mm256_unpacklo_ps(accm[0], accm[1]), _mm256_unpackhi_ps(accm[0], accm[1]));
-}
-__m256 hsum_float_4x8(__m256 * accm) {
+} */
+/* __m256 hsum_float_4x8(__m256 * accm) {
      for (int i = 0; i < 2; ++i) accm[i] = _mm256_add_ps(_mm256_unpacklo_ps(accm[i], accm[i+2]), _mm256_unpackhi_ps(accm[i], accm[i+2]));
      return _mm256_add_ps(_mm256_unpacklo_ps(accm[0], accm[1]), _mm256_unpackhi_ps(accm[0], accm[1]));
-}
+} */
 #endif
-template <int block_size, int group_size, int num_bits, bool is_abs = false, bool is_int = false>*/
-template <int block_size, int group_size, int num_bits, bool is_abs = false>
+template <int block_size, int group_size, int num_bits, bool is_abs = false, bool is_int = false>
+// template <int block_size, int group_size, int num_bits, bool is_abs = false>
 class QuantizerIQKT {
     static_assert(group_size == 8 || group_size == 4);
     static_assert(block_size >= 8 && block_size%8 == 0);
