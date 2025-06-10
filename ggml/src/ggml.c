@@ -2543,9 +2543,10 @@ static struct ggml_tensor * ggml_new_tensor_impl(
         /*.padding      =*/ { 0 },
     };
 
-#ifdef __clang__
-    #pragma clang diagnostic pop
-#endif
+// #ifdef __clang__
+    // #pragma clang diagnostic pop
+// #endif
+
     // TODO: this should not be needed as long as we don't rely on aligned SIMD loads
     //GGML_ASSERT_ALIGNED(result->data);
 
