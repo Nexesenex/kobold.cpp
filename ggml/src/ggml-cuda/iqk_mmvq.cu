@@ -104,6 +104,24 @@ __global__ void iqk_mul_mat_vec_q(
     }
 }
 
+template <ggml_type type, int vdr, vec_dot_q_cuda_t vec_dot_q_cuda, int ncols_y, int n_interleaved = 1>
+#if !(defined(GGML_USE_HIPBLAS) && defined(__HIP_PLATFORM_AMD__))
+// tell the compiler to use as many registers as it wants, see nwarps definition below
+__launch_bounds__((ncols_y <= 4 ? 4 : 2)*WARP_SIZE, 1)
+#endif // !(defined(GGML_USE_HIPBLAS) && defined(__HIP_PLATFORM_AMD__))
+__global__ void iqk_mul_mat_vec_q(
+    const void * __restrict__ vx, const void * __restrict__ vy, float * __restrict__ dst, const char * __restrict__ ids_data,
+    const int ncols_x, const int nrows_x, const int nrows_y, const int nrows_dst, const int64_t row_size,
+    const uint64_t nb02, const uint64_t nb12, const uint64_t nb2, const int64_t ids_nb0) {
+    int i2 = blockIdx.y;
+    int i02 = ids_data ? *(const int *)(ids_data + i2*ids_nb0) : i2;
+    if (i02 < 0) return;
+    const char * cx = (const char *)vx + i02*nb02;
+    const char * cy = (const char *)vy + i2*nb12;
+    char * cdst = (char *)dst + i2*nb2;
+    iqk_mul_mat_vec_q<type, vdr, vec_dot_q_cuda, ncols_y, n_interleaved>(cx, cy, (float *)cdst, ncols_x, nrows_x, nrows_y, nrows_dst, row_size);
+}
+
 template <ggml_type type, int vdr, vec_dot_q_cuda_t vec_dot_q_cuda, int n_interleaved = 1>
 void iqk_mul_mat_vec_q_cuda(
     const void * vx, const void * vy, float * dst,
