@@ -251,6 +251,32 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .nrows                    = 1,
 #endif
     },
+/*    [4] = { // GGML_TYPE_Q4_2
+        .type_name                = "DEPRECATED",
+        .blck_size                = 0,
+        .type_size                = 0,
+        .is_quantized             = false,
+        .to_float                 = NULL,
+        .from_float               = NULL,
+        .from_float_ref           = NULL,
+        .vec_dot                  = NULL,
+        .vec_dot_type             = GGML_TYPE_COUNT,
+        .nrows                    = 1,
+        .row_meta_size            = 0,
+    },
+    [5] = { // GGML_TYPE_Q4_3
+        .type_name                = "DEPRECATED",
+        .blck_size                = 0,
+        .type_size                = 0,
+        .is_quantized             = false,
+        .to_float                 = NULL,
+        .from_float               = NULL,
+        .from_float_ref           = NULL,
+        .vec_dot                  = NULL,
+        .vec_dot_type             = GGML_TYPE_COUNT,
+        .nrows                    = 1,
+        .row_meta_size            = 0,
+    }, */
     [GGML_TYPE_Q5_0] = {
         .from_float               = quantize_row_q5_0,
         .vec_dot                  = ggml_vec_dot_q5_0_q8_0,
@@ -409,7 +435,12 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_IQ2_XXS] = {
         .from_float               = NULL,
         .vec_dot                  = ggml_vec_dot_iq2_xxs_q8_K,
+
+#ifdef __AVX2__
+        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+#else
         .vec_dot_type             = GGML_TYPE_Q8_K,
+#endif
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ2_XXS_R4] = {
@@ -434,7 +465,11 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         // NOTE: from_float for iq3 and iq2_s was removed because these quants require initialization in ggml_quantize_init
         //.from_float               = quantize_row_iq3_xxs,
         .vec_dot                  = ggml_vec_dot_iq3_xxs_q8_K,
+#ifdef __AVX2__
+        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+#else
         .vec_dot_type             = GGML_TYPE_Q8_K,
+#endif
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ3_XXS_R4] = {
@@ -446,7 +481,11 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_IQ3_S] = {
         //.from_float               = quantize_row_iq3_s,
         .vec_dot                  = ggml_vec_dot_iq3_s_q8_K,
+#ifdef __AVX2__
+        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+#else
         .vec_dot_type             = GGML_TYPE_Q8_K,
+#endif
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ3_S_R4] = {
@@ -470,7 +509,11 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_IQ1_S] = {
         .from_float               = NULL,
         .vec_dot                  = ggml_vec_dot_iq1_s_q8_K,
+#ifdef __AVX2__
+        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+#else
         .vec_dot_type             = GGML_TYPE_Q8_K,
+#endif
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ1_S_R4] = {
