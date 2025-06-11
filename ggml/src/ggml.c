@@ -31,6 +31,11 @@
 #include "iqk/iqk_quantize.h"
 // #endif
 
+#if GGML_USE_IQK_MULMAT
+#include "iqk/iqk_mul_mat.h"
+#include "iqk/iqk_config.h"
+#endif
+
 #ifdef GGML_USE_CPU_HBM
 #include <hbwmalloc.h>
 #endif
