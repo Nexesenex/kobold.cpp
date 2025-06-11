@@ -557,6 +557,16 @@ void quantize_row_q8_K64_ref(const float * x, block_q8_K64 * y, int64_t k) {
 #endif
 }
 
+namespace {
+inline int hsum_i32_8(const __m256i a) {
+    const __m128i sum128 = _mm_add_epi32(_mm256_castsi256_si128(a), _mm256_extractf128_si256(a, 1));
+    const __m128i hi64 = _mm_unpackhi_epi64(sum128, sum128);
+    const __m128i sum64 = _mm_add_epi32(hi64, sum128);
+    const __m128i hi32  = _mm_shuffle_epi32(sum64, _MM_SHUFFLE(2, 3, 0, 1));
+    return _mm_cvtsi128_si32(_mm_add_epi32(sum64, hi32));
+}
+}
+
 void quantize_row_q8_K64(const float * x, void * y, int64_t k) {
     quantize_row_q8_K64_ref(x, (block_q8_K64 *)y, k);
 }
@@ -6271,15 +6281,15 @@ void vec_dot_q8_k_r8_q8_k(int n, float * s, size_t bs, const void * vx, size_t b
 // ========================================= q8_KV_r8
 //
 
-void quantize_row_q8_KV_r8_ref(const float * x, void * y, int64_t k) {
+/* void quantize_row_q8_KV_r8_ref(const float * x, void * y, int64_t k) {
     quantize_q8_KV_r8(x, y, 8, k/8, nullptr);
 }
 
 void quantize_row_q8_KV_r8(const float * x, void * y, int64_t k) {
     quantize_q8_KV_r8(x, y, 8, k/8, nullptr);
-}
+}*/
 
-static void repack_q8_KV(int nrows, int n_per_row, const char * cx, char * cy, [[maybe_unused]] bool online) {
+/* static void repack_q8_KV(int nrows, int n_per_row, const char * cx, char * cy, [[maybe_unused]] bool online) {
     GGML_ASSERT(nrows%8 == 0);
     GGML_ASSERT(n_per_row%16 == 0);
     auto row_size_x = ggml_row_size(GGML_TYPE_Q8_KV,    n_per_row);
@@ -6365,9 +6375,9 @@ static void modify_q8_KV_r8(int64_t k, char * cy) {
     int8_t * q8 = (int8_t *)(cy + 8*sizeof(float));
     for (int j = 0; j < k; ++j) q8[j] += 127;
 }
-#endif
+#endif */
 
-size_t quantize_q8_KV_r8(const float * src, void * dst, int64_t nrows, int64_t n_per_row, [[maybe_unused]] const float * imatrix) {
+/* size_t quantize_q8_KV_r8(const float * src, void * dst, int64_t nrows, int64_t n_per_row, [[maybe_unused]] const float * imatrix) {
     GGML_ASSERT(nrows%8 == 0);
     GGML_ASSERT(n_per_row%16 == 0);
     char * qcur = (char *)dst;
@@ -6381,7 +6391,7 @@ size_t quantize_q8_KV_r8(const float * src, void * dst, int64_t nrows, int64_t n
         src += 8*n_per_row;
     }
     return nrows*row_size_1;
-}
+} */
 
 void dequantize_row_q8_KV_r8(const void * vx, float * y, int64_t k) {
     auto n_per_row = k/8;
@@ -7618,7 +7628,7 @@ const Repack * get_repack_info(ggml_type type) {
         { GGML_TYPE_Q6_0,   { GGML_TYPE_Q6_0_R4,   4,  (Repack::repack_func)repack_q6_0}    },
         { GGML_TYPE_Q8_0,   { GGML_TYPE_Q8_0_R8,   8,  (Repack::repack_func)repack_q8_0}    },
         { GGML_TYPE_Q8_K,   { GGML_TYPE_Q8_K_R8,   8,  (Repack::repack_func)repack_q8_k}    },
-        { GGML_TYPE_Q8_KV,  { GGML_TYPE_Q8_KV_R8,  8,  (Repack::repack_func)repack_q8_KV}   },
+        // { GGML_TYPE_Q8_KV,  { GGML_TYPE_Q8_KV_R8,  8,  (Repack::repack_func)repack_q8_KV}   },
 #ifdef __AVX512BF16__
         { GGML_TYPE_BF16,   { GGML_TYPE_BF16_R16, 16,  (Repack::repack_func)repack_bf16<ggml_bf16_t>}},
         { GGML_TYPE_F16,    { GGML_TYPE_BF16_R16, 16,  (Repack::repack_func)repack_bf16<ggml_half>}  },
