@@ -557,6 +557,16 @@ void quantize_row_q8_K64_ref(const float * x, block_q8_K64 * y, int64_t k) {
 #endif
 }
 
+namespace {
+inline int hsum_i32_8(const __m256i a) {
+    const __m128i sum128 = _mm_add_epi32(_mm256_castsi256_si128(a), _mm256_extractf128_si256(a, 1));
+    const __m128i hi64 = _mm_unpackhi_epi64(sum128, sum128);
+    const __m128i sum64 = _mm_add_epi32(hi64, sum128);
+    const __m128i hi32  = _mm_shuffle_epi32(sum64, _MM_SHUFFLE(2, 3, 0, 1));
+    return _mm_cvtsi128_si32(_mm_add_epi32(sum64, hi32));
+}
+}
+
 void quantize_row_q8_K64(const float * x, void * y, int64_t k) {
     quantize_row_q8_K64_ref(x, (block_q8_K64 *)y, k);
 }
@@ -6271,13 +6281,13 @@ void vec_dot_q8_k_r8_q8_k(int n, float * s, size_t bs, const void * vx, size_t b
 // ========================================= q8_KV_r8
 //
 
-void quantize_row_q8_KV_r8_ref(const float * x, void * y, int64_t k) {
+/* void quantize_row_q8_KV_r8_ref(const float * x, void * y, int64_t k) {
     quantize_q8_KV_r8(x, y, 8, k/8, nullptr);
 }
 
 void quantize_row_q8_KV_r8(const float * x, void * y, int64_t k) {
     quantize_q8_KV_r8(x, y, 8, k/8, nullptr);
-}
+}*/
 
 /* static void repack_q8_KV(int nrows, int n_per_row, const char * cx, char * cy, [[maybe_unused]] bool online) {
     GGML_ASSERT(nrows%8 == 0);
