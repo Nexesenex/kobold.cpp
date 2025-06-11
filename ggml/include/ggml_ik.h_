@@ -1,3 +1,10 @@
+//
+// Copyright (C) 2023-2025 The ggml authors
+// Copyright (C) 2024-2025 Iwan Kawrakow
+// MIT license
+// SPDX-License-Identifier: MIT
+//
+
 #pragma once
 
 //
@@ -392,6 +399,13 @@ extern "C" {
         GGML_TYPE_Q4_0_4_8 = 32,
         GGML_TYPE_Q4_0_8_8 = 33,
         //
+        // So we are able to consume MS BitNet I2_S quants
+        //
+        GGML_TYPE_I2_S    = 36,
+        //
+        GGML_TYPE_Q8_0_X4 = 97,
+        GGML_TYPE_Q8_1_X4 = 98,
+        GGML_TYPE_Q8_2_X4 = 99,
         GGML_TYPE_Q6_0    = 133,
         GGML_TYPE_IQ1_BN  = 134,
         GGML_TYPE_IQ2_BN  = 135,
@@ -406,6 +420,44 @@ extern "C" {
         GGML_TYPE_IQ4_KS  = 144,
         GGML_TYPE_IQ2_KS  = 145,
         GGML_TYPE_IQ4_KSS = 146,
+        GGML_TYPE_Q8_K16  = 147,
+        GGML_TYPE_Q8_K32  = 148,
+        GGML_TYPE_Q8_KR8  = 149,
+        GGML_TYPE_Q8_K128 = 150,
+        GGML_TYPE_Q8_KV   = 151,
+        GGML_TYPE_IQ5_KS  = 152,
+        GGML_TYPE_IQ2_KT  = 153,
+        GGML_TYPE_IQ3_KT  = 154,
+        GGML_TYPE_IQ4_KT  = 155,
+
+        GGML_TYPE_Q4_0_R8   = 202,
+        GGML_TYPE_Q5_0_R4   = 206,
+        GGML_TYPE_Q8_0_R8   = 208,
+        GGML_TYPE_Q2_K_R4   = 210,
+        GGML_TYPE_Q3_K_R4   = 211,
+        GGML_TYPE_Q4_K_R4   = 212,
+        GGML_TYPE_Q5_K_R4   = 213,
+        GGML_TYPE_Q6_K_R4   = 214,
+        GGML_TYPE_IQ2_XXS_R4= 216,
+        GGML_TYPE_IQ2_XS_R4 = 217,
+        GGML_TYPE_IQ3_XXS_R4= 218,
+        GGML_TYPE_IQ1_S_R4  = 219,
+        GGML_TYPE_IQ4_NL_R4 = 220,
+        GGML_TYPE_IQ3_S_R4  = 221,
+        GGML_TYPE_IQ2_S_R4  = 222,
+        GGML_TYPE_IQ4_XS_R8 = 223,
+        GGML_TYPE_IQ1_M_R4  = 229,
+        GGML_TYPE_BF16_R16  = 230,
+        GGML_TYPE_Q6_0_R4   = 233,
+        GGML_TYPE_IQ2_BN_R4 = 335,
+        GGML_TYPE_IQ2_K_R4  = 337,
+        GGML_TYPE_IQ3_K_R4  = 338,
+        GGML_TYPE_IQ4_K_R4  = 339,
+        GGML_TYPE_IQ5_K_R4  = 340,
+        GGML_TYPE_IQ4_KS_R4 = 344,
+        GGML_TYPE_IQ5_KS_R4 = 352,
+        GGML_TYPE_Q8_KV_R8  = 398,
+        GGML_TYPE_Q8_K_R8   = 399,
         GGML_TYPE_COUNT,
     };
 
@@ -464,6 +516,40 @@ extern "C" {
         GGML_FTYPE_MOSTLY_IQ4_KS  = 137, // except 1d tensors
         GGML_FTYPE_MOSTLY_IQ2_KS  = 138, // except 1d tensors
         GGML_FTYPE_MOSTLY_IQ4_KSS = 139, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q8_KV   = 140, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ5_KS  = 141, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_KT  = 142, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ3_KT  = 143, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ4_KT  = 144, // except 1d tensors
+                                         //
+        GGML_FTYPE_MOSTLY_Q4_0_R8   = 202, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q8_0_R8   = 207, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q5_0_R4   = 208, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q2_K_R4   = 210, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q3_K_R4   = 211, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q4_K_R4   = 212, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q5_K_R4   = 213, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q6_K_R4   = 214, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_XXS_R4= 215, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_XS_R4 = 216, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ3_XXS_R4= 217, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ1_S_R4  = 218, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ4_NL_R4 = 219, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ3_S_R4  = 220, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_S_R4  = 221, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ4_XS_R8 = 222, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ1_M_R4  = 223, // except 1d tensors
+        GGML_FTYPE_MOSTLY_BF16_R16  = 224, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q6_0_R4   = 227, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_BN_R4 = 329, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ2_K_R4  = 330, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ3_K_R4  = 331, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ4_K_R4  = 332, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ5_K_R4  = 333, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ4_KS_R4 = 337, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ5_KS_R4 = 341, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q8_KV_R8  = 398, // except 1d tensors
+        GGML_FTYPE_MOSTLY_Q8_K_R8   = 399, // except 1d tensors
     };
 
     // available tensor operations:
@@ -499,6 +585,7 @@ extern "C" {
         GGML_OP_MUL_MAT,
         GGML_OP_MUL_MAT_ID,
         GGML_OP_OUT_PROD,
+        GGML_OP_MOE_FUSED_UP_GATE,
 
         GGML_OP_SCALE,
         GGML_OP_SET,
@@ -528,6 +615,7 @@ extern "C" {
         GGML_OP_ARANGE,
         GGML_OP_TIMESTEP_EMBEDDING,
         GGML_OP_ARGSORT,
+        GGML_OP_ARGSORT_THRESH,
         GGML_OP_LEAKY_RELU,
         GGML_OP_SOFTCAP,
         GGML_OP_SOFT_CAP_MAX,
@@ -661,7 +749,6 @@ extern "C" {
     // since https://github.com/ggerganov/ggml/issues/287
     struct ggml_cplan {
         size_t    work_size; // size of work buffer, calculated by `ggml_graph_plan()`
-        size_t    q_size;
         uint8_t * work_data; // work buffer, to be allocated by caller before calling to `ggml_graph_compute()`
 
         int n_threads;
@@ -1253,6 +1340,15 @@ extern "C" {
             struct ggml_tensor  * b,
             struct ggml_tensor  * ids);
 
+    // MoE up + gate + unary
+    GGML_API struct ggml_tensor * ggml_moe_up_gate(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * as_up,
+            struct ggml_tensor  * as_gate,
+            struct ggml_tensor  * b,
+            struct ggml_tensor  * ids,
+            enum ggml_unary_op    op);
+
     // A: m columns, n rows,
     // B: p columns, n rows,
     // result is m columns, p rows
@@ -1836,6 +1932,12 @@ extern "C" {
             struct ggml_tensor  * a,
             enum ggml_sort_order  order);
 
+    GGML_API struct ggml_tensor * ggml_argsort_thresh(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * a,
+            int                   min_entries,
+            float                 threshold);
+
     GGML_API struct ggml_tensor * ggml_arange(
             struct ggml_context * ctx,
             float                 start,
@@ -1847,6 +1949,12 @@ extern "C" {
             struct ggml_context * ctx,
             struct ggml_tensor  * a,
             int                   k);
+    GGML_API struct ggml_tensor * ggml_top_k_thresh(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * a,
+            int                   k,
+            int                   min_entries,
+            float                 thresh);
 
 #define GGML_KQ_MASK_PAD 32
 
