@@ -335,7 +335,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + 2*WARP_SIZE);
 #else
-    constexpr tile_x_sizes txs = MMQ_DP4A_TXS_Q8_0;
+    constexpr tile_x_sizes txs = mmq_get_dp4a_tile_x_sizes(GGML_TYPE_Q4_0, mmq_y);
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + txs.qs);
 #endif // NEW_MMA_AVAILABLE
@@ -3931,7 +3931,7 @@ extern DECL_MMQ_CASE(GGML_TYPE_IQ4_K);
 extern DECL_MMQ_CASE(GGML_TYPE_IQ5_K);
 extern DECL_MMQ_CASE(GGML_TYPE_IQ5_KS);
 extern DECL_MMQ_CASE(GGML_TYPE_IQ6_K);
-// extern DECL_MMQ_CASE(GGML_TYPE_IQ1_S_R4);
+extern DECL_MMQ_CASE(GGML_TYPE_IQ1_S_R4);
 
 // -------------------------------------------------------------------------------------------------------------------------
 
