@@ -557,6 +557,7 @@ void quantize_row_q8_K64_ref(const float * x, block_q8_K64 * y, int64_t k) {
 #endif
 }
 
+#ifdef __AVX2__
 namespace {
 inline int hsum_i32_8(const __m256i a) {
     const __m128i sum128 = _mm_add_epi32(_mm256_castsi256_si128(a), _mm256_extractf128_si256(a, 1));
@@ -566,6 +567,7 @@ inline int hsum_i32_8(const __m256i a) {
     return _mm_cvtsi128_si32(_mm_add_epi32(sum64, hi32));
 }
 }
+#endif
 
 void quantize_row_q8_K64(const float * x, void * y, int64_t k) {
     quantize_row_q8_K64_ref(x, (block_q8_K64 *)y, k);
