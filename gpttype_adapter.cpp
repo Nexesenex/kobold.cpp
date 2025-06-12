@@ -2175,16 +2175,16 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     //this is used for the mem_per_token eval, blas needs more RAM
     bool v3_use_scratch = ggml_v3_cpu_has_gpublas();
 
-    int cu_parseinfo_maindevice = inputs.cublas_info<=0?0:inputs.cublas_info;
+    int kcpp_parseinfo_maindevice = inputs.kcpp_main_gpu<=0?0:inputs.kcpp_main_gpu;
 
     printf("System Info: %s\n", kcpp_print_system_info());
     #if defined(GGML_USE_CUDA)
     if(file_format!=FileFormat::GGUF_GENERIC)
     {
-        if(ggml_v3_cpu_has_gpublas() && cu_parseinfo_maindevice>0)
+        if(ggml_v3_cpu_has_gpublas() && kcpp_parseinfo_maindevice>0)
         {
-            printf("CUBLAS v3: Set main device to %d\n",cu_parseinfo_maindevice);
-            ggml_v3_cuda_set_main_device(cu_parseinfo_maindevice);
+            printf("CUBLAS v3: Set main device to %d\n",kcpp_parseinfo_maindevice);
+            ggml_v3_cuda_set_main_device(kcpp_parseinfo_maindevice);
         }
     }
 
@@ -2257,7 +2257,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         llama_ctx_params.use_mmap = inputs.use_mmap;
         llama_ctx_params.use_mlock = inputs.use_mlock;
         llama_ctx_params.n_gpu_layers = inputs.gpulayers;
-        llama_ctx_params.main_gpu = cu_parseinfo_maindevice;
+        llama_ctx_params.main_gpu = kcpp_parseinfo_maindevice;
         llama_ctx_params.rope_freq_base = rope_freq_base;
         llama_ctx_params.rope_freq_scale = rope_freq_scale;
         llama_ctx_params.n_batch = kcpp_data->n_batch;
@@ -2344,9 +2344,9 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         }
         #endif
         #if defined(GGML_USE_CUDA)
-        if(cu_parseinfo_maindevice>0)
+        if(kcpp_parseinfo_maindevice>0)
         {
-            printf("CUDA: Set main device to %d\n",cu_parseinfo_maindevice);
+            printf("CUDA: Set main device to %d\n",kcpp_parseinfo_maindevice);
         }
         printf("CUDA MMQ: %s\n",(inputs.use_mmq?"True":"False"));
         ggml_cuda_set_mul_mat_q(inputs.use_mmq);
@@ -2370,7 +2370,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             printf("Qwen2VL detected! Mrope will be used, and context shift will be disabled!\n");
             kcpp_data->use_contextshift = false;
         }
-        model_params.main_gpu = cu_parseinfo_maindevice;
+        model_params.main_gpu = kcpp_parseinfo_maindevice;
 
         #if defined(GGML_USE_CUDA)
         model_params.split_mode = (inputs.use_rowsplit?llama_split_mode::LLAMA_SPLIT_MODE_ROW:llama_split_mode::LLAMA_SPLIT_MODE_LAYER);
