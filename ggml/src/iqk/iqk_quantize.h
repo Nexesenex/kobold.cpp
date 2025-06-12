@@ -289,14 +289,14 @@ GGML_API void quantize_row_q8_0_x4(const float * GGML_RESTRICT x, void * GGML_RE
 GGML_API void quantize_row_q8_1_x4(const float * GGML_RESTRICT x, void * GGML_RESTRICT y, int64_t k);
 GGML_API void quantize_row_q8_2_x4(const float * GGML_RESTRICT x, void * GGML_RESTRICT y, int64_t k);
 
-// void repack_f32_bf16_r16 (const void * GGML_RESTRICT src, void * GGML_RESTRICT dst, int64_t nrows, int64_t n_per_row);
-// void repack_bf16_bf16_r16(const void * GGML_RESTRICT src, void * GGML_RESTRICT dst, int64_t nrows, int64_t n_per_row);
+void repack_f32_bf16_r16 (const void * GGML_RESTRICT src, void * GGML_RESTRICT dst, int64_t nrows, int64_t n_per_row);
+void repack_bf16_bf16_r16(const void * GGML_RESTRICT src, void * GGML_RESTRICT dst, int64_t nrows, int64_t n_per_row);
 
 void iqk_repack_tensor(struct ggml_tensor * tensor);
-// bool iqk_modify_tensor(struct ggml_tensor * tensor);
+bool iqk_modify_tensor(struct ggml_tensor * tensor);
 
 int iqk_repacked_type(const struct ggml_tensor * tensor); // int instead of ggml_type so we don't need to include ggml.h
-// bool iqk_should_modify_tensor(const struct ggml_tensor * tensor);
+bool iqk_should_modify_tensor(const struct ggml_tensor * tensor);
 
 // So we can re-pack Microsoft's BitNet I2_S quants
 GGML_API void dequantize_row_ms_i2s(const void * GGML_RESTRICT x, float * GGML_RESTRICT y, int64_t k);
