@@ -651,6 +651,57 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
         .vec_dot_type             = GGML_TYPE_BF16,
         .nrows                    = 1,
     },
+    /* [GGML_TYPE_Q4_0_4_4] = {
+        .type_name                = "q4_0_4x4",
+        .blck_size                = QK4_0,
+        .blck_size_interleave     = 4,
+        .type_size                = sizeof(block_q4_0),
+        .is_quantized             = true,
+        .to_float                 = NULL,
+        .from_float               = NULL,
+        .from_float_ref           = NULL,
+        .vec_dot                  = NULL,
+        .vec_dot_type             = GGML_TYPE_Q8_0,
+        .nrows                    = 1,
+        .ncols                    = 4,
+        .gemv                     = ggml_gemv_q4_0_4x4_q8_0,
+        .gemm                     = ggml_gemm_q4_0_4x4_q8_0,
+        .row_meta_size            = 0,
+    },
+    [GGML_TYPE_Q4_0_4_8] = {
+        .type_name                = "q4_0_4x8",
+        .blck_size                = QK4_0,
+        .blck_size_interleave     = 8,
+        .type_size                = sizeof(block_q4_0),
+        .is_quantized             = true,
+        .to_float                 = NULL,
+        .from_float               = NULL,
+        .from_float_ref           = NULL,
+        .vec_dot                  = NULL,
+        .vec_dot_type             = GGML_TYPE_Q8_0,
+        .nrows                    = 1,
+        .ncols                    = 4,
+        .gemv                     = ggml_gemv_q4_0_4x8_q8_0,
+        .gemm                     = ggml_gemm_q4_0_4x8_q8_0,
+        .row_meta_size            = 0,
+    },
+    [GGML_TYPE_Q4_0_8_8] = {
+        .type_name                = "q4_0_8x8",
+        .blck_size                = QK4_0,
+        .blck_size_interleave     = 8,
+        .type_size                = sizeof(block_q4_0),
+        .is_quantized             = true,
+        .to_float                 = NULL,
+        .from_float               = NULL,
+        .from_float_ref           = NULL,
+        .vec_dot                  = NULL,
+        .vec_dot_type             = GGML_TYPE_Q8_0,
+        .nrows                    = 1,
+        .ncols                    = 8,
+        .gemv                     = ggml_gemv_q4_0_8x8_q8_0,
+        .gemm                     = ggml_gemm_q4_0_8x8_q8_0,
+        .row_meta_size            = 0,
+    }, */
     [GGML_TYPE_IQ2_K] = {
         .from_float               = quantize_row_iq2_k,
         .vec_dot                  = vec_dot_iq2_k_q8_k,
@@ -673,11 +724,16 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_IQ2_KT] = {
         .from_float               = quantize_row_iq2_kt,
         .vec_dot                  = vec_dot_iq2_kt_q8_k,
-#ifdef __ARM_NEON
-        .vec_dot_type             = GGML_TYPE_F16,
+#if defined __AVX2__
+        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
 #else
-        .vec_dot_type             = GGML_TYPE_F32,
+        .vec_dot_type             = GGML_TYPE_Q8_0_X4,
 #endif
+//#ifdef __ARM_NEON
+//        .vec_dot_type             = GGML_TYPE_F16,
+//#else
+//        .vec_dot_type             = GGML_TYPE_F32,
+//#endif
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ3_KT] = {
@@ -693,11 +749,16 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_IQ4_KT] = {
         .from_float               = quantize_row_iq4_kt,
         .vec_dot                  = vec_dot_iq4_kt_q8_k,
-#ifdef __ARM_NEON
-        .vec_dot_type             = GGML_TYPE_F16,
+#if defined __AVX2__
+        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
 #else
-        .vec_dot_type             = GGML_TYPE_F32,
+        .vec_dot_type             = GGML_TYPE_Q8_0_X4,
 #endif
+// #ifdef __ARM_NEON
+        // .vec_dot_type             = GGML_TYPE_F16,
+// #else
+        // .vec_dot_type             = GGML_TYPE_F32,
+// #endif
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ3_K] = {
