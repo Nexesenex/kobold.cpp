@@ -14,11 +14,11 @@
 namespace {
 
 inline uint32_t trellis_next(uint32_t& val) {
-    constexpr uint32_t ka = 89226354;
-    constexpr uint32_t kb = 64248484;
+    constexpr uint32_t ka = 3417055213;
+    constexpr uint32_t kb = 0;
     constexpr uint32_t kmask = 0x8fff8fff;
     constexpr uint32_t km32 = 0x3b603b60;
-    val = val*ka + kb;
+    val = val*ka;
     return (val & kmask) ^ km32;
 }
 
@@ -31,8 +31,8 @@ inline float trellis_gen(uint32_t& val, uint32_t* s) {
 struct Trellis1 {
     constexpr static uint32_t kmask = 0x8fff8fff;
     constexpr static uint32_t km32 = 0x3b603b60;
-    constexpr static uint32_t ka = 89226354;
-    constexpr static uint32_t kb = 64248484;
+    constexpr static uint32_t ka = 3417055213;
+    constexpr static uint32_t kb = 0;
     constexpr static uint32_t ka1 = ka*ka;
     constexpr static uint32_t kb1 = kb*ka+kb;
     constexpr static uint32_t ka2 = ka1*ka;
@@ -76,8 +76,8 @@ inline __m256 trellis_gen8(__m256i i8) {
 struct Trellis2 {
     constexpr static uint32_t kmask = 0x8fff8fff;
     constexpr static uint32_t km32 = 0x3b603b60;
-    constexpr static uint32_t ka = 89226354;
-    constexpr static uint32_t kb = 64248484;
+    constexpr static uint32_t ka = 3417055213;
+    constexpr static uint32_t kb = 0;
     constexpr static uint32_t ka1 = ka*ka;
     constexpr static uint32_t kb1 = kb*ka+kb;
     constexpr static uint32_t ka2 = ka1*ka;
@@ -100,8 +100,8 @@ struct Trellis2 {
 
 template <bool is_8 = false>
 struct Trellis3 {
-    constexpr static uint32_t ka = 89226354;
-    constexpr static uint32_t kb = 64248484;
+    constexpr static uint32_t ka = 3417055213;
+    constexpr static uint32_t kb = 0;
     constexpr static uint32_t ka1 = ka*ka;
     constexpr static uint32_t kb1 = kb*ka+kb;
     constexpr static uint32_t ka2 = ka1*ka;
@@ -913,8 +913,8 @@ namespace {
 struct Trellis1 {
     constexpr static uint32_t kmask = 0x8fff8fff;
     constexpr static uint32_t km32 = 0x3b603b60;
-    constexpr static uint32_t ka = 89226354;
-    constexpr static uint32_t kb = 64248484;
+    constexpr static uint32_t ka = 3417055213;
+    constexpr static uint32_t kb = 0;
     constexpr static uint32_t ka1 = ka*ka;
     constexpr static uint32_t kb1 = kb*ka+kb;
     constexpr static uint32_t ka2 = ka1*ka;
@@ -1419,8 +1419,8 @@ void mul_mat_iq4_kt_F32_T(int n, const void * vx, size_t bx, const DataInfo& inf
 }
 
 struct Trellis3 {
-    constexpr static uint32_t ka = 89226354;
-    constexpr static uint32_t kb = 64248484;
+    constexpr static uint32_t ka = 3417055213;
+    constexpr static uint32_t kb = 0;
     constexpr static uint32_t ka1 = ka*ka;
     constexpr static uint32_t kb1 = kb*ka+kb;
     constexpr static uint32_t ka2 = ka1*ka;
