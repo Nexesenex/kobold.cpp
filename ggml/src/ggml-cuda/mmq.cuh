@@ -2830,8 +2830,8 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
 template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinline__ void load_tiles_iq4_kt(
     const char * __restrict__ x, int * __restrict__ x_tile, const int & kbx0, const int & i_max, const int & stride) {
 
-    constexpr uint32_t ka = 89226354;
-    constexpr uint32_t kb = 64248484;
+    constexpr uint32_t ka = 3417055213;
+    constexpr uint32_t kb = 0;
     constexpr uint32_t km = 0x3f3f3f3f;
 
 #ifdef NEW_MMA_AVAILABLE
@@ -2866,8 +2866,8 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
         uint32_t val2 = offset + ql[8*ib32+2*j+1] + ((qh[8*(ib32%4)+2*j+1] << (8 - 4*(ib32/4))) & 0xf00) + ((sh & 56) << 9);
         int2 v = {0, 0};
         for (int k = 0; k < 4; ++k) {
-            val1 = ka*val1 + kb;
-            val2 = ka*val2 + kb;
+            val1 = ka*val1;
+            val2 = ka*val2;
             v.x |= (ggml_cuda_dp4a(val1 & km, 0x01010101, -126) & 0xff) << 8*k;
             v.y |= (ggml_cuda_dp4a(val2 & km, 0x01010101, -126) & 0xff) << 8*k;
         }
@@ -2903,8 +2903,8 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
 template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinline__ void load_tiles_iq2_kt(
     const char * __restrict__ x, int * __restrict__ x_tile, const int & kbx0, const int & i_max, const int & stride) {
 
-    constexpr uint32_t ka = 89226354;
-    constexpr uint32_t kb = 64248484;
+    constexpr uint32_t ka = 3417055213;
+    constexpr uint32_t kb = 0;
     constexpr uint32_t km = 0x3f3f3f3f;
 
 #ifdef NEW_MMA_AVAILABLE
@@ -2934,11 +2934,11 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
         uint32_t val = ql[4*ib32+j] + 4096;
         int2 v = {0, 0};
         for (int k = 0; k < 4; ++k) {
-            val = ka*val + kb;
+            val = ka*val;
             v.x |= (ggml_cuda_dp4a(val & km, 0x01010101, -126) & 0xff) << 8*k;
         }
         for (int k = 0; k < 4; ++k) {
-            val = ka*val + kb;
+            val = ka*val;
             v.y |= (ggml_cuda_dp4a(val & km, 0x01010101, -126) & 0xff) << 8*k;
         }
 #ifdef NEW_MMA_AVAILABLE
