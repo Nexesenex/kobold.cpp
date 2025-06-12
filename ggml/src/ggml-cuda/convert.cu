@@ -360,20 +360,20 @@ inline __device__ int nearest_int(float fval) {
 }
 
 int __device__ __forceinline__ trellis_next_int(uint32_t& val) {
-    constexpr uint32_t ka = 89226354;
-    constexpr uint32_t kb = 64248484;
-    val = ka*val + kb;
+    constexpr uint32_t ka = 3417055213;
+    constexpr uint32_t kb = 0;
+    val = ka*val;
     return ggml_cuda_dp4a(val & 0x3f3f3f3f, 0x01010101, -126);
 }
 
 float __device__ __forceinline__ trellis_next(uint32_t& val) {
-    constexpr uint32_t ka = 89226354;
-    constexpr uint32_t kb = 64248484;
+    constexpr uint32_t ka = 3417055213;
+    constexpr uint32_t kb = 0;
     constexpr uint32_t kmask = 0x8fff8fff;
     constexpr uint32_t km32 = 0x3b603b60;
     uint32_t s;
     const half * h = (const half *)&s;
-    val = ka*val + kb;
+    val = ka*val;
     s = (val & kmask) ^ km32;
     return (float)(h[0]+h[1]);
 }

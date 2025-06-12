@@ -7762,14 +7762,14 @@ public:
     inline float find_best_inverse_scale(const float * xb, const float * weight, const int * best_idx) const;
 
     static inline void set_values(uint32_t i, float * result, float scale, int offset = 4096) {
-        constexpr uint32_t ka = 89226354;
-        constexpr uint32_t kb = 64248484;
+        constexpr uint32_t ka = 3417055213;
+        constexpr uint32_t kb = 0;
         uint32_t x = i + offset;
         if constexpr (is_int) {
             uint32_t s;
             auto i8 = (const int8_t *)&s;
             for (int k = 0; k < kGroupSize; ++k) {
-                x = ka*x + kb;
+                x = ka*x;
                 s = x & 0x3f3f3f3f;
                 result[k] = scale*(i8[0] + i8[1] + i8[2] + i8[3] - 126.f);
             }
@@ -7777,7 +7777,7 @@ public:
             constexpr uint32_t kmask = 0x8fff8fff;
             constexpr uint32_t km32 = 0x3b603b60;
             for (int k = 0; k < kGroupSize; ++k) {
-                x = ka*x + kb;
+                x = ka*x;
                 uint32_t s = (x & kmask) ^ km32;
                 float val = GGML_FP16_TO_FP32(s & 65535) + GGML_FP16_TO_FP32(s >> 16);
                 if constexpr (is_abs) result[k] = scale*std::abs(val);
