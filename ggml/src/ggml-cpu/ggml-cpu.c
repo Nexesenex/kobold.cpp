@@ -41,6 +41,11 @@
 #include <syscall.h>
 #endif
 
+#if GGML_USE_IQK_MULMAT
+#include "iqk/iqk_config.h"
+#include "iqk/iqk_mul_mat.h"
+#endif
+
 #define IK_PRINT_TIMING 0
 
 #ifdef GGML_USE_OPENMP
@@ -583,11 +588,11 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_IQ4_KS_R4] = {
         .from_float               = quantize_row_iq4_ks_r4,
         .vec_dot                  = vec_dot_iq4_ks_r4_q8_k,
-// #if defined __AVX2__
+#if defined __AVX2__
         .vec_dot_type             = GGML_TYPE_Q8_K32,
-// #else
+#else
         .vec_dot_type             = GGML_TYPE_Q8_K,
-// #endif
+#endif
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ5_KS] = {
