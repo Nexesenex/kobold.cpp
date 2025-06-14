@@ -55,10 +55,12 @@ static __global__ void soft_max_f32(
             break;
         }
 
-        const int64_t ix = (int64_t)rowx*ncols + col;
-        const int64_t iy = (int64_t)rowy*ncols + col;
+        // const int64_t ix = (int64_t)rowx*ncols + col;
+        // const int64_t iy = (int64_t)rowy*ncols + col;
 
-        const float val = x[ix]*scale + (mask ? slope*t2f32(mask[iy]) : 0.0f);
+        // const float val = x[ix]*scale + (mask ? slope*t2f32(mask[iy]) : 0.0f);
+		
+        const float val = x[col]*scale + (mask ? slope*t2f32(mask[col]) : 0.0f);
 
         vals[col] = val;
         max_val = max(max_val, val);
