@@ -6,6 +6,11 @@
 #include "ggml-impl.h"
 // #include "amx/amx.h"
 
+#if GGML_USE_IQK_MULMAT
+#include "iqk/iqk_config.h"
+#include "iqk/iqk_mul_mat.h"
+#endif
+
 #include <cctype>
 #include <string>
 #include <vector>
