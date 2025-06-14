@@ -615,7 +615,6 @@ extern "C" {
         GGML_OP_TIMESTEP_EMBEDDING,
         GGML_OP_ARGSORT,
         GGML_OP_LEAKY_RELU,
-        GGML_OP_SOFTCAP,
 
         GGML_OP_FLASH_ATTN_EXT,
         GGML_OP_FLASH_ATTN_BACK,
@@ -1311,19 +1310,6 @@ extern "C" {
             struct ggml_context * ctx,
             struct ggml_tensor  * a,
             float                 s);
-
-    GGML_API struct ggml_tensor * ggml_softcap(
-            struct ggml_context * ctx,
-            struct ggml_tensor  * a,
-            float                 s_before,
-            float                 s_after);
-
-    // in-place, returns view(a)
-    GGML_API struct ggml_tensor * ggml_softcap_inplace(
-            struct ggml_context * ctx,
-            struct ggml_tensor  * a,
-            float                 s_before,
-            float                 s_after);
 
     // b -> view(a,offset,nb1,nb2,3), return modified a
     GGML_API struct ggml_tensor * ggml_set(
