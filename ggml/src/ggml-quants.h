@@ -5,7 +5,7 @@
 
 #include "ggml.h"
 
-#include "iqk/iqk_quantize.h"
+// #include "iqk/iqk_quantize.h"
 
 #include <stdint.h>
 #include <stddef.h>
