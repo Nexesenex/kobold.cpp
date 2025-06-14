@@ -2408,6 +2408,10 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
             {
                 ggml_compute_forward_softcap(params, tensor);
             } break;
+        case GGML_OP_SOFT_CAP_MAX:
+            {
+                ggml_compute_forward_softcap_max(params, tensor);
+            } break;
         case GGML_OP_SET:
             {
                 ggml_compute_forward_set(params, tensor);
@@ -2829,6 +2833,7 @@ static int ggml_get_n_tasks(struct ggml_tensor * node, int n_threads) {
             } break;
         case GGML_OP_SOFTCAP:
         case GGML_OP_SOFT_MAX:
+        case GGML_OP_SOFT_CAP_MAX:
             {
                 n_tasks = MIN(n_threads, ggml_nrows(node->src[0]));
             } break;
