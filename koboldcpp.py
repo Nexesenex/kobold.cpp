@@ -8185,6 +8185,14 @@ def main(launch_args, default_args):
         print("Debug Mode is Enabled!")
         args.quiet = False # verbose outputs
 
+    # assign title to terminal on windows
+    try:
+        if os.name == 'nt':
+            windowtitle = f"KoboldCpp {KcppVersion} Terminal"
+            os.system(f'title {windowtitle}')
+    except Exception:
+        pass
+
     try:
         delete_old_pyinstaller()  #perform some basic cleanup of old temporary directories
     except Exception as e:
