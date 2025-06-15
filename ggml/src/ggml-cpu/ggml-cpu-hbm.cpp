@@ -5,7 +5,7 @@
 #include "ggml-cpu.h"
 #include "ggml-impl.h"
 
-#include "hbm.h"
+#include "ggml-cpu-hbm.h"
 
 // buffer type HBM
 
