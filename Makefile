@@ -90,10 +90,10 @@ endif
 CUBLASLD_FLAGS =
 CUBLAS_OBJS =
 
-OBJS_FULL += ggml-alloc.o ggml-cpu-traits.o ggml-quants.o ggml-cpu-quants.o kcpp-quantmapper.o ggml-repack.o kcpp-repackmapper.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o gguf.o sgemm.o common.o sampling.o kcpputils.o
-OBJS_SIMPLE += ggml-alloc.o ggml-cpu-traits.o ggml-quants_noavx2.o ggml-cpu-quants.o kcpp-quantmapper_noavx2.o ggml-repack.o kcpp-repackmapper_noavx2.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o gguf.o sgemm_noavx2.o common.o sampling.o kcpputils.o
-OBJS_SIMPLER += ggml-alloc.o ggml-cpu-traits.o ggml-quants_noavx1.o ggml-cpu-quants.o kcpp-quantmapper_noavx1.o ggml-repack.o kcpp-repackmapper_noavx1.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o gguf.o sgemm_noavx1.o common.o sampling.o kcpputils.o
-OBJS_FAILSAFE += ggml-alloc.o ggml-cpu-traits.o ggml-quants_failsafe.o ggml-cpu-quants.o kcpp-quantmapper_failsafe.o ggml-repack.o kcpp-repackmapper_failsafe.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o gguf.o sgemm_failsafe.o common.o sampling.o kcpputils.o
+OBJS_FULL += ggml-alloc.o ggml-cpu-traits.o ggml-quants.o ggml-cpu-quants.o ggml-cpu-repack.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o gguf.o sgemm.o common.o sampling.o kcpputils.o
+OBJS_SIMPLE += ggml-alloc.o ggml-cpu-traits.o ggml-quants_noavx2.o ggml-cpu-quants_noavx2.o ggml-cpu-repack_noavx2.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o gguf.o sgemm_noavx2.o common.o sampling.o kcpputils.o
+OBJS_SIMPLER += ggml-alloc.o ggml-cpu-traits.o ggml-quants_noavx1.o ggml-cpu-quants_noavx1.o ggml-cpu-repack_noavx1.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o gguf.o sgemm_noavx1.o common.o sampling.o kcpputils.o
+OBJS_FAILSAFE += ggml-alloc.o ggml-cpu-traits.o ggml-quants_failsafe.o ggml-cpu-quants_failsafe.o ggml-cpu-repack_failsafe.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o gguf.o sgemm_failsafe.o common.o sampling.o kcpputils.o
 
 # OS specific
 ifeq ($(UNAME_S),Linux)
@@ -507,29 +507,23 @@ ggml-quants_noavx1.o: ggml/src/ggml-quants.c ggml/include/ggml.h ggml/src/ggml-q
 	$(CC)  $(CFLAGS) $(SIMPLERCFLAGS) -c $< -o $@
 ggml-quants_failsafe.o: ggml/src/ggml-quants.c ggml/include/ggml.h ggml/src/ggml-quants.h ggml/src/ggml-common.h
 	$(CC)  $(CFLAGS) $(NONECFLAGS) -c $< -o $@
-
-#cpu quants
 ggml-cpu-quants.o: ggml/src/ggml-cpu/quants.c ggml/include/ggml.h ggml/src/ggml-cpu/quants.h ggml/src/ggml-common.h
-	$(CC)  $(CFLAGS) -c $< -o $@
-kcpp-quantmapper.o: ggml/src/ggml-cpu/kcpp-quantmapper.c
 	$(CC)  $(CFLAGS) $(FULLCFLAGS) -c $< -o $@
-kcpp-quantmapper_noavx2.o: ggml/src/ggml-cpu/kcpp-quantmapper.c
+ggml-cpu-quants_noavx2.o: ggml/src/ggml-cpu/quants.c ggml/include/ggml.h ggml/src/ggml-cpu/quants.h ggml/src/ggml-common.h
 	$(CC)  $(CFLAGS) $(SIMPLECFLAGS) -c $< -o $@
-kcpp-quantmapper_noavx1.o: ggml/src/ggml-cpu/kcpp-quantmapper.c
+ggml-cpu-quants_noavx1.o: ggml/src/ggml-cpu/quants.c ggml/include/ggml.h ggml/src/ggml-cpu/quants.h ggml/src/ggml-common.h
 	$(CC)  $(CFLAGS) $(SIMPLERCFLAGS) -c $< -o $@
-kcpp-quantmapper_failsafe.o: ggml/src/ggml-cpu/kcpp-quantmapper.c
+ggml-cpu-quants_failsafe.o: ggml/src/ggml-cpu/quants.c ggml/include/ggml.h ggml/src/ggml-cpu/quants.h ggml/src/ggml-common.h
 	$(CC)  $(CFLAGS) $(NONECFLAGS) -c $< -o $@
 
 #aarch64 repack
-ggml-repack.o: ggml/src/ggml-cpu/repack.cpp ggml/include/ggml.h ggml/src/ggml-cpu/repack.h
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-kcpp-repackmapper.o: ggml/src/ggml-cpu/kcpp-repackmapper.cpp
+ggml-cpu-repack.o: ggml/src/ggml-cpu/repack.cpp ggml/include/ggml.h ggml/src/ggml-cpu/repack.h
 	$(CXX) $(CXXFLAGS) $(FULLCFLAGS) -c $< -o $@
-kcpp-repackmapper_noavx2.o: ggml/src/ggml-cpu/kcpp-repackmapper.cpp
+ggml-cpu-repack_noavx2.o: ggml/src/ggml-cpu/repack.cpp ggml/include/ggml.h ggml/src/ggml-cpu/repack.h
 	$(CXX) $(CXXFLAGS) $(SIMPLECFLAGS) -c $< -o $@
-kcpp-repackmapper_noavx1.o: ggml/src/ggml-cpu/kcpp-repackmapper.cpp
+ggml-cpu-repack_noavx1.o: ggml/src/ggml-cpu/repack.cpp ggml/include/ggml.h ggml/src/ggml-cpu/repack.h
 	$(CXX) $(CXXFLAGS) $(SIMPLERCFLAGS) -c $< -o $@
-kcpp-repackmapper_failsafe.o: ggml/src/ggml-cpu/kcpp-repackmapper.cpp
+ggml-cpu-repack_failsafe.o: ggml/src/ggml-cpu/repack.cpp ggml/include/ggml.h ggml/src/ggml-cpu/repack.h
 	$(CXX) $(CXXFLAGS) $(NONECFLAGS) -c $< -o $@
 
 #sgemm

@@ -379,8 +379,6 @@ add_library(ggml
             ggml/src/ggml-cpu/traits.h
             ggml/src/ggml-threading.cpp
             ggml/src/ggml-cpu/ggml-cpu.cpp
-            ggml/src/ggml-cpu/kcpp-quantmapper.c
-            ggml/src/ggml-cpu/kcpp-repackmapper.cpp
             ggml/src/ggml-cpu/repack.cpp
             ggml/src/ggml-cpu/repack.h
             ggml/src/ggml-cpu/quants.c
