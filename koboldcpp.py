@@ -9051,7 +9051,8 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
             gpu15fvram = int(MaxFreeMemory[15]/1024/1024)
             gpuavram = gpu0avram + gpu1avram + gpu2avram + gpu3avram + gpu4avram + gpu5avram + gpu6avram + gpu7avram + gpu8avram + gpu9avram + gpu10avram + gpu11avram + gpu12avram + gpu13avram + gpu14avram + gpu15avram
             gpufvram = gpu0fvram + gpu1fvram + gpu2fvram + gpu3fvram + gpu4fvram + gpu5fvram + gpu6fvram + gpu7fvram + gpu8fvram + gpu9fvram + gpu10fvram + gpu11fvram + gpu12fvram + gpu13fvram + gpu14fvram + gpu15fvram
-            benchmaxctx = maxctx - 128
+            benchmaxctx = maxctx
+            # benchmaxctx = maxctx - 128
             benchtg = args.promptlimit
             benchpp = (benchmaxctx - benchtg)
             benchtemp = 0.1
