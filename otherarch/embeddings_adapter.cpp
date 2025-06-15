@@ -39,7 +39,7 @@ static void batch_decode(llama_context * ctx, llama_batch & batch, float * outpu
     const struct llama_model * model = llama_get_model(ctx);
 
     // clear previous kv_cache values (irrelevant for embeddings)
-    llama_kv_self_clear(ctx);
+    llama_memory_clear(llama_get_memory(ctx),true);
 
     // run model
     if(embeddings_debug)
@@ -144,7 +144,7 @@ bool embeddingstype_load_model(const embeddings_load_model_inputs inputs)
     }
 
     std::vector<int> tmp = {1, 2, 3, 4};
-    llama_kv_self_clear(embeddings_ctx);
+    llama_memory_clear(llama_get_memory(embeddings_ctx),true);
     auto er = llama_decode(embeddings_ctx, llama_batch_get_one(tmp.data(), tmp.size()));
     if(er!=0)
     {
@@ -185,7 +185,7 @@ embeddings_generation_outputs embeddingstype_generate(const embeddings_generatio
     double timetaken = 0;
     timer_start();
 
-    llama_kv_self_clear(embeddings_ctx);
+    llama_memory_clear(llama_get_memory(embeddings_ctx),true);
     std::string prompt = inputs.prompt;
 
     // max batch size

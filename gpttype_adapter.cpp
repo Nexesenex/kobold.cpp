@@ -524,10 +524,10 @@ void ContextRewind(std::vector<int> &embd, std::vector<int> &current_context_tok
 
     if (file_format == FileFormat::GGUF_GENERIC)
     {
-        llama_kv_self_seq_rm(llama_ctx_v4, 0, n_past, -1);
+        llama_memory_seq_rm(llama_get_memory(llama_ctx_v4), 0, n_past, -1);
         if(draft_ctx)
         {
-            llama_kv_self_seq_rm(draft_ctx, 0, n_past, -1);
+            llama_memory_seq_rm(llama_get_memory(draft_ctx), 0, n_past, -1);
         }
     }
 
@@ -1741,7 +1741,7 @@ const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dyna
 
     //prefilter to top 3k tokens for improved speed
     bool use_grammar = grammar != nullptr;
-    size_t n_pre_cull = candidates_p.size;
+    std::vector<llama_token_data> precache = (use_grammar ? std::vector<llama_token_data>(candidates) : std::vector<llama_token_data>(0));
 
     sample_top_k(&candidates_p, 512);
 
@@ -1749,7 +1749,7 @@ const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dyna
         sample_grammar(file_format, n_vocab, &candidates_p, grammar);
         // if top_k 3000 doesn't contain a valid candidate for this grammar, try again pre-cull
         if (candidates_p.size <= 0) {
-            candidates_p.size = n_pre_cull;
+            candidates_p = { precache.data(), precache.size(), false };
             sample_grammar(file_format, n_vocab, &candidates_p, grammar);
             sample_top_k(&candidates_p, 3000);
         }
@@ -1954,12 +1954,12 @@ void PurgeMissingTokens(llama_context * ctx, llama_context * draft_ctx, std::vec
 
             //extract the unwanted tokens out from context and KV
             int diff = found - trimstart;
-            llama_kv_self_seq_rm(ctx, 0, trimstart, trimstart + diff);
-            llama_kv_self_seq_add(ctx, 0, trimstart + diff, -1, -diff);
+            llama_memory_seq_rm(llama_get_memory(ctx), 0, trimstart, trimstart + diff);
+            llama_memory_seq_add(llama_get_memory(ctx), 0, trimstart + diff, -1, -diff);
             if(draft_ctx)
             {
-                llama_kv_self_seq_rm(draft_ctx, 0, trimstart, trimstart + diff);
-                llama_kv_self_seq_add(draft_ctx, 0, trimstart + diff, -1, -diff);
+                llama_memory_seq_rm(llama_get_memory(draft_ctx), 0, trimstart, trimstart + diff);
+                llama_memory_seq_add(llama_get_memory(draft_ctx), 0, trimstart + diff, -1, -diff);
             }
 
             for (size_t i = trimstart + diff; i < current_context_tokens.size() - 1; i++)
@@ -2719,14 +2719,14 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         for (int i = 1; i <= 33; ++i) {
             tmp.push_back(i);
         }
-        llama_kv_self_clear(llama_ctx_v4);
+        llama_memory_clear(llama_get_memory(llama_ctx_v4),true);
         auto er = llama_decode(llama_ctx_v4, llama_batch_get_one(tmp.data(), tmp.size()));
         if(er!=0)
         {
             printf("\nModel Warmup Failed! (code:%d)\n",er);
         }
         tmp = {1};
-        llama_kv_self_clear(llama_ctx_v4);
+        llama_memory_clear(llama_get_memory(llama_ctx_v4),true);
         er = llama_decode(llama_ctx_v4, llama_batch_get_one(tmp.data(), tmp.size()));
         if(er!=0)
         {
@@ -3689,7 +3689,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     int guidance_n_past = 0;
     if(guidance_ctx)
     {
-        llama_kv_self_clear(guidance_ctx);
+        llama_memory_clear(llama_get_memory(guidance_ctx),true);
         //prepare negative prompt
         if(negative_prompt!="" && inputs.guidance_scale!=1.0f)
         {
@@ -3799,10 +3799,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         {
             if(n_past==0)
             {
-                llama_kv_self_clear(llama_ctx_v4);
+                llama_memory_clear(llama_get_memory(llama_ctx_v4),true);
                 if(draft_ctx)
                 {
-                    llama_kv_self_clear(draft_ctx);
+                    llama_memory_clear(llama_get_memory(draft_ctx),true);
                 }
             }
             else if(embd_inp.size()==0)
@@ -3829,10 +3829,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         }
         if(file_format == FileFormat::GGUF_GENERIC)
         {
-            llama_kv_self_seq_rm(llama_ctx_v4, 0, n_past, -1);
+            llama_memory_seq_rm(llama_get_memory(llama_ctx_v4), 0, n_past, -1);
             if(draft_ctx)
             {
-                llama_kv_self_seq_rm(draft_ctx, 0, n_past, -1);
+                llama_memory_seq_rm(llama_get_memory(draft_ctx), 0, n_past, -1);
             }
         }
     }
@@ -4485,9 +4485,9 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
             //if we have somehow skipped ahead (e.g drafting), ensure that all tokens after npast are purged
             if (file_format == FileFormat::GGUF_GENERIC && draft_used)
             {
-                llama_kv_self_seq_rm(llama_ctx_v4, 0, n_past, -1);
+                llama_memory_seq_rm(llama_get_memory(llama_ctx_v4), 0, n_past, -1);
                 if (draft_ctx) {
-                    llama_kv_self_seq_rm(draft_ctx, 0, n_past, -1);
+                    llama_memory_seq_rm(llama_get_memory(draft_ctx), 0, n_past, -1);
                 }
             }
 
