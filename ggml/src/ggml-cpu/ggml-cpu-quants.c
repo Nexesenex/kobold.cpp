@@ -1424,277 +1424,6 @@ void quantize_row_q8_1(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, i
 // 2-6 bit quantization in super-blocks
 //
 
-//
-// ===================== Helper functions
-//
-static inline int nearest_int(float fval) {
-    assert(fabsf(fval) <= 4194303.f);
-    float val = fval + 12582912.f;
-    int i; memcpy(&i, &val, sizeof(int));
-    return (i & 0x007fffff) - 0x00400000;
-}
-
-static float make_qx_quants(int n, int nmax, const float * GGML_RESTRICT x, int8_t * GGML_RESTRICT L, int rmse_type,
-        const float * GGML_RESTRICT qw) {
-    float max = 0;
-    float amax = 0;
-    for (int i = 0; i < n; ++i) {
-        float ax = fabsf(x[i]);
-        if (ax > amax) { amax = ax; max = x[i]; }
-    }
-    if (amax < GROUP_MAX_EPS) { // all zero
-        for (int i = 0; i < n; ++i) {
-            L[i] = 0;
-        }
-        return 0.f;
-    }
-    float iscale = -nmax / max;
-    if (rmse_type == 0) {
-        for (int i = 0; i < n; ++i) {
-            int l = nearest_int(iscale * x[i]);
-            L[i] = nmax + MAX(-nmax, MIN(nmax-1, l));
-        }
-        return 1/iscale;
-    }
-    bool return_early = false;
-    if (rmse_type < 0) {
-        rmse_type = -rmse_type;
-        return_early = true;
-    }
-    float sumlx = 0;
-    float suml2 = 0;
-#ifdef HAVE_BUGGY_APPLE_LINKER
-    // use 'volatile' to prevent unroll and work around a bug in Apple ld64 1015.7
-    for (volatile int i = 0; i < n; ++i) {
-#else
-    for (int i = 0; i < n; ++i) {
-#endif
-        int l = nearest_int(iscale * x[i]);
-        l = MAX(-nmax, MIN(nmax-1, l));
-        L[i] = l + nmax;
-        float w = qw ? qw[i] : rmse_type == 1 ? x[i] * x[i] : rmse_type == 2 ? 1 : rmse_type == 3 ? fabsf(x[i]) : sqrtf(fabsf(x[i]));
-        sumlx += w*x[i]*l;
-        suml2 += w*l*l;
-    }
-    float scale = suml2 ? sumlx/suml2 : 0.0f;
-    if (return_early) return suml2 > 0 ? 0.5f*(scale + 1/iscale) : 1/iscale;
-    float best = scale * sumlx;
-    for (int is = -9; is <= 9; ++is) {
-        if (is == 0) {
-            continue;
-        }
-        iscale = -(nmax + 0.1f*is) / max;
-        sumlx = suml2 = 0;
-        for (int i = 0; i < n; ++i) {
-            int l = nearest_int(iscale * x[i]);
-            l = MAX(-nmax, MIN(nmax-1, l));
-            float w = qw ? qw[i] : rmse_type == 1 ? x[i] * x[i] : rmse_type == 2 ? 1 : rmse_type == 3 ? fabsf(x[i]) : sqrtf(fabsf(x[i]));
-            sumlx += w*x[i]*l;
-            suml2 += w*l*l;
-        }
-        if (suml2 > 0 && sumlx*sumlx > best*suml2) {
-            for (int i = 0; i < n; ++i) {
-                int l = nearest_int(iscale * x[i]);
-                L[i] = nmax + MAX(-nmax, MIN(nmax-1, l));
-            }
-            scale = sumlx/suml2; best = scale*sumlx;
-        }
-    }
-    return scale;
-}
-
-static float make_q3_quants(int n, int nmax, const float * GGML_RESTRICT x, int8_t * GGML_RESTRICT L, bool do_rmse) {
-    float max = 0;
-    float amax = 0;
-    for (int i = 0; i < n; ++i) {
-        float ax = fabsf(x[i]);
-        if (ax > amax) { amax = ax; max = x[i]; }
-    }
-    if (amax < GROUP_MAX_EPS) { // all zero
-        for (int i = 0; i < n; ++i) { L[i] = 0; }
-        return 0.f;
-    }
-    float iscale = -nmax / max;
-    if (do_rmse) {
-        float sumlx = 0;
-        float suml2 = 0;
-        for (int i = 0; i < n; ++i) {
-            int l = nearest_int(iscale * x[i]);
-            l = MAX(-nmax, MIN(nmax-1, l));
-            L[i] = l;
-            float w = x[i]*x[i];
-            sumlx += w*x[i]*l;
-            suml2 += w*l*l;
-        }
-        for (int itry = 0; itry < 5; ++itry) {
-            int n_changed = 0;
-            for (int i = 0; i < n; ++i) {
-                float w = x[i]*x[i];
-                float slx = sumlx - w*x[i]*L[i];
-                if (slx > 0) {
-                    float sl2 = suml2 - w*L[i]*L[i];
-                    int new_l = nearest_int(x[i] * sl2 / slx);
-                    new_l = MAX(-nmax, MIN(nmax-1, new_l));
-                    if (new_l != L[i]) {
-                        slx += w*x[i]*new_l;
-                        sl2 += w*new_l*new_l;
-                        if (sl2 > 0 && slx*slx*suml2 > sumlx*sumlx*sl2) {
-                            L[i] = new_l; sumlx = slx; suml2 = sl2;
-                            ++n_changed;
-                        }
-                    }
-                }
-            }
-            if (!n_changed) {
-                break;
-            }
-        }
-        for (int i = 0; i < n; ++i) {
-            L[i] += nmax;
-        }
-        return sumlx / suml2;
-    }
-    for (int i = 0; i < n; ++i) {
-        int l = nearest_int(iscale * x[i]);
-        l = MAX(-nmax, MIN(nmax-1, l));
-        L[i] = l + nmax;
-    }
-    return 1/iscale;
-}
-
-static float make_qkx1_quants(int n, int nmax, const float * GGML_RESTRICT x, uint8_t * GGML_RESTRICT L, float * GGML_RESTRICT the_min,
-        int ntry, float alpha) {
-    float min = x[0];
-    float max = x[0];
-    for (int i = 1; i < n; ++i) {
-        if (x[i] < min) min = x[i];
-        if (x[i] > max) max = x[i];
-    }
-    if (max == min) {
-        for (int i = 0; i < n; ++i) L[i] = 0;
-        *the_min = 0;
-        return 0.f;
-    }
-    if (min > 0) min = 0;
-    float iscale = nmax/(max - min);
-    float scale = 1/iscale;
-    for (int itry = 0; itry < ntry; ++itry) {
-        float sumlx = 0; int suml2 = 0;
-        bool did_change = false;
-        for (int i = 0; i < n; ++i) {
-            int l = nearest_int(iscale*(x[i] - min));
-            l = MAX(0, MIN(nmax, l));
-            if (l != L[i]) {
-                L[i] = l;
-                did_change = true;
-            }
-            sumlx += (x[i] - min)*l;
-            suml2 += l*l;
-        }
-        scale = sumlx/suml2;
-        float sum = 0;
-        for (int i = 0; i < n; ++i) {
-            sum += x[i] - scale*L[i];
-        }
-        min = alpha*min + (1 - alpha)*sum/n;
-        if (min > 0) min = 0;
-        iscale = 1/scale;
-        if (!did_change) break;
-    }
-    *the_min = -min;
-    return scale;
-}
-
-static float make_qkx2_quants(int n, int nmax, const float * GGML_RESTRICT x, const float * GGML_RESTRICT weights,
-        uint8_t * GGML_RESTRICT L, float * GGML_RESTRICT the_min, uint8_t * GGML_RESTRICT Laux,
-        float rmin, float rdelta, int nstep, bool use_mad) {
-    float min = x[0];
-    float max = x[0];
-    float sum_w = weights[0];
-    float sum_x = sum_w * x[0];
-#ifdef HAVE_BUGGY_APPLE_LINKER
-    // use 'volatile' to prevent unroll and work around a bug in Apple ld64 1015.7
-    for (volatile int i = 1; i < n; ++i) {
-#else
-    for (int i = 1; i < n; ++i) {
-#endif
-        if (x[i] < min) min = x[i];
-        if (x[i] > max) max = x[i];
-        float w = weights[i];
-        sum_w += w;
-        sum_x += w * x[i];
-    }
-    if (min > 0) min = 0;
-    if (max == min) {
-        for (int i = 0; i < n; ++i) L[i] = 0;
-        *the_min = -min;
-        return 0.f;
-    }
-    float iscale = nmax/(max - min);
-    float scale = 1/iscale;
-    float best_mad = 0;
-    for (int i = 0; i < n; ++i) {
-        int l = nearest_int(iscale*(x[i] - min));
-        L[i] = MAX(0, MIN(nmax, l));
-        float diff = scale * L[i] + min - x[i];
-        diff = use_mad ? fabsf(diff) : diff * diff;
-        float w = weights[i];
-        best_mad += w * diff;
-    }
-    if (nstep < 1) {
-        *the_min = -min;
-        return scale;
-    }
-    for (int is = 0; is <= nstep; ++is) {
-        iscale = (rmin + rdelta*is + nmax)/(max - min);
-        float sum_l = 0, sum_l2 = 0, sum_xl = 0;
-        for (int i = 0; i < n; ++i) {
-            int l = nearest_int(iscale*(x[i] - min));
-            l = MAX(0, MIN(nmax, l));
-            Laux[i] = l;
-            float w = weights[i];
-            sum_l += w*l;
-            sum_l2 += w*l*l;
-            sum_xl += w*l*x[i];
-        }
-        float D = sum_w * sum_l2 - sum_l * sum_l;
-        if (D > 0) {
-            float this_scale = (sum_w * sum_xl - sum_x * sum_l)/D;
-            float this_min   = (sum_l2 * sum_x - sum_l * sum_xl)/D;
-            if (this_min > 0) {
-                this_min = 0;
-                this_scale = sum_xl / sum_l2;
-            }
-            float mad = 0;
-            for (int i = 0; i < n; ++i) {
-                float diff = this_scale * Laux[i] + this_min - x[i];
-                diff = use_mad ? fabsf(diff) : diff * diff;
-                float w = weights[i];
-                mad += w * diff;
-            }
-            if (mad < best_mad) {
-                for (int i = 0; i < n; ++i) {
-                    L[i] = Laux[i];
-                }
-                best_mad = mad;
-                scale = this_scale;
-                min = this_min;
-            }
-        }
-    }
-    *the_min = -min;
-    return scale;
-}
-
-static inline void get_scale_min_k4(int j, const uint8_t * GGML_RESTRICT q, uint8_t * GGML_RESTRICT d, uint8_t * GGML_RESTRICT m) {
-    if (j < 4) {
-        *d = q[j] & 63; *m = q[j + 4] & 63;
-    } else {
-        *d = (q[j+4] & 0xF) | ((q[j-4] >> 6) << 4);
-        *m = (q[j+4] >>  4) | ((q[j-0] >> 6) << 4);
-    }
-}
-
 //========================- 2-bit (de)-quantization
 
 void quantize_row_q2_K(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, int64_t k) {
@@ -13435,8 +13164,10 @@ void ggml_vec_dot_iq4_nl_q8_0(int n, float * GGML_RESTRICT s, size_t bs, const v
 #elif defined __AVX__
     const __m128i values128 = _mm_loadu_si128((const __m128i*)kvalues_iq4nl);
     const __m128i m4b  = _mm_set1_epi8(0x0f);
+    const __m128i mone = _mm_set1_epi16(1);
 
-    __m256 accum = _mm256_setzero_ps();
+    __m256 accum1 = _mm256_setzero_ps();
+    __m256 accum2 = _mm256_setzero_ps();
     for (; ib + 1 < nb; ib += 2) {
         const __m128i q4bits_1 = _mm_loadu_si128((const __m128i *)x[ib + 0].qs);
         const __m128i q4bits_2 = _mm_loadu_si128((const __m128i *)x[ib + 1].qs);
@@ -13449,13 +13180,21 @@ void ggml_vec_dot_iq4_nl_q8_0(int n, float * GGML_RESTRICT s, size_t bs, const v
         const __m128i q4b_1_1 = _mm_shuffle_epi8(values128, _mm_and_si128(_mm_srli_epi16(q4bits_1, 4), m4b));
         const __m128i q4b_2_0 = _mm_shuffle_epi8(values128, _mm_and_si128(q4bits_2, m4b));
         const __m128i q4b_2_1 = _mm_shuffle_epi8(values128, _mm_and_si128(_mm_srli_epi16(q4bits_2, 4), m4b));
-
-        const __m256 p = mul_sum_i8_quad_float(q4b_1_0, q4b_1_1, q4b_2_0, q4b_2_1, q8b_1_0, q8b_1_1, q8b_2_0, q8b_2_1);
-        const __m256 deltas = quad_fp16_delta_float(x[ib].d, y[ib].d, x[ib + 1].d, y[ib + 1].d);
-        accum = _mm256_add_ps(_mm256_mul_ps(deltas, p), accum);
+        const __m128i p16_1_0 = mul_add_epi8_sse(q4b_1_0, q8b_1_0);
+        const __m128i p16_1_1 = mul_add_epi8_sse(q4b_1_1, q8b_1_1);
+        const __m128i p16_2_0 = mul_add_epi8_sse(q4b_2_0, q8b_2_0);
+        const __m128i p16_2_1 = mul_add_epi8_sse(q4b_2_1, q8b_2_1);
+        const __m128i p_1_0 = _mm_madd_epi16(p16_1_0, mone);
+        const __m128i p_1_1 = _mm_madd_epi16(p16_1_1, mone);
+        const __m128i p_2_0 = _mm_madd_epi16(p16_2_0, mone);
+        const __m128i p_2_1 = _mm_madd_epi16(p16_2_1, mone);
+        accum1 = _mm256_add_ps(_mm256_mul_ps(_mm256_set1_ps(GGML_FP16_TO_FP32(y[ib + 0].d)*GGML_FP16_TO_FP32(x[ib + 0].d)),
+                _mm256_cvtepi32_ps(MM256_SET_M128I(p_1_1, p_1_0))), accum1);
+        accum2 = _mm256_add_ps(_mm256_mul_ps(_mm256_set1_ps(GGML_FP16_TO_FP32(y[ib + 1].d)*GGML_FP16_TO_FP32(x[ib + 1].d)),
+                _mm256_cvtepi32_ps(MM256_SET_M128I(p_2_1, p_2_0))), accum2);
     }
 
-    sumf = hsum_float_8(accum);
+    sumf = hsum_float_8(_mm256_add_ps(accum1, accum2));
 
 #elif defined(__POWER9_VECTOR__)
     const vector signed char lowMask = vec_splats((signed char)0xF);
