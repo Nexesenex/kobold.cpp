@@ -233,6 +233,7 @@ struct server_task {
         slot_params defaults;
         defaults.sampling    = params_base.sampling;
         defaults.speculative = params_base.speculative;
+        defaults.n_keep      = params_base.n_keep;
 
         // enabling this will output extra debug information in the HTTP responses from the server
         params.verbose           = params_base.verbosity > 9;
@@ -2016,11 +2017,6 @@ struct server_context {
                 params_base.n_cache_reuse = 0;
                 SRV_WRN("%s\n", "cache_reuse is not supported by this context, it will be disabled");
             }
-
-            if (!params_base.speculative.model.path.empty()) {
-                SRV_ERR("%s\n", "err: speculative decode is not supported by this context");
-                return false;
-            }
         }
 
         return true;
@@ -2060,6 +2056,7 @@ struct server_context {
             SLT_INF(slot, "new slot n_ctx_slot = %d\n", slot.n_ctx);
 
             slot.params.sampling = params_base.sampling;
+            slot.params.n_keep = params_base.n_keep;
 
             slot.callback_on_release = [this](int) {
                 queue_tasks.pop_deferred_task();
@@ -3220,7 +3217,7 @@ struct server_context {
                                 }
 
                                 const auto n_swa = llama_model_n_swa(model);
-                                if (pos_min > slot.n_past - n_swa) {
+                                if (pos_min > std::max(0, slot.n_past - n_swa)) {
                                     SLT_WRN(slot, "n_past = %d, cache_tokens.size() = %d, seq_id = %d, pos_min = %d, n_swa = %d\n", slot.n_past, (int) slot.cache_tokens.size(), slot.id, pos_min, n_swa);
                                     SLT_WRN(slot, "forcing full prompt re-processing due to lack of cache data (likely due to SWA, see %s)\n",
                                             "https://github.com/ggml-org/llama.cpp/pull/13194#issuecomment-2868343055");
@@ -3556,15 +3553,15 @@ struct server_context {
                 const llama_tokens & cached_text_tokens = slot.cache_tokens.get_text_tokens();
                 llama_tokens draft = common_speculative_gen_draft(slot.spec, params_spec, cached_text_tokens, id);
 
-                // keep track of total number of tokens generated in the draft
-                slot.n_draft_total += draft.size();
-
                 // ignore small drafts
                 if (slot.params.speculative.n_min > (int) draft.size()) {
                     SLT_DBG(slot, "ignoring small draft: %d < %d\n", (int) draft.size(), slot.params.speculative.n_min);
 
                     continue;
                 }
+
+                // keep track of total number of drafted tokens tested
+                slot.n_draft_total += draft.size();
 
                 // construct the speculation batch
                 common_batch_clear(slot.batch_spec);
@@ -3584,7 +3581,7 @@ struct server_context {
                 slot.n_past    += ids.size();
                 slot.n_decoded += ids.size();
 
-                // update how many tokens out of draft was accepted
+                // update how many tokens out of those tested were accepted
                 slot.n_draft_accepted += ids.size() - 1;
 
                 slot.cache_tokens.push_back(id);
