@@ -157,47 +157,47 @@ if (GGML_CCACHE)
 endif()
 
 # Croco.Cpp with IK MM
-if (GGML_IQK_MUL_MAT)
-    set (GGML_SOURCES_IQK iqk/iqk_quantize.cpp)
-    set (GGML_HEADERS_IQK iqk/iqk_config.h)
-    message(STATUS "Using optimized iqk matrix multiplications")
-    add_compile_definitions(GGML_USE_IQK_MULMAT)
-    set(GGML_SOURCES_IQK_MM iqk/iqk_mul_mat.cpp
-                            iqk/iqk_flash_attn.cpp
-                            iqk/fa/iqk_fa_576_512.cpp
-                            iqk/fa/iqk_fa_192_128.cpp
-                            iqk/fa/iqk_fa_256_256.cpp
-                            iqk/fa/iqk_fa_128_128.cpp
-                            iqk/fa/iqk_fa_96_96.cpp
-                            iqk/fa/iqk_fa_64_64.cpp
-                            iqk/iqk_gemm_floats.cpp
-                            iqk/iqk_gemm_kquants.cpp
-                            iqk/iqk_gemm_ktquants.cpp
-                            iqk/iqk_gemm_iquants.cpp
-                            iqk/iqk_gemm_iqk_quants.cpp
-                            iqk/iqk_gemm_1bit.cpp
-                            iqk/iqk_gemm_legacy_quants.cpp)
-    set(GGML_HEADERS_IQK_MM iqk/iqk_mul_mat.h
-                            iqk/iqk_flash_impl.h
-                            iqk/fa/iqk_fa_templates.h
-                            iqk/iqk_gemm_floats.h
-                            iqk/iqk_gemm_kquants.h
-                            iqk/iqk_gemm_ktquants.h
-                            iqk/iqk_gemm_iquants.h
-                            iqk/iqk_gemm_iqk_quants.h
-                            iqk/iqk_gemm_1bit.h
-                            iqk/iqk_gemm_legacy_quants.h)
-    if (GGML_IQK_FLASH_ATTENTION)
-        message(STATUS "Enabling IQK Flash Attention kernels")
-        add_compile_definitions(GGML_IQK_FLASH_ATTENTION)
-        if (GGML_IQK_FA_ALL_QUANTS)
-            message(STATUS "Including all IQK FA kernels")
-            add_compile_definitions(GGML_IQK_FA_ALL_QUANTS)
-        endif()
-    else()
-        message(STATUS "Disabling IQK Flash Attention kernels")
-    endif()
-endif()
+# if (GGML_IQK_MUL_MAT)
+    # set (GGML_SOURCES_IQK iqk/iqk_quantize.cpp)
+    # set (GGML_HEADERS_IQK iqk/iqk_config.h)
+    # message(STATUS "Using optimized iqk matrix multiplications")
+    # add_compile_definitions(GGML_USE_IQK_MULMAT)
+    # set(GGML_SOURCES_IQK_MM iqk/iqk_mul_mat.cpp
+                            # iqk/iqk_flash_attn.cpp
+                            # iqk/fa/iqk_fa_576_512.cpp
+                            # iqk/fa/iqk_fa_192_128.cpp
+                            # iqk/fa/iqk_fa_256_256.cpp
+                            # iqk/fa/iqk_fa_128_128.cpp
+                            # iqk/fa/iqk_fa_96_96.cpp
+                            # iqk/fa/iqk_fa_64_64.cpp
+                            # iqk/iqk_gemm_floats.cpp
+                            # iqk/iqk_gemm_kquants.cpp
+                            # iqk/iqk_gemm_ktquants.cpp
+                            # iqk/iqk_gemm_iquants.cpp
+                            # iqk/iqk_gemm_iqk_quants.cpp
+                            # iqk/iqk_gemm_1bit.cpp
+                            # iqk/iqk_gemm_legacy_quants.cpp)
+    # set(GGML_HEADERS_IQK_MM iqk/iqk_mul_mat.h
+                            # iqk/iqk_flash_impl.h
+                            # iqk/fa/iqk_fa_templates.h
+                            # iqk/iqk_gemm_floats.h
+                            # iqk/iqk_gemm_kquants.h
+                            # iqk/iqk_gemm_ktquants.h
+                            # iqk/iqk_gemm_iquants.h
+                            # iqk/iqk_gemm_iqk_quants.h
+                            # iqk/iqk_gemm_1bit.h
+                            # iqk/iqk_gemm_legacy_quants.h)
+    # if (GGML_IQK_FLASH_ATTENTION)
+        # message(STATUS "Enabling IQK Flash Attention kernels")
+        # add_compile_definitions(GGML_IQK_FLASH_ATTENTION)
+        # if (GGML_IQK_FA_ALL_QUANTS)
+            # message(STATUS "Including all IQK FA kernels")
+            # add_compile_definitions(GGML_IQK_FA_ALL_QUANTS)
+        # endif()
+    # else()
+        # message(STATUS "Disabling IQK Flash Attention kernels")
+    # endif()
+# endif()
 
 if (LLAMA_CUBLAS)
     cmake_minimum_required(VERSION 3.17)
@@ -773,6 +773,43 @@ endif()
 #
 
 if (GGML_IQK_MUL_MAT)
+    set (GGML_SOURCES_IQK ggml/src/iqk/iqk_quantize.cpp)
+    set (GGML_HEADERS_IQK ggml/src/iqk/iqk_config.h)
+    set(GGML_SOURCES_IQK_MM ggml/src/iqk/iqk_mul_mat.cpp
+                            ggml/src/iqk/iqk_flash_attn.cpp
+                            ggml/src/iqk/fa/iqk_fa_576_512.cpp
+                            ggml/src/iqk/fa/iqk_fa_192_128.cpp
+                            ggml/src/iqk/fa/iqk_fa_256_256.cpp
+                            ggml/src/iqk/fa/iqk_fa_128_128.cpp
+                            ggml/src/iqk/fa/iqk_fa_96_96.cpp
+                            ggml/src/iqk/fa/iqk_fa_64_64.cpp
+                            ggml/src/iqk/iqk_gemm_floats.cpp
+                            ggml/src/iqk/iqk_gemm_kquants.cpp
+                            ggml/src/iqk/iqk_gemm_ktquants.cpp
+                            ggml/src/iqk/iqk_gemm_iquants.cpp
+                            ggml/src/ggml/src/iqk/iqk_gemm_iqk_quants.cpp
+                            ggml/src/iqk/iqk_gemm_1bit.cpp
+                            ggml/src/ggml/src/iqk/iqk_gemm_legacy_quants.cpp)
+    set(GGML_HEADERS_IQK_MM ggml/src/iqk/iqk_mul_mat.h
+                            ggml/src/iqk/iqk_flash_impl.h
+                            ggml/src/iqk/fa/iqk_fa_templates.h
+                            ggml/src/iqk/iqk_gemm_floats.h
+                            ggml/src/iqk/iqk_gemm_kquants.h
+                            ggml/src/iqk/iqk_gemm_ktquants.h
+                            ggml/src/iqk/iqk_gemm_iquants.h
+                            ggml/src/iqk/iqk_gemm_iqk_quants.h
+                            ggml/src/iqk/iqk_gemm_1bit.h
+                            ggml/src/iqk/iqk_gemm_legacy_quants.h)
+    if (GGML_IQK_FLASH_ATTENTION)
+        message(STATUS "Enabling IQK Flash Attention kernels")
+        add_compile_definitions(GGML_IQK_FLASH_ATTENTION)
+        if (GGML_IQK_FA_ALL_QUANTS)
+            message(STATUS "Including all IQK FA kernels")
+            add_compile_definitions(GGML_IQK_FA_ALL_QUANTS)
+        endif()
+    else()
+        message(STATUS "Disabling IQK Flash Attention kernels")
+    endif()
     add_library(ggml
 				ggml/src/ggml.c
                 ggml/src/iqk/iqk_quantize.cpp
@@ -839,11 +876,12 @@ if (GGML_IQK_MUL_MAT)
                 ggml/include/gguf.h
                 ggml/src/gguf.cpp
 				${GGML_SOURCES_CUDA})
-    target_include_directories(ggml PUBLIC . ./ggml/include ./ggml/src ./ggml/src/ggml-cpu ./include ./otherarch ./otherarch/tools ./vendor/stb ./vendor)
+    target_include_directories(ggml PUBLIC . ./ggml/include ./ggml/src ./ggml/src/ggml-cpu ./ggml/src/iqk ./include ./otherarch ./otherarch/tools ./vendor/stb ./vendor)
     target_compile_features(ggml PUBLIC c_std_11) # don't bump
     target_link_libraries(ggml PUBLIC Threads::Threads ${LLAMA_EXTRA_LIBS})
     set_target_properties(ggml PROPERTIES POSITION_INDEPENDENT_CODE ON)
     target_compile_options(ggml PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-use_fast_math -extended-lambda -allow-unsupported-compiler>)
+    message(STATUS "Using optimized iqk matrix multiplications")
     add_compile_definitions(GGML_USE_IQK_MULMAT)
 elseif (GGML_USE_LLAMA_CPP_MAINLINE)
 	# add_library(ggml
