@@ -59,7 +59,7 @@ dry_seq_break_max = 128
 KcppVersion = "1.93.2"
 showdebug = True
 kcpp_instance = None #global running instance
-global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_override_config_target":""}
+global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False}
 using_gui_launcher = False
 
 handle = None
@@ -3464,31 +3464,22 @@ Change Mode<br>
             resp = {"success": False}
             if global_memory and args.admin and args.admindir and os.path.exists(args.admindir) and self.check_header_password(args.adminpassword):
                 targetfile = ""
-                overrideconfig = ""
                 try:
                     tempbody = json.loads(body)
                     if isinstance(tempbody, dict):
                         targetfile = tempbody.get('filename', "")
-                        overrideconfig = tempbody.get('overrideconfig', "")
                 except Exception:
                     targetfile = ""
                 if targetfile and targetfile!="":
                     if targetfile=="unload_model": #special request to simply unload model
                         print("Admin: Received request to unload model")
                         global_memory["restart_target"] = "unload_model"
-                        global_memory["restart_override_config_target"] = ""
                         resp = {"success": True}
                     else:
                         dirpath = os.path.abspath(args.admindir)
                         targetfilepath = os.path.join(dirpath, targetfile)
                         opts = [f for f in os.listdir(dirpath) if (f.lower().endswith(".kcpps") or f.lower().endswith(".kcppt") or f.lower().endswith(".gguf")) and os.path.isfile(os.path.join(dirpath, f))]
                         if targetfile in opts and os.path.exists(targetfilepath):
-                            global_memory["restart_override_config_target"] = ""
-                            if targetfile.lower().endswith(".gguf") and overrideconfig:
-                                overrideconfigfilepath = os.path.join(dirpath, overrideconfig)
-                                if overrideconfig and overrideconfig in opts and os.path.exists(overrideconfigfilepath):
-                                    print(f"Admin: Override config set to {overrideconfig}")
-                                    global_memory["restart_override_config_target"] = overrideconfig
                             print(f"Admin: Received request to reload config to {targetfile}")
                             global_memory["restart_target"] = targetfile
                             resp = {"success": True}
@@ -4990,7 +4981,7 @@ def show_gui():
                 sdvaeitem2.grid()
                 sdvaeitem3.grid()
     makecheckbox(images_tab, "Use TAE SD (AutoFix Broken VAE)", sd_vaeauto_var, 32,command=toggletaesd,tooltiptxt="Replace VAE with TAESD. May fix bad VAE.")
-    makecheckbox(images_tab, "No VAE Tiling", sd_notile_var, 34,tooltiptxt="Disables VAE tiling, may not work for large images.")
+    makecheckbox(images_tab, "No VAE Tiling", sd_notile_var, 24,tooltiptxt="Disables VAE tiling, may not work for large images.")
 
     # audio tab
     audio_tab = tabcontent["Audio"]
@@ -6267,7 +6258,7 @@ def main(launch_args, default_args):
             input()
     else:  # manager command queue for admin mode
         with multiprocessing.Manager() as mp_manager:
-            global_memory = mp_manager.dict({"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_override_config_target":""})
+            global_memory = mp_manager.dict({"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False})
 
             if args.remotetunnel and not args.prompt and not args.benchmark and not args.cli:
                 setuptunnel(global_memory, True if args.sdmodel else False)
@@ -6284,7 +6275,6 @@ def main(launch_args, default_args):
             while True: # keep the manager alive
                 try:
                     restart_target = ""
-                    restart_override_config_target = ""
                     if not kcpp_instance or not kcpp_instance.is_alive():
                         if fault_recovery_mode:
                             #attempt to recover
@@ -6299,25 +6289,20 @@ def main(launch_args, default_args):
                             kcpp_instance.daemon = True
                             kcpp_instance.start()
                             global_memory["restart_target"] = ""
-                            global_memory["restart_override_config_target"] = ""
                             time.sleep(3)
                         else:
                             break # kill the program
                     if fault_recovery_mode and global_memory["load_complete"]:
                         fault_recovery_mode = False
                     restart_target = global_memory["restart_target"]
-                    restart_override_config_target = global_memory["restart_override_config_target"]
                     if restart_target!="":
-                        overridetxt = ("" if not restart_override_config_target else f" with override config {restart_override_config_target}")
-                        print(f"Reloading new model/config: {restart_target}{overridetxt}")
+                        print(f"Reloading new model/config: {restart_target}")
                         global_memory["restart_target"] = ""
-                        global_memory["restart_override_config_target"] = ""
                         time.sleep(0.5) #sleep for 0.5s then restart
                         if args.admin and args.admindir:
                             dirpath = os.path.abspath(args.admindir)
                             targetfilepath = os.path.join(dirpath, restart_target)
-                            targetfilepath2 = os.path.join(dirpath, restart_override_config_target)
-                            if (os.path.exists(targetfilepath) or restart_target=="unload_model") and (restart_override_config_target=="" or os.path.exists(targetfilepath2)):
+                            if os.path.exists(targetfilepath) or restart_target=="unload_model":
                                 print("Terminating old process...")
                                 global_memory["load_complete"] = False
                                 kcpp_instance.terminate()
@@ -6330,11 +6315,8 @@ def main(launch_args, default_args):
                                     args.model_param = None
                                     args.model = None
                                     args.nomodel = True
-                                elif targetfilepath.endswith(".gguf") and restart_override_config_target=="":
+                                elif targetfilepath.endswith(".gguf"):
                                     reload_from_new_args(vars(default_args))
-                                    args.model_param = targetfilepath
-                                elif targetfilepath.endswith(".gguf") and restart_override_config_target!="":
-                                    reload_new_config(targetfilepath2)
                                     args.model_param = targetfilepath
                                 else:
                                     reload_new_config(targetfilepath)
@@ -6342,7 +6324,6 @@ def main(launch_args, default_args):
                                 kcpp_instance.daemon = True
                                 kcpp_instance.start()
                                 global_memory["restart_target"] = ""
-                                global_memory["restart_override_config_target"] = ""
                                 time.sleep(3)
                     else:
                         time.sleep(0.2)
