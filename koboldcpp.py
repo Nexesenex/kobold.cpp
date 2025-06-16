@@ -467,19 +467,95 @@ def pick_existant_file(ntoption,nonntoption):
         return nonntoption
 
 lib_default = pick_existant_file("koboldcpp_default.dll","koboldcpp_default.so")
+lib_default_0 = pick_existant_file("koboldcpp_default_0.dll","koboldcpp_default_0.so")
+lib_default_1 = pick_existant_file("koboldcpp_default_1.dll","koboldcpp_default_1.so")
+# lib_default_2 = pick_existant_file("koboldcpp_default_2.dll","koboldcpp_default_2.so")
+# lib_default_3 = pick_existant_file("koboldcpp_default_3.dll","koboldcpp_default_3.so")
+# lib_default_4 = pick_existant_file("koboldcpp_default_4.dll","koboldcpp_default_4.so")
+# lib_default_5 = pick_existant_file("koboldcpp_default_5.dll","koboldcpp_default_5.so")
+# lib_default_6 = pick_existant_file("koboldcpp_default_6.dll","koboldcpp_default_6.so")
+# lib_default_7 = pick_existant_file("koboldcpp_default_7.dll","koboldcpp_default_7.so")
+# lib_default_8 = pick_existant_file("koboldcpp_default_8.dll","koboldcpp_default_8.so")
+lib_ikl_default = pick_existant_file("koboldcpp_ikl_default.dll","koboldcpp_ikl_default.so")
+lib_ikl_default_0 = pick_existant_file("koboldcpp_ikl_default_0.dll","koboldcpp_ikl_default_0.so")
+lib_ikl_default_1 = pick_existant_file("koboldcpp_ikl_default_1.dll","koboldcpp_ikl_default_1.so")
+# lib_ikl_default_2 = pick_existant_file("koboldcpp_ikl_default_2.dll","koboldcpp_ikl_default_2.so")
+# lib_ikl_default_3 = pick_existant_file("koboldcpp_ikl_default_3.dll","koboldcpp_ikl_default_3.so")
+# lib_ikl_default_4 = pick_existant_file("koboldcpp_ikl_default_4.dll","koboldcpp_ikl_default_4.so")
+# lib_ikl_default_5 = pick_existant_file("koboldcpp_ikl_default_5.dll","koboldcpp_ikl_default_5.so")
+# lib_ikl_default_6 = pick_existant_file("koboldcpp_ikl_default_6.dll","koboldcpp_ikl_default_6.so")
+# lib_ikl_default_7 = pick_existant_file("koboldcpp_ikl_default_7.dll","koboldcpp_ikl_default_7.so")
+# lib_ikl_default_8 = pick_existant_file("koboldcpp_ikl_default_8.dll","koboldcpp_ikl_default_8.so")
 lib_failsafe = pick_existant_file("koboldcpp_failsafe.dll","koboldcpp_failsafe.so")
 lib_noavx2 = pick_existant_file("koboldcpp_noavx2.dll","koboldcpp_noavx2.so")
 lib_clblast = pick_existant_file("koboldcpp_clblast.dll","koboldcpp_clblast.so")
 lib_clblast_noavx2 = pick_existant_file("koboldcpp_clblast_noavx2.dll","koboldcpp_clblast_noavx2.so")
 lib_clblast_failsafe = pick_existant_file("koboldcpp_clblast_failsafe.dll","koboldcpp_clblast_failsafe.so")
 lib_cublas = pick_existant_file("koboldcpp_cublas.dll","koboldcpp_cublas.so")
+lib_cublas_0 = pick_existant_file("koboldcpp_cublas_0.dll","koboldcpp_cublas_0.so")
+lib_cublas_1 = pick_existant_file("koboldcpp_cublas_1.dll","koboldcpp_cublas_1.so")
+# lib_cublas_2 = pick_existant_file("koboldcpp_cublas_2.dll","koboldcpp_cublas_2.so")
+# lib_cublas_3 = pick_existant_file("koboldcpp_cublas_3.dll","koboldcpp_cublas_3.so")
+# lib_cublas_4 = pick_existant_file("koboldcpp_cublas_4.dll","koboldcpp_cublas_4.so")
+# lib_cublas_5 = pick_existant_file("koboldcpp_cublas_5.dll","koboldcpp_cublas_5.so")
+# lib_cublas_6 = pick_existant_file("koboldcpp_cublas_6.dll","koboldcpp_cublas_6.so")
+# lib_cublas_7 = pick_existant_file("koboldcpp_cublas_7.dll","koboldcpp_cublas_7.so")
+# lib_cublas_8 = pick_existant_file("koboldcpp_cublas_8.dll","koboldcpp_cublas_8.so")
+lib_ikl_cublas = pick_existant_file("koboldcpp_ikl_cublas.dll","koboldcpp_ikl_cublas.so")
+lib_ikl_cublas_0 = pick_existant_file("koboldcpp_ikl_cublas_0.dll","koboldcpp_ikl_cublas_0.so")
+lib_ikl_cublas_1 = pick_existant_file("koboldcpp_ikl_cublas_1.dll","koboldcpp_ikl_cublas_1.so")
+# lib_ikl_cublas_2 = pick_existant_file("koboldcpp_ikl_cublas_2.dll","koboldcpp_ikl_cublas_2.so")
+# lib_ikl_cublas_3 = pick_existant_file("koboldcpp_ikl_cublas_3.dll","koboldcpp_ikl_cublas_3.so")
+# lib_ikl_cublas_4 = pick_existant_file("koboldcpp_ikl_cublas_4.dll","koboldcpp_ikl_cublas_4.so")
+# lib_ikl_cublas_5 = pick_existant_file("koboldcpp_ikl_cublas_5.dll","koboldcpp_ikl_cublas_5.so")
+# lib_ikl_cublas_6 = pick_existant_file("koboldcpp_ikl_cublas_6.dll","koboldcpp_ikl_cublas_6.so")
+# lib_ikl_cublas_7 = pick_existant_file("koboldcpp_ikl_cublas_7.dll","koboldcpp_ikl_cublas_7.so")
+# lib_ikl_cublas_8 = pick_existant_file("koboldcpp_ikl_cublas_8.dll","koboldcpp_ikl_cublas_8.so")
 lib_hipblas = pick_existant_file("koboldcpp_hipblas.dll","koboldcpp_hipblas.so")
 lib_vulkan = pick_existant_file("koboldcpp_vulkan.dll","koboldcpp_vulkan.so")
 lib_vulkan_noavx2 = pick_existant_file("koboldcpp_vulkan_noavx2.dll","koboldcpp_vulkan_noavx2.so")
 libname = ""
 lib_option_pairs = [
     (lib_default, "Use CPU"),
+    (lib_default_0, "Use CPU Testlib 0"),
+    (lib_default_1, "Use CPU Testlib 1"),
+    # (lib_default_2, "Use CPU Testlib 2"),
+    # (lib_default_3, "Use CPU Testlib 3"),
+    # (lib_default_4, "Use CPU Testlib 4"),
+    # (lib_default_5, "Use CPU Testlib 5"),
+    # (lib_default_6, "Use CPU Testlib 6"),
+    # (lib_default_7, "Use CPU Testlib 7"),
+    # (lib_default_8, "Use CPU Testlib 8"),
+    (lib_ikl_default, "Use IKL CPU"),
+    (lib_ikl_default_0, "Use IKL CPU Testlib 0"),
+    (lib_ikl_default_1, "Use IKL CPU Testlib 1"),
+    # (lib_ikl_default_2, "Use IKL CPU Testlib 2"),
+    # (lib_ikl_default_3, "Use IKL CPU Testlib 3"),
+    # (lib_ikl_default_4, "Use IKL CPU Testlib 4"),
+    # (lib_ikl_default_5, "Use IKL CPU Testlib 5"),
+    # (lib_ikl_default_6, "Use IKL CPU Testlib 6"),
+    # (lib_ikl_default_7, "Use IKL CPU Testlib 7"),
+    # (lib_ikl_default_8, "Use IKL CPU Testlib 8"),
     (lib_cublas, "Use CuBLAS"),
+    (lib_cublas_0, "Use CuBLAS Testlib 0"),
+    (lib_cublas_1, "Use CuBLAS Testlib 1"),
+    # (lib_cublas_2, "Use CuBLAS Testlib 2"),
+    # (lib_cublas_3, "Use CuBLAS Testlib 3"),
+    # (lib_cublas_4, "Use CuBLAS Testlib 4"),
+    # (lib_cublas_5, "Use CuBLAS Testlib 5"),
+    # (lib_cublas_6, "Use CuBLAS Testlib 6"),
+    # (lib_cublas_7, "Use CuBLAS Testlib 7"),
+    # (lib_cublas_8, "Use CuBLAS Testlib 8"),
+    (lib_ikl_cublas, "Use IKL CuBLAS"),
+    (lib_ikl_cublas_0, "Use IKL CuBLAS Testlib 0"),
+    (lib_ikl_cublas_1, "Use IKL CuBLAS Testlib 1"),
+    # (lib_ikl_cublas_2, "Use IKL CuBLAS Testlib 2"),
+    # (lib_ikl_cublas_3, "Use IKL CuBLAS Testlib 3"),
+    # (lib_ikl_cublas_4, "Use IKL CuBLAS Testlib 4"),
+    # (lib_ikl_cublas_5, "Use IKL CuBLAS Testlib 5"),
+    # (lib_ikl_cublas_6, "Use IKL CuBLAS Testlib 6"),
+    # (lib_ikl_cublas_7, "Use IKL CuBLAS Testlib 7"),
+    # (lib_ikl_cublas_8, "Use IKL CuBLAS Testlib 8"),
     (lib_hipblas, "Use hipBLAS (ROCm)"),
     (lib_vulkan, "Use Vulkan"),
     (lib_clblast, "Use CLBlast"),
@@ -488,16 +564,26 @@ lib_option_pairs = [
     (lib_clblast_noavx2, "Use CLBlast (Old CPU)"),
     (lib_clblast_failsafe, "Use CLBlast (Older CPU)"),
     (lib_failsafe, "Failsafe Mode (Older CPU)")]
-default_option, cublas_option, hipblas_option, vulkan_option, clblast_option, noavx2_option, vulkan_noavx2_option, clblast_noavx2_option, clblast_failsafe_option, failsafe_option = (opt if file_exists(lib) or (os.name == 'nt' and file_exists(opt + ".dll")) else None for lib, opt in lib_option_pairs)
+default_option, default_option_0, default_option_1, ikl_default_option, ikl_default_option_0, ikl_default_option_1, cublas_option, cublas_option_0, cublas_option_1, ikl_cublas_option, ikl_cublas_option_0, ikl_cublas_option_1, hipblas_option, vulkan_option, clblast_option, noavx2_option, vulkan_noavx2_option, clblast_noavx2_option, clblast_failsafe_option, failsafe_option = (opt if file_exists(lib) or (os.name == 'nt' and file_exists(opt + ".dll")) else None for lib, opt in lib_option_pairs)
 runopts = [opt for lib, opt in lib_option_pairs if file_exists(lib)]
 
 def init_library():
     global handle, args, libname
-    global lib_default,lib_failsafe,lib_noavx2,lib_clblast,lib_clblast_noavx2,lib_clblast_failsafe,lib_cublas,lib_hipblas,lib_vulkan,lib_vulkan_noavx2
+    global lib_default,lib_default_0,lib_default_1,lib_ikl_default,lib_ikl_default_0,lib_ikl_default_1,lib_failsafe,lib_noavx2,lib_clblast,lib_clblast_noavx2,lib_clblast_failsafe,lib_cublas,lib_cublas_0,lib_cublas_1,lib_ikl_cublas,lib_ikl_cublas_0,lib_ikl_cublas_1,lib_hipblas,lib_vulkan,lib_vulkan_noavx2
 
     libname = lib_default
 
-    if args.noavx2: #failsafe implies noavx2 always
+    if file_exists(lib_ikl_default):
+        libname = lib_ikl_default
+    elif file_exists(lib_ikl_default_0):
+        libname = lib_ikl_default_0
+    elif file_exists(lib_ikl_default_1):
+        libname = lib_ikl_default_1
+    elif file_exists(lib_default_0):
+        libname = lib_default_0
+    elif file_exists(lib_default_1):
+        libname = lib_default_1
+    elif args.noavx2: #failsafe implies noavx2 always
         if args.useclblast and (os.name!='nt' or file_exists("clblast.dll")):
             if file_exists(lib_clblast_noavx2) and not (args.failsafe):
                 libname = lib_clblast_noavx2
@@ -511,8 +597,18 @@ def init_library():
         elif file_exists(lib_noavx2):
             libname = lib_noavx2
     elif (args.usecublas is not None):
-        if file_exists(lib_cublas):
+        if file_exists(lib_ikl_cublas):
+            libname = lib_ikl_cublas
+        elif file_exists(lib_ikl_cublas_0):
+            libname = lib_ikl_cublas_0
+        elif file_exists(lib_ikl_cublas_1):
+            libname = lib_ikl_cublas_1
+        elif file_exists(lib_cublas):
             libname = lib_cublas
+        elif file_exists(lib_cublas_0):
+            libname = lib_cublas_0
+        elif file_exists(lib_cublas_1):
+            libname = lib_cublas_1
         elif file_exists(lib_hipblas):
             libname = lib_hipblas
     elif (args.usevulkan is not None):
