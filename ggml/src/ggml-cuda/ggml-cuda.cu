@@ -2481,6 +2481,9 @@ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct gg
         case GGML_OP_MUL:
             ggml_cuda_op_mul(ctx, dst);
             break;
+        case GGML_OP_FUSED_MUL_UNARY:
+            ggml_cuda_op_fused_mul_unary(ctx, dst);
+            break;
         case GGML_OP_DIV:
             ggml_cuda_op_div(ctx, dst);
             break;
@@ -3327,6 +3330,7 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
                     return false;
             }
             break;
+        case GGML_OP_FUSED_MUL_UNARY: return ggml_is_contiguous(op->src[0]);
         case GGML_OP_MUL_MAT:
         case GGML_OP_MUL_MAT_ID:
             {
