@@ -29,6 +29,7 @@ void ggml_compute_forward_dup(const struct ggml_compute_params * params, struct 
 // void ggml_compute_forward_dup_q8(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_add(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_add1(const struct ggml_compute_params * params, struct ggml_tensor * dst);
+void ggml_compute_forward_multi_add(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_acc(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_sum(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_sum_rows(const struct ggml_compute_params * params, struct ggml_tensor * dst);

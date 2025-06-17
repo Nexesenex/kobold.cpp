@@ -1686,6 +1686,59 @@ static void ggml_compute_forward_add1_bf16_bf16(
     }
 }
 
+static void ggml_compute_forward_multi_add_f32(
+        const struct ggml_compute_params * params,
+        struct ggml_tensor * dst) {
+
+    struct ggml_tensor * src = dst->src[0];
+
+    GGML_ASSERT(dst->nb[0] == sizeof(float));
+    GGML_ASSERT(src->nb[0] == sizeof(float));
+    GGML_ASSERT(ggml_are_same_shape(src, dst));
+    GGML_ASSERT(dst->ne[2] == 1 && dst->ne[3] == 1);
+
+    const int n_add = dst->op_params[0];
+    GGML_ASSERT(n_add > 0);
+
+    const int ith = params->ith;
+    const int nth = params->nth;
+
+    const int nr  = ggml_nrows(dst);
+
+    // rows per thread
+    const int dr = (nr + nth - 1)/nth;
+
+    // row range for this thread
+    const int ir0 = dr*ith;
+    const int ir1 = MIN(ir0 + dr, nr);
+
+    int64_t ne0 = dst->ne[0];
+
+    for (int i1 = ir0; i1 < ir1; ++i1) {
+
+        float * dst_ptr  = (float *) ((char *) dst->data + i1*dst->nb[1] );
+        const float * data = (const float *) ((const char *)src->data + i1*src->nb[1]);
+        memset(dst_ptr, 0, ne0*sizeof(float));
+        for (int j = 0; j < n_add; ++j) {
+            ggml_vec_add_f32(ne0, dst_ptr, dst_ptr, data + j*ne0);
+        }
+    }
+}
+
+void ggml_compute_forward_multi_add(
+        const struct ggml_compute_params * params,
+        struct ggml_tensor * dst) {
+
+    switch (dst->type) {
+        case GGML_TYPE_F32: {
+            ggml_compute_forward_multi_add_f32(params, dst);
+        } break;
+        default: {
+            GGML_ABORT("fatal error");
+        }
+    }
+}
+
 void ggml_compute_forward_add1(
         const ggml_compute_params * params,
         ggml_tensor * dst) {
