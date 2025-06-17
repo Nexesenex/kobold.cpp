@@ -1773,6 +1773,7 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
     "GROUP_NORM",
     "FUSED_RMS_NORM",
     "FUSED_MUL_UNARY",
+    "MULTI_ADD",
     "L2_NORM",
 
     "MUL_MAT",
@@ -1841,7 +1842,7 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
     "OPT_STEP_ADAMW",
 };
 
-static_assert(GGML_OP_COUNT == 87, "GGML_OP_COUNT != 87");
+static_assert(GGML_OP_COUNT == 88, "GGML_OP_COUNT != 88");
 
 static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "none",
@@ -1873,6 +1874,7 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "group_norm(x)",
     "fused_rms_norm(x)",
     "fused_mul_unary(x)",
+    "x1+x2+x3+...",
     "l2_norm(x)",
 
     "X*Y",
@@ -1941,7 +1943,7 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "adamw(x)",
 };
 
-static_assert(GGML_OP_COUNT == 87, "GGML_OP_COUNT != 87");
+static_assert(GGML_OP_COUNT == 88, "GGML_OP_COUNT != 88");
 
 static_assert(GGML_OP_POOL_COUNT == 2, "GGML_OP_POOL_COUNT != 2");
 
@@ -2800,6 +2802,28 @@ struct ggml_tensor * ggml_add_inplace(
         struct ggml_tensor  * a,
         struct ggml_tensor  * b) {
     return ggml_add_impl(ctx, a, b, true);
+}
+
+// ggml_add
+
+struct ggml_tensor * ggml_multi_add(
+        struct ggml_context * ctx,
+        struct ggml_tensor  * a,
+        int n_experts) {
+
+    bool is_node = false;
+
+    if (n_experts < 1) {
+        GGML_ABORT("fatal error");
+    }
+
+    struct ggml_tensor * result = ggml_dup_tensor(ctx, a);
+
+    result->op   = GGML_OP_MULTI_ADD;
+    result->src[0] = a;
+    result->op_params[0] = n_experts;
+
+    return result;
 }
 
 // ggml_add_cast
@@ -6555,6 +6579,9 @@ static void ggml_compute_backward(
                 ggml_add_or_set(ctx, cgraph, isrc1, ggml_mean(ctx, grad)); // TODO: should probably be sum instead of mean
             }
         } break;
+        // case GGML_OP_MULTI_ADD: {
+                // GGML_ABORT("fatal error"); // TODO: implement
+        // } break;
         case GGML_OP_ACC: {
             if (src0_needs_grads) {
                 ggml_add_or_set(ctx, cgraph, isrc0, grad);
