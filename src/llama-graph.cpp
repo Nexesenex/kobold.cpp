@@ -744,23 +744,33 @@ ggml_tensor * llm_graph_context::build_moe_ffn(
         cur = up;
     }
 
-    switch (type_op) {
-        case LLM_FFN_SILU:
-            {
-                cur = ggml_silu(ctx0, cur);
-                cb(cur, "ffn_moe_silu", il);
-            } break;
-        case LLM_FFN_GELU:
-            {
-                cur = ggml_gelu(ctx0, cur);
-                cb(cur, "ffn_moe_gelu", il);
-            } break;
-        default:
-            GGML_ABORT("fatal error");
-    }
+    // switch (type_op) {
+        // case LLM_FFN_SILU:
+            // {
+                // cur = ggml_silu(ctx0, cur);
+                // cb(cur, "ffn_moe_silu", il);
+            // } break;
+        // case LLM_FFN_GELU:
+            // {
+                // cur = ggml_gelu(ctx0, cur);
+                // cb(cur, "ffn_moe_gelu", il);
+            // } break;
+        // default:
+            // GGML_ABORT("fatal error");
+    // }
+
+    // ggml_tensor * par = ggml_mul(ctx0, up, cur); // [n_ff, n_expert_used, n_tokens]
+
+    // This is equivalent to the commented out code below
+
+    // ggml_tensor * parent = ggml_fused_mul_unary(ctx0, cur, up, type_op == LLM_FFN_SILU ? GGML_UNARY_OP_SILU : GGML_UNARY_OP_GELU);
+
+
+    // if (gate_exps) {
+        // cur = ggml_mul(ctx0, cur, up); // [n_ff, n_expert_used, n_tokens]
 
     if (gate_exps) {
-        cur = ggml_mul(ctx0, cur, up); // [n_ff, n_expert_used, n_tokens]
+        cur = ggml_fused_mul_unary(ctx0, cur, up, type_op == LLM_FFN_SILU ? GGML_UNARY_OP_SILU : GGML_UNARY_OP_GELU); // [n_ff, n_expert_used, n_tokens]
         cb(cur, "ffn_moe_gate_par", il);
     }
 
@@ -771,6 +781,11 @@ ggml_tensor * llm_graph_context::build_moe_ffn(
         experts = ggml_mul(ctx0, experts, weights);
         cb(cur, "ffn_moe_weighted", il);
     }
+
+    // if (!weight_before_ffn) {
+        // experts = ggml_fused_mul_unary(ctx0, experts, weights, type_op == LLM_FFN_SILU ? GGML_UNARY_OP_SILU : GGML_UNARY_OP_GELU);
+        // cb(cur, "ffn_moe_weighted", il);
+    // }
 
     // aggregate experts
     ggml_tensor * moe_out = nullptr;
