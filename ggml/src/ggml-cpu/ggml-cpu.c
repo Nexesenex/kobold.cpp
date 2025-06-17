@@ -389,11 +389,11 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_Q4_K] = {
         .from_float               = quantize_row_q4_K,
         .vec_dot                  = ggml_vec_dot_q4_K_q8_K,
-#ifdef __AVX2__
-        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
-#else
+// #ifdef __AVX2__
+        // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+// #else
         .vec_dot_type             = GGML_TYPE_Q8_K,
-#endif
+// #endif
 #if defined (__ARM_FEATURE_MATMUL_INT8)
         .nrows                    = 2,
 #else
@@ -409,11 +409,11 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_Q5_K] = {
         .from_float               = quantize_row_q5_K,
         .vec_dot                  = ggml_vec_dot_q5_K_q8_K,
-#ifdef __AVX2__
-        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
-#else
+// #ifdef __AVX2__
+        // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+// #else
         .vec_dot_type             = GGML_TYPE_Q8_K,
-#endif
+// #endif
         .nrows                    = 1,
     },
     [GGML_TYPE_Q5_K_R4] = {
@@ -459,7 +459,7 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
 // #ifdef __AVX2__
        // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
 // #else
-       // .vec_dot_type             = GGML_TYPE_Q8_K,
+       .vec_dot_type             = GGML_TYPE_Q8_K,
 // #endif
         .nrows                    = 1,
     },
@@ -563,7 +563,7 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_IQ2_BN] = {
         .from_float               = quantize_row_iq2_bn,
         .vec_dot                  = vec_dot_iq2_bn_q8_K64,
-        .vec_dot_type             = GGML_TYPE_IQ2_BN,
+        .vec_dot_type             = GGML_TYPE_Q8_K64,
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ2_BN_R4] = {
@@ -935,6 +935,15 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
 
 const struct ggml_type_traits_cpu * ggml_get_type_traits_cpu(enum ggml_type type) {
     return &type_traits_cpu[type];
+}
+
+static inline int ggml_packed_rows(enum ggml_type type) {
+    return type == GGML_TYPE_BF16_R16 ? 16
+         : type == GGML_TYPE_Q8_K_R8 || type == GGML_TYPE_Q8_KV_R8 ||
+           type == GGML_TYPE_Q8_0_R8 || type == GGML_TYPE_Q4_0_R8 ||
+           type == GGML_TYPE_IQ4_XS_R8 ? 8
+           : type >= GGML_TYPE_Q4_0_R8 && type <= GGML_TYPE_Q8_K_R8 ? 4
+         : 1;
 }
 
 //

@@ -1485,7 +1485,7 @@ void quantize_row_q8_K(const float * GGML_RESTRICT x, void * GGML_RESTRICT y, in
 #else
     quantize_row_q8_K_ref(x, y, k);
 #endif
-#ifdef __wasm_simd128__
+/* #ifdef __wasm_simd128__
     assert(k % QK_K == 0);
     const int64_t nb = k / QK_K;
     block_q8_K * GGML_RESTRICT yc = y; // Cast to proper type
@@ -1565,7 +1565,7 @@ void quantize_row_q8_K(const float * GGML_RESTRICT x, void * GGML_RESTRICT y, in
     }
 #else
     quantize_row_q8_K_ref(x, y, k);
-#endif
+#endif */
 }
 
 //===================================== Dot products =================================
