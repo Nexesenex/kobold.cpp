@@ -8399,6 +8399,60 @@ static void ggml_compute_forward_flash_attn_ext_f16(
         scale /= logit_softcap;
     }
 
+#ifdef GGML_USE_IQK_MULMAT
+    if (iqk_flash_attn_noalibi(q->type, mask->type, max_bias,
+                q->ne[3], q->ne[2], q->nb[3], q->nb[2],
+                k->ne[3], k->ne[2], k->nb[3], k->nb[2],
+                v->ne[3], v->ne[2], v->nb[3], v->nb[2],
+                dst->ne[2], dst->ne[1], dst->nb[1],
+                k->type, v->type,
+                DK, DV, neq1, nek1, q->nb[1], k->nb[1], v->nb[1], mask->nb[1],
+                q->data, k->data, v->data, mask->data,
+                scale, logit_softcap, (float *)dst->data,
+                params->wdata, (barrier_t)ggml_barrier, (void *)params->threadpool, ith, nth)) return;
+
+//    if (max_bias <= 0.0f && q->type == GGML_TYPE_F32 && mask && mask->type == GGML_TYPE_F16) {
+//        //if (ith == 0) printf("k: %ld x %ld x %ld, q: %ld x %ld x %ld, v: %ld x %ld x %ld mask: %ld x %ld x %ld\n",
+//        //        k->ne[0], k->ne[1], k->ne[2], q->ne[0], q->ne[1], q->ne[2], v->ne[0], v->ne[1], v->ne[2], mask->ne[0], mask->ne[1], mask->ne[2]);
+//        // I keep changing my mind what is the best strategy to split the threads when processing
+//        // multiple heads. This is my current thinking, the commented out code below was the previous.
+//        int ntg = nth/simple_gcd(neq2*neq3, nth);
+//        int64_t neq1g = (neq1 + ntg - 1)/ntg;
+//        //int64_t work_per_slice = D*nek1*neq1;
+//        //int ntg = 1;
+//        //
+//        // When neq1 is large, it is better to have more than one thread process one (iq2,iq3) matrix
+//        // But we also want each thread to process the same amount of rows, so neq1 must be a multiple of
+//        // the number of threads processing the (iq2, iq3) matrix.
+//        //
+//        //if (neq1 >= 8*nth) {
+//        //    if      (nth%8 == 0 && neq1%8 == 0 && work_per_slice >= (1 << 23)) ntg = 8;
+//        //    else if (nth%4 == 0 && neq1%4 == 0 && work_per_slice >= (1 << 21)) ntg = 4;
+//        //    else if (nth%2 == 0 && neq1%2 == 0 && work_per_slice >= (1 << 19)) ntg = 2;
+//        //}
+//        int counter = 0;
+//        for (int64_t iq3 = 0; iq3 < neq3; iq3++) {
+//            for (int64_t iq2 = 0; iq2 < neq2; iq2++) {
+//                if (counter++ % (nth/ntg) == ith/ntg) {
+//                    int iq1 = (ith%ntg)*neq1g;
+//                    int this_neq1 = MIN(neq1g, neq1-iq1);
+//                    if (!iqk_flash_attn_noalibi(k->type, v->type,
+//                            Dk, Dv, this_neq1, nek1, q->nb[1], k->nb[1], v->nb[1], mask->nb[1], ne1*nb1/sizeof(float),
+//                            (const float *)((const char *)q->data + iq2*q->nb[2] + iq3*q->nb[3] + iq1*q->nb[1]),
+//                            (const void  *)((const char *)k->data + iq2/rk2*k->nb[2] + iq3/rk3*k->nb[3]),
+//                            (const void  *)((const char *)v->data + iq2/rv2*v->nb[2] + iq3/rv3*v->nb[3]),
+//                            (const void  *)((const char *)mask->data + iq1*mask->nb[1]),
+//                            scale, softcap,
+//                            (float *)((char *) dst->data + (iq3*ne2*ne1 + iq2 + iq1*ne1)*nb1))) goto IQK_Flash_Attn_NotAvailable;
+//                }
+//            }
+//        }
+//        return;
+//IQK_Flash_Attn_NotAvailable:;
+//        printf("iqk_flash was rejected\n");
+//    }
+#endif
+
     const uint32_t n_head      = neq2;
     const uint32_t n_head_log2 = 1u << (uint32_t) floor(log2(n_head));
 
@@ -8410,8 +8464,10 @@ static void ggml_compute_forward_flash_attn_ext_f16(
     ggml_vec_dot_t    const kq_vec_dot     = ggml_get_type_traits_cpu(k->type)->vec_dot;
     ggml_to_float_t   const v_to_float     = ggml_get_type_traits(v->type)->to_float;
 
-    GGML_ASSERT((                            q_to_vec_dot) && "fattn: unsupported K-type");
-    GGML_ASSERT((v->type == GGML_TYPE_F32 || v_to_float  ) && "fattn: unsupported V-type");
+    // GGML_ASSERT((                            q_to_vec_dot) && "fattn: unsupported K-type");
+    // GGML_ASSERT((v->type == GGML_TYPE_F32 || v_to_float  ) && "fattn: unsupported V-type");
+
+    // const int64_t Dkv = MAX(Dk, Dv);
 
     // loop over n_batch and n_head
     for (int ir = ir0; ir < ir1; ++ir) {
