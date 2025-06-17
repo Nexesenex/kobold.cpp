@@ -816,8 +816,13 @@ ggml_tensor * llm_graph_context::build_moe_ffn(
             GGML_ABORT("fatal error");
     }
 
+    // This is equivalent to the commented out code below
+    // ggml_tensor * par = ggml_fused_mul_unary(ctx0, cur, up, type_op == LLM_FFN_SILU ? GGML_UNARY_OP_SILU : GGML_UNARY_OP_GELU);
+	
+    // ggml_tensor * par = ggml_mul(ctx0, up, cur); // [n_ff, n_expert_used, n_tokens]
+
     if (gate_exps) {
-        cur = ggml_mul(ctx0, cur, up); // [n_ff, n_expert_used, n_tokens]
+        cur = ggml_fused_mul_unary(ctx0, cur, up, type_op == LLM_FFN_SILU ? GGML_UNARY_OP_SILU : GGML_UNARY_OP_GELU); // [n_ff, n_expert_used, n_tokens]
         cb(cur, "ffn_moe_gate_par", il);
     }
 
