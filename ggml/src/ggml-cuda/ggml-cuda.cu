@@ -2471,6 +2471,9 @@ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct gg
                 case GGML_UNARY_OP_SILU:
                     ggml_cuda_op_silu(ctx, dst);
                     break;
+                case GGML_UNARY_OP_SWIGLU:
+                    ggml_cuda_op_swiglu(ctx, dst);
+                    break;
                 case GGML_UNARY_OP_GELU_ERF:
                     ggml_cuda_op_gelu_erf(ctx, dst);
                     break;
@@ -3261,6 +3264,7 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
                 case GGML_UNARY_OP_STEP:
                 case GGML_UNARY_OP_GELU:
                 case GGML_UNARY_OP_SILU:
+                case GGML_UNARY_OP_SWIGLU:
                 case GGML_UNARY_OP_RELU:
                 case GGML_UNARY_OP_SIGMOID:
                 case GGML_UNARY_OP_HARDSIGMOID:
