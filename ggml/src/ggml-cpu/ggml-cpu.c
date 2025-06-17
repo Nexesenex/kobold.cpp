@@ -2444,6 +2444,10 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
             {
                 ggml_compute_forward_add1(params, tensor);
             } break;
+        case GGML_OP_MULTI_ADD:
+            {
+                ggml_compute_forward_multi_add(params, tensor);
+            } break;
         case GGML_OP_ACC:
             {
                 ggml_compute_forward_acc(params, tensor);
@@ -2882,6 +2886,7 @@ static int ggml_get_n_tasks(struct ggml_tensor * node, int n_threads) {
         case GGML_OP_CONT:
         case GGML_OP_ADD:
         case GGML_OP_ADD1:
+        case GGML_OP_MULTI_ADD:
         case GGML_OP_ACC:
             {
                 n_tasks = n_threads;
