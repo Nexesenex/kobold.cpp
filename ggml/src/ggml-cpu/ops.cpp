@@ -8,6 +8,8 @@
 
 #include "ggml.h"
 
+#include "ggml-impl.h"
+
 #include "iqk/iqk_quantize.h"
 #if GGML_USE_IQK_MULMAT
 #include "iqk/iqk_mul_mat.h"
