@@ -4523,7 +4523,7 @@ Change Mode<br>
                     if targetfile=="unload_model": #special request to simply unload model
                         print("Admin: Received request to unload model")
                         global_memory["restart_target"] = "unload_model"
-                        global_memory["restart_override_config_target"] = ""
+                        global_memory["restart_model"] = ""
                         resp = {"success": True}
                     else:
                         dirpath = os.path.abspath(args.admindir)
@@ -7391,7 +7391,6 @@ def main(launch_args, default_args):
             while True: # keep the manager alive
                 try:
                     restart_target = ""
-                    restart_override_config_target = ""
                     if not kcpp_instance or not kcpp_instance.is_alive():
                         if fault_recovery_mode:
                             #attempt to recover
@@ -7406,7 +7405,6 @@ def main(launch_args, default_args):
                             kcpp_instance.daemon = True
                             kcpp_instance.start()
                             global_memory["restart_target"] = ""
-                            global_memory["restart_override_config_target"] = ""
                             time.sleep(3)
                         else:
                             break # kill the program
@@ -7421,13 +7419,11 @@ def main(launch_args, default_args):
                         else:
                             print(f"Reloading new model/config: {restart_target}")
                         global_memory["restart_target"] = ""
-                        global_memory["restart_override_config_target"] = ""
                         time.sleep(0.5) #sleep for 0.5s then restart
                         if args.admin and args.admindir:
                             dirpath = os.path.abspath(args.admindir)
                             targetfilepath = os.path.join(dirpath, restart_target)
-                            targetfilepath2 = os.path.join(dirpath, restart_override_config_target)
-                            if (os.path.exists(targetfilepath) or restart_target=="unload_model") and (restart_override_config_target=="" or os.path.exists(targetfilepath2)):
+                            if (os.path.exists(targetfilepath) or restart_target=="unload_model"):
                                 print("Terminating old process...")
                                 global_memory["load_complete"] = False
                                 kcpp_instance.terminate()
@@ -7435,19 +7431,6 @@ def main(launch_args, default_args):
                                 kcpp_instance = None
                                 print("Restarting KoboldCpp...")
                                 fault_recovery_mode = True
-                                if restart_target=="unload_model":
-                                    reload_from_new_args(vars(default_args))
-                                    args.model_param = None
-                                    args.model = None
-                                    args.nomodel = True
-                                elif targetfilepath.endswith(".gguf") and restart_override_config_target=="":
-                                    reload_from_new_args(vars(default_args))
-                                    args.model_param = targetfilepath
-                                elif targetfilepath.endswith(".gguf") and restart_override_config_target!="":
-                                    reload_new_config(targetfilepath2)
-                                    args.model_param = targetfilepath
-                                else:
-                                    reload_new_config(targetfilepath)
 
                                 args.currentConfig = targetfilepath
                                 global_memory["currentConfig"] = targetfilepath
