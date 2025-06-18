@@ -8,10 +8,6 @@
 #include "ggml-cpu-impl.h"
 #include "traits.h"
 
-#if defined(__APPLE__)
-#include "apple-fallback.h"
-#endif
-
 #include <cmath>
 #include <cstring>
 #include <cassert>
