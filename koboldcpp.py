@@ -8,10 +8,14 @@
 # editing tools, save formats, memory, world info, author's note, characters,
 # scenarios and everything Kobold and KoboldAI Lite have to offer.
 
+import os
+try:
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID" # try set GPU to PCI order first thing
+except Exception:
+    pass
 import copy
 import ctypes
 import multiprocessing
-import os
 import math
 import re
 import argparse
@@ -600,7 +604,7 @@ def set_backend_props(inputs):
         inputs.kcpp_main_gpu = args.maingpu
 
     if args.usecublas:
-         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+        os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     if not args.tensor_split:
         if (args.usecublas and "0" in args.usecublas):
             os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -1867,10 +1871,6 @@ def fetch_gpu_properties(testCL,testCU,testVK):
             MaxMemory[0] = max(lowestclmem,MaxMemory[0])
         except Exception:
             pass
-    if MaxMemory[0]>0:
-        print(f"Detected Free GPU Memory: {int(MaxMemory[0]/1024/1024)} MB (Set GPU layers manually if incorrect)")
-    else:
-        print("Unable to determine GPU Memory")
     return
 
 def auto_set_backend_cli():
@@ -2104,7 +2104,7 @@ def generate(genparams, stream_flag=False):
             print(f"\n!!! ====== !!!\n(Warning! Request max_context_length={max_context_length} exceeds allocated context size of {maxctx}. It will be reduced to fit. Consider launching with increased --contextsize to avoid issues. This message will only show once per session.)\n!!! ====== !!!")
             showmaxctxwarning = False
         max_context_length = maxctx
-    min_remain_hardlimit = max(min(max_context_length-4, 16),int(max_context_length*0.1))
+    min_remain_hardlimit = max(min(max_context_length-4, 16),int(max_context_length*0.2))
     min_remain_softlimit = max(min(max_context_length-4, 16),int(max_context_length*0.4))
     if max_length >= (max_context_length-min_remain_softlimit):
         print(f"\n!!! ====== !!!\nWarning: You are trying to generate text with max_length ({max_length}) near or exceeding max_context_length limit ({max_context_length}).\nMost of the context will be removed, and your outputs will not be very coherent.\nConsider launching with increased --contextsize to avoid issues.\n!!! ====== !!!")
@@ -8707,6 +8707,17 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
     if args.threads <= 0:
         args.threads = get_default_threads()
         print(f"Auto Set Threads: {args.threads}")
+
+    if MaxMemory[0]>0:
+        print(f"Detected Available GPU Memory: {int(MaxMemory[0]/1024/1024)} MB")
+    else:
+        print("Unable to determine GPU Memory")
+    try:
+        import psutil
+        vmem = psutil.virtual_memory()
+        print(f"Detected Available RAM: {int(vmem.available/1024/1024)} MB")
+    except Exception:
+        print("Unable to determine available RAM")
 
     init_library() # Note: if blas does not exist and is enabled, program will crash.
     print("==========")
