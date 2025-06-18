@@ -54,6 +54,12 @@
 #define GROUP_MAX_EPS_IQ1_M 1e-7f
 #define GROUP_MAX_EPS_IQ1_S 1e-12f
 
+#if defined(_MSC_VER)
+// disable "possible loss of data" to avoid warnings for hundreds of casts
+// we should just be careful :)
+#pragma warning(disable: 4244 4267)
+#endif
+
 #define UNUSED GGML_UNUSED
 
 // reference implementation for deterministic creation of model files
@@ -450,8 +456,6 @@ void dequantize_row_q6_0(const block_q6_0 * GGML_RESTRICT x, float * GGML_RESTRI
     }
 }
 
-// void dequantize_row_q8_0(const block_q8_0 * restrict x, float * restrict y, int64_t k) {
-
 void dequantize_row_q8_0(const block_q8_0 * GGML_RESTRICT x, float * GGML_RESTRICT y, int64_t k) {
     static const int qk = QK8_0;
 
@@ -814,6 +818,42 @@ void quantize_row_q2_K_ref(const float * GGML_RESTRICT x, block_q2_K * GGML_REST
 
     const float q4scale = 15.f;
 
+    // Detect TriNet
+    {
+        int n = k;
+        float max = 0;
+        for (int j = 0; j < n; ++j) {
+            float ax = fabsf(x[j]);
+            max = MAX(max, ax);
+        }
+        float mse0 = 0, mse = 0;
+        for (int j = 0; j < n; ++j) {
+            int l = x[j] < -0.5f*max ? -1 : x[j] < 0.5f*max ? 0 : 1;
+            mse0 += x[j]*x[j];
+            float diff = x[j] - max*l;
+            mse += diff*diff;
+        }
+        if (mse < 0.1f*mse0) {
+            // yes, most likely trinet
+            for (int ibl = 0; ibl < nb; ++ibl) {
+                y[ibl].d = GGML_FP32_TO_FP16(max);
+                y[ibl].dmin = GGML_FP32_TO_FP16(max);
+                for (int ib = 0; ib < QK_K/16; ++ib) y[ibl].scales[ib] = 1 | (1 << 4);
+                const float * xb = x + QK_K * ibl;
+                for (int j = 0; j < QK_K; ++j) {
+                    L[j] = xb[j] < -0.5f*max ? 0 : xb[j] < 0.5f*max ? 1 : 2;
+                }
+                uint8_t * qs = y[ibl].qs;
+                for (int j = 0; j < QK_K; j += 128) {
+                    for (int l = 0; l < 32; ++l) {
+                        qs[l] = L[j + l] | (L[j + l + 32] << 2) | (L[j + l + 64] << 4) | (L[j + l + 96] << 6);
+                    }
+                    qs += 32;
+                }
+            }
+            return;
+        }
+    }
     for (int i = 0; i < nb; i++) {
         float max_scale = 0; // as we are deducting the min, scales are always positive
         float max_min = 0;

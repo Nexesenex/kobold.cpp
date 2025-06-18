@@ -599,12 +599,6 @@ typedef struct {
 } block_iq1_m;
 static_assert(sizeof(block_iq1_m) == QK_K/8 + QK_K/16 + QK_K/32, "wrong iq1_m block size/padding");
 
-// Used by IQ1_M quants
-typedef union {
-    ggml_half f16;
-    uint16_t  u16;
-} iq1m_scale_t;
-
 // 1.75 bpw - blocks of 32 with 4 interleaved rows = 128 quants
 typedef struct {
     uint8_t  qs[16];     // grid index, low 8 bits
@@ -632,10 +626,10 @@ typedef struct {
 static_assert(sizeof(block_iq2_bn) == QK_IQ2BN/4, "wrong iq2_bn block size/padding");
 
 // Used by IQ1_M quants
-/* typedef union {
+typedef union {
     ggml_half f16;
     uint16_t  u16;
-} iq1m_scale_t; */
+} iq1m_scale_t;
 
 // Non-linear quants
 #define QK4_NL 32
@@ -716,6 +710,24 @@ typedef struct {
     uint8_t  qs[QK_K/4];
 } block_iq2_ks;
 static_assert(sizeof(block_iq2_ks) == sizeof(uint16_t) + QK_K/64 + QK_K/4, "wrong iq2_ks block size/padding");
+
+typedef struct {
+    uint8_t  scales[QK_K/64];
+    uint8_t  ql[QK_K/4];
+} block_iq2_kt;
+static_assert(sizeof(block_iq2_kt) == QK_K/4 + QK_K/64, "wrong iq2_kt block size/padding");
+
+typedef struct {
+    uint8_t  scales[QK_K/64];
+    uint8_t  ql[QK_K/4];
+    uint8_t  qh[QK_K/8];
+} block_iq3_kt;
+static_assert(sizeof(block_iq3_kt) == QK_K/4 + QK_K/8 + QK_K/64, "wrong iq3_kt block size/padding");
+
+typedef struct {
+    uint32_t qs[QK_K/8];
+} block_iq4_kt;
+static_assert(sizeof(block_iq4_kt) == QK_K/2, "wrong iq4_kt block size/padding");
 
 typedef struct {
     ggml_half d;
@@ -805,25 +817,6 @@ typedef struct {
 } block_iq5_ks_r4;
 static_assert(sizeof(block_iq5_ks_r4) == 4*sizeof(block_iq5_ks), "wrong iq5_ks_r4 block size/padding");
 
-// IQ_KT
-
-typedef struct {
-    uint8_t  scales[QK_K/64];
-    uint8_t  ql[QK_K/4];
-} block_iq2_kt;
-static_assert(sizeof(block_iq2_kt) == QK_K/4 + QK_K/64, "wrong iq2_kt block size/padding");
-
-typedef struct {
-    uint8_t  scales[QK_K/64];
-    uint8_t  ql[QK_K/4];
-    uint8_t  qh[QK_K/8];
-} block_iq3_kt;
-static_assert(sizeof(block_iq3_kt) == QK_K/4 + QK_K/8 + QK_K/64, "wrong iq3_kt block size/padding");
-
-typedef struct {
-    uint32_t qs[QK_K/8];
-} block_iq4_kt;
-static_assert(sizeof(block_iq4_kt) == QK_K/2, "wrong iq4_kt block size/padding");
 
 #endif // GGML_COMMON_DECL
 #endif // GGML_COMMON_DECL
@@ -2260,7 +2253,6 @@ GGML_TABLE_BEGIN(uint32_t, iq1s_grid_gpu, NGRID_IQ1S)
     0x22202022, 0x22202220, 0x22202222, 0x22212121, 0x22222020, 0x22222022, 0x22222220, 0x22222222,
 GGML_TABLE_END()
 #endif
-
 
 //IK
 GGML_TABLE_BEGIN(int8_t, iq2nl_values, 8)
