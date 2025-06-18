@@ -7360,6 +7360,15 @@ def main(launch_args, default_args):
         args.admin = False
         print("\nWARNING: Admin was set without selecting an admin directory. Admin cannot be used.\n")
 
+    # Check if admin exists, if not add a default to the directory to allow remote model loading without a config
+    if args.admin and args.admindir:
+        dirpath = os.path.abspath(args.admindir)
+        opts = [f for f in sorted(os.listdir(dirpath)) if (f.endswith(".kcpps") or f.endswith(".kcppt")) and os.path.isfile(os.path.join(dirpath, f))]
+        if len(opts) == 0:
+            with open(os.path.join(dirpath, "Default.kcpps"), "w") as f:
+                f.write("{}")
+            print("\nAdmin directory was empty, default file generated.\n")
+
     if not args.admin: #run in single process mode
         if args.remotetunnel and not args.prompt and not args.benchmark and not args.cli:
             setuptunnel(global_memory, True if args.sdmodel else False)
