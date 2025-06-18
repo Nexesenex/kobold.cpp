@@ -13660,6 +13660,50 @@ void ggml_vec_dot_iq4_xs_q8_K(int n, float * GGML_RESTRICT s, size_t bs, const v
 #endif
 }
 
+// ============================ IQ quants
+
+void quantize_row_iq1_s(const float * GGML_RESTRICT x, void * GGML_RESTRICT y, int64_t k) {
+    // assert(k % QK_K == 0);
+    // block_iq1_s * GGML_RESTRICT y = vy;
+    quantize_row_iq1_s_ref(x, (block_iq1_s *)y, k);
+}
+
+void quantize_row_iq1_m(const float * GGML_RESTRICT x, void * GGML_RESTRICT y, int64_t k) {
+    // assert(k % QK_K == 0);
+    // block_iq1_m * GGML_RESTRICT y = vy;
+    quantize_row_iq1_m_ref(x, (block_iq1_m *)y, k);
+}
+
+void quantize_row_iq2_xxs(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, int64_t k) {
+    assert(k % QK_K == 0);
+    block_iq2_xxs * GGML_RESTRICT y = vy;
+    quantize_row_iq2_xxs_ref(x, y, k);
+}
+
+void quantize_row_iq2_xs(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, int64_t k) {
+    assert(k % QK_K == 0);
+    block_iq2_xs * GGML_RESTRICT y = vy;
+    quantize_row_iq2_xs_ref(x, y, k);
+}
+
+void quantize_row_iq2_s(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, int64_t k) {
+    assert(k % QK_K == 0);
+    block_iq2_s * GGML_RESTRICT y = vy;
+    quantize_row_iq2_s_ref(x, y, k);
+}
+
+void quantize_row_iq3_xxs(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, int64_t k) {
+    assert(k % QK_K == 0);
+    block_iq3_xxs * GGML_RESTRICT y = vy;
+    quantize_row_iq3_xxs_ref(x, y, k);
+}
+
+void quantize_row_iq3_s(const float * GGML_RESTRICT x, void * GGML_RESTRICT vy, int64_t k) {
+    assert(k % QK_K == 0);
+    block_iq3_s * GGML_RESTRICT y = vy;
+    quantize_row_iq3_s_ref(x, y, k);
+}
+
 // ============================ 4-bit non-linear quants
 
 void quantize_row_iq4_nl(const float * GGML_RESTRICT x, void * GGML_RESTRICT y, int64_t k) {
