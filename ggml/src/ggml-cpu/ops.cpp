@@ -6,7 +6,24 @@
 #include "unary-ops.h"
 #include "vec.h"
 
+#include "ggml.h"
+
+#include "iqk/iqk_quantize.h"
+#if GGML_USE_IQK_MULMAT
+#include "iqk/iqk_mul_mat.h"
+#include "iqk/iqk_config.h"
+#endif
+
 #include <float.h>
+
+static inline int ggml_packed_rows(enum ggml_type type) {
+    return type == GGML_TYPE_BF16_R16 ? 16
+         : type == GGML_TYPE_Q8_K_R8 || type == GGML_TYPE_Q8_KV_R8 ||
+           type == GGML_TYPE_Q8_0_R8 || type == GGML_TYPE_Q4_0_R8 ||
+           type == GGML_TYPE_IQ4_XS_R8 ? 8
+           : type >= GGML_TYPE_Q4_0_R8 && type <= GGML_TYPE_Q8_K_R8 ? 4
+         : 1;
+}
 
 // ggml_compute_forward_dup
 
@@ -120,7 +137,7 @@ static void ggml_compute_forward_dup_f16(
                 float * src0_f32 = (float *) params->wdata + (ne00 + CACHE_LINE_SIZE_F32) * ith;
 
                 size_t id = 0;
-                size_t rs = nb0 * (ne00 / ggml_blck_size(dst->type));
+                size_t rs = ggml_row_size(dst->type, ne00); //nb0 * (ne00 / ggml_blck_size(dst->type));
                 char * dst_ptr = (char *) dst->data;
 
                 for (int i03 = 0; i03 < ne03; i03++) {
@@ -401,7 +418,7 @@ static void ggml_compute_forward_dup_bf16(
                 float * src0_f32 = (float *) params->wdata + (ne00 + CACHE_LINE_SIZE_F32) * ith;
 
                 size_t id = 0;
-                size_t rs = nb0 * (ne00 / ggml_blck_size(dst->type));
+                size_t rs = ggml_row_size(dst->type, ne00); //nb0 * (ne00 / ggml_blck_size(dst->type));
                 char * dst_ptr = (char *) dst->data;
 
                 for (int i03 = 0; i03 < ne03; i03++) {
@@ -668,9 +685,11 @@ static void ggml_compute_forward_dup_f32(
     const int nth = params->nth; // number of threads
 
     // parallelize by rows
+    int n_packed = ggml_packed_rows(dst->type);
+    GGML_ASSERT(dst->ne[1] % n_packed == 0);
     const int nr = ne01;
     // number of rows per thread
-    const int dr = (nr + nth - 1) / nth;
+    const int dr = n_packed*((nr/n_packed + nth - 1) / nth);
     // row range for this thread
     const int ir0 = dr * ith;
     const int ir1 = MIN(ir0 + dr, nr);
@@ -716,16 +735,16 @@ static void ggml_compute_forward_dup_f32(
                 ggml_from_float_t const quantize_row_q = ggml_get_type_traits_cpu(dst->type)->from_float;
 
                 size_t id = 0;
-                size_t rs = nb0 * (ne00 / ggml_blck_size(dst->type));
+                size_t rs = ggml_row_size(dst->type, ne00); //nb0 * (ne00 / ggml_blck_size(dst->type));
                 char * dst_ptr = (char *) dst->data;
 
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         id += rs * ir0;
-                        for (int i01 = ir0; i01 < ir1; i01++) {
+                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
                             const float * src0_ptr = (float *) ((char *) src0->data + i01*nb01 + i02*nb02 + i03*nb03);
-                            quantize_row_q(src0_ptr, dst_ptr + id, ne00);
-                            id += rs;
+                            quantize_row_q(src0_ptr, dst_ptr + id, ne00*n_packed);
+                            id += rs*n_packed;
                         }
                         id += rs * (ne01 - ir1);
                     }
@@ -989,8 +1008,12 @@ static void ggml_compute_forward_dup_bytes(
 
     // parallelize by rows
     const int nr = ne01;
+    const int n_packed = ggml_packed_rows(dst->type);
+    GGML_ASSERT(nr%n_packed == 0);
+    const int nrp = nr/n_packed;
     // number of rows per thread
-    const int dr = (nr + nth - 1) / nth;
+    const int drp = (nrp + nth - 1) / nth;
+    const int dr  = drp*n_packed;
     // row range for this thread
     const int ir0 = dr * ith;
     const int ir1 = MIN(ir0 + dr, nr);
@@ -999,7 +1022,7 @@ static void ggml_compute_forward_dup_bytes(
         ggml_are_same_shape(src0, dst) &&
         nb00 == type_size && nb0 == type_size) {
         // copy by rows
-        const size_t rs = ggml_row_size(src0->type, ne00);
+        const size_t rs = ggml_row_size(src0->type, ne00); //ne00 * type_size;
         for (int64_t i03 = 0; i03 < ne03; i03++) {
             for (int64_t i02 = 0; i02 < ne02; i02++) {
                 for (int64_t i01 = ir0; i01 < ir1; i01++) {
@@ -1016,7 +1039,7 @@ static void ggml_compute_forward_dup_bytes(
     if (ggml_is_contiguous(dst)) {
         size_t id = 0;
         char * dst_ptr = (char *) dst->data;
-        const size_t rs = ne00 * type_size;
+        const size_t rs = ggml_row_size(src0->type, ne00); //ne00 * type_size;
 
         if (nb00 == type_size) {
             // src0 is contigous on first dimension, copy by rows
@@ -1300,11 +1323,6 @@ void ggml_compute_forward_add(
         case GGML_TYPE_Q5_1:
         case GGML_TYPE_Q6_0:
         case GGML_TYPE_Q8_0:
-        case GGML_TYPE_Q8_KV:
-        case GGML_TYPE_Q8_1:
-        case GGML_TYPE_Q8_0_X4:
-        case GGML_TYPE_Q8_1_X4:
-        case GGML_TYPE_Q8_2_X4:
         case GGML_TYPE_Q2_K:
         case GGML_TYPE_Q2_K_R4:
         case GGML_TYPE_Q3_K:
@@ -5554,7 +5572,7 @@ static void ggml_compute_forward_soft_max_f32(
         ggml_vec_max_f32(nc, &max, wp);
 
         ggml_float sum = ggml_vec_soft_max_f32(nc, dp, wp, max);
-        assert(sum > 0.0);
+        // assert(sum > 0.0);
 
         sum = 1.0/sum;
         ggml_vec_scale_f32(nc, dp, sum);
