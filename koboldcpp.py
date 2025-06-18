@@ -8,10 +8,14 @@
 # editing tools, save formats, memory, world info, author's note, characters,
 # scenarios and everything Kobold and KoboldAI Lite have to offer.
 
+import os
+try:
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID" # try set GPU to PCI order first thing
+except Exception:
+    pass
 import copy
 import ctypes
 import multiprocessing
-import os
 import math
 import re
 import argparse
@@ -68,12 +72,12 @@ dry_seq_break_max = 256
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.93216"
-LcppVersion = "b5600"
-IKLQcppVersion = "IKLQpr518+NT24-0"
+KcppVersion = "1.94000"
+LcppVersion = "b5697"
+IKLcppVersion = "IKLpr534+NTv2"
 EsoboldVersion = "RMv1.12"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/06/13"
+ReleaseDate = "2025/06/18"
 # guimode = False
 kcpp_instance = None #global running instance
 global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None}
@@ -84,6 +88,7 @@ friendlymodelname = "inactive"
 friendlysdmodelname = "inactive"
 friendlyembeddingsmodelname = "inactive"
 lastgeneratedcomfyimg = b''
+lastuploadedcomfyimg = b''
 fullsdmodelpath = ""  #if empty, it's not initialized
 mmprojpath = "" #if empty, it's not initialized
 password = "" #if empty, no auth key required
@@ -599,7 +604,7 @@ def set_backend_props(inputs):
         inputs.kcpp_main_gpu = args.maingpu
 
     if args.usecublas:
-         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+        os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     if not args.tensor_split:
         if (args.usecublas and "0" in args.usecublas):
             os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -1066,7 +1071,7 @@ def read_gguf_metadata(file_path):
     except Exception:
         return None
 
-def extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath,draftmodelpath,ttsmodelpath):
+def extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath,draftmodelpath,ttsmodelpath,embdmodelpath):
     global modelfile_extracted_meta
     modelfile_extracted_meta = None
     sdfsize = 0
@@ -1074,6 +1079,7 @@ def extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath,
     mmprojsize = 0
     draftmodelsize = 0
     ttsmodelsize = 0
+    embdmodelsize = 0
     if sdfilepath and os.path.exists(sdfilepath):
         sdfsize = os.path.getsize(sdfilepath)
     if whisperfilepath and os.path.exists(whisperfilepath):
@@ -1084,12 +1090,14 @@ def extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath,
         draftmodelsize = os.path.getsize(draftmodelpath)
     if ttsmodelpath and os.path.exists(ttsmodelpath):
         ttsmodelsize = os.path.getsize(ttsmodelpath)
+    if embdmodelpath and os.path.exists(embdmodelpath):
+        embdmodelsize = os.path.getsize(embdmodelpath)
     if filepath and os.path.exists(filepath):
         try:
             fsize = os.path.getsize(filepath)
             if fsize>10000000: #dont bother with models < 10mb as they are probably bad
                 ggufmeta = read_gguf_metadata(filepath)
-                modelfile_extracted_meta = [filepath,ggufmeta,fsize,sdfsize,whisperfsize,mmprojsize,draftmodelsize,ttsmodelsize] #extract done. note that meta may be null
+                modelfile_extracted_meta = [filepath,ggufmeta,fsize,sdfsize,whisperfsize,mmprojsize,draftmodelsize,ttsmodelsize,embdmodelsize] #extract done. note that meta may be null
         except Exception:
             modelfile_extracted_meta = None
 
@@ -1451,6 +1459,10 @@ def autoset_gpu_layers(ctxsize, sdquanted, blasbatchsize, quantkv_var, flashatte
             if modelfile_extracted_meta[7] > 1024*1024*10: #tts model tax
                 mem -= max(600*1024*1024, modelfile_extracted_meta[7] * 3)
                 print(f"GPUs total VRAM available after TTS model tax: {int(mem/1024/1024)} MiB")
+                print("***")
+            if modelfile_extracted_meta[8] > 1024*1024*10: #embeddings model tax
+                mem -= max(350*1024*1024, modelfile_extracted_meta[8] * 1.5)
+                print(f"GPUs total VRAM available after Embeddings model tax: {int(mem/1024/1024)} MiB")
                 print("***")
 
             mem = 0 if mem < 0 else mem
@@ -1859,10 +1871,6 @@ def fetch_gpu_properties(testCL,testCU,testVK):
             MaxMemory[0] = max(lowestclmem,MaxMemory[0])
         except Exception:
             pass
-    if MaxMemory[0]>0:
-        print(f"Detected Free GPU Memory: {int(MaxMemory[0]/1024/1024)} MB (Set GPU layers manually if incorrect)")
-    else:
-        print("Unable to determine GPU Memory")
     return
 
 def auto_set_backend_cli():
@@ -2096,7 +2104,7 @@ def generate(genparams, stream_flag=False):
             print(f"\n!!! ====== !!!\n(Warning! Request max_context_length={max_context_length} exceeds allocated context size of {maxctx}. It will be reduced to fit. Consider launching with increased --contextsize to avoid issues. This message will only show once per session.)\n!!! ====== !!!")
             showmaxctxwarning = False
         max_context_length = maxctx
-    min_remain_hardlimit = max(min(max_context_length-4, 16),int(max_context_length*0.1))
+    min_remain_hardlimit = max(min(max_context_length-4, 16),int(max_context_length*0.2))
     min_remain_softlimit = max(min(max_context_length-4, 16),int(max_context_length*0.4))
     if max_length >= (max_context_length-min_remain_softlimit):
         print(f"\n!!! ====== !!!\nWarning: You are trying to generate text with max_length ({max_length}) near or exceeding max_context_length limit ({max_context_length}).\nMost of the context will be removed, and your outputs will not be very coherent.\nConsider launching with increased --contextsize to avoid issues.\n!!! ====== !!!")
@@ -2277,11 +2285,14 @@ def sd_comfyui_tranform_params(genparams):
 
                 pos = inp.get("positive",[]) #positive prompt node
                 neg = inp.get("negative",[]) #negative prompt node
-                imgsize = inp.get("latent_image",[]) #image size node
+                latentimg = inp.get("latent_image",[]) #image size node
 
-                if imgsize and isinstance(imgsize, list) and len(imgsize) > 0:
-                    temp = promptobj.get(str(imgsize[0]), {})
+                if latentimg and isinstance(latentimg, list) and len(latentimg) > 0:
+                    temp = promptobj.get(str(latentimg[0]), {}) #now, this may be a VAEEncode or EmptyLatentImage
+                    nodetype = temp.get("class_type", "") #if its a VAEEncode, it will have pixels
                     temp = temp.get('inputs', {})
+                    if nodetype=="VAEEncode" and lastuploadedcomfyimg!="": #img2img
+                        genparams["init_images"] = [lastuploadedcomfyimg]
                     genparams["width"] = temp.get("width", 512)
                     genparams["height"] = temp.get("height", 512)
                 if neg and isinstance(neg, list) and len(neg) > 0:
@@ -3047,7 +3058,7 @@ def embeddings_load_model(model_filename):
     global args
     inputs = embeddings_load_model_inputs()
     inputs.model_filename = model_filename.encode("UTF-8")
-    inputs.gpulayers = 0
+    inputs.gpulayers = (999 if args.embeddingsgpu else 0)
     inputs.flash_attention = False
     inputs.threads = args.threads
     inputs.use_mmap = args.usemmap
@@ -4015,7 +4026,7 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
             super().log_message(format, *args)
         pass
 
-    def extract_transcribe_from_file_upload(self, body):
+    def extract_formdata_from_file_upload(self, body):
         result = {"file": None, "prompt": None, "language": None}
         try:
             if 'content-type' in self.headers and self.headers['content-type']:
@@ -4024,6 +4035,7 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                     fparts = body.split(boundary)
                     for fpart in fparts:
                         detected_upload_filename = re.findall(r'Content-Disposition.*name="file"; filename="(.*)"', fpart.decode('utf-8',errors='ignore'))
+                        detected_upload_filename_comfy = re.findall(r'Content-Disposition.*name="image"; filename="(.*)"', fpart.decode('utf-8',errors='ignore'))
                         if detected_upload_filename and len(detected_upload_filename)>0:
                             utfprint(f"Detected uploaded file: {detected_upload_filename[0]}")
                             file_content_start = fpart.find(b'\r\n\r\n') + 4  # Position after headers
@@ -4033,6 +4045,16 @@ class KcppServerRequestHandler(http.server.SimpleHTTPRequestHandler):
                                     file_data = fpart[file_content_start:file_content_end]
                                     file_data_base64 = base64.b64encode(file_data).decode('utf-8',"ignore")
                                     base64_string = f"data:audio/wav;base64,{file_data_base64}"
+                                    result["file"] = base64_string
+                        elif detected_upload_filename_comfy and len(detected_upload_filename_comfy)>0:
+                            utfprint(f"Detected uploaded image: {detected_upload_filename_comfy[0]}")
+                            file_content_start = fpart.find(b'\r\n\r\n') + 4  # Position after headers
+                            file_content_end = fpart.rfind(b'\r\n')  # Ending boundary
+                            if file_content_start != -1 and file_content_end != -1:
+                                if "file" in result and result["file"] is None:
+                                    file_data = fpart[file_content_start:file_content_end]
+                                    file_data_base64 = base64.b64encode(file_data).decode('utf-8',"ignore")
+                                    base64_string = f"{file_data_base64}"
                                     result["file"] = base64_string
 
                         # Check for fields
@@ -4460,7 +4482,7 @@ Change Mode<br>
     def do_GET(self):
         global embedded_kailite, embedded_kcpp_docs, embedded_kcpp_sdui
         global last_req_time, start_time
-        global savedata_obj, has_multiplayer, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat, multiplayer_lastactive, maxctx, maxhordelen, friendlymodelname, lastgeneratedcomfyimg, KcppVersion, totalgens, preloaded_story, exitcounter, currentusergenkey, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, friendlyembeddingsmodelname
+        global savedata_obj, has_multiplayer, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat, multiplayer_lastactive, maxctx, maxhordelen, friendlymodelname, lastuploadedcomfyimg, lastgeneratedcomfyimg, KcppVersion, totalgens, preloaded_story, exitcounter, currentusergenkey, friendlysdmodelname, fullsdmodelpath, mmprojpath, password, friendlyembeddingsmodelname
         self.path = self.path.rstrip('/')
         response_body = None
         content_type = 'application/json'
@@ -4743,7 +4765,7 @@ Change Mode<br>
         return
 
     def do_POST(self):
-        global modelbusy, requestsinqueue, currentusergenkey, totalgens, pendingabortkey, lastgeneratedcomfyimg, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat, multiplayer_lastactive, net_save_slots
+        global modelbusy, requestsinqueue, currentusergenkey, totalgens, pendingabortkey, lastuploadedcomfyimg, lastgeneratedcomfyimg, multiplayer_turn_major, multiplayer_turn_minor, multiplayer_story_data_compressed, multiplayer_dataformat, multiplayer_lastactive, net_save_slots
         contlenstr = self.headers['content-length']
         content_length = 0
         body = None
@@ -5376,6 +5398,12 @@ Change Mode<br>
                     response_body = (json.dumps({"success": result}).encode())
                 else:
                     response_body = (json.dumps({"success": False}).encode())
+            elif self.path.startswith('/api/upload/image') or self.path.startswith("/upload/image"): #comfyui compatible
+                lastuploadedcomfyimg = b''
+                formdata = self.extract_formdata_from_file_upload(body)
+                if "file" in formdata and formdata["file"]:
+                    lastuploadedcomfyimg = formdata["file"]
+                response_body = (json.dumps({"name": "kcpp_img2img.jpg", "subfolder": "", "type": "input"}).encode())
             elif self.path.endswith('/request'):
                 api_format = 1
             elif self.path.endswith(('/api/v1/generate', '/api/latest/generate')):
@@ -5435,7 +5463,7 @@ Change Mode<br>
                 except Exception:
                     genparams = None
                     if is_transcribe: #fallback handling of file uploads
-                        formdata = self.extract_transcribe_from_file_upload(body)
+                        formdata = self.extract_formdata_from_file_upload(body)
                         if "file" in formdata and formdata["file"]:
                             b64wav = formdata["file"]
                             genparams = {"audio_data":b64wav}
@@ -6135,6 +6163,7 @@ def show_gui():
 
     embeddings_model_var = ctk.StringVar()
     embeddings_ctx_var = ctk.StringVar(value=str(""))
+    embeddings_gpu_var = ctk.IntVar(value=0)
 
     admin_var = ctk.IntVar(value=0)
     admin_dir_var = ctk.StringVar()
@@ -6443,7 +6472,8 @@ def show_gui():
             mmprojfilepath = mmproj_var.get()
             draftmodelpath = draftmodel_var.get()
             ttsmodelpath = tts_model_var.get() if ttsgpu_var.get()==1 else ""
-            extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath,draftmodelpath,ttsmodelpath)
+            embdmodelpath = embeddings_model_var.get() if embeddings_gpu_var.get()==1 else ""
+            extract_modelfile_params(filepath,sdfilepath,whisperfilepath,mmprojfilepath,draftmodelpath,ttsmodelpath,embdmodelpath)
             changed_gpulayers_estimate()
         pass
 
@@ -6810,7 +6840,9 @@ def show_gui():
     makelabelentry(model_tab, "Layers: ", draftgpulayers_var, 13, 50,padx=320,singleline=True,tooltip="How many layers to GPU offload for the draft model", labelpadx=270)
     makeslider(model_tab, "Quantize Draft KV Cache:", draft_quantkv_text, draft_quantkv_var, 0, 23, 30, set=-1,tooltip="Enable quantization of Draft KV cache (D_KVQ). Mode -1 (same as main) is default. Mode 0 (F16) is FA and non-FA both. Modes 1-12 requires FlashAttention and disables ContextShift.\nModes 15-22 work without FA, for incompatible models.")
     makefileentry(model_tab, "Embeds Model:", "Select Embeddings Model File", embeddings_model_var, 15, width=280,singlerow=True, filetypes=[("*.gguf","*.gguf")], tooltiptxt="Select an embeddings GGUF model that can be used to generate embedding vectors.")
-    makelabelentry(model_tab, "EmbdCtx: ", embeddings_ctx_var, 15, 50,padx=510,singleline=True,tooltip="If set above 0, limits max context for embedding model to save memory.", labelpadx=450)
+    makelabelentry(model_tab, "ECtx: ", embeddings_ctx_var, 15, 75,padx=510,singleline=True,tooltip="If set above 0, limits max context for embedding model to save memory.", labelpadx=450)
+    makecheckbox(model_tab, "GPU", embeddings_gpu_var, 15, 0,padx=590,tooltiptxt="Uses the GPU for TTS.")
+    embeddings_gpu_var.trace("w", gui_changed_modelfile)
     makefileentry(model_tab, "Preload Story:", "Select Preloaded Story File", preloadstory_var, 17,width=280,singlerow=True,tooltiptxt="Select an optional KoboldAI JSON savefile \nto be served on launch to any client.")
     makefileentry(model_tab, "SaveData File:", "Select or Create New SaveData Database File", savedatafile_var, 19,width=280,filetypes=[("KoboldCpp SaveDB", "*.jsondb")],singlerow=True,dialog_type=1,tooltiptxt="Selecting a file will allow data to be loaded and saved persistently to this KoboldCpp server remotely. File is created if it does not exist.")
     makefileentry(model_tab, "ChatCompletions Adapter:", "Select ChatCompletions Adapter File", chatcompletionsadapter_var, 24, width=250, filetypes=[("JSON Adapter", "*.json")], tooltiptxt="Select an optional ChatCompletions Adapter JSON file to force custom instruct tags.")
@@ -7207,6 +7239,7 @@ def show_gui():
 
         if embeddings_ctx_var.get() != "":
             args.embeddingsmaxctx = (0 if embeddings_ctx_var.get()=="" else int(embeddings_ctx_var.get()))
+        args.embeddingsgpu = (embeddings_gpu_var.get()==1)
 
         if tts_model_var.get() != "" and wavtokenizer_var.get() != "":
             args.ttsthreads = (0 if tts_threads_var.get()=="" else int(tts_threads_var.get()))
@@ -7429,6 +7462,7 @@ def show_gui():
 
         embeddings_model_var.set(dict["embeddingsmodel"] if ("embeddingsmodel" in dict and dict["embeddingsmodel"]) else "")
         embeddings_ctx_var.set(str(dict["embeddingsmaxctx"]) if ("embeddingsmaxctx" in dict and dict["embeddingsmaxctx"]) else "")
+        embeddings_gpu_var.set(dict["embeddingsgpu"] if ("embeddingsgpu" in dict) else 0)
 
         admin_var.set(dict["admin"] if ("admin" in dict) else 0)
         admin_dir_var.set(dict["admindir"] if ("admindir" in dict and dict["admindir"]) else "")
@@ -8174,7 +8208,7 @@ def main(launch_args, default_args):
 
     if not temp_hide_print:
        print(f"***\nWelcome to Croco.Cpp, fork of KoboldCpp - Version {KcppVersion}, including Esobold {EsoboldVersion}.") # just update version manually
-       print(f"***\nBased on LlamaCpp version {LcppVersion} and IK_Llama.cpp Quants version {IKLQcppVersion}") # just update LlamaCPP version manually
+       print(f"***\nBased on LlamaCpp version {LcppVersion} and IK_Llama.cpp version {IKLcppVersion}") # just update LlamaCPP version manually
        print(f"***\nRelease date: {ReleaseDate}") # just update date manually
        print(f"***\nCuda mode compiled, if any: {CudaSpecifics}") # just update Cuda options used in CMake manually
        print("***")    
@@ -8184,6 +8218,14 @@ def main(launch_args, default_args):
     if args.debugmode >= 1:
         print("Debug Mode is Enabled!")
         args.quiet = False # verbose outputs
+
+    # assign title to terminal on windows
+    try:
+        if os.name == 'nt':
+            windowtitle = f"KoboldCpp/Croco.Cpp {KcppVersion} Terminal"
+            os.system(f'title {windowtitle}')
+    except Exception:
+        pass
 
     try:
         delete_old_pyinstaller()  #perform some basic cleanup of old temporary directories
@@ -8651,7 +8693,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
                 pass
             if args.gpulayers==-1:
                 if MaxMemory[0] > 0 and (not args.usecpu) and ((args.usecublas is not None) or (args.usevulkan is not None) or (args.useclblast is not None) or sys.platform=="darwin"):
-                    extract_modelfile_params(args.model_param,args.sdmodel,args.whispermodel,args.mmproj,args.draftmodel,args.ttsmodel if args.ttsgpu else "")
+                    extract_modelfile_params(args.model_param,args.sdmodel,args.whispermodel,args.mmproj,args.draftmodel,args.ttsmodel if args.ttsgpu else "",args.embeddingsmodel if args.embeddingsgpu else "")
                     layeramt = autoset_gpu_layers(args.contextsize,args.sdquant,args.blasbatchsize, args.quantkv, args.flashattention, "mmq" in args.usecublas, "lowvram" in args.usecublas, args.poslayeroffset, args.neglayeroffset)
 
                     # layeramt = autoset_gpu_layers(args.contextsize,args.sdquant,args.blasbatchsize,(args.quantkv if args.flashattention else 0))
@@ -8665,6 +8707,17 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
     if args.threads <= 0:
         args.threads = get_default_threads()
         print(f"Auto Set Threads: {args.threads}")
+
+    if MaxMemory[0]>0:
+        print(f"Detected Available GPU Memory: {int(MaxMemory[0]/1024/1024)} MB")
+    else:
+        print("Unable to determine GPU Memory")
+    try:
+        import psutil
+        vmem = psutil.virtual_memory()
+        print(f"Detected Available RAM: {int(vmem.available/1024/1024)} MB")
+    except Exception:
+        print("Unable to determine available RAM")
 
     init_library() # Note: if blas does not exist and is enabled, program will crash.
     print("==========")
@@ -9051,7 +9104,17 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
             gpu15fvram = int(MaxFreeMemory[15]/1024/1024)
             gpuavram = gpu0avram + gpu1avram + gpu2avram + gpu3avram + gpu4avram + gpu5avram + gpu6avram + gpu7avram + gpu8avram + gpu9avram + gpu10avram + gpu11avram + gpu12avram + gpu13avram + gpu14avram + gpu15avram
             gpufvram = gpu0fvram + gpu1fvram + gpu2fvram + gpu3fvram + gpu4fvram + gpu5fvram + gpu6fvram + gpu7fvram + gpu8fvram + gpu9fvram + gpu10fvram + gpu11fvram + gpu12fvram + gpu13fvram + gpu14fvram + gpu15fvram
-            benchmaxctx = maxctx - 128
+            if maxctx > 16384 : benchmaxctx = maxctx - 412
+            elif maxctx > 32768 : benchmaxctx = maxctx - 924
+            elif maxctx > 65536 : benchmaxctx = maxctx - 1948
+            elif maxctx > 131072 : benchmaxctx = maxctx - 3996
+            elif maxctx > 262144 : benchmaxctx = maxctx - 8092
+            elif maxctx > 524288 : benchmaxctx = maxctx - 16284
+            elif maxctx > 1048576 : benchmaxctx = maxctx - 32668
+            elif maxctx > 2097152 : benchmaxctx = maxctx - 65436
+            elif maxctx > 4194304 : benchmaxctx = maxctx - 130972
+            elif maxctx > 8388608 : benchmaxctx = maxctx - 262044
+            else : benchmaxctx = maxctx - 156
             benchtg = args.promptlimit
             benchpp = (benchmaxctx - benchtg)
             benchtemp = 0.1
@@ -9102,10 +9165,9 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
                 s_gen = float(benchtg)/t_gen
                 datetimestamp = datetime.now(timezone.utc)
 
-                print(f"\nBench Completed - v{KcppVersion} ; LlamaCPP {LcppVersion}\nIf Cuda mode: {CudaSpecifics} ; Release date: {ReleaseDate}; Results:")
+                print(f"\nBenchmark Completed - Croco.Cpp v{KcppVersion} ; LlamaCPP {LcppVersion} ; IK_Llama.cpp {IKLcppVersion} ;\nIf Cuda mode: {CudaSpecifics} ; Release date: {ReleaseDate} ; Results:\n======")
 
                 benchflagstr = f"NoAVX2={args.noavx2} Threads={args.threads} HighPriority={args.highpriority} NoBlas={args.noblas} Cublas_Args={args.usecublas} Offloaded layers={args.gpulayers} Tensor_Split={args.tensor_split} BlasThreads={args.blasthreads} BlasBatchSize={args.blasbatchsize} FlashAttention={args.flashattention} KvCache={args.quantkv}"
-                print(f"\nBenchmark Completed - v{KcppVersion} Results:\n======")
                 print(f"Flags: {benchflagstr}")
                 print(f"Timestamp: {datetimestamp}")
                 print(f"Backend: {libname}")
@@ -9178,8 +9240,8 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
                             file.seek(0, 2)
                             if file.tell() == 0: #empty file
 
-                                file.write(f"Datime,KCPPF,Lcpp,IKLQcpp,Backend,CudaSpecifics,Model,NoAvx2,NoBlas,NoMmap,HighP,FlashA,Thrd,VRAM,FVRAM0,Layers,BlasThrd,BBSizeN,BBSizeU,KVC,PPNum,PPTime,PPSpeed,TGNum,TGTime,TGSpeed,BenchCtx,TotalTime,Coher,Tensor1,Split2,Cublas1,Argument2,Argument3,Argument4")
-                            file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{IKLQcppVersion},{libname},{CudaSpecifics},{benchmodel},{args.noavx2},{args.noblas},{args.nommap},{args.highpriority},{args.flashattention},{args.threads},{gpuavram},{gpu0fvram},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.blasubatchsize},{args.quantkv},{benchpp},{t_pp:.3f},{s_pp:.2f},{benchtg},{t_gen:.3f},{s_gen:.2f},{benchmaxctx},{(t_pp+t_gen):.3f},{resultok},{args.tensor_split},,{args.usecublas},,,")
+                                file.write(f"Datime,KCPPF,Lcpp,IKLcpp,Backend,CudaSpecifics,Model,NoAvx2,NoBlas,NoMmap,HighP,FlashA,Thrd,VRAM,FVRAM0,Layers,BlasThrd,BBSizeN,BBSizeU,KVC,PPNum,PPTime,PPSpeed,TGNum,TGTime,TGSpeed,BenchCtx,TotalTime,Coher,Tensor1,Split2,Cublas1,Argument2,Argument3,Argument4")
+                            file.write(f"\n{ReleaseDate},{KcppVersion},{LcppVersion},{IKLcppVersion},{libname},{CudaSpecifics},{benchmodel},{args.noavx2},{args.noblas},{args.nommap},{args.highpriority},{args.flashattention},{args.threads},{gpuavram},{gpu0fvram},{args.gpulayers},{args.blasthreads},{args.blasbatchsize},{args.blasubatchsize},{args.quantkv},{benchpp},{t_pp:.3f},{s_pp:.2f},{benchtg},{t_gen:.3f},{s_gen:.2f},{benchmaxctx},{(t_pp+t_gen):.3f},{resultok},{args.tensor_split},,{args.usecublas},,,")
 
                                 # file.write("Timestamp,Backend,Layers,Model,MaxCtx,GenAmount,ProcessingTime,ProcessingSpeed,GenerationTime,GenerationSpeed,TotalTime,Output,Flags")
                             # file.write(f"\n{datetimestamp},{libname},{args.gpulayers},{benchmodel},{benchmaxctx},{benchlen},{t_pp:.2f},{s_pp:.2f},{t_gen:.2f},{s_gen:.2f},{(t_pp+t_gen):.2f},{result},{benchflagstr}")
@@ -9217,7 +9279,7 @@ if __name__ == '__main__':
             return f
         return range_checker
 
-    parser = argparse.ArgumentParser(description=f'KoboldCpp/Croco.Cpp Server - Version {KcppVersion}-{LcppVersion}-{IKLQcppVersion}-{EsoboldVersion}')
+    parser = argparse.ArgumentParser(description=f'KoboldCpp/Croco.Cpp Server - Version {KcppVersion}-{LcppVersion}-{IKLcppVersion}-{EsoboldVersion}')
     modelgroup = parser.add_mutually_exclusive_group() #we want to be backwards compatible with the unnamed positional args
     modelgroup.add_argument("--model", metavar=('[filenames]'), help="Model file to load. Accepts multiple values if they are URLs.", type=str, nargs='+', default=[])
     modelgroup.add_argument("model_param", help="Model file to load (positional)", nargs="?")
@@ -9361,6 +9423,7 @@ if __name__ == '__main__':
     embeddingsparsergroup = parser.add_argument_group('Embeddings Model Commands')
     embeddingsparsergroup.add_argument("--embeddingsmodel", metavar=('[filename]'), help="Specify an embeddings model to be loaded for generating embedding vectors.", default="")
     embeddingsparsergroup.add_argument("--embeddingsmaxctx", metavar=('[amount]'), help="Overrides the default maximum supported context of an embeddings model (defaults to trained context).", type=int, default=0)
+    embeddingsparsergroup.add_argument("--embeddingsgpu", help="Attempts to offload layers of the embeddings model to GPU. Usually not needed.", action='store_true')
 
     admingroup = parser.add_argument_group('Administration Commands')
     admingroup.add_argument("--admin", help="Enables admin mode, allowing you to unload and reload different configurations or models.", action='store_true')
