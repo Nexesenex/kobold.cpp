@@ -522,10 +522,10 @@ void ContextRewind(std::vector<int> &embd, std::vector<int> &current_context_tok
 
     if (file_format == FileFormat::GGUF_GENERIC)
     {
-        llama_kv_self_seq_rm(llama_ctx_v4, 0, n_past, -1);
+        llama_memory_seq_rm(llama_get_memory(llama_ctx_v4), 0, n_past, -1);
         if(draft_ctx)
         {
-            llama_kv_self_seq_rm(draft_ctx, 0, n_past, -1);
+            llama_memory_seq_rm(llama_get_memory(draft_ctx), 0, n_past, -1);
         }
     }
 
@@ -1572,6 +1572,10 @@ void sample_grammar(FileFormat file_format, int32_t n_vocab, llama_token_data_ar
 
     std::vector<std::pair<std::vector<uint32_t>, llama_partial_utf8>> candidates_decoded;
     std::vector<llama_grammar_candidate>                              candidates_grammar;
+    std::vector<uint8_t> rejects;
+    candidates_decoded.reserve(candidates->size);
+    candidates_grammar.reserve(candidates->size);
+    rejects.assign(candidates->size, false);
 
     for (size_t i = 0; i < candidates->size; ++i) {
         const llama_token id    = candidates->data[i].id;
@@ -1579,21 +1583,25 @@ void sample_grammar(FileFormat file_format, int32_t n_vocab, llama_token_data_ar
         bool found_eog = std::find(eog_tokens.begin(), eog_tokens.end(), id) != eog_tokens.end();
         if (found_eog) {
             if (!allow_eos) {
-                candidates->data[i].logit = -INFINITY;
+                rejects[i] = true;
             }
         } else if (piece.empty() || piece[0] == 0) {
-            candidates->data[i].logit = -INFINITY;
+            rejects[i] = true;
         } else {
             candidates_decoded.push_back(decode_utf8(piece.c_str(), grammar->partial_utf8));
             candidates_grammar.push_back({ i, candidates_decoded.back().first.data(), candidates_decoded.back().second });
         }
     }
 
-    const auto rejects = llama_grammar_reject_candidates(grammar->rules, grammar->stacks, candidates_grammar);
-    for (const auto & reject : rejects) {
-        candidates->data[reject.index].logit = -INFINITY;
+    for (auto reject: llama_grammar_reject_candidates(grammar->rules, grammar->stacks, candidates_grammar)) {
+        rejects[reject.index] = true;
     }
-
+    
+    auto first = candidates->data;
+    auto last  = first + candidates->size;
+    last = std::remove_if(first, last,
+                        [&](const llama_token_data & tk){ return rejects[&tk - first]; }); // tk.logit == -INFINITY; });
+    candidates->size = last - first;
 }
 
 void sample_guidance(struct llama_context * ctx, struct llama_context * guidance_ctx, int n_vocab, float scale)
@@ -1643,15 +1651,24 @@ const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dyna
 
     llama_token_data_array candidates_p = { candidates.data(), candidates.size(), false };
 
-    if (grammar != nullptr) {
-        sample_grammar(file_format, n_vocab, &candidates_p, grammar);
-    }
-
     //dry always first as logits cannot be resorted
     sample_dry(n_ctx, dry_penalty_last_n, dry_multiplier, dry_base, dry_allowed_length, dry_sequence_breakers, &candidates_p);
 
     //prefilter to top 3k tokens for improved speed
+    bool use_grammar = grammar != nullptr;
+    std::vector<llama_token_data> precache = (use_grammar ? std::vector<llama_token_data>(candidates) : std::vector<llama_token_data>(0));
+
     sample_top_k(&candidates_p, 3000);
+
+    if (use_grammar) {
+        sample_grammar(file_format, n_vocab, &candidates_p, grammar);
+        // if top_k 3000 doesn't contain a valid candidate for this grammar, try again pre-cull
+        if (candidates_p.size <= 0) {
+            candidates_p = { precache.data(), precache.size(), false };
+            sample_grammar(file_format, n_vocab, &candidates_p, grammar);
+            sample_top_k(&candidates_p, 3000);
+        }
+    }
 
     if (mirostat == 1 || mirostat == 2)
     {
@@ -1745,7 +1762,6 @@ static void grammar_accept_token(FileFormat file_format, int32_t n_vocab, struct
     const auto   decoded     = decode_utf8(piece.c_str(), grammar->partial_utf8);
     const auto & code_points = decoded.first;
     for (auto it = code_points.begin(), end = code_points.end() - 1; it != end; ++it) {
-        auto prev_stacks = grammar->stacks;
         llama_grammar_accept(grammar, *it);
     }
     grammar->partial_utf8 = decoded.second;
@@ -1853,12 +1869,12 @@ void PurgeMissingTokens(llama_context * ctx, llama_context * draft_ctx, std::vec
 
             //extract the unwanted tokens out from context and KV
             int diff = found - trimstart;
-            llama_kv_self_seq_rm(ctx, 0, trimstart, trimstart + diff);
-            llama_kv_self_seq_add(ctx, 0, trimstart + diff, -1, -diff);
+            llama_memory_seq_rm(llama_get_memory(ctx), 0, trimstart, trimstart + diff);
+            llama_memory_seq_add(llama_get_memory(ctx), 0, trimstart + diff, -1, -diff);
             if(draft_ctx)
             {
-                llama_kv_self_seq_rm(draft_ctx, 0, trimstart, trimstart + diff);
-                llama_kv_self_seq_add(draft_ctx, 0, trimstart + diff, -1, -diff);
+                llama_memory_seq_rm(llama_get_memory(draft_ctx), 0, trimstart, trimstart + diff);
+                llama_memory_seq_add(llama_get_memory(draft_ctx), 0, trimstart + diff, -1, -diff);
             }
 
             for (size_t i = trimstart + diff; i < current_context_tokens.size() - 1; i++)
@@ -2020,16 +2036,16 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     //this is used for the mem_per_token eval, blas needs more RAM
     bool v3_use_scratch = ggml_v3_cpu_has_gpublas();
 
-    int cu_parseinfo_maindevice = inputs.cublas_info<=0?0:inputs.cublas_info;
+    int kcpp_parseinfo_maindevice = inputs.kcpp_main_gpu<=0?0:inputs.kcpp_main_gpu;
 
     printf("System Info: %s\n", kcpp_print_system_info());
     #if defined(GGML_USE_CUDA)
     if(file_format!=FileFormat::GGUF_GENERIC)
     {
-        if(ggml_v3_cpu_has_gpublas() && cu_parseinfo_maindevice>0)
+        if(ggml_v3_cpu_has_gpublas() && kcpp_parseinfo_maindevice>0)
         {
-            printf("CUBLAS v3: Set main device to %d\n",cu_parseinfo_maindevice);
-            ggml_v3_cuda_set_main_device(cu_parseinfo_maindevice);
+            printf("CUBLAS v3: Set main device to %d\n",kcpp_parseinfo_maindevice);
+            ggml_v3_cuda_set_main_device(kcpp_parseinfo_maindevice);
         }
     }
 
@@ -2092,7 +2108,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         llama_ctx_params.use_mmap = inputs.use_mmap;
         llama_ctx_params.use_mlock = inputs.use_mlock;
         llama_ctx_params.n_gpu_layers = inputs.gpulayers;
-        llama_ctx_params.main_gpu = cu_parseinfo_maindevice;
+        llama_ctx_params.main_gpu = kcpp_parseinfo_maindevice;
         llama_ctx_params.rope_freq_base = rope_freq_base;
         llama_ctx_params.rope_freq_scale = rope_freq_scale;
         llama_ctx_params.n_batch = kcpp_data->n_batch;
@@ -2178,9 +2194,9 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         }
         #endif
         #if defined(GGML_USE_CUDA)
-        if(cu_parseinfo_maindevice>0)
+        if(kcpp_parseinfo_maindevice>0)
         {
-            printf("CUDA: Set main device to %d\n",cu_parseinfo_maindevice);
+            printf("CUDA: Set main device to %d\n",kcpp_parseinfo_maindevice);
         }
         printf("CUDA MMQ: %s\n",(inputs.use_mmq?"True":"False"));
         ggml_cuda_set_mul_mat_q(inputs.use_mmq);
@@ -2194,7 +2210,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             printf("Qwen2VL detected! Mrope will be used, and context shift will be disabled!\n");
             kcpp_data->use_contextshift = false;
         }
-        model_params.main_gpu = cu_parseinfo_maindevice;
+        model_params.main_gpu = kcpp_parseinfo_maindevice;
 
         #if defined(GGML_USE_CUDA)
         model_params.split_mode = (inputs.use_rowsplit?llama_split_mode::LLAMA_SPLIT_MODE_ROW:llama_split_mode::LLAMA_SPLIT_MODE_LAYER);
@@ -2462,14 +2478,14 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         for (int i = 1; i <= 33; ++i) {
             tmp.push_back(i);
         }
-        llama_kv_self_clear(llama_ctx_v4);
+        llama_memory_clear(llama_get_memory(llama_ctx_v4),true);
         auto er = llama_decode(llama_ctx_v4, llama_batch_get_one(tmp.data(), tmp.size()));
         if(er!=0)
         {
             printf("\nModel Warmup Failed! (code:%d)\n",er);
         }
         tmp = {1};
-        llama_kv_self_clear(llama_ctx_v4);
+        llama_memory_clear(llama_get_memory(llama_ctx_v4),true);
         er = llama_decode(llama_ctx_v4, llama_batch_get_one(tmp.data(), tmp.size()));
         if(er!=0)
         {
@@ -3429,7 +3445,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     int guidance_n_past = 0;
     if(guidance_ctx)
     {
-        llama_kv_self_clear(guidance_ctx);
+        llama_memory_clear(llama_get_memory(guidance_ctx),true);
         //prepare negative prompt
         if(negative_prompt!="" && inputs.guidance_scale!=1.0f)
         {
@@ -3539,10 +3555,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         {
             if(n_past==0)
             {
-                llama_kv_self_clear(llama_ctx_v4);
+                llama_memory_clear(llama_get_memory(llama_ctx_v4),true);
                 if(draft_ctx)
                 {
-                    llama_kv_self_clear(draft_ctx);
+                    llama_memory_clear(llama_get_memory(draft_ctx),true);
                 }
             }
             else if(embd_inp.size()==0)
@@ -3569,10 +3585,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         }
         if(file_format == FileFormat::GGUF_GENERIC)
         {
-            llama_kv_self_seq_rm(llama_ctx_v4, 0, n_past, -1);
+            llama_memory_seq_rm(llama_get_memory(llama_ctx_v4), 0, n_past, -1);
             if(draft_ctx)
             {
-                llama_kv_self_seq_rm(draft_ctx, 0, n_past, -1);
+                llama_memory_seq_rm(llama_get_memory(draft_ctx), 0, n_past, -1);
             }
         }
     }
@@ -4117,9 +4133,9 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
             //if we have somehow skipped ahead (e.g drafting), ensure that all tokens after npast are purged
             if (file_format == FileFormat::GGUF_GENERIC && draft_used)
             {
-                llama_kv_self_seq_rm(llama_ctx_v4, 0, n_past, -1);
+                llama_memory_seq_rm(llama_get_memory(llama_ctx_v4), 0, n_past, -1);
                 if (draft_ctx) {
-                    llama_kv_self_seq_rm(draft_ctx, 0, n_past, -1);
+                    llama_memory_seq_rm(llama_get_memory(draft_ctx), 0, n_past, -1);
                 }
             }
 

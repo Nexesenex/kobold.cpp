@@ -1288,6 +1288,21 @@ struct PixArtCLIPEmbedder : public Conditioner {
         return {t5_tokens, t5_weights, t5_mask};
     }
 
+    void modify_mask_to_attend_padding(struct ggml_tensor* mask, int max_seq_length, int num_extra_padding = 8) {
+        float* mask_data = (float*)mask->data;
+        int num_pad      = 0;
+        for (int64_t i = 0; i < max_seq_length; i++) {
+            if (num_pad >= num_extra_padding) {
+                break;
+            }
+            if (std::isinf(mask_data[i])) {
+                mask_data[i] = 0;
+                ++num_pad;
+            }
+        }
+        // LOG_DEBUG("PAD: %d", num_pad);
+    }
+
     SDCondition get_learned_condition_common(ggml_context* work_ctx,
                                              int n_threads,
                                              std::tuple<std::vector<int>, std::vector<float>, std::vector<float>> token_and_weights,
@@ -1307,14 +1322,14 @@ struct PixArtCLIPEmbedder : public Conditioner {
 
         size_t chunk_count = t5_tokens.size() / chunk_len;
 
-        bool use_mask                     = true;
+        bool use_mask                     = false;
         const char* SD_CHROMA_USE_T5_MASK = getenv("SD_CHROMA_USE_T5_MASK");
         if (SD_CHROMA_USE_T5_MASK != nullptr) {
             std::string sd_chroma_use_t5_mask_str = SD_CHROMA_USE_T5_MASK;
-            if (sd_chroma_use_t5_mask_str == "OFF" || sd_chroma_use_t5_mask_str == "FALSE") {
-                use_mask = false;
-            } else if (sd_chroma_use_t5_mask_str != "ON" && sd_chroma_use_t5_mask_str != "TRUE") {
-                LOG_WARN("SD_CHROMA_USE_T5_MASK environment variable has unexpected value. Assuming default (\"ON\"). (Expected \"ON\"/\"TRUE\" or\"OFF\"/\"FALSE\", got \"%s\")", SD_CHROMA_USE_T5_MASK);
+            if (sd_chroma_use_t5_mask_str == "ON" || sd_chroma_use_t5_mask_str == "TRUE") {
+                use_mask = true;
+            } else if (sd_chroma_use_t5_mask_str != "OFF" && sd_chroma_use_t5_mask_str != "FALSE") {
+                LOG_WARN("SD_CHROMA_USE_T5_MASK environment variable has unexpected value. Assuming default (\"OFF\"). (Expected \"OFF\"/\"FALSE\" or\"ON\"/\"TRUE\", got \"%s\")", SD_CHROMA_USE_T5_MASK);
             }
         }
         for (int chunk_idx = 0; chunk_idx < chunk_count; chunk_idx++) {
@@ -1374,6 +1389,21 @@ struct PixArtCLIPEmbedder : public Conditioner {
             hidden_states = ggml_new_tensor_2d(work_ctx, GGML_TYPE_F32, 4096, 256);
             ggml_set_f32(hidden_states, 0.f);
         }
+
+        int mask_pad                            = 1;
+        const char* SD_CHROMA_MASK_PAD_OVERRIDE = getenv("SD_CHROMA_MASK_PAD_OVERRIDE");
+        if (SD_CHROMA_MASK_PAD_OVERRIDE != nullptr) {
+            std::string mask_pad_str = SD_CHROMA_MASK_PAD_OVERRIDE;
+            try {
+                mask_pad = std::stoi(mask_pad_str);
+            } catch (const std::invalid_argument&) {
+                LOG_WARN("SD_CHROMA_MASK_PAD_OVERRIDE environment variable is not a valid integer (%s). Falling back to default (%d)", SD_CHROMA_MASK_PAD_OVERRIDE, mask_pad);
+            } catch (const std::out_of_range&) {
+                LOG_WARN("SD_CHROMA_MASK_PAD_OVERRIDE environment variable value is out of range for `int` type (%s). Falling back to default (%d)", SD_CHROMA_MASK_PAD_OVERRIDE, mask_pad);
+            }
+        }
+        modify_mask_to_attend_padding(t5_attn_mask, ggml_nelements(t5_attn_mask), mask_pad);
+
         return SDCondition(hidden_states, t5_attn_mask, NULL);
     }
 

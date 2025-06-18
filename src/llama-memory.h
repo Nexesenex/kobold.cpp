@@ -73,8 +73,7 @@ struct llama_memory_i {
     virtual llama_memory_state_ptr init_batch(
             const llama_batch & batch,
             uint32_t n_ubatch,
-            bool embd_pooled,
-            bool logits_all) = 0;
+            bool embd_all) = 0;
 
     // simulate full cache, used for allocating worst-case compute buffers
     virtual llama_memory_state_ptr init_full() = 0;
@@ -90,7 +89,8 @@ struct llama_memory_i {
     // ops
     //
 
-    virtual void clear() = 0;
+    // if data == true, the data buffers will also be cleared together with the metadata
+    virtual void clear(bool data) = 0;
 
     virtual bool seq_rm  (llama_seq_id seq_id,                              llama_pos p0, llama_pos p1) = 0;
     virtual void seq_cp  (llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1) = 0;

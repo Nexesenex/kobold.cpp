@@ -211,9 +211,9 @@ typedef float2 dfloat2;
 #define FP16_MMA_AVAILABLE
 #endif // !(defined(GGML_USE_HIP) && defined(__HIP_PLATFORM_AMD__)) && __CUDA_ARCH__ >= GGML_CUDA_CC_VOLTA
 
-#if defined(GGML_HIP_ROCWMMA_FATTN) && (defined(CDNA) || defined(RDNA3) || defined(RDNA4))
+#if defined(GGML_HIP_ROCWMMA_FATTN) && (defined(CDNA) || defined(RDNA3) || (defined(GGML_HIP_ROCWMMA_FATTN_GFX12) && defined(RDNA4)))
 #define FP16_MMA_AVAILABLE
-#endif // defined(GGML_HIP_ROCWMMA_FATTN) && (defined(CDNA) || defined(RDNA3) || defined(RDNA4))
+#endif // defined(GGML_HIP_ROCWMMA_FATTN) && (defined(CDNA) || defined(RDNA3) || (defined(GGML_HIP_ROCWMMA_FATTN_GFX12) && defined(RDNA4)))
 
 #if !(defined(GGML_USE_HIP) && defined(__HIP_PLATFORM_AMD__)) && __CUDA_ARCH__ >= GGML_CUDA_CC_TURING
 #define NEW_MMA_AVAILABLE
@@ -266,11 +266,11 @@ static bool cp_async_available(const int cc) {
 }
 
 static constexpr __device__ int ggml_cuda_get_physical_warp_size() {
-#if defined(GGML_USE_HIP) && defined(__HIP_PLATFORM_AMD__)
-    return __AMDGCN_WAVEFRONT_SIZE;
+#if defined(GGML_USE_HIP) && defined(__HIP_PLATFORM_AMD__) && (defined(__GFX9__) || defined(__GFX8__))
+    return 64;
 #else
     return 32;
-#endif // defined(GGML_USE_HIP) && defined(__HIP_PLATFORM_AMD__)
+#endif // defined(GGML_USE_HIP) && defined(__HIP_PLATFORM_AMD__) && (defined(__GFX9__) || defined(__GFX8__))
 }
 
 [[noreturn]]
@@ -469,9 +469,6 @@ static __device__ __forceinline__ int ggml_cuda_dp4a(const int a, const int b, i
 
 #endif // defined(GGML_USE_HIP) && defined(__HIP_PLATFORM_AMD__)
 }
-
-// TODO: move to ggml-common.h
-static constexpr __device__ int8_t kvalues_iq4nl[16] = {-127, -104, -83, -65, -49, -35, -22, -10, 1, 13, 25, 38, 53, 69, 89, 113};
 
 typedef void (*dequantize_kernel_t)(const void * vx, const int64_t ib, const int iqs, dfloat2 & v);
 

@@ -3,11 +3,11 @@
 
 #include "ggml-backend-impl.h"
 #include "ggml-backend.h"
-#include "ggml-cpu-traits.h"
+#include "traits.h"
 #include "ggml-cpu-impl.h"
 #include "ggml-cpu.h"
 #include "ggml-impl.h"
-#include "ggml-cpu-quants.h"
+#include "quants.h"
 #include "ggml-threading.h"
 #include "unary-ops.h"
 #include "binary-ops.h"
@@ -561,6 +561,14 @@ void ggml_barrier(struct ggml_threadpool * tp) {
     atomic_thread_fence(memory_order_seq_cst);
     #endif
 #endif
+}
+
+void ggml_threadpool_chunk_set(struct ggml_threadpool * tp, int value) {
+    atomic_store_explicit(&tp->current_chunk, value, memory_order_relaxed);
+}
+
+int ggml_threadpool_chunk_add(struct ggml_threadpool * tp, int value) {
+    return atomic_fetch_add_explicit(&tp->current_chunk, value, memory_order_relaxed);
 }
 
 #if defined(__gnu_linux__) && !defined(__BIONIC__)

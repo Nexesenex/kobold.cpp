@@ -51,8 +51,8 @@ ifdef KCPP_DEBUG
 	CFLAGS = -g -O0
 	CXXFLAGS = -g -O0
 endif
-CFLAGS   += -I. -Iggml/include -Iggml/src -Iggml/src/ggml-cpu -Iinclude -Isrc -I./common -I./vendor -I./vendor/stb -I./include -I./include/CL -I./otherarch -I./otherarch/tools -I./otherarch/sdcpp -I./otherarch/sdcpp/thirdparty -I./include/vulkan -O3 -fno-finite-math-only -std=c11 -fPIC -DLOG_DISABLE_LOGS -D_GNU_SOURCE -DGGML_USE_CPU -DGGML_USE_CPU_AARCH64
-CXXFLAGS += -I. -Iggml/include -Iggml/src -Iggml/src/ggml-cpu -Iinclude -Isrc -I./common -I./vendor -I./vendor/stb -I./include -I./include/CL -I./otherarch -I./otherarch/tools -I./otherarch/sdcpp -I./otherarch/sdcpp/thirdparty -I./include/vulkan -O3 -fno-finite-math-only -std=c++17 -fPIC -DLOG_DISABLE_LOGS -D_GNU_SOURCE -DGGML_USE_CPU -DGGML_USE_CPU_AARCH64
+CFLAGS   += -I. -Iggml/include -Iggml/src -Iggml/src/ggml-cpu -Iinclude -Isrc -I./common -I./vendor -I./vendor/stb -I./include -I./include/CL -I./otherarch -I./otherarch/tools -I./otherarch/sdcpp -I./otherarch/sdcpp/thirdparty -I./include/vulkan -O3 -fno-finite-math-only -std=c11 -fPIC -DLOG_DISABLE_LOGS -D_GNU_SOURCE -DGGML_USE_CPU -DGGML_USE_CPU_REPACK
+CXXFLAGS += -I. -Iggml/include -Iggml/src -Iggml/src/ggml-cpu -Iinclude -Isrc -I./common -I./vendor -I./vendor/stb -I./include -I./include/CL -I./otherarch -I./otherarch/tools -I./otherarch/sdcpp -I./otherarch/sdcpp/thirdparty -I./include/vulkan -O3 -fno-finite-math-only -std=c++17 -fPIC -DLOG_DISABLE_LOGS -D_GNU_SOURCE -DGGML_USE_CPU -DGGML_USE_CPU_REPACK
 ifndef KCPP_DEBUG
 	CFLAGS += -DNDEBUG -s
 	CXXFLAGS += -DNDEBUG -s
@@ -90,10 +90,10 @@ endif
 CUBLASLD_FLAGS =
 CUBLAS_OBJS =
 
-OBJS_FULL += ggml-alloc.o ggml-cpu-traits.o ggml-quants.o ggml-cpu-quants.o ggml-cpu-aarch64.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o gguf.o sgemm.o common.o sampling.o kcpputils.o
-OBJS_SIMPLE += ggml-alloc.o ggml-cpu-traits.o ggml-quants_noavx2.o ggml-cpu-quants_noavx2.o ggml-cpu-aarch64_noavx2.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o gguf.o sgemm_noavx2.o common.o sampling.o kcpputils.o
-OBJS_SIMPLER += ggml-alloc.o ggml-cpu-traits.o ggml-quants_noavx1.o ggml-cpu-quants_noavx1.o ggml-cpu-aarch64_noavx1.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o gguf.o sgemm_noavx1.o common.o sampling.o kcpputils.o
-OBJS_FAILSAFE += ggml-alloc.o ggml-cpu-traits.o ggml-quants_failsafe.o ggml-cpu-quants_failsafe.o ggml-cpu-aarch64_failsafe.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o gguf.o sgemm_failsafe.o common.o sampling.o kcpputils.o
+OBJS_FULL += ggml-alloc.o ggml-cpu-traits.o ggml-quants.o ggml-cpu-quants.o kcpp-quantmapper.o ggml-repack.o kcpp-repackmapper.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o gguf.o sgemm.o common.o sampling.o kcpputils.o
+OBJS_SIMPLE += ggml-alloc.o ggml-cpu-traits.o ggml-quants_noavx2.o ggml-cpu-quants.o kcpp-quantmapper_noavx2.o ggml-repack.o kcpp-repackmapper_noavx2.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o gguf.o sgemm_noavx2.o common.o sampling.o kcpputils.o
+OBJS_SIMPLER += ggml-alloc.o ggml-cpu-traits.o ggml-quants_noavx1.o ggml-cpu-quants.o kcpp-quantmapper_noavx1.o ggml-repack.o kcpp-repackmapper_noavx1.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o gguf.o sgemm_noavx1.o common.o sampling.o kcpputils.o
+OBJS_FAILSAFE += ggml-alloc.o ggml-cpu-traits.o ggml-quants_failsafe.o ggml-cpu-quants.o kcpp-quantmapper_failsafe.o ggml-repack.o kcpp-repackmapper_failsafe.o unicode.o unicode-data.o ggml-threading.o ggml-cpu-cpp.o gguf.o sgemm_failsafe.o common.o sampling.o kcpputils.o
 
 # OS specific
 ifeq ($(UNAME_S),Linux)
@@ -244,7 +244,7 @@ ifdef LLAMA_HIPBLAS
 ifeq ($(wildcard /opt/rocm),)
 	ROCM_PATH   ?= /usr
 ifdef LLAMA_PORTABLE
-	GPU_TARGETS ?= gfx803 gfx900 gfx906 gfx908 gfx90a gfx942 gfx1010 gfx1030 gfx1031 gfx1032 gfx1100 gfx1101 gfx1102 gfx1200 gfx1201 $(shell $(shell which amdgpu-arch))
+	GPU_TARGETS ?= gfx803 gfx900 gfx906 gfx908 gfx90a gfx942 gfx1010 gfx1030 gfx1031 gfx1032 gfx1100 gfx1101 gfx1102 $(shell $(shell which amdgpu-arch))
 else
 	GPU_TARGETS ?= $(shell $(shell which amdgpu-arch))
 endif
@@ -252,7 +252,11 @@ endif
 	HCXX        := $(ROCM_PATH)/bin/hipcc
 else
 	ROCM_PATH   ?= /opt/rocm
-	GPU_TARGETS ?= gfx803 gfx900 gfx906 gfx908 gfx90a gfx942 gfx1010 gfx1030 gfx1031 gfx1032 gfx1100 gfx1101 gfx1102 gfx1200 gfx1201 $(shell $(ROCM_PATH)/llvm/bin/amdgpu-arch)
+ifdef LLAMA_PORTABLE
+	GPU_TARGETS ?= gfx803 gfx900 gfx906 gfx908 gfx90a gfx942 gfx1010 gfx1030 gfx1031 gfx1032 gfx1100 gfx1101 gfx1102 $(shell $(ROCM_PATH)/llvm/bin/amdgpu-arch)
+else
+	GPU_TARGETS ?= $(shell $(ROCM_PATH)/llvm/bin/amdgpu-arch)
+endif
 	HCC         := $(ROCM_PATH)/llvm/bin/clang
 	HCXX        := $(ROCM_PATH)/llvm/bin/clang++
 endif
@@ -262,6 +266,8 @@ else
 	DETECT_ROCWMMA := $(shell find -L /opt/rocm/include /usr/include -type f -name rocwmma.hpp 2>/dev/null | head -n 1)
 ifdef DETECT_ROCWMMA
 	HIPFLAGS   += -DGGML_HIP_ROCWMMA_FATTN -I$(dir $(DETECT_ROCWMMA))
+else
+	HIPFLAGS   += -DGGML_HIP_NO_ROCWMMA_FATTN
 endif
 endif
 
@@ -501,23 +507,29 @@ ggml-quants_noavx1.o: ggml/src/ggml-quants.c ggml/include/ggml.h ggml/src/ggml-q
 	$(CC)  $(CFLAGS) $(SIMPLERCFLAGS) -c $< -o $@
 ggml-quants_failsafe.o: ggml/src/ggml-quants.c ggml/include/ggml.h ggml/src/ggml-quants.h ggml/src/ggml-common.h
 	$(CC)  $(CFLAGS) $(NONECFLAGS) -c $< -o $@
-ggml-cpu-quants.o: ggml/src/ggml-cpu/ggml-cpu-quants.c ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-quants.h ggml/src/ggml-common.h
+
+#cpu quants
+ggml-cpu-quants.o: ggml/src/ggml-cpu/quants.c ggml/include/ggml.h ggml/src/ggml-cpu/quants.h ggml/src/ggml-common.h
+	$(CC)  $(CFLAGS) -c $< -o $@
+kcpp-quantmapper.o: ggml/src/ggml-cpu/kcpp-quantmapper.c
 	$(CC)  $(CFLAGS) $(FULLCFLAGS) -c $< -o $@
-ggml-cpu-quants_noavx2.o: ggml/src/ggml-cpu/ggml-cpu-quants.c ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-quants.h ggml/src/ggml-common.h
+kcpp-quantmapper_noavx2.o: ggml/src/ggml-cpu/kcpp-quantmapper.c
 	$(CC)  $(CFLAGS) $(SIMPLECFLAGS) -c $< -o $@
-ggml-cpu-quants_noavx1.o: ggml/src/ggml-cpu/ggml-cpu-quants.c ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-quants.h ggml/src/ggml-common.h
+kcpp-quantmapper_noavx1.o: ggml/src/ggml-cpu/kcpp-quantmapper.c
 	$(CC)  $(CFLAGS) $(SIMPLERCFLAGS) -c $< -o $@
-ggml-cpu-quants_failsafe.o: ggml/src/ggml-cpu/ggml-cpu-quants.c ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-quants.h ggml/src/ggml-common.h
+kcpp-quantmapper_failsafe.o: ggml/src/ggml-cpu/kcpp-quantmapper.c
 	$(CC)  $(CFLAGS) $(NONECFLAGS) -c $< -o $@
 
-#aarch64
-ggml-cpu-aarch64.o: ggml/src/ggml-cpu/ggml-cpu-aarch64.cpp ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-aarch64.h
+#aarch64 repack
+ggml-repack.o: ggml/src/ggml-cpu/repack.cpp ggml/include/ggml.h ggml/src/ggml-cpu/repack.h
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+kcpp-repackmapper.o: ggml/src/ggml-cpu/kcpp-repackmapper.cpp
 	$(CXX) $(CXXFLAGS) $(FULLCFLAGS) -c $< -o $@
-ggml-cpu-aarch64_noavx2.o: ggml/src/ggml-cpu/ggml-cpu-aarch64.cpp ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-aarch64.h
+kcpp-repackmapper_noavx2.o: ggml/src/ggml-cpu/kcpp-repackmapper.cpp
 	$(CXX) $(CXXFLAGS) $(SIMPLECFLAGS) -c $< -o $@
-ggml-cpu-aarch64_noavx1.o: ggml/src/ggml-cpu/ggml-cpu-aarch64.cpp ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-aarch64.h
+kcpp-repackmapper_noavx1.o: ggml/src/ggml-cpu/kcpp-repackmapper.cpp
 	$(CXX) $(CXXFLAGS) $(SIMPLERCFLAGS) -c $< -o $@
-ggml-cpu-aarch64_failsafe.o: ggml/src/ggml-cpu/ggml-cpu-aarch64.cpp ggml/include/ggml.h ggml/src/ggml-cpu/ggml-cpu-aarch64.h
+kcpp-repackmapper_failsafe.o: ggml/src/ggml-cpu/kcpp-repackmapper.cpp
 	$(CXX) $(CXXFLAGS) $(NONECFLAGS) -c $< -o $@
 
 #sgemm
@@ -539,7 +551,7 @@ unicode.o: src/unicode.cpp src/unicode.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 unicode-data.o: src/unicode-data.cpp src/unicode-data.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
-ggml-cpu-traits.o: ggml/src/ggml-cpu/ggml-cpu-traits.cpp ggml/src/ggml-cpu/ggml-cpu-traits.h ggml/include/ggml.h
+ggml-cpu-traits.o: ggml/src/ggml-cpu/traits.cpp ggml/src/ggml-cpu/traits.h ggml/include/ggml.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 ggml-threading.o: ggml/src/ggml-threading.cpp ggml/include/ggml.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -699,6 +711,8 @@ mtmd-cli: tools/mtmd/mtmd-cli.cpp tools/mtmd/mtmd.cpp common/arg.cpp build-info.
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 mainvk: tools/main/main.cpp common/arg.cpp build-info.h ggml_v4_vulkan.o ggml-cpu.o ggml-ops.o ggml-vec.o ggml-binops.o ggml-unops.o llama.o console.o llavaclip_vulkan.o llava.o ggml-backend_vulkan.o ggml-backend-reg_vulkan.o ggml-vulkan.o $(OBJS_FULL) $(OBJS) lib/vulkan-1.lib
 	$(CXX) $(CXXFLAGS) -DGGML_USE_VULKAN -DSD_USE_VULKAN $(filter-out %.h,$^) -o $@ $(LDFLAGS)
+embedding: examples/embedding/embedding.cpp common/arg.cpp build-info.h ggml.o ggml-cpu.o ggml-ops.o ggml-vec.o ggml-binops.o ggml-unops.o llama.o console.o llavaclip_default.o llava.o ggml-backend_default.o ggml-backend-reg_default.o $(OBJS_FULL) $(OBJS)
+	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 
 ggml/src/ggml-vulkan-shaders.cpp:
 ifdef VULKAN_BUILD

@@ -246,18 +246,21 @@ extern "C" {
 
     typedef bool (*llama_progress_callback)(float progress, void * user_data);
 
-    // Input data for llama_decode
+    // Input data for llama_encode/llama_decode
     // A llama_batch object can contain input about one or many sequences
     // The provided arrays (i.e. token, embd, pos, etc.) must have size of n_tokens
     //
     // - token  : the token ids of the input (used when embd is NULL)
     // - embd   : token embeddings (i.e. float vector of size n_embd) (used when token is NULL)
     // - pos    : the positions of the respective token in the sequence
-    //            (if set to NULL, the token position will be tracked automatically by llama_decode)
+    //            (if set to NULL, the token position will be tracked automatically by llama_encode/llama_decode)
     // - seq_id : the sequence to which the respective token belongs
     //            (if set to NULL, the sequence ID will be assumed to be 0)
     // - logits : if zero, the logits (and/or the embeddings) for the respective token will not be output
-    //            (if set to NULL, only the logits for last token will be returned)
+    //            (if set to NULL:
+    //               - if embeddings: all tokens are output
+    //               - if not:        only the last token is output
+    //            )
     //
     typedef struct llama_batch {
         int32_t n_tokens;
@@ -265,8 +268,8 @@ extern "C" {
         llama_token  *  token;
         float        *  embd;
         llama_pos    *  pos;
-        int32_t      *  n_seq_id; // TODO: remove, should belong to only 1 sequence
-        llama_seq_id ** seq_id;   // TODO: become llama_seq_id * seq_id;
+        int32_t      *  n_seq_id;
+        llama_seq_id ** seq_id;
         int8_t       *  logits;   // TODO: rename this to "output"
     } llama_batch;
 
@@ -628,7 +631,10 @@ extern "C" {
     //
 
     // Clear the memory contents
-    LLAMA_API void llama_memory_clear(llama_memory_t mem);
+    // If data == true, the data buffers will also be cleared together with the metadata
+    LLAMA_API void llama_memory_clear(
+            llama_memory_t mem,
+                      bool data);
 
     // Removes all tokens that belong to the specified sequence and have positions in [p0, p1)
     // Returns false if a partial sequence cannot be removed. Removing a whole sequence never fails
@@ -708,74 +714,82 @@ extern "C" {
                "Use llama_kv_self_seq_pos_max() and llama_kv_self_seq_pos_min() instead (https://github.com/ggml-org/llama.cpp/issues/13793)");
 
     // Clear the KV cache - both cell info is erased and KV data is zeroed
-    LLAMA_API void llama_kv_self_clear(
-                struct llama_context * ctx);
+    DEPRECATED(LLAMA_API void llama_kv_self_clear(
+                struct llama_context * ctx),
+            "Use llama_memory_clear() instead");
 
     // Removes all tokens that belong to the specified sequence and have positions in [p0, p1)
     // Returns false if a partial sequence cannot be removed. Removing a whole sequence never fails
     // seq_id < 0 : match any sequence
     // p0 < 0     : [0,  p1]
     // p1 < 0     : [p0, inf)
-    LLAMA_API bool llama_kv_self_seq_rm(
+    DEPRECATED(LLAMA_API bool llama_kv_self_seq_rm(
             struct llama_context * ctx,
                     llama_seq_id   seq_id,
                        llama_pos   p0,
-                       llama_pos   p1);
+                       llama_pos   p1),
+            "Use llama_memory_seq_rm() instead");
 
     // Copy all tokens that belong to the specified sequence to another sequence
     // Note that this does not allocate extra KV cache memory - it simply assigns the tokens to the new sequence
     // p0 < 0 : [0,  p1]
     // p1 < 0 : [p0, inf)
-    LLAMA_API void llama_kv_self_seq_cp(
+    DEPRECATED(LLAMA_API void llama_kv_self_seq_cp(
             struct llama_context * ctx,
                     llama_seq_id   seq_id_src,
                     llama_seq_id   seq_id_dst,
                        llama_pos   p0,
-                       llama_pos   p1);
+                       llama_pos   p1),
+            "Use llama_memory_seq_cp() instead");
 
     // Removes all tokens that do not belong to the specified sequence
-    LLAMA_API void llama_kv_self_seq_keep(
+    DEPRECATED(LLAMA_API void llama_kv_self_seq_keep(
             struct llama_context * ctx,
-                    llama_seq_id   seq_id);
+                    llama_seq_id   seq_id),
+            "Use llama_memory_seq_keep() instead");
 
     // Adds relative position "delta" to all tokens that belong to the specified sequence and have positions in [p0, p1)
     // If the KV cache is RoPEd, the KV data is updated accordingly:
     //   - lazily on next llama_decode()
     // p0 < 0 : [0,  p1]
     // p1 < 0 : [p0, inf)
-    LLAMA_API void llama_kv_self_seq_add(
+    DEPRECATED(LLAMA_API void llama_kv_self_seq_add(
             struct llama_context * ctx,
                     llama_seq_id   seq_id,
                        llama_pos   p0,
                        llama_pos   p1,
-                       llama_pos   delta);
+                       llama_pos   delta),
+            "Use llama_memory_seq_add() instead");
 
     // Integer division of the positions by factor of `d > 1`
     // If the KV cache is RoPEd, the KV data is updated accordingly:
     //   - lazily on next llama_decode()
     // p0 < 0 : [0,  p1]
     // p1 < 0 : [p0, inf)
-    LLAMA_API void llama_kv_self_seq_div(
+    DEPRECATED(void llama_kv_self_seq_div(
             struct llama_context * ctx,
                     llama_seq_id   seq_id,
                        llama_pos   p0,
                        llama_pos   p1,
-                             int   d);
+                             int   d),
+            "Use llama_memory_seq_div() instead");
 
     // Returns the smallest position present in the KV cache for the specified sequence
     // This is typically non-zero only for SWA caches
     // Note that all positions in the range [pos_min, pos_max] are guaranteed to be present in the KV cache
     // Return -1 if the sequence is empty
-    LLAMA_API llama_pos llama_kv_self_seq_pos_min(
+    DEPRECATED(LLAMA_API llama_pos llama_kv_self_seq_pos_min(
             struct llama_context * ctx,
-                    llama_seq_id   seq_id);
+                    llama_seq_id   seq_id),
+            "Use llama_memory_seq_pos_min() instead");
 
     // Returns the largest position present in the KV cache for the specified sequence
     // Note that all positions in the range [pos_min, pos_max] are guaranteed to be present in the KV cache
     // Return -1 if the sequence is empty
-    LLAMA_API llama_pos llama_kv_self_seq_pos_max(
+    DEPRECATED(LLAMA_API llama_pos llama_kv_self_seq_pos_max(
             struct llama_context * ctx,
-                    llama_seq_id   seq_id);
+                    llama_seq_id   seq_id),
+            "Use llama_memory_seq_pos_max() instead");
 
     // Defragment the KV cache
     // This will be applied:
@@ -784,7 +798,8 @@ extern "C" {
             "simply remove this call, the context will automatically decide when to do a defragmentation based on 'defrag_thold'");
 
     // Check if the context supports KV cache shifting
-    LLAMA_API bool llama_kv_self_can_shift(const struct llama_context * ctx);
+    DEPRECATED(LLAMA_API bool llama_kv_self_can_shift(const struct llama_context * ctx),
+            "use llama_memory_can_shift() instead");
 
     // Apply the KV cache updates (such as K-shifts, defragmentation, etc.)
     DEPRECATED(LLAMA_API void llama_kv_self_update(struct llama_context * ctx),
@@ -952,8 +967,8 @@ extern "C" {
     // Get the number of threads used for prompt and batch processing (multiple token).
     LLAMA_API int32_t llama_n_threads_batch(struct llama_context * ctx);
 
-    // Set whether the model is in embeddings mode or not
-    // If true, embeddings will be returned but logits will not
+    // Set whether the context outputs embeddings or not
+    // TODO: rename to avoid confusion with llama_get_embeddings()
     LLAMA_API void llama_set_embeddings(struct llama_context * ctx, bool embeddings);
 
     // Set whether to use causal attention or not

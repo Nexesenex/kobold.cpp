@@ -64,7 +64,7 @@ find_package(Threads REQUIRED)
 
 add_compile_definitions(LOG_DISABLE_LOGS)
 add_compile_definitions(GGML_USE_CPU)
-add_compile_definitions(GGML_USE_CPU_AARCH64)
+add_compile_definitions(GGML_USE_CPU_REPACK)
 add_compile_definitions(NOMINMAX)
 
 if (MSVC)
@@ -419,14 +419,16 @@ add_library(ggml
             ggml/src/ggml-quants.h
             ggml/src/ggml-cpu/llamafile/sgemm.cpp
             ggml/src/ggml-cpu/llamafile/sgemm.h
-            ggml/src/ggml-cpu/ggml-cpu-traits.cpp
-            ggml/src/ggml-cpu/ggml-cpu-traits.h
+            ggml/src/ggml-cpu/traits.cpp
+            ggml/src/ggml-cpu/traits.h
             ggml/src/ggml-threading.cpp
             ggml/src/ggml-cpu/ggml-cpu.cpp
-            ggml/src/ggml-cpu/ggml-cpu-aarch64.cpp
-            ggml/src/ggml-cpu/ggml-cpu-aarch64.h
-            ggml/src/ggml-cpu/ggml-cpu-quants.c
-            ggml/src/ggml-cpu/ggml-cpu-quants.h
+            ggml/src/ggml-cpu/kcpp-quantmapper.c
+            ggml/src/ggml-cpu/kcpp-repackmapper.cpp
+            ggml/src/ggml-cpu/repack.cpp
+            ggml/src/ggml-cpu/repack.h
+            ggml/src/ggml-cpu/quants.c
+            ggml/src/ggml-cpu/quants.h
             ggml/src/ggml-cpu/common.h
             ggml/src/ggml-cpu/binary-ops.h
             ggml/src/ggml-cpu/binary-ops.cpp
