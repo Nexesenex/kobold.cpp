@@ -5268,6 +5268,7 @@ Change Mode<br>
                     if targetfile=="unload_model": #special request to simply unload model
                         print("Admin: Received request to unload model")
                         global_memory["restart_target"] = "unload_model"
+                        global_memory["restart_model"] = ""
                         resp = {"success": True}
                     else:
                         dirpath = os.path.abspath(args.admindir)
@@ -7833,7 +7834,6 @@ def setuptunnel(global_memory, has_sd):
     # This script will help setup a cloudflared tunnel for accessing KoboldCpp/Croco.Cpp over the internet
     # It should work out of the box on both linux and windows
     try:
-
         # import subprocess
         # import re
         
@@ -8309,6 +8309,15 @@ def main(launch_args, default_args):
         args.admin = False
         print("\nWARNING: Admin was set without selecting an admin directory. Admin cannot be used.\n")
 
+    # Check if admin exists, if not add a default to the directory to allow remote model loading without a config
+    if args.admin and args.admindir:
+        dirpath = os.path.abspath(args.admindir)
+        opts = [f for f in sorted(os.listdir(dirpath)) if (f.endswith(".kcpps") or f.endswith(".kcppt")) and os.path.isfile(os.path.join(dirpath, f))]
+        if len(opts) == 0:
+            with open(os.path.join(dirpath, "Default.kcpps"), "w") as f:
+                f.write("{}")
+            print("\nAdmin directory was empty, default file generated.\n")
+
     if not args.admin: #run in single process mode
         if args.remotetunnel and not args.prompt and not args.benchmark and not args.cli:
             setuptunnel(global_memory, True if args.sdmodel else False)
@@ -8372,7 +8381,7 @@ def main(launch_args, default_args):
                         if args.admin and args.admindir:
                             dirpath = os.path.abspath(args.admindir)
                             targetfilepath = os.path.join(dirpath, restart_target)
-                            if os.path.exists(targetfilepath) or restart_target=="unload_model":
+                            if (os.path.exists(targetfilepath) or restart_target=="unload_model"):
                                 print("Terminating old process...")
                                 global_memory["load_complete"] = False
                                 kcpp_instance.terminate()
@@ -8380,6 +8389,7 @@ def main(launch_args, default_args):
                                 kcpp_instance = None
                                 print("Restarting KoboldCpp...")
                                 fault_recovery_mode = True
+
                                 if restart_target=="unload_model":
                                     reload_from_new_args(vars(default_args))
                                     args.model_param = None
