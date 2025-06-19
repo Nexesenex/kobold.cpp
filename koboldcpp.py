@@ -72,12 +72,12 @@ dry_seq_break_max = 256
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.94000"
+KcppVersion = "1.94001"
 LcppVersion = "b5697"
-IKLcppVersion = "IKLpr534+NTv2"
-EsoboldVersion = "RMv1.12"
+IKLcppVersion = "IKLpr540"
+EsoboldVersion = "RMv1.12.0m+14c"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/06/18"
+ReleaseDate = "2025/06/19"
 # guimode = False
 kcpp_instance = None #global running instance
 global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None}
