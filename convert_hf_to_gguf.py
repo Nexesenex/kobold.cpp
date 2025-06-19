@@ -659,6 +659,9 @@ class ModelBase:
                     elif self.ftype == gguf.LlamaFileType.MOSTLY_Q8_0_XXS:
                         data_qtype = gguf.GGMLQuantizationType.Q8_0
 
+                    elif self.ftype == gguf.LlamaFileType.MOSTLY_IQ6_K:
+                        data_qtype = gguf.GGMLQuantizationType.IQ6_K
+
                     else:
                         raise ValueError(f"Unknown file type: {self.ftype.name}")
 
@@ -6670,7 +6673,7 @@ def parse_args() -> argparse.Namespace:
         help="path to write to; default: based on input. {ftype} will be replaced by the outtype.",
     )
     parser.add_argument(
-        "--outtype", type=str, choices=["f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "q5_0", "q5_1", "q6_0", "q8_0_M", "q4_0_M", "q4_1_M", "q5_0_M", "q5_1_M", "q6_0_M", "q8_0_L", "q4_0_L", "q4_1_L", "q5_0_L", "q5_1_L", "q6_0_L", "q8_0_XL", "q4_0_XL", "q4_1_XL", "q5_0_XL", "q5_1_XL", "q6_0_XL", "q8_0_XXL", "q4_0_XXL", "q4_1_XXL", "q5_0_XXL", "q5_1_XXL", "q6_0_XXL", "q8_0_S", "q4_1_S", "q5_0_S", "q5_1_S", "q6_0_S", "q8_0_XS", "q4_1_XS", "q5_0_XS", "q5_1_XS", "q6_0_XS", "q8_0_XXS", "q4_1_XXS", "q5_0_XXS", "q5_1_XXS", "q6_0_XXS", "tq1_0", "tq2_0", "auto"], default="f16",
+        "--outtype", type=str, choices=["f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "q5_0", "q5_1", "q6_0", "q8_0_M", "q4_0_M", "q4_1_M", "q5_0_M", "q5_1_M", "q6_0_M", "q8_0_L", "q4_0_L", "q4_1_L", "q5_0_L", "q5_1_L", "q6_0_L", "q8_0_XL", "q4_0_XL", "q4_1_XL", "q5_0_XL", "q5_1_XL", "q6_0_XL", "q8_0_XXL", "q4_0_XXL", "q4_1_XXL", "q5_0_XXL", "q5_1_XXL", "q6_0_XXL", "q8_0_S", "q4_1_S", "q5_0_S", "q5_1_S", "q6_0_S", "q8_0_XS", "q4_1_XS", "q5_0_XS", "q5_1_XS", "q6_0_XS", "q8_0_XXS", "q4_1_XXS", "q5_0_XXS", "q5_1_XXS", "q6_0_XXS", "tq1_0", "tq2_0", "iq6_k", "auto"], default="f16",
         help="output format - use f32 for float32, f16 for float16, bf16 for bfloat16, q8_0 for Q8_0, tq1_0 or tq2_0 for ternary, q4_0, q4_1, q5_0, q5_1, q6_0 for a smaller conversion to then create an iMatrix file for example, and auto for the highest-fidelity 16-bit float type depending on the first loaded tensor type. _s Ftypes have attn_q to the lower quant, _xs FTypes have also FFN_up to the lower quant, xxs_FTypes have also FFN_gate to the lower quant.",
     )
     parser.add_argument(
@@ -6859,6 +6862,8 @@ def main() -> None:
 
         "tq1_0": gguf.LlamaFileType.MOSTLY_TQ1_0,
         "tq2_0": gguf.LlamaFileType.MOSTLY_TQ2_0,
+
+        "iq6_k": gguf.LlamaFileType.MOSTLY_IQ6_K,
 
         "auto": gguf.LlamaFileType.GUESSED,
     }

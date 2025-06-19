@@ -447,6 +447,211 @@ class Q8_0(__Quant, qtype=GGMLQuantizationType.Q8_0):
         return (x * d)
 
 
+class IQ6_K(__Quant, qtype=GGMLQuantizationType.IQ6_K):
+ @classmethod
+ def quantize_blocks(cls, blocks: np.ndarray) -> np.ndarray:
+ n_blocks = blocks.shape[0]
+
+ # Constants from C code
+ A_IQ6K = -127.0
+ B_IQ6K = 6.2568
+ C_IQ6K = 0.11218
+ D_IQ6K = 0.0011972
+ S_IQ6K = 1.0
+
+ # Precompute values and shifted_values arrays
+ values = np.array([A_IQ6K + i*(B_IQ6K + i*(-C_IQ6K + i*D_IQ6K)) for i in range(64)])
+ shifted_values = values + S_IQ6K
+
+ # Initialize output array
+ out = np.empty((n_blocks, cls.block_size // 4 + cls.type_size), dtype=np.uint8)
+
+ for ibl in range(n_blocks):
+ block = blocks[ibl]
+ sumx2 = np.sum(block**2)
+ sigma2 = 2*sumx2/cls.block_size
+
+ max_scale = 0.0
+ max_abs_scale = 0.0
+ extra = 0
+
+ scales = np.zeros(cls.block_size // 16, dtype=np.float32)
+
+ for ib in range(cls.block_size // 16):
+ xb = block[16*ib:16*(ib+1)]
+ weight = 0.25*sigma2 + xb**2
+
+ amax = np.abs(xb).max()
+ if not amax:
+ scales[ib] = 0.0
+ continue
+
+ d = -xb.max()/values[0]
+ id = 1/d
+ sumqx_p = np.sum(weight * (values[np.searchsorted(values, id*xb)] * xb))
+ sumq2_p = np.sum(weight * (values[np.searchsorted(values, id*xb)] ** 2))
+
+ sumqx_m = np.sum(weight * (values[np.searchsorted(values, -id*xb)] * xb))
+ sumq2_m = np.sum(weight * (values[np.searchsorted(values, -id*xb)] ** 2))
+
+ if sumq2_p > 0 and sumqx_p**2 > sumq2_p * (d * sumqx_p):
+ d = sumqx_p / sumq2_p
+ is_shifted = False
+ elif sumq2_m > 0 and sumqx_m**2 > sumq2_m * (d * sumqx_m):
+ d = sumqx_m / sumq2_m
+ is_shifted = False
+
+ for itry in range(-5, 6):
+ id = (itry + values[0])/xb.max()
+ sumqx_p = np.sum(weight * (values[np.searchsorted(values, id*xb)] * xb))
+ sumq2_p = np.sum(weight * (values[np.searchsorted(values, id*xb)] ** 2))
+
+ sumqx_m = np.sum(weight * (values[np.searchsorted(values, -id*xb)] * xb))
+ sumq2_m = np.sum(weight * (values[np.searchsorted(values, -id*xb)] ** 2))
+
+ if sumq2_p > 0 and sumqx_p**2 > sumq2_p * (d * sumqx_p):
+ d = sumqx_p / sumq2_p
+ is_shifted = False
+ elif sumq2_m > 0 and sumqx_m**2 > sumq2_m * (d * sumqx_m):
+ d = sumqx_m / sumq2_m
+ is_shifted = False
+
+ id = (itry + shifted_values[0])/xb.max()
+ sumqx_p = np.sum(weight * (shifted_values[np.searchsorted(shifted_values, id*xb)] * xb))
+ sumq2_p = np.sum(weight * (shifted_values[np.searchsorted(shifted_values, id*xb)] ** 2))
+
+ sumqx_m = np.sum(weight * (shifted_values[np.searchsorted(shifted_values, -id*xb)] * xb))
+ sumq2_m = np.sum(weight * (shifted_values[np.searchsorted(shifted_values, -id*xb)] ** 2))
+
+ if sumq2_p > 0 and sumqx_p**2 > sumq2_p * (d * sumqx_p):
+ d = sumqx_p / sumq2_p
+ is_shifted = True
+ elif sumq2_m > 0 and sumqx_m**2 > sumq2_m * (d * sumqx_m):
+ d = sumqx_m / sumq2_m
+ is_shifted = True
+
+ if d:
+ block_values = shifted_values if is_shifted else values
+ id = 1/d
+ sumqx = np.sum(weight * (block_values[np.searchsorted(block_values, id*xb)] * xb))
+ sumq2 = np.sum(weight * (block_values[np.searchsorted(block_values, id*xb)] ** 2))
+ if sumq2 > 0:
+ d = sumqx / sumq2
+
+ scales[ib] = d
+ if is_shifted:
+ extra |= (1 << ib)
+
+ abs_scale = np.abs(scales[ib])
+ if abs_scale > max_abs_scale:
+ max_abs_scale = abs_scale
+ max_scale = scales[ib]
+
+ if not max_abs_scale:
+ continue
+
+ d = -max_scale/127.0
+ out[ibl, 0:2] = np.float16(d).view(np.uint8)
+ y_extra = extra
+
+ id = 1/d
+
+ sumqx = 0.0
+ sumq2 = 0.0
+
+ for ib in range(cls.block_size // 16):
+ ls = int(round(id*scales[ib]))
+ ls = max(-127, min(127, ls))
+ out[ibl, 4*ib + 2:4*(ib+1) + 2] = ls.to_bytes(1, 'little')
+
+ dl = d * ls
+ if dl:
+ block_values = shifted_values if y_extra & (1 << ib) else values
+ xb = block[16*ib:16*(ib+1)]
+ weight = 0.25*sigma2 + xb**2
+ idl = 1/dl
+ ib32 = ib//2
+ offset = 16*(ib%2)
+ qs = out[ibl, cls.block_size // 4 + offset:cls.block_size // 4 + offset + 16]
+ qh = out[ibl, 32*(ib32//2) + offset:32*(ib32//2) + offset + 16]
+
+ for j in range(16):
+ al = idl*xb[j]
+ #ibest = best_index(64, block_values, al)
+ ibest = np.searchsorted(block_values, al)
+ qs[j] |= ((ibest & 0xf) << 4*(ib32%2))
+ qh[j] |= ((ibest >> 4) << 2*(ib32%4))
+ w = weight[j]
+ q = block_values[ibest]*ls
+ sumqx += w*q*xb[j]
+ sumq2 += w*q*q
+
+ if sumq2 > 0:
+ out[ibl, 0:2] = np.float16(sumqx/sumq2).view(np.uint8)
+
+ return out
+
+ @classmethod
+ def dequantize_blocks(cls, blocks: np.ndarray) -> np.ndarray:
+ n_blocks = blocks.shape[0]
+
+ # Constants from C code
+ A_IQ6K = -127.0
+ B_IQ6K = 6.2568
+ C_IQ6K = 0.11218
+ D_IQ6K = 0.0011972
+ S_IQ6K = 1.0
+
+ # Precompute values and shifted_values arrays
+ values = np.array([A_IQ6K + i*(B_IQ6K + i*(-C_IQ6K + i*D_IQ6K)) for i in range(64)])
+ shifted_values = values + S_IQ6K
+
+ out = np.empty((n_blocks, cls.block_size), dtype=np.float32)
+
+ for ibl in range(n_blocks):
+ block = blocks[ibl]
+ d = np.frombuffer(block[0:2], dtype=np.float16)[0]
+ extra = int.from_bytes(block[2:3], 'little')
+
+ scales = np.zeros(cls.block_size // 16, dtype=np.int8)
+ for ib in range(cls.block_size // 16):
+ scales[ib] = int.from_bytes(block[4*ib + 2:4*(ib+1) + 2], 'little', signed=True)
+
+ qs = block[cls.block_size // 4:]
+ qh = block[cls.block_size // 4 - 32:]
+
+ id = 1/d
+
+ for ib in range(cls.block_size // 16):
+ dl = d * scales[ib]
+ if not dl:
+ continue
+
+ block_values = shifted_values if extra & (1 << ib) else values
+ ib32 = ib//2
+ offset = 16*(ib%2)
+ qs_ib = qs[offset:offset + 16]
+ qh_ib = qh[offset:offset + 16]
+
+ for j in range(16):
+ q1 = ((qs_ib[j] & 0xf) | (((qh_ib[j] >> 4*(ib32%2)) & 0x03) << 4))
+ q2 = ((qs_ib[j+16] & 0xf) | (((qh_ib[j+16] >> 4*(ib32%2)) & 0x03) << 4))
+ q3 = ((qs_ib[j] >> 4) | (((qh_ib[j] >> 2*(ib32%4)) & 0x0c) << 2))
+ q4 = ((qs_ib[j+16] >> 4) | (((qh_ib[j+16] >> 2*(ib32%4)) & 0x0c) << 2))
+
+ m1 = extra & 1 and S_IQ6K or 0.0
+ m2 = extra & 2 and S_IQ6K or 0.0
+ m3 = extra & 4 and S_IQ6K or 0.0
+ m4 = extra & 8 and S_IQ6K or 0.0
+
+ out[ibl, j] = dl * (A_IQ6K + q1*(B_IQ6K + q1*(-C_IQ6K + q1*D_IQ6K)) + m1)
+ out[ibl, j+16] = dl * (A_IQ6K + q2*(B_IQ6K + q2*(-C_IQ6K + q2*D_IQ6K)) + m2)
+ out[ibl, j+32] = dl * (A_IQ6K + q3*(B_IQ6K + q3*(-C_IQ6K + q3*D_IQ6K)) + m3)
+ out[ibl, j+48] = dl * (A_IQ6K + q4*(B_IQ6K + q4*(-C_IQ6K + q4*D_IQ6K)) + m4)
+
+ return out
+
+
 class Q2_K(__Quant, qtype=GGMLQuantizationType.Q2_K):
     @classmethod
     def dequantize_blocks(cls, blocks: np.ndarray) -> np.ndarray:
