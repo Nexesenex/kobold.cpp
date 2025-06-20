@@ -148,7 +148,13 @@ static __global__ void mul_mat_vec_q(
     constexpr int vdr = get_vdr_mmvq(type);
     constexpr mmvq_parameter_table_id table_id = get_device_table_id();
     constexpr int nwarps = calc_nwarps(ncols_y, table_id);
+
+#if defined(RDNA2) || defined(RDNA3) || defined(RDNA4) || defined(GCN) || defined(CDNA)
     constexpr int rows_per_cuda_block = calc_rows_per_block(ncols_y, table_id);
+#else
+    constexpr int rows_per_cuda_block = ncols_y < 4 ? 1 : 2;
+#endif
+
     constexpr int warp_size = ggml_cuda_get_physical_warp_size();
 
     constexpr vec_dot_q_cuda_t vec_dot_q_cuda = get_vec_dot_q_cuda(type);
