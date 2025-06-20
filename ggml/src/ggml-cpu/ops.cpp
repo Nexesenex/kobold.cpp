@@ -100,7 +100,7 @@ static void ggml_compute_forward_dup_f16(
         const size_t rs = ne00*nb00;
         for (int64_t i03 = 0; i03 < ne03; i03++) {
             for (int64_t i02 = 0; i02 < ne02; i02++) {
-                for (int64_t i01 = ir0; i01 < ir1; i01++) {
+                for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
                     memcpy(
                         ((char *)  dst->data + i01*nb1  + i02*nb2  + i03*nb3),
                         ((char *) src0->data + i01*nb01 + i02*nb02 + i03*nb03),
@@ -243,7 +243,7 @@ static void ggml_compute_forward_dup_f16(
                         }
                     }
                 }
-                for (int64_t i01 = ir0; i01 < ir1; i01++) {
+                for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
                     for (int64_t i00 = 0; i00 < ne00; i00++) {
                         const char * src0_ptr = ((char *) src0->data + i00*nb00 + i01*nb01 + i02*nb02 + i03*nb03);
                               char * dst_ptr  = ((char *)  dst->data + i10*nb0  + i11*nb1  + i12*nb2  + i13*nb3);
@@ -295,7 +295,7 @@ static void ggml_compute_forward_dup_f16(
                         }
                     }
                 }
-                for (int64_t i01 = ir0; i01 < ir1; i01++) {
+                for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
                     for (int64_t i00 = 0; i00 < ne00; i00++) {
                         const char * src0_ptr = ((char *) src0->data + i00*nb00 + i01*nb01 + i02*nb02 + i03*nb03);
                               char * dst_ptr  = ((char *)  dst->data + i10*nb0  + i11*nb1  + i12*nb2  + i13*nb3);
@@ -380,7 +380,7 @@ static void ggml_compute_forward_dup_bf16(
         const size_t rs = ne00*nb00;
         for (int64_t i03 = 0; i03 < ne03; i03++) {
             for (int64_t i02 = 0; i02 < ne02; i02++) {
-                for (int64_t i01 = ir0; i01 < ir1; i01++) {
+                for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
                     memcpy(
                         ((char *)  dst->data + i01*nb1  + i02*nb2  + i03*nb3),
                         ((char *) src0->data + i01*nb01 + i02*nb02 + i03*nb03),
@@ -558,7 +558,7 @@ static void ggml_compute_forward_dup_bf16(
                         }
                     }
                 }
-                for (int64_t i01 = ir0; i01 < ir1; i01++) {
+                for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
                     for (int64_t i00 = 0; i00 < ne00; i00++) {
                         const char * src0_ptr = ((char *) src0->data + i00*nb00 + i01*nb01 + i02*nb02 + i03*nb03);
                               char * dst_ptr  = ((char *)  dst->data + i10*nb0  + i11*nb1  + i12*nb2  + i13*nb3);
@@ -610,7 +610,7 @@ static void ggml_compute_forward_dup_bf16(
                         }
                     }
                 }
-                for (int64_t i01 = ir0; i01 < ir1; i01++) {
+                for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
                     for (int64_t i00 = 0; i00 < ne00; i00++) {
                         const char * src0_ptr = ((char *) src0->data + i00*nb00 + i01*nb01 + i02*nb02 + i03*nb03);
                               char * dst_ptr  = ((char *)  dst->data + i10*nb0  + i11*nb1  + i12*nb2  + i13*nb3);
@@ -662,7 +662,7 @@ static void ggml_compute_forward_dup_bf16(
                         }
                     }
                 }
-                for (int64_t i01 = ir0; i01 < ir1; i01++) {
+                for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
                     for (int64_t i00 = 0; i00 < ne00; i00++) {
                         const char * src0_ptr = ((char *) src0->data + i00*nb00 + i01*nb01 + i02*nb02 + i03*nb03);
                               char * dst_ptr  = ((char *)  dst->data + i10*nb0  + i11*nb1  + i12*nb2  + i13*nb3);
@@ -739,7 +739,7 @@ static void ggml_compute_forward_dup_f32(
         const size_t rs = ne00*nb00;
         for (int64_t i03 = 0; i03 < ne03; i03++) {
             for (int64_t i02 = 0; i02 < ne02; i02++) {
-                for (int64_t i01 = ir0; i01 < ir1; i01++) {
+                for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
                     memcpy(
                         ((char *)  dst->data + i01*nb1  + i02*nb2  + i03*nb3),
                         ((char *) src0->data + i01*nb01 + i02*nb02 + i03*nb03),
@@ -878,7 +878,7 @@ static void ggml_compute_forward_dup_f32(
                         }
                     }
                 }
-                for (int64_t i01 = ir0; i01 < ir1; i01++) {
+                for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
                     for (int64_t i00 = 0; i00 < ne00; i00++) {
                         const char * src0_ptr = ((char *) src0->data + i00*nb00 + i01*nb01 + i02*nb02 + i03*nb03);
                               char * dst_ptr  = ((char *)  dst->data + i10*nb0  + i11*nb1  + i12*nb2  + i13*nb3);
@@ -930,7 +930,7 @@ static void ggml_compute_forward_dup_f32(
                         }
                     }
                 }
-                for (int64_t i01 = ir0; i01 < ir1; i01++) {
+                for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
                     for (int64_t i00 = 0; i00 < ne00; i00++) {
                         const char * src0_ptr = ((char *) src0->data + i00*nb00 + i01*nb01 + i02*nb02 + i03*nb03);
                               char * dst_ptr  = ((char *)  dst->data + i10*nb0  + i11*nb1  + i12*nb2  + i13*nb3);
@@ -982,7 +982,7 @@ static void ggml_compute_forward_dup_f32(
                         }
                     }
                 }
-                for (int64_t i01 = ir0; i01 < ir1; i01++) {
+                for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
                     for (int64_t i00 = 0; i00 < ne00; i00++) {
                         const char * src0_ptr = ((char *) src0->data + i00*nb00 + i01*nb01 + i02*nb02 + i03*nb03);
                               char * dst_ptr  = ((char *)  dst->data + i10*nb0  + i11*nb1  + i12*nb2  + i13*nb3);
@@ -1062,7 +1062,7 @@ static void ggml_compute_forward_dup_bytes(
         const size_t rs = ggml_row_size(src0->type, ne00); //ne00 * type_size;
         for (int64_t i03 = 0; i03 < ne03; i03++) {
             for (int64_t i02 = 0; i02 < ne02; i02++) {
-                for (int64_t i01 = ir0; i01 < ir1; i01++) {
+                for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
                     memcpy(
                         ((char *)  dst->data + i01*nb1  + i02*nb2  + i03*nb3),
                         ((char *) src0->data + i01*nb01 + i02*nb02 + i03*nb03),
@@ -1083,7 +1083,7 @@ static void ggml_compute_forward_dup_bytes(
             for (int64_t i03 = 0; i03 < ne03; i03++) {
                 for (int64_t i02 = 0; i02 < ne02; i02++) {
                     id += rs * ir0;
-                    for (int64_t i01 = ir0; i01 < ir1; i01++) {
+                    for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
                         const char * src0_ptr = (char *) src0->data + i01*nb01 + i02*nb02 + i03*nb03;
                         memcpy(dst_ptr + id, src0_ptr, rs);
                         id += rs;
@@ -1097,7 +1097,7 @@ static void ggml_compute_forward_dup_bytes(
             for (int64_t i03 = 0; i03 < ne03; i03++) {
                 for (int64_t i02 = 0; i02 < ne02; i02++) {
                     id += rs * ir0;
-                    for (int64_t i01 = ir0; i01 < ir1; i01++) {
+                    for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
                         for (int64_t i00 = 0; i00 < ne00; i00++) {
                             const char * src0_ptr = (char *) src0->data + i00*nb00 + i01*nb01 + i02*nb02 + i03*nb03;
                             memcpy(dst_ptr + id, src0_ptr, type_size);
@@ -1138,7 +1138,7 @@ static void ggml_compute_forward_dup_bytes(
                     }
                 }
             }
-            for (int64_t i01 = ir0; i01 < ir1; i01++) {
+            for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
                 for (int64_t k00 = 0; k00 < nk00; k00++) {
                     const char * src0_ptr = ((char *) src0->data + k00*nb00 + i01*nb01 + i02*nb02 + i03*nb03);
                           char * dst_ptr  = ((char *)  dst->data + k10*nb0  + i11*nb1  + i12*nb2  + i13*nb3);
