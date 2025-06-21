@@ -589,6 +589,9 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
         //ensure prompt has img keyword, otherwise append it
         if (sd_params->prompt.find("img") == std::string::npos) {
             sd_params->prompt += " img";
+        } else if (sd_params->prompt.rfind("img", 0) == 0) {
+            // "img" found at the start of the string (position 0), which is not allowed. Add some text before it
+            sd_params->prompt = "person " + sd_params->prompt;
         }
     }
 

@@ -66,7 +66,7 @@ logit_bias_max = 512
 dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.94"
+KcppVersion = "1.94.1"
 showdebug = True
 kcpp_instance = None #global running instance
 global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None}
@@ -914,6 +914,26 @@ def dump_gguf_metadata(file_path): #if you're gonna copy this into your own proj
                 str_val = val_bytes.split(b'\0', 1)[0].decode('utf-8')
                 fptr += str_len
                 return str_val
+            if datatype == "u16":
+                val_bytes = data[fptr:fptr + 2]
+                val = struct.unpack('<H', val_bytes)[0]
+                fptr += 2
+                return val
+            if datatype == "i16":
+                val_bytes = data[fptr:fptr + 2]
+                val = struct.unpack('<h', val_bytes)[0]
+                fptr += 2
+                return val
+            if datatype == "u8":
+                val_bytes = data[fptr:fptr + 1]
+                val = struct.unpack('<B', val_bytes)[0]
+                fptr += 1
+                return val
+            if datatype == "i8":
+                val_bytes = data[fptr:fptr + 1]
+                val = struct.unpack('<b', val_bytes)[0]
+                fptr += 1
+                return val
             if datatype=="arr":
                 val_bytes = data[fptr:fptr + 4]
                 arr_type = struct.unpack('<I', val_bytes)[0]
