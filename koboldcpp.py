@@ -57,6 +57,7 @@ default_ttsmaxlen = 4096
 default_visionmaxres = 1024
 net_save_slots = 10
 savestate_limit = 3 #3 savestate slots
+default_vae_tile_threshold = 768
 
 # abuse prevention (don't abuse the antislop! :D)
 stop_token_max = 512
@@ -72,12 +73,12 @@ dry_seq_break_max = 256
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.94001"
-LcppVersion = "b5697"
+KcppVersion = "1.94100"
+LcppVersion = "b5723"
 IKLcppVersion = "IKLpr540"
-EsoboldVersion = "RMv1.12.0m+14c"
+EsoboldVersion = "RMv1.12.1m+8c"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/06/19"
+ReleaseDate = "2025/06/21"
 # guimode = False
 kcpp_instance = None #global running instance
 global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None}
@@ -298,7 +299,7 @@ class sd_load_model_inputs(ctypes.Structure):
                 ("threads", ctypes.c_int),
                 ("quant", ctypes.c_int),
                 ("taesd", ctypes.c_bool),
-                ("notile", ctypes.c_bool),
+                ("tiled_vae_threshold", ctypes.c_int),
                 ("t5xxl_filename", ctypes.c_char_p),
                 ("clipl_filename", ctypes.c_char_p),
                 ("clipg_filename", ctypes.c_char_p),
@@ -550,6 +551,7 @@ def init_library():
     handle.get_last_eval_time.restype = ctypes.c_float
     handle.get_last_process_time.restype = ctypes.c_float
     handle.get_last_token_count.restype = ctypes.c_int
+    handle.get_last_input_count.restype = ctypes.c_int
     handle.get_last_seed.restype = ctypes.c_int
     handle.get_last_draft_success.restype = ctypes.c_int
     handle.get_last_draft_failed.restype = ctypes.c_int
@@ -983,6 +985,26 @@ def dump_gguf_metadata(file_path): #if you're gonna copy this into your own proj
                 str_val = val_bytes.split(b'\0', 1)[0].decode('utf-8')
                 fptr += str_len
                 return str_val
+            if datatype == "u16":
+                val_bytes = data[fptr:fptr + 2]
+                val = struct.unpack('<H', val_bytes)[0]
+                fptr += 2
+                return val
+            if datatype == "i16":
+                val_bytes = data[fptr:fptr + 2]
+                val = struct.unpack('<h', val_bytes)[0]
+                fptr += 2
+                return val
+            if datatype == "u8":
+                val_bytes = data[fptr:fptr + 1]
+                val = struct.unpack('<B', val_bytes)[0]
+                fptr += 1
+                return val
+            if datatype == "i8":
+                val_bytes = data[fptr:fptr + 1]
+                val = struct.unpack('<b', val_bytes)[0]
+                fptr += 1
+                return val
             if datatype=="arr":
                 val_bytes = data[fptr:fptr + 4]
                 arr_type = struct.unpack('<I', val_bytes)[0]
@@ -2265,7 +2287,7 @@ def sd_load_model(model_filename,vae_filename,lora_filename,t5xxl_filename,clipl
     inputs.threads = thds
     inputs.quant = quant
     inputs.taesd = True if args.sdvaeauto else False
-    inputs.notile = True if args.sdnotile else False
+    inputs.tiled_vae_threshold = args.sdtiledvae
     inputs.vae_filename = vae_filename.encode("UTF-8")
     inputs.lora_filename = lora_filename.encode("UTF-8")
     inputs.lora_multiplier = args.sdloramult
@@ -4592,6 +4614,7 @@ Change Mode<br>
             lastp = handle.get_last_process_time()
             laste = handle.get_last_eval_time()
             lastc = handle.get_last_token_count()
+            lastic = handle.get_last_input_count()
             totalgens = handle.get_total_gens()
             totalimggens = handle.get_total_img_gens()
             totalttsgens = handle.get_total_tts_gens()
@@ -4600,10 +4623,39 @@ Change Mode<br>
             lastseed = handle.get_last_seed()
             lastdraftsuccess = handle.get_last_draft_success()
             lastdraftfailed = handle.get_last_draft_failed()
+            t_pp = float(lastp)*float(lastic)*0.001
+            t_gen = float(laste)*float(lastc)*0.001
+            s_pp = float(lastic)/t_pp if t_pp>0 else 0
+            s_gen = float(lastc)/t_gen if t_gen>0 else 0
             uptime = time.time() - start_time
             idletime = time.time() - last_req_time
             is_quiet = True if (args.quiet and args.debugmode != 1) else False
-            response_body = (json.dumps({"last_process":lastp,"last_eval":laste,"last_token_count":lastc, "last_seed":lastseed, "last_draft_success":lastdraftsuccess, "last_draft_failed":lastdraftfailed, "total_gens":totalgens, "stop_reason":stopreason, "total_img_gens":totalimggens, "total_tts_gens":totalttsgens, "total_transcribe_gens":totaltranscribegens, "queue":requestsinqueue, "idle":(0 if modelbusy.locked() else 1), "hordeexitcounter":exitcounter, "uptime":uptime, "idletime":idletime, "quiet":is_quiet}).encode())
+            response_body = json.dumps(
+                {
+                    "last_process": lastp,
+                    "last_eval": laste,
+                    "last_token_count": lastc,
+                    "last_input_count": lastic,
+                    "last_process_time": t_pp,
+                    "last_eval_time": t_gen,
+                    "last_process_speed": s_pp,
+                    "last_eval_speed": s_gen,
+                    "last_seed": lastseed,
+                    "last_draft_success": lastdraftsuccess,
+                    "last_draft_failed": lastdraftfailed,
+                    "total_gens": totalgens,
+                    "stop_reason": stopreason,
+                    "total_img_gens": totalimggens,
+                    "total_tts_gens": totalttsgens,
+                    "total_transcribe_gens": totaltranscribegens,
+                    "queue": requestsinqueue,
+                    "idle": (0 if modelbusy.locked() else 1),
+                    "hordeexitcounter": exitcounter,
+                    "uptime": uptime,
+                    "idletime": idletime,
+                    "quiet": is_quiet,
+                }
+            ).encode()
 
         elif self.path.endswith('/api/extra/generate/check'):
             if not self.secure_endpoint():
@@ -6163,7 +6215,7 @@ def show_gui():
     sd_clipg_var = ctk.StringVar()
     sd_photomaker_var = ctk.StringVar()
     sd_vaeauto_var = ctk.IntVar(value=0)
-    sd_notile_var = ctk.IntVar(value=0)
+    sd_tiled_vae_var = ctk.StringVar(value=str(default_vae_tile_threshold))
     sd_clamped_var = ctk.StringVar(value="0")
     sd_clamped_soft_var = ctk.StringVar(value="0")
     sd_threads_var = ctk.StringVar(value=str(default_threads))
@@ -6953,7 +7005,7 @@ def show_gui():
                 sdvaeitem2.grid()
                 sdvaeitem3.grid()
     makecheckbox(images_tab, "Use TAE SD (AutoFix Broken VAE)", sd_vaeauto_var, 42,command=toggletaesd,tooltiptxt="Replace VAE with TAESD. May fix bad VAE.")
-    makecheckbox(images_tab, "No VAE Tiling", sd_notile_var, 44,tooltiptxt="Disables VAE tiling, may not work for large images.")
+    makelabelentry(images_tab, "VAE Tiling Threshold:", sd_tiled_vae_var, 44, 50, padx=144,singleline=True,tooltip="Enable VAE Tiling for images above this size, to save memory.\nSet to 0 to disable VAE tiling.")
 
     # audio tab
     audio_tab = tabcontent["Audio"]
@@ -7222,7 +7274,7 @@ def show_gui():
         args.sdthreads = (0 if sd_threads_var.get()=="" else int(sd_threads_var.get()))
         args.sdclamped = (0 if int(sd_clamped_var.get())<=0 else int(sd_clamped_var.get()))
         args.sdclampedsoft = (0 if int(sd_clamped_soft_var.get())<=0 else int(sd_clamped_soft_var.get()))
-        args.sdnotile = (True if sd_notile_var.get()==1 else False)
+        args.sdtiledvae = (default_vae_tile_threshold if sd_tiled_vae_var.get()=="" else int(sd_tiled_vae_var.get()))
         if sd_vaeauto_var.get()==1:
             args.sdvaeauto = True
             args.sdvae = ""
@@ -7465,7 +7517,8 @@ def show_gui():
         sd_clipg_var.set(dict["sdclipg"] if ("sdclipg" in dict and dict["sdclipg"]) else "")
         sd_photomaker_var.set(dict["sdphotomaker"] if ("sdphotomaker" in dict and dict["sdphotomaker"]) else "")
         sd_vaeauto_var.set(1 if ("sdvaeauto" in dict and dict["sdvaeauto"]) else 0)
-        sd_notile_var.set(1 if ("sdnotile" in dict and dict["sdnotile"]) else 0)
+        sd_tiled_vae_var.set(str(dict["sdtiledvae"]) if ("sdtiledvae" in dict and dict["sdtiledvae"]) else str(default_vae_tile_threshold))
+
         sd_lora_var.set(dict["sdlora"] if ("sdlora" in dict and dict["sdlora"]) else "")
         sd_loramult_var.set(str(dict["sdloramult"]) if ("sdloramult" in dict and dict["sdloramult"]) else "1.0")
 
@@ -7844,6 +7897,8 @@ def convert_invalid_args(args):
             dict["model_param"] = model_value
         elif isinstance(model_value, list) and model_value:  # Non-empty list
             dict["model_param"] = model_value[0]  # Take the first file in the list
+    if "sdnotile" in dict and "sdtiledvae" not in dict:
+        dict["sdtiledvae"] = (0 if (dict["sdnotile"]) else default_vae_tile_threshold) # convert legacy option
     return args
 
 def setuptunnel(global_memory, has_sd):
@@ -8379,6 +8434,7 @@ def main(launch_args, default_args):
                             kcpp_instance.daemon = True
                             kcpp_instance.start()
                             global_memory["restart_target"] = ""
+                            global_memory["restart_model"] = ""
                             time.sleep(3)
                         else:
                             break # kill the program
@@ -8405,6 +8461,16 @@ def main(launch_args, default_args):
                                 kcpp_instance = None
                                 print("Restarting KoboldCpp...")
                                 fault_recovery_mode = True
+                                if restart_target=="unload_model":
+                                    reload_from_new_args(vars(default_args))
+                                    args.model_param = None
+                                    args.model = None
+                                    args.nomodel = True
+                                elif targetfilepath.endswith(".gguf"):
+                                    reload_from_new_args(vars(default_args))
+                                    args.model_param = targetfilepath
+                                else:
+                                    reload_new_config(targetfilepath)
 
                                 if restart_target=="unload_model":
                                     reload_from_new_args(vars(default_args))
@@ -9445,8 +9511,7 @@ if __name__ == '__main__':
     sdparsergrouplora.add_argument("--sdquant", help="If specified, loads the model quantized to save memory.", action='store_true')
     sdparsergrouplora.add_argument("--sdlora", metavar=('[filename]'), help="Specify an image generation LORA safetensors model to be applied.", default="")
     sdparsergroup.add_argument("--sdloramult", metavar=('[amount]'), help="Multiplier for the image LORA model to be applied.", type=float, default=1.0)
-    sdparsergroup.add_argument("--sdnotile", help="Disables VAE tiling, may not work for large images.", action='store_true')
-
+    sdparsergroup.add_argument("--sdtiledvae", metavar=('[maxres]'), help="Adjust the automatic VAE tiling trigger for images above this size. 0 disables vae tiling.", type=int, default=default_vae_tile_threshold)
     whisperparsergroup = parser.add_argument_group('Whisper Transcription Commands')
     whisperparsergroup.add_argument("--whispermodel", metavar=('[filename]'), help="Specify a Whisper .bin model to enable Speech-To-Text transcription.", default="")
 
@@ -9475,5 +9540,6 @@ if __name__ == '__main__':
     deprecatedgroup.add_argument("--sdconfig", help=argparse.SUPPRESS, nargs='+')
     compatgroup.add_argument("--noblas", help=argparse.SUPPRESS, action='store_true')
     compatgroup3.add_argument("--nommap", help=argparse.SUPPRESS, action='store_true')
+    deprecatedgroup.add_argument("--sdnotile", help=argparse.SUPPRESS, action='store_true') # legacy option, see sdtiledvae
 
     main(launch_args=parser.parse_args(),default_args=parser.parse_args([]))

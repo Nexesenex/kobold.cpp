@@ -119,11 +119,12 @@ static uint8_t * input_mask_buffer = NULL;
 static uint8_t * input_photomaker_buffer = NULL;
 
 static std::string sdplatformenv, sddeviceenv, sdvulkandeviceenv;
-static bool notiling = false;
+static int cfg_tiled_vae_threshold = 0;
 static int cfg_square_limit = 0;
 static int cfg_side_limit = 0;
 static bool sd_is_quiet = false;
 static std::string sdmodelfilename = "";
+static bool photomaker_enabled = false;
 
 bool sdtype_load_model(const sd_load_model_inputs inputs) {
     sd_is_quiet = inputs.quiet;
@@ -136,7 +137,9 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
     std::string clipl_filename = inputs.clipl_filename;
     std::string clipg_filename = inputs.clipg_filename;
     std::string photomaker_filename = inputs.photomaker_filename;
-    notiling = inputs.notile;
+    cfg_tiled_vae_threshold = inputs.tiled_vae_threshold;
+    cfg_tiled_vae_threshold = (cfg_tiled_vae_threshold > 8192 ? 8192 : cfg_tiled_vae_threshold);
+    cfg_tiled_vae_threshold = (cfg_tiled_vae_threshold <= 0 ? 8192 : cfg_tiled_vae_threshold); //if negative dont tile
     cfg_side_limit = inputs.img_hard_limit;
     cfg_square_limit = inputs.img_soft_limit;
     printf("\nImageGen Init - Load Model: %s\n",inputs.model_filename);
@@ -169,6 +172,7 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
     if(photomaker_filename!="")
     {
         printf("With PhotoMaker Model: %s\n",photomaker_filename.c_str());
+        photomaker_enabled = true;
     }
     if(inputs.quant)
     {
@@ -433,6 +437,11 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
     std::string photomaker_image_data = std::string(inputs.photomaker_image);
     std::string sampler = inputs.sample_method;
 
+    if(!photomaker_enabled)
+    {
+        photomaker_image_data = "";
+    }
+
     sd_params->prompt = cleanprompt;
     sd_params->negative_prompt = cleannegprompt;
     sd_params->cfg_scale = inputs.cfg_scale;
@@ -482,7 +491,8 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
         printf("\nKCPP SD: Requested dimensions %dx%d changed to %dx%d\n", inputs.width, inputs.height, sd_params->width, sd_params->height);
     }
 
-    bool dotile = (sd_params->width>768 || sd_params->height>768) && !notiling;
+    // trigger tiling by image area, the memory used for the VAE buffer is 6656 bytes per image pixel, default 768x768
+    bool dotile = (sd_params->width*sd_params->height > cfg_tiled_vae_threshold*cfg_tiled_vae_threshold);
     set_sd_vae_tiling(sd_ctx,dotile); //changes vae tiling, prevents memory related crash/oom
 
     if (sd_params->clip_skip <= 0) {
@@ -579,6 +589,9 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
         //ensure prompt has img keyword, otherwise append it
         if (sd_params->prompt.find("img") == std::string::npos) {
             sd_params->prompt += " img";
+        } else if (sd_params->prompt.rfind("img", 0) == 0) {
+            // "img" found at the start of the string (position 0), which is not allowed. Add some text before it
+            sd_params->prompt = "person " + sd_params->prompt;
         }
     }
 
@@ -625,7 +638,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
                           sd_params->slg_scale,
                           sd_params->skip_layer_start,
                           sd_params->skip_layer_end,
-                          (photomaker_image_data!=""?&photomaker_reference:nullptr));
+                          (photomaker_image_data!=""?(&photomaker_reference):nullptr));
     } else {
 
         if (sd_params->width <= 0 || sd_params->width % 64 != 0 || sd_params->height <= 0 || sd_params->height % 64 != 0) {
@@ -749,7 +762,7 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
                             sd_params->slg_scale,
                             sd_params->skip_layer_start,
                             sd_params->skip_layer_end,
-                            (photomaker_image_data!=""?&photomaker_reference:nullptr));
+                            (photomaker_image_data!=""?(&photomaker_reference):nullptr));
     }
 
     if (results == NULL) {
