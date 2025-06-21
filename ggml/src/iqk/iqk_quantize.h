@@ -9,6 +9,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#include "ggml-quants.h"
+
 #define GGML_COMMON_DECL_C
 #include "ggml-common.h"
 
