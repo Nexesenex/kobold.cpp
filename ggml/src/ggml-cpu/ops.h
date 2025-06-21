@@ -25,8 +25,8 @@ extern "C" {
 #endif
 
 void ggml_compute_forward_dup(const struct ggml_compute_params * params, struct ggml_tensor * dst);
-// void ggml_compute_forward_dup_q4(const struct ggml_compute_params * params, struct ggml_tensor * dst);
-// void ggml_compute_forward_dup_q8(const struct ggml_compute_params * params, struct ggml_tensor * dst);
+void ggml_compute_forward_dup_q4(const struct ggml_compute_params * params, struct ggml_tensor * dst);
+void ggml_compute_forward_dup_q8(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_add(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_add1(const struct ggml_compute_params * params, struct ggml_tensor * dst);
 void ggml_compute_forward_multi_add(const struct ggml_compute_params * params, struct ggml_tensor * dst);
