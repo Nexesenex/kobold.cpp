@@ -825,6 +825,8 @@ if (GGML_IQK_MUL_MAT)
 				ggml/src/ggml-cpu/ggml-cpu-aarch64.h
 				ggml/src/ggml-cpu/ggml-cpu-quants.c
 				ggml/src/ggml-cpu/ggml-cpu-quants.h
+                ggml/src/ggml-cpu/repack.cpp
+                ggml/src/ggml-cpu/repack.h
                 ggml/src/ggml-cpu/common.h
                 ggml/src/ggml-cpu/binary-ops.h
                 ggml/src/ggml-cpu/binary-ops.cpp
