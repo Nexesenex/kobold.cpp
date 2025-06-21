@@ -48,8 +48,6 @@ void ggml_cuda_op_sqr(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
 
 void ggml_cuda_op_sqrt(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
 
-void ggml_cuda_op_swiglu(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
-
 void ggml_cuda_op_sin(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
 
 void ggml_cuda_op_cos(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
