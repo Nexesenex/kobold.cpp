@@ -278,6 +278,9 @@ extern "C"
     int get_last_token_count() {
         return last_token_count;
     }
+    int get_last_input_count() {
+        return last_input_count;
+    }
     int get_last_seed()
     {
         return last_seed;

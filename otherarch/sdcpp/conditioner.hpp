@@ -597,6 +597,7 @@ struct FrozenCLIPEmbedderWithCustomWords : public Conditioner {
         GGML_ASSERT(it != tokens.end());  // prompt must have trigger word
         tokens.erase(it);
         return decode(tokens);
+        //return prompt; //kcpp we don't care about photomaker trigger words
     }
 
     SDCondition get_learned_condition(ggml_context* work_ctx,

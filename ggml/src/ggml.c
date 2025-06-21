@@ -1806,6 +1806,7 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
     "UPSCALE",
     "PAD",
     "PAD_REFLECT_1D",
+    "ROLL",
     "ARANGE",
     "TIMESTEP_EMBEDDING",
     "ARGSORT",
@@ -1838,7 +1839,7 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
     "OPT_STEP_ADAMW",
 };
 
-static_assert(GGML_OP_COUNT == 84, "GGML_OP_COUNT != 84");
+static_assert(GGML_OP_COUNT == 85, "GGML_OP_COUNT != 85");
 
 static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "none",
@@ -1903,6 +1904,7 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "upscale(x)",
     "pad(x)",
     "pad_reflect_1d(x)",
+    "roll(x)",
     "arange(start, stop, step)",
     "timestep_embedding(timesteps, dim, max_period)",
     "argsort(x)",
@@ -1935,7 +1937,7 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "adamw(x)",
 };
 
-static_assert(GGML_OP_COUNT == 84, "GGML_OP_COUNT != 84");
+static_assert(GGML_OP_COUNT == 85, "GGML_OP_COUNT != 85");
 
 static_assert(GGML_OP_POOL_COUNT == 2, "GGML_OP_POOL_COUNT != 2");
 
@@ -5365,6 +5367,34 @@ struct ggml_tensor * ggml_pad_reflect_1d(
     ggml_set_op_params(result, params, sizeof(params));
 
     result->op     = GGML_OP_PAD_REFLECT_1D;
+    result->src[0] = a;
+
+    return result;
+}
+
+// ggml_roll
+
+struct ggml_tensor * ggml_roll(
+        struct ggml_context * ctx,
+        struct ggml_tensor  * a,
+        int                   shift0,
+        int                   shift1,
+        int                   shift2,
+        int                   shift3) {
+    GGML_ASSERT(a->nb[0] == ggml_type_size(a->type));
+    GGML_ASSERT(abs(shift0) < a->ne[0]);
+    GGML_ASSERT(abs(shift1) < a->ne[1]);
+    GGML_ASSERT(abs(shift2) < a->ne[2]);
+    GGML_ASSERT(abs(shift3) < a->ne[3]);
+
+    struct ggml_tensor * result = ggml_dup_tensor(ctx, a);
+
+    ggml_set_op_params_i32(result, 0, shift0);
+    ggml_set_op_params_i32(result, 1, shift1);
+    ggml_set_op_params_i32(result, 2, shift2);
+    ggml_set_op_params_i32(result, 3, shift3);
+
+    result->op     = GGML_OP_ROLL;
     result->src[0] = a;
 
     return result;
