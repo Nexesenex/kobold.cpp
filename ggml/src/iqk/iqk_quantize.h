@@ -14,10 +14,10 @@
 #include "ggml-common.h"
 
 #ifdef __cplusplus
-#define GGML_RESTRICT
+// #define GGML_RESTRICT
 extern "C" {
 #else
-#define GGML_RESTRICT restrict
+// #define GGML_RESTRICT restrict
 #endif
 
 GGML_API void quantize_row_iq2_k_ref(const float * GGML_RESTRICT x, block_iq2_k  * GGML_RESTRICT y, int64_t k);
