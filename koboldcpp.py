@@ -7465,6 +7465,7 @@ def main(launch_args, default_args):
                             kcpp_instance.daemon = True
                             kcpp_instance.start()
                             global_memory["restart_target"] = ""
+                            global_memory["restart_model"] = ""
                             time.sleep(3)
                         else:
                             break # kill the program
@@ -7491,6 +7492,16 @@ def main(launch_args, default_args):
                                 kcpp_instance = None
                                 print("Restarting KoboldCpp...")
                                 fault_recovery_mode = True
+                                if restart_target=="unload_model":
+                                    reload_from_new_args(vars(default_args))
+                                    args.model_param = None
+                                    args.model = None
+                                    args.nomodel = True
+                                elif targetfilepath.endswith(".gguf"):
+                                    reload_from_new_args(vars(default_args))
+                                    args.model_param = targetfilepath
+                                else:
+                                    reload_new_config(targetfilepath)
 
                                 args.currentConfig = targetfilepath
                                 global_memory["currentConfig"] = targetfilepath
