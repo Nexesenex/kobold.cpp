@@ -67,26 +67,13 @@ static void ggml_compute_forward_dup_q4(
     GGML_TENSOR_UNARY_OP_LOCALS
     const int ith = params->ith; // thread index
     const int nth = params->nth; // number of threads
-
-/*     // parallelize by rows
+    // parallelize by rows
     const int nr = ne01;
     // number of rows per thread
     const int dr = (nr + nth - 1) / nth;
     // row range for this thread
     const int ir0 = dr * ith;
-    const int ir1 = MIN(ir0 + dr, nr); */
-
-    // parallelize by rows
-    int n_packed = ggml_packed_rows(dst->type);
-    GGML_ASSERT(dst->ne[1] % n_packed == 0);
-    const int nr = ne01;
-    // number of rows per thread
-    const int dr = n_packed*((nr/n_packed + nth - 1) / nth);
-    // row range for this thread
-    const int ir0 = dr * ith;
-    if (ir0 >= nr) return;
     const int ir1 = MIN(ir0 + dr, nr);
-
     if (src0->type == dst->type &&
         ne00 == ne0 &&
         nb00 == ggml_type_size(src0->type) && nb0 == ggml_type_size(dst->type)) {
@@ -94,7 +81,7 @@ static void ggml_compute_forward_dup_q4(
         const size_t rs = ne00 * nb00;
         for (int64_t i03 = 0; i03 < ne03; i03++) {
             for (int64_t i02 = 0; i02 < ne02; i02++) {
-                for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
+                for (int64_t i01 = ir0; i01 < ir1; i01++) {
                     memcpy(
                         ((char *) dst->data + i01 * nb1 + i02 * nb2 + i03 * nb3),
                         ((char *) src0->data + i01 * nb01 + i02 * nb02 + i03 * nb03),
@@ -112,7 +99,7 @@ static void ggml_compute_forward_dup_q4(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         size_t id = rs * ith;
-                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
+                        for (int i01 = ir0; i01 < ir1; i01++) {
                             const block_q4_0 * src_ptr = (const block_q4_0 *) ((char *) src0->data + i01 * nb01 + i02 * nb02 + i03 * nb03);
                             dequantize_row_q4_0(src_ptr, dst_ptr + id, ne00);
                             id += rs;
@@ -125,7 +112,7 @@ static void ggml_compute_forward_dup_q4(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         size_t id = rs * ith;
-                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
+                        for (int i01 = ir0; i01 < ir1; i01++) {
                             const block_q4_0 * src_ptr = (const block_q4_0 *) ((char *) src0->data + i01 * nb01 + i02 * nb02 + i03 * nb03);
                             float tmp[QK4_0];
                             dequantize_row_q4_0(src_ptr, tmp, ne00);
@@ -142,7 +129,7 @@ static void ggml_compute_forward_dup_q4(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         size_t id = rs * ith;
-                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
+                        for (int i01 = ir0; i01 < ir1; i01++) {
                             const block_q4_0 * src_ptr = (const block_q4_0 *) ((char *) src0->data + i01 * nb01 + i02 * nb02 + i03 * nb03);
                             float tmp[QK4_0];
                             dequantize_row_q4_0(src_ptr, tmp, ne00);
@@ -160,7 +147,7 @@ static void ggml_compute_forward_dup_q4(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         size_t id = rs * ith;
-                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
+                        for (int i01 = ir0; i01 < ir1; i01++) {
                             const block_q4_0 * src_ptr = (const block_q4_0 *) ((char *) src0->data + i01 * nb01 + i02 * nb02 + i03 * nb03);
                             dequantize_row_q4_0(src_ptr, tmp, ne00);
                             // quantize_row_q(tmp, dst->data + id, ne00);
@@ -179,7 +166,7 @@ static void ggml_compute_forward_dup_q4(
             for (int i03 = 0; i03 < ne03; i03++) {
                 for (int i02 = 0; i02 < ne02; i02++) {
                     size_t id = ith * QK4_0 / 2;
-                    for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
+                    for (int i01 = ir0; i01 < ir1; i01++) {
                         const block_q4_0 * src_ptr = (const block_q4_0 *) ((char *) src0->data + i01 * nb01 + i02 * nb02 + i03 * nb03);
                         for (int i00 = 0; i00 < QK4_0 / 2; i00++) {
                             dst_ptr[id] = GGML_FP16_TO_FP32(src_ptr->d) * ((src_ptr->qs[i00] & 0x0F) - 8);
@@ -194,7 +181,7 @@ static void ggml_compute_forward_dup_q4(
             for (int i03 = 0; i03 < ne03; i03++) {
                 for (int i02 = 0; i02 < ne02; i02++) {
                     size_t id = ith * QK4_0 / 2;
-                    for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
+                    for (int i01 = ir0; i01 < ir1; i01++) {
                         const block_q4_0 * src_ptr = (const block_q4_0 *) ((char *) src0->data + i01 * nb01 + i02 * nb02 + i03 * nb03);
                         for (int i00 = 0; i00 < QK4_0 / 2; i00++) {
                             dst_ptr[id] = GGML_FP32_TO_FP16(GGML_FP16_TO_FP32(src_ptr->d) * ((src_ptr->qs[i00] & 0x0F) - 8));
@@ -209,7 +196,7 @@ static void ggml_compute_forward_dup_q4(
             for (int i03 = 0; i03 < ne03; i03++) {
                 for (int i02 = 0; i02 < ne02; i02++) {
                     size_t id = ith * QK4_0 / 2;
-                    for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
+                    for (int i01 = ir0; i01 < ir1; i01++) {
                         const block_q4_0 * src_ptr = (const block_q4_0 *) ((char *) src0->data + i01 * nb01 + i02 * nb02 + i03 * nb03);
                         for (int i00 = 0; i00 < QK4_0 / 2; i00++) {
                             dst_ptr[id] = GGML_FP32_TO_BF16(GGML_FP16_TO_FP32(src_ptr->d) * ((src_ptr->qs[i00] & 0x0F) - 8));
@@ -233,26 +220,13 @@ static void ggml_compute_forward_dup_q8(
     GGML_TENSOR_UNARY_OP_LOCALS
     const int ith = params->ith; // thread index
     const int nth = params->nth; // number of threads
-
-/*     // parallelize by rows
+    // parallelize by rows
     const int nr = ne01;
     // number of rows per thread
     const int dr = (nr + nth - 1) / nth;
     // row range for this thread
     const int ir0 = dr * ith;
-    const int ir1 = MIN(ir0 + dr, nr); */
-
-    // parallelize by rows
-    int n_packed = ggml_packed_rows(dst->type);
-    GGML_ASSERT(dst->ne[1] % n_packed == 0);
-    const int nr = ne01;
-    // number of rows per thread
-    const int dr = n_packed*((nr/n_packed + nth - 1) / nth);
-    // row range for this thread
-    const int ir0 = dr * ith;
-    if (ir0 >= nr) return;
     const int ir1 = MIN(ir0 + dr, nr);
-
     if (src0->type == dst->type &&
         ne00 == ne0 &&
         nb00 >= ggml_type_size(src0->type) && nb0 >= ggml_type_size(dst->type)) {
@@ -260,7 +234,7 @@ static void ggml_compute_forward_dup_q8(
         const size_t rs = ne00 * nb00;
         for (int64_t i03 = 0; i03 < ne03; i03++) {
             for (int64_t i02 = 0; i02 < ne02; i02++) {
-                for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
+                for (int64_t i01 = ir0; i01 < ir1; i01++) {
                     memcpy(
                         ((char * ) dst->data + i01 * nb1 + i02 * nb2 + i03 * nb3),
                         ((char * ) src0->data + i01 * nb01 + i02 * nb02 + i03 * nb03),
@@ -277,7 +251,7 @@ static void ggml_compute_forward_dup_q8(
             for (int64_t i03 = 0; i03 < ne03; i03++) {
                 for (int64_t i02 = 0; i02 < ne02; i02++) {
                     size_t id = rs * ith;
-                    for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
+                    for (int64_t i01 = ir0; i01 < ir1; i01++) {
                         const block_q8_0 * src_ptr = (const block_q8_0 *) ((char * ) src0->data + i01 * nb01 + i02 * nb02 + i03 * nb03);
                         dequantize_row_q8_0(src_ptr, dst_ptr + id * QK8_0, ne00);
                         id += rs;
@@ -290,7 +264,7 @@ static void ggml_compute_forward_dup_q8(
             for (int64_t i03 = 0; i03 < ne03; i03++) {
                 for (int64_t i02 = 0; i02 < ne02; i02++) {
                     size_t id = rs * ith;
-                    for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
+                    for (int64_t i01 = ir0; i01 < ir1; i01++) {
                         const block_q8_0 * src_ptr = (const block_q8_0 *) ((char * ) src0->data + i01 * nb01 + i02 * nb02 + i03 * nb03);
                         float tmp[QK8_0];
                         dequantize_row_q8_0(src_ptr, tmp, ne00);
@@ -307,7 +281,7 @@ static void ggml_compute_forward_dup_q8(
             for (int64_t i03 = 0; i03 < ne03; i03++) {
                 for (int64_t i02 = 0; i02 < ne02; i02++) {
                     size_t id = rs * ith;
-                    for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
+                    for (int64_t i01 = ir0; i01 < ir1; i01++) {
                         const block_q8_0 * src_ptr = (const block_q8_0 *) ((char * ) src0->data + i01 * nb01 + i02 * nb02 + i03 * nb03);
                         float tmp[QK8_0];
                         dequantize_row_q8_0(src_ptr, tmp, ne00);
@@ -325,7 +299,7 @@ static void ggml_compute_forward_dup_q8(
             for (int64_t i03 = 0; i03 < ne03; i03++) {
                 for (int64_t i02 = 0; i02 < ne02; i02++) {
                     size_t id = rs * ith;
-                    for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
+                    for (int64_t i01 = ir0; i01 < ir1; i01++) {
                         const block_q8_0 * src_ptr = (const block_q8_0 *) ((char * ) src0->data + i01 * nb01 + i02 * nb02 + i03 * nb03);
                         dequantize_row_q8_0(src_ptr, tmp, ne00);
                         // quantize_row_q(tmp, dst->data + id * QK8_0, ne00);
@@ -343,7 +317,7 @@ static void ggml_compute_forward_dup_q8(
             for (int64_t i03 = 0; i03 < ne03; i03++) {
                 for (int64_t i02 = 0; i02 < ne02; i02++) {
                     size_t id = ith * QK8_0;
-                    for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
+                    for (int64_t i01 = ir0; i01 < ir1; i01++) {
                         const block_q8_0 * src_ptr = (const block_q8_0 *) ((char * ) src0->data + i01 * nb01 + i02 * nb02 + i03 * nb03);
                         for (int64_t i00 = 0; i00 < QK8_0; i00++) {
                             dst_ptr[id] = GGML_FP16_TO_FP32(src_ptr->d) * src_ptr->qs[i00];
@@ -357,7 +331,7 @@ static void ggml_compute_forward_dup_q8(
             for (int64_t i03 = 0; i03 < ne03; i03++) {
                 for (int64_t i02 = 0; i02 < ne02; i02++) {
                     size_t id = ith * QK8_0;
-                    for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
+                    for (int64_t i01 = ir0; i01 < ir1; i01++) {
                         const block_q8_0 * src_ptr = (const block_q8_0 *) ((char * ) src0->data + i01 * nb01 + i02 * nb02 + i03 * nb03);
                         for (int64_t i00 = 0; i00 < QK8_0; i00++) {
                             dst_ptr[id] = GGML_FP32_TO_FP16(GGML_FP16_TO_FP32(src_ptr->d) * src_ptr->qs[i00]);
@@ -371,7 +345,7 @@ static void ggml_compute_forward_dup_q8(
             for (int64_t i03 = 0; i03 < ne03; i03++) {
                 for (int64_t i02 = 0; i02 < ne02; i02++) {
                     size_t id = ith * QK8_0;
-                    for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
+                    for (int64_t i01 = ir0; i01 < ir1; i01++) {
                         const block_q8_0 * src_ptr = (const block_q8_0 *) ((char * ) src0->data + i01 * nb01 + i02 * nb02 + i03 * nb03);
                         for (int64_t i00 = 0; i00 < QK8_0; i00++) {
                             dst_ptr[id] = GGML_FP32_TO_BF16(GGML_FP16_TO_FP32(src_ptr->d) * src_ptr->qs[i00]);
