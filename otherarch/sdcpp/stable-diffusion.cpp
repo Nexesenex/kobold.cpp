@@ -151,7 +151,7 @@ public:
                         const std::string& vae_path,
                         const std::string control_net_path,
                         const std::string embeddings_path,
-                        const std::string id_embeddings_path,
+                        const std::string id_embeddings_path_original,
                         const std::string& taesd_path,
                         bool vae_tiling_,
                         ggml_type wtype,
@@ -163,6 +163,7 @@ public:
         use_tiny_autoencoder = taesd_path.size() > 0;
         std::string taesd_path_fixed = taesd_path;
         is_loaded_chroma = false;
+        std::string id_embeddings_path = id_embeddings_path_original;
 #ifdef SD_USE_CUDA
         LOG_DEBUG("Using CUDA backend");
         backend = ggml_backend_cuda_init(0);
@@ -257,6 +258,12 @@ public:
 
         LOG_INFO("Version: %s ", model_version_to_str[version]);
 
+        if(id_embeddings_path!="" && version!=VERSION_SDXL)
+        {
+            printf("\n!!!!\nWARNING: PhotoMaker is only compatible with SDXL models. PhotoMaker will be disabled!\n!!!!\n");
+            id_embeddings_path = "";
+        }
+
         if(use_tiny_autoencoder)
         {
             std::string to_search = "taesd.embd";
@@ -328,7 +335,7 @@ public:
                 LOG_WARN(
                     "!!!It looks like you are using SDXL model. "
                     "If you find that the generated images are completely black, "
-                    "try specifying SDXL VAE FP16 Fix with the --vae parameter. "
+                    "try specifying a different VAE. "
                     "You can find it here: https://huggingface.co/madebyollin/sdxl-vae-fp16-fix/blob/main/sdxl_vae.safetensors");
             }
         } else if (sd_version_is_sd3(version)) {
@@ -1139,18 +1146,111 @@ public:
                                                  decode ? 3 : C,
                                                  x->ne[3]);  // channels
         int64_t t0          = ggml_time_ms();
+
+        // TODO: args instead of env for tile size / overlap?
+
+        float tile_overlap = 0.5f;
+        const char* SD_TILE_OVERLAP = getenv("SD_TILE_OVERLAP");
+        if (SD_TILE_OVERLAP != nullptr) {
+            std::string sd_tile_overlap_str = SD_TILE_OVERLAP;
+            try {
+                tile_overlap = std::stof(sd_tile_overlap_str);
+                if (tile_overlap < 0.0) {
+                    LOG_WARN("SD_TILE_OVERLAP too low, setting it to 0.0");
+                    tile_overlap = 0.0;
+                }
+                else if (tile_overlap > 0.5) {
+                    LOG_WARN("SD_TILE_OVERLAP too high, setting it to 0.5");
+                    tile_overlap = 0.5;
+                }
+            } catch (const std::invalid_argument&) {
+                LOG_WARN("SD_TILE_OVERLAP is invalid, keeping the default");
+            } catch (const std::out_of_range&) {
+                LOG_WARN("SD_TILE_OVERLAP is out of range, keeping the default");
+            }
+        }
+
+        int tile_size_x = 32;
+        int tile_size_y = 32;
+        const char* SD_TILE_SIZE = getenv("SD_TILE_SIZE");
+        if (SD_TILE_SIZE != nullptr) {
+            // format is AxB, or just A (equivalent to AxA)
+            // A and B can be integers (tile size) or floating point
+            // floating point <= 1 means simple fraction of the latent dimension
+            // floating point > 1 means number of tiles across that dimension
+            // a single number gets applied to both
+            auto get_tile_factor = [tile_overlap](const std::string& factor_str) {
+                float factor = std::stof(factor_str);
+                if (factor > 1.0)
+                    factor = 1 / (factor - factor * tile_overlap + tile_overlap);
+                return factor;
+            };
+            const int latent_x = W / (decode ? 1 : 8);
+            const int latent_y = H / (decode ? 1 : 8);
+            const int min_tile_dimension = 4;
+            std::string sd_tile_size_str = SD_TILE_SIZE;
+            size_t x_pos = sd_tile_size_str.find('x');
+            try {
+                int tmp_x = tile_size_x, tmp_y = tile_size_y;
+                if (x_pos != std::string::npos) {
+                    std::string tile_x_str = sd_tile_size_str.substr(0, x_pos);
+                    std::string tile_y_str = sd_tile_size_str.substr(x_pos + 1);
+                    if (tile_x_str.find('.') != std::string::npos) {
+                        tmp_x = std::round(latent_x * get_tile_factor(tile_x_str));
+                    }
+                    else {
+                        tmp_x = std::stoi(tile_x_str);
+                    }
+                    if (tile_y_str.find('.') != std::string::npos) {
+                        tmp_y = std::round(latent_y * get_tile_factor(tile_y_str));
+                    }
+                    else {
+                        tmp_y = std::stoi(tile_y_str);
+                    }
+                }
+                else {
+                    if (sd_tile_size_str.find('.') != std::string::npos) {
+                        float tile_factor = get_tile_factor(sd_tile_size_str);
+                        tmp_x = std::round(latent_x * tile_factor);
+                        tmp_y = std::round(latent_y * tile_factor);
+                    }
+                    else {
+                        tmp_x = tmp_y = std::stoi(sd_tile_size_str);
+                    }
+                }
+                tile_size_x = std::max(std::min(tmp_x, latent_x), min_tile_dimension);
+                tile_size_y = std::max(std::min(tmp_y, latent_y), min_tile_dimension);
+            } catch (const std::invalid_argument&) {
+                LOG_WARN("SD_TILE_SIZE is invalid, keeping the default");
+            } catch (const std::out_of_range&) {
+                LOG_WARN("SD_TILE_SIZE is out of range, keeping the default");
+            }
+        }
+
+        if(!decode){
+            // TODO: also use and arg for this one?
+            // to keep the compute buffer size consistent
+            tile_size_x*=1.30539;
+            tile_size_y*=1.30539;
+        }
         if (!use_tiny_autoencoder) {
             if (decode) {
                 ggml_tensor_scale(x, 1.0f / scale_factor);
             } else {
                 ggml_tensor_scale_input(x);
             }
-            if (vae_tiling && decode) {  // TODO: support tiling vae encode
+            if (vae_tiling) {
+                if (SD_TILE_SIZE != nullptr) {
+                    LOG_INFO("VAE Tile size: %dx%d", tile_size_x, tile_size_y);
+                }
+                if (SD_TILE_OVERLAP != nullptr) {
+                    LOG_INFO("VAE Tile overlap: %.2f", tile_overlap);
+                }
                 // split latent in 32x32 tiles and compute in several steps
                 auto on_tiling = [&](ggml_tensor* in, ggml_tensor* out, bool init) {
                     first_stage_model->compute(n_threads, in, decode, &out);
                 };
-                sd_tiling(x, result, 8, 32, 0.5f, on_tiling);
+                sd_tiling_non_square(x, result, 8, tile_size_x, tile_size_y, tile_overlap, on_tiling);
             } else {
                 first_stage_model->compute(n_threads, x, decode, &result);
             }
@@ -1160,7 +1260,7 @@ public:
             }
         } else {
             //koboldcpp never use tiling with taesd
-            if (false && vae_tiling && decode) {  // TODO: support tiling vae encode
+            if (false && vae_tiling) {  // TODO: support tiling vae encode
                 // split latent in 64x64 tiles and compute in several steps
                 auto on_tiling = [&](ggml_tensor* in, ggml_tensor* out, bool init) {
                     tae_first_stage->compute(n_threads, in, decode, &out);
@@ -1315,7 +1415,8 @@ sd_image_t* generate_image(sd_ctx_t* sd_ctx,
                            float slg_scale              = 0,
                            float skip_layer_start       = 0.01,
                            float skip_layer_end         = 0.2,
-                           ggml_tensor* masked_image    = NULL) {
+                           ggml_tensor* masked_image    = NULL,
+                           const sd_image_t* photomaker_reference = nullptr) {
     if (seed < 0) {
         // Generally, when using the provided command line, the seed is always >0.
         // However, to prevent potential issues if 'stable-diffusion.cpp' is invoked as a library
@@ -1358,6 +1459,10 @@ sd_image_t* generate_image(sd_ctx_t* sd_ctx,
     ggml_tensor* init_img = NULL;
     SDCondition id_cond;
     std::vector<bool> class_tokens_mask;
+    if (sd_ctx->sd->pmid_model && photomaker_reference!=nullptr)
+    {
+        sd_ctx->sd->stacked_id = true; //turn on photomaker if needed
+    }
     if (sd_ctx->sd->stacked_id) {
         if (!sd_ctx->sd->pmid_lora->applied) {
             t0 = ggml_time_ms();
@@ -1400,6 +1505,30 @@ sd_image_t* generate_image(sd_ctx_t* sd_ctx,
                 input_id_images.push_back(input_image);
             }
         }
+
+        // handle single photomaker image passed in by kcpp
+        if (sd_ctx->sd->pmid_model && photomaker_reference!=nullptr)
+        {
+            int c = 0;
+            int width, height;
+            width = photomaker_reference->width;
+            height = photomaker_reference->height;
+            c = photomaker_reference->channel;
+            uint8_t* input_image_buffer = photomaker_reference->data;
+            sd_image_t* input_image = NULL;
+            input_image  = new sd_image_t{(uint32_t)width,
+                                            (uint32_t)height,
+                                            3,
+                                            input_image_buffer};
+            input_image   = preprocess_id_image(input_image);
+            if (input_image == NULL) {
+                LOG_ERROR("\npreprocess input id image from kcpp photomaker failed\n");
+            } else {
+                LOG_INFO("\nPhotoMaker loaded image from kcpp\n");
+                input_id_images.push_back(input_image);
+            }
+        }
+
         if (input_id_images.size() > 0) {
             sd_ctx->sd->pmid_model->style_strength = style_ratio;
             int32_t w                              = input_id_images[0]->width;
@@ -1651,7 +1780,8 @@ sd_image_t* txt2img(sd_ctx_t* sd_ctx,
                     size_t skip_layers_count = 0,
                     float slg_scale          = 0,
                     float skip_layer_start   = 0.01,
-                    float skip_layer_end     = 0.2) {
+                    float skip_layer_end     = 0.2,
+                    const sd_image_t* photomaker_reference = nullptr) {
     std::vector<int> skip_layers_vec(skip_layers, skip_layers + skip_layers_count);
     LOG_DEBUG("txt2img %dx%d", width, height);
     if (sd_ctx == NULL) {
@@ -1729,7 +1859,9 @@ sd_image_t* txt2img(sd_ctx_t* sd_ctx,
                                                skip_layers_vec,
                                                slg_scale,
                                                skip_layer_start,
-                                               skip_layer_end);
+                                               skip_layer_end,
+                                               nullptr,
+                                               photomaker_reference);
 
     size_t t1 = ggml_time_ms();
 
@@ -1763,7 +1895,8 @@ sd_image_t* img2img(sd_ctx_t* sd_ctx,
                     size_t skip_layers_count = 0,
                     float slg_scale          = 0,
                     float skip_layer_start   = 0.01,
-                    float skip_layer_end     = 0.2) {
+                    float skip_layer_end     = 0.2,
+                    const sd_image_t* photomaker_reference = nullptr) {
     std::vector<int> skip_layers_vec(skip_layers, skip_layers + skip_layers_count);
     LOG_DEBUG("img2img %dx%d", width, height);
     if (sd_ctx == NULL) {
@@ -1909,7 +2042,8 @@ sd_image_t* img2img(sd_ctx_t* sd_ctx,
                                                slg_scale,
                                                skip_layer_start,
                                                skip_layer_end,
-                                               masked_image);
+                                               masked_image,
+                                               photomaker_reference);
 
     size_t t2 = ggml_time_ms();
 
