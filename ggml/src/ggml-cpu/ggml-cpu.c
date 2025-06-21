@@ -1740,6 +1740,14 @@ static void ggml_compute_forward_mul_mat_one_chunk(
     }
 }
 
+static inline uint32_t simple_gcd(uint32_t a, uint32_t b) {
+    while (a != b) {
+        if (a > b) a -= b;
+        else b -= a;
+    }
+    return a;
+}
+
 static void ggml_compute_forward_mul_mat(
         const struct ggml_compute_params * params,
               struct ggml_tensor * dst) {
@@ -3346,6 +3354,96 @@ struct ggml_cplan ggml_graph_plan(
                         const int64_t ne20 = node->src[2]->ne[0]; // DV
 
                         cur = sizeof(float)*(1*ne10 + 2*ne20)*n_tasks; // 1x head size K + 2x head size V (per thread)
+
+                        const int64_t Dk = node->src[0]->ne[0];
+                        const int64_t Dv = node->src[2]->ne[0];
+                        const int64_t D  = MAX(Dk, Dv);
+
+                        cur = 3*sizeof(float)*D*n_tasks; // 3x head size/thread
+                        #if GGML_USE_IQK_MULMAT
+                        size_t qsize = 0;
+                        const struct ggml_tensor * q = node->src[0];
+                        const struct ggml_tensor * k = node->src[1];
+                        if (k->type == GGML_TYPE_Q8_0) {
+                            qsize = ggml_nrows(k)*ggml_row_size(k->type, k->ne[0]);
+                        }
+                        if (q->ne[1] == 1 && q->ne[3] == 1 && q->ne[2]/k->ne[2] > 1 && n_tasks > 1 && k->ne[1]/32 > 1) {
+                            if (k->ne[2] > 1) {
+                                int gcd = simple_gcd(k->ne[2], n_tasks);
+                                int nth_k  = n_tasks/gcd;
+                                int nek2_k = k->ne[2]/gcd;
+                                int nchunk = nek2_k*k->ne[1]/32;
+                                int npt = (nchunk + nth_k - 1)/nth_k;
+                                int nk;
+                                if (npt*nth_k == nchunk) {
+                                    nk = 32 * (k->ne[1]*k->ne[2]/(32*n_tasks));
+                                } else {
+                                    //int nm = std::max(1, npt/8);
+                                    int nm = 1;
+                                    while (true) {
+                                        if (nm*4 >= npt) break;
+                                        nm *= 2;
+                                    }
+                                    nk = 32*nm;
+                                }
+                                //int nk = 32 * (k->ne[2]*k->ne[1]/(32*n_tasks));
+                                int nstep_k = k->ne[2]*k->ne[1]/nk;
+                                size_t result_size = (Dv + 16)*q->ne[2]/k->ne[2]*sizeof(float);
+                                size_t size = nstep_k*result_size;
+                                cur = MAX(cur, size+qsize);
+                            } else {
+                                int nstep_k = k->ne[1]/32;
+                                int gcd_k   = simple_gcd(nstep_k, n_tasks);
+                                if (gcd_k > 1) {
+                                    int nth_k = n_tasks/gcd_k;
+                                    int rk2 = q->ne[2]/k->ne[2];
+                                    int nq_per_thread = (rk2 + nth_k - 1)/nth_k;
+                                    size_t size = (Dv + 16)*nq_per_thread*sizeof(float)*n_tasks;
+                                    if (ggml_is_quantized(k->type)) {
+                                        enum ggml_type vec_dot_type = type_traits_cpu[k->type].vec_dot_type;
+                                        size_t row_size = ggml_row_size(vec_dot_type, q->ne[0]);
+                                        size += q->ne[2]*row_size;
+                                    }
+                                    cur = MAX(cur, size+qsize);
+                                }
+                            }
+                        } else {
+                            cur = MAX(cur, qsize);
+                        }
+                        #endif
+
+                        // const int64_t Dk = node->src[0]->ne[0];
+                        // const int64_t Dv = node->src[2]->ne[0];
+                        // const int64_t D  = MAX(Dk, Dv);
+                        // cur = 3*sizeof(float)*D*n_tasks; // 3x head size/thread
+                        // #if GGML_USE_IQK_MULMAT
+                        // const struct ggml_tensor * q = node->src[0];
+                        // const struct ggml_tensor * k = node->src[1];
+                        // if (q->ne[1] == 1 && q->ne[3] == 1 && q->ne[2]/k->ne[2] > 1 && n_tasks > 1 && k->ne[1]/32 > 1) {
+                            // if (k->ne[2] > 1) {
+                                // int nk = 32 * (k->ne[2]*k->ne[1]/(32*n_tasks));
+                                // int nstep_k = k->ne[2]*k->ne[1]/nk;
+                                // size_t result_size = (Dv + 16)*q->ne[2]/k->ne[2]*sizeof(float);
+                                // size_t size = nstep_k*result_size;
+                                // cur = MAX(cur, size);
+                            // } else {
+                                // int nstep_k = k->ne[1]/32;
+                                // int gcd_k   = simple_gcd(nstep_k, n_tasks);
+                                // if (gcd_k > 1) {
+                                    // int nth_k = n_tasks/gcd_k;
+                                    // int rk2 = q->ne[2]/k->ne[2];
+                                    // int nq_per_thread = (rk2 + nth_k - 1)/nth_k;
+                                    // size_t size = (Dv + 16)*nq_per_thread*sizeof(float)*n_tasks;
+                                    // if (ggml_is_quantized(k->type)) {
+                                        // enum ggml_type vec_dot_type = type_traits_cpu[k->type].vec_dot_type;
+                                        // size_t row_size = ggml_row_size(vec_dot_type, q->ne[0]);
+                                        // size += q->ne[2]*row_size;
+                                    // }
+                                    // cur = MAX(cur, size);
+                                // }
+                            // }
+                        // }
+                        // #endif
                     } break;
                 case GGML_OP_FLASH_ATTN_BACK:
                     {
