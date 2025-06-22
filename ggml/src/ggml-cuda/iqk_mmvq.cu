@@ -757,7 +757,6 @@ __device__ __forceinline__ void vec_dot_iq3_k_r4_q8_1(
 __device__ __forceinline__ void vec_dot_iq6_k_q8_1(
     const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs, float * result) {
 
-
     const block_iq6_k * bq6 = (const block_iq6_k *) vbq + kbx;
     const uint8_t * all_values = (const uint8_t *)iq6nl_values;
 
