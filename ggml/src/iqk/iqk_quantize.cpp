@@ -6285,7 +6285,7 @@ void vec_dot_q8_k_r8_q8_k(int n, float * s, size_t bs, const void * vx, size_t b
 // ========================================= q8_KV_r8
 //
 
-/* void quantize_row_q8_KV_r8_ref(const float * x, void * y, int64_t k) {
+void quantize_row_q8_KV_r8_ref(const float * x, void * y, int64_t k) {
     quantize_q8_KV_r8(x, y, 8, k/8, nullptr);
 }
 
@@ -6395,7 +6395,7 @@ size_t quantize_q8_KV_r8(const float * src, void * dst, int64_t nrows, int64_t n
         src += 8*n_per_row;
     }
     return nrows*row_size_1;
-} */
+}
 
 void dequantize_row_q8_KV_r8(const void * vx, float * y, int64_t k) {
     auto n_per_row = k/8;
