@@ -315,8 +315,11 @@ static __device__ __forceinline__ void flash_attn_ext_f16_iter(
         float KQ_max_scale[cols_per_thread];
 #pragma unroll
         for (int col = 0; col < cols_per_thread; ++col) {
-            KQ_max_scale[col] = expf(KQ_max[col] - KQ_max_new[col]);
+            const float KQ_max_diff = KQ_max[col] - KQ_max_new[col];
+            KQ_max_scale[col] = expf(KQ_max_diff);
             KQ_max[col] = KQ_max_new[col];
+
+            *((uint32_t *) &KQ_max_scale[col]) *= KQ_max_diff >= SOFTMAX_FTZ_THRESHOLD;
 
             // Scale previous KQ_rowsum to account for a potential increase in KQ_max:
             KQ_rowsum[col] = KQ_max_scale[col]*KQ_rowsum[col] + KQ_rowsum_add[col];
@@ -868,6 +871,13 @@ static __global__ void flash_attn_ext_f16(
         NO_DEVICE_CODE;
         return;
     }
+
+#if __CUDA_ARCH__ == GGML_CUDA_CC_TURING
+    if (ncols1*ncols2 > 32) {
+        NO_DEVICE_CODE;
+        return;
+    }
+#endif // __CUDA_ARCH__ == GGML_CUDA_CC_TURING
 
     static_assert(FATTN_KQ_STRIDE % KQ_per_iter == 0, "bad KQ_per_iter");
 

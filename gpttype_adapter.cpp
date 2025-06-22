@@ -54,7 +54,6 @@ const int LLAVA_TOKEN_IDENTIFIER_B = -999;
 //shared
 std::string executable_path = "";
 std::string lora_filename = "";
-std::string lora_base = "";
 std::string mmproj_filename = "";
 std::string draftmodel_filename = "";
 int speculative_chunk_amt = 8; //do it in chunks of this many tokens
@@ -62,6 +61,7 @@ bool generation_finished;
 float last_process_time = 0;
 float last_eval_time = 0;
 int last_token_count = 0;
+int last_input_count = 0;
 int last_seed = -1;
 int total_gens = 0;
 int last_draft_success = 0;
@@ -139,10 +139,14 @@ static std::vector<logit_bias> logit_biases;
 static bool add_bos_token = true; // if set to false, mmproj handling breaks. dont disable unless you know what you're doing
 static bool load_guidance = false; //whether to enable cfg for negative prompts
 static bool check_slowness = false; //will display a suggestion to use highpriority if slow
+static bool highpriority = false;
 
 static int delayed_generated_tokens_limit = 0;
 std::deque<std::string> delayed_generated_tokens; //for use with antislop sampling
 static std::map<int,std::vector<int>> antislop_banned_token_ids; //first is the npast position, second is the array of banned ids at that index
+
+const int savestate_limit = 3;
+static savestate_data savestates[savestate_limit];
 
 inline int kcpp_cpu_has_blas(void) {
 #if defined(GGML_USE_BLAS) || defined(GGML_USE_CUDA) || defined(GGML_USE_VULKAN) || defined(GGML_USE_CLBLAST) || defined(GGML_USE_SYCL)
@@ -521,10 +525,10 @@ void ContextRewind(std::vector<int> &embd, std::vector<int> &current_context_tok
 
     if (file_format == FileFormat::GGUF_GENERIC)
     {
-        llama_kv_self_seq_rm(llama_ctx_v4, 0, n_past, -1);
+        llama_memory_seq_rm(llama_get_memory(llama_ctx_v4), 0, n_past, -1);
         if(draft_ctx)
         {
-            llama_kv_self_seq_rm(draft_ctx, 0, n_past, -1);
+            llama_memory_seq_rm(llama_get_memory(draft_ctx), 0, n_past, -1);
         }
     }
 
@@ -1657,6 +1661,10 @@ void sample_grammar(FileFormat file_format, int32_t n_vocab, llama_token_data_ar
 
     std::vector<std::pair<std::vector<uint32_t>, llama_partial_utf8>> candidates_decoded;
     std::vector<llama_grammar_candidate>                              candidates_grammar;
+    std::vector<uint8_t> rejects;
+    candidates_decoded.reserve(candidates->size);
+    candidates_grammar.reserve(candidates->size);
+    rejects.assign(candidates->size, false);
 
     for (size_t i = 0; i < candidates->size; ++i) {
         const llama_token id    = candidates->data[i].id;
@@ -1664,21 +1672,25 @@ void sample_grammar(FileFormat file_format, int32_t n_vocab, llama_token_data_ar
         bool found_eog = std::find(eog_tokens.begin(), eog_tokens.end(), id) != eog_tokens.end();
         if (found_eog) {
             if (!allow_eos) {
-                candidates->data[i].logit = -INFINITY;
+                rejects[i] = true;
             }
         } else if (piece.empty() || piece[0] == 0) {
-            candidates->data[i].logit = -INFINITY;
+            rejects[i] = true;
         } else {
             candidates_decoded.push_back(decode_utf8(piece.c_str(), grammar->partial_utf8));
             candidates_grammar.push_back({ i, candidates_decoded.back().first.data(), candidates_decoded.back().second });
         }
     }
 
-    const auto rejects = llama_grammar_reject_candidates(grammar->rules, grammar->stacks, candidates_grammar);
-    for (const auto & reject : rejects) {
-        candidates->data[reject.index].logit = -INFINITY;
+    for (auto reject: llama_grammar_reject_candidates(grammar->rules, grammar->stacks, candidates_grammar)) {
+        rejects[reject.index] = true;
     }
 
+    auto first = candidates->data;
+    auto last  = first + candidates->size;
+    last = std::remove_if(first, last,
+                        [&](const llama_token_data & tk){ return rejects[&tk - first]; }); // tk.logit == -INFINITY; });
+    candidates->size = last - first;
 }
 
 void sample_guidance(struct llama_context * ctx, struct llama_context * guidance_ctx, int n_vocab, float scale)
@@ -1728,15 +1740,24 @@ const std::vector<samplers> & sampler_order, llama_grammar * grammar, float dyna
 
     llama_token_data_array candidates_p = { candidates.data(), candidates.size(), false };
 
-    if (grammar != nullptr) {
-        sample_grammar(file_format, n_vocab, &candidates_p, grammar);
-    }
-
     //dry always first as logits cannot be resorted
     sample_dry(n_ctx, dry_penalty_last_n, dry_multiplier, dry_base, dry_allowed_length, dry_sequence_breakers, &candidates_p);
 
     //prefilter to top 3k tokens for improved speed
+    bool use_grammar = grammar != nullptr;
+    std::vector<llama_token_data> precache = (use_grammar ? std::vector<llama_token_data>(candidates) : std::vector<llama_token_data>(0));
+
     sample_top_k(&candidates_p, 512);
+
+    if (use_grammar) {
+        sample_grammar(file_format, n_vocab, &candidates_p, grammar);
+        // if top_k 3000 doesn't contain a valid candidate for this grammar, try again pre-cull
+        if (candidates_p.size <= 0) {
+            candidates_p = { precache.data(), precache.size(), false };
+            sample_grammar(file_format, n_vocab, &candidates_p, grammar);
+            sample_top_k(&candidates_p, 3000);
+        }
+    }
 
     if (mirostat == 1 || mirostat == 2)
     {
@@ -1830,7 +1851,6 @@ static void grammar_accept_token(FileFormat file_format, int32_t n_vocab, struct
     const auto   decoded     = decode_utf8(piece.c_str(), grammar->partial_utf8);
     const auto & code_points = decoded.first;
     for (auto it = code_points.begin(), end = code_points.end() - 1; it != end; ++it) {
-        auto prev_stacks = grammar->stacks;
         llama_grammar_accept(grammar, *it);
     }
     grammar->partial_utf8 = decoded.second;
@@ -1938,12 +1958,12 @@ void PurgeMissingTokens(llama_context * ctx, llama_context * draft_ctx, std::vec
 
             //extract the unwanted tokens out from context and KV
             int diff = found - trimstart;
-            llama_kv_self_seq_rm(ctx, 0, trimstart, trimstart + diff);
-            llama_kv_self_seq_add(ctx, 0, trimstart + diff, -1, -diff);
+            llama_memory_seq_rm(llama_get_memory(ctx), 0, trimstart, trimstart + diff);
+            llama_memory_seq_add(llama_get_memory(ctx), 0, trimstart + diff, -1, -diff);
             if(draft_ctx)
             {
-                llama_kv_self_seq_rm(draft_ctx, 0, trimstart, trimstart + diff);
-                llama_kv_self_seq_add(draft_ctx, 0, trimstart + diff, -1, -diff);
+                llama_memory_seq_rm(llama_get_memory(draft_ctx), 0, trimstart, trimstart + diff);
+                llama_memory_seq_add(llama_get_memory(draft_ctx), 0, trimstart + diff, -1, -diff);
             }
 
             for (size_t i = trimstart + diff; i < current_context_tokens.size() - 1; i++)
@@ -2093,9 +2113,9 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             kcpp_data->swa_full = true;  //cannot use SWA
             printf("\nSWA Mode IS DISABLED!\nSWA Mode Cannot be used with Context Shifting!\n");
         } else if (inputs.use_fastforward) {
-            printf("\nSWA Mode is ENABLED!\nNote that using SWA Mode with Fast Forwarding can lead to degraded recall!\n");
+            printf("\nSWA Mode is ENABLED!\nNote that using SWA Mode cannot be used with Context Shifting, and can lead to degraded recall when combined with Fast Forwarding!\n");
         } else {
-            printf("\nSWA Mode IS ENABLED!\n");
+            printf("\nSWA Mode IS ENABLED!\nNote that using SWA Mode cannot be used with Context Shifting\n");
         }
     }
     debugmode = inputs.debugmode;
@@ -2116,6 +2136,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     add_bos_token = !inputs.no_bos_token;
     load_guidance = inputs.load_guidance;
     check_slowness = inputs.check_slowness;
+    highpriority = inputs.highpriority;
 
     if(!add_bos_token)
     {
@@ -2171,16 +2192,16 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     //this is used for the mem_per_token eval, blas needs more RAM
     bool v3_use_scratch = ggml_v3_cpu_has_gpublas();
 
-    int cu_parseinfo_maindevice = inputs.cublas_info<=0?0:inputs.cublas_info;
+    int kcpp_parseinfo_maindevice = inputs.kcpp_main_gpu<=0?0:inputs.kcpp_main_gpu;
 
     printf("System Info: %s\n", kcpp_print_system_info());
     #if defined(GGML_USE_CUDA)
     if(file_format!=FileFormat::GGUF_GENERIC)
     {
-        if(ggml_v3_cpu_has_gpublas() && cu_parseinfo_maindevice>0)
+        if(ggml_v3_cpu_has_gpublas() && kcpp_parseinfo_maindevice>0)
         {
-            printf("CUBLAS v3: Set main device to %d\n",cu_parseinfo_maindevice);
-            ggml_v3_cuda_set_main_device(cu_parseinfo_maindevice);
+            printf("CUBLAS v3: Set main device to %d\n",kcpp_parseinfo_maindevice);
+            ggml_v3_cuda_set_main_device(kcpp_parseinfo_maindevice);
         }
     }
 
@@ -2213,15 +2234,9 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         {
             printf("\nAttempting to apply LORA adapter: %s\n", lora_filename.c_str());
 
-            const char * lora_base_arg = NULL;
-            if (lora_base != "") {
-                printf("Using LORA base model: %s\n", lora_base.c_str());
-                lora_base_arg = lora_base.c_str();
-            }
-
             int err = llama_v2_apply_lora_from_file(llama_ctx_v2,
                                                  lora_filename.c_str(),
-                                                 lora_base_arg,
+                                                 nullptr,
                                                  kcpp_data->n_threads);
             if (err != 0)
             {
@@ -2259,7 +2274,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         llama_ctx_params.use_mmap = inputs.use_mmap;
         llama_ctx_params.use_mlock = inputs.use_mlock;
         llama_ctx_params.n_gpu_layers = inputs.gpulayers;
-        llama_ctx_params.main_gpu = cu_parseinfo_maindevice;
+        llama_ctx_params.main_gpu = kcpp_parseinfo_maindevice;
         llama_ctx_params.rope_freq_base = rope_freq_base;
         llama_ctx_params.rope_freq_scale = rope_freq_scale;
         llama_ctx_params.n_batch = kcpp_data->n_batch;
@@ -2291,15 +2306,9 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         {
             printf("\nAttempting to apply LORA adapter: %s\n", lora_filename.c_str());
 
-            const char * lora_base_arg = NULL;
-            if (lora_base != "") {
-                printf("Using LORA base model: %s\n", lora_base.c_str());
-                lora_base_arg = lora_base.c_str();
-            }
-
             int err = llama_v3_apply_lora_from_file(llama_ctx_v3,
                                                  lora_filename.c_str(),
-                                                 lora_base_arg,
+                                                 nullptr,
                                                  kcpp_data->n_threads);
             if (err != 0)
             {
@@ -2352,9 +2361,9 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         }
         #endif
         #if defined(GGML_USE_CUDA)
-        if(cu_parseinfo_maindevice>0)
+        if(kcpp_parseinfo_maindevice>0)
         {
-            printf("CUDA: Set main device to %d\n",cu_parseinfo_maindevice);
+            printf("CUDA: Set main device to %d\n",kcpp_parseinfo_maindevice);
         }
         printf("CUDA MMQ: %s\n",(inputs.use_mmq?"True":"False"));
         ggml_cuda_set_mul_mat_q(inputs.use_mmq);
@@ -2378,7 +2387,7 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
             printf("Qwen2VL detected! Mrope will be used, and context shift will be disabled!\n");
             kcpp_data->use_contextshift = false;
         }
-        model_params.main_gpu = cu_parseinfo_maindevice;
+        model_params.main_gpu = kcpp_parseinfo_maindevice;
 
         #if defined(GGML_USE_CUDA)
         model_params.split_mode = (inputs.use_rowsplit?llama_split_mode::LLAMA_SPLIT_MODE_ROW:llama_split_mode::LLAMA_SPLIT_MODE_LAYER);
@@ -2613,6 +2622,11 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         ggml_threadpool_params threadpool1_params, threadpool2_params;
         ggml_threadpool_params_init(&threadpool1_params,kcpp_data->n_threads);
         ggml_threadpool_params_init(&threadpool2_params,kcpp_data->n_blasthreads);
+        if(inputs.highpriority)
+        {
+            threadpool1_params.prio = GGML_SCHED_PRIO_HIGH;
+            threadpool2_params.prio = GGML_SCHED_PRIO_HIGH;
+        }
 
         printf("Threadpool set to %d threads and %d blasthreads...\n", kcpp_data->n_threads,kcpp_data->n_blasthreads);
         struct ggml_threadpool * threadpool1 = ggml_threadpool_new(&threadpool1_params);
@@ -2626,19 +2640,12 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         if (lora_filename != "")
         {
             printf("\nAttempting to apply LORA adapter: %s\n", lora_filename.c_str());
-
-            const char * lora_base_arg = NULL;
-            if (lora_base != "") {
-                printf("Using LORA base model: %s\n", lora_base.c_str());
-                lora_base_arg = lora_base.c_str();
-            }
-
             auto adapter = llama_adapter_lora_init(llamamodel, lora_filename.c_str());
             if (adapter == nullptr) {
                 fprintf(stderr, "%s: error: failed to apply lora adapter\n", __func__);
                 return ModelLoadResult::FAIL;
             }
-            llama_set_adapter_lora(llama_ctx_v4, adapter, 1.0f);
+            llama_set_adapter_lora(llama_ctx_v4, adapter, inputs.lora_multiplier);
         }
 
         if(mmproj_filename != "" && file_format==FileFormat::GGUF_GENERIC)
@@ -2656,10 +2663,11 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
                 set_clip_uses_gpu(false);
                 printf("Clip forced to use CPU!\n");
             }
-            clp_ctx = clip_init(mmproj_filename.c_str(), clip_context_params{
+            clip_init_result cres = clip_init(mmproj_filename.c_str(), clip_context_params{
                 /* use_gpu */   true,
                 /* verbosity */ static_cast<ggml_log_level>(1),
             });
+            clp_ctx = cres.ctx_v;
             if(clp_ctx == nullptr) {
                 fprintf(stderr, "%s: error: failed to load mmproj model!\n", __func__);
                 return ModelLoadResult::FAIL;
@@ -2715,14 +2723,14 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         for (int i = 1; i <= 33; ++i) {
             tmp.push_back(i);
         }
-        llama_kv_self_clear(llama_ctx_v4);
+        llama_memory_clear(llama_get_memory(llama_ctx_v4),true);
         auto er = llama_decode(llama_ctx_v4, llama_batch_get_one(tmp.data(), tmp.size()));
         if(er!=0)
         {
             printf("\nModel Warmup Failed! (code:%d)\n",er);
         }
         tmp = {1};
-        llama_kv_self_clear(llama_ctx_v4);
+        llama_memory_clear(llama_get_memory(llama_ctx_v4),true);
         er = llama_decode(llama_ctx_v4, llama_batch_get_one(tmp.data(), tmp.size()));
         if(er!=0)
         {
@@ -3090,290 +3098,8 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
     }
     else
     {
-        // printf("\nUnknown Model, cannot load.\n");
-        // return ModelLoadResult::FAIL;
-        llama_backend_init();
-
-        llama_model_params model_params = llama_model_default_params();
-        llama_context_params llama_ctx_params = llama_context_default_params();
-        llama_ctx_params.n_ctx = clamped_max_context_length;
-        if(kcpp_data->use_contextshift)
-        {
-           llama_ctx_params.n_ctx += extra_context_handle_fragmentation;
-        }
-
-        llama_ctx_params.offload_kqv = !inputs.low_vram;
-        model_params.use_mmap = inputs.use_mmap;
-        model_params.use_mlock = inputs.use_mlock;
-        model_params.n_gpu_layers = inputs.gpulayers;
-
-        #if defined(GGML_USE_CLBLAST)
-        if(file_format==FileFormat::GGUF_GENERIC && model_params.n_gpu_layers>0)
-        {
-            if(file_format_meta.model_architecture == GGUFArch::ARCH_FALCON)
-            {
-                printf("\nOpenCL does not support GPU Layer offloading for this model architecture! GPU Offload has been disabled.\n");
-                model_params.n_gpu_layers = 0;
-            }
-            else if(file_format_meta.n_expert_count>1)
-            {
-                printf("\nOpenCL cannot use regular GPU offloading for this model architecture. A fallback GPU offloader will be used with degraded performance.\n");
-
-            }
-        }
-        #endif
-        #if defined(GGML_USE_CUDA)
-        if(cu_parseinfo_maindevice>0)
-        {
-            printf("CUBLAS: Set main device to %d\n",cu_parseinfo_maindevice);
-        }
-        ggml_cuda_set_mul_mat_q(inputs.use_mmq);
-
-        if (inputs.use_mmq == true)
-        {
-            printf("\nUsing MMQ, less compute memory used\n");
-        }
-        else
-        {
-            printf("\nNot Using MMQ\n");
-        }
-
-        #endif
-        if((file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2 || file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2VL) && !kcpp_data->flash_attn)
-        {
-            printf("Warning, you are running Qwen2 without Flash Attention. If you observe incoherent output, try enabling it.\n");
-        }
-        if(file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2VL)
-        {
-            printf("Qwen2VL detected! Mrope will be used, and context shift will be disabled!\n");
-            kcpp_data->use_contextshift = false;
-        }
-        model_params.main_gpu = cu_parseinfo_maindevice;
-
-        #if defined(GGML_USE_CUDA)
-        model_params.split_mode = (inputs.use_rowsplit?llama_split_mode::LLAMA_SPLIT_MODE_ROW:llama_split_mode::LLAMA_SPLIT_MODE_LAYER);
-        #else
-        model_params.split_mode = llama_split_mode::LLAMA_SPLIT_MODE_LAYER;
-        #endif
-
-        llama_ctx_params.n_batch = kcpp_data->n_batch;
-        llama_ctx_params.n_ubatch = kcpp_data->n_ubatch;
-        llama_ctx_params.n_threads = kcpp_data->n_threads;
-        llama_ctx_params.n_threads_batch = kcpp_data->n_blasthreads;
-
-        #if defined(GGML_USE_CUDA) || defined(GGML_USE_VULKAN)
-        bool ts_all_zero = true;
-        for (int i = 0; i < tensor_split_max; ++i) {
-            if (inputs.tensor_split[i] != 0.0f) {
-                ts_all_zero = false;
-                break;
-            }
-        }
-        if(!ts_all_zero)
-        {
-            printf("\nApplying Tensor Split...\n");
-            model_params.tensor_split = inputs.tensor_split;
-        }
-        #endif
-
-        //compat for old falcon
-        if(file_format_meta.fileversion==1)
-        {
-            //apply compat fix
-            printf("\nUsing older tokenizer for GGUFv1...");
-            OldBPETokenizerMode = true;
-        }
-
-        std::vector<llama_model_kv_override> kvos; //ensure it keeps in scope until model is created
-        if(inputs.moe_experts>0)
-        {
-            printf("\nOverriding number of experts to %d\n",inputs.moe_experts);
-            llama_model_kv_override kvo;
-            const char * moekey = "llama.expert_used_count";
-            std::strncpy(kvo.key, moekey, sizeof(kvo.key) - 1);
-            kvo.key[sizeof(kvo.key) - 1] = '\0'; // Ensure null termination
-            kvo.tag = LLAMA_KV_OVERRIDE_TYPE_INT;
-            kvo.val_i64 = inputs.moe_experts;
-            kvos.push_back(kvo);
-            model_params.kv_overrides = kvos.data();
-        }
-
-        if(inputs.norm_rms_eps>0)
-        {
-            printf("\nOverriding norm rms epsilon to %f\n",inputs.norm_rms_eps);
-            llama_model_kv_override kvo;
-            const char * rmskey = "llama.attention.layer_norm_rms_epsilon";
-            std::strncpy(kvo.key, rmskey, sizeof(kvo.key) - 1);
-            kvo.key[sizeof(kvo.key) - 1] = '\0'; // Ensure null termination
-            kvo.tag = LLAMA_KV_OVERRIDE_TYPE_FLOAT;
-            kvo.val_f64 = inputs.norm_rms_eps;
-            kvos.push_back(kvo);
-            model_params.kv_overrides = kvos.data();
-        }
-        llama_model * llamamodel = llama_load_model_from_file(kcpp_data->model_filename.c_str(), model_params);
-
-        if(overwriteRope)
-        {
-            llama_ctx_params.rope_freq_base = rope_freq_base;
-            llama_ctx_params.rope_freq_scale = rope_freq_scale;
-        }
-        else
-        {
-            //if the model modifes rope in any way, or uses yarn, use the model values. Otherwise, use our automatic ones
-            //special exception for llama, which uses auto scale
-            if((llamamodel->hparams.rope_freq_base_train!=10000.0f && llamamodel->hparams.rope_freq_base_train!=500000.0f) ||
-            llamamodel->hparams.rope_freq_scale_train!=1.0f ||
-            llamamodel->hparams.rope_scaling_type_train==2)
-            {
-                printf("Automatic RoPE Scaling: Using model internal value.\n");
-            }
-            else
-            {
-				//Calculate rope_freq_base using the gradientAI formula, solar requires ctx *8 for correct scaling
-                rope_freq_base = CalcGradientAIRopeFreqBase(llamamodel->hparams.rope_freq_base_train, file_format_meta.n_ctx_train, kcpp_data->n_ctx, file_format_meta.model_architecture);
-                llama_ctx_params.rope_freq_base = rope_freq_base;
-                llama_ctx_params.rope_freq_scale = rope_freq_scale;
-                printf("Automatic RoPE Scaling: Using (scale:%.3f, base:%.1f).\n", rope_freq_scale, rope_freq_base);
-            }
-        }
-
-        if(file_format_meta.model_architecture==GGUFArch::ARCH_RWKV)
-        {
-            printf("\nRWKV6 Overriding EOS and BOS IDs to 0\n");
-            llamamodel->vocab.set_eos_bos(0,0);
-        }
-
-        llama_ctx_params.flash_attn = kcpp_data->flash_attn;
-        llama_ctx_params.type_k =
-		(inputs.quant_k==22?GGML_TYPE_IQ4_NL:
-		(inputs.quant_k==21?GGML_TYPE_Q4_0:
-		(inputs.quant_k==20?GGML_TYPE_Q4_1:
-		(inputs.quant_k==19?GGML_TYPE_Q5_0:
-		(inputs.quant_k==18?GGML_TYPE_Q5_1:
-		(inputs.quant_k==17?GGML_TYPE_Q6_0:
-		(inputs.quant_k==16?GGML_TYPE_Q8_0:
-		(inputs.quant_k==15?GGML_TYPE_BF16:
-		(inputs.quant_k==14?GGML_TYPE_IQ4_NL:
-		(inputs.quant_k==13?GGML_TYPE_Q5_0:
-		(inputs.quant_k==12?GGML_TYPE_Q5_1:
-		(inputs.quant_k==11?GGML_TYPE_Q5_1:
-		(inputs.quant_k==10?GGML_TYPE_Q6_0:
-		(inputs.quant_k==9?GGML_TYPE_Q6_0:
-		(inputs.quant_k==8?GGML_TYPE_Q6_0:
-		(inputs.quant_k==7?GGML_TYPE_Q8_0:
-		(inputs.quant_k==6?GGML_TYPE_Q8_0:
-		(inputs.quant_k==5?GGML_TYPE_Q8_0:
-		(inputs.quant_k==4?GGML_TYPE_F16:
-		(inputs.quant_k==3?GGML_TYPE_F16:
-		(inputs.quant_k==2?GGML_TYPE_Q4_0:
-		(inputs.quant_k==1?GGML_TYPE_Q8_0:
-		GGML_TYPE_F16))))))))))))))))))))));
-        llama_ctx_params.type_v =
-		(inputs.quant_v==22?GGML_TYPE_F16:
-		(inputs.quant_v==21?GGML_TYPE_F16:
-		(inputs.quant_v==20?GGML_TYPE_F16:
-		(inputs.quant_v==19?GGML_TYPE_F16:
-		(inputs.quant_v==18?GGML_TYPE_F16:
-		(inputs.quant_v==17?GGML_TYPE_F16:
-		(inputs.quant_v==16?GGML_TYPE_F16:
-		(inputs.quant_v==15?GGML_TYPE_BF16:
-		(inputs.quant_v==14?GGML_TYPE_IQ4_NL:
-		(inputs.quant_v==13?GGML_TYPE_IQ4_NL:
-		(inputs.quant_v==12?GGML_TYPE_IQ4_NL:
-		(inputs.quant_v==11?GGML_TYPE_Q5_0:
-		(inputs.quant_v==10?GGML_TYPE_IQ4_NL:
-		(inputs.quant_v==9?GGML_TYPE_Q5_0:
-		(inputs.quant_v==8?GGML_TYPE_Q6_0:
-		(inputs.quant_v==7?GGML_TYPE_IQ4_NL:
-		(inputs.quant_v==6?GGML_TYPE_Q5_0:
-		(inputs.quant_v==5?GGML_TYPE_Q6_0:
-		(inputs.quant_v==4?GGML_TYPE_Q6_0:
-		(inputs.quant_v==3?GGML_TYPE_Q8_0:
-		(inputs.quant_v==2?GGML_TYPE_Q4_0:
-		(inputs.quant_v==1?GGML_TYPE_Q8_0:
-		GGML_TYPE_F16))))))))))))))))))))));
-        llama_ctx_v4 = llama_new_context_with_model(llamamodel, llama_ctx_params);
-
-        if (llama_ctx_v4 == NULL)
-        {
-            fprintf(stderr, "%s: error: failed to load model '%s'\n", __func__, kcpp_data->model_filename.c_str());
-            return ModelLoadResult::FAIL;
-        }
-        if (lora_filename != "")
-        {
-            printf("\nAttempting to apply LORA adapter: %s\n", lora_filename.c_str());
-
-            const char * lora_base_arg = NULL;
-            if (lora_base != "") {
-                printf("Using LORA base model: %s\n", lora_base.c_str());
-                lora_base_arg = lora_base.c_str();
-            }
-
-            auto adapter = llama_adapter_lora_init(llamamodel, lora_filename.c_str());
-            if (adapter == nullptr) {
-                fprintf(stderr, "%s: error: failed to apply lora adapter\n", __func__);
-                return ModelLoadResult::FAIL;
-            }
-            llama_set_adapter_lora(llama_ctx_v4, adapter, 1.0f);
-        }
-
-        if(mmproj_filename != "" && file_format==FileFormat::GGUF_GENERIC)
-        {
-            printf("\nAttempting to apply Multimodal Projector: %s\n", mmproj_filename.c_str());
-            #if defined(GGML_USE_VULKAN) || defined(GGML_USE_METAL)
-            if(file_format_meta.model_architecture == GGUFArch::ARCH_QWEN2VL)
-            {
-                set_clip_uses_gpu(false);
-                printf("Clip will use CPU for this model!\n");
-            }
-            #endif
-            clp_ctx = clip_init(mmproj_filename.c_str(), clip_context_params{
-                                                             /* use_gpu */ true,
-                                                             /* verbosity */ static_cast<ggml_log_level>(1),
-            });
-            if(clp_ctx == nullptr) {
-                fprintf(stderr, "%s: error: failed to load mmproj model!\n", __func__);
-                return ModelLoadResult::FAIL;
-            }
-            const int n_embd_clip = clip_n_mmproj_embd(clp_ctx);
-            const int n_embd_llm  = llama_n_embd(llamamodel);
-            if (n_embd_clip != n_embd_llm) {
-                fprintf(stderr, "%s: mmproj embedding mismatch (%d and %d)! Make sure you use the correct mmproj file!\n", __func__,n_embd_clip, n_embd_llm);
-                return ModelLoadResult::FAIL;
-            }
-            clp_img_data = clip_image_u8_init();
-        }
-
-        const llama_vocab * tmpvocab = llama_model_get_vocab(llamamodel);
-        n_vocab = llama_vocab_n_tokens(tmpvocab);
-
-        if(draftmodel_filename !="" && file_format==FileFormat::GGUF_GENERIC)
-        {
-            if(llama_model_is_recurrent(llamamodel))
-            {
-                printf("Error: Speculative decoding cannot be used with Recurrent models!\n");
-            }
-            else if(clp_ctx!=nullptr)
-            {
-                printf("Error: Speculative decoding cannot be used with multimodal vision projectors!\n");
-            }
-            else
-            {
-                printf("\nAttempting to load draft model for speculative decoding. It will be fully offloaded if possible. Vocab must match the main model.\n");
-                speculative_chunk_amt = inputs.draft_amount;
-                speculative_decoding_setup(draftmodel_filename, model_params, llama_ctx_params, n_vocab, inputs.draft_gpusplit, inputs.draft_gpulayers, inputs.draft_quant_k, inputs.draft_quant_v);
-            }
-        }
-
-        //determine mem per token
-        std::vector<int> tmp = {1, 2, 3, 4};
-        // llama_kv_cache_clear(llama_ctx_v4);
-        auto er = llama_decode(llama_ctx_v4, llama_batch_get_one(tmp.data(), tmp.size()));
-        if(er!=0)
-        {
-            printf("\nLLAMA EVAL returned nonzero: %d\n",er);
-        }
-        return ModelLoadResult::SUCCESS;
+        printf("\nUnknown Model, cannot load.\n");
+        return ModelLoadResult::FAIL;
     }
 
 }
@@ -3967,7 +3693,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     int guidance_n_past = 0;
     if(guidance_ctx)
     {
-        llama_kv_self_clear(guidance_ctx);
+        llama_memory_clear(llama_get_memory(guidance_ctx),true);
         //prepare negative prompt
         if(negative_prompt!="" && inputs.guidance_scale!=1.0f)
         {
@@ -4077,10 +3803,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         {
             if(n_past==0)
             {
-                llama_kv_self_clear(llama_ctx_v4);
+                llama_memory_clear(llama_get_memory(llama_ctx_v4),true);
                 if(draft_ctx)
                 {
-                    llama_kv_self_clear(draft_ctx);
+                    llama_memory_clear(llama_get_memory(draft_ctx),true);
                 }
             }
             else if(embd_inp.size()==0)
@@ -4107,10 +3833,10 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
         }
         if(file_format == FileFormat::GGUF_GENERIC)
         {
-            llama_kv_self_seq_rm(llama_ctx_v4, 0, n_past, -1);
+            llama_memory_seq_rm(llama_get_memory(llama_ctx_v4), 0, n_past, -1);
             if(draft_ctx)
             {
-                llama_kv_self_seq_rm(draft_ctx, 0, n_past, -1);
+                llama_memory_seq_rm(llama_get_memory(draft_ctx), 0, n_past, -1);
             }
         }
     }
@@ -4508,7 +4234,6 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
 
                     logitsPtr = logits.data(); //legacy rwkv, neox, gptj etc
                     lowestLogit = LowestLogit(logits);
-
                 }
 
                 if(file_format == FileFormat::GGUF_GENERIC && guidance_ctx && negprompt_tokens.size()>0 && inputs.guidance_scale!=1.0f)
@@ -4729,7 +4454,6 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
                         if(id==matched)
                         {
                             if(allow_regular_prints)
-
                             {
                                 printf("\n(Special Stop Token Triggered! ID:%d)",matched);
                             }
@@ -4765,9 +4489,9 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
             //if we have somehow skipped ahead (e.g drafting), ensure that all tokens after npast are purged
             if (file_format == FileFormat::GGUF_GENERIC && draft_used)
             {
-                llama_kv_self_seq_rm(llama_ctx_v4, 0, n_past, -1);
+                llama_memory_seq_rm(llama_get_memory(llama_ctx_v4), 0, n_past, -1);
                 if (draft_ctx) {
-                    llama_kv_self_seq_rm(draft_ctx, 0, n_past, -1);
+                    llama_memory_seq_rm(llama_get_memory(draft_ctx), 0, n_past, -1);
                 }
             }
 
@@ -4950,6 +4674,7 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     last_eval_time = pt2;
     last_process_time = pt1;
     last_token_count = realnpredict;
+    last_input_count = (finaltokcount<0?0:finaltokcount);
     last_seed = kcpp_data->seed;
     last_draft_failed = draft_failures;
     last_draft_success = draft_successes;
@@ -4960,4 +4685,110 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     output.text = concat_output_reader_copy_res.c_str();
     generation_finished = true;
     return output;
+}
+
+size_t gpttype_calc_new_state_kv()
+{
+    if(kcpp_data==nullptr)
+    {
+        return 0;
+    }
+    if(file_format == FileFormat::GGUF_GENERIC)
+    {
+        return llama_state_get_size(llama_ctx_v4);
+    }
+    return 0;
+}
+size_t gpttype_calc_old_state_kv(int slot)
+{
+    return savestates[slot].current_savestate_size;
+}
+size_t gpttype_calc_old_state_tokencount(int slot)
+{
+    return savestates[slot].savestate_context_tokens.size();
+}
+size_t gpttype_calc_new_state_tokencount()
+{
+    return current_context_tokens.size();
+}
+size_t gpttype_save_state_kv(int slot)
+{
+    if(kcpp_data==nullptr)
+    {
+        return 0;
+    }
+    if(file_format == FileFormat::GGUF_GENERIC)
+    {
+        if (!savestates[slot].current_savestate_buffer.empty()) {  //JIT free
+            savestates[slot].current_savestate_buffer.clear();
+            savestates[slot].savestate_context_tokens.clear();
+            savestates[slot].current_savestate_size = 0;
+        }
+        size_t newsize = llama_state_get_size(llama_ctx_v4);
+        try {
+            if (savestates[slot].current_savestate_buffer.capacity() < newsize + 512) {
+                savestates[slot].current_savestate_buffer = std::vector<uint8_t>(newsize + 512);
+            } else {
+                savestates[slot].current_savestate_buffer.resize(newsize + 512);
+            }
+            savestates[slot].current_savestate_buffer.resize(newsize + 512);  // add some padding. May throw std::bad_alloc
+        } catch (const std::bad_alloc&) {
+            fprintf(stderr, "KV Save State: Failed to allocate %zu bytes.\n", newsize + 512);
+            return 0;
+        }
+        auto res = llama_state_get_data(llama_ctx_v4, savestates[slot].current_savestate_buffer.data(), newsize);
+        if (res > 0) {
+            savestates[slot].current_savestate_size   = newsize;
+            savestates[slot].savestate_context_tokens = current_context_tokens;
+            printf("\nKV Save State %d: Created SaveState of %zu tokens, costing %zu MB.\n",slot,current_context_tokens.size(),savestates[slot].current_savestate_size/(1024*1024));
+        }
+        return res;
+    }
+    return 0;
+}
+bool gpttype_load_state_kv(int slot)
+{
+    if(kcpp_data==nullptr)
+    {
+        return false;
+    }
+    if(file_format == FileFormat::GGUF_GENERIC)
+    {
+        if (savestates[slot].current_savestate_buffer.empty()) {
+            return false;
+        }
+        auto res = llama_state_set_data(llama_ctx_v4, savestates[slot].current_savestate_buffer.data(), savestates[slot].current_savestate_size);
+        if(res > 0)
+        {
+            current_context_tokens = savestates[slot].savestate_context_tokens;
+            printf("\nKV Load SaveState %d: Restored KV with %zu tokens.\n", slot,current_context_tokens.size());
+        }
+        return (res > 0);
+    }
+    return false;
+}
+bool gpttype_clear_state_kv(bool shrink)
+{
+    if(kcpp_data==nullptr)
+    {
+        return false;
+    }
+    if(file_format == FileFormat::GGUF_GENERIC)
+    {
+        for(int slot=0;slot<savestate_limit;++slot)
+        {
+            if (!savestates[slot].current_savestate_buffer.empty()) {
+                printf("\nKV Clear SaveState %d: Freed %zu MB.\n",slot, savestates[slot].current_savestate_size / (1024 * 1024));
+                savestates[slot].current_savestate_buffer.clear();
+                if(shrink)
+                {
+                    savestates[slot].current_savestate_buffer.shrink_to_fit();
+                }
+                savestates[slot].savestate_context_tokens.clear();
+                savestates[slot].current_savestate_size = 0;
+            }
+        }
+        return true;
+    }
+    return false;
 }

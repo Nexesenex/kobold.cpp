@@ -39,23 +39,17 @@ static void batch_decode(llama_context * ctx, llama_batch & batch, float * outpu
     const struct llama_model * model = llama_get_model(ctx);
 
     // clear previous kv_cache values (irrelevant for embeddings)
-    llama_kv_self_clear(ctx);
+    llama_memory_clear(llama_get_memory(ctx),true);
 
     // run model
     if(embeddings_debug)
     {
         printf("\n%s: n_tokens = %d, n_seq = %d\n", __func__, batch.n_tokens, n_seq);
     }
-    if (llama_model_has_encoder(model) && !llama_model_has_decoder(model)) {
-        // encoder-only model
-        if (llama_encode(ctx, batch) < 0) {
-            printf("\n%s : failed to encode\n", __func__);
-        }
-    } else if (!llama_model_has_encoder(model) && llama_model_has_decoder(model)) {
-        // decoder-only model
-        if (llama_decode(ctx, batch) < 0) {
-            printf("\n%s : failed to decode\n", __func__);
-        }
+
+    // run model
+    if (llama_decode(ctx, batch) < 0) {
+        printf("%s : failed to process\n", __func__);
     }
 
     for (int i = 0; i < batch.n_tokens; i++) {
@@ -120,11 +114,10 @@ bool embeddingstype_load_model(const embeddings_load_model_inputs inputs)
 
     embeddings_debug = (inputs.debugmode>0);
 
-    // tts init
     llama_model_params model_params = llama_model_default_params();
     llama_context_params ctx_params = llama_context_default_params();
     const int nthreads = inputs.threads;
-    model_params.use_mmap = false;
+    model_params.use_mmap = inputs.use_mmap;
     model_params.use_mlock = false;
     model_params.n_gpu_layers = inputs.gpulayers; //offload if possible
     model_params.split_mode = llama_split_mode::LLAMA_SPLIT_MODE_LAYER;
@@ -132,11 +125,13 @@ bool embeddingstype_load_model(const embeddings_load_model_inputs inputs)
     llama_model * embeddingsmodel = llama_model_load_from_file(modelfile.c_str(), model_params);
     const int n_ctx_train = llama_model_n_ctx_train(embeddingsmodel);
 
-    max_batchsize = n_ctx_train;
+    max_batchsize = (inputs.embeddingsmaxctx>0?inputs.embeddingsmaxctx:n_ctx_train);
+    max_batchsize = (max_batchsize>n_ctx_train?n_ctx_train:max_batchsize);
     ctx_params.embeddings = true;
-    ctx_params.n_ubatch = ctx_params.n_ubatch = max_batchsize; //max size, must fit
+    ctx_params.n_ubatch = max_batchsize; //max size, must fit
     ctx_params.n_ctx = max_batchsize;
-    ctx_params.offload_kqv = true;
+    ctx_params.n_batch = max_batchsize;
+    ctx_params.offload_kqv = false;
     ctx_params.n_threads = nthreads;
     ctx_params.n_threads_batch = nthreads;
     ctx_params.flash_attn = inputs.flash_attention;
@@ -149,7 +144,7 @@ bool embeddingstype_load_model(const embeddings_load_model_inputs inputs)
     }
 
     std::vector<int> tmp = {1, 2, 3, 4};
-    llama_kv_self_clear(embeddings_ctx);
+    llama_memory_clear(llama_get_memory(embeddings_ctx),true);
     auto er = llama_decode(embeddings_ctx, llama_batch_get_one(tmp.data(), tmp.size()));
     if(er!=0)
     {
@@ -190,7 +185,7 @@ embeddings_generation_outputs embeddingstype_generate(const embeddings_generatio
     double timetaken = 0;
     timer_start();
 
-    llama_kv_self_clear(embeddings_ctx);
+    llama_memory_clear(llama_get_memory(embeddings_ctx),true);
     std::string prompt = inputs.prompt;
 
     // max batch size

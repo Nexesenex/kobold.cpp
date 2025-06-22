@@ -157,7 +157,7 @@ static void ggml_print_backtrace_symbols(void) {
 }
 #endif
 
-static void ggml_print_backtrace(void) {
+void ggml_print_backtrace(void) {
     const char * GGML_NO_BACKTRACE = getenv("GGML_NO_BACKTRACE");
     if (GGML_NO_BACKTRACE) {
         return;
@@ -184,6 +184,10 @@ static void ggml_print_backtrace(void) {
     const int parent_pid = getpid();
     const int child_pid = fork();
     if (child_pid < 0) { // error
+#if defined(__linux__)
+        close(lock[1]);
+        close(lock[0]);
+#endif
         return;
     } else if (child_pid == 0) { // child
         char attach[32];
@@ -191,6 +195,7 @@ static void ggml_print_backtrace(void) {
 #if defined(__linux__)
         close(lock[1]);
         (void) !read(lock[0], lock, 1);
+        close(lock[0]);
 #endif
         // try gdb
         execlp("gdb", "gdb", "--batch",
@@ -219,7 +224,7 @@ static void ggml_print_backtrace(void) {
     }
 }
 #else
-static void ggml_print_backtrace(void) {
+void ggml_print_backtrace(void) {
     // platform not supported
 }
 #endif
@@ -240,14 +245,16 @@ void ggml_abort(const char * file, int line, const char * fmt, ...) {
     abort();
 }
 
-
-#define GGML_DEBUG 0
+/* #define GGML_DEBUG 0
 #define GGML_GELU_FP16
 #define GGML_GELU_QUICK_FP16
 
 #define GGML_SOFT_MAX_UNROLL 4
 #define GGML_VEC_DOT_UNROLL  2
-#define GGML_VEC_MAD_UNROLL  32
+#define GGML_VEC_MAD_UNROLL  32 */
+
+// ggml_print_backtrace is registered with std::set_terminate by ggml.cpp
+
 //
 // logging
 //
@@ -3179,6 +3186,26 @@ struct ggml_tensor * ggml_repeat(
     GGML_ASSERT(ggml_can_repeat(a, b));
 
     struct ggml_tensor * result = ggml_new_tensor(ctx, a->type, GGML_MAX_DIMS, b->ne);
+
+    result->op     = GGML_OP_REPEAT;
+    result->src[0] = a;
+
+    return result;
+}
+
+struct ggml_tensor * ggml_repeat_4d(
+        struct ggml_context * ctx,
+        struct ggml_tensor * a,
+        int64_t ne0, int64_t ne1, int64_t ne2, int64_t ne3) {
+    const bool can_repeat = ggml_is_empty(a) || (
+        (ne0 % a->ne[0] == 0) &&
+        (ne1 % a->ne[1] == 0) &&
+        (ne2 % a->ne[2] == 0) &&
+        (ne3 % a->ne[3] == 0)
+    );
+    GGML_ASSERT(can_repeat);
+
+    struct ggml_tensor * result = ggml_new_tensor_4d(ctx, a->type, ne0, ne1, ne2, ne3);
 
     result->op     = GGML_OP_REPEAT;
     result->src[0] = a;

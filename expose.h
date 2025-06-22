@@ -39,7 +39,6 @@ struct load_model_inputs
     const char * executable_path = nullptr;
     const char * model_filename = nullptr;
     const char * lora_filename = nullptr;
-    const char * lora_base = nullptr;
     const char * draftmodel_filename = nullptr;
     const int draft_amount = 4;
     const int draft_gpulayers = 999;
@@ -53,7 +52,7 @@ struct load_model_inputs
     const bool use_contextshift = false;
     const bool use_fastforward = false;
     const int clblast_info = 0;
-    const int cublas_info = 0;
+    const int kcpp_main_gpu = 0;
     const char * vulkan_info = nullptr;
     const int blasbatchsize = 128;
     const int blasubatchsize = 128;
@@ -77,7 +76,9 @@ struct load_model_inputs
     const int draft_quant_k = -1;
     const int draft_quant_v = -1;
     const bool check_slowness = false;
+    const bool highpriority = false;
     const bool swa_support = false;
+    const float lora_multiplier = 1.0f;
     const bool quiet = false;
     const int debugmode = 0;
 };
@@ -163,7 +164,7 @@ struct sd_load_model_inputs
     const char * model_filename = nullptr;
     const char * executable_path = nullptr;
     const int clblast_info = 0;
-    const int cublas_info = 0;
+    const int kcpp_main_gpu = 0;
     const char * vulkan_info = nullptr;
     const int threads = 0;
     const int quant = 0;
@@ -175,6 +176,8 @@ struct sd_load_model_inputs
     const char * vae_filename = nullptr;
     const char * lora_filename = nullptr;
     const float lora_multiplier = 1.0f;
+    const int side_limit = 0;
+    const int square_limit = 0;
     const bool quiet = false;
     const int debugmode = 0;
 };
@@ -205,7 +208,7 @@ struct whisper_load_model_inputs
     const char * model_filename = nullptr;
     const char * executable_path = nullptr;
     const int clblast_info = 0;
-    const int cublas_info = 0;
+    const int kcpp_main_gpu = 0;
     const char * vulkan_info = nullptr;
     const bool quiet = false;
     const int debugmode = 0;
@@ -230,7 +233,7 @@ struct tts_load_model_inputs
     const char * cts_model_filename = nullptr;
     const char * executable_path = nullptr;
     const int clblast_info = 0;
-    const int cublas_info = 0;
+    const int kcpp_main_gpu = 0;
     const char * vulkan_info = nullptr;
     const int gpulayers = 0;
     const bool flash_attention = false;
@@ -258,10 +261,12 @@ struct embeddings_load_model_inputs
     const char * model_filename = nullptr;
     const char * executable_path = nullptr;
     const int clblast_info = 0;
-    const int cublas_info = 0;
+    const int kcpp_main_gpu = 0;
     const char * vulkan_info = nullptr;
     const int gpulayers = 0;
     const bool flash_attention = false;
+    const bool use_mmap = false;
+    const int embeddingsmaxctx = 0;
     const bool quiet = false;
     const int debugmode = 0;
 };
@@ -279,7 +284,6 @@ struct embeddings_generation_outputs
 
 extern std::string executable_path;
 extern std::string lora_filename;
-extern std::string lora_base;
 extern std::string mmproj_filename;
 extern std::string draftmodel_filename;
 extern std::vector<std::string> generated_tokens;

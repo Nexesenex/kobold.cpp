@@ -4434,6 +4434,8 @@ static bool ggml_metal_encode_node(
                     GGML_ASSERT(nqptg  % 8  == 0);
                     GGML_ASSERT(ncpsg  % 32 == 0);
 
+                    const int is_q = ggml_is_quantized(src1->type) ? 1 : 0;
+
                     // 2*(2*ncpsg + nqptg)*(nsg)
                     // ncpsg soft_max values + ncpsg mask values + a diagonal scaling matrix (in float)
                     //
@@ -4441,7 +4443,7 @@ static bool ggml_metal_encode_node(
                     // the shared memory needed for the simdgroups to load the KV cache
                     // each thread loads (dequantizes) 16 head elements, there are 32 threads in th SG
                     //
-#define FATTN_SMEM(nsg) (GGML_PAD((nqptg*(ne00 + 2*(2*ncpsg + nqptg)*(nsg)) + 16*32*(nsg))*(sizeof(float)/2), 16))
+#define FATTN_SMEM(nsg) (GGML_PAD((nqptg*(2*ne00 + 2*(2*ncpsg + nqptg)*(nsg)) + is_q*(16*32*(nsg)))*(sizeof(float)/2), 16))
 
                     int64_t nsgmax = 2;
 
@@ -4478,9 +4480,10 @@ static bool ggml_metal_encode_node(
                     // and store the soft_max values and the mask
                     //
                     // ne00*(nsg)
-                    // each simdgroup has a full f16 head vector in shared mem to accumulate results
+                    // each simdgroup has a full f32 head vector in shared mem to accumulate results
                     //
-#define FATTN_SMEM(nsg) (GGML_PAD((nqptg*(ne00 + 2*ncpsg*(nsg)) + ne00*(nsg))*(sizeof(float)/2), 16))
+
+#define FATTN_SMEM(nsg) (GGML_PAD((nqptg*(GGML_PAD(ne00, 128) + 4*ncpsg*(nsg)) + 2*ne20*(nsg))*(sizeof(float)/2), 16))
 
                     int64_t nsgmax = 2;
 

@@ -439,8 +439,8 @@
              },
              "info": {
                 "title": "KoboldCpp API",
-                "description": "For swagger.json, <a href=\"?json=1\">click here</a>.",
-                "version": "2025.01.08"
+                "description": "For swagger.json, <a href=\"?json=1\">click here</a> or use <a href=\"https://lite.koboldai.net/koboldcpp_api.json\">online version</a>.",
+                "version": "2025.06.03"
              },
              "openapi": "3.0.3",
              "paths": {
@@ -639,7 +639,7 @@
                                "application/json": {
                                   "example": {
                                      "result": "KoboldCpp",
-                                     "version": "2025.01.08",
+                                     "version": "2025.06.03",
                                      "protected": false,
                                      "txt2img": false,
                                      "vision": false,
@@ -1860,12 +1860,17 @@
                             "application/json": {
                                "example": {
                                   "filename": "file1.kcpps",
+                                  "overrideconfig":"",
                                },
                                "schema": {
                                   "properties": {
                                      "filename": {
                                         "type": "string",
                                         "description": "Filename of the .kcpps config to be loaded. Any associated files and models will be automatically swapped in."
+                                     },
+                                     "overrideconfig": {
+                                        "type": "string",
+                                        "description": "If filename is a gguf, this allows other kcpps settings to be overlaid on top of that gguf."
                                      },
                                   },
                                   "type": "object"
@@ -1897,6 +1902,244 @@
                       "summary": "Switches the currently loaded .kcpps config, and reloads any changed files or models.",
                       "tags": [
                          "api/admin"
+                      ]
+                   }
+                },
+                "/api/admin/check_state": {
+                   "post": {
+                      "description": "Gets the number of bytes taken for existing save state, and predicts the bytes required for a new save state.",
+                      "responses": {
+                         "200": {
+                            "content": {
+                                 "application/json": {
+                                  "example": {
+                                     "success": true,
+                                     "old_states": [
+                                       {
+                                          "tokens": 0,
+                                          "size": 0
+                                       },
+                                       {
+                                          "tokens": 0,
+                                          "size": 0
+                                       },
+                                       {
+                                          "tokens": 0,
+                                          "size": 0
+                                       }
+                                    ],
+                                     "new_state_size": 0,
+                                     "new_tokens": 0,
+                                  },
+                                  "schema": {
+                                     "properties": {
+                                        "success": {
+                                           "type": "boolean",
+                                           "description": "Whether the operation was successful."
+                                        },
+                                        "old_states": {
+                                           "type": "array",
+                                            "items": {
+                                            "type": "object",
+                                            "properties": {
+                                               "tokens": {
+                                               "type": "number",
+                                               "description": "Tokens in this saved state."
+                                               },
+                                               "size": {
+                                               "type": "number",
+                                               "description": "Size of this saved state in bytes."
+                                               }
+                                             }
+                                           }
+                                        },
+                                        "new_state_size": {
+                                           "type": "number",
+                                           "description": "Bytes a new save state is estimated to consume."
+                                        },
+                                        "new_tokens": {
+                                           "type": "number",
+                                           "description": "How many tokens will be stored if a new save state is made."
+                                        }
+                                     }
+                                  }
+                               }
+                           },
+                            "description": "Successful request"
+                         }
+                      },
+                      "summary": "Gets the number of bytes taken for existing save state, and predicts the bytes required for a new save state.",
+                      "tags": [
+                         "api/admin"
+                      ]
+                   }
+                },
+                "/api/admin/save_state": {
+                   "post": {
+                      "description": "Creates a new KV cache save state in memory. Overwrites any existing saved state.",
+                      "requestBody": {
+                         "content": {
+                            "application/json": {
+                               "example": {
+                                  "slot": 0,
+                               },
+                               "schema": {
+                                  "properties": {
+                                     "slot": {
+                                        "type": "number",
+                                        "description": "Which slot index to save/load the state to/from."
+                                     },
+                                  },
+                                  "type": "object"
+                               }
+                            }
+                         },
+                         "required": true
+                      },
+                      "responses": {
+                         "200": {
+                            "content": {
+                                 "application/json": {
+                                  "example": {
+                                     "success": true,
+                                     "new_state_size": 12345678,
+                                     "new_tokens": 100,
+                                  },
+                                  "schema": {
+                                     "properties": {
+                                        "success": {
+                                           "type": "boolean",
+                                           "description": "Whether the operation was successful."
+                                        },
+                                        "new_state_size": {
+                                           "type": "number",
+                                           "description": "Bytes a new save state is estimated to consume."
+                                        },
+                                        "new_tokens": {
+                                           "type": "number",
+                                           "description": "How many context tokens were saved in state."
+                                        }
+                                     }
+                                  }
+                               }
+                           },
+                            "description": "Successful request"
+                         }
+                      },
+                      "summary": "Creates a new KV cache save state in memory. Overwrites any existing saved state.",
+                      "tags": [
+                         "api/admin"
+                      ]
+                   }
+                },
+                "/api/admin/load_state": {
+                   "post": {
+                      "description": "Reloads a previous KV cache save state into context.",
+                      "requestBody": {
+                         "content": {
+                            "application/json": {
+                               "example": {
+                                  "slot": 0,
+                               },
+                               "schema": {
+                                  "properties": {
+                                     "slot": {
+                                        "type": "number",
+                                        "description": "Which slot index to save/load the state to/from."
+                                     },
+                                  },
+                                  "type": "object"
+                               }
+                            }
+                         },
+                         "required": true
+                      },
+                      "responses": {
+                         "200": {
+                            "content": {
+                                 "application/json": {
+                                  "example": {
+                                     "success": true,
+                                     "new_tokens": 100
+                                  },
+                                  "schema": {
+                                     "properties": {
+                                        "success": {
+                                           "type": "boolean",
+                                           "description": "Whether the operation was successful."
+                                        },
+                                        "new_tokens": {
+                                           "type": "number",
+                                           "description": "How many context tokens were loaded from state."
+                                        }
+                                     }
+                                  }
+                               }
+                           },
+                            "description": "Successful request"
+                         }
+                      },
+                      "summary": "Reloads a previous KV cache save state into context.",
+                      "tags": [
+                         "api/admin"
+                      ]
+                   }
+                },
+                "/api/admin/clear_state": {
+                   "post": {
+                      "description": "Frees all previous KV cache save state.",
+                      "responses": {
+                         "200": {
+                            "content": {
+                                 "application/json": {
+                                  "example": {
+                                     "success": true
+                                  },
+                                  "schema": {
+                                     "properties": {
+                                        "success": {
+                                           "type": "boolean",
+                                           "description": "Whether the operation was successful."
+                                        }
+                                     }
+                                  }
+                               }
+                           },
+                            "description": "Successful request"
+                         }
+                      },
+                      "summary": "Frees all previous KV cache save state.",
+                      "tags": [
+                         "api/admin"
+                      ]
+                   }
+                },
+                "/api/extra/shutdown": {
+                   "post": {
+                      "description": "Shuts down the server and exits koboldcpp. Only usable from localhost! Both old and new KoboldCpp Server must have been launched with the --singleinstance flag for this to work.",
+                      "responses": {
+                         "200": {
+                            "content": {
+                                 "application/json": {
+                                  "example": {
+                                     "success": true
+                                  },
+                                  "schema": {
+                                     "properties": {
+                                        "success": {
+                                           "type": "boolean",
+                                           "description": "Whether the operation was successful."
+                                        }
+                                     }
+                                  }
+                               }
+                           },
+                            "description": "Successful request"
+                         }
+                      },
+                      "summary": "Shuts down the current KoboldCpp server.",
+                      "tags": [
+                         "api/extra"
                       ]
                    }
                 },
@@ -2268,7 +2511,7 @@
                 "/v1/completions": {
                    "post": {
                       "summary": "Generates text continuations given a prompt. Please refer to OpenAI documentation",
-                      "description": "Generates text continuations given a prompt.\n\nThis is an OpenAI compatibility endpoint.\n\n Please refer to OpenAI documentation at [https://platform.openai.com/docs/api-reference/completions](https://platform.openai.com/docs/api-reference/completions)",
+                      "description": "Generates text continuations given a prompt.\n\nThis is an OpenAI compatibility endpoint.\n\n Please refer to OpenAI documentation at [https://platform.openai.com/docs/api-reference/completions](https://platform.openai.com/docs/api-reference/completions). All KoboldCpp samplers are supported, please refer to /api/v1/generate for more details.",
                       "requestBody": {
                          "content": {
                             "application/json": {
@@ -2290,7 +2533,7 @@
                 "/v1/chat/completions": {
                    "post": {
                       "summary": "Generates a response from a list of messages. Please refer to OpenAI documentation",
-                      "description": "Given a list of messages comprising a conversation, the model will return a response.\n\n This is an OpenAI compatibility endpoint.\n\n Please refer to OpenAI documentation at [https://platform.openai.com/docs/api-reference/chat](https://platform.openai.com/docs/api-reference/chat)",
+                      "description": "Given a list of messages comprising a conversation, the model will return a response.\n\n This is an OpenAI compatibility endpoint.\n\n Please refer to OpenAI documentation at [https://platform.openai.com/docs/api-reference/chat](https://platform.openai.com/docs/api-reference/chat). All KoboldCpp samplers are supported, please refer to /api/v1/generate for more details.",
                       "requestBody": {
                          "content": {
                             "application/json": {

@@ -51,8 +51,8 @@ ifdef KCPP_DEBUG
 	CFLAGS = -g -O0
 	CXXFLAGS = -g -O0
 endif
-CFLAGS   += -I. -Iggml/include -Iggml/src -Iggml/src/ggml-cpu -Iinclude -Isrc -I./common -I./include -I./include/CL -I./otherarch -I./otherarch/tools -I./otherarch/sdcpp -I./otherarch/sdcpp/thirdparty -I./include/vulkan -O3 -fno-finite-math-only -std=c11 -fPIC -DLOG_DISABLE_LOGS -D_GNU_SOURCE -DGGML_USE_CPU -DGGML_USE_CPU_AARCH64
-CXXFLAGS += -I. -Iggml/include -Iggml/src -Iggml/src/ggml-cpu -Iinclude -Isrc -I./common -I./include -I./include/CL -I./otherarch -I./otherarch/tools -I./otherarch/sdcpp -I./otherarch/sdcpp/thirdparty -I./include/vulkan -O3 -fno-finite-math-only -std=c++17 -fPIC -DLOG_DISABLE_LOGS -D_GNU_SOURCE -DGGML_USE_CPU -DGGML_USE_CPU_AARCH64
+CFLAGS   += -I. -Iggml/include -Iggml/src -Iggml/src/ggml-cpu -Iinclude -Isrc -I./common -I./vendor -I./vendor/stb -I./include -I./include/CL -I./otherarch -I./otherarch/tools -I./otherarch/sdcpp -I./otherarch/sdcpp/thirdparty -I./include/vulkan -O3 -fno-finite-math-only -std=c11 -fPIC -DLOG_DISABLE_LOGS -D_GNU_SOURCE -DGGML_USE_CPU -DGGML_USE_CPU_AARCH64
+CXXFLAGS += -I. -Iggml/include -Iggml/src -Iggml/src/ggml-cpu -Iinclude -Isrc -I./common -I./vendor -I./vendor/stb -I./include -I./include/CL -I./otherarch -I./otherarch/tools -I./otherarch/sdcpp -I./otherarch/sdcpp/thirdparty -I./include/vulkan -O3 -fno-finite-math-only -std=c++17 -fPIC -DLOG_DISABLE_LOGS -D_GNU_SOURCE -DGGML_USE_CPU -DGGML_USE_CPU_AARCH64
 ifndef KCPP_DEBUG
 	CFLAGS += -DNDEBUG -s
 	CXXFLAGS += -DNDEBUG -s
@@ -249,7 +249,8 @@ ifdef LLAMA_ARCHES_CU11
 	             -gencode arch=compute_50,code=compute_50 \
 	             -gencode arch=compute_61,code=compute_61 \
 	             -gencode arch=compute_70,code=compute_70 \
-	             -gencode arch=compute_75,code=compute_75
+	             -gencode arch=compute_75,code=compute_75 \
+	             -DKCPP_LIMIT_CUDA_MAX_ARCH=750
 
 else ifdef LLAMA_ARCHES_CU12
 	NVCCFLAGS += -Wno-deprecated-gpu-targets \
@@ -323,13 +324,23 @@ endif
 	HCXX        := $(ROCM_PATH)/bin/hipcc
 else
 	ROCM_PATH   ?= /opt/rocm
+ifdef LLAMA_PORTABLE
 	GPU_TARGETS ?= gfx803 gfx900 gfx906 gfx908 gfx90a gfx942 gfx1010 gfx1030 gfx1031 gfx1032 gfx1100 gfx1101 gfx1102 $(shell $(ROCM_PATH)/llvm/bin/amdgpu-arch)
+else
+	GPU_TARGETS ?= $(shell $(ROCM_PATH)/llvm/bin/amdgpu-arch)
+endif
 	HCC         := $(ROCM_PATH)/llvm/bin/clang
 	HCXX        := $(ROCM_PATH)/llvm/bin/clang++
 endif
+ifdef LLAMA_NO_WMMA
+	HIPFLAGS   += -DGGML_HIP_NO_ROCWMMA_FATTN
+else
 	DETECT_ROCWMMA := $(shell find -L /opt/rocm/include /usr/include -type f -name rocwmma.hpp 2>/dev/null | head -n 1)
 ifdef DETECT_ROCWMMA
 	HIPFLAGS   += -DGGML_HIP_ROCWMMA_FATTN -I$(dir $(DETECT_ROCWMMA))
+else
+	HIPFLAGS   += -DGGML_HIP_NO_ROCWMMA_FATTN
+endif
 endif
 
 	HIPFLAGS   += -DGGML_USE_HIP -DGGML_HIP_NO_VMM -DGGML_USE_CUDA -DSD_USE_CUDA $(shell $(ROCM_PATH)/bin/hipconfig -C)
@@ -727,7 +738,7 @@ embeddings_default.o: otherarch/embeddings_adapter.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # idiotic "for easier compilation"
-GPTTYPE_ADAPTER = gpttype_adapter.cpp otherarch/llama_v2.cpp otherarch/llama_v3.cpp src/llama.cpp src/llama-impl.cpp src/llama-chat.cpp src/llama-mmap.cpp src/llama-context.cpp src/llama-adapter.cpp src/llama-arch.cpp src/llama-batch.cpp src/llama-vocab.cpp src/llama-grammar.cpp src/llama-sampling.cpp src/llama-kv-cache.cpp src/llama-model-loader.cpp src/llama-model.cpp src/llama-quant.cpp src/llama-hparams.cpp otherarch/gptj_v1.cpp otherarch/gptj_v2.cpp otherarch/gptj_v3.cpp otherarch/gpt2_v1.cpp otherarch/gpt2_v2.cpp otherarch/gpt2_v3.cpp otherarch/rwkv_v2.cpp otherarch/rwkv_v3.cpp otherarch/neox_v2.cpp otherarch/neox_v3.cpp otherarch/mpt_v3.cpp ggml/include/ggml.h ggml/include/ggml-cpu.h ggml/include/ggml-cuda.h include/llama.h otherarch/llama-util.h
+GPTTYPE_ADAPTER = gpttype_adapter.cpp otherarch/llama_v2.cpp otherarch/llama_v3.cpp src/llama.cpp src/llama-impl.cpp src/llama-chat.cpp src/llama-mmap.cpp src/llama-context.cpp src/llama-adapter.cpp src/llama-arch.cpp src/llama-batch.cpp src/llama-vocab.cpp src/llama-grammar.cpp src/llama-sampling.cpp src/llama-kv-cache-unified.cpp src/llama-kv-cache-unified-iswa.cpp src/llama-kv-cache-recurrent.cpp src/llama-model-loader.cpp src/llama-model.cpp src/llama-quant.cpp src/llama-hparams.cpp otherarch/gptj_v1.cpp otherarch/gptj_v2.cpp otherarch/gptj_v3.cpp otherarch/gpt2_v1.cpp otherarch/gpt2_v2.cpp otherarch/gpt2_v3.cpp otherarch/rwkv_v2.cpp otherarch/rwkv_v3.cpp otherarch/neox_v2.cpp otherarch/neox_v3.cpp otherarch/mpt_v3.cpp ggml/include/ggml.h ggml/include/ggml-cpu.h ggml/include/ggml-cuda.h include/llama.h otherarch/llama-util.h
 gpttype_adapter_failsafe.o: $(GPTTYPE_ADAPTER)
 	$(CXX) $(CXXFLAGS) $(FAILSAFE_FLAGS) -c $< -o $@
 gpttype_adapter.o: $(GPTTYPE_ADAPTER)
@@ -768,6 +779,8 @@ mtmd-cli: tools/mtmd/mtmd-cli.cpp tools/mtmd/mtmd.cpp common/arg.cpp build-info.
 	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 mainvk: tools/main/main.cpp common/arg.cpp build-info.h ggml_v4_vulkan.o ggml-cpu.o ggml-ops.o ggml-vec.o ggml-binops.o ggml-unops.o llama.o console.o llavaclip_vulkan.o llava.o ggml-backend_vulkan.o ggml-backend-reg_vulkan.o ggml-vulkan.o $(OBJS_FULL) $(OBJS) lib/vulkan-1.lib
 	$(CXX) $(CXXFLAGS) -DGGML_USE_VULKAN -DSD_USE_VULKAN $(filter-out %.h,$^) -o $@ $(LDFLAGS)
+embedding: examples/embedding/embedding.cpp common/arg.cpp build-info.h ggml.o ggml-cpu.o ggml-ops.o ggml-vec.o ggml-binops.o ggml-unops.o llama.o console.o llavaclip_default.o llava.o ggml-backend_default.o ggml-backend-reg_default.o $(OBJS_FULL) $(OBJS)
+	$(CXX) $(CXXFLAGS) $(filter-out %.h,$^) -o $@ $(LDFLAGS)
 
 ggml/src/ggml-vulkan-shaders.cpp:
 ifdef VULKAN_BUILD
@@ -787,15 +800,31 @@ ifeq ($(OS),Windows_NT)
 	@echo 'Vulkan Shaders Rebuilt for Windows...'
 else
 	@echo 'Now rebuilding vulkan shaders for Linux...'
-	@chmod +x vulkan-shaders-gen glslc-linux
-	@echo 'Checking if bundled glslc-linux binary is usable...'
+	@chmod +x vulkan-shaders-gen
+	@echo 'Checking if system glslc-linux binary is usable...'
 	@GLSLC_BIN=$$( \
-		if [ -x ./glslc-linux ] && ./glslc-linux --version 2>/dev/null | grep -q "glslang"; then \
-			echo "./glslc-linux"; \
-		elif command -v glslc >/dev/null 2>&1; then \
-			echo "glslc"; \
+		if [ -n "$$LLAMA_USE_BUNDLED_GLSLC" ]; then \
+			chmod +x ./glslc-linux; \
+			if [ -x ./glslc-linux ] && ./glslc-linux --version 2>/dev/null | grep -q "glslang"; then \
+				echo "./glslc-linux"; \
+			elif command -v glslc >/dev/null 2>&1; then \
+				echo "glslc"; \
+			else \
+				echo ""; \
+			fi; \
 		else \
-			echo ""; \
+			if command -v glslc >/dev/null 2>&1 && glslc --version 2>/dev/null | grep -q "glslang"; then \
+				echo "glslc"; \
+			elif [ -x ./glslc-linux ]; then \
+				chmod +x ./glslc-linux; \
+				if ./glslc-linux --version 2>/dev/null | grep -q "glslang"; then \
+					echo "./glslc-linux"; \
+				else \
+					echo ""; \
+				fi; \
+			else \
+				echo ""; \
+			fi; \
 		fi); \
 	if [ -z "$$GLSLC_BIN" ]; then \
 		echo "Error: No usable glslc found. Vulkan shaders cannot be compiled!"; \
@@ -815,15 +844,32 @@ ifeq ($(OS),Windows_NT)
 	@echo 'Vulkan Shaders (no extensions) Rebuilt for Windows...'
 else
 	@echo 'Now rebuilding vulkan shaders (no extensions) for Linux...'
-	@chmod +x vulkan-shaders-gen-noext glslc-linux
-	@echo 'Checking if bundled glslc-linux binary is usable...'
-	@GLSLC_BIN=$$(if ./glslc-linux --version >/dev/null 2>&1; then \
-		echo "./glslc-linux"; \
-	elif command -v glslc >/dev/null 2>&1; then \
-		echo "glslc"; \
-	else \
-		echo ""; \
-	fi); \
+	@chmod +x vulkan-shaders-gen-noext
+	@echo 'Checking if system glslc-linux binary is usable...'
+	@GLSLC_BIN=$$( \
+		if [ -n "$$LLAMA_USE_BUNDLED_GLSLC" ]; then \
+			chmod +x ./glslc-linux; \
+			if [ -x ./glslc-linux ] && ./glslc-linux --version 2>/dev/null | grep -q "glslang"; then \
+				echo "./glslc-linux"; \
+			elif command -v glslc >/dev/null 2>&1; then \
+				echo "glslc"; \
+			else \
+				echo ""; \
+			fi; \
+		else \
+			if command -v glslc >/dev/null 2>&1 && glslc --version 2>/dev/null | grep -q "glslang"; then \
+				echo "glslc"; \
+			elif [ -x ./glslc-linux ]; then \
+				chmod +x ./glslc-linux; \
+				if ./glslc-linux --version 2>/dev/null | grep -q "glslang"; then \
+					echo "./glslc-linux"; \
+				else \
+					echo ""; \
+				fi; \
+			else \
+				echo ""; \
+			fi; \
+		fi); \
 	if [ -z "$$GLSLC_BIN" ]; then \
 		echo "Error: No usable glslc found. Vulkan shaders (no extensions) cannot be compiled!"; \
 	else \

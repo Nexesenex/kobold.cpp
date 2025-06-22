@@ -11,7 +11,7 @@ struct llama_ubatch {
     bool equal_seqs;
     // TODO: whole_seqs for embeddings?
 
-    uint32_t n_tokens; // total tokens (n_seq_tokens * n_seqs)
+    uint32_t n_tokens;     // total tokens (n_seq_tokens * n_seqs)
     uint32_t n_seq_tokens; // tokens per sequence
     uint32_t n_seqs;
 
@@ -39,8 +39,6 @@ struct llama_sbatch {
 
     size_t n_embd;
 
-    bool logits_all; // TODO: remove once lctx.logits_all is removed too
-
     // sorted indices into the batch
     std::vector<int64_t> ids;
     // batch indices of the output
@@ -49,13 +47,18 @@ struct llama_sbatch {
 
     const llama_batch * batch = nullptr;
 
-    // buffers for the ubatch
-    std::vector<llama_token>    ubatch_token;
-    std::vector<float>          ubatch_embd;
-    std::vector<llama_pos>      ubatch_pos;
-    std::vector<int32_t>        ubatch_n_seq_id;
-    std::vector<llama_seq_id *> ubatch_seq_id;
-    std::vector<int8_t>         ubatch_output;
+    // buffers for the ubatches
+    // TODO: very hacky, this needs a complete rework
+    struct ubatch_data {
+        std::vector<llama_token>    token;
+        std::vector<float>          embd;
+        std::vector<llama_pos>      pos;
+        std::vector<int32_t>        n_seq_id;
+        std::vector<llama_seq_id *> seq_id;
+        std::vector<int8_t>         output;
+    };
+
+    std::vector<ubatch_data> udatas;
 
     llama_ubatch reserve_ubatch(size_t n_ubatch, bool has_embd = false);
 
@@ -71,19 +74,34 @@ struct llama_sbatch {
     llama_ubatch split_seq(size_t n_ubatch);
 
     llama_sbatch() = default;
-    llama_sbatch(const llama_batch & batch, size_t n_embd, bool simple_split = false, bool logits_all = false);
+    llama_sbatch(const llama_batch & batch, size_t n_embd, bool simple_split = false);
 };
 
 // temporary allocate memory for the input batch if needed
-struct llama_batch_allocr {
-    struct llama_batch batch;
+class llama_batch_allocr {
+public:
+    llama_batch_allocr();
+
+    // optionally fulfill the batch returned by llama_batch_get_one
+    bool init(const llama_batch & batch_inp, const llama_vocab & vocab, llama_pos p0);
+
+    const llama_batch & get_batch() const;
+
+    uint32_t get_n_outputs() const;
+
+private:
+    void clear();
+
+    llama_batch batch;
+
+    uint32_t n_outputs;
 
     std::array<llama_seq_id, 1> seq_id_0 = { 0 }; // default sequence id
+
     std::vector<llama_pos>      pos;
     std::vector<int32_t>        n_seq_id;
     std::vector<llama_seq_id *> seq_id;
-    std::vector<int8_t>         logits;
+    std::vector<int8_t>         output;
 
-    // optionally fulfill the batch returned by llama_batch_get_one
-    llama_batch_allocr(struct llama_batch in_batch, llama_pos p0);
+    int debug;
 };

@@ -22,6 +22,7 @@
 #include <cinttypes>
 static std::string pending_apply_lora_fname = "";
 static float pending_apply_lora_power = 1.0f;
+static bool is_loaded_chroma = false;
 
 const char* model_version_to_str[] = {
     "SD 1.x",
@@ -161,6 +162,7 @@ public:
                         bool diffusion_flash_attn) {
         use_tiny_autoencoder = taesd_path.size() > 0;
         std::string taesd_path_fixed = taesd_path;
+        is_loaded_chroma = false;
 #ifdef SD_USE_CUDA
         LOG_DEBUG("Using CUDA backend");
         backend = ggml_backend_cuda_init(0);
@@ -236,7 +238,7 @@ public:
 
         version = model_loader.get_sd_version();
 
-        if (version == VERSION_COUNT && model_path.size() > 0 && clip_l_path.size() > 0 && diffusion_model_path.size() == 0 && t5xxl_path.size() > 0) {
+        if (version == VERSION_COUNT && model_path.size() > 0 && diffusion_model_path.size() == 0 && t5xxl_path.size() > 0) {
             bool endswithsafetensors = (model_path.rfind(".safetensors") == model_path.size() - 12);
             if(endswithsafetensors && !model_loader.has_diffusion_model_tensors())
             {
@@ -373,8 +375,20 @@ public:
                 cond_stage_model = std::make_shared<SD3CLIPEmbedder>(clip_backend, model_loader.tensor_storages_types);
                 diffusion_model  = std::make_shared<MMDiTModel>(backend, model_loader.tensor_storages_types);
             } else if (sd_version_is_flux(version)) {
-                cond_stage_model = std::make_shared<FluxCLIPEmbedder>(clip_backend, model_loader.tensor_storages_types);
-                diffusion_model  = std::make_shared<FluxModel>(backend, model_loader.tensor_storages_types, version, diffusion_flash_attn);
+                bool is_chroma = false;
+                for (auto pair : model_loader.tensor_storages_types) {
+                    if (pair.first.find("distilled_guidance_layer.in_proj.weight") != std::string::npos) {
+                        is_chroma = true;
+                        is_loaded_chroma = true;
+                        break;
+                    }
+                }
+                if (is_chroma) {
+                    cond_stage_model = std::make_shared<PixArtCLIPEmbedder>(clip_backend, model_loader.tensor_storages_types);
+                } else {
+                    cond_stage_model = std::make_shared<FluxCLIPEmbedder>(clip_backend, model_loader.tensor_storages_types);
+                }
+                diffusion_model = std::make_shared<FluxModel>(backend, model_loader.tensor_storages_types, version, diffusion_flash_attn);
             } else {
                 if (id_embeddings_path.find("v2") != std::string::npos) {
                     cond_stage_model = std::make_shared<FrozenCLIPEmbedderWithCustomWords>(clip_backend, model_loader.tensor_storages_types, embeddings_path, version, PM_VERSION_2);
@@ -1191,6 +1205,12 @@ int get_loaded_sd_version(sd_ctx_t* ctx)
     return ctx->sd->version;
 }
 
+//kcpp hack to check if chroma
+bool sd_loaded_chroma()
+{
+    return is_loaded_chroma;
+}
+
 sd_ctx_t* new_sd_ctx(const char* model_path_c_str,
                      const char* clip_l_path_c_str,
                      const char* clip_g_path_c_str,
@@ -1644,7 +1664,7 @@ sd_image_t* txt2img(sd_ctx_t* sd_ctx,
         params.mem_size *= 2; //readjust by kcpp as above changed
     }
     if (sd_version_is_flux(sd_ctx->sd->version)) {
-        params.mem_size *= 2; //readjust by kcpp as above changed
+        params.mem_size *= 3; //readjust by kcpp as above changed
     }
     if (sd_ctx->sd->stacked_id) {
         params.mem_size += static_cast<size_t>(15 * 1024 * 1024);  // 10 MB

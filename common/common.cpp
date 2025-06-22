@@ -11,7 +11,7 @@
 #include "log.cpp"
 // Change JSON_ASSERT from assert() to GGML_ASSERT:
 #define JSON_ASSERT GGML_ASSERT
-#include "json.hpp"
+#include <nlohmann/json.hpp>
 #include "json-schema-to-grammar.cpp"
 #include "llama.h"
 #include "chat.cpp"
@@ -211,6 +211,7 @@ bool set_process_priority(enum ggml_sched_priority prio) {
 
     DWORD p = NORMAL_PRIORITY_CLASS;
     switch (prio) {
+        case GGML_SCHED_PRIO_LOW:      p = BELOW_NORMAL_PRIORITY_CLASS; break;
         case GGML_SCHED_PRIO_NORMAL:   p = NORMAL_PRIORITY_CLASS;       break;
         case GGML_SCHED_PRIO_MEDIUM:   p = ABOVE_NORMAL_PRIORITY_CLASS; break;
         case GGML_SCHED_PRIO_HIGH:     p = HIGH_PRIORITY_CLASS;         break;
@@ -236,6 +237,7 @@ bool set_process_priority(enum ggml_sched_priority prio) {
 
     int p = 0;
     switch (prio) {
+        case GGML_SCHED_PRIO_LOW:      p =  5;  break;
         case GGML_SCHED_PRIO_NORMAL:   p =  0;  break;
         case GGML_SCHED_PRIO_MEDIUM:   p = -5;  break;
         case GGML_SCHED_PRIO_HIGH:     p = -10; break;
@@ -472,7 +474,7 @@ size_t string_find_partial_stop(const std::string_view & str, const std::string_
 
 std::string regex_escape(const std::string & s) {
     static const std::regex special_chars("[.^$|()*+?\\[\\]{}\\\\]");
-    return std::regex_replace(s, special_chars, "\\$0");
+    return std::regex_replace(s, special_chars, "\\$&");
 }
 
 std::string string_join(const std::vector<std::string> & values, const std::string & separator) {
@@ -911,13 +913,16 @@ struct common_init_result common_init_from_params(common_params & params) {
             ok = false;
         }
 
-        if (llama_vocab_eos(vocab) == LLAMA_TOKEN_NULL) {
-            LOG_WRN("%s: warning: vocab does not have an EOS token, reranking will not work\n", __func__);
-            ok = false;
-        }
+        bool has_eos = llama_vocab_eos(vocab) != LLAMA_TOKEN_NULL;
+        bool has_sep = llama_vocab_sep(vocab) != LLAMA_TOKEN_NULL;
 
-        if (llama_vocab_sep(vocab) == LLAMA_TOKEN_NULL) {
-            LOG_WRN("%s: warning: vocab does not have a  SEP token, reranking will not work\n", __func__);
+        if (!has_eos && !has_sep) {
+            LOG_WRN("%s: warning: vocab does not have an EOS token or SEP token, reranking will not work\n", __func__);
+            ok = false;
+        } else if (!has_eos) {
+            LOG_WRN("%s: warning: vocab does not have an EOS token, using SEP token as fallback\n", __func__);
+        } else if (!has_sep) {
+            LOG_WRN("%s: warning: vocab does not have a SEP token, reranking will not work\n", __func__);
             ok = false;
         }
 
@@ -937,7 +942,7 @@ struct common_init_result common_init_from_params(common_params & params) {
         return iparams;
     }
 
-    if (params.ctx_shift && !llama_kv_self_can_shift(lctx)) {
+    if (params.ctx_shift && !llama_memory_can_shift(llama_get_memory(lctx))) {
         LOG_WRN("%s: KV cache shifting is not supported for this context, disabling KV cache shifting\n", __func__);
         params.ctx_shift = false;
     }
@@ -1044,7 +1049,7 @@ struct common_init_result common_init_from_params(common_params & params) {
         if (llama_model_has_decoder(model)) {
             llama_decode(lctx, llama_batch_get_one(tmp.data(), std::min(tmp.size(), (size_t) params.n_batch)));
         }
-        llama_kv_self_clear(lctx);
+        llama_memory_clear(llama_get_memory(lctx), true);
         llama_synchronize(lctx);
         llama_perf_context_reset(lctx);
         llama_set_warmup(lctx, false);
