@@ -1685,7 +1685,7 @@ void sample_grammar(FileFormat file_format, int32_t n_vocab, llama_token_data_ar
     for (auto reject: llama_grammar_reject_candidates(grammar->rules, grammar->stacks, candidates_grammar)) {
         rejects[reject.index] = true;
     }
-    
+
     auto first = candidates->data;
     auto last  = first + candidates->size;
     last = std::remove_if(first, last,

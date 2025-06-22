@@ -58,6 +58,34 @@ jobs:
           echo VS2019 Setup completed
           exit /b 0
 
+      - name: Display full Visual Studio info After
+        run: |
+          & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -all -products * -format json
+        shell: pwsh
+
+      - name: Display full Visual Studio info Before
+        run: |
+          & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -all -products * -format json
+        shell: pwsh
+
+      - name: Visual Studio 2019 Reinstall
+        shell: cmd
+        run: |
+          @echo off
+          echo Preparing setup
+          curl -fLO https://download.visualstudio.microsoft.com/download/pr/1fbe074b-8ae1-4e9b-8e83-d1ce4200c9d1/61098e228df7ba3a6a8b4e920a415ad8878d386de6dd0f23f194fe1a55db189a/vs_Enterprise.exe
+          vs_Enterprise.exe --quiet --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.CLI.Support --add Microsoft.VisualStudio.Component.Windows10SDK.19041 --add Microsoft.VisualStudio.Workload.UniversalBuildTools --add Microsoft.VisualStudio.Component.VC.CMake.Project
+          echo Waiting for VS2019 setup
+          set "ProcessName=setup.exe"
+          :CheckProcess
+          tasklist /FI "IMAGENAME eq %ProcessName%" | find /I "%ProcessName%" >nul
+          if %errorlevel%==0 (
+              ping 127.0.0.1 /n 5 >nul
+              goto CheckProcess
+          )
+          echo VS2019 Setup completed
+          exit /b 0
+
       - uses: Jimver/cuda-toolkit@v0.2.24
         id: cuda-toolkit
         with:
@@ -144,4 +172,36 @@ jobs:
             ggml/src/ggml-vulkan-shaders.hpp
             vulkan-readme.txt
 
+      - name: Build Tools
+        id: make_tools
+        run: |
+          make tools -j 4
+          New-Item -ItemType Directory -Path legacy
+          Copy-Item quantize_gpt2.exe -Destination legacy
+          Copy-Item quantize_gptj.exe -Destination legacy
+          Copy-Item quantize_mpt.exe -Destination legacy
+          Copy-Item quantize_neox.exe -Destination legacy
+          Copy-Item otherarch/tools/convert_hf_gpt2.py -Destination legacy
+          Copy-Item otherarch/tools/convert_hf_gptj.py -Destination legacy
+          Copy-Item otherarch/tools/convert_hf_mpt.py -Destination legacy
+          Copy-Item otherarch/tools/convert_hf_neox.py -Destination legacy
+          Copy-Item otherarch/tools/convert_llama_ggml_to_gguf.py -Destination legacy
+          Copy-Item otherarch/tools/convert_pt_rwkv.py -Destination legacy
+        shell: pwsh
 
+      - name: Upload Tools
+        uses: actions/upload-artifact@v4
+        with:
+          name: koboldcpp_tools
+          path: |
+            gguf-split.exe
+            quantize_clip.exe
+            quantize_gguf.exe
+            whispermain.exe
+            sdmain.exe
+            ttsmain.exe
+            whispermain.exe
+            convert_hf_to_gguf.py
+            convert_hf_to_gguf_update.py
+            gguf-py
+            legacy

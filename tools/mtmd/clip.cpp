@@ -2872,7 +2872,11 @@ bool clip_image_load_from_file(const char * fname, clip_image_u8 * img) {
 
 //note that the memory here must be subsequently freed!
 uint8_t* make_new_letterbox_img(uint8_t* input_image, int nx, int ny, int nc, int target_width, int target_height) {
-    int new_image_size = target_width * target_height * nc;
+    int new_image_size = (target_width * target_height * nc) + 512; //add some padding
+    if (target_width < nx || target_height < ny) {
+        printf("\nERROR: Target size smaller than input image\n");
+        return nullptr;
+    }
     uint8_t* letterboxed_image = (uint8_t*)malloc(new_image_size);
     if(letterboxed_image==nullptr)
     {
@@ -2959,6 +2963,11 @@ bool clip_image_load_from_bytes(const unsigned char * bytes, size_t bytes_length
             clip_build_img_from_pixels(letterboxed_image, new_width, new_height, img);
             free(letterboxed_image);
             letterboxed_image = nullptr;
+        }
+        else
+        {
+            //letterboxing failed. just use original image
+            clip_build_img_from_pixels(data, nx, ny, img);
         }
     }
     else
