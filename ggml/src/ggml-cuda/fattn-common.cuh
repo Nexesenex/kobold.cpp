@@ -835,6 +835,10 @@ void launch_fattn(
     GGML_ASSERT(Q->type == GGML_TYPE_F32);
     GGML_ASSERT(KQV->type == GGML_TYPE_F32);
 
+    GGML_ASSERT(      Q->nb[0] == ggml_element_size(Q));
+    GGML_ASSERT(      K->nb[0] == ggml_element_size(K));
+    GGML_ASSERT(!V || V->nb[0] == ggml_element_size(V));
+
     GGML_ASSERT(!mask || mask->type == GGML_TYPE_F16);
     GGML_ASSERT(!mask || mask->ne[1] >= GGML_PAD(Q->ne[1], 16) &&
                                 "the Flash-Attention CUDA kernel requires the mask to be padded to 16 and at least n_queries big");
@@ -859,10 +863,10 @@ void launch_fattn(
     size_t nb12 = K->nb[2];
     size_t nb13 = K->nb[3];
 
-    const char * V_data = (const char *) V->data;
-    size_t nb21 = V->nb[1];
-    size_t nb22 = V->nb[2];
-    size_t nb23 = V->nb[3];
+    const char * V_data = V ? (const char *) V->data : nullptr;
+    size_t nb21 = V ? V->nb[1] : nb11;
+    size_t nb22 = V ? V->nb[2] : nb12;
+    size_t nb23 = V ? V->nb[3] : nb13;
 
     if (need_f16_K && K->type != GGML_TYPE_F16) {
         K_f16.alloc(ggml_nelements(K));
@@ -878,7 +882,8 @@ void launch_fattn(
         nb13 = nb13*bs*sizeof(half)/ts;
     }
 
-    if (need_f16_V && V->type != GGML_TYPE_F16) {
+    if (V && need_f16_V && V->type != GGML_TYPE_F16) {
+        // GGML_ASSERT(ggml_is_contiguous(V));
         V_f16.alloc(ggml_nelements(V));
         to_fp16_cuda_t to_fp16 = ggml_get_to_fp16_cuda(V->type);
         to_fp16(V_data, V_f16.ptr, 1, ggml_nelements(V), main_stream);

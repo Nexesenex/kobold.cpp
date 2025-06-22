@@ -3537,6 +3537,10 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
 #ifndef FLASH_ATTN_AVAILABLE
             return false;
 #endif // FLASH_ATTN_AVAILABLE
+            const int cc = ggml_cuda_info().devices[dev_ctx->device].cc;
+            if (!new_mma_available(cc)) {
+                return false;
+                }
             if (op->src[1]->ne[0] != op->src[2]->ne[0]) {
                 // different head sizes of K and V are not supported yet
                 return false;
