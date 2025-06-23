@@ -213,102 +213,102 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_Q4_0] = {
         .from_float               = quantize_row_q4_0,
         .vec_dot                  = ggml_vec_dot_q4_0_q8_0,
-#if GGML_USE_IQK_MULMAT
-#if defined __AVX2__
-        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
-#else
-        .vec_dot_type             = GGML_TYPE_Q8_0_X4,
-#endif
-#else
+// #if GGML_USE_IQK_MULMAT
+// #if defined __AVX2__
+        // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+// #else
+        // .vec_dot_type             = GGML_TYPE_Q8_0_X4,
+// #endif
+// #else
         .vec_dot_type             = GGML_TYPE_Q8_0,
-#endif
-#if defined (__ARM_FEATURE_MATMUL_INT8)
-        .nrows                    = 2,
-#else
-        .nrows                    = 1,
-#endif
+// #endif
+// #if defined (__ARM_FEATURE_MATMUL_INT8)
+        // .nrows                    = 2,
+// #else
+        // .nrows                    = 1,
+// #endif
     },
     [GGML_TYPE_Q4_1] = {
         .from_float               = quantize_row_q4_1,
         .vec_dot                  = ggml_vec_dot_q4_1_q8_1,
-#if GGML_USE_IQK_MULMAT
-#if defined __AVX2__
-        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
-#else
-        .vec_dot_type             = GGML_TYPE_Q8_1_X4,
-#endif
-#else
+// #if GGML_USE_IQK_MULMAT
+// #if defined __AVX2__
+        // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+// #else
+        // .vec_dot_type             = GGML_TYPE_Q8_1_X4,
+// #endif
+// #else
         .vec_dot_type             = GGML_TYPE_Q8_1,
-#endif
-#if defined (__ARM_FEATURE_MATMUL_INT8)
-        .nrows                    = 2,
-#else
-        .nrows                    = 1,
-#endif
+// #endif
+// #if defined (__ARM_FEATURE_MATMUL_INT8)
+        // .nrows                    = 2,
+// #else
+        // .nrows                    = 1,
+// #endif
     },
     [GGML_TYPE_Q5_0] = {
         .from_float               = quantize_row_q5_0,
         .vec_dot                  = ggml_vec_dot_q5_0_q8_0,
-#if GGML_USE_IQK_MULMAT
-#if defined __AVX2__
-        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
-#else
-        .vec_dot_type             = GGML_TYPE_Q8_0_X4,
-#endif
-#else
+// #if GGML_USE_IQK_MULMAT
+// #if defined __AVX2__
+        // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+// #else
+        // .vec_dot_type             = GGML_TYPE_Q8_0_X4,
+// #endif
+// #else
         .vec_dot_type             = GGML_TYPE_Q8_0,
-#endif
+// #endif
         .nrows                    = 1,
     },
     [GGML_TYPE_Q5_1] = {
         .from_float               = quantize_row_q5_1,
         .vec_dot                  = ggml_vec_dot_q5_1_q8_1,
-#if GGML_USE_IQK_MULMAT
-#ifdef __AVX2__
-        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
-#else
-        .vec_dot_type             = GGML_TYPE_Q8_1_X4,
-#endif
-#else
+// #if GGML_USE_IQK_MULMAT
+// #ifdef __AVX2__
+        // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+// #else
+        // .vec_dot_type             = GGML_TYPE_Q8_1_X4,
+// #endif
+// #else
         .vec_dot_type             = GGML_TYPE_Q8_1,
-#endif
+// #endif
         .nrows                    = 1,
     },
     [GGML_TYPE_Q6_0] = {
         .from_float               = quantize_row_q6_0,
         .vec_dot                  = ggml_vec_dot_q6_0_q8_0,
-#if GGML_USE_IQK_MULMAT
-#if defined __AVX2__
-        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
-#else
-        .vec_dot_type             = GGML_TYPE_Q8_0_X4,
-#endif
-#else
+// #if GGML_USE_IQK_MULMAT
+// #if defined __AVX2__
+        // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+// #else
+        // .vec_dot_type             = GGML_TYPE_Q8_0_X4,
+// #endif
+// #else
         .vec_dot_type             = GGML_TYPE_Q8_0,
-#endif
+// #endif
         .nrows                    = 1,
         // .row_meta_size            = 0,
     },
     [GGML_TYPE_Q8_0] = {
         .from_float               = quantize_row_q8_0,
         .vec_dot                  = ggml_vec_dot_q8_0_q8_0,
-#if GGML_USE_IQK_MULMAT
-#ifdef HAVE_FANCY_SIMD
+// #if GGML_USE_IQK_MULMAT
+// #ifdef HAVE_FANCY_SIMD
         // Remember: we cannot add 128 to the Q8 quants and use iblock sum in Q8_1 to subtract as we do on Zen4 for pure AVX2
         //           because there the result of the _mm256_maddubs_epi16() instruction may overflow the int16_t range
         //           (and it gets satured if it does), leading to wrong results.
-        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
-#else
-        .vec_dot_type             = GGML_TYPE_Q8_0_X4,
-#endif
-#else
+        // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+// #else
+        // .vec_dot_type             = GGML_TYPE_Q8_0_X4,
+// #endif
+// #else
         .vec_dot_type             = GGML_TYPE_Q8_0,
-#endif
-#if defined (__ARM_FEATURE_MATMUL_INT8)
-        .nrows                    = 2,
-#else
-        .nrows                    = 1,
-#endif
+// #endif
+// #if defined (__ARM_FEATURE_MATMUL_INT8)
+        // .nrows                    = 2,
+// #else
+        // .nrows                    = 1,
+// #endif
     },
     [GGML_TYPE_Q8_1] = {
         .from_float               = quantize_row_q8_1,
@@ -507,15 +507,15 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_IQ4_NL] = {
         .from_float               = quantize_row_iq4_nl,
         .vec_dot                  = ggml_vec_dot_iq4_nl_q8_0,
-#if GGML_USE_IQK_MULMAT
-#if defined HAVE_FANCY_SIMD
-        .vec_dot_type             = GGML_TYPE_Q8_2_X4,
-#else
-        .vec_dot_type             = GGML_TYPE_Q8_0_X4,
-#endif
-#else
+// #if GGML_USE_IQK_MULMAT
+// #if defined HAVE_FANCY_SIMD
+        // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+// #else
+        // .vec_dot_type             = GGML_TYPE_Q8_0_X4,
+// #endif
+// #else
         .vec_dot_type             = GGML_TYPE_Q8_0,
-#endif
+// #endif
         .nrows                    = 1,
     },
     [GGML_TYPE_IQ4_XS] = {

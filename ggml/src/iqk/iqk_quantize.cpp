@@ -6283,15 +6283,15 @@ void vec_dot_q8_k_r8_q8_k(int n, float * s, size_t bs, const void * vx, size_t b
 // ========================================= q8_KV_r8
 //
 
-/* void quantize_row_q8_KV_r8_ref(const float * x, void * y, int64_t k) {
+void quantize_row_q8_KV_r8_ref(const float * x, void * y, int64_t k) {
     quantize_q8_KV_r8(x, y, 8, k/8, nullptr);
 }
 
 void quantize_row_q8_KV_r8(const float * x, void * y, int64_t k) {
     quantize_q8_KV_r8(x, y, 8, k/8, nullptr);
-}*/
+}
 
-/* static void repack_q8_KV(int nrows, int n_per_row, const char * cx, char * cy, [[maybe_unused]] bool online) {
+static void repack_q8_KV(int nrows, int n_per_row, const char * cx, char * cy, [[maybe_unused]] bool online) {
     GGML_ASSERT(nrows%8 == 0);
     GGML_ASSERT(n_per_row%16 == 0);
     auto row_size_x = ggml_row_size(GGML_TYPE_Q8_KV,    n_per_row);
@@ -6377,9 +6377,9 @@ static void modify_q8_KV_r8(int64_t k, char * cy) {
     int8_t * q8 = (int8_t *)(cy + 8*sizeof(float));
     for (int j = 0; j < k; ++j) q8[j] += 127;
 }
-#endif */
+#endif
 
-/* size_t quantize_q8_KV_r8(const float * src, void * dst, int64_t nrows, int64_t n_per_row, [[maybe_unused]] const float * imatrix) {
+size_t quantize_q8_KV_r8(const float * src, void * dst, int64_t nrows, int64_t n_per_row, [[maybe_unused]] const float * imatrix) {
     GGML_ASSERT(nrows%8 == 0);
     GGML_ASSERT(n_per_row%16 == 0);
     char * qcur = (char *)dst;
@@ -6393,7 +6393,7 @@ static void modify_q8_KV_r8(int64_t k, char * cy) {
         src += 8*n_per_row;
     }
     return nrows*row_size_1;
-} */
+}
 
 void dequantize_row_q8_KV_r8(const void * vx, float * y, int64_t k) {
     auto n_per_row = k/8;
