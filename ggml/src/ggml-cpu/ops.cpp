@@ -69,12 +69,28 @@ static void ggml_compute_forward_dup_f16(
     const int ith = params->ith; // thread index
     const int nth = params->nth; // number of threads
 
-    // parallelize by rows
+    if (ggml_is_contiguous(src0) && ggml_is_contiguous(dst) && src0->type == dst->type) {
+        ggml_compute_forward_dup_same_cont(params, dst);
+        return;
+    }
+
+/*     // parallelize by rows
     const int nr = ne01;
     // number of rows per thread
     const int dr = (nr + nth - 1) / nth;
     // row range for this thread
     const int ir0 = dr * ith;
+    const int ir1 = MIN(ir0 + dr, nr); */
+
+    // parallelize by rows
+    int n_packed = ggml_packed_rows(dst->type);
+    GGML_ASSERT(dst->ne[1] % n_packed == 0);
+    const int nr = ne01;
+    // number of rows per thread
+    const int dr = n_packed*((nr/n_packed + nth - 1) / nth);
+    // row range for this thread
+    const int ir0 = dr * ith;
+    if (ir0 >= nr) return;
     const int ir1 = MIN(ir0 + dr, nr);
 
     if (src0->type == dst->type &&
@@ -107,7 +123,7 @@ static void ggml_compute_forward_dup_f16(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         id += rs * ir0;
-                        for (int i01 = ir0; i01 < ir1; i01++) {
+                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
                             const char * src0_ptr = (char *) src0->data + i01*nb01 + i02*nb02 + i03*nb03;
                             memcpy(dst_ptr + id, src0_ptr, rs);
                             id += rs;
@@ -122,7 +138,7 @@ static void ggml_compute_forward_dup_f16(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         id += ne00 * ir0;
-                        for (int i01 = ir0; i01 < ir1; i01++) {
+                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
                             const ggml_fp16_t * src0_ptr = (ggml_fp16_t *) ((char *) src0->data + i01*nb01 + i02*nb02 + i03*nb03);
                             for (int i00 = 0; i00 < ne00; i00++) {
                                 dst_ptr[id] = GGML_FP16_TO_FP32(src0_ptr[i00]);
@@ -143,7 +159,7 @@ static void ggml_compute_forward_dup_f16(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         id += rs * ir0;
-                        for (int i01 = ir0; i01 < ir1; i01++) {
+                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
                             const ggml_fp16_t * src0_ptr = (ggml_fp16_t *) ((char *) src0->data + i01*nb01 + i02*nb02 + i03*nb03);
 
                             for (int i00 = 0; i00 < ne00; i00++) {
@@ -169,7 +185,7 @@ static void ggml_compute_forward_dup_f16(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         id += ne00 * ir0;
-                        for (int i01 = ir0; i01 < ir1; i01++) {
+                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
                             for (int i00 = 0; i00 < ne00; i00++) {
                                 const ggml_fp16_t * src0_ptr = (ggml_fp16_t *) ((char *) src0->data + i00*nb00 + i01*nb01 + i02*nb02 + i03*nb03);
 
@@ -187,7 +203,7 @@ static void ggml_compute_forward_dup_f16(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         id += ne00 * ir0;
-                        for (int i01 = ir0; i01 < ir1; i01++) {
+                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
                             for (int i00 = 0; i00 < ne00; i00++) {
                                 const ggml_fp16_t * src0_ptr = (ggml_fp16_t *) ((char *) src0->data + i00*nb00 + i01*nb01 + i02*nb02 + i03*nb03);
 
@@ -333,12 +349,28 @@ static void ggml_compute_forward_dup_bf16(
     const int ith = params->ith; // thread index
     const int nth = params->nth; // number of threads
 
-    // parallelize by rows
+    if (ggml_is_contiguous(src0) && ggml_is_contiguous(dst) && src0->type == dst->type) {
+        ggml_compute_forward_dup_same_cont(params, dst);
+        return;
+    }
+
+/*     // parallelize by rows
     const int nr = ne01;
     // number of rows per thread
     const int dr = (nr + nth - 1) / nth;
     // row range for this thread
     const int ir0 = dr * ith;
+    const int ir1 = MIN(ir0 + dr, nr); */
+
+    // parallelize by rows
+    int n_packed = ggml_packed_rows(dst->type);
+    GGML_ASSERT(dst->ne[1] % n_packed == 0);
+    const int nr = ne01;
+    // number of rows per thread
+    const int dr = n_packed*((nr/n_packed + nth - 1) / nth);
+    // row range for this thread
+    const int ir0 = dr * ith;
+    if (ir0 >= nr) return;
     const int ir1 = MIN(ir0 + dr, nr);
 
     if (src0->type == dst->type &&
@@ -371,7 +403,7 @@ static void ggml_compute_forward_dup_bf16(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         id += rs * ir0;
-                        for (int i01 = ir0; i01 < ir1; i01++) {
+                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
                             const char * src0_ptr = (char *) src0->data + i01*nb01 + i02*nb02 + i03*nb03;
                             memcpy(dst_ptr + id, src0_ptr, rs);
                             id += rs;
@@ -386,7 +418,7 @@ static void ggml_compute_forward_dup_bf16(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         id += ne00 * ir0;
-                        for (int i01 = ir0; i01 < ir1; i01++) {
+                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
                             const ggml_bf16_t * src0_ptr = (ggml_bf16_t *) ((char *) src0->data + i01*nb01 + i02*nb02 + i03*nb03);
                             for (int i00 = 0; i00 < ne00; i00++) {
                                 dst_ptr[id] = GGML_FP32_TO_FP16(GGML_BF16_TO_FP32(src0_ptr[i00]));
@@ -403,7 +435,7 @@ static void ggml_compute_forward_dup_bf16(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         id += ne00 * ir0;
-                        for (int i01 = ir0; i01 < ir1; i01++) {
+                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
                             const ggml_bf16_t * src0_ptr = (ggml_bf16_t *) ((char *) src0->data + i01*nb01 + i02*nb02 + i03*nb03);
                             for (int i00 = 0; i00 < ne00; i00++) {
                                 dst_ptr[id] = GGML_BF16_TO_FP32(src0_ptr[i00]);
@@ -424,7 +456,7 @@ static void ggml_compute_forward_dup_bf16(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         id += rs * ir0;
-                        for (int i01 = ir0; i01 < ir1; i01++) {
+                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
                             const ggml_bf16_t * src0_ptr = (ggml_bf16_t *) ((char *) src0->data + i01*nb01 + i02*nb02 + i03*nb03);
 
                             for (int i00 = 0; i00 < ne00; i00++) {
@@ -450,7 +482,7 @@ static void ggml_compute_forward_dup_bf16(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         id += ne00 * ir0;
-                        for (int i01 = ir0; i01 < ir1; i01++) {
+                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
                             for (int i00 = 0; i00 < ne00; i00++) {
                                 const ggml_bf16_t * src0_ptr = (ggml_bf16_t *) ((char *) src0->data + i00*nb00 + i01*nb01 + i02*nb02 + i03*nb03);
 
@@ -468,7 +500,7 @@ static void ggml_compute_forward_dup_bf16(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         id += ne00 * ir0;
-                        for (int i01 = ir0; i01 < ir1; i01++) {
+                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
                             for (int i00 = 0; i00 < ne00; i00++) {
                                 const ggml_bf16_t * src0_ptr = (ggml_bf16_t *) ((char *) src0->data + i00*nb00 + i01*nb01 + i02*nb02 + i03*nb03);
 
@@ -486,7 +518,7 @@ static void ggml_compute_forward_dup_bf16(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         id += ne00 * ir0;
-                        for (int i01 = ir0; i01 < ir1; i01++) {
+                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
                             for (int i00 = 0; i00 < ne00; i00++) {
                                 const ggml_bf16_t * src0_ptr = (ggml_bf16_t *) ((char *) src0->data + i00*nb00 + i01*nb01 + i02*nb02 + i03*nb03);
 
@@ -684,6 +716,11 @@ static void ggml_compute_forward_dup_f32(
     const int ith = params->ith; // thread index
     const int nth = params->nth; // number of threads
 
+    if (ggml_is_contiguous(src0) && ggml_is_contiguous(dst) && src0->type == dst->type) {
+        ggml_compute_forward_dup_same_cont(params, dst);
+        return;
+    }
+
     // parallelize by rows
     int n_packed = ggml_packed_rows(dst->type);
     GGML_ASSERT(dst->ne[1] % n_packed == 0);
@@ -692,6 +729,7 @@ static void ggml_compute_forward_dup_f32(
     const int dr = n_packed*((nr/n_packed + nth - 1) / nth);
     // row range for this thread
     const int ir0 = dr * ith;
+    if (ir0 >= nr) return;
     const int ir1 = MIN(ir0 + dr, nr);
 
     if (src0->type == dst->type &&
@@ -723,7 +761,7 @@ static void ggml_compute_forward_dup_f32(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         id += rs * ir0;
-                        for (int i01 = ir0; i01 < ir1; i01++) {
+                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
                             const char * src0_ptr = (char *) src0->data + i01*nb01 + i02*nb02 + i03*nb03;
                             memcpy(dst_ptr + id, src0_ptr, rs);
                             id += rs;
@@ -762,7 +800,7 @@ static void ggml_compute_forward_dup_f32(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         id += ne00 * ir0;
-                        for (int i01 = ir0; i01 < ir1; i01++) {
+                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
                             for (int i00 = 0; i00 < ne00; i00++) {
                                 const float * src0_ptr = (float *) ((char *) src0->data + i00*nb00 + i01*nb01 + i02*nb02 + i03*nb03);
 
@@ -780,7 +818,7 @@ static void ggml_compute_forward_dup_f32(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         id += ne00 * ir0;
-                        for (int i01 = ir0; i01 < ir1; i01++) {
+                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
                             for (int i00 = 0; i00 < ne00; i00++) {
                                 const float * src0_ptr = (float *) ((char *) src0->data + i00*nb00 + i01*nb01 + i02*nb02 + i03*nb03);
 
@@ -798,7 +836,7 @@ static void ggml_compute_forward_dup_f32(
                 for (int i03 = 0; i03 < ne03; i03++) {
                     for (int i02 = 0; i02 < ne02; i02++) {
                         id += ne00 * ir0;
-                        for (int i01 = ir0; i01 < ir1; i01++) {
+                        for (int i01 = ir0; i01 < ir1; i01 += n_packed) {
                             for (int i00 = 0; i00 < ne00; i00++) {
                                 const float * src0_ptr = (float *) ((char *) src0->data + i00*nb00 + i01*nb01 + i02*nb02 + i03*nb03);
 
@@ -1007,15 +1045,14 @@ static void ggml_compute_forward_dup_bytes(
     const int nth = params->nth; // number of threads
 
     // parallelize by rows
+    int n_packed = ggml_packed_rows(dst->type);
+    GGML_ASSERT(dst->ne[1] % n_packed == 0);
     const int nr = ne01;
-    const int n_packed = ggml_packed_rows(dst->type);
-    GGML_ASSERT(nr%n_packed == 0);
-    const int nrp = nr/n_packed;
     // number of rows per thread
-    const int drp = (nrp + nth - 1) / nth;
-    const int dr  = drp*n_packed;
+    const int dr = n_packed*((nr/n_packed + nth - 1) / nth);
     // row range for this thread
     const int ir0 = dr * ith;
+    if (ir0 >= nr) return;
     const int ir1 = MIN(ir0 + dr, nr);
 
     if (src0->type == dst->type &&
@@ -1395,6 +1432,59 @@ void ggml_compute_forward_add(
     }
 }
 
+static void ggml_compute_forward_multi_add_f32(
+        const ggml_compute_params * params,
+        ggml_tensor * dst) {
+
+    const ggml_tensor * src = dst->src[0];
+
+    GGML_ASSERT(dst->nb[0] == sizeof(float));
+    GGML_ASSERT(src->nb[0] == sizeof(float));
+    GGML_ASSERT(ggml_are_same_shape(src, dst));
+    GGML_ASSERT(dst->ne[2] == 1 && dst->ne[3] == 1);
+
+    const int n_add = dst->op_params[0];
+    GGML_ASSERT(n_add > 0);
+
+    const int ith = params->ith;
+    const int nth = params->nth;
+
+    const int nr  = ggml_nrows(dst);
+
+    // rows per thread
+    const int dr = (nr + nth - 1)/nth;
+
+    // row range for this thread
+    const int ir0 = dr*ith;
+    const int ir1 = MIN(ir0 + dr, nr);
+
+    int64_t ne0 = dst->ne[0];
+
+    for (int i1 = ir0; i1 < ir1; ++i1) {
+
+        float * dst_ptr  = (float *) ((char *) dst->data + i1*dst->nb[1] );
+        const float * data = (const float *) ((const char *)src->data + i1*src->nb[1]);
+        memset(dst_ptr, 0, ne0*sizeof(float));
+        for (int j = 0; j < n_add; ++j) {
+            ggml_vec_add_f32(ne0, dst_ptr, dst_ptr, data + j*ne0);
+        }
+    }
+}
+
+void ggml_compute_forward_multi_add(
+        const ggml_compute_params * params,
+        ggml_tensor * dst) {
+
+    switch (dst->type) {
+        case GGML_TYPE_F32: {
+            ggml_compute_forward_multi_add_f32(params, dst);
+        } break;
+        default: {
+            GGML_ABORT("fatal error");
+        }
+    }
+}
+
 // ggml_compute_forward_add1
 
 static void ggml_compute_forward_add1_f32(
@@ -1700,59 +1790,6 @@ static void ggml_compute_forward_add1_bf16_bf16(
         ggml_bf16_t * src0_ptr = (ggml_bf16_t *) ((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01);
         for (int i = 0; i < ne0; i++) {
             dst_ptr[i] = GGML_FP32_TO_BF16(GGML_BF16_TO_FP32(src0_ptr[i]) + v);
-        }
-    }
-}
-
-static void ggml_compute_forward_multi_add_f32(
-        const struct ggml_compute_params * params,
-        struct ggml_tensor * dst) {
-
-    struct ggml_tensor * src = dst->src[0];
-
-    GGML_ASSERT(dst->nb[0] == sizeof(float));
-    GGML_ASSERT(src->nb[0] == sizeof(float));
-    GGML_ASSERT(ggml_are_same_shape(src, dst));
-    GGML_ASSERT(dst->ne[2] == 1 && dst->ne[3] == 1);
-
-    const int n_add = dst->op_params[0];
-    GGML_ASSERT(n_add > 0);
-
-    const int ith = params->ith;
-    const int nth = params->nth;
-
-    const int nr  = ggml_nrows(dst);
-
-    // rows per thread
-    const int dr = (nr + nth - 1)/nth;
-
-    // row range for this thread
-    const int ir0 = dr*ith;
-    const int ir1 = MIN(ir0 + dr, nr);
-
-    int64_t ne0 = dst->ne[0];
-
-    for (int i1 = ir0; i1 < ir1; ++i1) {
-
-        float * dst_ptr  = (float *) ((char *) dst->data + i1*dst->nb[1] );
-        const float * data = (const float *) ((const char *)src->data + i1*src->nb[1]);
-        memset(dst_ptr, 0, ne0*sizeof(float));
-        for (int j = 0; j < n_add; ++j) {
-            ggml_vec_add_f32(ne0, dst_ptr, dst_ptr, data + j*ne0);
-        }
-    }
-}
-
-void ggml_compute_forward_multi_add(
-        const struct ggml_compute_params * params,
-        struct ggml_tensor * dst) {
-
-    switch (dst->type) {
-        case GGML_TYPE_F32: {
-            ggml_compute_forward_multi_add_f32(params, dst);
-        } break;
-        default: {
-            GGML_ABORT("fatal error");
         }
     }
 }
