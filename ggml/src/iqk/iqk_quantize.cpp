@@ -557,18 +557,6 @@ void quantize_row_q8_K64_ref(const float * x, block_q8_K64 * y, int64_t k) {
 #endif
 }
 
-/* #ifdef __AVX2__
-namespace {
-inline int hsum_i32_8(const __m256i a) {
-    const __m128i sum128 = _mm_add_epi32(_mm256_castsi256_si128(a), _mm256_extractf128_si256(a, 1));
-    const __m128i hi64 = _mm_unpackhi_epi64(sum128, sum128);
-    const __m128i sum64 = _mm_add_epi32(hi64, sum128);
-    const __m128i hi32  = _mm_shuffle_epi32(sum64, _MM_SHUFFLE(2, 3, 0, 1));
-    return _mm_cvtsi128_si32(_mm_add_epi32(sum64, hi32));
-}
-}
-#endif */
-
 void quantize_row_q8_K64(const float * x, void * y, int64_t k) {
     quantize_row_q8_K64_ref(x, (block_q8_K64 *)y, k);
 }
@@ -891,14 +879,12 @@ void quantize_row_q8_1_x4_T(const float * x, Block * y, int64_t k) {
                 y[i].d = GGML_FP32_TO_FP16(d);
             }
         } else {
+            auto t = GGML_FP32_TO_BF16(d);
+            d = ggml_bf16_to_fp32(t);
             if (i < nb4) {
-                auto t = GGML_FP32_TO_BF16(d);
                 y4[i4].d[ir] = t.bits;
-                d = ggml_bf16_to_fp32(t);
             } else {
-                auto t = GGML_FP32_TO_BF16(d);
                 y[i].d = t.bits;
-                d = ggml_bf16_to_fp32(t);
             }
         }
         const float id = d > 0 ? 1/d : 0.f;
@@ -922,7 +908,6 @@ void quantize_row_q8_1_x4_T(const float * x, Block * y, int64_t k) {
         __m256i i2 = _mm256_cvtps_epi32( v2 );
         __m256i i3 = _mm256_cvtps_epi32( v3 );
 
-        #ifdef __AVX2__
         // Compute the sum of the quants and set y[i].s
         int isum = hsum_i32_8(_mm256_add_epi32(_mm256_add_epi32(i0, i1), _mm256_add_epi32(i2, i3)));
         if constexpr (std::is_same_v<Block, block_q8_1>) {
@@ -933,12 +918,13 @@ void quantize_row_q8_1_x4_T(const float * x, Block * y, int64_t k) {
             }
         } else {
             if (i < nb4) {
-                y4[i4].d[ir+4] = GGML_FP32_TO_BF16(d * isum).bits;
+                auto i16 = (int16_t *)y4[i4].d;
+                i16[ir+4] = isum;
             } else {
-                y[i].s = GGML_FP32_TO_BF16(d * isum).bits;
+                auto i16 = (int16_t *)&y[i].s;
+                i16[0] = isum;
             }
         }
-        #endif
 
         // Convert int32 to int16
         i0 = _mm256_packs_epi32( i0, i1 );  // 0, 1, 2, 3,  8, 9, 10, 11,  4, 5, 6, 7, 12, 13, 14, 15
@@ -2849,6 +2835,8 @@ void iqk_quantize_row_q8_K_T(const float * x, void * vy, int64_t k) {
         const __m256 mul = _mm256_set1_ps( id );
         xx = xb;
         int8_t * q8 = y[i].qs;
+        int block_sum_i32 = 0;
+        float block_sum_f32 = 0;
         for (int ib = 0; ib < QK_K/32; ++ib) {
             __m256 v0 = _mm256_mul_ps(mul, _mm256_loadu_ps(xx)); xx += 8;
             __m256 v1 = _mm256_mul_ps(mul, _mm256_loadu_ps(xx)); xx += 8;
@@ -2862,13 +2850,15 @@ void iqk_quantize_row_q8_K_T(const float * x, void * vy, int64_t k) {
             __m256i i1 = _mm256_cvtps_epi32(v1);
             __m256i i2 = _mm256_cvtps_epi32(v2);
             __m256i i3 = _mm256_cvtps_epi32(v3);
-            if constexpr (q8_type > 0) {
+            if constexpr (q8_type == 1) {
                 int bsum = hsum_i32_8(_mm256_add_epi32(_mm256_add_epi32(i0, i1), _mm256_add_epi32(i2, i3)));
                 auto bs = (float *)y[i].bsums;
                 bs[ib] = d*bsum;
+                block_sum_f32 += bs[ib];
             } else {
                 y[i].bsums[2*ib+0] = hsum_i32_8(_mm256_add_epi32(i0, i1));
                 y[i].bsums[2*ib+1] = hsum_i32_8(_mm256_add_epi32(i2, i3));
+                block_sum_i32 += y[i].bsums[2*ib+0] + y[i].bsums[2*ib+1];
             }
             i0 = _mm256_packs_epi32( i0, i1 );
             i2 = _mm256_packs_epi32( i2, i3 );
@@ -2877,12 +2867,17 @@ void iqk_quantize_row_q8_K_T(const float * x, void * vy, int64_t k) {
             _mm256_storeu_si256((__m256i *)q8, i0);
             q8 += 32;
         }
-        if constexpr (q8_type == 2) {
-            auto bs = (float *)y[i].bsums;
-            float sum = 0;
-            for (int ib = 0; ib < QK_K/32; ++ib) sum += bs[ib];
-            bs[0] = sum;
+        if constexpr (q8_type == 1) {
+            y[i].sum = block_sum_f32;
+        } else {
+            y[i].sum = d*block_sum_i32;
         }
+        //if constexpr (q8_type == 2) {
+        //    auto bs = (float *)y[i].bsums;
+        //    float sum = 0;
+        //    for (int ib = 0; ib < QK_K/32; ++ib) sum += bs[ib];
+        //    bs[0] = sum;
+        //}
     }
 #else
     for (int i = 0; i < nb; i++) {
@@ -2908,9 +2903,9 @@ void iqk_quantize_row_q8_K_T(const float * x, void * vy, int64_t k) {
             int v = nearest_int(iscale*x[j]);
             y[i].qs[j] = MIN(127, v);
         }
-        if constexpr (q8_type > 0) {
+        float d = 1/iscale;
+        if constexpr (q8_type == 1) {
             auto bs = (float *)y[i].bsums;
-            float d = 1/iscale;
             float sum = 0;
             for (int j = 0; j < QK_K/32; ++j) {
                 int sum = 0;
@@ -2920,19 +2915,20 @@ void iqk_quantize_row_q8_K_T(const float * x, void * vy, int64_t k) {
                 bs[j] = d*sum;
                 sum += bs[j];
             }
-            if constexpr (q8_type == 2) {
-                bs[0] = sum;
-            }
+            y[i].sum = sum;
         } else {
+            int tot = 0;
             for (int j = 0; j < QK_K/16; ++j) {
                 int sum = 0;
                 for (int ii = 0; ii < 16; ++ii) {
                     sum += y[i].qs[j*16 + ii];
                 }
                 y[i].bsums[j] = sum;
+                tot += sum;
             }
+            y[i].sum = d*tot;
         }
-        y[i].d = 1/iscale;
+        y[i].d = d;
         x += QK_K;
     }
 #endif
@@ -7632,7 +7628,7 @@ const Repack * get_repack_info(ggml_type type) {
         { GGML_TYPE_Q6_0,   { GGML_TYPE_Q6_0_R4,   4,  (Repack::repack_func)repack_q6_0}    },
         { GGML_TYPE_Q8_0,   { GGML_TYPE_Q8_0_R8,   8,  (Repack::repack_func)repack_q8_0}    },
         { GGML_TYPE_Q8_K,   { GGML_TYPE_Q8_K_R8,   8,  (Repack::repack_func)repack_q8_k}    },
-        // { GGML_TYPE_Q8_KV,  { GGML_TYPE_Q8_KV_R8,  8,  (Repack::repack_func)repack_q8_KV}   },
+        { GGML_TYPE_Q8_KV,  { GGML_TYPE_Q8_KV_R8,  8,  (Repack::repack_func)repack_q8_KV}   },
 #ifdef __AVX512BF16__
         { GGML_TYPE_BF16,   { GGML_TYPE_BF16_R16, 16,  (Repack::repack_func)repack_bf16<ggml_bf16_t>}},
         { GGML_TYPE_F16,    { GGML_TYPE_BF16_R16, 16,  (Repack::repack_func)repack_bf16<ggml_half>}  },
@@ -7720,27 +7716,7 @@ void dequantize_row_ms_i2s(const void * vx, float * y, int64_t k) {
 }
 
 namespace {
-#ifdef __AVX2__
-__m128 hsum_float_4x4(__m128 * accm) {
-     accm[0] = _mm_add_ps(_mm_unpacklo_ps(accm[0], accm[2]), _mm_unpackhi_ps(accm[0], accm[2]));
-     accm[1] = _mm_add_ps(_mm_unpacklo_ps(accm[1], accm[3]), _mm_unpackhi_ps(accm[1], accm[3]));
-     return _mm_add_ps(_mm_unpacklo_ps(accm[0], accm[1]), _mm_unpackhi_ps(accm[0], accm[1]));
-}
-/* __m256 hsum_float_8x8(__m256 * accm) {
-     for (int i = 0; i < 4; ++i) {
-         accm[i] = _mm256_set_m128(_mm_add_ps(_mm256_castps256_ps128(accm[i+4]), _mm256_extractf128_ps(accm[i+4], 1)),
-                                   _mm_add_ps(_mm256_castps256_ps128(accm[i+0]), _mm256_extractf128_ps(accm[i+0], 1)));
-     }
-     for (int i = 0; i < 2; ++i) accm[i] = _mm256_add_ps(_mm256_unpacklo_ps(accm[i], accm[i+2]), _mm256_unpackhi_ps(accm[i], accm[i+2]));
-     return _mm256_add_ps(_mm256_unpacklo_ps(accm[0], accm[1]), _mm256_unpackhi_ps(accm[0], accm[1]));
-} */
-/* __m256 hsum_float_4x8(__m256 * accm) {
-     for (int i = 0; i < 2; ++i) accm[i] = _mm256_add_ps(_mm256_unpacklo_ps(accm[i], accm[i+2]), _mm256_unpackhi_ps(accm[i], accm[i+2]));
-     return _mm256_add_ps(_mm256_unpacklo_ps(accm[0], accm[1]), _mm256_unpackhi_ps(accm[0], accm[1]));
-} */
-#endif
 template <int block_size, int group_size, int num_bits, bool is_abs = false, bool is_int = false>
-// template <int block_size, int group_size, int num_bits, bool is_abs = false>
 class QuantizerIQKT {
     static_assert(group_size == 8 || group_size == 4);
     static_assert(block_size >= 8 && block_size%8 == 0);
@@ -7762,8 +7738,6 @@ public:
     inline float find_best_inverse_scale(const float * xb, const float * weight, const int * best_idx) const;
 
     static inline void set_values(uint32_t i, float * result, float scale, int offset = 4096) {
-        // constexpr uint32_t ka = 3417055213;
-        // constexpr uint32_t kb = 0;
         uint32_t x = i + offset;
         if constexpr (is_int) {
             constexpr uint32_t ka = 0xCBAC1FED;
