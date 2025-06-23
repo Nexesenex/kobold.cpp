@@ -19,7 +19,7 @@
 // #include "ggml.c"
 
 #include "iqk/iqk_quantize.h"
-#if GGML_USE_IQK_MULMAT
+#ifdef GGML_USE_IQK_MULMAT
 #include "iqk/iqk_mul_mat.h"
 #include "iqk/iqk_config.h"
 #endif
@@ -219,7 +219,7 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_Q4_0] = {
         .from_float               = quantize_row_q4_0,
         .vec_dot                  = ggml_vec_dot_q4_0_q8_0,
-// #if GGML_USE_IQK_MULMAT
+// #ifdef GGML_USE_IQK_MULMAT
 // #if defined __AVX2__
         // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
 // #else
@@ -237,7 +237,7 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_Q4_1] = {
         .from_float               = quantize_row_q4_1,
         .vec_dot                  = ggml_vec_dot_q4_1_q8_1,
-// #if GGML_USE_IQK_MULMAT
+// #ifdef GGML_USE_IQK_MULMAT
 // #if defined __AVX2__
         // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
 // #else
@@ -281,7 +281,7 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_Q5_0] = {
         .from_float               = quantize_row_q5_0,
         .vec_dot                  = ggml_vec_dot_q5_0_q8_0,
-// #if GGML_USE_IQK_MULMAT
+// #ifdef GGML_USE_IQK_MULMAT
 // #if defined __AVX2__
         // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
 // #else
@@ -295,7 +295,7 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_Q5_1] = {
         .from_float               = quantize_row_q5_1,
         .vec_dot                  = ggml_vec_dot_q5_1_q8_1,
-// #if GGML_USE_IQK_MULMAT
+// #ifdef GGML_USE_IQK_MULMAT
 // #ifdef __AVX2__
         // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
 // #else
@@ -309,7 +309,7 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_Q6_0] = {
         .from_float               = quantize_row_q6_0,
         .vec_dot                  = ggml_vec_dot_q6_0_q8_0,
-// #if GGML_USE_IQK_MULMAT
+// #ifdef GGML_USE_IQK_MULMAT
 // #if defined __AVX2__
         // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
 // #else
@@ -324,7 +324,7 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_Q8_0] = {
         .from_float               = quantize_row_q8_0,
         .vec_dot                  = ggml_vec_dot_q8_0_q8_0,
-// #if GGML_USE_IQK_MULMAT
+// #ifdef GGML_USE_IQK_MULMAT
 // #ifdef HAVE_FANCY_SIMD
         // Remember: we cannot add 128 to the Q8 quants and use iblock sum in Q8_1 to subtract as we do on Zen4 for pure AVX2
         //           because there the result of the _mm256_maddubs_epi16() instruction may overflow the int16_t range
@@ -575,7 +575,7 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_IQ4_NL] = {
         .from_float               = quantize_row_iq4_nl,
         .vec_dot                  = ggml_vec_dot_iq4_nl_q8_0,
-// #if GGML_USE_IQK_MULMAT
+// #ifdef GGML_USE_IQK_MULMAT
 // #if defined HAVE_FANCY_SIMD
         // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
 // #else
@@ -839,7 +839,7 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_IQ4_NL_R4] = {
         .from_float               = quantize_row_iq4_nl_r4,
         .vec_dot                  = vec_dot_iq4_nl_r4_q8_0,
-#if GGML_USE_IQK_MULMAT
+#ifdef GGML_USE_IQK_MULMAT
 #if defined __AVX2__
         .vec_dot_type             = GGML_TYPE_Q8_2_X4,
 #else
@@ -859,7 +859,7 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_Q4_0_R8] = {
         .from_float               = quantize_row_q4_0_r8,
         .vec_dot                  = vec_dot_q4_0_r8_q8_0,
-#if GGML_USE_IQK_MULMAT
+#ifdef GGML_USE_IQK_MULMAT
 #if defined __AVX2__
         .vec_dot_type             = GGML_TYPE_Q8_2_X4,
 #else
@@ -873,7 +873,7 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_Q8_0_R8] = {
         .from_float               = quantize_row_q8_0_r8,
         .vec_dot                  = vec_dot_q8_0_r8_q8_0,
-#if GGML_USE_IQK_MULMAT
+#ifdef GGML_USE_IQK_MULMAT
 #if defined __AVX2__
         .vec_dot_type             = GGML_TYPE_Q8_2_X4,
 #else
@@ -887,7 +887,7 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_Q5_0_R4] = {
         .from_float               = quantize_row_q5_0_r4,
         .vec_dot                  = vec_dot_q5_0_r4_q8_0,
-#if GGML_USE_IQK_MULMAT
+#ifdef GGML_USE_IQK_MULMAT
 #if defined __AVX2__
         .vec_dot_type             = GGML_TYPE_Q8_2_X4,
 #else
@@ -901,7 +901,7 @@ static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_Q6_0_R4] = {
         .from_float               = quantize_row_q6_0_r4,
         .vec_dot                  = vec_dot_q6_0_r4_q8_0,
-#if GGML_USE_IQK_MULMAT
+#ifdef GGML_USE_IQK_MULMAT
 #if defined __AVX2__
         .vec_dot_type             = GGML_TYPE_Q8_2_X4,
 #else
@@ -1837,7 +1837,7 @@ static void ggml_compute_forward_mul_mat(
     const int64_t r3 = ne13 / ne03;
 #endif
 
-#if GGML_USE_IQK_MULMAT
+#ifdef GGML_USE_IQK_MULMAT
     if (dst->type == GGML_TYPE_F32) {
         if (iqk_mul_mat_4d(ne01, ne11, ne00,
                     ne02, ne03, ne12, ne13, nb02, nb03, nb12, nb13, nb2/sizeof(float), nb3/sizeof(float),
@@ -1973,12 +1973,12 @@ UseGgmlGemm1:;
 
     ggml_barrier(params->threadpool);
 
-// #if GGML_USE_IQK_MULMAT
+// #ifdef GGML_USE_IQK_MULMAT
     // }
 // #else
 // #endif
 
-#if GGML_USE_IQK_MULMAT
+#ifdef GGML_USE_IQK_MULMAT
     if (src1->type != vec_dot_type && dst->type == GGML_TYPE_F32) {
         const void * wdata    = (src1->type == vec_dot_type) ? src1->data : params->wdata;
         const size_t row_size = ggml_row_size(vec_dot_type, ne10);
@@ -3524,7 +3524,7 @@ struct ggml_cplan ggml_graph_plan(
                         const int64_t D  = MAX(Dk, Dv);
 
                         cur = 3*sizeof(float)*D*n_tasks; // 3x head size/thread
-                        #if GGML_USE_IQK_MULMAT
+                        #ifdef GGML_USE_IQK_MULMAT
                         size_t qsize = 0;
                         const struct ggml_tensor * q = node->src[0];
                         const struct ggml_tensor * k = node->src[1];
@@ -3580,7 +3580,7 @@ struct ggml_cplan ggml_graph_plan(
                         // const int64_t Dv = node->src[2]->ne[0];
                         // const int64_t D  = MAX(Dk, Dv);
                         // cur = 3*sizeof(float)*D*n_tasks; // 3x head size/thread
-                        // #if GGML_USE_IQK_MULMAT
+                        // #ifdef GGML_USE_IQK_MULMAT
                         // const struct ggml_tensor * q = node->src[0];
                         // const struct ggml_tensor * k = node->src[1];
                         // if (q->ne[1] == 1 && q->ne[3] == 1 && q->ne[2]/k->ne[2] > 1 && n_tasks > 1 && k->ne[1]/32 > 1) {

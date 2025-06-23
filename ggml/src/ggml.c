@@ -1,7 +1,7 @@
 #define _CRT_SECURE_NO_DEPRECATE // Disables "unsafe" warnings on Windows
 #define _USE_MATH_DEFINES // For M_PI on MSVC
 
-/* #if GGML_USE_IQK_MULMAT
+/* #ifdef GGML_USE_IQK_MULMAT
 #include "ggml-backend.h"
 #include "ggml-impl_ik.h"
 #include "ggml-quants_ik.h"
@@ -31,7 +31,7 @@
 #include "iqk/iqk_quantize.h"
 // #endif
 
-#if GGML_USE_IQK_MULMAT
+#ifdef GGML_USE_IQK_MULMAT
 #include "iqk/iqk_mul_mat.h"
 #include "iqk/iqk_config.h"
 #endif
@@ -247,13 +247,13 @@ void ggml_abort(const char * file, int line, const char * fmt, ...) {
     abort();
 }
 
-/* #define GGML_DEBUG 0
+#define GGML_DEBUG 0
 #define GGML_GELU_FP16
 #define GGML_GELU_QUICK_FP16
 
 #define GGML_SOFT_MAX_UNROLL 4
 #define GGML_VEC_DOT_UNROLL  2
-#define GGML_VEC_MAD_UNROLL  32 */
+#define GGML_VEC_MAD_UNROLL  32
 
 // ggml_print_backtrace is registered with std::set_terminate by ggml.cpp
 
@@ -1564,7 +1564,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .from_float               = quantize_row_iq4_nl_r4,
         .from_float_ref           = (ggml_from_float_t)quantize_row_iq4_nl_r4_ref,
         // .vec_dot                  = vec_dot_iq4_nl_r4_q8_0,
-// #if GGML_USE_IQK_MULMAT
+// #ifdef GGML_USE_IQK_MULMAT
 // #if defined __AVX2__
         // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
 // #else
@@ -1598,7 +1598,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .from_float               = quantize_row_q4_0_r8,
         .from_float_ref           = (ggml_from_float_t)quantize_row_q4_0_r8_ref,
         // .vec_dot                  = vec_dot_q4_0_r8_q8_0,
-// #if GGML_USE_IQK_MULMAT
+// #ifdef GGML_USE_IQK_MULMAT
 // #if defined __AVX2__
         // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
 // #else
@@ -1619,7 +1619,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .from_float               = quantize_row_q8_0_r8,
         .from_float_ref           = (ggml_from_float_t)quantize_row_q8_0_r8_ref,
         // .vec_dot                  = vec_dot_q8_0_r8_q8_0,
-// #if GGML_USE_IQK_MULMAT
+// #ifdef GGML_USE_IQK_MULMAT
 // #if defined __AVX2__
         // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
 // #else
@@ -1640,7 +1640,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .from_float               = quantize_row_q5_0_r4,
         .from_float_ref           = (ggml_from_float_t)quantize_row_q5_0_r4_ref,
         // .vec_dot                  = vec_dot_q5_0_r4_q8_0,
-// #if GGML_USE_IQK_MULMAT
+// #ifdef GGML_USE_IQK_MULMAT
 // #if defined __AVX2__
         // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
 // #else
@@ -1661,7 +1661,7 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         // .from_float               = quantize_row_q6_0_r4,
         .from_float_ref           = (ggml_from_float_t)quantize_row_q6_0_r4_ref,
         // .vec_dot                  = vec_dot_q6_0_r4_q8_0,
-// #if GGML_USE_IQK_MULMAT
+// #ifdef GGML_USE_IQK_MULMAT
 // #if defined __AVX2__
         // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
 // #else
