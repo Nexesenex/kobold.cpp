@@ -497,12 +497,12 @@ def init_library():
 
     libname = lib_default
 
-    if args.noavx2:
+    if args.noavx2: #failsafe implies noavx2 always
         if args.useclblast and (os.name!='nt' or file_exists("clblast.dll")):
-            if (args.failsafe) and file_exists(lib_clblast_failsafe):
-                libname = lib_clblast_failsafe
-            elif file_exists(lib_clblast_noavx2):
+            if file_exists(lib_clblast_noavx2) and not (args.failsafe):
                 libname = lib_clblast_noavx2
+            elif file_exists(lib_clblast_failsafe):
+                libname = lib_clblast_failsafe
         elif (args.usevulkan is not None) and file_exists(lib_vulkan_noavx2):
             libname = lib_vulkan_noavx2
         elif (args.failsafe) and file_exists(lib_failsafe):
@@ -515,10 +515,20 @@ def init_library():
             libname = lib_cublas
         elif file_exists(lib_hipblas):
             libname = lib_hipblas
-    elif (args.usevulkan is not None) and file_exists(lib_vulkan):
-        libname = lib_vulkan
-    elif args.useclblast and file_exists(lib_clblast) and (os.name!='nt' or file_exists("clblast.dll")):
-        libname = lib_clblast
+    elif (args.usevulkan is not None):
+        if file_exists(lib_vulkan):
+            libname = lib_vulkan
+        elif file_exists(lib_vulkan_noavx2):
+            libname = lib_vulkan_noavx2
+    elif args.useclblast and (os.name!='nt' or file_exists("clblast.dll")):
+        if file_exists(lib_clblast):
+            libname = lib_clblast
+        elif file_exists(lib_clblast_noavx2):
+            libname = lib_clblast_noavx2
+        elif file_exists(lib_clblast_failsafe):
+            libname = lib_clblast_failsafe
+    elif libname == lib_default and not file_exists(lib_default) and file_exists(lib_noavx2):
+        libname = lib_noavx2
 
     print("Initializing dynamic library: " + libname)
     dir_path = getdirpath()
@@ -765,6 +775,36 @@ def strip_base64_prefix(encoded_data):
     if encoded_data.startswith("data:image"):
         encoded_data = encoded_data.split(',', 1)[-1]
     return encoded_data
+
+def old_cpu_check(): #return -1 for pass, 0 if has avx2, 1 if has avx, 2 if has nothing
+    shouldcheck = ((sys.platform == "linux" and platform.machine().lower() in ("x86_64", "amd64")) or
+                  (os.name == 'nt' and platform.machine().lower() in ("amd64", "x86_64")))
+    if not shouldcheck:
+        return -1 #doesnt deal with avx at all.
+    try:
+        retflags = 0
+        if sys.platform == "linux":
+            with open('/proc/cpuinfo', 'r') as f:
+                cpuinfo = f.read()
+                cpuinfo = cpuinfo.lower()
+                if 'avx' not in cpuinfo and 'avx2' not in cpuinfo:
+                    retflags = 2
+                elif 'avx2' not in cpuinfo:
+                    retflags = 1
+        elif os.name == 'nt':
+            basepath = os.path.abspath(os.path.dirname(__file__))
+            output = ""
+            data = None
+            output = subprocess.run([os.path.join(basepath, "simplecpuinfo.exe")], capture_output=True, text=True, check=True, creationflags=subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS, encoding='utf-8', timeout=6).stdout
+            data = json.loads(output)
+            if data["avx2"]==0 and data["avx"]==0:
+                retflags = 2
+            elif data["avx2"]==0:
+                retflags = 1
+        return retflags
+    except Exception:
+        return -1 #cannot determine
+
 
 def unpack_to_dir(destpath = ""):
     srcpath = os.path.abspath(os.path.dirname(__file__))
@@ -1907,20 +1947,32 @@ def fetch_gpu_properties(testCL,testCU,testVK):
 def auto_set_backend_cli():
     fetch_gpu_properties(False,True,True)
     found_new_backend = False
-    if exitcounter < 100 and MaxMemory[0]>3500000000 and (("Use CuBLAS" in runopts and CUDevicesNames[0]!="") or "Use hipBLAS (ROCm)" in runopts) and any(CUDevicesNames):
+
+    # check for avx2 and avx support
+    is_oldpc_ver = "Use CPU" not in runopts #on oldcpu ver, default lib does not exist
+    cpusupport = old_cpu_check() # 0 if has avx2, 1 if has avx, 2 if has nothing
+    eligible_cuda = (cpusupport<1 and not is_oldpc_ver) or (cpusupport<2 and is_oldpc_ver)
+    if not eligible_cuda:
+        if cpusupport==1:
+            args.noavx2 = True
+        elif cpusupport==2:
+            args.noavx2 = True
+            args.failsafe = True
+
+    if eligible_cuda and exitcounter < 100 and MaxMemory[0]>3500000000 and (("Use CuBLAS" in runopts and CUDevicesNames[0]!="") or "Use hipBLAS (ROCm)" in runopts) and any(CUDevicesNames):
         if "Use CuBLAS" in runopts or "Use hipBLAS (ROCm)" in runopts:
             args.usecublas = ["normal","mmq"]
-            print("Auto Selected CUDA Backend...\n")
+            print(f"Auto Selected CUDA Backend (flag={cpusupport})\n")
             found_new_backend = True
-    elif exitcounter < 100 and (1 in VKIsDGPU) and "Use Vulkan" in runopts:
+    elif exitcounter < 100 and (1 in VKIsDGPU) and ("Use Vulkan" in runopts or "Use Vulkan (Old CPU)" in runopts):
         for i in range(0,len(VKIsDGPU)):
             if VKIsDGPU[i]==1:
                 args.usevulkan = []
-                print("Auto Selected Vulkan Backend...\n")
+                print(f"Auto Selected Vulkan Backend (flag={cpusupport})\n")
                 found_new_backend = True
                 break
     if not found_new_backend:
-        print("No GPU Backend found...\n")
+        print(f"Auto Selected Default Backend (flag={cpusupport})\n")
 
 def load_model(model_filename):
     global args
@@ -3563,6 +3615,11 @@ ws ::= | " " | "\n" [ \t]{0,20}
 
                 # content can be a string or an array of objects
                 curr_content = message.get("content",None)
+                if api_format==7: #ollama handle vision
+                    imgs = message.get("images",None)
+                    if imgs and len(imgs) > 0:
+                        for img in imgs:
+                            images_added.append(img)
                 if not curr_content:
                     pass  # do nothing
                 elif isinstance(curr_content, str):
@@ -4703,7 +4760,7 @@ Change Mode<br>
             response_body = (json.dumps({"temperature":0.75,"speed":1,"length_penalty":1,"repetition_penalty":1,"top_p":1,"top_k":4,"enable_text_splitting":True,"stream_chunk_size":100}).encode()) #some random voices for them to enjoy
 
         elif self.path.endswith('/api/tags') or self.path.endswith('/api/ps'): #ollama compatible
-            response_body = (json.dumps({"models":[{"name":"koboldcpp","model":friendlymodelname,"modified_at":"2024-07-19T15:26:55.6122841+08:00","expires_at": "2055-06-04T19:06:25.5433636+08:00","size":394998579,"size_vram":394998579,"digest":"b5dc5e784f2a3ee1582373093acf69a2f4e2ac1710b253a001712b86a61f88bb","details":{"parent_model":"","format":"gguf","family":"koboldcpp","families":["koboldcpp"],"parameter_size":"128M","quantization_level":"Q4_0"}}]}).encode())
+            response_body = (json.dumps({"models":[{"name":"koboldcpp","model":f"{friendlymodelname}:latest","modified_at":"2024-07-19T15:26:55.6122841+08:00","expires_at": "2055-06-04T19:06:25.5433636+08:00","size":394998579,"size_vram":394998579,"digest":"b5dc5e784f2a3ee1582373093acf69a2f4e2ac1710b253a001712b86a61f88bb","details":{"parent_model":"","format":"gguf","family":"koboldcpp","families":["koboldcpp"],"parameter_size":"128M","quantization_level":"Q4_0"}},{"name":"koboldcpp","model":friendlymodelname,"modified_at":"2024-07-19T15:26:55.6122841+08:00","expires_at": "2055-06-04T19:06:25.5433636+08:00","size":394998579,"size_vram":394998579,"digest":"b5dc5e784f2a3ee1582373093acf69a2f4e2ac1710b253a001712b86a61f88bb","details":{"parent_model":"","format":"gguf","family":"koboldcpp","families":["koboldcpp"],"parameter_size":"128M","quantization_level":"Q4_0"}}]}).encode())
         elif self.path.endswith('/api/version'): #ollama compatible, NOT the kcpp version
             response_body = (json.dumps({"version":"0.7.0"}).encode())
 
@@ -6481,29 +6538,43 @@ def show_gui():
         else:
             fetch_gpu_properties(True,True,True)
         found_new_backend = False
+
+        # check for avx2 and avx support
+        is_oldpc_ver = "Use CPU" not in runopts #on oldcpu ver, default lib does not exist
+        cpusupport = old_cpu_check() # 0 if has avx2, 1 if has avx, 2 if has nothing
+        eligible_cuda = (cpusupport<1 and not is_oldpc_ver) or (cpusupport<2 and is_oldpc_ver)
+
         #autopick cublas if suitable, requires at least 3.5GB VRAM to auto pick
         #we do not want to autoselect hip/cublas if the user has already changed their desired backend!
-        if exitcounter < 100 and MaxMemory[0]>3500000000 and (("Use CuBLAS" in runopts and CUDevicesNames[0]!="") or "Use hipBLAS (ROCm)" in runopts) and (any(CUDevicesNames) or any(CLDevicesNames)) and runmode_untouched:
+        if eligible_cuda and exitcounter < 100 and MaxMemory[0]>3500000000 and (("Use CuBLAS" in runopts and CUDevicesNames[0]!="") or "Use hipBLAS (ROCm)" in runopts) and (any(CUDevicesNames) or any(CLDevicesNames)) and runmode_untouched:
             if "Use CuBLAS" in runopts:
                 runopts_var.set("Use CuBLAS")
                 gpu_choice_var.set("1")
-                print("Auto Selected CUDA Backend...\n")
+                print(f"Auto Selected CUDA Backend (flag={cpusupport})\n")
                 found_new_backend = True
             elif "Use hipBLAS (ROCm)" in runopts:
                 runopts_var.set("Use hipBLAS (ROCm)")
                 gpu_choice_var.set("1")
-                print("Auto Selected HIP Backend...\n")
+                print(f"Auto Selected HIP Backend (flag={cpusupport})\n")
                 found_new_backend = True
-        elif exitcounter < 100 and (1 in VKIsDGPU) and runmode_untouched and "Use Vulkan" in runopts:
+        elif exitcounter < 100 and (1 in VKIsDGPU) and runmode_untouched and ("Use Vulkan" in runopts or "Use Vulkan (Old CPU)" in runopts):
             for i in range(0,len(VKIsDGPU)):
                 if VKIsDGPU[i]==1:
-                    runopts_var.set("Use Vulkan")
+                    if cpusupport<1 and "Use Vulkan" in runopts:
+                        runopts_var.set("Use Vulkan")
+                    else:
+                        runopts_var.set("Use Vulkan (Old CPU)")
                     gpu_choice_var.set(str(i+1))
-                    print("Auto Selected Vulkan Backend...\n")
+                    print(f"Auto Selected Vulkan Backend (flag={cpusupport})\n")
                     found_new_backend = True
                     break
+        else:
+            if runopts_var.get()=="Use CPU" and cpusupport==1 and "Use CPU (Old CPU)" in runopts:
+                runopts_var.set("Use CPU (Old CPU)")
+            elif runopts_var.get()=="Use CPU" and cpusupport==2 and "Failsafe Mode (Older CPU)" in runopts:
+                runopts_var.set("Failsafe Mode (Older CPU)")
         if not found_new_backend:
-            print("Auto Selected Default Backend...\n")
+            print(f"Auto Selected Default Backend (flag={cpusupport})\n")
         changed_gpu_choice_var()
 
     def on_picked_model_file(filepath):
