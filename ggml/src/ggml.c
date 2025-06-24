@@ -842,6 +842,13 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_q4_K,
         .from_float_ref           = (ggml_from_float_t) quantize_row_q4_K_ref,
+        // .vec_dot                  = ggml_vec_dot_q4_K_q8_K,
+// #ifdef __AVX2__
+        // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+// #else
+        // .vec_dot_type             = GGML_TYPE_Q8_1_X4,
+// #endif
+        // .nrows                    = 1,
         .row_meta_size            = 0,
     },
     [GGML_TYPE_Q4_K_R4] = {
@@ -864,6 +871,13 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_q5_K,
         .from_float_ref           = (ggml_from_float_t) quantize_row_q5_K_ref,
+        // .vec_dot                  = ggml_vec_dot_q5_K_q8_K,
+// #ifdef __AVX2__
+        // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+// #else
+        // .vec_dot_type             = GGML_TYPE_Q8_1_X4,
+// #endif
+        // .nrows                    = 1,
         .row_meta_size            = 0,
     },
     [GGML_TYPE_Q5_K_R4] = {
@@ -886,6 +900,14 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_q6_K,
         .from_float_ref           = (ggml_from_float_t) quantize_row_q6_K_ref,
+        // .vec_dot                  = ggml_vec_dot_q6_K_q8_K,
+// #ifdef __AVX2__
+        // .vec_dot_type             = GGML_TYPE_Q8_2_X4,
+// #else
+        // .vec_dot_type             = GGML_TYPE_Q8_0_X4,
+// #endif
+//        .vec_dot_type             = GGML_TYPE_Q8_K,
+//        .nrows                    = 1,
         .row_meta_size            = 0,
     },
     [GGML_TYPE_Q6_K_R4] = {
