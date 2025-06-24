@@ -73,7 +73,7 @@ dry_seq_break_max = 256
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.94100"
+KcppVersion = "1.94200"
 LcppVersion = "b5723"
 IKLcppVersion = "IKLpr540"
 EsoboldVersion = "RMv1.12.1m+8c"
