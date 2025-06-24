@@ -1346,6 +1346,8 @@ void ggml_compute_forward_add(
 
     const ggml_tensor * src0 = dst->src[0];
 
+    const ggml_tensor * src1 = dst->src[1];
+
     switch (src0->type) {
         case GGML_TYPE_F32:
         case GGML_TYPE_F16:
@@ -1354,6 +1356,40 @@ void ggml_compute_forward_add(
             {
                 ggml_compute_forward_add_non_quantized(params, dst);
             } break;
+    // switch (src0->type) {
+        // case GGML_TYPE_F32:
+            // {
+                // if (src1->type == GGML_TYPE_F32) {
+                    // ggml_compute_forward_add_f32(params, dst);
+                // }
+                // else {
+                    // GGML_ABORT("fatal error");
+                // }
+            // } break;
+        // case GGML_TYPE_F16:
+            // {
+                // if (src1->type == GGML_TYPE_F16) {
+                    // ggml_compute_forward_add_f16_f16(params, dst);
+                // }
+                // else if (src1->type == GGML_TYPE_F32) {
+                    // ggml_compute_forward_add_f16_f32(params, dst);
+                // }
+                // else {
+                    // GGML_ABORT("fatal error");
+                // }
+            // } break;
+        // case GGML_TYPE_BF16:
+            // {
+                // if (src1->type == GGML_TYPE_BF16) {
+                    // ggml_compute_forward_add_bf16_bf16(params, dst);
+                // }
+                // else if (src1->type == GGML_TYPE_F32) {
+                    // ggml_compute_forward_add_bf16_f32(params, dst);
+                // }
+                // else {
+                    // GGML_ABORT("fatal error");
+                // }
+            // } break;
         case GGML_TYPE_Q4_0:
         case GGML_TYPE_Q4_1:
         case GGML_TYPE_Q5_0:
@@ -1375,6 +1411,11 @@ void ggml_compute_forward_add(
         case GGML_TYPE_Q6_K_R4:
         case GGML_TYPE_Q8_K_R8:
         case GGML_TYPE_Q8_KV_R8:
+        // case GGML_TYPE_Q8_KV:
+        // case GGML_TYPE_Q8_1:
+        // case GGML_TYPE_Q8_0_X4:
+        // case GGML_TYPE_Q8_1_X4:
+        // case GGML_TYPE_Q8_2_X4:
         case GGML_TYPE_IQ2_XXS:
         case GGML_TYPE_IQ2_XXS_R4:
         case GGML_TYPE_IQ2_XS:
