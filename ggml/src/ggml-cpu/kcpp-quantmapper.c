@@ -21,4 +21,5 @@
 #include "arch/s390/quants.c"
 #else
 #pragma message("KoboldCpp Cannot Compile Quants! Unknown Architecture!")
+#error "Compilation halted due to unknown architecture."
 #endif

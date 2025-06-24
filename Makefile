@@ -904,6 +904,8 @@ quantize_clip: tools/mtmd/clip.cpp tools/mtmd/clip.h tools/quantclip.cpp ggml_v3
 #window simple clinfo
 simpleclinfo: simpleclinfo.cpp
 	$(CXX) $(CXXFLAGS) $^ lib/OpenCL.lib lib/clblast.lib -o $@ $(LDFLAGS)
+simplecpuinfo: simplecpuinfo.cpp
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
 build-info.h:
 	$(DONOTHING)

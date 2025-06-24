@@ -18,4 +18,5 @@
 #pragma message("KoboldCpp Compiling Repack for S390X")
 #else
 #pragma message("KoboldCpp Cannot Compile Repack! Unknown Architecture!")
+#error "Compilation halted due to unknown architecture."
 #endif
