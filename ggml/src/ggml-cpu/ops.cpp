@@ -1381,7 +1381,7 @@ static void ggml_compute_forward_dup_bytes(
         ggml_are_same_shape(src0, dst) &&
         nb00 == type_size && nb0 == type_size) {
         // copy by rows
-        const size_t rs = ggml_row_size(src0->type, ne00); //ne00 * type_size;
+        const size_t rs = ggml_row_size(src0->type, ne00); //ne00 * type_size; //ne00 * type_size;
         for (int64_t i03 = 0; i03 < ne03; i03++) {
             for (int64_t i02 = 0; i02 < ne02; i02++) {
                 for (int64_t i01 = ir0; i01 < ir1; i01 += n_packed) {
@@ -1398,7 +1398,7 @@ static void ggml_compute_forward_dup_bytes(
     if (ggml_is_contiguous(dst)) {
         size_t id = 0;
         char * dst_ptr = (char *) dst->data;
-        const size_t rs = ggml_row_size(src0->type, ne00); //ne00 * type_size;
+        const size_t rs = ggml_row_size(src0->type, ne00); //ne00 * type_size; //ne00 * type_size;
 
         if (nb00 == type_size) {
             // src0 is contigous on first dimension, copy by rows
