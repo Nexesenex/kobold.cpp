@@ -200,7 +200,6 @@ if (GGML_IQK_MUL_MAT)
 endif()
 
 if (LLAMA_CUBLAS)
-
     cmake_minimum_required(VERSION 3.17)
 
     find_package(CUDAToolkit)

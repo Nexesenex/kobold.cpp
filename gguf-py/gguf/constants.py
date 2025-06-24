@@ -2355,6 +2355,99 @@ class LlamaFileType(IntEnum):
     # MOSTLY_Q4_0_8_8      = 35  # removed from gguf files, use Q4_0 and runtime repack
     MOSTLY_TQ1_0         = 36  # except 1d tensors
     MOSTLY_TQ2_0         = 37  # except 1d tensors
+    MOSTLY_Q6_0            = 127    #except 1d tensors
+    MOSTLY_IQ1_BN          = 128    #except 1d tensors
+    MOSTLY_IQ2_BN          = 129    #except 1d tensors
+    MOSTLY_IQ2_K           = 130    #except 1d tensors
+    MOSTLY_IQ3_K           = 131    #except 1d tensors
+    MOSTLY_IQ4_K           = 132    #except 1d tensors
+    MOSTLY_IQ5_K           = 133    #except 1d tensors
+    MOSTLY_IQ6_K           = 134    #except 1d tensors
+    MOSTLY_IQ4_KS          = 137    #except 1d tensors
+    MOSTLY_IQ2_KS          = 138    #except 1d tensors
+    MOSTLY_IQ4_KSS         = 139    #except 1d tensors
+    MOSTLY_Q8_KV           = 140    #except 1d tensors
+    MOSTLY_IQ5_KS          = 141    #except 1d tensors
+    MOSTLY_IQ2_KT          = 142    #except 1d tensors
+    MOSTLY_IQ3_KT          = 143    #except 1d tensors
+    MOSTLY_IQ4_KT          = 144    #except 1d tensors
+
+    MOSTLY_IQ3_KS          = 185    #except 1d tensors
+
+    MOSTLY_Q4_0_R8         = 202    #except 1d tensors
+    MOSTLY_Q8_0_R8         = 207    #except 1d tensors
+    MOSTLY_Q5_0_R4         = 208    #except 1d tensors
+    MOSTLY_Q2_K_R4         = 210    #except 1d tensors
+    MOSTLY_Q3_K_R4         = 211    #except 1d tensors
+    MOSTLY_Q4_K_R4         = 212    #except 1d tensors
+    MOSTLY_Q5_K_R4         = 213    #except 1d tensors
+    MOSTLY_Q6_K_R4         = 214    #except 1d tensors
+    MOSTLY_IQ2_XXS_R4      = 215    #except 1d tensors
+    MOSTLY_IQ2_XS_R4       = 216    #except 1d tensors
+    MOSTLY_IQ3_XXS_R4      = 217    #except 1d tensors
+    MOSTLY_IQ1_S_R4        = 218    #except 1d tensors
+    MOSTLY_IQ4_NL_R4       = 219    #except 1d tensors
+    MOSTLY_IQ3_S_R4        = 220    #except 1d tensors
+    MOSTLY_IQ2_S_R4        = 221    #except 1d tensors
+    MOSTLY_IQ4_XS_R8       = 222    #except 1d tensors
+    MOSTLY_IQ1_M_R4        = 223    #except 1d tensors
+    MOSTLY_BF16_R16        = 224    #except 1d tensors
+    MOSTLY_Q6_0_R4         = 227    #except 1d tensors
+    MOSTLY_IQ2_BN_R4       = 329    #except 1d tensors
+    MOSTLY_IQ2_K_R4        = 330    #except 1d tensors
+    MOSTLY_IQ3_K_R4        = 331    #except 1d tensors
+    MOSTLY_IQ4_K_R4        = 332    #except 1d tensors
+    MOSTLY_IQ5_K_R4        = 333    #except 1d tensors
+    MOSTLY_IQ4_KS_R4       = 337    #except 1d tensors
+    MOSTLY_IQ5_KS_R4       = 341    #except 1d tensors
+    MOSTLY_Q8_KV_R8        = 398    #except 1d tensors
+    MOSTLY_Q8_K_R8         = 399    #except 1d tensors
+
+    MOSTLY_Q4_0_M          = 900   # except 1d tensors
+    MOSTLY_Q4_1_M          = 901   # except 1d tensors
+    MOSTLY_Q5_0_M          = 902   # except 1d tensors
+    MOSTLY_Q5_1_M          = 903   # except 1d tensors
+    MOSTLY_Q6_0_M          = 904   # except 1d tensors
+    MOSTLY_Q8_0_M          = 905   # except 1d tensors
+
+    MOSTLY_Q4_0_L          = 910   # except 1d tensors
+    MOSTLY_Q4_1_L          = 911   # except 1d tensors
+    MOSTLY_Q5_0_L          = 912   # except 1d tensors
+    MOSTLY_Q5_1_L          = 913   # except 1d tensors
+    MOSTLY_Q6_0_L          = 914   # except 1d tensors
+    MOSTLY_Q8_0_L          = 915   # except 1d tensors
+
+    MOSTLY_Q4_0_XL         = 920   # except 1d tensors
+    MOSTLY_Q4_1_XL         = 921   # except 1d tensors
+    MOSTLY_Q5_0_XL         = 922   # except 1d tensors
+    MOSTLY_Q5_1_XL         = 923   # except 1d tensors
+    MOSTLY_Q6_0_XL         = 924   # except 1d tensors
+    MOSTLY_Q8_0_XL         = 925   # except 1d tensors
+
+    MOSTLY_Q4_0_XXL        = 930   # except 1d tensors
+    MOSTLY_Q4_1_XXL        = 931   # except 1d tensors
+    MOSTLY_Q5_0_XXL        = 932   # except 1d tensors
+    MOSTLY_Q5_1_XXL        = 933   # except 1d tensors
+    MOSTLY_Q6_0_XXL        = 934   # except 1d tensors
+    MOSTLY_Q8_0_XXL        = 935   # except 1d tensors
+
+    MOSTLY_Q4_1_S          = 951   # except 1d tensors
+    MOSTLY_Q5_0_S          = 952   # except 1d tensors
+    MOSTLY_Q5_1_S          = 953   # except 1d tensors
+    MOSTLY_Q6_0_S          = 954   # except 1d tensors
+    MOSTLY_Q8_0_S          = 955   # except 1d tensors
+
+    MOSTLY_Q4_1_XS         = 961   # except 1d tensors
+    MOSTLY_Q5_0_XS         = 962   # except 1d tensors
+    MOSTLY_Q5_1_XS         = 963   # except 1d tensors
+    MOSTLY_Q6_0_XS         = 964   # except 1d tensors
+    MOSTLY_Q8_0_XS         = 965   # except 1d tensors
+
+    MOSTLY_Q4_1_XXS        = 971   # except 1d tensors
+    MOSTLY_Q5_0_XXS        = 972   # except 1d tensors
+    MOSTLY_Q5_1_XXS        = 973   # except 1d tensors
+    MOSTLY_Q6_0_XXS        = 974   # except 1d tensors
+    MOSTLY_Q8_0_XXS        = 975   # except 1d tensors
 
     MOSTLY_Q6_0            = 127    #except 1d tensors
     MOSTLY_IQ1_BN          = 128    #except 1d tensors
