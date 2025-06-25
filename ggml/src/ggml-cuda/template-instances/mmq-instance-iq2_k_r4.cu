@@ -5,14 +5,14 @@
 template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinline__ void load_tiles_iq2_k_r4(
     const char * __restrict__ x, int * __restrict__ x_tile, const int & kbx0, const int & i_max, const int & stride) {
 
-#ifdef INT8_MMA_AVAILABLE
+#ifdef NEW_MMA_AVAILABLE
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + WARP_SIZE*2);
 #else
     constexpr tile_x_sizes txs = MMQ_DP4A_TXS_Q8_0_16;
     int   * x_qs = (int   *)  x_tile;
     float * x_df = (float *) (x_qs + txs.qs);
-#endif // INT8_MMA_AVAILABLE
+#endif // NEW_MMA_AVAILABLE
 
     const int kqsx = threadIdx.x/4;  // 0...7 -> block of 32
 
@@ -48,7 +48,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
             const char4 val2  = make_char4(values_l[aux8[ 8]], values_l[aux8[ 9]], values_l[aux8[10]], values_l[aux8[11]]);
             const char4 val3  = make_char4(values_l[aux8[12]], values_l[aux8[13]], values_l[aux8[14]], values_l[aux8[15]]);
 
-#ifdef INT8_MMA_AVAILABLE
+#ifdef NEW_MMA_AVAILABLE
             x_qs[i*MMQ_MMA_TILE_X_K_Q3_K + 8*kqsx + 4*l + 0] = *(const int *)&val0;
             x_qs[i*MMQ_MMA_TILE_X_K_Q3_K + 8*kqsx + 4*l + 1] = *(const int *)&val1;
             x_qs[i*MMQ_MMA_TILE_X_K_Q3_K + 8*kqsx + 4*l + 2] = *(const int *)&val2;
@@ -58,7 +58,7 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
             x_qs[i*(2*WARP_SIZE + 1)     + 8*kqsx + 4*l + 1] = *(const int *)&val1;
             x_qs[i*(2*WARP_SIZE + 1)     + 8*kqsx + 4*l + 2] = *(const int *)&val2;
             x_qs[i*(2*WARP_SIZE + 1)     + 8*kqsx + 4*l + 3] = *(const int *)&val3;
-#endif // INT8_MMA_AVAILABLE
+#endif // NEW_MMA_AVAILABLE
         }
 
         int is = 8*kqsx + ir;
@@ -66,13 +66,13 @@ template <int mmq_y, int nwarps, bool need_check> static __device__ __forceinlin
         is += 4;
         float dl2 = d * (((bxi->scales[is%32] >> 4*(is/32)) & 0xf) - 8);
 
-#ifdef INT8_MMA_AVAILABLE
+#ifdef NEW_MMA_AVAILABLE
         x_df[i*MMQ_MMA_TILE_X_K_Q3_K               + 2*kqsx+0] = dl1;
         x_df[i*MMQ_MMA_TILE_X_K_Q3_K               + 2*kqsx+1] = dl2;
 #else
         x_df[i*(2*WARP_SIZE*2/QI8_0) + i/(QI8_0/4) + 2*kqsx+0] = dl1;
         x_df[i*(2*WARP_SIZE*2/QI8_0) + i/(QI8_0/4) + 2*kqsx+1] = dl2;
-#endif // INT8_MMA_AVAILABLE
+#endif // NEW_MMA_AVAILABLE
     }
 }
 
