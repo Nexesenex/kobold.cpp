@@ -1926,18 +1926,18 @@ UseGgmlGemm1:;
     #if 0
         for (int64_t i13 = 0; i13 < ne13; ++i13) {
             for (int64_t i12 = 0; i12 < ne12; ++i12) {
-// #if !GGML_USE_IQK_MULMAT
-                // int64_t i11_processed = 0;
-                // if ((ggml_n_dims(src1) == 2) && from_float_to_mat && gemm) {
-                    // for (int64_t i11 = ith * 4; i11 < ne11 - ne11 % 4; i11 += nth * 4) {
-                        // from_float_to_mat((float *)((char *) src1->data + i13*nb13 + i12*nb12 + i11*nb11),
-                                          // (void *)               (wdata + i13*nbw3 + i12*nbw2 + i11*nbw1),
-                                          // 4, ne10, blck_size_interleave);
-                    // }
-                    // i11_processed = ne11 - ne11 % 4;
-                // }
-                // for (int64_t i11 = i11_processed + ith; i11 < ne11; i11 += nth) {
-// #else
+#if !GGML_USE_IQK_MULMAT
+                int64_t i11_processed = 0;
+                if ((ggml_n_dims(src1) == 2) && from_float_to_mat && gemm) {
+                    for (int64_t i11 = ith * 4; i11 < ne11 - ne11 % 4; i11 += nth * 4) {
+                        from_float_to_mat((float *)((char *) src1->data + i13*nb13 + i12*nb12 + i11*nb11),
+                                          (void *)               (wdata + i13*nbw3 + i12*nbw2 + i11*nbw1),
+                                          4, ne10, blck_size_interleave);
+                    }
+                    i11_processed = ne11 - ne11 % 4;
+                }
+                for (int64_t i11 = i11_processed + ith; i11 < ne11; i11 += nth) {
+#else
                 for (int64_t i11 = ith; i11 < ne11; i11 += nth) {
                     from_float((float *)((char *) src1->data + i13*nb13 + i12*nb12 + i11*nb11),
                                (void *)               (wdata + i13*nbw3 + i12*nbw2 + i11*nbw1),
@@ -1945,7 +1945,7 @@ UseGgmlGemm1:;
                 }
             }
         }
-// #endif
+#endif
     #else
         for (int64_t i13 = 0; i13 < ne13; ++i13) {
             for (int64_t i12 = 0; i12 < ne12; ++i12) {
@@ -2261,8 +2261,8 @@ static void ggml_compute_forward_mul_mat_id(
             for (int id = 0; id < n_ids; ++id) {
                 const int32_t i02 = *(const int32_t *) ((const char *) ids->data + iid1*ids->nb[1] + id*ids->nb[0]);
 
-                assert(i02 >= 0 && i02 < n_as);
                 // if (i02 < 0 || i02 >= n_as) continue; // IKL
+                assert(i02 >= 0 && i02 < n_as);
 
                 MMID_MATRIX_ROW(i02, matrix_row_counts[i02]) = (struct mmid_row_mapping) {id, iid1};
                 matrix_row_counts[i02] += 1;
