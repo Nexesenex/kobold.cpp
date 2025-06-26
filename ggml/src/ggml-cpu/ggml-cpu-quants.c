@@ -1495,7 +1495,9 @@ static const int8_t kvalues_iq4nl[16] = {-127, -104, -83, -65, -49, -35, -22, -1
 // }
 
 void quantize_row_q8_K(const float * GGML_RESTRICT x, void * GGML_RESTRICT y, int64_t k) {
-#ifdef __wasm_simd128__
+#ifdef GGML_USE_IQK_MULMAT
+    iqk_quantize_row_q8_K(x, y, k);
+#elif defined __wasm_simd128__
     assert(k % QK_K == 0);
     const int64_t nb = k / QK_K;
     block_q8_K * GGML_RESTRICT yc = y; // Cast to proper type
