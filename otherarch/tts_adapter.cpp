@@ -976,7 +976,7 @@ tts_generation_outputs ttstype_generate(const tts_generation_inputs inputs)
                 audio[i] = 0.0f;
             }
             //add some silence at the end
-            for (int i = 0; i < cutout; ++i) {
+            for (int i = 0; i < cutout*2; ++i) {
                 audio.push_back(0.0f);
             }
         }
