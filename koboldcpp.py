@@ -73,9 +73,9 @@ dry_seq_break_max = 256
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.94225"
+KcppVersion = "1.94235"
 LcppVersion = "b5757"
-IKLcppVersion = "IKLpr550"
+IKLcppVersion = "IKLpr557"
 EsoboldVersion = "RMv1.13.2m"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
 ReleaseDate = "2025/06/27"
