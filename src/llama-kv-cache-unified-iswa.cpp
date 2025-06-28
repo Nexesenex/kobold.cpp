@@ -29,6 +29,9 @@ llama_kv_cache_unified_iswa::llama_kv_cache_unified_iswa(
 
     uint32_t size_swa = std::min(size_base, GGML_PAD(hparams.n_swa*n_seq_max + n_ubatch, n_pad));
 
+    //kcpp: pad the swa kv cache as well, similar to extra_context_handle_fragmentation
+    size_swa += 32;
+
     // when using full-size SWA cache, we set the SWA cache size to be equal to the base cache size
     if (swa_full) {
         LLAMA_LOG_WARN("%s: using full-size SWA cache (ref: %s)\n",

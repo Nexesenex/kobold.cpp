@@ -521,6 +521,8 @@ struct savestate_data
 {
     size_t current_savestate_size = 0;
     std::vector<uint8_t> current_savestate_buffer;
+    size_t current_draft_savestate_size = 0;
+    std::vector<uint8_t> current_draft_savestate_buffer;
     std::vector<gpt_vocab::id> savestate_context_tokens; //for context clones
 };
 
