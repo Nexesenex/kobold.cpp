@@ -17,6 +17,10 @@
 #define CUDA_SIN_BLOCK_SIZE 256
 #define CUDA_COS_BLOCK_SIZE 256
 
+void ggml_cuda_op_abs(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
+
+void ggml_cuda_op_sgn(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
+
 void ggml_cuda_op_neg(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
 
 void ggml_cuda_op_step(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
@@ -58,3 +62,5 @@ void ggml_cuda_op_multi_add(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
 void ggml_cuda_op_sin(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
 
 void ggml_cuda_op_cos(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
+
+void ggml_cuda_op_log(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
