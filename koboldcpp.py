@@ -64,6 +64,7 @@ stop_token_max = 512
 ban_token_max = 2048
 logit_bias_max = 2048
 dry_seq_break_max = 256
+extra_images_max = 4
 
 # KCPP :
 # abuse prevention
@@ -73,13 +74,16 @@ dry_seq_break_max = 256
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.94225"
-LcppVersion = "b5757"
+KcppVersion = "1.95000"
+LcppVersion = "b5771"
 IKLcppVersion = "IKLpr550"
 EsoboldVersion = "RMv1.13.2m"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/06/27"
+ReleaseDate = "2025/06/28"
+
+showdebug = True
 # guimode = False
+
 kcpp_instance = None #global running instance
 global_memory = {"tunnel_url": "", "restart_target":"", "input_to_exit":False, "load_complete":False, "restart_model": "", "currentConfig": None, "modelOverride": None, "currentModel": None}
 using_gui_launcher = False
@@ -317,7 +321,8 @@ class sd_generation_inputs(ctypes.Structure):
                 ("negative_prompt", ctypes.c_char_p),
                 ("init_images", ctypes.c_char_p),
                 ("mask", ctypes.c_char_p),
-                ("photomaker_image", ctypes.c_char_p),
+                ("extra_images_len", ctypes.c_int),
+                ("extra_images", ctypes.POINTER(ctypes.c_char_p)),
                 ("flip_mask", ctypes.c_bool),
                 ("denoising_strength", ctypes.c_float),
                 ("cfg_scale", ctypes.c_float),
@@ -2526,7 +2531,10 @@ def sd_generate(genparams):
         seed = random.randint(100000, 999999)
     sample_method = genparams.get("sampler_name", "k_euler_a")
     clip_skip = tryparseint(genparams.get("clip_skip", -1),-1)
-    photomaker_image = strip_base64_prefix(genparams.get("photomaker_image", ""))
+    extra_images_arr = genparams.get("extra_images", [])
+    extra_images_arr = ([] if not extra_images_arr else extra_images_arr)
+    extra_images_arr = [img for img in extra_images_arr if img not in (None, "")]
+    extra_images_arr = extra_images_arr[:extra_images_max]
 
     #clean vars
     cfg_scale = (1 if cfg_scale < 1 else (25 if cfg_scale > 25 else cfg_scale))
@@ -2540,7 +2548,11 @@ def sd_generate(genparams):
     inputs.negative_prompt = negative_prompt.encode("UTF-8")
     inputs.init_images = init_images.encode("UTF-8")
     inputs.mask = "".encode("UTF-8") if not mask else mask.encode("UTF-8")
-    inputs.photomaker_image = "".encode("UTF-8") if not photomaker_image else photomaker_image.encode("UTF-8")
+    inputs.extra_images_len = len(extra_images_arr)
+    inputs.extra_images = (ctypes.c_char_p * inputs.extra_images_len)()
+    for n, estr in enumerate(extra_images_arr):
+        extra_image = strip_base64_prefix(estr)
+        inputs.extra_images[n] = extra_image.encode("UTF-8")
     inputs.flip_mask = flip_mask
     inputs.cfg_scale = cfg_scale
     inputs.denoising_strength = denoising_strength

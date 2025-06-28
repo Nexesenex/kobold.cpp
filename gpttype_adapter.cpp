@@ -47,7 +47,7 @@
 // #include "experimental/emphasis.h"
 
 //const
-const int extra_context_handle_fragmentation = 120;
+const int extra_context_handle_fragmentation = 128;
 const int LLAVA_TOKEN_IDENTIFIER_A = -998; //alternate between both, changing when image changes
 const int LLAVA_TOKEN_IDENTIFIER_B = -999;
 
@@ -2340,6 +2340,10 @@ ModelLoadResult gpttype_load_model(const load_model_inputs inputs, FileFormat in
         {
            llama_ctx_params.n_ctx += extra_context_handle_fragmentation;
         }
+        else
+        {
+            llama_ctx_params.n_ctx += (extra_context_handle_fragmentation/2);
+        }
 
         llama_ctx_params.offload_kqv = !inputs.low_vram;
         model_params.use_mmap = inputs.use_mmap;
@@ -3849,6 +3853,9 @@ generation_outputs gpttype_generate(const generation_inputs inputs)
     remaining_tokens = kcpp_data->n_predict;
     int input_consumed = 0;
     std::mt19937 rng(kcpp_data->seed);
+
+    //do some reservation so we don't have to realloc
+    generated_tokens.reserve(remaining_tokens+16);
 
     //prepare sampler order
     std::vector<samplers> sampler_order;
