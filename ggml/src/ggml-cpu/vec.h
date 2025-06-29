@@ -1029,7 +1029,7 @@ static void ggml_vec_mul_silu_f32(const int n, float * z, const float * x, const
     }
 }
 
-/* static void ggml_vec_swiglu_f32(const int n, float * y, const float * x) {
+static void ggml_vec_swiglu_f32(const int n, float * y, const float * x) {
     int i = 0;
 #if defined(__AVX512F__) && defined(__AVX512DQ__)
     for (; i + 15 < n; i += 16) {
@@ -1051,7 +1051,7 @@ static void ggml_vec_mul_silu_f32(const int n, float * z, const float * x, const
     for (; i < n; ++i) {
         y[i] = ggml_silu_f32(x[i]) * x[i + n];
     }
-} */
+}
 
 static void ggml_vec_tanh_f32(const int n, float * y, const float * x) {
     int i = 0;

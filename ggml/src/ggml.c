@@ -1982,11 +1982,12 @@ static const char * GGML_UNARY_OP_NAME[GGML_UNARY_OP_COUNT] = {
     "SILU",
     "HARDSWISH",
     "HARDSIGMOID",
+    "SWIGLU",
     "EXP",
     "GELU_ERF",
 };
 
-static_assert(GGML_UNARY_OP_COUNT == 15, "GGML_UNARY_OP_COUNT != 15");
+static_assert(GGML_UNARY_OP_COUNT == 16, "GGML_UNARY_OP_COUNT != 16");
 
 
 static_assert(sizeof(struct ggml_object)%GGML_MEM_ALIGN == 0, "ggml_object size must be a multiple of GGML_MEM_ALIGN");
@@ -3587,6 +3588,25 @@ struct ggml_tensor * ggml_silu_inplace(
         struct ggml_context * ctx,
         struct ggml_tensor  * a) {
     return ggml_unary_inplace(ctx, a, GGML_UNARY_OP_SILU);
+}
+
+// ggml_swiglu
+
+struct ggml_tensor * ggml_swiglu(
+        struct ggml_context * ctx,
+        struct ggml_tensor  * a) {
+    GGML_ASSERT(ggml_is_contiguous_1(a));
+
+    int64_t ne[4] = {a->ne[0]/2, a->ne[1], a->ne[2], a->ne[3]};
+
+    struct ggml_tensor * result = ggml_new_tensor_impl(ctx, a->type, GGML_MAX_DIMS, ne, NULL, 0);
+
+    ggml_set_op_params_i32(result, 0, (int32_t) GGML_UNARY_OP_SWIGLU);
+
+    result->op   = GGML_OP_UNARY;
+    result->src[0] = a;
+
+    return result;
 }
 
 // ggml_silu_back
@@ -7008,6 +7028,9 @@ static void ggml_compute_backward(
                         ggml_add_or_set(ctx, cgraph, isrc0, ggml_silu_back(ctx, grad, src0));
                     }
                 } break;
+                    // case GGML_UNARY_OP_SWIGLU: {
+                        // GGML_ABORT("fatal error"); // TODO: not implemented
+                // } break;
                 case GGML_UNARY_OP_EXP: {
                     if (src0_needs_grads) {
                         ggml_add_or_set(ctx, cgraph, isrc0, ggml_mul(ctx, tensor, grad));

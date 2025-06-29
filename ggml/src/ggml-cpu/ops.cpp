@@ -3644,6 +3644,67 @@ static void ggml_compute_forward_silu(
             }
     }
 }
+
+// ggml_compute_forward_swiglu
+
+static void ggml_compute_forward_swiglu_f32(
+        const struct ggml_compute_params * params,
+        struct ggml_tensor * dst) {
+
+    const struct ggml_tensor * src0 = dst->src[0];
+
+    GGML_ASSERT(ggml_is_contiguous_1(src0));
+    GGML_ASSERT(ggml_is_contiguous_1(dst));
+    GGML_ASSERT(ggml_nrows(dst) == ggml_nrows(src0));
+    GGML_ASSERT(dst->ne[0] == src0->ne[0]/2);
+
+    const int ith = params->ith;
+    const int nth = params->nth;
+
+    const int nc = dst->ne[0];
+    const int nr = ggml_nrows(src0);
+
+    // rows per thread
+    const int dr = (nr + nth - 1)/nth;
+
+    // row range for this thread
+    const int ir0 = dr*ith;
+    const int ir1 = MIN(ir0 + dr, nr);
+
+    for (int i1 = ir0; i1 < ir1; i1++) {
+        ggml_vec_swiglu_f32(nc,
+                (float *) ((char *) dst->data  + i1*( dst->nb[1])),
+                (float *) ((char *) src0->data + i1*(src0->nb[1])));
+
+#ifndef NDEBUG
+        for (int k = 0; k < nc; k++) {
+            const float x = ((float *) ((char *) dst->data + i1*(dst->nb[1])))[k];
+            UNUSED(x);
+            assert(!isnan(x));
+            assert(!isinf(x));
+        }
+#endif
+    }
+}
+
+void ggml_compute_forward_swiglu(
+        const struct ggml_compute_params * params,
+        struct ggml_tensor * dst) {
+
+    const struct ggml_tensor * src0 = dst->src[0];
+
+    switch (src0->type) {
+        case GGML_TYPE_F32:
+            {
+                ggml_compute_forward_swiglu_f32(params, dst);
+            } break;
+        default:
+            {
+                GGML_ABORT("fatal error");
+            }
+    }
+}
+
 // ggml_compute_forward_leaky_relu
 
 static void ggml_compute_forward_leaky_relu_f32(
@@ -9283,6 +9344,10 @@ void ggml_compute_forward_unary(
         case GGML_UNARY_OP_SILU:
             {
                 ggml_compute_forward_silu(params, dst);
+            } break;
+        case GGML_UNARY_OP_SWIGLU:
+            {
+                ggml_compute_forward_swiglu(params, dst);
             } break;
         case GGML_UNARY_OP_HARDSWISH:
             {
