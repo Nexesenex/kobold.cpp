@@ -57,6 +57,17 @@
         "assistant_end": "<end_of_turn>\n"
     }
 }, {
+    "search": ["<image_soft_token>", "<start_of_turn>model", "<end_of_turn>"],
+    "name": "Google Gemma 3n.",
+    "adapter": {
+        "system_start": "<start_of_turn>user\n",
+        "system_end": "<end_of_turn>\n",
+        "user_start": "<start_of_turn>user\n",
+        "user_end": "<end_of_turn>\n",
+        "assistant_start": "<start_of_turn>model\n",
+        "assistant_end": "<end_of_turn>\n"
+    }
+},{
     "search": ["<|start_header_id|>assistant<|end_header_id|>"],
     "name": "Llama 3.x.",
     "adapter": {

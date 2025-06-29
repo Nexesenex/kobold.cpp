@@ -678,7 +678,7 @@ public:
 
         int64_t t0              = ggml_time_ms();
         struct ggml_tensor* out = ggml_dup_tensor(work_ctx, x_t);
-        diffusion_model->compute(n_threads, x_t, timesteps, c, concat, NULL, NULL, -1, {}, 0.f, std::vector<struct ggml_tensor*>(), &out);
+        diffusion_model->compute(n_threads, x_t, timesteps, c, concat, NULL, NULL, {}, -1, {}, 0.f, &out);
         diffusion_model->free_compute_buffer();
 
         double result = 0.f;
@@ -892,12 +892,12 @@ public:
                         const std::vector<float>& sigmas,
                         int start_merge_step,
                         SDCondition id_cond,
-                        std::vector<int> skip_layers                  = {},
-                        float slg_scale                               = 0,
-                        float skip_layer_start                        = 0.01,
-                        float skip_layer_end                          = 0.2,
-                        std::vector<struct ggml_tensor*> kontext_imgs = std::vector<struct ggml_tensor*>(),
-                        ggml_tensor* noise_mask                       = NULL) {
+                        std::vector<ggml_tensor*> ref_latents = {},
+                        std::vector<int> skip_layers = {},
+                        float slg_scale              = 0,
+                        float skip_layer_start       = 0.01,
+                        float skip_layer_end         = 0.2,
+                        ggml_tensor* noise_mask      = nullptr) {
         LOG_DEBUG("Sample");
         struct ggml_init_params params;
         size_t data_size = ggml_row_size(init_latent->type, init_latent->ne[0]);
@@ -980,10 +980,10 @@ public:
                                          cond.c_concat,
                                          cond.c_vector,
                                          guidance_tensor,
+                                         ref_latents,
                                          -1,
                                          controls,
                                          control_strength,
-                                         kontext_imgs,
                                          &out_cond);
             } else {
                 diffusion_model->compute(n_threads,
@@ -993,10 +993,10 @@ public:
                                          cond.c_concat,
                                          id_cond.c_vector,
                                          guidance_tensor,
+                                         ref_latents,
                                          -1,
                                          controls,
                                          control_strength,
-                                         kontext_imgs,
                                          &out_cond);
             }
 
@@ -1014,10 +1014,10 @@ public:
                                          uncond.c_concat,
                                          uncond.c_vector,
                                          guidance_tensor,
+                                         ref_latents,
                                          -1,
                                          controls,
                                          control_strength,
-                                         kontext_imgs,
                                          &out_uncond);
                 negative_data = (float*)out_uncond->data;
             }
@@ -1035,10 +1035,10 @@ public:
                                          cond.c_concat,
                                          cond.c_vector,
                                          guidance_tensor,
+                                         ref_latents,
                                          -1,
                                          controls,
                                          control_strength,
-                                         kontext_imgs,
                                          &out_skip,
                                          NULL,
                                          skip_layers);
@@ -1416,12 +1416,12 @@ sd_image_t* generate_image(sd_ctx_t* sd_ctx,
                            float style_ratio,
                            bool normalize_input,
                            std::string input_id_images_path,
-                           std::vector<struct ggml_tensor*> kontext_imgs = std::vector<struct ggml_tensor*>(),
-                           std::vector<int> skip_layers                  = {},
-                           float slg_scale                               = 0,
-                           float skip_layer_start                        = 0.01,
-                           float skip_layer_end                          = 0.2,
-                           ggml_tensor* masked_image                     = NULL,
+                           std::vector<ggml_tensor*> ref_latents,
+                           std::vector<int> skip_layers = {},
+                           float slg_scale              = 0,
+                           float skip_layer_start       = 0.01,
+                           float skip_layer_end         = 0.2,
+                           ggml_tensor* masked_image    = NULL,
                            const std::vector<sd_image_t*> photomaker_references = std::vector<sd_image_t*>()) {
     if (seed < 0) {
         // Generally, when using the provided command line, the seed is always >0.
@@ -1712,11 +1712,11 @@ sd_image_t* generate_image(sd_ctx_t* sd_ctx,
                                                      sigmas,
                                                      start_merge_step,
                                                      id_cond,
+                                                     ref_latents,
                                                      skip_layers,
                                                      slg_scale,
                                                      skip_layer_start,
                                                      skip_layer_end,
-                                                     kontext_imgs,
                                                      noise_mask);
 
         // struct ggml_tensor* x_0 = load_tensor_from_file(ctx, "samples_ddim.bin");
