@@ -104,6 +104,10 @@ struct SDParams {
     float slg_scale              = 0.f;
     float skip_layer_start       = 0.01f;
     float skip_layer_end         = 0.2f;
+
+    bool chroma_use_dit_mask     = true;
+    bool chroma_use_t5_mask      = false;
+    int  chroma_t5_mask_pad      = 1;
 };
 
 //shared
@@ -272,7 +276,10 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
                         sd_params->clip_on_cpu,
                         sd_params->control_net_cpu,
                         sd_params->vae_on_cpu,
-                        sd_params->diffusion_flash_attn);
+                        sd_params->diffusion_flash_attn,
+                        sd_params->chroma_use_dit_mask,
+                        sd_params->chroma_use_t5_mask,
+                        sd_params->chroma_t5_mask_pad);
 
     if (sd_ctx == NULL) {
         printf("\nError: KCPP SD Failed to create context!\nIf using Flux/SD3.5, make sure you have ALL files required (e.g. VAE, T5, Clip...) or baked in!\n");
@@ -330,6 +337,10 @@ static inline int rounddown_64(int n) {
 
 static inline int roundup_64(int n) {
     return ((n + 63) / 64) * 64;
+}
+
+static inline int roundnearest(int multiple, int n) {
+    return ((n + (multiple/2)) / multiple) * multiple;
 }
 
 //scale dimensions to ensure width and height stay within limits
@@ -589,53 +600,24 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
             extraimage_buffers.push_back(kcpp_base64_decode(extra_image_data[i]));
             input_extraimage_buffers.push_back(stbi_load_from_memory(extraimage_buffers[i].data(), extraimage_buffers[i].size(), &nx2, &ny2, &nc2, desiredchannels));
             // Resize the image
+            float aspect_ratio = static_cast<float>(nx2) / ny2;
             int desiredWidth = nx2;
             int desiredHeight = ny2;
-            float aspect_ratio = static_cast<float>(nx2) / ny2;
-            int maxsize = 1024; // no image can exceed this
-            int minsize = 256;
-
-            if (desiredWidth > maxsize || desiredHeight > maxsize) { // Enforce maxsize first
-                if (aspect_ratio > 1.0f) { // wider than tall
-                    desiredWidth = maxsize;
-                    desiredHeight = static_cast<int>(maxsize / aspect_ratio);
-                } else { // taller than wide or square
-                    desiredHeight = maxsize;
-                    desiredWidth = static_cast<int>(maxsize * aspect_ratio);
-                }
-            }
-
-            if (desiredWidth < minsize || desiredHeight < minsize) { // Enforce minsize only if it won't exceed maxsize
-                float scale_w = static_cast<float>(minsize) / desiredWidth;
-                float scale_h = static_cast<float>(minsize) / desiredHeight;
-                float scale = std::max(scale_w, scale_h);
-                int newWidth = static_cast<int>(desiredWidth * scale);
-                int newHeight = static_cast<int>(desiredHeight * scale);
-                if (newWidth > maxsize || newHeight > maxsize) {
-                    if (aspect_ratio > 1.0f) {
-                        desiredWidth = maxsize;
-                        desiredHeight = static_cast<int>(maxsize / aspect_ratio);
-                    } else {
-                        desiredHeight = maxsize;
-                        desiredWidth = static_cast<int>(maxsize * aspect_ratio);
-                    }
-                } else {
-                    desiredWidth = newWidth;
-                    desiredHeight = newHeight;
-                }
-            }
-
-            //round dims down to 64
-            desiredWidth = rounddown_64(desiredWidth);
-            desiredHeight = rounddown_64(desiredHeight);
-            if(desiredWidth<64)
+            int smallestsrcdim = std::min(img2imgW,img2imgH);
+            if(desiredWidth > desiredHeight)
             {
-                desiredWidth = 64;
+                desiredWidth = smallestsrcdim;
+                desiredHeight = smallestsrcdim / aspect_ratio;
+            } else {
+                desiredHeight = smallestsrcdim;
+                desiredWidth = smallestsrcdim * aspect_ratio;
             }
-            if(desiredHeight<64)
-            {
-                desiredHeight = 64;
-            }
+
+            //round dims to 64
+            desiredWidth = roundnearest(16,desiredWidth);
+            desiredHeight = roundnearest(16,desiredHeight);
+            desiredWidth = std::clamp(desiredWidth,64,1024);
+            desiredHeight = std::clamp(desiredHeight,64,1024);
 
             if(!sd_is_quiet && sddebugmode==1)
             {
