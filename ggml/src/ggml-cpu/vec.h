@@ -1005,7 +1005,7 @@ static void ggml_vec_silu_f32(const int n, float * y, const float * x) {
     }
 }
 
-static void ggml_vec_mul_silu_f32(const int n, float * z, const float * x, const float * y) {
+static void ggml_vec_mul_silu_f32(const int n, float * z, const float * x, const float * y) { // IKL
     int i = 0;
 #if defined(__AVX512F__) && defined(__AVX512DQ__)
     for (; i + 15 < n; i += 16) {
@@ -1029,29 +1029,53 @@ static void ggml_vec_mul_silu_f32(const int n, float * z, const float * x, const
     }
 }
 
-/* static void ggml_vec_swiglu_f32(const int n, float * y, const float * x) {
+// static void ggml_vec_swiglu_f32(const int n, float * y, const float * x) { // IKL
+    // int i = 0;
+// #if defined(__AVX512F__) && defined(__AVX512DQ__)
+    // for (; i + 15 < n; i += 16) {
+        // _mm512_storeu_ps(y + i, _mm512_mul_ps(ggml_v_silu(_mm512_loadu_ps(x + i)), _mm512_loadu_ps(x + i + n)));
+    // }
+// #elif defined(__AVX2__) && defined(__FMA__)
+    // for (; i + 7 < n; i += 8) {
+        // _mm256_storeu_ps(y + i, _mm256_mul_ps(ggml_v_silu(_mm256_loadu_ps(x + i)), _mm256_loadu_ps(x + i + n)));
+    // }
+// #elif defined(__SSE2__)
+    // for (; i + 3 < n; i += 4) {
+        // _mm_storeu_ps(y + i, _mm_mul_ps(ggml_v_silu(_mm_loadu_ps(x + i)), _mm_loadu_ps(x + i + n)));
+    // }
+// #elif defined(__ARM_NEON) && defined(__aarch64__)
+    // for (; i + 3 < n; i += 4) {
+        // vst1q_f32(y + i, vmulq_f32(ggml_v_silu(vld1q_f32(x + i)), vld1q_f32(x + i + n)));
+    // }
+// #endif
+    // for (; i < n; ++i) {
+        // y[i] = ggml_silu_f32(x[i]) * x[i + n];
+    // }
+// }
+
+static void ggml_vec_swiglu_f32(const int n, float * y, const float * x, const float * g) {
     int i = 0;
 #if defined(__AVX512F__) && defined(__AVX512DQ__)
     for (; i + 15 < n; i += 16) {
-        _mm512_storeu_ps(y + i, _mm512_mul_ps(ggml_v_silu(_mm512_loadu_ps(x + i)), _mm512_loadu_ps(x + i + n)));
+        _mm512_storeu_ps(y + i, _mm512_mul_ps(ggml_v_silu(_mm512_loadu_ps(x + i)), _mm512_loadu_ps(g + i)));
     }
 #elif defined(__AVX2__) && defined(__FMA__)
     for (; i + 7 < n; i += 8) {
-        _mm256_storeu_ps(y + i, _mm256_mul_ps(ggml_v_silu(_mm256_loadu_ps(x + i)), _mm256_loadu_ps(x + i + n)));
+        _mm256_storeu_ps(y + i, _mm256_mul_ps(ggml_v_silu(_mm256_loadu_ps(x + i)), _mm256_loadu_ps(g + i)));
     }
 #elif defined(__SSE2__)
     for (; i + 3 < n; i += 4) {
-        _mm_storeu_ps(y + i, _mm_mul_ps(ggml_v_silu(_mm_loadu_ps(x + i)), _mm_loadu_ps(x + i + n)));
+        _mm_storeu_ps(y + i, _mm_mul_ps(ggml_v_silu(_mm_loadu_ps(x + i)), _mm_loadu_ps(g + i)));
     }
 #elif defined(__ARM_NEON) && defined(__aarch64__)
     for (; i + 3 < n; i += 4) {
-        vst1q_f32(y + i, vmulq_f32(ggml_v_silu(vld1q_f32(x + i)), vld1q_f32(x + i + n)));
+        vst1q_f32(y + i, vmulq_f32(ggml_v_silu(vld1q_f32(x + i)), vld1q_f32(g + i)));
     }
 #endif
     for (; i < n; ++i) {
-        y[i] = ggml_silu_f32(x[i]) * x[i + n];
+        y[i] = ggml_silu_f32(x[i]) * g[i];
     }
-} */
+}
 
 static void ggml_vec_tanh_f32(const int n, float * y, const float * x) {
     int i = 0;
@@ -1307,8 +1331,8 @@ inline static void ggml_vec_reglu_f32 (const int n, float * y, const float * x, 
 
 inline static void ggml_vec_reglu_f16 (const int n, ggml_fp16_t * y, const ggml_fp16_t * x, const ggml_fp16_t * g) {
     for (int i = 0; i < n; ++i) {
-        float v = GGML_CPU_FP16_TO_FP32(x[i]);
-        y[i] = GGML_CPU_FP32_TO_FP16((v > 0.f) ? v * GGML_CPU_FP16_TO_FP32(g[i]) : 0.f);
+        float v = GGML_FP16_TO_FP32(x[i]);
+        y[i] = GGML_FP32_TO_FP16((v > 0.f) ? v * GGML_FP16_TO_FP32(g[i]) : 0.f);
     }
 }
 
@@ -1321,9 +1345,9 @@ inline static void ggml_vec_geglu_f32(const int n, float * y, const float * x, c
         } else if (x[i] >= 10.0f) {
             y[i] = x[i] * g[i];
         } else {
-            ggml_fp16_t fp16 = GGML_CPU_FP32_TO_FP16(x[i]);
+            ggml_fp16_t fp16 = GGML_FP32_TO_FP16(x[i]);
             memcpy(&t, &fp16, sizeof(uint16_t));
-            y[i] = GGML_CPU_FP16_TO_FP32(ggml_table_gelu_f16[t]) * g[i];
+            y[i] = GGML_FP16_TO_FP32(ggml_table_gelu_f16[t]) * g[i];
         }
     }
 }
@@ -1338,18 +1362,18 @@ inline static void ggml_vec_geglu_f32(const int n, float * y, const float * x, c
 inline static void ggml_vec_geglu_f16(const int n, ggml_fp16_t * y, const ggml_fp16_t * x, const ggml_fp16_t * g) {
     const uint16_t * i16 = (const uint16_t *) x;
     for (int i = 0; i < n; ++i) {
-        float v = GGML_CPU_FP16_TO_FP32(g[i]);
-        y[i] = GGML_CPU_FP32_TO_FP16(GGML_CPU_FP16_TO_FP32(ggml_table_gelu_f16[i16[i]]) * v);
+        float v = GGML_FP16_TO_FP32(g[i]);
+        y[i] = GGML_FP32_TO_FP16(GGML_FP16_TO_FP32(ggml_table_gelu_f16[i16[i]]) * v);
     }
 }
 
-void ggml_vec_swiglu_f32(const int n, float * y, const float * x, const float * g);
+// void ggml_vec_swiglu_f32(const int n, float * y, const float * x, const float * g);
 
 inline static void ggml_vec_swiglu_f16(const int n, ggml_fp16_t * y, const ggml_fp16_t * x, const ggml_fp16_t * g) {
     for (int i = 0; i < n; ++i) {
-        float v = GGML_CPU_FP16_TO_FP32(x[i]);
-        float w = GGML_CPU_FP16_TO_FP32(g[i]);
-        y[i] = GGML_CPU_FP32_TO_FP16((v/(1.0f + expf(-v))) * w);
+        float v = GGML_FP16_TO_FP32(x[i]);
+        float w = GGML_FP16_TO_FP32(g[i]);
+        y[i] = GGML_FP32_TO_FP16((v/(1.0f + expf(-v))) * w);
     }
 }
 
