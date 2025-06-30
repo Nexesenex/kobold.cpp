@@ -74,7 +74,7 @@ extra_images_max = 4
 # dry_seq_break_max = 128
 
 # global vars
-KcppVersion = "1.95000"
+KcppVersion = "1.95100"
 LcppVersion = "b5771"
 IKLcppVersion = "IKLpr550"
 EsoboldVersion = "RMv1.13.2m"
