@@ -958,7 +958,7 @@ struct ggml_backend_cuda_context {
     cudaStream_t streams[GGML_CUDA_MAX_DEVICES][GGML_CUDA_MAX_STREAMS] = { { nullptr } };
     cublasHandle_t cublas_handles[GGML_CUDA_MAX_DEVICES] = {nullptr};
 
-    std::vector<std::unique_ptr<ggml_cuda_graph>> cuda_graphs;
+    std::unique_ptr<ggml_cuda_graph> cuda_graph;
 
     explicit ggml_backend_cuda_context(int device) :
         device(device),
