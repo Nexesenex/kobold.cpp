@@ -104,6 +104,10 @@ struct SDParams {
     float slg_scale              = 0.f;
     float skip_layer_start       = 0.01f;
     float skip_layer_end         = 0.2f;
+
+    bool chroma_use_dit_mask     = true;
+    bool chroma_use_t5_mask      = false;
+    int  chroma_t5_mask_pad      = 1;
 };
 
 //shared
@@ -116,7 +120,8 @@ static int sddebugmode = 0;
 static std::string recent_data = "";
 static uint8_t * input_image_buffer = NULL;
 static uint8_t * input_mask_buffer = NULL;
-static uint8_t * input_photomaker_buffer = NULL;
+static std::vector<uint8_t *> input_extraimage_buffers;
+const int max_extra_images = 4;
 
 static std::string sdplatformenv, sddeviceenv, sdvulkandeviceenv;
 static int cfg_tiled_vae_threshold = 0;
@@ -271,7 +276,10 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
                         sd_params->clip_on_cpu,
                         sd_params->control_net_cpu,
                         sd_params->vae_on_cpu,
-                        sd_params->diffusion_flash_attn);
+                        sd_params->diffusion_flash_attn,
+                        sd_params->chroma_use_dit_mask,
+                        sd_params->chroma_use_t5_mask,
+                        sd_params->chroma_t5_mask_pad);
 
     if (sd_ctx == NULL) {
         printf("\nError: KCPP SD Failed to create context!\nIf using Flux/SD3.5, make sure you have ALL files required (e.g. VAE, T5, Clip...) or baked in!\n");
@@ -288,8 +296,9 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
         sd_ctx->sd->apply_lora_from_file(lorafilename,inputs.lora_multiplier);
     }
 
-    return true;
+    input_extraimage_buffers.reserve(max_extra_images);
 
+    return true;
 }
 
 std::string clean_input_prompt(const std::string& input) {
@@ -328,6 +337,10 @@ static inline int rounddown_64(int n) {
 
 static inline int roundup_64(int n) {
     return ((n + 63) / 64) * 64;
+}
+
+static inline int roundnearest(int multiple, int n) {
+    return ((n + (multiple/2)) / multiple) * multiple;
 }
 
 //scale dimensions to ensure width and height stay within limits
@@ -434,13 +447,13 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
     std::string cleannegprompt = clean_input_prompt(inputs.negative_prompt);
     std::string img2img_data = std::string(inputs.init_images);
     std::string img2img_mask = std::string(inputs.mask);
-    std::string photomaker_image_data = std::string(inputs.photomaker_image);
-    std::string sampler = inputs.sample_method;
-
-    if(!photomaker_enabled)
+    std::vector<std::string> extra_image_data;
+    for(int i=0;i<inputs.extra_images_len;++i)
     {
-        photomaker_image_data = "";
+        extra_image_data.push_back(std::string(inputs.extra_images[i]));
     }
+
+    std::string sampler = inputs.sample_method;
 
     sd_params->prompt = cleanprompt;
     sd_params->negative_prompt = cleannegprompt;
@@ -508,17 +521,22 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
 
     //for img2img
     sd_image_t input_image = {0,0,0,nullptr};
-    sd_image_t photomaker_reference = {0,0,0,nullptr};
+    std::vector<sd_image_t> extraimage_references;
+    extraimage_references.reserve(max_extra_images);
     std::vector<uint8_t> image_buffer;
     std::vector<uint8_t> image_mask_buffer;
-    std::vector<uint8_t> photomaker_buffer;
+    std::vector<std::vector<uint8_t>> extraimage_buffers;
+    extraimage_buffers.reserve(max_extra_images);
+
     int nx, ny, nc;
     int img2imgW = sd_params->width; //for img2img input
     int img2imgH = sd_params->height;
     int img2imgC = 3; // Assuming RGB image
-    std::vector<uint8_t> resized_image_buf(img2imgW * img2imgH * img2imgC);
-    std::vector<uint8_t> resized_mask_buf(img2imgW * img2imgH * img2imgC);
-    std::vector<uint8_t> resized_photomaker_buf(img2imgW * img2imgH * img2imgC);
+    //because the reference image can be larger than the output image, allocate at least enough for 1024x1024
+    const int imgMemNeed = std::max(img2imgW * img2imgH * img2imgC + 512, 1024 * 1024 * img2imgC + 512);
+    std::vector<uint8_t> resized_image_buf(imgMemNeed);
+    std::vector<uint8_t> resized_mask_buf(imgMemNeed);
+    std::vector<std::vector<uint8_t>> resized_extraimage_bufs(max_extra_images, std::vector<uint8_t>(imgMemNeed));
 
     std::string ts = get_timestamp_str();
     if(!sd_is_quiet)
@@ -563,35 +581,98 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
         sd_params->sample_method = sample_method_t::EULER_A;
     }
 
-    if(photomaker_image_data!="")
+    if(extra_image_data.size()>0)
     {
-        if(input_photomaker_buffer!=nullptr) //just in time free old buffer
+        if(input_extraimage_buffers.size()>0) //just in time free old buffer
         {
-            stbi_image_free(input_photomaker_buffer);
-            input_photomaker_buffer = nullptr;
+            for(int i=0;i<input_extraimage_buffers.size();++i)
+            {
+                stbi_image_free(input_extraimage_buffers[i]);
+            }
+            input_extraimage_buffers.clear();
         }
-        int nx2, ny2, nc2;
-        photomaker_buffer = kcpp_base64_decode(photomaker_image_data);
-        input_photomaker_buffer = stbi_load_from_memory(photomaker_buffer.data(), photomaker_buffer.size(), &nx2, &ny2, &nc2, 1);
-        // Resize the image
-        int resok = stbir_resize_uint8(input_photomaker_buffer, nx2, ny2, 0, resized_photomaker_buf.data(), img2imgW, img2imgH, 0, 1);
-        if (!resok) {
-            printf("\nKCPP SD: resize photomaker image failed!\n");
-            output.data = "";
-            output.status = 0;
-            return output;
+        extraimage_buffers.clear();
+        extraimage_references.clear();
+        for(int i=0;i<extra_image_data.size() && i<max_extra_images;++i)
+        {
+            int nx2, ny2, nc2;
+            int desiredchannels = 3;
+            extraimage_buffers.push_back(kcpp_base64_decode(extra_image_data[i]));
+            input_extraimage_buffers.push_back(stbi_load_from_memory(extraimage_buffers[i].data(), extraimage_buffers[i].size(), &nx2, &ny2, &nc2, desiredchannels));
+            // Resize the image
+            float aspect_ratio = static_cast<float>(nx2) / ny2;
+            int desiredWidth = nx2;
+            int desiredHeight = ny2;
+            int smallestsrcdim = std::min(img2imgW,img2imgH);
+            if(desiredWidth > desiredHeight)
+            {
+                desiredWidth = smallestsrcdim;
+                desiredHeight = smallestsrcdim / aspect_ratio;
+            } else {
+                desiredHeight = smallestsrcdim;
+                desiredWidth = smallestsrcdim * aspect_ratio;
+            }
+
+            //round dims to 64
+            desiredWidth = roundnearest(16,desiredWidth);
+            desiredHeight = roundnearest(16,desiredHeight);
+            desiredWidth = std::clamp(desiredWidth,64,1024);
+            desiredHeight = std::clamp(desiredHeight,64,1024);
+
+            if(!sd_is_quiet && sddebugmode==1)
+            {
+                printf("Resize Extraimg: %dx%d to %dx%d\n",nx2,ny2,desiredWidth,desiredHeight);
+            }
+            int resok = stbir_resize_uint8(input_extraimage_buffers[i], nx2, ny2, 0, resized_extraimage_bufs[i].data(), desiredWidth, desiredHeight, 0, desiredchannels);
+            if (!resok) {
+                printf("\nKCPP SD: resize extra image failed!\n");
+                output.data = "";
+                output.status = 0;
+                return output;
+            }
+            sd_image_t extraimage_reference;
+            extraimage_reference.width = desiredWidth;
+            extraimage_reference.height = desiredHeight;
+            extraimage_reference.channel = desiredchannels;
+            extraimage_reference.data = resized_extraimage_bufs[i].data();
+            extraimage_references.push_back(extraimage_reference);
         }
-        photomaker_reference.width = img2imgW;
-        photomaker_reference.height = img2imgH;
-        photomaker_reference.channel = img2imgC;
-        photomaker_reference.data = resized_photomaker_buf.data();
 
         //ensure prompt has img keyword, otherwise append it
-        if (sd_params->prompt.find("img") == std::string::npos) {
-            sd_params->prompt += " img";
-        } else if (sd_params->prompt.rfind("img", 0) == 0) {
-            // "img" found at the start of the string (position 0), which is not allowed. Add some text before it
-            sd_params->prompt = "person " + sd_params->prompt;
+        if(photomaker_enabled)
+        {
+            if (sd_params->prompt.find("img") == std::string::npos) {
+                sd_params->prompt += " img";
+            } else if (sd_params->prompt.rfind("img", 0) == 0) {
+                // "img" found at the start of the string (position 0), which is not allowed. Add some text before it
+                sd_params->prompt = "person " + sd_params->prompt;
+            }
+        }
+    }
+
+    std::vector<sd_image_t> kontext_imgs;
+    if(extra_image_data.size()>0 && loadedsdver==SDVersion::VERSION_FLUX && !sd_loaded_chroma())
+    {
+        for(int i=0;i<extra_image_data.size();++i)
+        {
+            kontext_imgs.push_back(extraimage_references[i]);
+        }
+        if(!sd_is_quiet && sddebugmode==1)
+        {
+            printf("\nFlux Kontext: Using %d reference images\n",kontext_imgs.size());
+        }
+    }
+
+    std::vector<sd_image_t*> photomaker_imgs;
+    if(photomaker_enabled && extra_image_data.size()>0)
+    {
+        for(int i=0;i<extra_image_data.size();++i)
+        {
+            photomaker_imgs.push_back(&extraimage_references[i]);
+        }
+        if(!sd_is_quiet && sddebugmode==1)
+        {
+            printf("\nPhotomaker: Using %d reference images\n",photomaker_imgs.size());
         }
     }
 
@@ -633,12 +714,13 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
                           sd_params->style_ratio,
                           sd_params->normalize_input,
                           sd_params->input_id_images_path.c_str(),
+                          kontext_imgs.data(), kontext_imgs.size(),
                           sd_params->skip_layers.data(),
                           sd_params->skip_layers.size(),
                           sd_params->slg_scale,
                           sd_params->skip_layer_start,
                           sd_params->skip_layer_end,
-                          (photomaker_image_data!=""?(&photomaker_reference):nullptr));
+                          photomaker_imgs);
     } else {
 
         if (sd_params->width <= 0 || sd_params->width % 64 != 0 || sd_params->height <= 0 || sd_params->height % 64 != 0) {
@@ -670,6 +752,10 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
         }
 
         // Resize the image
+        if(!sd_is_quiet && sddebugmode==1)
+        {
+            printf("Resize Img2Img: %dx%d to %dx%d\n",nx,ny,img2imgW,img2imgH);
+        }
         int resok = stbir_resize_uint8(input_image_buffer, nx, ny, 0, resized_image_buf.data(), img2imgW, img2imgH, 0, img2imgC);
         if (!resok) {
             printf("\nKCPP SD: resize image failed!\n");
@@ -689,6 +775,10 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
             image_mask_buffer = kcpp_base64_decode(img2img_mask);
             input_mask_buffer = stbi_load_from_memory(image_mask_buffer.data(), image_mask_buffer.size(), &nx2, &ny2, &nc2, 1);
             // Resize the image
+             if(!sd_is_quiet && sddebugmode==1)
+            {
+                printf("Resize Mask: %dx%d to %dx%d\n",nx2,ny2,img2imgW,img2imgH);
+            }
             int resok = stbir_resize_uint8(input_mask_buffer, nx2, ny2, 0, resized_mask_buf.data(), img2imgW, img2imgH, 0, 1);
             if (!resok) {
                 printf("\nKCPP SD: resize image failed!\n");
@@ -757,12 +847,13 @@ sd_generation_outputs sdtype_generate(const sd_generation_inputs inputs)
                             sd_params->style_ratio,
                             sd_params->normalize_input,
                             sd_params->input_id_images_path.c_str(),
+                            kontext_imgs.data(), kontext_imgs.size(),
                             sd_params->skip_layers.data(),
                             sd_params->skip_layers.size(),
                             sd_params->slg_scale,
                             sd_params->skip_layer_start,
                             sd_params->skip_layer_end,
-                            (photomaker_image_data!=""?(&photomaker_reference):nullptr));
+                            photomaker_imgs);
     }
 
     if (results == NULL) {
