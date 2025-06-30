@@ -104,6 +104,10 @@ struct SDParams {
     float slg_scale              = 0.f;
     float skip_layer_start       = 0.01f;
     float skip_layer_end         = 0.2f;
+
+    bool chroma_use_dit_mask     = true;
+    bool chroma_use_t5_mask      = false;
+    int  chroma_t5_mask_pad      = 1;
 };
 
 //shared
@@ -272,7 +276,10 @@ bool sdtype_load_model(const sd_load_model_inputs inputs) {
                         sd_params->clip_on_cpu,
                         sd_params->control_net_cpu,
                         sd_params->vae_on_cpu,
-                        sd_params->diffusion_flash_attn);
+                        sd_params->diffusion_flash_attn,
+                        sd_params->chroma_use_dit_mask,
+                        sd_params->chroma_use_t5_mask,
+                        sd_params->chroma_t5_mask_pad);
 
     if (sd_ctx == NULL) {
         printf("\nError: KCPP SD Failed to create context!\nIf using Flux/SD3.5, make sure you have ALL files required (e.g. VAE, T5, Clip...) or baked in!\n");
