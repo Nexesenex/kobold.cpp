@@ -127,36 +127,6 @@ static __global__ void fused_mul_gelu_f32(const T2 * x, const T2 * y, T2 * dst, 
     dst[i] = (T2)0.5f*xi*y[i]*((T2)1.0f + (T2)tanhf(SQRT2_2_OVER_PI*xi*((T2)1.0f + (T2)GELU_COEF_A*xi*xi)));
 }
 
-template <class T2>
-static __global__ void swiglu_f32(const T2 * x, T2 * dst, const int k, const int64_t ne0, const int64_t nb1) {
-
-    const int i = blockDim.x*blockIdx.x + threadIdx.x;
-
-    if (i >= k) {
-        return;
-    }
-    const int row = i/ne0;
-    const int idx = i%ne0;
-    const int j   = row*nb1 + idx;
-    dst[i] = x[j] * x[j + ne0] / ((T2)1.0f + (T2)expf(-x[j]));
-}
-
-// template <class T>
-// static __global__ void swiglu_f32(const T * x, T * dst, const int k, const int ne0, const int64_t nb1) {
-    // const int i = blockDim.x*blockIdx.x + threadIdx.x;
-
-    // if (i >= k) {
-        // return;
-    // }
-    // const int row = i/ne0;
-    // const int idx = i%ne0;
-    // const int j   = row*nb1 + idx;
-    // dst[i] = x[j] * x[j + ne0] / ((T)1.0f + (T)expf(-x[j]));
-// }
-
-// static __global__ void silu_back_f32(
-        // const float * grad, const float * xf, float * dst, const int k) {
-
 static __global__ void multi_add_f32(int nused, int64_t ne0, int64_t ne1, int64_t nb1, int64_t nb01, const char * src0, char * dst) {
 
     const int64_t i = blockDim.x*blockIdx.x + threadIdx.x;
@@ -317,14 +287,6 @@ static void fused_mul_gelu_f32_cuda(const T2 * x, const T2 * y, T2 * dst, const 
     fused_mul_gelu_f32<<<num_blocks, CUDA_SILU_BLOCK_SIZE, 0, stream>>>(x, y, dst, k);
 }
 
-template <class T2>
-static void swiglu_f32_cuda(const T2 * x, T2 * dst, const int k, const int64_t ne0, const int64_t nb1, cudaStream_t stream) {
-    const int num_blocks = (k + CUDA_SILU_BLOCK_SIZE - 1) / CUDA_SILU_BLOCK_SIZE;
-    swiglu_f32<<<num_blocks, CUDA_SILU_BLOCK_SIZE, 0, stream>>>(x, dst, k, ne0, nb1);
-}
-
-// static void silu_back_f32_cuda(const float * grad, const float * x, float * dst, const int k, cudaStream_t stream) {
-
 void multi_add_f32_cuda(int nused, int64_t ne0, int64_t ne1, int64_t nb1, int64_t nb01, const char * src0, char * dst, cudaStream_t stream) {
     int64_t k = ne0 * ne1;
     const int num_blocks = (k + CUDA_MULTI_ADD_BLOCK_SIZE - 1) / CUDA_MULTI_ADD_BLOCK_SIZE;
@@ -387,38 +349,6 @@ static void silu_back_cuda(const T * grad, const T * x, T * dst, const int k, cu
     const int num_blocks = (k + CUDA_SILU_BACK_BLOCK_SIZE - 1) / CUDA_SILU_BLOCK_SIZE;
     silu_back_kernel<<<num_blocks, CUDA_SILU_BACK_BLOCK_SIZE, 0, stream>>>(grad, x, dst, k);
 }
-
-void ggml_cuda_op_swiglu(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
-    const ggml_tensor * src0 = dst->src[0];
-    const void * src0_d = src0->data;
-    void * dst_d = dst->data;
-    cudaStream_t stream = ctx.stream();
-
-    GGML_ASSERT(ggml_is_contiguous(src0));
-    GGML_ASSERT(ggml_is_contiguous(dst));
-    GGML_ASSERT(src0->type == GGML_TYPE_F32);
-    GGML_ASSERT( dst->type == GGML_TYPE_F32);
-
-    GGML_ASSERT(dst->ne[0] == src0->ne[0]/2);
-
-    swiglu_f32_cuda((const float *)src0_d, (float *)dst_d, ggml_nelements(dst), dst->ne[0], src0->nb[1]/sizeof(float), stream);
-}
-
-// void ggml_cuda_op_swiglu(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
-    // const ggml_tensor * src0 = dst->src[0];
-    // const void * src0_d = src0->data;
-    // void * dst_d = dst->data;
-    // cudaStream_t stream = ctx.stream();
-
-    // GGML_ASSERT(ggml_is_contiguous(src0));
-    // GGML_ASSERT(ggml_is_contiguous(dst));
-    // GGML_ASSERT(src0->type == GGML_TYPE_F32 || src0->type == GGML_TYPE_F16);
-    // GGML_ASSERT( dst->type == GGML_TYPE_F32 ||  dst->type == GGML_TYPE_F16);
-    // GGML_ASSERT(src0->type == dst->type);
-    // GGML_ASSERT(dst->ne[0] == src0->ne[0]/2);
-
-    // swiglu_f32_cuda(src0_d, dst_d, ggml_nelements(dst), dst->ne[0], src0->nb[1]/sizeof(float), stream);
-// }
 
 void ggml_cuda_op_silu_back(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
     const ggml_tensor * src0 = dst->src[0]; // input from forward pass
