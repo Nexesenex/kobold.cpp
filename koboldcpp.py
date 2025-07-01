@@ -2588,11 +2588,9 @@ def extract_text(genparams):
         docData = genparams.get("docData", "")
         if docData.startswith("data:text"):
             docData = docData.split(",", 1)[1]
-
-        # elif docData.startswith("data:application/pdf"):
-            # docData = docData.split(",", 1)[1]
-            # return extract_text_from_pdf(docData)
-
+        elif docData.startswith("data:application/pdf"):
+            docData = docData.split(",", 1)[1]
+            return extract_text_from_pdf(docData)
         elif docData.startswith("data:audio"):
             genparams["audio_data"] = docData
             return whisper_generate(genparams)
@@ -2646,7 +2644,7 @@ def extract_text(genparams):
 
 # # PDF extraction code by sevenof9
 # def getTextFromPDFEncapsulated(decoded_bytes):
-    # # import pdfplumber
+    # import pdfplumber
 
     # """
     # Processes a page based on the page number, content and text settings being passed in.
@@ -2654,7 +2652,7 @@ def extract_text(genparams):
     # """
     # def process_page(args):
         # import json
-        # # from pdfplumber.utils import get_bbox_overlap, obj_to_bbox
+        # from pdfplumber.utils import get_bbox_overlap, obj_to_bbox
 
         # # Ensure logging is only at error level (as this could be running in multiple threads)
         # for logger_name in [
@@ -2790,9 +2788,9 @@ def extract_text(genparams):
         # # with ThreadPoolExecutor(max_workers=num_cores) as exe:
         # #     return exe.map(process_page, pages)
 
-    # # decoded_bytes = io.BytesIO(decoded_bytes)  
-    # # with pdfplumber.open(decoded_bytes) as pdf:
-        # # num_pages = len(pdf.pages)
+    # decoded_bytes = io.BytesIO(decoded_bytes)  
+    # with pdfplumber.open(decoded_bytes) as pdf:
+        # num_pages = len(pdf.pages)
 
         # TEXT_EXTRACTION_SETTINGS = {
             # "x_tolerance": 2,
@@ -2825,7 +2823,7 @@ def extract_text(genparams):
 # def getJsonFromPDFEncapsulatedPyMuPdf(decoded_bytes):
     # from tqdm.auto import tqdm
     # import fitz
-    # # import io
+    # import io
     # from concurrent.futures import ThreadPoolExecutor
     # import json
     # import re
@@ -3205,10 +3203,8 @@ def tts_prepare_voice_json(jsonstr):
             codestr = ""
             for c in codes:
                 codestr += f"<|{c}|>"
-
             # processed += f"{word}<|t_{duration:.2f}|><|code_start|>{codestr}<|code_end|>\n"
         # return {"phrase":txt.strip()+".","voice":processed.strip()}
-
             processed += f"{word}<t_{duration:.2f}><|code_start|>{codestr}<|code_end|>\n"
         return {"phrase":txt,"voice":processed}
 
