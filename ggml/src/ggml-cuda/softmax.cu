@@ -196,7 +196,7 @@ static __global__ void soft_max_back_f32(
 
 template<int... Ns, typename T>
 static void launch_soft_max_kernels(const float * x, const T * mask, float * dst,
-                             const soft_max_params & p, cap_params0, cap_params1, do_softcap, cudaStream_t stream, dim3 block_dims, dim3 block_nums, size_t nbytes_shared)
+                             const soft_max_params & p, float cap_params0, float cap_params1, bool do_softcap, cudaStream_t stream, dim3 block_dims, dim3 block_nums, size_t nbytes_shared)
 {
     const int id       = ggml_cuda_get_device();
     const size_t smpbo = ggml_cuda_info().devices[id].smpbo;
@@ -208,7 +208,7 @@ static void launch_soft_max_kernels(const float * x, const T * mask, float * dst
         if (p.ncols == ncols) {
             CUDA_SET_SHARED_MEMORY_LIMIT((soft_max_f32<true, ncols, block, T>), smpbo);
             soft_max_f32<true, ncols, block><<<block_nums, block_dims, nbytes_shared, stream>>>
-                (x, mask, dst, p);
+                (x, mask, dst, p, cap_params0, cap_params1, do_softcap);
             return true;
         }
         return false;
@@ -221,7 +221,8 @@ static void launch_soft_max_kernels(const float * x, const T * mask, float * dst
 
     //default case
     CUDA_SET_SHARED_MEMORY_LIMIT((soft_max_f32<true, 0, 0, T>), smpbo);
-    soft_max_f32<true, 0, 0><<<block_nums, block_dims, nbytes_shared, stream>>>(x, mask, dst, p);
+    soft_max_f32<true, 0, 0>
+        <<<block_nums, block_dims, nbytes_shared, stream>>>(x, mask, dst, p, cap_params0, cap_params1, do_softcap);
 }
 
 
