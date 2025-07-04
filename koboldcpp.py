@@ -2458,6 +2458,18 @@ def sd_load_model(model_filename,vae_filename,lora_filename,t5xxl_filename,clipl
     ret = handle.sd_load_model(inputs)
     return ret
 
+def sd_oai_tranform_params(genparams):
+    size = genparams.get('size', "512x512")
+    if size and size!="":
+        pattern = r'^\D*(\d+)x(\d+)$'
+        match = re.fullmatch(pattern, size)
+    if match:
+        width = int(match.group(1))
+        height = int(match.group(2))
+        genparams["width"] = width
+        genparams["height"] = height
+    return genparams
+
 def sd_comfyui_tranform_params(genparams):
     promptobj = genparams.get('prompt', None)
     if promptobj and isinstance(promptobj, dict):
@@ -5575,6 +5587,7 @@ Change Mode<br>
             api_format = 0 #1=basic,2=kai,3=oai,4=oai-chat,5=interrogate,6=ollama,7=ollamachat
             is_imggen = False
             is_comfyui_imggen = False
+            is_oai_imggen = False
             is_transcribe = False
             is_extract_text = False
             is_tts = False
@@ -5661,13 +5674,14 @@ Change Mode<br>
                 api_format = 6
             elif self.path.endswith('/api/chat'): #ollama
                 api_format = 7
-            elif self.path=="/prompt" or self.path.endswith('/sdapi/v1/txt2img') or self.path.endswith('/sdapi/v1/img2img'):
+            elif self.path=="/prompt" or self.path.endswith('/v1/images/generations') or self.path.endswith('/sdapi/v1/txt2img') or self.path.endswith('/sdapi/v1/img2img'):
                 is_imggen = True
                 if self.path=="/prompt":
                     is_comfyui_imggen = True
-            if self.path.endswith('/api/extra/extractText'):
-                is_extract_text = True
-
+                elif self.path.endswith('/v1/images/generations'):
+                    is_oai_imggen = True
+            # if self.path.endswith('/api/extra/extractText'):
+                # is_extract_text = True
             elif self.path.endswith('/api/extra/transcribe') or self.path.endswith('/v1/audio/transcriptions'):
                 is_transcribe = True
             elif self.path.endswith('/api/extra/tts') or self.path.endswith('/v1/audio/speech') or self.path.endswith('/tts_to_audio'):
@@ -5777,6 +5791,8 @@ Change Mode<br>
                         if is_comfyui_imggen:
                             lastgeneratedcomfyimg = b''
                             genparams = sd_comfyui_tranform_params(genparams)
+                        elif is_oai_imggen:
+                            genparams = sd_oai_tranform_params(genparams)
                         gen = sd_generate(genparams)
                         genresp = None
                         if is_comfyui_imggen:
@@ -5785,6 +5801,8 @@ Change Mode<br>
                             else:
                                 lastgeneratedcomfyimg = b''
                             genresp = (json.dumps({"prompt_id": "12345678-0000-0000-0000-000000000001","number": 0,"node_errors":{}}).encode())
+                        elif is_oai_imggen:
+                            genresp = (json.dumps({"created":int(time.time()),"data":[{"b64_json":gen}],"background":"opaque","output_format":"png","size":"1024x1024","quality":"medium"}).encode())
                         else:
                             genresp = (json.dumps({"images":[gen],"parameters":{},"info":""}).encode())
                         self.send_response(200)
@@ -9050,8 +9068,6 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
 
         if not args.blasthreads or args.blasthreads <= 0:
             args.blasthreads = args.threads
-        if args.flashattention and (args.usevulkan is not None) and args.gpulayers!=0:
-            print("\nWARNING: FlashAttention is strongly discouraged when using Vulkan GPU offload as it is extremely slow!\n")
 
         modelname = os.path.abspath(args.model_param)
         print(args)
