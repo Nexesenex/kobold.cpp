@@ -75,13 +75,12 @@ extra_images_max = 4
 # extra_images_max = 4
 
 # global vars
-KcppVersion = "1.95100"
-LcppVersion = "b5771"
-IKLcppVersion = "IKLpr550"
-EsoboldVersion = "RMv1.13.2m"
+KcppVersion = "1.96000"
+LcppVersion = "b5828"
+IKLcppVersion = "IKLpr567"
+EsoboldVersion = "RMv1.14.0m"
 CudaSpecifics = "Cu128_Ar86_SMC2_DmmvX32Y1"
-ReleaseDate = "2025/06/28"
-
+ReleaseDate = "2025/07/05"
 showdebug = True
 # guimode = False
 
@@ -301,6 +300,7 @@ class sd_load_model_inputs(ctypes.Structure):
                 ("vulkan_info", ctypes.c_char_p),
                 ("threads", ctypes.c_int),
                 ("quant", ctypes.c_int),
+                ("flash_attention", ctypes.c_bool),
                 ("taesd", ctypes.c_bool),
                 ("tiled_vae_threshold", ctypes.c_int),
                 ("t5xxl_filename", ctypes.c_char_p),
@@ -2443,6 +2443,7 @@ def sd_load_model(model_filename,vae_filename,lora_filename,t5xxl_filename,clipl
 
     inputs.threads = thds
     inputs.quant = quant
+    inputs.flash_attention = args.flashattention
     inputs.taesd = True if args.sdvaeauto else False
     inputs.tiled_vae_threshold = args.sdtiledvae
     inputs.vae_filename = vae_filename.encode("UTF-8")
@@ -9003,6 +9004,7 @@ def kcpp_main_process(launch_args, g_memory=None, gui_launcher=False):
         args.threads = get_default_threads()
         print(f"Auto Set Threads: {args.threads}")
 
+    print(f"System: {platform.system()} {platform.version()} {platform.machine()} {platform.processor()}")
     if MaxMemory[0]>0:
         print(f"Detected Available GPU Memory: {int(MaxMemory[0]/1024/1024)} MB")
     else:

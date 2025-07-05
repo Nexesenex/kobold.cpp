@@ -117,6 +117,10 @@ add_compile_definitions(GGML_USE_CPU)
 add_compile_definitions(GGML_USE_CPU_AARCH64)
 add_compile_definitions(NOMINMAX)
 
+if (GGML_HIP_FORCE_ROCWMMA_FATTN_GFX12)
+    add_compile_definitions(GGML_HIP_ROCWMMA_FATTN_GFX12)
+endif()
+
 if (MSVC)
     add_compile_options("$<$<COMPILE_LANGUAGE:C>:/utf-8>")
     add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:/utf-8>")

@@ -46,6 +46,9 @@
 #include <alloca.h>
 #endif
 
+#define GGML_VERSION "0.0.1"
+#define GGML_COMMIT "KCPP"
+
 #include <assert.h>
 #include <errno.h>
 #include <time.h>
